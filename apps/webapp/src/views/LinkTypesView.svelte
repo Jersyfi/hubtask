@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Link types* under *How we work* (UC-PLN-01 check 5): the six every workspace has and its own -
-  // added with their two names, direction, waiting end, limit and cycle rule; renamed, ordered,
-  // archived and, while no link uses them, deleted. What a type means is fixed once it is made, so
-  // the editor of an existing type offers its names only.
+  // *Link types* under *How we work* (UC-PLN-01 check 5) as a list page (page-system §7.1, §9.1):
+  // the six every workspace has and its own, one row each. *New link type* in the head and a row
+  // open the type's Dialog M; ordering, archiving and deleting are in the row's ⋯, deleting behind
+  // a Dialog S.
   //
   // **Each action acts at once**, as on *Types*: a link type is one small record. A type in use is
   // refused by the server on delete and can only be archived, which the refusal says.
@@ -14,29 +14,30 @@
 
   import { untrack } from 'svelte';
   import {
-    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Spinner, Stack, Switch,
+    Badge, Button, DataTable, Dialog, EmptyState, FilterBar, ListPage, Spinner,
+    type DataColumn, type DataRowMenu, type MenuItem,
   } from '@hubtask/design-system/components';
   import type { LinkType } from '@hubtask/sync-engine';
 
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import { keyFrom } from '../lib/data/entrytypes.svelte.ts';
   import { linkTypes, sideName } from '../lib/data/links.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import LinkTypeDialog from '../lib/linktypes/LinkTypeDialog.svelte';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
 
   $effect(() => page.entitle(t('app.link_types.title')));
   $effect(() => untrack(() => linkTypes.open()));
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const reading = $derived(linkTypes.state);
-  const readRefusal = $derived(
-    reading?.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
+  const readRefusal = $derived(reading?.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
   const ordered = $derived([...linkTypes.all].sort((a, b) => a.position - b.position));
   const movable = $derived(ordered.filter((each) => !each.system && !each.archived));
@@ -44,19 +45,35 @@
   const nameOf = (type: LinkType) => sideName(type, type.key, true, t);
   const inverseOf = (type: LinkType) => sideName(type, type.key, false, t);
 
-  let busy = $state<string | undefined>(undefined);
-  let refusal = $state<{ key: string; message: string } | undefined>(undefined);
+  /** What a type does, in one line: how it reads from the other end, and its rules. */
+  function behaviour(type: LinkType): string {
+    return [
+      type.direction === 'SYMMETRIC' ? t('app.link_types.symmetric') : inverseOf(type),
+      ...(type.waits === 'SOURCE' ? [t('app.link_types.waits_source')] : []),
+      ...(type.waits === 'TARGET' ? [t('app.link_types.waits_target')] : []),
+      ...(type.cardinality === 'ONE' ? [t('app.link_types.one')] : []),
+      ...(type.cycles === 'ALLOWED' ? [t('app.link_types.loops')] : []),
+    ].join(' · ');
+  }
 
-  async function act(key: string, run: () => Promise<unknown>, done?: string) {
-    refusal = undefined;
-    busy = key;
+  let search = $state('');
+  const shown = $derived(ordered.filter((type) => matchesSearch(search, [nameOf(type), inverseOf(type), type.key])));
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.link_types.column_name'), priority: 1 },
+    { id: 'reads', label: t('app.link_types.column_reads'), priority: 2 },
+    { id: 'state', label: t('app.link_types.column_state'), priority: 2, isStatus: true },
+  ]);
+
+  let failure = $state<string | undefined>(undefined);
+
+  async function act(run: () => Promise<unknown>, done?: string) {
+    failure = undefined;
     try {
       await run();
       if (done) toast.show({ text: done, tone: 'success' });
     } catch (error) {
-      refusal = { key, message: renderProblem(error as never, messages).message };
-    } finally {
-      busy = undefined;
+      failure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -65,7 +82,7 @@
     const at = movable.findIndex((each) => each.key === type.key);
     const other = movable[at + by];
     if (!other) return;
-    void act(type.key, async () => {
+    void act(async () => {
       await linkTypes.change(type, { position: other.position });
       await linkTypes.change(other, { position: type.position });
     });
@@ -73,303 +90,129 @@
 
   function archive(type: LinkType, archived: boolean) {
     const code = archived ? 'app.link_types.archived_done' : 'app.link_types.unarchived_done';
-    void act(type.key, () => linkTypes.change(type, { archived }), t(code, { name: nameOf(type) }));
+    void act(() => linkTypes.change(type, { archived }), t(code, { name: nameOf(type) }));
   }
 
-  // --- The editor ------------------------------------------------------------------------------
-
-  interface Draft {
-    name: string;
-    inverseName: string;
-    key: string;
-    isKeyTouched: boolean;
-    // Strings, as a select list binds them; narrowed when the type is sent.
-    direction: string;
-    waits: string;
-    isOne: boolean;
-    areLoopsAllowed: boolean;
-  }
-
-  let editing = $state<LinkType | undefined>(undefined);
-  let draft = $state<Draft | undefined>(undefined);
-  let isEditorOpen = $state(false);
-  let isSaving = $state(false);
-  let editorRefusal = $state<string | undefined>(undefined);
-
-  function startNew() {
-    editing = undefined;
-    draft = {
-      name: '', inverseName: '', key: '', isKeyTouched: false, direction: 'DIRECTED', waits: 'NONE',
-      isOne: false, areLoopsAllowed: true,
-    };
-    editorRefusal = undefined;
-    isEditorOpen = true;
-  }
-
-  function startEdit(type: LinkType) {
-    editing = type;
-    draft = {
-      name: type.name ?? '', inverseName: type.inverse_name ?? '', key: type.key, isKeyTouched: true,
-      direction: type.direction, waits: type.waits, isOne: type.cardinality === 'ONE',
-      areLoopsAllowed: type.cycles === 'ALLOWED',
-    };
-    editorRefusal = undefined;
-    isEditorOpen = true;
-  }
-
-  function rename(value: string) {
-    if (!draft) return;
-    draft.name = value;
-    if (!editing && !draft.isKeyTouched) draft.key = keyFrom(value);
-  }
-
-  // A symmetric type has no waiting end and no limit; a waiting type forbids loops. The draft
-  // follows, so the dialog never offers a combination the server refuses.
-  const isSymmetric = $derived(draft?.direction === 'SYMMETRIC');
-  const isWaiting = $derived(draft !== undefined && draft.waits !== 'NONE');
-
-  async function save() {
-    if (!draft) return;
-    const d = draft;
-    isSaving = true;
-    editorRefusal = undefined;
-    try {
-      if (editing) {
-        const before = editing;
-        const change = {
-          ...(d.name.trim() !== (before.name ?? '') ? { name: d.name.trim() } : {}),
-          ...(!isSymmetric && d.inverseName.trim() !== (before.inverse_name ?? '') ? { inverse_name: d.inverseName.trim() } : {}),
-        };
-        if (Object.keys(change).length > 0) await linkTypes.change(before, change);
-      } else {
-        const position = Math.max(-1, ...linkTypes.all.map((each) => each.position)) + 1;
-        await linkTypes.create({
-          key: d.key,
-          name: d.name.trim(),
-          ...(isSymmetric ? {} : { inverse_name: d.inverseName.trim() }),
-          direction: d.direction as LinkType['direction'],
-          waits: isSymmetric ? 'NONE' : (d.waits as LinkType['waits']),
-          cardinality: !isSymmetric && d.isOne ? 'ONE' : 'MANY',
-          cycles: isWaiting || !d.areLoopsAllowed ? 'FORBIDDEN' : 'ALLOWED',
-          position,
-        });
-      }
-      isEditorOpen = false;
-      toast.show({ text: t('app.link_types.saved', { name: d.name.trim() || (editing ? nameOf(editing) : d.key) }), tone: 'success' });
-    } catch (error) {
-      editorRefusal = renderProblem(error as never, messages).message;
-    } finally {
-      isSaving = false;
-    }
-  }
-
-  const directionOptions = $derived([
-    { value: 'DIRECTED', label: t('app.link_types.direction_directed') },
-    { value: 'SYMMETRIC', label: t('app.link_types.direction_symmetric') },
-  ]);
-  const waitsOptions = $derived([
-    { value: 'NONE', label: t('app.link_types.waits_none') },
-    { value: 'SOURCE', label: t('app.link_types.waits_source_option') },
-    { value: 'TARGET', label: t('app.link_types.waits_target_option') },
-  ]);
-
-  // --- Deleting asks first ----------------------------------------------------------------------
-
+  let editing = $state<LinkType | 'new' | undefined>(undefined);
   let deleting = $state<LinkType | undefined>(undefined);
-  let isDeleteOpen = $state(false);
+
+  function rowMenu(type: LinkType): DataRowMenu | undefined {
+    if (!mayShape || type.system) return undefined;
+    const index = movable.findIndex((each) => each.key === type.key);
+    const items: MenuItem[] = [
+      { id: 'edit', label: t('app.link_types.edit_menu') },
+      ...(index >= 0
+        ? [
+            { id: 'up', label: t('app.link_types.move_up_menu'), disabledReason: index === 0 ? t('app.link_types.first') : undefined, hasSeparatorBefore: true },
+            { id: 'down', label: t('app.link_types.move_down_menu'), disabledReason: index === movable.length - 1 ? t('app.link_types.last') : undefined },
+          ]
+        : []),
+      { id: 'archive', label: type.archived ? t('app.link_types.unarchive') : t('app.link_types.archive'), hasSeparatorBefore: index < 0 },
+      { id: 'delete', label: t('app.link_types.delete_menu'), isDestructive: true, hasSeparatorBefore: true },
+    ];
+    return { label: t('app.page.more_for', { name: nameOf(type) }), items };
+  }
+
+  function onRowMenu(type: LinkType, id: string) {
+    if (id === 'edit') editing = type;
+    else if (id === 'up') move(type, -1);
+    else if (id === 'down') move(type, 1);
+    else if (id === 'archive') archive(type, !type.archived);
+    else if (id === 'delete') deleting = type;
+  }
 
   function confirmDelete() {
     const type = deleting;
-    isDeleteOpen = false;
     deleting = undefined;
-    if (type) void act(type.key, () => linkTypes.remove(type), t('app.link_types.deleted', { name: nameOf(type) }));
+    if (type) void act(() => linkTypes.remove(type), t('app.link_types.deleted', { name: nameOf(type) }));
   }
+
+  let isFileOpen = $state(false);
+  const fileAction = $derived(viewAsFileAction(() => (isFileOpen = true)));
+  const head = $derived({
+    title: t('app.link_types.title'),
+    breadcrumb: adminTrail({ id: 'link-types', label: t('app.link_types.title') }),
+    primary: mayShape && !readRefusal ? { label: t('app.link_types.new'), icon: 'plus' as const, opener: 'new-link-type', onclick: () => (editing = 'new') } : undefined,
+    secondary: fileAction ? ([fileAction] as const) : ([] as const),
+  });
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.link_types.title')}
-    isTitleInBar={viewport.isCompact}
-    primary={mayShape && !readRefusal ? { label: t('app.link_types.new'), icon: 'plus', onclick: startNew } : undefined}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'link-types', label: t('app.link_types.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
+<ListPage {head}>
+  {#snippet intro()}<p class="quiet">{t('app.link_types.intro')}</p>{/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.link_types.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      countLabel={reading?.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(ordered.length) }) : undefined}
+    />
+  {/snippet}
 
-  <p class="quiet">{t('app.link_types.intro')}</p>
-  <div class="file"><ViewSectionsAsFile sections={['link_types']} /></div>
+  {#if failure}<FailureNote problem={failure} />{/if}
 
   {#if !reading || reading.status === 'loading' || reading.status === 'idle'}
-    <p class="waiting">
-      <Spinner label={t('app.link_types.reading')} />
-      <span>{t('app.link_types.reading')}</span>
-    </p>
+    <p class="quiet"><Spinner label={t('app.link_types.reading')} /> <span>{t('app.link_types.reading')}</span></p>
   {:else if readRefusal}
     <FailureNote problem={readRefusal} />
   {:else}
-    <section class="panel">
-      <Stack gap="200">
-        <ul class="types">
-          {#each ordered as type (type.key)}
-            {@const index = movable.findIndex((each) => each.key === type.key)}
-            <li class="type" class:archived={type.archived} data-link-type={type.key}>
-              <div class="identity">
-                <span class="name">{nameOf(type)}</span>
-                {#if type.direction === 'DIRECTED'}<span class="inverse">/ {inverseOf(type)}</span>{/if}
-                {#if type.system}<span class="note">{t('app.link_types.system')}</span>{/if}
-                {#if type.direction === 'SYMMETRIC'}<span class="note">{t('app.link_types.symmetric')}</span>{/if}
-                {#if type.waits === 'SOURCE'}<span class="note">{t('app.link_types.waits_source')}</span>{/if}
-                {#if type.waits === 'TARGET'}<span class="note">{t('app.link_types.waits_target')}</span>{/if}
-                {#if type.cardinality === 'ONE'}<span class="note">{t('app.link_types.one')}</span>{/if}
-                {#if type.cycles === 'ALLOWED'}<span class="note">{t('app.link_types.loops')}</span>{/if}
-                {#if type.archived}<span class="note">{t('app.link_types.archived')}</span>{/if}
-              </div>
-              {#if mayShape && !type.system}
-                <Inline gap="100" align="center">
-                  {#if index >= 0}
-                    <IconButton
-                      icon="chevron-up" size="sm" tone="subtle" label={t('app.link_types.move_up', { name: nameOf(type) })}
-                      disabledReason={index === 0 ? t('app.link_types.first') : undefined}
-                      isBusy={busy === type.key} onclick={() => move(type, -1)}
-                    />
-                    <IconButton
-                      icon="chevron-down" size="sm" tone="subtle" label={t('app.link_types.move_down', { name: nameOf(type) })}
-                      disabledReason={index === movable.length - 1 ? t('app.link_types.last') : undefined}
-                      isBusy={busy === type.key} onclick={() => move(type, 1)}
-                    />
-                  {/if}
-                  <Button tone="subtle" size="sm" data-edit={type.key} onclick={() => startEdit(type)}>{t('app.link_types.edit')}</Button>
-                  <Button tone="subtle" size="sm" data-archive={type.key} onclick={() => archive(type, !type.archived)}>
-                    {type.archived ? t('app.link_types.unarchive') : t('app.link_types.archive')}
-                  </Button>
-                  <IconButton
-                    icon="trash" size="sm" tone="subtle" label={t('app.link_types.delete', { name: nameOf(type) })}
-                    data-delete={type.key}
-                    onclick={() => { deleting = type; isDeleteOpen = true; }}
-                  />
-                </Inline>
-              {/if}
-              {#if refusal?.key === type.key}<p class="refusal" role="alert">{refusal.message}</p>{/if}
-            </li>
-          {/each}
-        </ul>
-      </Stack>
-    </section>
-  {/if}
-</Stack>
-
-{#if draft}
-  <Dialog
-    bind:isOpen={isEditorOpen}
-    title={editing ? t('app.link_types.edit_title', { name: nameOf(editing) }) : t('app.link_types.new_title')}
-    dismissLabel={t('app.link_types.cancel')}
-    onClose={() => { draft = undefined; editing = undefined; }}
-  >
-    <Stack gap="200">
-      {#if !editing}
-        <Select label={t('app.link_types.direction')} options={directionOptions} bind:value={draft.direction} />
-      {/if}
-      <Input
-        label={t('app.link_types.name')}
-        value={draft.name}
-        isRequired
-        oninput={(event) => rename((event.currentTarget as HTMLInputElement).value)}
-      />
-      {#if !isSymmetric}
-        <Input label={t('app.link_types.inverse_name')} bind:value={draft.inverseName} isRequired />
-      {/if}
-      {#if !editing}
-        <Input
-          label={t('app.link_types.key')}
-          hint={t('app.link_types.key_hint')}
-          value={draft.key}
-          isRequired
-          oninput={(event) => { if (draft) { draft.key = (event.currentTarget as HTMLInputElement).value; draft.isKeyTouched = true; } }}
-        />
-        {#if !isSymmetric}
-          <Select label={t('app.link_types.waits')} options={waitsOptions} bind:value={draft.waits} />
-          <Switch label={t('app.link_types.one_label')} bind:checked={draft.isOne} />
+    <DataTable
+      label={t('app.link_types.title')}
+      {columns}
+      rows={shown}
+      key={(type: LinkType) => type.key}
+      onopen={mayShape ? (type: LinkType) => (editing = type) : undefined}
+      rowLabel={nameOf}
+      menu={rowMenu}
+      onmenu={onRowMenu}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={ordered.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(type: LinkType, column: DataColumn)}
+        {#if column.id === 'name'}
+          <span class="name" class:archived={type.archived} data-link-type={type.key}>{nameOf(type)}</span>
+        {:else if column.id === 'reads'}
+          <span class="quiet">{behaviour(type)}</span>
+        {:else if type.archived}
+          <Badge tone="neutral">{t('app.link_types.archived')}</Badge>
+        {:else if type.system}
+          <span class="quiet">{t('app.link_types.system')}</span>
         {/if}
-        <Switch
-          label={t('app.link_types.loops_label')}
-          checked={!isWaiting && draft.areLoopsAllowed}
-          onchange={(event: Event) => { if (draft) draft.areLoopsAllowed = (event.currentTarget as HTMLInputElement).checked; }}
-          disabledReason={isWaiting ? t('app.link_types.loops_waiting') : undefined}
-        />
-        <p class="quiet">{t('app.link_types.fixed_note')}</p>
-      {/if}
-      {#if editorRefusal}<p class="refusal" role="alert">{editorRefusal}</p>{/if}
-    </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isEditorOpen = false)}>{t('app.link_types.cancel')}</Button>
-      <Button tone="primary" data-save-link-type isBusy={isSaving} onclick={save}>{t('app.link_types.save')}</Button>
-    {/snippet}
-  </Dialog>
-{/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if ordered.length === 0}
+          <EmptyState kind="unused" title={t('app.link_types.none')} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.link_types.filtered_title')}>
+            {#snippet action()}<Button onclick={() => (search = '')}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
+  {/if}
+</ListPage>
 
-{#if deleting}
-  <Dialog
-    bind:isOpen={isDeleteOpen}
-    title={t('app.link_types.delete_title', { name: nameOf(deleting) })}
-    dismissLabel={t('app.link_types.cancel')}
-    onClose={() => (deleting = undefined)}
-  >
-    <p class="quiet">{t('app.link_types.delete_explain')}</p>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isDeleteOpen = false)}>{t('app.link_types.cancel')}</Button>
-      <Button tone="danger" data-confirm-delete onclick={confirmDelete}>{t('app.link_types.delete_confirm')}</Button>
-    {/snippet}
-  </Dialog>
-{/if}
+<LinkTypeDialog subject={editing} onClose={() => (editing = undefined)} />
+
+<Dialog
+  size="s"
+  isOpen={deleting !== undefined}
+  title={t('app.link_types.delete_title', { name: deleting ? nameOf(deleting) : '' })}
+  dismissLabel={t('app.link_types.cancel')}
+  onClose={() => (deleting = undefined)}
+  primary={{ label: t('app.link_types.delete_confirm'), tone: 'danger', onclick: confirmDelete }}
+>
+  <p class="quiet">{t('app.link_types.delete_explain')}</p>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (deleting = undefined)}>{t('app.link_types.cancel')}</Button>
+  {/snippet}
+</Dialog>
+
+<ViewSectionsAsFile sections={['link_types']} bind:isOpen={isFileOpen} isTriggerHidden />
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .waiting {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    color: var(--text-secondary);
-  }
-
-  .panel {
-    padding: var(--sp-250);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
-
-  .types {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    gap: var(--sp-100);
-  }
-
-  .type {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-100);
-    padding-block: var(--sp-100);
-    border-block-start: var(--bw-hairline) solid var(--border-subtle);
-  }
-
-  .type:first-child { border-block-start: none; }
-  .type.archived .identity { color: var(--text-subtle); }
-
-  .identity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
-  .name { font-weight: var(--fw-medium); }
-  .inverse { color: var(--text-secondary); }
-  .note { color: var(--text-subtle); font-size: var(--fs-075); }
-  .refusal { margin: 0; flex-basis: 100%; color: var(--text-danger); }
-  .file { display: flex; justify-content: flex-end; }
+  .name { color: var(--text-primary); font-weight: var(--fw-medium); }
+  .name.archived { color: var(--text-subtle); }
 </style>

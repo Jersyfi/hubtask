@@ -94,7 +94,6 @@ const NOT_YET_MIGRATED = [
   'views/InstanceProvidersView.svelte',
   'views/InstanceTargetsView.svelte',
   'views/InstanceWorkspacesView.svelte',
-  'views/LinkTypesView.svelte',
   'views/PagesView.svelte',
   'views/PlanView.svelte',
   'views/PortfolioView.svelte',
