@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-10, P-12, P-13, P-17]
 state: partial
 tasks: []
-checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs]
+checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts]
 ---
 
 # Find my way in every hub and every product
@@ -85,16 +85,16 @@ three lists, nothing else.
 
 * Check 1: met — `kompass.test.mjs` (the workspace level from the top; no *Starred* before a star, no *Administration* without the right); the order of the rows `navigation.test.ts` (`forYou`, `foot`). *Recent* is the device's last five places (`recents.ts` `MAX`), not twenty.
 * Check 2: met — `kompass.test.mjs` (a hub, a collection, a tool; focus on *‹ All hubs*); `navigation.test.ts` (`levelOf` for every route of a hub). A page, a board and an entry show their hub's level once their screen has named it (`page.locate`). The hub's ⋯ is the page menu's (`placeMenu`).
-* Check 3: met — `navigation.test.ts` (`hubTools`: the fixed order, each module, *Queues* only with a desk) and `kompass.test.mjs` (the hub's screen holds no tool as a tab). The tools open the screens that held their role until step 5 builds their pages.
-* Check 4: met — `kompass.test.mjs` (a starred queue first, the breaching count on the danger surface with its words as the figure's label); `navigation.test.ts` (`queueRows`). A queue opens the hub's desk with `?queue=` until step 5's queue page.
+* Check 3: met — `navigation.test.ts` (`hubTools`: the fixed order, each module, *Queues* only with a desk) and `kompass.test.mjs` (the hub's screen holds no tool as a tab).
+* Check 4: met — `kompass.test.mjs` (a starred queue first, the breaching count on the danger surface with its words as the figure's label); `navigation.test.ts` (`queueRows`).
 * Check 5: met — `kompass.test.mjs` (one tree, the template left out, a board without a twist; the mode written to `nav_contents_mode`); `navigation.test.ts` (`contentsTree`: the shared key, keyless boards A–Z, the modes). The filter from 30 is `NavGroup`'s (`packages/design-system/test/navtree.test.js`).
 * Check 6: met — `kompass.test.mjs` (the desk mark, the sprint mark, the figures); *n more* from 15 and the filter from 20 are `NavGroup`'s bounds, set from `sidebar.ts`.
 * Check 7: met — `kompass.test.mjs` (Plan to Plan; a hub without the tool opens its overview; the search); `navigation.test.ts` (`switchPath`).
 * Check 8: met — `kompass.test.mjs` (the kept width, a double-click to 264, the drag bounded at 400, `Ctrl+[`, the peek opening and closing).
-* Check 9: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 10: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 9: met in part — `kompassscreens.test.mjs` (Plan's, Goals' and Inventory's one bar, *Manage* a menu; a collection's bar, its former *Plan* its *Timeline*), `placeViews.test.ts`; the product homes' bars keep their present tabs (check 11).
+* Check 10: met in part — `kompassscreens.test.mjs` (no tab, the tools' lines, the collection cards); the cards draw no progress bar (no read answers it) and *Recently changed* is `HubActivity`'s, not walked.
 * Check 11: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 12: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 12: met — `routes.test.ts` (every former address and where it goes) and `kompassscreens.test.mjs` (each address walked, the desk's to the first queue, the pages' to the home page).
 * Check 13: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 14: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 15: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).

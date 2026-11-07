@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-person, PE-admin, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-19]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/CommentDoors_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/service/knowledge/Copy_test.go, core/domain/model/knowledge/Label_test.go, core/application/service/knowledge/Labels_test.go, packages/editor/test/blocks.test.ts, packages/editor/test/markdown.test.ts, core/domain/model/knowledge/Render_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/CommentDoors_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/service/knowledge/Copy_test.go, core/domain/model/knowledge/Label_test.go, core/application/service/knowledge/Labels_test.go, packages/editor/test/blocks.test.ts, packages/editor/test/markdown.test.ts, core/domain/model/knowledge/Render_test.go, apps/webapp/e2e/kompassscreens.test.mjs]
 ---
 
 # Write a page in a hub and find it again
@@ -44,7 +44,3 @@ The web team writes "How we release" in its hub and puts "Checklist" and "Rollba
 * No public website here; answering a requester from the knowledge base is UC-DOC-13.
 * Bringing pages in from another wiki is UC-IMP-05.
 * A page's labels are read online: the offline copy holds pages, not their labels, and a copied page starts without labels.
-
-## Today
-
-* Check 6: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
