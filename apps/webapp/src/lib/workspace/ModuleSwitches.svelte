@@ -15,7 +15,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, IconButton, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Button, Dialog, IconButton, Inline, SettingRow, Spinner, Switch } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
@@ -38,9 +38,13 @@
     hubId?: string;
     /** Where a hub made from a *Start with…* template is opened. */
     onnavigate?: (path: string) => void;
+    /** The workspace's *View as file*, opened from the page's head. */
+    isFileOpen?: boolean;
+    /** Whether the head draws *View as file*, so the list draws no trigger of its own. */
+    isTriggerHidden?: boolean;
   }
 
-  const { hubId, onnavigate }: Props = $props();
+  let { hubId, onnavigate, isFileOpen = $bindable(false), isTriggerHidden = false }: Props = $props();
   const place = $derived(hubId ? 'HUB' : 'WORKSPACE');
 
   let reading = $state<ResourceState<ModuleList>>({ status: 'idle' });
@@ -153,7 +157,7 @@
   }
 </script>
 
-<Stack gap="300">
+<div class="switches">
   {#if reading.status === 'loading' || reading.status === 'idle'}
     <p class="waiting">
       <Spinner label={t('app.modules.reading')} />
@@ -162,80 +166,88 @@
   {:else if readRefusal}
     <FailureNote problem={readRefusal} />
   {:else}
-    <ul class="modules">
+    <!-- One setting row per module (page-system §9.1): at the workspace the page's section is the
+         region; at a hub, among the hub's other settings, the rows draw their own. -->
+    <div class="modules" class:region={hubId !== undefined}>
       {#each all as state (state.module)}
         {@const codes = moduleCodes(state)}
         {@const reason = unavailableBecause(state, place)}
-        <li class="panel" data-module={state.module} data-setting={`module.${state.module.toLowerCase()}`}>
-          <Stack gap="150">
-            <Switch
-              label={t(codes.name)}
-              hint={t(codes.hint)}
-              bind:checked={() => drawn[state.module] ?? state.on, (value) => (drawn[state.module] = value)}
-              onchange={(event) => change(state, event)}
-              isBusy={busy === state.module}
-              busyLabel={t('app.workspace.saving')}
-              disabledReason={reason ? t(reason) : undefined}
-            />
-            <Inline gap="150" align="center">
+        <!-- The product's settings beside its switch, at the workspace and while it is on (§8.2). -->
+        {@const settings = place === 'WORKSPACE' && state.on ? settingsOf(state.module, (permission) => holdsHere(permission) === true) : undefined}
+        <div class="module" data-module={state.module} data-setting={`module.${state.module.toLowerCase()}`}>
+          <SettingRow label={t(codes.name)} help={t(codes.hint)} fieldWidth="md">
+            {#snippet source()}
               <ValueSource
                 source={state.source}
                 lock={state.locked_by}
                 atHub={place === 'HUB'}
                 value={state.on ? t('app.signin_settings.on') : t('app.signin_settings.off')}
               />
-              {#if isSetHere(state, place)}
-                <Button tone="subtle" size="sm" data-reset={state.module} onclick={() => send(state, 'INHERIT')}>
-                  {t('app.modules.reset')}
-                </Button>
-              {/if}
-              <!-- The product's settings beside its switch, at the workspace and while it is on (§8.2). -->
-              {@const settings = place === 'WORKSPACE' && state.on ? settingsOf(state.module, (permission) => holdsHere(permission) === true) : undefined}
-              {#if settings}<a class="act" href={settings} data-module-settings={state.module}>{t('app.modules.settings_of', { module: t(codes.name) })}</a>{/if}
-            </Inline>
-            {#if refusal?.module === state.module}<p class="refusal" role="alert">{refusal.message}</p>{/if}
-            {#if justOn === state.module && state.on}
-              {@const next = switchedOn(state.module, hubId)}
-              {@const starts = mayStart ? startsOf(state.module, catalogue, hubId) : []}
-              <!-- The same card for every module: where it is now, and what it still needs. -->
-              <section class="card" aria-label={t('app.modules.on_card', { module: t(codes.name) })} data-switched-on={state.module}>
-                <Inline justify="between" align="center">
-                  <p class="card-title">{t('app.modules.on_card', { module: t(codes.name) })}</p>
-                  <IconButton icon="x" size="sm" label={t('app.modules.on_card_close')} onclick={() => (justOn = undefined)} />
-                </Inline>
-                <Inline gap="150" align="center" isWrapping>
-                  {#if next.find}<a class="act" href={next.find.href}>{t('app.modules.on_find', { place: t(next.find.code) })}</a>{/if}
-                  {#if next.setup}<a class="act" href={next.setup.href}>{t(next.setup.code)}</a>{/if}
-                </Inline>
-                {#if starts.length > 0}
-                  <Inline gap="150" align="center" isWrapping data-start-with>
-                    <span class="quiet">{t('app.modules.on_start_with')}</span>
-                    {#each starts as start (start.template.key)}
-                      {#if start.href}
-                        <a class="act" href={start.href} data-start-template={start.template.key}>{templateName(start.template)}</a>
-                      {:else}
-                        <Button tone="secondary" size="sm" data-start-template={start.template.key}
-                          onclick={() => { startingFrom = start.template.key; isCreatingHub = true; }}>{templateName(start.template)}</Button>
-                      {/if}
-                    {/each}
-                  </Inline>
+            {/snippet}
+            {#snippet control(nameId)}
+              <span class="acts">
+                <Switch
+                  label={t(codes.name)}
+                  isLabelHidden
+                  aria-labelledby={nameId}
+                  bind:checked={() => drawn[state.module] ?? state.on, (value) => (drawn[state.module] = value)}
+                  onchange={(event) => change(state, event)}
+                  isBusy={busy === state.module}
+                  busyLabel={t('app.workspace.saving')}
+                  disabledReason={reason ? t(reason) : undefined}
+                />
+                {#if settings}<a class="act" href={settings} data-module-settings={state.module}>{t('app.modules.settings_of', { module: t(codes.name) })}</a>{/if}
+                {#if isSetHere(state, place)}
+                  <Button tone="subtle" size="sm" data-reset={state.module} onclick={() => send(state, 'INHERIT')}>
+                    {t('app.modules.reset')}
+                  </Button>
                 {/if}
-              </section>
-            {/if}
-          </Stack>
-        </li>
+              </span>
+            {/snippet}
+          </SettingRow>
+          {#if refusal?.module === state.module}<p class="refusal" role="alert">{refusal.message}</p>{/if}
+          {#if justOn === state.module && state.on}
+            {@const next = switchedOn(state.module, hubId)}
+            {@const starts = mayStart ? startsOf(state.module, catalogue, hubId) : []}
+            <!-- The same note for every module: where it is now, and what it still needs. A tinted
+                 band of the row, not a card inside the region (page-system §4.2). -->
+            <section class="card" aria-label={t('app.modules.on_card', { module: t(codes.name) })} data-switched-on={state.module}>
+              <Inline justify="between" align="center">
+                <p class="card-title">{t('app.modules.on_card', { module: t(codes.name) })}</p>
+                <IconButton icon="x" size="sm" label={t('app.modules.on_card_close')} onclick={() => (justOn = undefined)} />
+              </Inline>
+              <Inline gap="150" align="center" isWrapping>
+                {#if next.find}<a class="act" href={next.find.href}>{t('app.modules.on_find', { place: t(next.find.code) })}</a>{/if}
+                {#if next.setup}<a class="act" href={next.setup.href}>{t(next.setup.code)}</a>{/if}
+              </Inline>
+              {#if starts.length > 0}
+                <Inline gap="150" align="center" isWrapping data-start-with>
+                  <span class="quiet">{t('app.modules.on_start_with')}</span>
+                  {#each starts as start (start.template.key)}
+                    {#if start.href}
+                      <a class="act" href={start.href} data-start-template={start.template.key}>{templateName(start.template)}</a>
+                    {:else}
+                      <Button tone="secondary" size="sm" data-start-template={start.template.key}
+                        onclick={() => { startingFrom = start.template.key; isCreatingHub = true; }}>{templateName(start.template)}</Button>
+                    {/if}
+                  {/each}
+                </Inline>
+              {/if}
+            </section>
+          {/if}
+        </div>
       {/each}
-    </ul>
-    <Inline gap="150" align="center">
-      {#if hubId}
+    </div>
+    {#if hubId}
+      <Inline gap="150" align="center">
         <ViewSectionsAsFile sections={['modules', 'structure', 'scheme', 'business_calendars']} {hubId} />
-      {:else}
-        <ViewAsFile values={shown} {place} />
-      {/if}
-    </Inline>
-    {#if hubId}<SectionFindings sections={['scheme', 'tolerance']} {hubId} />{/if}
+      </Inline>
+      <SectionFindings sections={['scheme', 'tolerance']} {hubId} />
+    {:else}
+      <ViewAsFile values={shown} {place} bind:isOpen={isFileOpen} {isTriggerHidden} />
+    {/if}
   {/if}
-</Stack>
+</div>
 
 {#if isCreatingHub}
   <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={created} />
@@ -243,21 +255,24 @@
 
 {#if confirming}
   <Dialog
+    size="s"
     bind:isOpen={isConfirming}
     title={t('app.modules.off_title', { module: t(moduleCodes(confirming).name) })}
     dismissLabel={t('app.modules.off_cancel')}
     onClose={() => (confirming = undefined)}
+    primary={{ label: t('app.modules.off_confirm'), tone: 'danger', onclick: confirmOff }}
   >
     <p class="quiet">{t('app.modules.off_explain')}</p>
     {#each reachLines as line (line.code)}<p class="quiet" data-off-reach>{t(line.code, line.params)}</p>{/each}
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
-      <Button tone="danger" data-confirm-off onclick={confirmOff}>{t('app.modules.off_confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 <style>
+  .switches { display: flex; flex-direction: column; gap: var(--sp-200); min-width: 0; }
+
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .waiting {
@@ -268,28 +283,25 @@
     color: var(--text-secondary);
   }
 
-  .modules {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    gap: var(--sp-200);
-  }
-
-  .panel {
-    padding: var(--sp-250);
+  .region {
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    overflow: clip;
   }
 
-  .refusal { margin: 0; color: var(--text-danger); }
+  /* The hairline between two modules; each row is wrapped with its note, so the design system's
+     own rule between sibling rows does not see them. */
+  .module + .module { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+
+  .acts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
+
+  .refusal { margin: 0; padding: 0 var(--sp-250) var(--sp-150); color: var(--text-danger); }
 
   .card {
     display: grid;
     gap: var(--sp-100);
-    padding: var(--sp-150) var(--sp-200);
-    border-radius: var(--r-md);
+    padding: var(--sp-150) var(--sp-250);
     background: var(--accent-primary-subtle);
   }
   .card-title { margin: 0; font-weight: var(--fw-medium); }

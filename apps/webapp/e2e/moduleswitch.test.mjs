@@ -55,7 +55,7 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
     const control = row.getByRole('switch');
     await control.waitFor({ timeout: 10_000 });
     assert.equal(await control.isChecked(), false, `${module} starts off`);
-    await row.locator('label').first().click();
+    await row.getByRole('switch').click();
     await row.locator(`[data-reset="${module}"]`).waitFor({ timeout: 5_000 });
     assert.equal(await control.isChecked(), true, `${module} is drawn off after its write switched it on`);
     // The card under the switch says where the product is now (user-experience.md §2.8), one at a time.
@@ -86,7 +86,7 @@ test('chromium: a module switched on starts with the templates that need it', as
   await page.goto(`${served.origin}/administration/modules`);
   const row = page.locator('[data-module="SERVICE_DESK"]');
   await row.getByRole('switch').waitFor({ timeout: 10_000 });
-  await row.locator('label').first().click();
+  await row.getByRole('switch').click();
   const card = page.locator('[data-switched-on="SERVICE_DESK"]');
   const start = card.locator('[data-start-with]');
   await start.getByRole('button', { name: 'ITIL service desk', exact: true }).waitFor({ timeout: 5_000 });
