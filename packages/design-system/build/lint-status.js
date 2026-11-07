@@ -38,6 +38,16 @@ export const NON_STATE_ATTRIBUTES = [
   ['ParameterTable.svelte', 'data-required'], // a required parameter: a property of the parameter
 ];
 
+/**
+ * A status border declared on a neutral surface: [file name, token, surface, why]. It is a pair, not
+ * a status - the words beside it say what it is - and `test/contrast.test.js` measures each one
+ * against its surface at the control-boundary floor in both modes, so it is never colour alone and
+ * never unmeasured.
+ */
+export const DECLARED_PAIRS = [
+  ['DangerZone.svelte', 'status.danger.border', 'bg.surface', 'the danger zone frames destructive acts whose titles and buttons say they destroy'],
+];
+
 const STATUS_TOKEN = /var\(--status-(info|success|warning|danger|neutral)-(surface|border|text|accent)\)/g;
 const TEXT_TOKEN = /var\(--text-(danger|success|warning)\)/g;
 const LOCAL = /var\((--[\w-]+)\)/g;
@@ -163,6 +173,9 @@ export function findViolations(file, source) {
     }
   }
 
+  const declared = (tone, property) =>
+    property.startsWith('border') && DECLARED_PAIRS.some(([f, token]) => f === name && token === `status.${tone}.border`);
+
   const nonState = NON_STATE_ATTRIBUTES.filter(([f]) => f === '*' || f === name).map(([, a]) => a);
   const stateAttribute = (selector) =>
     [...selector.matchAll(/\[\s*([\w-]+)/g)].map((m) => m[1]).find((a) => !nonState.includes(a));
@@ -173,7 +186,7 @@ export function findViolations(file, source) {
       const { status, text: words } = reach(value, locals);
       for (const selector of rule.selectors) {
         for (const { tone } of status) {
-          const covered = prefixes(selector).some((s) => surfaces.get(s)?.has(tone));
+          const covered = prefixes(selector).some((s) => surfaces.get(s)?.has(tone)) || declared(tone, property);
           if (!covered) {
             found.push({ file, line: rule.line, what: `${selector} paints with status.${tone}.* (${property}) without the ${tone} surface under it` });
           }
@@ -234,6 +247,7 @@ export function selftest() {
     ['a status token in a style directive', style('', '<span style:color={"var(--status-danger-text)"}></span>')],
     ['a status token from the tokens module in a style directive', style('', '<span style:color={tokens.status.danger.text}></span>')],
     ['a status inside a media query', style("@media (min-width: 1px) { .a { color: var(--status-info-text); } }")],
+    ['a declared border in a file that did not declare it', style(".a { border-color: var(--status-danger-border); }")],
     ['one selector of a list without its surface', style(".a { background: var(--status-info-surface); }\n.a, .b { color: var(--status-info-text); }")],
   ];
   const clean = [

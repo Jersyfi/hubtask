@@ -43,11 +43,11 @@
 <style>
   .danger-zone { display: flex; flex-direction: column; gap: var(--sp-250); min-width: 0; }
 
-  /* A firmer hairline than a region's, not the danger border: a status colour stands only on its
-     surface (rule 3, build/lint-status.js), and the danger here is said by the words and the
-     danger buttons. */
+  /* The danger border frames the region; the words and the danger buttons say what it is, so the
+     colour never stands alone. A pair declared in build/lint-status.js and measured by the
+     contrast test. */
   .region {
-    border: var(--bw-hairline) solid var(--border-default);
+    border: var(--bw-hairline) solid var(--status-danger-border);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
   }

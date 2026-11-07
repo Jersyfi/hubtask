@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { lint, selftest } from '../build/lint-status.js';
+import { DECLARED_PAIRS, findViolations, lint, selftest } from '../build/lint-status.js';
 
 const sourceDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 
@@ -20,4 +20,13 @@ test('the status gate catches every planted shape before it is trusted', () => {
 test('no component tells a status by colour alone', () => {
   const found = lint(sourceDir).map((v) => `${path.relative(sourceDir, v.file)}:${v.line} ${v.what}`);
   assert.deepEqual(found, []);
+});
+
+test('a declared pair is a border in its own file and nothing else', () => {
+  const css = (rule) => `<div></div>\n<style>\n${rule}\n</style>\n`;
+  for (const [file, token] of DECLARED_PAIRS) {
+    const variable = `var(--${token.replaceAll('.', '-')})`;
+    assert.deepEqual(findViolations(file, css(`.a { border: 1px solid ${variable}; }`)), [], `${file} may draw ${token} as a border`);
+    assert.notDeepEqual(findViolations(file, css(`.a { color: ${variable}; }`)), [], `${file} may not colour text with ${token}`);
+  }
 });
