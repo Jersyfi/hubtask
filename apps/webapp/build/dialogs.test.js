@@ -126,6 +126,12 @@ const NOT_YET_MIGRATED = [
 /** The confirmation the ladder allows over another dialog. */
 const DISCARD = 'DiscardDialog';
 
+/**
+ * A failure's *Details for support* (PS-15) folds the failure, not the dialog's content: it is
+ * drawn only after a refusal and is no second fold of what the dialog asks.
+ */
+const FAILURE = reachable(path.join(SRC, 'lib/frame/FailureNote.svelte'));
+
 /** Everything the components drawn inside a range draw, by file. */
 function drawnInside(file, ranges) {
   const files = new Set();
@@ -151,7 +157,8 @@ function faults(file) {
     if (all.some((text) => /<(Table|DataTable)(?=[\s/>])|<table(?=[\s>])/.test(text))) found.push(`${where}: a table`);
     if (all.some((text) => /<(Tabs|PlaceTabs)(?=[\s/>])/.test(text))) found.push(`${where}: tabs`);
     if (all.some((text) => /<Dialog(?=[\s/>])/.test(text))) found.push(`${where}: a second dialog`);
-    if (all.reduce((sum, text) => sum + count(text, /<Disclosure(?=[\s/>])/g), 0) > 1) found.push(`${where}: more than one Disclosure`);
+    const folds = [body, ...[...drawnInside(file, [dialog])].filter((each) => !FAILURE.has(each)).map((each) => read(each).markup)];
+    if (folds.reduce((sum, text) => sum + count(text, /<Disclosure(?=[\s/>])/g), 0) > 1) found.push(`${where}: more than one Disclosure`);
   }
   return found;
 }
