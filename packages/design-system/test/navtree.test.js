@@ -14,6 +14,7 @@ import {
   applyPlacement,
   autoScrollStep,
   createPeek,
+  filterTree,
   dropTarget,
   indentOf,
   levelAtInline,
@@ -170,4 +171,22 @@ test('the peek opens after its delay and closes when the pointer leaves', () => 
   peek.leave();
   for (const fn of queue) fn?.();
   assert.deepEqual(seen, [true, false]);
+});
+
+test('the filter shows a match with its ancestors, and narrows by kind', () => {
+  const words = filterTree(tree, 'retro');
+  assert.deepEqual(words.nodes.map((n) => n.id), ['team']);
+  assert.deepEqual(words.nodes[0].children.map((n) => n.id), ['retro']);
+  assert.deepEqual(words.open, ['team']);
+  const boards = filterTree(
+    [
+      { id: 'a', label: 'A', kind: 'page', children: [{ id: 'b', label: 'Board', kind: 'whiteboard' }] },
+      { id: 'c', label: 'C', kind: 'page' },
+    ],
+    '',
+    'whiteboard',
+  );
+  assert.deepEqual(boards.nodes.map((n) => n.id), ['a']);
+  assert.equal(boards.count, 1);
+  assert.equal(filterTree(tree, '  ').count, -1);
 });

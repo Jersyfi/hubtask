@@ -90,6 +90,41 @@ export { default as DetailPane } from './DetailPane.svelte';
 export { default as Logo } from './Logo.svelte';
 export { type LogoSize } from './mark.ts';
 export { default as ResizeHandle } from './ResizeHandle.svelte';
+// Wave 5 - the sidebar's pieces (the navigation concept, design-system.md §11.3).
+export { default as ProductTile } from './ProductTile.svelte';
+export { default as NavItem, type RowAction, type RowBadge, type DropState } from './NavItem.svelte';
+export { default as NavGroup, type NavTreeNode, type FilterKind } from './NavGroup.svelte';
+export { default as NavLevel, type HubHead } from './NavLevel.svelte';
+export { default as NavFlyout } from './NavFlyout.svelte';
+export { default as ViewBar, type View as ViewLink } from './ViewBar.svelte';
+export { default as MoveCheck, type MoveCheckItem } from './MoveCheck.svelte';
+export { default as Sheet } from './Sheet.svelte';
+export { default as BrowseStack, type StackLevel } from './BrowseStack.svelte';
+export {
+  AUTO_SCROLL_EDGE_PX,
+  INDENT_LEVELS,
+  MAX_DEPTH,
+  TREE_DRAG_THRESHOLD_PX,
+  ancestorsOf,
+  applyPlacement,
+  autoScrollStep,
+  createPeek,
+  dropTarget,
+  filterTree,
+  indentOf,
+  levelAtInline,
+  moveIntent,
+  positionOf,
+  rowsOf,
+  zoneAt,
+  type DropTarget,
+  type MoveIntent,
+  type MoveKey,
+  type Placement as TreePlacement,
+  type Refusal,
+  type TreeNode,
+  type Zone,
+} from './navtree.ts';
 
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
