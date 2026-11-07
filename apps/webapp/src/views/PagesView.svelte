@@ -462,6 +462,10 @@
 
 </script>
 
+{#if pageId && !current}
+  <!-- The screen's one h1 while the page is read; once it is, the page's own title is it. -->
+  <VisuallyHidden as="h1">{t('app.pages.title')}</VisuallyHidden>
+{/if}
 {#if hubId && !pageId}
   <!-- An empty space's head; an open page's head is its own (the navigation concept §2.4: the
        sidebar's *Contents* is the tree, the page draws none). -->
@@ -553,7 +557,7 @@
             {#if current.writable}
               <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
                    heading is read, the field is what is seen: the title appears once. -->
-              <VisuallyHidden as="h2">{current.title}</VisuallyHidden>
+              <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
               <textarea
                 class="title"
                 rows="1"
@@ -564,7 +568,7 @@
                 onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
               ></textarea>
             {:else}
-              <h2 class="title">{current.title}</h2>
+              <h1 class="title">{current.title}</h1>
             {/if}
             <Inline gap="100" align="center">
               {#if present.length > 0}
@@ -866,8 +870,8 @@
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
     font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
+    font-size: var(--fs-450);
+    font-weight: var(--fw-bold);
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     background: none;

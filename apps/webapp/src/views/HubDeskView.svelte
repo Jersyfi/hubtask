@@ -68,6 +68,12 @@
   });
   const queueName = $derived(chosen ? (chosen.name ?? ((DESK_QUEUES as readonly string[]).includes(chosen.key) ? t(`app.desk_queues.${chosen.key}`) : chosen.key)) : t('app.nav.tool_queues'));
   const only = $derived.by(() => {
+    // No queue answered - the read refused, or none kept yet -: the desk's own queue the address
+    // names, else its open requests, rather than a page that waits for ever.
+    if (!chosen && queues?.length === 0) {
+      const fallback = STANDARD[queue ?? ''] ?? 'open';
+      return { queue: fallback, name: t(`app.desk_queues.${fallback}`) };
+    }
     if (!chosen) return undefined;
     const standard = STANDARD[chosen.key];
     if (standard) return { queue: standard, name: queueName };
