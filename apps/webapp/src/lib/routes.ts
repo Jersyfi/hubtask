@@ -133,6 +133,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'changes', pattern: '/administration/changes', area: 'administration' },
   // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).
   { name: 'workflows', pattern: '/administration/workflows', area: 'administration' },
+  // Each workflow at its own address, the editor's list beside it (page-system §7.4).
+  { name: 'workflow', pattern: '/administration/workflows/:key', area: 'administration' },
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },

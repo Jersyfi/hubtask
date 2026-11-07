@@ -251,6 +251,7 @@ async function views() {
     ['link-types', await load('LinkTypesView'), {}],
     ['changes', await load('ChangesView'), {}],
     ['workflows', await load('WorkflowsView'), { onnavigate: noop }],
+    ['workflow', await load('WorkflowsView'), { workflow: 'default', onnavigate: noop }],
     ['backup', await load('BackupView'), {}],
     ['retention', await load('RetentionView'), {}],
     ['restore', await load('RestoreView'), {}],

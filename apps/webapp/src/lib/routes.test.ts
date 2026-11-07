@@ -80,6 +80,7 @@ test('the administration area is exactly these screens, by name', () => {
     'time-settings',
     'voice',
     'webhooks',
+    'workflow',
     'workflows',
     'workspace-address',
     'workspace-section',

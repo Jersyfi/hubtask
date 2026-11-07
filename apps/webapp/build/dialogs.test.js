@@ -105,7 +105,6 @@ const NOT_YET_MIGRATED = [
   'views/TrashView.svelte',
   'views/WebhooksView.svelte',
   'views/WhiteboardsView.svelte',
-  'views/WorkflowsView.svelte',
 ];
 
 /** The confirmation the ladder allows over another dialog. */

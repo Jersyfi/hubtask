@@ -112,8 +112,9 @@
   <LinkTypesView />
 {:else if route.name === 'changes'}
   <ChangesView />
-{:else if route.name === 'workflows'}
-  <WorkflowsView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'workflows' || route.name === 'workflow'}
+  <!-- One branch for the list and a workflow: a move between workflows keeps the screen. -->
+  <WorkflowsView workflow={route.params.key} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'private-hubs'}
   <PrivateHubsView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'backup'}
