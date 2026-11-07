@@ -8,7 +8,7 @@
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { PERMISSIONS, ROLES, fallback } from './fixture.mjs';
+import { PERMISSIONS, PRESETS, ROLES, fallback } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -107,6 +107,8 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
       const at = COLLECTIONS.find((each) => each.id === modules[1])?.parent_id ?? modules[1];
       return route.fulfill({ json: { modules_on: hubModules[at] ?? modulesOn } });
     }
+    // The contract's array; the general stub's empty page would break the new-collection dialog.
+    if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS });
     if (path.endsWith('/api/v1/entry-types')) {
       return route.fulfill({ json: { data: [{ key: 'incident', name: 'Incident', level: 'TASK', hub_id: null, form: { channels: [{ channel: 'PORTAL' }] } }], page: PAGE.page } });
     }
