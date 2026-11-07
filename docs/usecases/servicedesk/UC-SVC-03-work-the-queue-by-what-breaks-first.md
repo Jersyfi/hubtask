@@ -37,6 +37,11 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
     where it has none - each with its count from one read of the hub's queues
     (`GET /hubs/{hubId}/queues`), a count holding entries about to breach or breached on the danger
     surface; opening one shows its table over every desk of the hub.
+11. On a hub's queue page a handler presses *Filter* and sets a condition: the table shows the
+    queue's requests that also meet it. Once a condition is set, a member who shapes the hub
+    (`STRUCTURE`) sees *Save as queue*; saving it under a name keeps a view of the hub marked as a
+    queue (`queue: true`) with the queue's conditions and the new one, and the new queue opens and
+    stands under the hub's *Queues*.
 
 ## Where it ends
 

@@ -71,6 +71,26 @@ class Views {
     });
   }
 
+  /**
+   * Saves a hub's queue (*Save as queue*, the navigation concept §5.1): a hub-scoped view marked as
+   * a queue, placed after the hub's last. The hub's queues are read again, so the sidebar and the
+   * queue page show it at once.
+   */
+  async createQueue(hubId: string, body: Omit<SavedViewCreate, 'scope_type' | 'scope_id' | 'queue'>, idempotencyKey: string): Promise<SavedView> {
+    return engine.mutate<SavedView>('POST', '/views', { ...body, scope_type: 'HUB', scope_id: hubId, queue: true }, {
+      idempotencyKey,
+      invalidates: [...TOUCHES, `/hubs/${hubId}/queues`],
+    });
+  }
+
+  /** Deletes a hub's queue; its requests stay where they are. */
+  async removeQueue(hubId: string, id: string, version: number): Promise<void> {
+    await engine.mutate<void>('DELETE', `/views/${id}`, undefined, {
+      ifMatch: etagFor(version),
+      invalidates: [...TOUCHES, `/hubs/${hubId}/queues`],
+    });
+  }
+
   /** Changes its own fields. The scope and the sharing are not among them, by the contract's design. */
   async update(id: string, body: SavedViewUpdate, version: number): Promise<SavedView> {
     return engine.mutate<SavedView>('PATCH', `/views/${id}`, body, {
