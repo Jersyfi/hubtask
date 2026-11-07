@@ -208,3 +208,4 @@ export { default as ResourceCard } from './ResourceCard.svelte';
 export { default as BulkBar, type BulkAction } from './BulkBar.svelte';
 export { default as SettingsSection } from './SettingsSection.svelte';
 export { default as SettingRow } from './SettingRow.svelte';
+export { default as BlockList, type Block } from './BlockList.svelte';
