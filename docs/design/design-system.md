@@ -424,7 +424,7 @@ the mark the bar carries; how the product uses them is §11.
 
 ### Wave 6 — compositions and pages
 `Grid` · `Sheet` · `SectionNav` · `FilterBar` · `DataTable` · `BulkBar` · `ResourceGrid` ·
-`ResourceCard`
+`ResourceCard` · `SettingsSection` · `SettingRow`
 
 ---
 
