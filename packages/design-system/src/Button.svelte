@@ -46,6 +46,8 @@
      * stays `tone`, and how tall it is stays `size`.
      */
     isFull?: boolean;
+    /** Whether it is a chip: round ends, as beside the view bar's chip on a phone. */
+    isRound?: boolean;
     children?: Snippet;
   }
 
@@ -58,6 +60,7 @@
     disabledReason,
     lead,
     isFull = false,
+    isRound = false,
     children,
     type = 'button',
     ...rest
@@ -86,6 +89,7 @@
   class="button"
   data-lead={lead ? '' : undefined}
   data-full={isFull ? '' : undefined}
+  data-round={isRound ? '' : undefined}
   data-tone={tone}
   data-size={size}
   data-busy={isBusy && !icon ? '' : undefined}
@@ -139,6 +143,7 @@
      what is left of it. The padding on both ends keeps a long label from running under the mark -
      symmetric, because a label centred between asymmetric padding is not centred. */
   .button[data-full] { width: 100%; }
+  .button[data-round] { border-radius: var(--r-full); }
   .button[data-lead] { position: relative; }
   .button[data-lead][data-size='md'] { padding-inline: var(--sp-500); }
   .button[data-lead][data-size='sm'] { padding-inline: var(--sp-400); }
