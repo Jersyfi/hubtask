@@ -44,6 +44,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
+  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the goals where it names none or an unknown one. */
@@ -70,19 +71,25 @@
     if (nextTab !== 'goals') query.set('tab', nextTab);
     const nextPeriod = next.period ?? period;
     if (nextPeriod && nextTab === 'goals') query.set('period', nextPeriod);
-    if (hub) query.set('hub', hub);
     const text = query.toString();
+    // A hub's goals are its tool *Goals* (the navigation concept §2.4): the goals and the dashboards.
+    if (hub) {
+      query.delete('tab');
+      const rest = query.toString();
+      return `/hubs/${hub}/goals${nextTab === 'dashboards' ? '/dashboards' : ''}${rest === '' ? '' : `?${rest}`}`;
+    }
     return text === '' ? '/goals' : `/goals?${text}`;
   }
 
   const tabs = $derived<ViewLink[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: address({ tab: each.id }) })));
   /** Each tab names itself (§7.7): *Dashboards*, never *Goals of …*. */
   const heading = $derived(
-    current === 'portfolios' ? t('app.goals.tab_portfolios')
-      : current === 'dashboards' ? (hubName ? t('app.dashboards.title_of', { place: hubName }) : t('app.goals.tab_dashboards'))
-        : hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title'),
+    hub ? t('app.nav.tool_goals')
+      : current === 'portfolios' ? t('app.goals.tab_portfolios')
+        : current === 'dashboards' ? t('app.goals.tab_dashboards')
+          : t('app.goals.title'),
   );
-  $effect(() => frame.entitle(heading));
+  $effect(() => frame.entitle(hubName ? (current === 'dashboards' ? t('app.dashboards.title_of', { place: hubName }) : t('app.goals.title_of', { place: hubName })) : heading));
 
   let failure = $state<string | undefined>(undefined);
   async function act(run: () => Promise<unknown>, done?: string): Promise<boolean> {
@@ -275,7 +282,12 @@
     subtitle={hub ? undefined : t('app.modules.hint_goals')}
     isTitleInBar={viewport.isCompact}
     {primary}
-    breadcrumb={hub ? undefined : {
+    breadcrumb={hub ? (hubName ? {
+      trail: [{ id: 'place', label: hubName, href: `/hubs/${hub}` }, { id: 'goals', label: t('app.nav.tool_goals') }],
+      label: t('app.product_home.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+      onnavigate: () => onnavigate(`/hubs/${hub}`),
+    } : undefined) : {
       trail: [
         { id: 'products', label: t('app.nav.products') },
         { id: 'product', label: t('app.nav.goals') },
@@ -287,7 +299,11 @@
     {#snippet figure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
 
-  <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
+  {#if hub}
+    <PlaceViews placeId={hub} tool="goals" {current} {onnavigate} />
+  {:else}
+    <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
+  {/if}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

@@ -4,35 +4,47 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { collectionViews, hubPlaceOf, hubPlaces, toolViews } from './placeViews.ts';
+import { collectionViews, hubPlaceOf, hubPlaces, layoutOfView, toolViews, viewOfLayout } from './placeViews.ts';
 import { placeMenu } from './placeMenu.ts';
 import { HUB_TOOLS } from '../navigation.ts';
 
 const ALL = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
 const ids = (views: readonly { id: string }[]) => views.map((view) => view.id);
 
-test('a collection offers its portal only where it acts as a desk, and time as two views of one bar', () => {
-  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true })), ['entries', 'plan', 'sprints', 'actuals', 'workload']);
-  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, isDesk: true, runsSprints: true })), ['entries', 'plan', 'sprints', 'portal', 'actuals', 'workload']);
+test('a collection draws one view bar: list, board, timeline, time and its saved views (UC-WRK-36 check 9)', () => {
+  const saved = [{ id: 'v1', name: 'My open ones' }];
+  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, saved })), ['list', 'board', 'timeline', 'time', 'view:v1']);
+  // Its former *Plan* is the *Timeline* view where the plan is on, the timeline layout where it is off.
+  assert.equal(collectionViews({ id: 'c', modulesOn: ALL }).find((view) => view.id === 'timeline')?.href, '/collections/c/timeline');
+  assert.equal(collectionViews({ id: 'c', modulesOn: [] }).find((view) => view.id === 'timeline')?.href, '/collections/c?layout=timeline');
+  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: [], layouts: ['LIST_COLLAPSED'] })), ['list']);
+  assert.equal(collectionViews({ id: 'c', modulesOn: ALL, saved }).at(-1)?.href, '/collections/c?view=v1');
 });
 
-test('a collection offers its sprints only where it runs sprints, and only with the plan on', () => {
-  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL })), ['entries', 'plan', 'actuals', 'workload']);
-  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL.filter((each) => each !== 'PLANNING'), runsSprints: true })), ['entries', 'actuals', 'workload']);
-  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: [] })), ['entries']);
+test('a collection that runs sprints opens with the board and the sprint; a desk keeps to its lists', () => {
+  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true })), ['board', 'sprint', 'list', 'timeline', 'time']);
+  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL.filter((each) => each !== 'PLANNING'), runsSprints: true })), ['list', 'board', 'timeline', 'time']);
+  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, isDesk: true, saved: [{ id: 'v', name: 'Mine' }] })), ['list', 'board', 'view:v']);
+  assert.equal(viewOfLayout('LIST_EXPANDED'), 'list');
+  assert.equal(viewOfLayout('KANBAN'), 'board');
+  assert.equal(layoutOfView('list', 'LIST_EXPANDED'), 'LIST_EXPANDED');
+  assert.equal(layoutOfView('sprint', 'LIST_COLLAPSED'), undefined);
 });
 
 test('a hub tool with tabs of its own holds them in one bar; a hub itself has none', () => {
-  assert.deepEqual(ids(toolViews('h', 'plan')), ['plan', 'releases']);
+  assert.deepEqual(ids(toolViews('h', 'plan')), ['schedule', 'releases', 'sprints']);
   assert.deepEqual(ids(toolViews('h', 'time')), ['actuals', 'workload']);
+  assert.deepEqual(ids(toolViews('h', 'time', { mayCost: true })), ['actuals', 'workload', 'budget']);
+  assert.deepEqual(ids(toolViews('h', 'goals')), ['goals', 'dashboards']);
+  assert.deepEqual(toolViews('h', 'plan').map((view) => view.href), ['/hubs/h/plan', '/hubs/h/plan/releases', '/hubs/h/plan/sprints']);
   assert.deepEqual(ids(toolViews('h', 'overview')), []);
 });
 
 test('the palette reaches a hub\'s tools and contents only where their module is on there', () => {
-  assert.deepEqual(ids(hubPlaces('h', ALL)), ['plan', 'inventory', 'time', 'goals', 'pages', 'whiteboards']);
+  assert.deepEqual(ids(hubPlaces('h', ALL)), ['plan', 'inventory', 'time', 'goals', 'contents']);
   assert.deepEqual(ids(hubPlaces('h', [])), []);
   assert.equal(hubPlaceOf('h', 'PLANNING')?.href, '/hubs/h/plan');
-  assert.equal(hubPlaceOf('h', 'KNOWLEDGE')?.href, '/hubs/h/pages');
+  assert.equal(hubPlaceOf('h', 'KNOWLEDGE')?.href, '/hubs/h/contents');
   assert.equal(hubPlaceOf('h', 'AGENTS'), undefined, 'agents are the workspace\'s only');
 });
 

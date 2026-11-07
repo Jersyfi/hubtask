@@ -748,14 +748,14 @@ export function hubTools(options: { readonly modulesOn: readonly string[]; reado
   return HUB_TOOLS.filter((tool) => options.modulesOn.includes(tool.module) && (tool.id !== 'queues' || options.hasDesk));
 }
 
-/** Where a tool opens. The tools' own pages are step 5's; until then each opens the screen that held its role. */
+/** Where a tool's page is: *Queues* opens the hub's first queue, every other tool its first tab. */
 export function toolPath(hubId: string, tool: HubTool['id']): string {
   switch (tool) {
     case 'queues': return `/hubs/${hubId}/desk`;
     case 'plan': return `/hubs/${hubId}/plan`;
-    case 'inventory': return `/hubs/${hubId}/assets`;
-    case 'time': return `/hubs/${hubId}/actuals`;
-    case 'goals': return `/goals?hub=${hubId}`;
+    case 'inventory': return `/hubs/${hubId}/inventory`;
+    case 'time': return `/hubs/${hubId}/time`;
+    case 'goals': return `/hubs/${hubId}/goals`;
   }
 }
 
@@ -765,13 +765,16 @@ export function toolOf(route: { readonly name: string | null; readonly query: Re
     case 'hub': return 'overview';
     case 'hub-desk': return 'queues';
     case 'hub-plan':
-    case 'hub-releases': return 'plan';
-    case 'hub-assets':
-    case 'hub-assets-section':
+    case 'hub-plan-releases':
+    case 'hub-plan-sprints': return 'plan';
+    case 'hub-inventory':
+    case 'hub-inventory-section':
     case 'ci': return 'inventory';
-    case 'hub-actuals':
-    case 'hub-workload': return 'time';
-    case 'goals': return route.query['hub'] ? 'goals' : undefined;
+    case 'hub-time':
+    case 'hub-time-workload':
+    case 'hub-time-budget': return 'time';
+    case 'hub-goals':
+    case 'hub-goals-dashboards': return 'goals';
     default: return undefined;
   }
 }

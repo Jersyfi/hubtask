@@ -35,8 +35,13 @@
     onnavigate: (path: string) => void;
     /** Each queue's count across the hubs once every hub answered it, for the home's figure. */
     ontotals?: (totals: Partial<Record<DeskQueue, number>>) => void;
+    /**
+     * One queue alone, without the choice: a hub's queue page (the navigation concept §2.4). `query`
+     * is a saved queue's own body, asked in place of the standard queue's.
+     */
+    only?: { readonly queue: DeskQueue; readonly query?: Record<string, unknown>; readonly name?: string };
   }
-  const { desks, withHub = false, onnavigate, ontotals }: Props = $props();
+  const { desks, withHub = false, onnavigate, ontotals, only }: Props = $props();
 
   /** The queue the reader chose; until then the first that holds a request, once all answered. */
   let chosen = $state<DeskQueue | undefined>(undefined);
@@ -46,13 +51,13 @@
 
   const asked = $derived(Object.entries(desks).filter(([, ids]) => ids.length > 0));
   const hubIds = $derived(asked.map(([hubId]) => hubId));
-  const key = $derived(JSON.stringify(asked));
+  const key = $derived(JSON.stringify([asked, only ?? null]));
   $effect(() => {
-    const each = JSON.parse(key) as [string, string[]][];
+    const [each, alone] = JSON.parse(key) as [[string, string[]][], Props['only'] | null];
     return untrack(() => {
       const stops = each.flatMap(([hubId, ids]) =>
-        DESK_QUEUES.map((queue) =>
-          engine.subscribe<ItemQueryResult>({ path: '/items:query', body: queueQuery(queue, hubId, ids) }, (next) => {
+        (alone ? [alone.queue] : DESK_QUEUES).map((queue) =>
+          engine.subscribe<ItemQueryResult>({ path: '/items:query', body: alone?.query ?? queueQuery(queue, hubId, ids) }, (next) => {
             if (next.status === 'ready') answers = { ...answers, [at(queue, hubId)]: next.data };
             if (next.status === 'failed') refusal = renderProblem(next.error, messages).message;
           }),
@@ -71,6 +76,7 @@
     }),
   );
   const selected = $derived.by((): DeskQueue => {
+    if (only) return only.queue;
     if (chosen) return chosen;
     const totals = DESK_QUEUES.map((queue) => totalOf(queue));
     if (totals.some((total) => total === undefined)) return 'mine';
@@ -119,8 +125,8 @@
 </script>
 
 <Stack gap="200">
-  <div class="queues"><ViewSwitcher label={t('app.desk_queues.label')} views={tabs} {selected} onselect={(id) => (chosen = id as DeskQueue)} /></div>
-  <div role="region" aria-label={t(`app.desk_queues.${selected}`)}>
+  {#if !only}<div class="queues"><ViewSwitcher label={t('app.desk_queues.label')} views={tabs} {selected} onselect={(id) => (chosen = id as DeskQueue)} /></div>{/if}
+  <div role="region" aria-label={only?.name ?? t(`app.desk_queues.${selected}`)}>
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if rows.length === 0 && isReading}
@@ -129,7 +135,7 @@
     <EmptyState kind="settled" title={t('app.desk_queues.empty')} description={t('app.desk_queues.empty_body')} />
   {:else}
     <Stack gap="100">
-      <Table label={t('app.desk_queues.table', { queue: t(`app.desk_queues.${selected}`) })} isLabelHidden isStacked {columns}>
+      <Table label={t('app.desk_queues.table', { queue: only?.name ?? t(`app.desk_queues.${selected}`) })} isLabelHidden isStacked {columns}>
         {#each rows as item (item.id)}
           {@const collection = containers.find(item.collection_id)}
           {@const status = statusOf(item)}

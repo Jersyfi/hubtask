@@ -350,7 +350,7 @@
     secondary={headActs}
     menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
   />
-  <PlaceViews placeId={collectionId} current="sprints" {onnavigate} />
+  <PlaceViews placeId={collectionId} current="sprint" {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

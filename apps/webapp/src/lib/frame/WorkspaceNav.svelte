@@ -624,29 +624,34 @@
   let isCreatingCollection = $state(false);
   let collectionHubId = $state<string | undefined>(undefined);
 
+  // ＋ on *Contents* creates at the top, ＋ on a page under it (§5.2): *Page · From a template… ·
+  // Whiteboard*; a whiteboard has no children and so no ＋.
+  const createItems = $derived([
+    ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }, { id: 'template', label: t('app.nav.create_from_template'), icon: 'file-text' as const }] : []),
+    ...(isOn('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
+  ]);
+  const createPath = (at: string, kind: string, under?: string) =>
+    kind === 'whiteboard'
+      ? `/hubs/${at}/contents?new=whiteboard${under ? `&parent=${under}` : ''}`
+      : under ? `/pages/${under}?new=under` : `/hubs/${at}/pages?new=1`;
   const contentsAdd = $derived<RowAction | undefined>(
     hubId && mayWrite
-      ? {
-          label: t('app.nav.create_in_contents'),
-          items: [
-            ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page') }, { id: 'template', label: t('app.nav.create_from_template') }] : []),
-            ...(isOn('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard') }] : []),
-          ],
-          onselect: (kind) => {
-            if (!hubId) return;
-            onnavigate(kind === 'whiteboard' ? `/hubs/${hubId}/whiteboards?new=1` : `/hubs/${hubId}/pages?new=1`);
-          },
-        }
+      ? { label: t('app.nav.create_in_contents'), items: createItems, onselect: (kind) => hubId && onnavigate(createPath(hubId, kind ?? 'page')) }
       : undefined,
   );
+  const contentRowAdd = (id: string): RowAction | undefined => {
+    if (!hubId || !mayWrite || boardRows.some((each) => each.id === id)) return undefined;
+    const title = pageRows.find((each) => each.id === id)?.title ?? '';
+    return { label: t('app.nav.create_under', { name: title }), items: createItems, onselect: (kind) => hubId && onnavigate(createPath(hubId, kind ?? 'page', id)) };
+  };
   const contentsMenu = $derived<RowAction>({
     label: t('app.nav.contents_menu'),
     items: [
       ...(['TREE', 'RECENT', 'NAME'] as const).map((mode) => ({ id: mode, label: t(`app.nav.mode_${mode.toLowerCase()}`), ...(mode === contentsMode ? { icon: 'check' as const } : {}) })),
-      ...(isOn('KNOWLEDGE') ? [{ id: 'all', label: t('app.nav.all_contents') }] : []),
+      { id: 'all', label: t('app.nav.all_contents') },
     ],
     onselect: (choice) => {
-      if (choice === 'all' && hubId) return onnavigate(`/hubs/${hubId}/pages`);
+      if (choice === 'all' && hubId) return onnavigate(`/hubs/${hubId}/contents`);
       if (choice) void writePreference({ nav_contents_mode: choice === 'TREE' ? null : choice });
     },
   });
@@ -885,6 +890,7 @@
           count={String(contentsCount(contentNodes))}
           collapseLabel={t('app.nav.fold', { name: t('app.nav.contents') })}
           add={contentsAdd}
+          rowAdd={contentRowAdd}
           menu={contentsMenu}
           tree={contentTree}
           treeLabel={t('app.nav.contents_of', { hub: hub.name })}
@@ -904,7 +910,7 @@
         />
       {:else if hasContents && contentsAdd}
         <NavGroup label={t('app.nav.contents')} add={contentsAdd}>
-          <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" onnavigate={() => hubId && onnavigate(isOn('KNOWLEDGE') ? `/hubs/${hubId}/pages?new=1` : `/hubs/${hubId}/whiteboards?new=1`)} />
+          <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
         </NavGroup>
       {/if}
     </NavLevel>

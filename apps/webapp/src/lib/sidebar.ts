@@ -24,9 +24,12 @@ export interface LevelRoute {
 }
 
 /** Routes whose `:id` is a hub. */
-const HUB_ROUTES = new Set(['hub', 'hub-pages', 'hub-whiteboards', 'hub-desk', 'hub-plan', 'hub-releases', 'hub-actuals', 'hub-workload', 'hub-assets', 'hub-assets-section', 'hub-settings', 'hub-settings-section']);
+const HUB_ROUTES = new Set([
+  'hub', 'hub-pages', 'hub-contents', 'hub-desk', 'hub-plan', 'hub-plan-releases', 'hub-plan-sprints', 'hub-inventory', 'hub-inventory-section',
+  'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-settings', 'hub-settings-section',
+]);
 /** Routes whose `:id` is a collection. */
-const COLLECTION_ROUTES = new Set(['collection', 'collection-plan', 'collection-sprints', 'collection-actuals', 'collection-workload', 'collection-settings', 'collection-settings-section']);
+const COLLECTION_ROUTES = new Set(['collection', 'collection-timeline', 'collection-sprint', 'collection-time', 'collection-workload', 'collection-settings', 'collection-settings-section']);
 /** Routes whose place the screen names once it has read it (`page.locate`): an entry, a page, a board, a CI. */
 const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci']);
 
@@ -40,7 +43,6 @@ export function levelOf(route: LevelRoute, hubOf: (containerId: string) => strin
   let hubId: string | undefined;
   if (HUB_ROUTES.has(name)) hubId = route.params['id'];
   else if (COLLECTION_ROUTES.has(name)) hubId = route.params['id'] ? hubOf(route.params['id']) : undefined;
-  else if (name === 'goals') hubId = route.query['hub'];
   else if (LOCATED_ROUTES.has(name)) hubId = located ? hubOf(located) : undefined;
   return hubId ? { kind: 'hub', hubId } : { kind: 'workspace' };
 }

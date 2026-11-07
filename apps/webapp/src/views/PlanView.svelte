@@ -469,7 +469,7 @@
       onselect: (id: string) => void exportAs(id),
     }}
   />
-  <PlaceViews placeId={planId} tool="plan" current="plan" {onnavigate} />
+  <PlaceViews placeId={planId} tool="plan" current={containers.find(planId)?.type === 'COLLECTION' ? 'timeline' : 'schedule'} {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

@@ -46,7 +46,6 @@
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
-  import LayoutSwitch from '../lib/entries/LayoutSwitch.svelte';
   import MoveDialog from '../lib/entries/MoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
@@ -95,6 +94,9 @@
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import { collectionViews } from '../lib/workspace/placeViews.ts';
   import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import { stars } from '../lib/data/stars.svelte.ts';
+  import { isStarred } from '../lib/data/stars.ts';
+  import { isOwnPage, layoutOfView, viewOfLayout } from '../lib/workspace/placeViews.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import HubProductLines from '../lib/workspace/HubProductLines.svelte';
@@ -149,10 +151,14 @@
     section?: string;
     /** A template whose plan opens on the hub's *Products* section (`?template=`, §4). */
     template?: string;
+    /** The view of the collection's bar the address names (`?layout=list|board|timeline`). */
+    layoutAsked?: string;
+    /** A saved view the address opens (`?view=`), a view of the bar too. */
+    viewAsked?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, openItemId, section, template, onnavigate }: Props = $props();
+  const { id, openItemId, section, template, layoutAsked, viewAsked, onnavigate }: Props = $props();
 
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
@@ -291,6 +297,17 @@
         preferred: read.views?.default,
         drawable: read.choosable,
       });
+    });
+  });
+
+  // A view of the bar the address names wins over the remembered layout, once what may be chosen is read.
+  $effect(() => {
+    const asked = layoutOfView(layoutAsked, listLayout);
+    void offeredViews;
+    if (!asked || !choosable.includes(asked)) return;
+    untrack(() => {
+      if (asked === listLayout && isListLayout(layout)) return;
+      chooseLayout(asked);
     });
   });
 
@@ -908,10 +925,10 @@
       : container.type === 'HUB'
         ? []
         : collectionViews({ id: container.id, modulesOn, isDesk, runsSprints: sprintsRun })
-          .slice(1)
+          .filter(isOwnPage)
           .map((tab) => ({
             id: `page:tab-${tab.id}`,
-            label: t('app.place_tabs.go_to', { place: container.name, tab: t(tab.code) }),
+            label: t('app.place_tabs.go_to', { place: container.name, tab: tab.code ? t(tab.code) : (('name' in tab ? tab.name : undefined) ?? '') }),
             icon: tab.icon,
             run: () => onnavigate(tab.href),
           })),
@@ -937,6 +954,19 @@
     { id: 'export', label: t('app.views.menu_export'), icon: 'file-text' as const, hasSeparatorBefore: true },
     { id: 'feeds', label: t('app.views.menu_feeds'), icon: 'calendar' as const },
   ]);
+
+  // A saved view the address names is opened once it is read (the bar's view, §3).
+  let viewOpened = $state<string | undefined>(undefined);
+  $effect(() => {
+    const wanted = viewAsked;
+    const view = wanted ? heldViews.find((each) => each.id === wanted) : undefined;
+    if (!view || viewOpened === view.id) return;
+    untrack(() => {
+      viewOpened = view.id;
+      applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
+    });
+  });
+  const barCurrent = $derived(viewAsked ? `view:${viewAsked}` : viewOfLayout(layout));
 
   function choseView(id: string) {
     if (id.startsWith('open:')) {
@@ -1369,6 +1399,16 @@
         {/if}
       {/snippet}
       {#snippet aside()}
+        <!-- ☆ in the place's head (UC-WRK-37): the same star as the sidebar's. -->
+        {@const starKind = container.type === 'HUB' ? 'HUB' : 'COLLECTION'}
+        {@const starred = isStarred(stars.all, starKind, container.id)}
+        <IconButton
+          icon="star"
+          size="sm"
+          label={t(starred ? 'app.nav.unstar' : 'app.nav.star', { name: container.name })}
+          data-starred={starred ? '' : undefined}
+          onclick={() => void stars.toggle(starKind, container.id)}
+        />
         {#if memberIds.length === 0}
           <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
           <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
@@ -1392,19 +1432,29 @@
         <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
       {/snippet}
     </PageHeader>
-    {#if container.type === 'COLLECTION'}<PlaceViews placeId={container.id} current="entries" {onnavigate} />{/if}
-
     {#if container.type === 'COLLECTION'}
-      <!-- The toolbar (design-system.md §11.1): about the entries, where the head is about the
-           place. The layouts at the start; the filter, the views and selecting at the end. On a
-           phone the filter is one button whose sheet holds the rest. -->
-      <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
-        <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
-        <div class="tools">
-          <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-          {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
+      <!-- One view bar (the navigation concept §3): the list, the board, the timeline, the sprint,
+           the time and the saved views; ＋ saves a view; the filter and the entries' tools at its
+           end. On a phone the bar is a chip and the filter one button whose sheet holds the rest. -->
+      <PlaceViews
+        placeId={container.id}
+        current={barCurrent}
+        {onnavigate}
+        add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
+        tools={viewport.isCompact ? undefined : barTools}
+      />
+      {#snippet barTools()}
+        {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
+        <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+        {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
+      {/snippet}
+      {#if viewport.isCompact}
+        <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
+          <div class="tools">
+            <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+          </div>
         </div>
-      </div>
+      {/if}
     {/if}
 
     {#if container.type === 'HUB' && container.private}

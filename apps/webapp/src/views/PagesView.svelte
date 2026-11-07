@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Pages* in a hub (M3, UC-DOC-01 … UC-DOC-12), in three regions (user-experience.md §7.1): the
-  // space's tree with its search, the open page with a one-row head, and a side sheet the head
+  // *Pages* in a hub (M3, UC-DOC-01 … UC-DOC-12): the open page with its trail and a one-row head,
+  // and a side sheet the head - the space's tree is the sidebar's *Contents*, its search *All
+  // contents* (the navigation concept §2.4, UC-DOC-01 check 6); the side sheet the head
   // toggles - comments (on the page or at a block), history with two versions compared, what links
   // to it, who reads it and its details. A space opens on its home page; an empty one offers its
   // templates in one press. A page is verified until a date, moved, exported and put in the trash
@@ -15,12 +16,12 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { untrack } from 'svelte';
   import {
-    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, SearchField, Select, Spinner, Stack, Switch,
+    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, Select, Spinner, Stack, Switch,
     TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
-    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageLabelCounts, PageList, PageRead, PageVersionList,
+    Page, PageBacklinkList, PageComment, PageCommentList, PageList, PageRead, PageVersionList,
     PageVersionRead,
   } from '@hubtask/sync-engine';
 
@@ -31,11 +32,12 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, shippedSpace, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
-    pagesPath, shippedTemplate, subtreeOf, templatesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
-    type ChangedWithin, type ShippedSpace, type ShippedTemplate,
+    EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, shippedSpace, VERIFY_DAYS, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pages,
+    pagesPath, shippedTemplate, subtreeOf, templatesPath, verifiedUntil, versionPath, versionsPath,
+    type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { contentsAsk } from '../lib/data/contentsask.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -60,9 +62,11 @@
     onreplace?: (path: string) => void;
     /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
     isCreateAsked?: boolean;
+    /** The create asked for is under the open page: ＋ on its row in the sidebar's *Contents* (§5.2). */
+    isCreateUnder?: boolean;
   }
 
-  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false }: Props = $props();
+  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false }: Props = $props();
 
   // --- What is read ------------------------------------------------------------------------------
 
@@ -97,25 +101,12 @@
   });
 
   const rows = $derived(treeState?.data ?? []);
-  const tree = $derived(pageTree(rows));
-  let openedBranches = $state<Set<string>>(new Set());
-  $effect(() => {
-    if (!pageId || rows.length === 0) return;
-    const above = ancestorsOf(rows, pageId);
-    untrack(() => {
-      if (above.every((id) => openedBranches.has(id))) return;
-      openedBranches = new Set([...openedBranches, ...above]);
-    });
-  });
-  const drawn = $derived(visibleRows(tree, openedBranches));
-
   // A space opens on its home page, never on "open a page" (user-experience.md §7.1).
   $effect(() => {
     if (pageId || !hubFromRoute || !treeState) return;
     const home = homePageOf(treeState.data);
     if (home) untrack(() => (onreplace ?? onnavigate)(`/pages/${home}${isCreateAsked ? '?new=1' : ''}`));
   });
-  const hasChildren = $derived(new Set(rows.map((row) => row.parent_id).filter((id): id is string => id !== null)));
 
   const mayWrite = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted' : false,
@@ -126,19 +117,13 @@
   $effect(() => {
     if (!isCreateAsked || isCreateOpened || !mayWrite) return;
     isCreateOpened = true;
-    untrack(() => startCreate());
+    untrack(() => startCreate(isCreateUnder ? pageId : undefined));
   });
   /** A wiki's or documents' import makes pages in the hub, which takes shaping it, as every import there does. */
   const mayImport = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted' : false,
   );
 
-  function toggle(id: string) {
-    const next = new Set(openedBranches);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    openedBranches = next;
-  }
 
   // --- Writing a page ----------------------------------------------------------------------------
 
@@ -278,58 +263,12 @@
 
   // --- Search over the space --------------------------------------------------------------------
 
-  let words = $state('');
-  let hits = $state<PageHitList['data'] | undefined>(undefined);
-  let generation = 0;
-  // What narrows the search (UC-DOC-01 check 9): one of the space's labels, the reader's own pages,
-  // how recently a page changed. A label or the reader's own pages find without words.
-  let chosenLabel = $state('');
-  let ownOnly = $state(false);
-  let changedWithin = $state<ChangedWithin>('any');
-  let facet = $state<PageLabelCounts['data']>([]);
-  $effect(() => {
-    const at = hubId;
-    if (!at) return;
-    return untrack(() => engine.subscribe<PageLabelCounts>({ path: spaceLabelsPath(at) }, (next) => {
-      if (next.status === 'ready') facet = next.data.data;
-    }));
-  });
-  const filters = $derived((chosenLabel ? 1 : 0) + (ownOnly ? 1 : 0) + (changedWithin === 'any' ? 0 : 1));
-  const changedOptions = $derived(
-    (Object.keys(CHANGED_WITHIN) as ChangedWithin[]).map((value) => ({ value, label: t(`app.pages.changed_${value}`) })),
-  );
-  $effect(() => {
-    const asked = words.trim();
-    const at = hubId;
-    const narrow = {
-      ...(chosenLabel ? { label: chosenLabel } : {}),
-      ...(ownOnly && actor.account ? { author_id: actor.account.id } : {}),
-    };
-    const from = changedFrom(changedWithin, new Date());
-    if ((asked === '' && !narrow.label && !narrow.author_id) || !at) {
-      hits = undefined;
-      return;
-    }
-    const mine = (generation += 1);
-    const timer = setTimeout(() => {
-      pages.search(asked, at, 20, { ...narrow, ...(from ? { updated_from: from } : {}) }).then(
-        (found) => { if (mine === generation) hits = found; },
-        () => { if (mine === generation) hits = []; },
-      );
-    }, 250);
-    return () => clearTimeout(timer);
-  });
-
   // --- Beside the page: comments, history, backlinks ---------------------------------------------
 
   // The side sheet the head toggles; closed, the page has the width (user-experience.md §7.1).
   let side = $state<'comments' | 'history' | 'backlinks' | 'access' | 'details' | undefined>(undefined);
   const toggleSide = (which: NonNullable<typeof side>) => (side = side === which ? undefined : which);
   let present = $state<string[]>([]);
-  let isFilterOpen = $state(false);
-  // On a narrow screen an open page comes first: the tree folds above it, one press away.
-  let isTreeOpen = $state(false);
-  const treeFolds = $derived(viewport.isBelowExpanded && Boolean(pageId));
   let block = $state<SelectedBlock | undefined>(undefined);
   let reveal = $state<string | undefined>(undefined);
 
@@ -523,9 +462,9 @@
 
 </script>
 
-{#if hubId}
-  <!-- The head every hub tab carries (UX-2): the trail to the hub and the tab's title, above the
-       strip; an open page's title is the content's own heading under it. -->
+{#if hubId && !pageId}
+  <!-- An empty space's head; an open page's head is its own (the navigation concept §2.4: the
+       sidebar's *Contents* is the tree, the page draws none). -->
   <PageHeader
     title={t('app.pages.title')}
     isTitleInBar={viewport.isCompact}
@@ -544,107 +483,6 @@
   />
 {/if}
 <div class="space">
-  <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>
-    <Stack gap="100">
-      <Inline justify="between" align="center">
-        <svelte:element this={hubId ? 'h2' : 'h1'} class="heading">{t('app.pages.title')}</svelte:element>
-        <Inline gap="050" align="center">
-          {#if treeFolds}
-            <Button size="sm" tone="subtle" icon={isTreeOpen ? 'chevron-up' : 'chevron-down'} aria-expanded={isTreeOpen} data-tree-toggle onclick={() => (isTreeOpen = !isTreeOpen)}>
-              {t('app.pages.tree_toggle', { count: rows.length })}
-            </Button>
-          {/if}
-          {#if mayWrite}
-            <IconButton icon="plus" label={t('app.pages.new')} onclick={() => startCreate()} />
-          {/if}
-        </Inline>
-      </Inline>
-      {#if !treeFolds || isTreeOpen}
-      <Inline gap="050" align="end">
-        <div class="search"><SearchField label={t('app.pages.search')} clearLabel={t('app.pages.search_clear')} bind:value={words} size="sm" /></div>
-        <Button
-          size="sm"
-          tone={filters > 0 ? 'secondary' : 'subtle'}
-          icon="funnel"
-          aria-expanded={isFilterOpen}
-          aria-controls="page-search-narrow"
-          onclick={() => (isFilterOpen = !isFilterOpen)}
-        >{filters > 0 ? t('app.pages.filter_count', { count: String(filters) }) : t('app.pages.filter')}</Button>
-      </Inline>
-      {#if isFilterOpen}
-        <div class="narrow" id="page-search-narrow" data-page-search-narrow>
-          {#if facet.length > 0}
-            <Inline gap="050" isWrapping>
-              {#each facet.slice(0, 12) as each (each.label)}
-                <Button
-                  size="sm"
-                  tone={chosenLabel === each.label ? 'secondary' : 'subtle'}
-                  aria-pressed={chosenLabel === each.label}
-                  onclick={() => (chosenLabel = chosenLabel === each.label ? '' : each.label)}
-                >{t('app.pages.label_facet', { label: each.label, count: String(each.pages) })}</Button>
-              {/each}
-            </Inline>
-          {/if}
-          <Select label={t('app.pages.changed')} size="sm" bind:value={changedWithin} options={changedOptions} />
-          <Switch label={t('app.pages.own_only')} checked={ownOnly} onchange={(event: Event) => (ownOnly = (event.currentTarget as HTMLInputElement).checked)} />
-        </div>
-      {/if}
-
-      {#if hits !== undefined}
-        <ul class="hits" aria-label={t('app.pages.search_results')}>
-          {#each hits as hit (hit.id)}
-            <li>
-              <a href={`/pages/${hit.id}`}>{hit.title}</a>
-              <span class="excerpt">{hit.excerpt.replace(/[«»]/gu, '')}</span>
-            </li>
-          {:else}
-            <li class="quiet">{t('app.pages.search_none')}</li>
-          {/each}
-        </ul>
-      {:else if treeRefusal}
-        <p class="refusal">{treeRefusal}</p>
-      {:else if !treeState}
-        <Spinner label={t('app.pages.loading')} />
-      {:else if drawn.length === 0}
-        <p class="quiet">{t('app.pages.empty_tree')}</p>
-      {:else}
-        <ul class="rows" role="tree">
-          {#each drawn as node (node.page.id)}
-            <li
-              role="treeitem"
-              aria-selected={node.page.id === pageId}
-              aria-expanded={hasChildren.has(node.page.id) ? openedBranches.has(node.page.id) : undefined}
-              aria-level={node.depth + 1}
-              class="row"
-              class:current={node.page.id === pageId}
-              style:--depth={node.depth}
-            >
-              {#if hasChildren.has(node.page.id)}
-                <button type="button" class="twisty" aria-label={t(openedBranches.has(node.page.id) ? 'app.pages.collapse' : 'app.pages.expand', { title: node.page.title })} onclick={() => toggle(node.page.id)}>
-                  {openedBranches.has(node.page.id) ? '▾' : '▸'}
-                </button>
-              {:else}
-                <span class="twisty" aria-hidden="true"></span>
-              {/if}
-              <a href={`/pages/${node.page.id}`} aria-current={node.page.id === pageId ? 'page' : undefined}>
-                {#if node.page.icon}<span aria-hidden="true">{node.page.icon}</span>{/if}
-                {node.page.title}
-              </a>
-              {#if node.page.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
-              {#if node.page.due_for_review}<Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>{/if}
-            </li>
-          {/each}
-        </ul>
-      {/if}
-
-      {#if mayWrite && rows.length > 0}
-        <!-- The one trash, narrowed to pages (user-experience.md §5.9): a hub keeps no list of its own. -->
-        <Button size="sm" tone="subtle" icon="trash" onclick={() => onnavigate('/trash?kind=PAGE')}>{t('app.pages.trash')}</Button>
-      {/if}
-      {/if}
-    </Stack>
-  </nav>
-
   <section class="page" aria-label={current?.title ?? t('app.pages.title')}>
     {#if refusal}
       <Banner tone="danger" dismissLabel={t('app.pages.dismiss')} onDismiss={() => (refusal = undefined)}>{refusal}</Banner>
@@ -699,14 +537,16 @@
     {:else}
       {#key current.id}
         <Stack gap="150">
-          <!-- The hub is the head's trail; this one names only the pages above. -->
-          {#if current.ancestors.length > 0}
-            <Breadcrumb
-              label={t('app.pages.breadcrumb')}
-              expandLabel={t('app.pages.breadcrumb_more')}
-              trail={current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` }))}
-            />
-          {/if}
+          <!-- The trail: the hub, the pages above, this one (UC-DOC-01 check 6). -->
+          <Breadcrumb
+            label={t('app.pages.breadcrumb')}
+            expandLabel={t('app.pages.breadcrumb_more')}
+            trail={[
+              ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
+              ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
+              { id: current.id, label: current.title },
+            ]}
+          />
           <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
                comments' toggle, sharing, and the rest in the page's menu. -->
           <div class="head" data-page-head>
@@ -768,7 +608,7 @@
               {/if}
             </Inline>
           {/if}
-          {#key current.id}<PageLabels page={current} onchoose={(label) => { chosenLabel = label; isFilterOpen = true; }} />{/key}
+          {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
           {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
             <Banner tone="info">
               {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
@@ -1005,21 +845,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sp-200);
   }
-  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
-  @media (width >= 905px) {
-    .space { grid-template-columns: minmax(22ch, 30ch) minmax(0, 1fr); }
-    /* A long tree scrolls in its own column, so the page beside it stays where it is. */
-    .tree { position: sticky; inset-block-start: var(--sp-200); max-block-size: calc(100dvh - var(--sp-1000)); overflow-y: auto; }
-  }
-  .tree {
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    align-self: start;
-  }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .search { flex: 1 1 auto; min-inline-size: 0; }
   .start { display: grid; gap: var(--sp-200); }
   .head {
     display: flex;
@@ -1029,28 +854,7 @@
     gap: var(--sp-100);
   }
   .here { display: inline-flex; }
-  .narrow { display: grid; gap: var(--sp-050); }
-  .rows, .hits, .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
-  .row {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-050);
-    padding-inline-start: calc(var(--depth) * var(--sp-150));
-    border-radius: var(--r-sm);
-  }
-  .row.current { background: var(--accent-primary-subtle); }
-  .row a, .hits a { color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
-  .row a:hover, .hits a:hover { text-decoration: underline; }
-  .twisty {
-    inline-size: var(--sp-200);
-    flex: none;
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font: inherit;
-  }
-  .hits li { display: grid; gap: var(--sp-025); padding-block: var(--sp-050); }
+  .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .excerpt, .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }

@@ -30,13 +30,17 @@
   interface Props {
     /** The hub or collection whose plan this is. */
     planId: string;
+    /** The tool *Time*'s tab of a hub: its actuals, or its budget and rates (§2.4). A collection's *Time* view holds both. */
+    part?: 'actuals' | 'budget';
     onnavigate: (path: string) => void;
   }
 
-  const { planId, onnavigate }: Props = $props();
+  const { planId, part = 'actuals', onnavigate }: Props = $props();
 
   const place = $derived(containers.find(planId));
   const placePath = $derived(place?.type === 'HUB' ? `/hubs/${planId}` : `/collections/${planId}`);
+  const isHub = $derived(place?.type === 'HUB');
+  const title = $derived(isHub ? t('app.nav.tool_time') : t('app.actuals.title'));
   $effect(() => frame.entitle(place ? t('app.actuals.title_of', { place: place.name }) : t('app.actuals.title')));
 
   let answer = $state<EstimatesVsActuals | undefined>(undefined);
@@ -65,22 +69,25 @@
 
 <Stack gap="300">
   <PageHeader
-    title={t('app.actuals.title')}
+    {title}
     isTitleInBar={viewport.isCompact}
+    secondary={place && !isHub ? [{ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`/collections/${planId}/workload`) }] : []}
     breadcrumb={place
       ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'actuals', label: t('app.actuals.title') }],
+          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'actuals', label: title }],
           label: t('app.actuals.trail'),
           expandLabel: t('app.actuals.expand_trail'),
           onnavigate: () => onnavigate(placePath),
         }
       : undefined}
   />
-  <PlaceViews placeId={planId} tool="time" current="actuals" {onnavigate} />
+  <PlaceViews placeId={planId} tool="time" current={isHub ? part : 'time'} {onnavigate} />
 
-  {#if mayCost}<BudgetPanel {planId} /><BillingRates {planId} />{/if}
+  {#if mayCost && (!isHub || part === 'budget')}<BudgetPanel {planId} /><BillingRates {planId} />{/if}
 
-  {#if refusal}
+  {#if isHub && part === 'budget'}
+    <!-- The budget tab holds the budget and the rates alone. -->
+  {:else if refusal}
     <FailureNote problem={refusal} />
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={6} /></div>

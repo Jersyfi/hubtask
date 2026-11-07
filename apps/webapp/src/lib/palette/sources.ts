@@ -22,7 +22,7 @@ import { layoutsOffered } from '../entries/layouts.ts';
 import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
 import { modulesHere } from '../data/modules.ts';
-import { collectionViews, hubPlaces } from '../workspace/placeViews.ts';
+import { collectionViews, isOwnPage, hubPlaces } from '../workspace/placeViews.ts';
 import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type AccountAction, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
@@ -178,11 +178,11 @@ export function placeTabOffers(
   const { container } = placed;
   if (hubOn === undefined || archivalOf(container) !== 'active') return [];
   const on = modulesHere(workspaceOn, hubOn);
-  return (container.type === 'HUB' ? hubPlaces(container.id, on) : collectionViews({ id: container.id, modulesOn: on }).slice(1))
+  return (container.type === 'HUB' ? hubPlaces(container.id, on) : collectionViews({ id: container.id, modulesOn: on }).filter(isOwnPage))
     .map((tab) => ({
       kind: 'action' as const,
       id: `go-to:${container.id}:${tab.id}`,
-      label: t('app.place_tabs.go_to', { place: container.name, tab: t(tab.code) }),
+      label: t('app.place_tabs.go_to', { place: container.name, tab: tab.code ? t(tab.code) : (('name' in tab ? tab.name : undefined) ?? '') }),
       target: { kind: 'route' as const, path: tab.href },
     }));
 }

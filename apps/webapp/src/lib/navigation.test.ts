@@ -434,13 +434,12 @@ const level = (name: string, params: Record<string, string> = {}, query: Record<
   levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located);
 
 test('anything of a hub shows its hub\'s level; everything else the workspace level (§2.4, §6.1)', () => {
-  for (const name of ['hub', 'hub-plan', 'hub-releases', 'hub-desk', 'hub-assets', 'hub-actuals', 'hub-workload', 'hub-pages', 'hub-whiteboards', 'hub-settings']) {
+  for (const name of ['hub', 'hub-plan', 'hub-plan-releases', 'hub-plan-sprints', 'hub-desk', 'hub-inventory', 'hub-inventory-section', 'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-pages', 'hub-contents', 'hub-settings']) {
     assert.deepEqual(level(name, { id: 'h' }), { kind: 'hub', hubId: 'h' }, name);
   }
-  for (const name of ['collection', 'collection-plan', 'collection-sprints', 'collection-settings']) {
+  for (const name of ['collection', 'collection-timeline', 'collection-sprint', 'collection-time', 'collection-workload', 'collection-settings']) {
     assert.deepEqual(level(name, { id: 'c' }), { kind: 'hub', hubId: 'h' }, name);
   }
-  assert.deepEqual(level('goals', {}, { hub: 'h' }), { kind: 'hub', hubId: 'h' });
   assert.deepEqual(level('item', { id: 'i' }, {}, 'c'), { kind: 'hub', hubId: 'h' }, 'an entry shows its collection\'s hub');
   assert.deepEqual(level('page', { id: 'p' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a page shows its space');
   assert.deepEqual(level('item', { id: 'i' }), { kind: 'workspace' }, 'until the entry says where it lives');
@@ -477,9 +476,9 @@ test('every tool opens a route that names it current, and the switch keeps the t
   const routeOf: Record<string, LevelRoute> = {
     '/hubs/h/desk': { name: 'hub-desk', params: {}, query: {} },
     '/hubs/h/plan': { name: 'hub-plan', params: {}, query: {} },
-    '/hubs/h/assets': { name: 'hub-assets', params: {}, query: {} },
-    '/hubs/h/actuals': { name: 'hub-actuals', params: {}, query: {} },
-    '/goals?hub=h': { name: 'goals', params: {}, query: { hub: 'h' } },
+    '/hubs/h/inventory': { name: 'hub-inventory', params: {}, query: {} },
+    '/hubs/h/time': { name: 'hub-time', params: {}, query: {} },
+    '/hubs/h/goals': { name: 'hub-goals', params: {}, query: {} },
   };
   for (const tool of HUB_TOOLS) assert.equal(toolOf(routeOf[toolPath('h', tool.id)]!), tool.id, tool.id);
   assert.equal(toolOf({ name: 'hub', query: {} }), 'overview');

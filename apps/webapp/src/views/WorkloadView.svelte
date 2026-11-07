@@ -75,7 +75,7 @@
         }
       : undefined}
   />
-  <PlaceViews placeId={planId} tool="time" current="workload" {onnavigate} />
+  <PlaceViews placeId={planId} tool="time" current={place?.type === 'COLLECTION' ? 'time' : 'workload'} {onnavigate} />
 
   <div class="controls">
     <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => (shift -= 1)}>{t('app.workload.earlier')}</Button>
