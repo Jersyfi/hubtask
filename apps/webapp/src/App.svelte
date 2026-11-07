@@ -23,6 +23,7 @@
   import LeaveDialog from './lib/frame/LeaveDialog.svelte';
   import { loadReleaseAt } from './lib/frame/release.ts';
   import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
+  import { browseElsewhere, stepOf } from './lib/phone.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
@@ -63,6 +64,7 @@
     AgentsView: () => import('./views/AgentsView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
     JumbleView: () => import('./views/JumbleView.svelte'),
+    BrowseView: () => import('./views/BrowseView.svelte'),
     InstallationView: () => import('./views/InstallationView.svelte'),
     ProfileView: () => import('./views/ProfileView.svelte'),
     AppearanceView: () => import('./views/AppearanceView.svelte'),
@@ -157,6 +159,12 @@
     // Only on a measured width: before the frame has started the viewport, `isLarge` is its
     // default, and a desktop's `?item=` would be sent to the entry's page.
     if (pane.kind === 'redirect' && viewport.isMeasured) router.replace(pane.path);
+  });
+  // A step of the phone's Browse stack opens the place the sidebar draws from `medium` up (§9).
+  const browseStep = $derived(stepOf(route));
+  $effect(() => {
+    const elsewhere = browseElsewhere(route);
+    if (elsewhere && viewport.isMeasured && !viewport.isCompact) router.replace(elsewhere);
   });
   // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's.
   const moved = $derived(movedTo(route.name, route.params, route.query));
@@ -445,6 +453,8 @@
     <LazyView load={views.AdministrationArea} props={{ route, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'search'}
     <LazyView load={views.SearchView} props={{ query: route.query, onnavigate: (path: string) => router.replace(path) }} />
+  {:else if browseStep}
+    <LazyView load={views.BrowseView} props={{ route, step: browseStep, onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'jumble'}
     <LazyView load={views.JumbleView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'trash'}

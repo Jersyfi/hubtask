@@ -208,6 +208,7 @@ async function boot() {
 async function views() {
   const load = async (name) => (await import(`../src/views/${name}.svelte`)).default;
   const noop = () => {};
+  const browse = await load('BrowseView');
   return [
     ['home', await load('TodayView'), {}],
     ['installation', await load('InstallationView'), {}],
@@ -252,6 +253,12 @@ async function views() {
     ['ai', await load('AiSettingsView'), {}],
     ['search', await load('SearchView'), {}],
     ['jumble', await load('JumbleView'), { onnavigate: noop }],
+    // The phone's Browse stack: its four steps, one view.
+    ...['browse', 'browse-hub', 'browse-queues', 'browse-contents'].map((name) => [name, browse, {
+      route: { name, params: name === 'browse' ? {} : { id: TENANT }, path: '/browse', query: {}, area: 'end-user' },
+      step: name === 'browse' ? { kind: 'workspace' } : { kind: name === 'browse-hub' ? 'hub' : name === 'browse-queues' ? 'queues' : 'contents', hubId: TENANT },
+      onnavigate: noop,
+    }]),
     ['trash', await load('TrashView'), {}],
     ['archive', await load('ArchiveView'), { onnavigate: noop }],
     ['item', await load('ItemView'), { id: ITEM }],

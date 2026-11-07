@@ -57,6 +57,21 @@ class Page {
     };
   }
 
+  #ascent = $state<{ readonly label: string; readonly path: string } | undefined>(undefined);
+
+  /** The phone bar's *‹ the level above*, where the screen knows it better than its route does. */
+  get ascent(): { readonly label: string; readonly path: string } | undefined {
+    return this.#ascent;
+  }
+
+  /** Sets the way up for as long as the caller's effect lives; the cleanup clears it. */
+  ascend(ascent: { readonly label: string; readonly path: string } | undefined): () => void {
+    this.#ascent = ascent;
+    return () => {
+      if (this.#ascent === ascent) this.#ascent = undefined;
+    };
+  }
+
   get menu(): PageMenu | undefined {
     return this.#menu;
   }

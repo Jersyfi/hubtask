@@ -10,12 +10,18 @@
   import { untrack } from 'svelte';
 
   import {
+    Button,
     EmptyState,
+    Icon,
+    Menu,
     NavFlyout,
     NavGroup,
     NavItem,
     NavLevel,
+    ProductTile,
+    Sheet,
     Skeleton,
+    VisuallyHidden,
     ancestorsOf,
     moveIntent,
     type MoveKey,
@@ -95,6 +101,8 @@
     type NavLevel as Level,
   } from '../sidebar.ts';
   import { leftToWebApp } from '../navigation.ts';
+  import { contentsStep, hubStep, queuesStep, type PhoneStep } from '../phone.ts';
+  import { page } from './page.svelte.ts';
   import { commands } from '../palette/commands.svelte.ts';
   import { actsAsDesk } from '../portal/portal.ts';
   import { platform } from '../platform/index.ts';
@@ -112,14 +120,19 @@
     isRail?: boolean;
     /** Whether *For you* is drawn whole - not on `compact`, where the bottom bar carries most of it. */
     hasForYou?: boolean;
+    /**
+     * A step of the phone's Browse stack (§9) instead of the sidebar: the workspace level, a hub,
+     * its queues or its contents (under a page), drawn as touch rows from the same reads.
+     */
+    step?: PhoneStep;
     onnavigate: (path: string) => void;
   }
 
-  const { route, located, isRail = false, hasForYou = true, onnavigate }: Props = $props();
+  const { route, located, isRail = false, hasForYou = true, step, onnavigate }: Props = $props();
 
   const workspaceOn = $derived(manifest.value?.modules_on);
   const hasJumble = $derived(holdsHere('READ') === true);
-  const topRows = $derived(forYou({ hasJumble, modulesOn: workspaceOn, besideBar: !hasForYou }));
+  const topRows = $derived(forYou({ hasJumble, modulesOn: workspaceOn, besideBar: !hasForYou || step !== undefined }));
   const footRows = $derived(foot({ isAdministrationReachable: reachesAdministrationArea() === true }));
 
   // What waits for the reader's yes - approvals, held agent acts, page reviews (§2.2).
@@ -186,7 +199,9 @@
     void route.path;
     isBrowsingAll = false;
   });
-  const level = $derived<Level>(isBrowsingAll ? { kind: 'workspace' } : routeLevel);
+  const level = $derived<Level>(
+    step ? (step.kind === 'workspace' ? { kind: 'workspace' } : { kind: 'hub', hubId: step.hubId }) : isBrowsingAll ? { kind: 'workspace' } : routeLevel,
+  );
   const hubId = $derived(level.kind === 'hub' ? level.hubId : undefined);
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
   const tool = $derived(toolOf(route));
@@ -679,6 +694,64 @@
     if (isDone) stop();
   }
 
+  // ---- The phone's Browse steps (§9) --------------------------------------------------------
+  /** A content node and the nodes above it, found in the tree. */
+  function findContent(nodes: readonly ContentNode[], id: string, above: readonly ContentNode[] = []): { node: ContentNode; above: readonly ContentNode[] } | undefined {
+    for (const node of nodes) {
+      if (node.id === id) return { node, above };
+      const found = findContent(node.children, id, [...above, node]);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  const under = $derived(step?.kind === 'contents' && step.under ? findContent(contentNodes, step.under) : undefined);
+  const flatContents = (nodes: readonly ContentNode[]): ContentNode[] => nodes.flatMap((node) => [node, ...flatContents(node.children)]);
+  let stepFilter = $state('');
+  let isStepFiltering = $state(false);
+  let stepKind = $state<'all' | 'page' | 'whiteboard'>('all');
+  const stepRows = $derived.by(() => {
+    const words = stepFilter.trim().toLocaleLowerCase(messages.locale);
+    const base = words ? flatContents(contentNodes).filter((node) => node.title.toLocaleLowerCase(messages.locale).includes(words)) : under ? under.node.children : contentNodes;
+    return stepKind === 'all' ? base : base.filter((node) => node.kind === stepKind);
+  });
+  const contentPath = (node: ContentNode) => (node.kind === 'whiteboard' ? `/whiteboards/${node.id}` : `/pages/${node.id}`);
+  const stepTitle = $derived(
+    !step ? undefined
+      : step.kind === 'workspace' ? t('app.nav.browse')
+        : step.kind === 'queues' ? t('app.nav.queues_step')
+          : step.kind === 'contents' ? (under?.node.title ?? t('app.nav.contents'))
+            : hub?.name,
+  );
+  $effect(() => {
+    if (!step) return;
+    return page.entitle(stepTitle);
+  });
+  // Under a page the way up is the page above, which only the tree knows.
+  $effect(() => {
+    if (step?.kind !== 'contents' || !step.under || !under) return;
+    const parent = under.above[under.above.length - 1];
+    return page.ascend(parent ? { label: parent.title, path: contentsStep(step.hubId, parent.id) } : { label: t('app.nav.contents'), path: contentsStep(step.hubId) });
+  });
+  // *Queues*' figure on the phone (§9): what asks for action - the urgent queues' count on the
+  // danger surface - else the total.
+  const queuesUrgent = $derived(queueList.some((row) => row.isUrgent));
+  const queuesTotal = $derived(queueList.filter((row) => !queuesUrgent || row.isUrgent).reduce((sum, row) => sum + (row.count ?? 0), 0));
+  // A hub's step carries the hub's ⋯ in the bar, as its head does in the sidebar.
+  $effect(() => {
+    if (step?.kind !== 'hub' || !hub) return;
+    const menu = hubMenuOf(hub.id);
+    if (!menu?.items) return;
+    page.offer({ label: menu.label, items: menu.items, onselect: (id) => menu.onselect(id) });
+    return () => page.offer(undefined);
+  });
+  let isAllHubsShown = $state(false);
+  let isNewOpen = $state(false);
+  const RECENT_KINDS = { item: 'app.nav.recent_kind_item', collection: 'app.nav.recent_kind_collection', hub: 'app.nav.recent_kind_hub' } as const;
+  const recentColour = (row: { kind: 'item' | 'collection' | 'hub'; id: string; placeId?: string }) => {
+    const container = containers.find(row.kind === 'item' ? (row.placeId ?? '') : row.id);
+    return container ? (container.color_token ?? DEFAULT_TILE) : DEFAULT_TILE;
+  };
+
   // ---- Navigation, failures -----------------------------------------------------------------
   const webAppOrigins = $derived({ workspace: platform.webOrigin, installation: manifest.value?.installation_url });
   function goFoot(id: string, path: string) {
@@ -715,6 +788,171 @@
   const refusalLabel = (refusal: 'self' | 'no-children' | 'other-part' | 'too-deep') => t(`app.nav.refused_${refusal.replace('-', '_')}`);
 </script>
 
+{#if step}
+<div class="phone" data-browse-step={step.kind}>
+  <!-- The bar shows the step's title; the screen's one heading is read here (as `PageHeader`'s). -->
+  <VisuallyHidden as="h1">{stepTitle ?? ''}</VisuallyHidden>
+  {#if !isTreeReady}
+    <div aria-busy="true"><Skeleton lines={6} /></div>
+  {:else if failure}
+    <FailureState problem={failure} onRetry={() => containers.refresh()} />
+  {:else if step.kind === 'workspace'}
+    {#if topRows.length > 0}
+      <NavGroup label={t('app.nav.for_you')} size="touch">
+        {#each topRows as row (row.id)}
+          <NavItem label={t(row.code)} icon={row.icon} href={row.target.kind === 'route' ? row.target.path : undefined} figure={topFigure(row.id)} isFigureUrgent={row.id === 'approvals'} size="touch" isDrillDown
+            onnavigate={() => row.target.kind === 'route' && onnavigate(row.target.path)} />
+        {/each}
+      </NavGroup>
+    {/if}
+    {#if recents.rows.length > 0}
+      <section class="recent" aria-labelledby="browse-recent">
+        <h3 class="gl" id="browse-recent">{t('app.nav.recent')}</h3>
+        <ul class="cards">
+          {#each recents.rows.slice(0, 3) as row (row.kind + row.id)}
+            <li>
+              <a class="card" href={RECENT_PATHS[row.kind](row.id)} onclick={(event) => { event.preventDefault(); onnavigate(RECENT_PATHS[row.kind](row.id)); }}>
+                <span aria-hidden="true"><ProductTile icon={RECENT_ICONS[row.kind]} color={recentColour(row)} /></span>
+                <span class="card-name">{row.title}</span>
+                <small class="card-kind">{t(RECENT_KINDS[row.kind])}</small>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+    {#if starRows.length > 0}
+      <NavGroup label={t('app.nav.starred')} size="touch">
+        {#each starRows as row (row.key)}
+          <NavItem label={row.label} icon={row.icon} color={row.color} href={row.href} figure={row.figure} isFigureUrgent={row.isUrgent} size="touch" onnavigate={() => onnavigate(row.href)} />
+        {/each}
+      </NavGroup>
+    {/if}
+    {#if productSets.shown.length + productSets.more.length > 0}
+      <NavGroup label={t('app.nav.products')} size="touch">
+        {#each isAllProducts ? [...productSets.shown, ...productSets.more] : productSets.shown as row (row.id)}
+          <NavItem label={t(row.code)} icon={row.icon} color={row.color} href={row.path} size="touch" isDrillDown onnavigate={() => onnavigate(row.path)} />
+        {/each}
+        {#if !isAllProducts && productSets.more.length > 0}
+          <NavItem label={t('app.nav.more_count', { count: productSets.more.length })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => (isAllProducts = true)} />
+        {/if}
+      </NavGroup>
+    {/if}
+    <NavGroup label={t('app.nav.hubs')} size="touch">
+      {#each isAllHubsShown ? orderedHubs : orderedHubs.slice(0, HUBS_SHOWN) as each (each.id)}
+        <NavItem label={each.name} icon={each.private && !chosenSymbol(each) ? 'lock' : markOf(each)} color={each.color_token ?? DEFAULT_TILE} href={hubStep(each.id)}
+          badge={each.private ? { icon: 'lock', label: t('app.nav.private') } : undefined} size="touch" isDrillDown onnavigate={() => onnavigate(hubStep(each.id))} />
+      {/each}
+      {#if !isAllHubsShown && orderedHubs.length > HUBS_SHOWN}
+        <NavItem label={t('app.nav.more_count', { count: orderedHubs.length - HUBS_SHOWN })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => (isAllHubsShown = true)} />
+      {/if}
+      {#if orderedHubs.length === 0 && createHubLabel}
+        <NavItem label={createHubLabel} icon="plus" tone="link" size="touch" onnavigate={() => (isCreatingHub = true)} />
+      {/if}
+    </NavGroup>
+    <ul class="card-list" aria-label={t('app.nav.keeping')}>
+      {#each footRows as row (row.id)}
+        <NavItem label={t(row.code)} icon={row.icon} href={row.path} figure={footFigure(row.id)} size="touch" isDrillDown onnavigate={() => goFoot(row.id, row.path)} />
+      {/each}
+    </ul>
+  {:else if hub && step.kind === 'hub'}
+    <ul class="card-list" aria-label={t('app.nav.tools_of', { hub: hub.name })}>
+      <NavItem label={t('app.nav.overview')} icon="hub" href={`/hubs/${hub.id}`} size="touch" isDrillDown onnavigate={() => onnavigate(`/hubs/${hub.id}`)} />
+      {#each hubToolRows as each (each.id)}
+        {#if each.id === 'queues'}
+          <NavItem label={t(each.code)} icon={each.icon} href={queuesStep(hub.id)} figure={queueList.length > 0 ? String(queuesTotal) : undefined} isFigureUrgent={queuesUrgent}
+            size="touch" isDrillDown onnavigate={() => onnavigate(queuesStep(hub.id))} />
+        {:else}
+          <NavItem label={t(each.code)} icon={each.icon} href={toolPath(hub.id, each.id)} figure={toolFigure(each.id)} isFigureUrgent={each.id === 'inventory'} size="touch" isDrillDown onnavigate={() => onnavigate(toolPath(hub.id, each.id))} />
+        {/if}
+      {/each}
+    </ul>
+    {#if collectionNodes.length > 0}
+      <NavGroup label={t('app.nav.collections')} size="touch">
+        {#each collectionNodes as node (node.id)}
+          <NavItem label={node.label} icon={node.icon} color={node.color} href={`/collections/${node.id}`} figure={node.figure} isFigureUrgent={node.isFigureUrgent} badge={node.badge} size="touch" onnavigate={() => onnavigate(`/collections/${node.id}`)} />
+        {/each}
+      </NavGroup>
+    {:else if mayStructure}
+      <NavGroup label={t('app.nav.collections')} size="touch">
+        <NavItem label={t('app.nav.create_first_collection')} icon="plus" tone="link" size="touch" onnavigate={() => { collectionHubId = hub.id; isCreatingCollection = true; }} />
+      </NavGroup>
+    {/if}
+    {#if hasContents && contentNodes.length > 0}
+      <NavGroup label={t('app.nav.contents')} size="touch" headLink={{ label: t('app.nav.kind_all'), onselect: () => onnavigate(contentsStep(hub.id)) }}>
+        {#each contentNodes.slice(0, CONTENTS_SHOWN) as node (node.id)}
+          <NavItem label={node.title} icon={node.kind === 'page' ? 'file-text' : 'layout-template'} href={contentPath(node)} size="touch" onnavigate={() => onnavigate(contentPath(node))}
+            descendLabel={node.children.length > 0 ? t('app.nav.descend', { name: node.title }) : undefined}
+            ondescend={node.children.length > 0 ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
+        {/each}
+        {#if contentNodes.length > CONTENTS_SHOWN}
+          <NavItem label={t('app.nav.more_count', { count: contentNodes.length - CONTENTS_SHOWN })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => onnavigate(contentsStep(hub.id))} />
+        {/if}
+      </NavGroup>
+    {:else if hasContents && contentsAdd}
+      <NavGroup label={t('app.nav.contents')} size="touch">
+        <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" size="touch" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
+      </NavGroup>
+    {/if}
+  {:else if hub && step.kind === 'queues'}
+    <ul class="card-list" aria-label={t('app.nav.queues_of', { hub: hub.name })}>
+      {#each queueList as row (row.id)}
+        <NavItem label={queueName(row)} icon={row.isStarred ? 'star' : 'columns-3'} href={queuePath(hub.id, row)} figure={row.count === null ? undefined : String(row.count)} isFigureUrgent={row.isUrgent}
+          figureLabel={row.count === null ? undefined : t(row.isUrgent ? 'app.nav.queue_count_urgent' : 'app.nav.queue_count', { count: row.count })}
+          size="touch" isDrillDown onnavigate={() => onnavigate(queuePath(hub.id, row))} />
+      {/each}
+    </ul>
+  {:else if hub && step.kind === 'contents'}
+    <div class="chips">
+      <button type="button" class="chip" aria-pressed={isStepFiltering} onclick={() => { isStepFiltering = !isStepFiltering; if (!isStepFiltering) stepFilter = ''; }}>
+        <span class="pill"><Icon name="search" size="sm" />{t('app.nav.filter')}</span>
+      </button>
+      {#if isOn('KNOWLEDGE') && isOn('WHITEBOARD')}
+        <Menu label={t('app.nav.kind_label')} items={(['all', 'page', 'whiteboard'] as const).map((id) => ({ id, label: t(id === 'all' ? 'app.nav.kind_all' : id === 'page' ? 'app.nav.kind_pages' : 'app.nav.kind_whiteboards'), ...(id === stepKind ? { icon: 'check' as const } : {}) }))}
+          onselect={(id) => (stepKind = id as typeof stepKind)}>
+          {#snippet trigger(props)}
+            <button type="button" class="chip" {...props}><span class="pill">{t(stepKind === 'all' ? 'app.nav.kind_all' : stepKind === 'page' ? 'app.nav.kind_pages' : 'app.nav.kind_whiteboards')}<Icon name="chevron-down" size="sm" /></span></button>
+          {/snippet}
+        </Menu>
+      {/if}
+      <Menu label={contentsMenu.label} items={contentsMenu.items ?? []} onselect={(id) => contentsMenu.onselect(id)}>
+        {#snippet trigger(props)}
+          <button type="button" class="chip" {...props}><span class="pill">{t(`app.nav.mode_${contentsMode.toLowerCase()}`)}<Icon name="chevron-down" size="sm" /></span></button>
+        {/snippet}
+      </Menu>
+    </div>
+    {#if isStepFiltering}
+      <label class="step-filter">
+        <Icon name="search" size="sm" />
+        <input type="search" bind:value={stepFilter} aria-label={t('app.nav.filter_contents')} placeholder={t('app.nav.filter_contents')} />
+      </label>
+    {/if}
+    <ul class="card-list" aria-label={t('app.nav.contents_of', { hub: under?.node.title ?? hub.name })}>
+      {#each stepRows as node (node.id)}
+        <NavItem label={node.title} icon={node.kind === 'page' ? 'file-text' : 'layout-template'} href={contentPath(node)} size="touch" onnavigate={() => onnavigate(contentPath(node))}
+          descendLabel={node.children.length > 0 ? t('app.nav.descend', { name: node.title }) : undefined}
+          ondescend={node.children.length > 0 ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
+      {/each}
+    </ul>
+    {#if mayWrite && createItems.length > 0}
+      <span class="fab"><Button tone="primary" icon="plus" onclick={() => (isNewOpen = true)}>{t('app.nav.new')}</Button></span>
+      <Sheet title={under ? t('app.nav.create_under', { name: under.node.title }) : t('app.nav.new_in_place', { name: hub.name })} closeLabel={t('app.sheet_close')} bind:isOpen={isNewOpen}>
+        <ul class="card-list">
+          {#each createItems as item (item.id)}
+            <NavItem label={item.id === 'template' ? t('app.nav.create_page_from_template') : item.label} icon={item.icon} size="touch"
+              onnavigate={() => { isNewOpen = false; onnavigate(createPath(hub.id, item.id, under?.node.id)); }} />
+          {/each}
+        </ul>
+        {#if mayStructure && !under}
+          <ul class="card-list">
+            <NavItem label={t('app.nav.create_collection_kind')} icon="collection" size="touch" onnavigate={() => { isNewOpen = false; collectionHubId = hub.id; isCreatingCollection = true; }} />
+          </ul>
+        {/if}
+      </Sheet>
+    {/if}
+  {/if}
+</div>
+{:else}
 <div class="column" data-rail={isRail ? '' : undefined}>
   {#if topRows.length > 0}
   <ul class="foryou" aria-label={t('app.nav.for_you')}>
@@ -986,6 +1224,7 @@
     {/each}
   </ul>
 </div>
+{/if}
 
 <CreateContainerDialog
   bind:isOpen={isCreatingHub}
@@ -1022,4 +1261,91 @@
   .flyout { list-style: none; }
   .quiet { list-style: none; padding: var(--sp-050) var(--sp-100); color: var(--text-subtle); font-size: var(--fs-075); }
   .failure { margin: 0; padding-inline: var(--sp-100); color: var(--text-danger); font-size: var(--fs-075); }
+
+  /* ---- The phone's Browse steps (§9): cards of 44 px rows, as the mockup's phone screens. ---- */
+  .phone { display: flex; flex-direction: column; padding-block-end: calc(var(--density-control-md-min) + var(--sp-200)); }
+  .card-list {
+    margin: var(--sp-150) 0;
+    padding: 0;
+    overflow: hidden;
+    list-style: none;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
+  .card-list:first-child { margin-block-start: 0; }
+  .gl {
+    margin: var(--sp-150) var(--sp-050) calc(var(--sp-050) + var(--sp-025));
+    color: var(--text-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--fs-065);
+    font-weight: var(--fw-medium);
+    /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .recent .gl { margin-block-start: 0; }
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .card {
+    display: grid;
+    gap: var(--sp-025);
+    min-block-size: var(--layout-nav-touchrow);
+    padding: calc(var(--sp-100) + var(--sp-025));
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .card-name { overflow: hidden; margin-block-start: var(--sp-050); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
+  .card-kind { color: var(--text-subtle); font-size: var(--fs-065); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  /* A chip's pill is small, its target a thumb's height (§9: 44 px targets). */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--layout-nav-touchrow);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    cursor: pointer;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    padding: var(--sp-050) calc(var(--sp-100) + var(--sp-025));
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-full);
+    background: var(--bg-surface);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+  }
+  .chip[aria-pressed='true'] .pill { border-color: var(--accent-primary); }
+  .chip:focus-visible .pill { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .step-filter {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-050);
+    min-block-size: var(--layout-nav-touchrow);
+    margin-block-start: var(--sp-100);
+    padding-inline: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+  }
+  .step-filter input { flex: 1; min-inline-size: 0; border: 0; background: none; color: var(--text-primary); font: inherit; outline: none; }
+  .step-filter:focus-within { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  /* The one main action, floating above the bottom bar (§9). */
+  .fab {
+    position: fixed;
+    inset-inline-end: var(--sp-200);
+    inset-block-end: calc(var(--layout-bottombar-height) + var(--sp-200) + env(safe-area-inset-bottom, 0));
+    z-index: var(--z-raised);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-overlay);
+  }
 </style>

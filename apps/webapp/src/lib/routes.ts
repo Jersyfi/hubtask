@@ -148,6 +148,13 @@ export const ROUTES: readonly Route[] = [
   // is the work rather than the administration of it. The workspace's own: drawn for somebody who
   // reads the workspace itself, and inside it each control only for the permission it needs.
   { name: 'jumble', pattern: '/jumble' },
+  // The phone's Browse stack (the navigation concept §9): the workspace level, a hub's, its queues
+  // and its contents (`?under=` a page) as steps with addresses of their own, so the system's back
+  // goes one level up. From `medium` up each opens the place the sidebar draws (`phone.ts`).
+  { name: 'browse', pattern: '/browse' },
+  { name: 'browse-hub', pattern: '/browse/hubs/:id' },
+  { name: 'browse-queues', pattern: '/browse/hubs/:id/queues' },
+  { name: 'browse-contents', pattern: '/browse/hubs/:id/contents' },
   // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
   // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
   { name: 'time', pattern: '/time' },
