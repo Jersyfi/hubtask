@@ -97,7 +97,7 @@ class TourStore {
     // The jumble's step only for somebody the jumble is drawn for: a step pointing at a screen
     // that answers "nothing here" would be a tour of a refusal.
     const frame = viewport.isCompact ? 'phone' : viewport.isBelowExpanded ? 'drawer' : 'pinned';
-    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.path, frame });
+    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.module, frame });
     await this.#go(Math.min(at, this.#steps.length - 1), 1);
   }
 
