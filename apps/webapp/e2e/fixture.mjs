@@ -1223,6 +1223,10 @@ export function stub(route) {
 export function fallback(route, request, path) {
   const read = path.replace(/^.*\/api\/v1/, '');
 
+  // The sidebar's own reads (the navigation concept): nobody starred anything, no hub has a queue.
+  if (/^\/accounts\/[^/]+\/stars$/.test(read)) return route.fulfill({ json: { stars: [], version: 0 } });
+  if (/^\/hubs\/[^/]+\/queues$/.test(read)) return route.fulfill({ json: { data: [] } });
+
   // Bringing a container back, which is what the archive is for. Answered with the container it
   // makes rather than with a page: a guess here would be a guess in the very walk whose subject
   // it is.
