@@ -152,6 +152,12 @@ const (
 	// looked at it would escalate it forever, so the announcement is bookkeeping on the entry and
 	// a date that moves is a new deadline that may be missed again.
 	ItemOverdue Type = "de.hubtask.work.item.overdue.v1"
+	// ItemSLAAtRisk announces that a goal of an entry's SLA passed its warning share with the goal
+	// not met: once per goal. Consumers: automation (an escalation is a rule), webhooks.
+	ItemSLAAtRisk Type = "de.hubtask.work.item.sla_at_risk.v1"
+	// ItemSLABreached announces that a goal of an entry's SLA ran out of working time unmet: once
+	// per goal. Consumers: automation, webhooks.
+	ItemSLABreached Type = "de.hubtask.work.item.sla_breached.v1"
 	// ItemArchived announces that an entry is kept and read-only. Consumers: automation, search
 	// (an archived entry drops out of the default index), SSE.
 	//
@@ -233,6 +239,13 @@ const (
 	ItemLabelAdded Type = "de.hubtask.work.item.label_added.v1"
 	// ItemLabelRemoved announces that an entry no longer carries a label. Consumers: automation.
 	ItemLabelRemoved Type = "de.hubtask.work.item.label_removed.v1"
+
+	// ItemLinked announces that a link of a type now runs from one entry to another (F-3,
+	// UC-PLN-01). Consumers: automation, webhooks. The subject is the link's source; the payload
+	// names both ends, the type by key, and no title.
+	ItemLinked Type = "de.hubtask.work.item.linked.v1"
+	// ItemUnlinked announces that a link was removed.
+	ItemUnlinked Type = "de.hubtask.work.item.unlinked.v1"
 
 	// AttachmentAdded announces that an entry now carries a file. Consumers: automation, and the
 	// media garbage collection the event catalogue names beside it (domain-model.md §4).
@@ -324,11 +337,11 @@ var types = [...]Type{
 	ContainerArchived, ContainerUnarchived, ContainerDeleted, ContainerRestored,
 	ItemCreated, ItemUpdated, ItemCompleted, ItemReopened, ItemMoved,
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved, ItemDueChanged,
-	ItemDueSoon, ItemOverdue, RecurrenceOccurrenceCreated, TemplateInstantiated,
+	ItemDueSoon, ItemOverdue, ItemSLAAtRisk, ItemSLABreached, RecurrenceOccurrenceCreated, TemplateInstantiated,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
 	LabelCreated, LabelUpdated, LabelDeleted, LabelRestored,
-	ItemLabelAdded, ItemLabelRemoved,
+	ItemLabelAdded, ItemLabelRemoved, ItemLinked, ItemUnlinked,
 	AttachmentAdded, AttachmentRemoved,
 	CommentCreated, CommentUpdated, CommentDeleted,
 	RuleRunStarted, RuleRunFinished, RuleRunFailed,

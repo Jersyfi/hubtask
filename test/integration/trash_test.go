@@ -381,7 +381,7 @@ func listTrash(
 	var result repository.TrashPage
 	if err := read(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
-		result, err = trashRepo().List(ctx, page)
+		result, err = trashRepo().List(ctx, page, "")
 		return err
 	}); err != nil {
 		t.Fatalf("reading the trash: %v", err)
@@ -738,4 +738,194 @@ func TestNoTenantsTrashReachesAnother(t *testing.T) {
 			t.Error("another tenant purged this tenant's containers")
 		}
 	})
+}
+
+// The one trash against the real database (user-experience.md §5.9): a trashed page tree is listed
+// once, at its root, a whiteboard beside it, the kind filter narrows to one kind, a deletion's rows
+// carry whose words are in them - and none of it reaches another workspace (gate SG-3).
+func TestTheOneTrashListsPagesAndWhiteboardsWithinTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	pool := adminPool(ctx, t)
+	var hub string
+	if err := pool.QueryRow(ctx, `SELECT parent_id::text FROM container WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), collection.String()).Scan(&hub); err != nil {
+		t.Fatalf("reading the hub: %v", err)
+	}
+	trashedAt := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	root, below, alone, board := freshID(t), freshID(t), freshID(t), freshID(t)
+	pageAt := func(id shared.ID, parentID any, deleted time.Time) {
+		t.Helper()
+		if _, err := pool.Exec(ctx, `INSERT INTO page (id, tenant_id, hub_id, parent_id, title, order_key, created_by,
+			created_at, updated_by, updated_at, deleted_at) VALUES ($1, $2, $3, $4, 'P', 'a', $5, $6, $5, $6, $6)`,
+			id.String(), tenantA.String(), hub, parentID, authorA.String(), deleted); err != nil {
+			t.Fatalf("writing a page: %v", err)
+		}
+	}
+	pageAt(root, nil, trashedAt)
+	pageAt(below, root.String(), trashedAt)
+	// Trashed on its own before its parent went: its own deletion, listed in its own right.
+	pageAt(alone, root.String(), trashedAt.Add(-time.Minute))
+	if _, err := pool.Exec(ctx, `INSERT INTO whiteboard (id, tenant_id, hub_id, title, created_by, created_at,
+		updated_by, updated_at, deleted_at) VALUES ($1, $2, $3, 'B', $4, $5, $4, $5, $5)`,
+		board.String(), tenantA.String(), hub, authorA.String(), trashedAt); err != nil {
+		t.Fatalf("writing a board: %v", err)
+	}
+
+	listed := map[shared.ID]work.TrashEntry{}
+	for _, entry := range listTrash(ctx, t, tenantA, repository.Page{Size: 200}).Entries {
+		listed[entry.ID] = entry
+	}
+	if entry, ok := listed[root]; !ok || entry.Kind != work.TrashPageKind || entry.BatchID != root || entry.HubID.String() != hub {
+		t.Errorf("the trashed page tree's root is listed as %+v (listed %v)", entry, ok)
+	}
+	if _, ok := listed[below]; ok {
+		t.Error("a page trashed with its parent is listed in its own right")
+	}
+	if entry, ok := listed[alone]; !ok || entry.ParentID != root {
+		t.Errorf("a page trashed on its own earlier is listed as %+v (listed %v)", entry, ok)
+	}
+	if entry, ok := listed[board]; !ok || entry.Kind != work.TrashWhiteboardKind || entry.DeletedBy.IsKnown() {
+		t.Errorf("the trashed board is listed as %+v (listed %v)", entry, ok)
+	}
+
+	var boards repository.TrashPage
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		boards, err = trashRepo().List(ctx, repository.Page{Size: 200}, work.TrashWhiteboardKind)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the boards in the trash: %v", err)
+	}
+	for _, entry := range boards.Entries {
+		if entry.Kind != work.TrashWhiteboardKind {
+			t.Errorf("narrowed to boards, the trash answered a %s", entry.Kind)
+		}
+	}
+	if len(boards.Entries) == 0 {
+		t.Error("narrowed to boards, the trash answered none")
+	}
+
+	members := func(tenant shared.ID) []repository.TrashMember {
+		t.Helper()
+		var out []repository.TrashMember
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			out, err = trashRepo().BatchMembers(ctx, []shared.ID{root, board})
+			return err
+		}); err != nil {
+			t.Fatalf("reading the deletions' rows: %v", err)
+		}
+		return out
+	}
+	rows := map[shared.ID]repository.TrashMember{}
+	for _, member := range members(tenantA) {
+		rows[member.ID] = member
+	}
+	for _, id := range []shared.ID{root, below, alone, board} {
+		member, ok := rows[id]
+		if !ok {
+			t.Errorf("%s is not among the deletions' rows", id)
+			continue
+		}
+		if len(member.Contributors) != 1 || member.Contributors[0] != authorA {
+			t.Errorf("%s carries the contributors %v, want its creator", id, member.Contributors)
+		}
+	}
+	if rows[below].BatchID != root || rows[board].BatchID != board {
+		t.Errorf("the rows are keyed %s and %s, want the page tree's root and the board", rows[below].BatchID, rows[board].BatchID)
+	}
+
+	t.Run("another workspace", func(t *testing.T) {
+		for _, entry := range listTrash(ctx, t, tenantB, repository.Page{Size: 200}).Entries {
+			if entry.ID == root || entry.ID == alone || entry.ID == board {
+				t.Error("another workspace's page or board is in this workspace's trash")
+			}
+		}
+		if foreign := members(tenantB); len(foreign) != 0 {
+			t.Errorf("another workspace's deletions came back with %d rows", len(foreign))
+		}
+	})
+}
+
+// Who trashed a page or a board is recorded by the write that trashes it, listed by the one trash,
+// and forgotten by its restore; another workspace's trash write touches nothing (migration 0378).
+func TestTheOneTrashNamesWhoTrashedAPageOrABoard(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	pool := adminPool(ctx, t)
+	var hub string
+	if err := pool.QueryRow(ctx, `SELECT parent_id::text FROM container WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), collection.String()).Scan(&hub); err != nil {
+		t.Fatalf("reading the hub: %v", err)
+	}
+	created := time.Now().UTC().Add(-time.Hour).Truncate(time.Microsecond)
+	page, board := freshID(t), freshID(t)
+	if _, err := pool.Exec(ctx, `INSERT INTO page (id, tenant_id, hub_id, title, order_key, created_by,
+		created_at, updated_by, updated_at) VALUES ($1, $2, $3, 'P', 'a', $4, $5, $4, $5)`,
+		page.String(), tenantA.String(), hub, authorA.String(), created); err != nil {
+		t.Fatalf("writing a page: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO whiteboard (id, tenant_id, hub_id, title, created_by, created_at,
+		updated_by, updated_at) VALUES ($1, $2, $3, 'B', $4, $5, $4, $5)`,
+		board.String(), tenantA.String(), hub, authorA.String(), created); err != nil {
+		t.Fatalf("writing a board: %v", err)
+	}
+	pages, boards := postgres.NewPageRepository(), postgres.NewWhiteboardRepository()
+	trashedAt := created.Add(time.Minute)
+	trashBoard := func(tenant shared.ID) error {
+		return write(ctx, t, tenant, func(ctx context.Context) error {
+			current, err := boards.FindForUpdate(ctx, board)
+			if err != nil {
+				return err
+			}
+			next := current
+			next.DeletedAt, next.DeletedByKind, next.UpdatedBy, next.UpdatedAt = &trashedAt, shared.ActorUser, authorA, trashedAt
+			return boards.Update(ctx, next, current.Version)
+		})
+	}
+
+	t.Run("another workspace", func(t *testing.T) {
+		_ = write(ctx, t, tenantB, func(ctx context.Context) error {
+			if count, _ := pages.Trash(ctx, page, authorB, shared.ActorUser, trashedAt); count != 0 {
+				t.Errorf("another workspace trashed %d pages", count)
+			}
+			return nil
+		})
+		if err := trashBoard(tenantB); err == nil {
+			t.Error("another workspace trashed the board")
+		}
+	})
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := pages.Trash(ctx, page, authorA, shared.ActorUser, trashedAt)
+		return err
+	}); err != nil {
+		t.Fatalf("trashing the page: %v", err)
+	}
+	if err := trashBoard(tenantA); err != nil {
+		t.Fatalf("trashing the board: %v", err)
+	}
+	listed := map[shared.ID]work.TrashEntry{}
+	for _, entry := range listTrash(ctx, t, tenantA, repository.Page{Size: 200}).Entries {
+		listed[entry.ID] = entry
+	}
+	for _, id := range []shared.ID{page, board} {
+		if by := listed[id].DeletedBy; by.Kind != shared.ActorUser || by.ID != authorA {
+			t.Errorf("%s is listed as trashed by %+v, want the author", id, by)
+		}
+	}
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := pages.Restore(ctx, page, authorA, trashedAt, trashedAt.Add(time.Minute))
+		return err
+	}); err != nil {
+		t.Fatalf("restoring the page: %v", err)
+	}
+	var kind *string
+	if err := pool.QueryRow(ctx, `SELECT deleted_by_type FROM page WHERE id = $1`, page.String()).Scan(&kind); err != nil || kind != nil {
+		t.Errorf("a restored page still names who trashed it: %v %v", kind, err)
+	}
 }

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-08, P-11]
 state: built
 tasks: [C-05, C-06, F3-09, F6-01]
-checked_by: [core/application/service/media/Media_test.go, core/application/service/work/AttachMedia_test.go, test/integration/media_test.go, test/integration/media_acceptance_test.go, test/security/upload_test.go]
+checked_by: [core/application/service/media/Media_test.go, core/application/service/media/ScanMedia_test.go, core/domain/model/media/Object_test.go, infrastructure/clamd/Scanner_test.go, core/application/service/work/AttachMedia_test.go, test/integration/media_test.go, test/integration/media_acceptance_test.go, test/security/upload_test.go]
 ---
 
 # Attach a file to an entry
@@ -46,11 +46,16 @@ from a terminal.
 8. Detaching takes the file off the entry and says only that; the file itself goes once nothing
    refers to it (the next use case).
 9. Attachments of one workspace can never be read, attached or detached from another.
+10. Where the installation scans uploads, a file found malicious is refused with `media.infected`
+    and its bytes removed; a file the scanner could not answer for is confirmed as `PENDING_SCAN`,
+    may be attached, has no download address until a later scan clears it, and becomes `INFECTED`
+    with its bytes removed if that scan finds it malicious.
 
 ## Where it ends
 
 * No preview or viewer inside the app for anything but the four image types.
-* No virus scanning inside Hubtask.
+* Scanning is the operator's ClamAV daemon's; Hubtask ships no scanner, and without one nothing is
+  scanned.
 * In the browser, no capturing a file offline; the installed apps keep it and upload it later
   ([offline-sync.md](../../architecture/offline-sync.md) §1).
 * No versions of a file; a new version is a new upload.

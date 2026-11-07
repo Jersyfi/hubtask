@@ -236,6 +236,20 @@ FROM backup_run
 WHERE status = 'SUCCEEDED'
 GROUP BY target_id;
 
+-- name: BackupCadencePerTarget :many
+-- How often each target is owed a backup: per enabled schedule, the gap between its last scheduled
+-- run and the moment it is next owed - the rule's own period, read off what the scheduler stored
+-- rather than by expanding the rule again - and per target the shortest. A schedule that has not
+-- run yet owes no cadence; A-12 then holds its target to a day.
+SELECT s.target_id, min(extract(epoch FROM s.next_run_at - r.last_start))::bigint AS cadence_seconds
+FROM backup_schedule s
+JOIN LATERAL (
+  SELECT max(b.started_at) AS last_start FROM backup_run b
+  WHERE b.schedule_id = s.id AND b.trigger = 'SCHEDULE'
+) r ON true
+WHERE s.enabled AND s.next_run_at IS NOT NULL AND r.last_start IS NOT NULL AND s.next_run_at > r.last_start
+GROUP BY s.target_id;
+
 -- The lifecycle: a schedule that can be changed and removed, and a target that can be
 -- removed once nothing points at it.
 
@@ -281,3 +295,9 @@ ORDER BY created_at;
 -- established that no schedule names it - this statement has no way to check, because a schedule
 -- of another workspace is invisible to it and would not be counted.
 DELETE FROM backup_target WHERE id = sqlc.arg('id');
+
+-- name: InstallationBackupGaps :one
+-- The health report's backup warning, across workspaces through the door (0375): how many active
+-- workspaces have no enabled target, and how many no successful backup in the given days. Numbers.
+SELECT without_target::bigint AS without_target, without_recent::bigint AS without_recent
+FROM installation_backup_gaps(sqlc.arg('stale_days')::integer);

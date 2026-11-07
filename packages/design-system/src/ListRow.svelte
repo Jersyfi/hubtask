@@ -16,6 +16,8 @@
 
   import type { Snippet } from 'svelte';
 
+  import { arrive } from './motion.ts';
+
   interface Props {
     /** Where the row goes. Present makes it a link. */
     href?: string;
@@ -43,7 +45,7 @@
   const interactive = $derived(href !== undefined || onactivate !== undefined);
 </script>
 
-<div class="row" data-selected={isSelected ? '' : undefined} data-interactive={interactive ? '' : undefined}>
+<div class="row" {@attach arrive} data-selected={isSelected ? '' : undefined} data-interactive={interactive ? '' : undefined}>
   {#if leading}
     <!-- Outside the activation, so a checkbox in a row is a checkbox rather than a way to open the
          entry. A leading control that activated the row would make selecting the fifth item

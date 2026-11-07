@@ -244,6 +244,11 @@ func NewRequest(in NewRequestInput) (Request, error) {
 	if in.SubjectAccountID.IsZero() && email == "" {
 		return Request{}, invalid(CodeSubjectRequired, "/subject_account_id")
 	}
+	if scope == ScopeInstallation && email == "" {
+		// An account identifier names somebody in one workspace only. Refused here rather than by
+		// the case's own job, which would fail while the statutory deadline runs.
+		return Request{}, invalid(CodeSubjectRequired, "/subject_email")
+	}
 	notes, err := bounded(in.Notes, maxNotes, CodeNotesTooLong, "/notes", in.Text)
 	if err != nil {
 		return Request{}, err

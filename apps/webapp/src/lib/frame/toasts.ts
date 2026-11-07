@@ -40,6 +40,12 @@ export interface ToastSpec {
    * the control that caused it, as a selector. Without one, the page's main landmark.
    */
   readonly returnTo?: string;
+  /**
+   * What the message holds back, done once when it leaves without *Undo*: run out or closed. A
+   * deletion offered with *Undo* is sent only then (user-experience.md §5.9), so pressing *Undo*
+   * sends nothing. Not done at sign-out, which keeps what was held back.
+   */
+  readonly onleave?: () => void;
 }
 
 export interface ToastEntry extends ToastSpec {
@@ -103,12 +109,17 @@ export class ToastModel {
   /** Takes away what has run out; answers whether anything left. */
   expire(now: number): boolean {
     const before = this.#entries.length;
+    const leaving = this.#entries.filter((entry) => entry.expiresAt !== undefined && entry.expiresAt <= now);
     this.#entries = this.#entries.filter((entry) => entry.expiresAt === undefined || entry.expiresAt > now);
+    for (const entry of leaving) entry.onleave?.();
     return this.#entries.length !== before;
   }
 
-  dismiss(id: number): void {
+  /** Takes one away; `isUndone` when *Undo* took it, so what it held back is not done. */
+  dismiss(id: number, isUndone = false): void {
+    const leaving = this.#entries.find((entry) => entry.id === id);
     this.#entries = this.#entries.filter((entry) => entry.id !== id);
+    if (!isUndone) leaving?.onleave?.();
   }
 
   /** At sign-out: nothing of the previous account's - an *Undo* least of all - outlives it. */

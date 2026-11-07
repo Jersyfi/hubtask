@@ -5,6 +5,7 @@ package notification
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,5 +68,40 @@ func TestAChangeOfAddressIsToldOnceToEveryMember(t *testing.T) {
 	}
 	if got := notices.recorded[unmailed[0]]; got.From != "meier.tasks.example.net" || len(notices.recorded) != 1 {
 		t.Errorf("notices %+v", notices.recorded)
+	}
+}
+
+// UC-INS-19 checks 8 and 9: the mail names the old and the new address in the member's language,
+// and its link the workspace's main row; a member who is gone, or has no address, is sent nothing.
+func TestTheAddressChangeMailNamesBothAddressesAndTheMainRow(t *testing.T) {
+	const gone = shared.ID("01936f2a-7c1e-7000-8000-0000000000c9")
+	silent := person("01936f2a-7c1e-7000-8000-0000000000ca", "Ola", "", "en")
+	mailer := &mailbox{}
+	send := SendAddressChange{
+		Accounts: newAccounts(person(anna, "Anna", "anna@example.org", "de"), silent),
+		Mail:     mailer, Renderer: catalogue{}, FallbackLocale: "en", UnitOfWork: &unitOfWork{},
+		Addresses: movedAddress(),
+	}
+	notice := AddressNotice{AccountID: anna, From: "anna.hub.example.org", To: "tasks.anna.example"}
+	if err := send.Execute(t.Context(), tenant, notice); err != nil || len(mailer.sent) != 1 {
+		t.Fatalf("sending: %v, %d sent", err, len(mailer.sent))
+	}
+	sent := mailer.sent[0]
+	if sent.To != "anna@example.org" || !strings.HasPrefix(sent.Subject, "[de] "+subjectAddressChanged) {
+		t.Errorf("sent %q to %q, want the German subject to anna", sent.Subject, sent.To)
+	}
+	if !strings.Contains(sent.Body, "from=anna.hub.example.org") || !strings.Contains(sent.Body, "to=tasks.anna.example") {
+		t.Errorf("the body names neither address: %q", sent.Body)
+	}
+	if !strings.Contains(sent.Body, "link="+mainBase) {
+		t.Errorf("the link is not the main row: %q", sent.Body)
+	}
+	for _, who := range []shared.ID{gone, silent.ID} {
+		if err := send.Execute(t.Context(), tenant, AddressNotice{AccountID: who, From: notice.From, To: notice.To}); err != nil {
+			t.Errorf("%s: %v", who, err)
+		}
+	}
+	if len(mailer.sent) != 1 {
+		t.Errorf("%d mails, want none to a member who is gone or has no address", len(mailer.sent)-1)
 	}
 }

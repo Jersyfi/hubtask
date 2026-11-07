@@ -46,6 +46,12 @@ type MoveContainer struct {
 	// clients are told as its structure in force (offline-sync.md §4.2). A build without it records
 	// the placement alone.
 	Structure StructureResolver
+	// EntryTypes refuses a move out of a hub while an entry of the collection carries a type
+	// defined at that hub (UC-FLW-01 check 10). Nil asks nothing.
+	EntryTypes repository.EntryTypes
+	// Workflows refuses a move out of a hub while the collection's own scheme row runs a workflow
+	// defined at that hub (UC-FLW-02 check 9). Nil asks nothing.
+	Workflows repository.Workflows
 }
 
 // MoveRevoker is the slice of access.Revocations a move needs: who may have lost the collection,
@@ -122,6 +128,18 @@ func (h MoveContainer) Execute(
 
 		wanted, changes, err := fresh.MovedInto(destination, orderKey, now)
 		if err != nil {
+			return err
+		}
+		if h.EntryTypes != nil && fresh.ParentID != destination.ID {
+			bound, err := h.EntryTypes.OfHubInCollection(ctx, fresh.ID, fresh.ParentID)
+			if err != nil {
+				return err
+			}
+			if bound {
+				return hubBound()
+			}
+		}
+		if err := keepsHubWorkflows(ctx, h.Workflows, fresh.ID, fresh.ParentID, destination.ID); err != nil {
 			return err
 		}
 		if len(changes) == 0 {
@@ -306,7 +324,8 @@ func (h MoveContainer) authorize(
 // Descriptor is the catalogue entry.
 func (h MoveContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: MoveContainerName,
+		Name:       MoveContainerName,
+		Permission: service.PermissionStructure,
 		Summary: "Moves a collection into another hub and ranks it there. Naming the hub it already " +
 			"sits in reorders it. The name has to be free at the destination; a collision is refused " +
 			"rather than resolved. A hub is the top level and cannot be moved. Idempotent: a move " +

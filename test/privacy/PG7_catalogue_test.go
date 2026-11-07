@@ -16,7 +16,8 @@ import (
 )
 
 // PG-7: the data catalogue is consistent with the schema - every table with personal content is
-// recorded (data-protection.md §10, ADR-0018 decision 2).
+// recorded (data-protection.md §10, ADR-0018 decision 2; UC-PRV-08 check 1, with the rows' cells
+// in PG7_rows_test.go).
 //
 // The decisive one, with PG-2. `data-protection.md` says why in as many words: these two "prevent
 // the data catalogue from drifting away from the code and stop deletion paths being forgotten when
@@ -33,10 +34,9 @@ import (
 // personalColumns are the column names that make a table hold somebody's data. A table with one of
 // these and no entry in the catalogue is what this gate fails on.
 //
-// Names rather than types, because a `uuid` says nothing and `author_id` says everything. The list
-// is the vocabulary this schema actually uses; a column that means a person and is spelled some
-// other way is a column somebody has to add here, which is the moment they would also add the
-// catalogue row.
+// Names rather than types, because a `uuid` says nothing and `author_id` says everything. Beside
+// the list, every column ending in `_by` and every column with a foreign key to `account` counts
+// (namesAPerson and the query), so that a new spelling of a person cannot hide a table.
 var personalColumns = map[string]bool{
 	"account_id": true, "actor_id": true, "author_id": true, "assignee_id": true,
 	"created_by": true, "updated_by": true, "completed_by": true, "owner_id": true,
@@ -48,9 +48,23 @@ var personalColumns = map[string]bool{
 	"user_agent": true, "ip_class": true, "subject_hash": true,
 	"redemption_token_hash": true, "secret_enc": true, "code_hash": true,
 	"given_by": true, "given_to": true,
+	"approver_id": true, "on_behalf_of": true, "delegate_id": true, "assigned_to": true,
+	"member_id": true, "requester_id": true, "chat_user": true, "address": true,
 	// A sealed API key is not personal content, but it is a SECRET the catalogue has to account
 	// for: the row that holds it says where a workspace's content may be sent.
 	"api_key_enc": true,
+}
+
+// namesAPerson is the spelling no vocabulary has to list: a column saying who did something
+// (`decided_by`, `consent_by`) names a person, whatever the verb, so a new verb cannot hide a
+// table; nor can `invited_account_id`. With the foreign keys to `account`, it is how a table the
+// list above misses still fails.
+func namesAPerson(column, typ string) bool {
+	if typ != "uuid" {
+		// `due_by` is a moment, `retention_blocked_by` a hold's kind.
+		return false
+	}
+	return strings.HasSuffix(column, "_by") || strings.HasSuffix(column, "_account_id")
 }
 
 // notADataCategory is what the catalogue deliberately does not have a row for, and why. Rule 6's
@@ -70,7 +84,14 @@ func TestPG7EveryTableWithPersonalContentIsInTheCatalogue(t *testing.T) {
 
 	rows, err := pool.Query(ctx, `
 		SELECT c.relname, a.attname,
-		       coalesce(parent.relname, '') AS parent
+		       coalesce(parent.relname, '') AS parent,
+		       format_type(a.atttypid, NULL) AS type,
+		       EXISTS (
+		         SELECT 1 FROM pg_constraint fk
+		         WHERE fk.conrelid = c.oid AND fk.contype = 'f'
+		           AND fk.confrelid = 'account'::regclass AND a.attnum = ANY (fk.conkey)
+		           AND a.attname <> 'tenant_id'
+		       ) AS names_account
 		FROM pg_class c
 		JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
 		JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
@@ -87,14 +108,16 @@ func TestPG7EveryTableWithPersonalContentIsInTheCatalogue(t *testing.T) {
 	personal := map[string][]string{}
 	for rows.Next() {
 		var table, column, parent string
-		if err := rows.Scan(&table, &column, &parent); err != nil {
+		var typ string
+		var namesAccount bool
+		if err := rows.Scan(&table, &column, &parent, &typ, &namesAccount); err != nil {
 			t.Fatalf("reading the schema: %v", err)
 		}
 		if parent != "" {
 			// Rule 6: a partition is recorded through its parent.
 			table = parent
 		}
-		if personalColumns[column] {
+		if personalColumns[column] || namesAccount || namesAPerson(column, typ) {
 			personal[table] = append(personal[table], column)
 		}
 	}

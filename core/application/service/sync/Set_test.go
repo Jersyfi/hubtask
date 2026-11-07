@@ -77,6 +77,7 @@ func setOf(kind domain.MutationKind, set string, element shared.ID, tag shared.H
 
 // SY-3 at the merge: an addition on one device and the removal of a different element on another
 // both hold, because each element carries its own tags.
+// UC-SYN-02 check 3.
 func TestAnAdditionAndARemovalOfDifferentElementsBothHold(t *testing.T) {
 	added, _ := shared.NewHLC(now.Add(-time.Hour), 1, "server")
 	other := shared.ID("01936f2a-7c1e-7000-8000-00000000ab02")

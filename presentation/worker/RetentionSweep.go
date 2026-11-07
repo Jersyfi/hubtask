@@ -35,6 +35,12 @@ type RetentionSweep struct {
 
 var _ queue.Handler = RetentionSweep{}
 
+var _ queue.Perpetual = RetentionSweep{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (RetentionSweep) RepeatsForever() {}
+
 // Run does one pass for the tenant the job names.
 func (s RetentionSweep) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	if job.TenantID.IsZero() {

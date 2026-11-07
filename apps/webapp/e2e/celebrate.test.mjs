@@ -21,14 +21,15 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const DAY = 'Everything done on Oct 20, 2026';
+const DAY = 'All done on Oct 20, 2026';
 
 async function open(browser, width, path, heading) {
   // UTC, so that the milestone's day reads the same on every machine.
   const tab = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
   const kudosReads = [];
   tab.page.on('request', (request) => {
-    if (request.url().includes('/kudos')) kudosReads.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    // The API's reads only: the bundle may hold a script chunk named after the module.
+    if (new URL(request.url()).pathname.match(/^\/api\/.*\/kudos/)) kudosReads.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
   await tab.page.goto(`${served.origin}${path}`);
   await tab.page.getByRole('heading', { name: heading, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
@@ -40,11 +41,15 @@ for (const width of [390, 700, 1280]) {
     showCelebrations();
     const browser = await chromium.launch();
     t.after(() => browser.close());
-    for (const [path, name] of [[`/collections/${FINISHED.id}`, FINISHED.name], [`/hubs/${FINISHED_HUB.id}`, FINISHED_HUB.name]]) {
+    // The hub has five entries opened since; the collection none, so it says the day alone.
+    for (const [path, name, said] of [
+      [`/collections/${FINISHED.id}`, FINISHED.name, DAY],
+      [`/hubs/${FINISHED_HUB.id}`, FINISHED_HUB.name, `${DAY} · 5 open since`],
+    ]) {
       const { page, context, failures } = await open(browser, width, path, name);
       const milestone = page.locator('[data-milestone]');
       await milestone.waitFor({ timeout: 5_000 });
-      assert.equal((await milestone.textContent())?.trim(), DAY, name);
+      assert.equal((await milestone.textContent())?.trim().replace(/\s+/g, ' '), said, name);
       assert.deepEqual(failures, []);
       await context.close();
     }

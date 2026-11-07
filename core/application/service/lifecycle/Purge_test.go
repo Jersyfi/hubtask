@@ -46,7 +46,7 @@ type trashStore struct {
 	below      map[shared.ID][]shared.ID
 }
 
-func (s *trashStore) List(context.Context, workrepo.Page) (workrepo.TrashPage, error) {
+func (s *trashStore) List(context.Context, workrepo.Page, work.TrashKind) (workrepo.TrashPage, error) {
 	return workrepo.TrashPage{}, nil
 }
 func (s *trashStore) SubtreeIDs(context.Context, string) ([]shared.ID, error) {

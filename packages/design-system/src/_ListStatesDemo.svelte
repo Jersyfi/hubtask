@@ -11,7 +11,7 @@
   import Stack from './Stack.svelte';
 
   const { mode = 'loading' }: {
-    mode?: 'loading' | 'unused' | 'filtered' | 'settled' | 'failed' | 'rows';
+    mode?: 'loading' | 'unused' | 'started' | 'filtered' | 'settled' | 'failed' | 'updated' | 'rows';
   } = $props();
 
   const entries = [
@@ -30,6 +30,15 @@
     <EmptyState kind="unused" title="No tasks in this collection yet.">
       {#snippet action()}<Button>Create task</Button>{/snippet}
     </EmptyState>
+  {:else if mode === 'started'}
+    <EmptyState kind="unused" title="Set goals for the quarter" description="Goals say what the team wants to reach by a date; key results measure it.">
+      {#snippet action()}<Button icon="plus">New goal</Button>{/snippet}
+      {#snippet secondary()}
+        <Button tone="secondary">Quarterly OKRs</Button>
+        <Button tone="secondary">Delivery dashboard</Button>
+      {/snippet}
+      {#snippet footnote()}Anna Keller or another administrator can set the first period.{/snippet}
+    </EmptyState>
   {:else if mode === 'filtered'}
     <EmptyState kind="filtered" title="No task matches these filters.">
       {#snippet action()}<Button tone="secondary">Clear filters</Button>{/snippet}
@@ -39,6 +48,7 @@
          drops it rather than trusting every call site to remember. -->
     <EmptyState kind="settled" title="Nothing waiting.">
       {#snippet action()}<Button>This must not appear</Button>{/snippet}
+      {#snippet footnote()}This must not appear either{/snippet}
     </EmptyState>
   {:else if mode === 'failed'}
     <ErrorState
@@ -48,6 +58,8 @@
       referenceLabel="Reference"
       reference="01a06962-4ac3-7d3e-b60e-d60b38507d24"
     />
+  {:else if mode === 'updated'}
+    <ErrorState kind="updated" title="Hubtask was updated meanwhile. Reload to open this screen in the new version." retryLabel="Reload" />
   {:else}
     <Stack gap="050">
       {#each entries as entry (entry.id)}

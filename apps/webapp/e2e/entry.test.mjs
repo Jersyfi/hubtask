@@ -88,11 +88,36 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   const trail = page.getByRole('navigation', { name: 'Where you are' });
   assert.deepEqual((await trail.getByRole('link').allTextContents()).map((each) => each.trim()), [HUB.name, COLLECTION.name]);
 
-  // Completion from the page: the same write the row makes, announced.
+  // Completion from the page: the same write the row makes, announced. UC-WRK-04 checks 1 and 2:
+  // the checkbox before the title completes, the title is struck through, and the same checkbox
+  // reopens and takes the stroke away.
+  // The client re-reads the entry after either write, so the entry answers what was last written.
+  let current = ENTRY;
+  await page.route(new RegExp(`/api/v1/items/${ENTRY.id}(:complete|:reopen)?(\\?.*)?$`), (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'POST') {
+      written.push({ method: 'POST', path, body: undefined });
+      current = { ...current, completion: path.endsWith(':complete') ? { is_completed: true, completed_at: new Date().toISOString() } : { is_completed: false }, version: current.version + 1 };
+      return route.fulfill({ json: current });
+    }
+    if (request.method() === 'GET') {
+      written.push({ method: 'GET', path, body: undefined });
+      return route.fulfill({ json: current });
+    }
+    return route.fallback();
+  });
   const done = page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` });
+  const struck = () => page.getByRole('textbox', { name: 'Title' }).first().evaluate((el) => getComputedStyle(el).textDecorationLine);
+  assert.equal(await struck(), 'none', 'an open entry is struck through');
   await done.click();
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${ENTRY.id}:complete`)), `no completion was written: ${JSON.stringify(written)}`);
+  assert.equal(await struck(), 'line-through', 'a completed entry is not struck through');
+  await page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as not done` }).click();
+  await page.waitForTimeout(300);
+  assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${ENTRY.id}:reopen`)), `the same checkbox did not reopen: ${JSON.stringify(written)}`);
+  assert.equal(await struck(), 'none', 'a reopened entry is still struck through');
 
   // The title in place: text until it has focus, Enter saves what moved and nothing else.
   const title = page.getByRole('textbox', { name: 'Title' }).first();
@@ -128,6 +153,19 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.getByRole('textbox', { name: 'Title' }).first().focus();
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.notes === 'Check the delivery date first.'), `the notes were not written: ${JSON.stringify(written.map((w) => w.body))}`);
+  // UC-WRK-02 check 3: the title saves on Enter (above) and on leaving the field, the notes on
+  // leaving theirs, and Escape in either restores the text as it was.
+  await title.focus();
+  await title.fill('Order the tiles, all rooms');
+  await notes.focus();
+  await page.waitForTimeout(300);
+  assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.title === 'Order the tiles, all rooms'), `leaving the title did not save it: ${JSON.stringify(written.map((w) => w.body))}`);
+  const notesBefore = await notes.inputValue();
+  await notes.fill('Not these notes');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  assert.equal(await notes.inputValue(), notesBefore, 'Escape kept the unsaved notes');
+  assert.ok(!written.some((w) => w.body?.notes === 'Not these notes'), 'Escape in the notes saved them');
 
   // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
   // menu offers no second form over the same three fields.
@@ -164,8 +202,8 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.deepEqual(written.filter((w) => w.method === 'GET' && w.path.endsWith('/recurrence')), [], 'the series was read for an entry whose row says it has none');
 
   // The subtree: a task holding work packages and an activity of its own is headed by neither
-  // name alone, and its count is every direct child of either kind; every level, and a count on a
-  // branch.
+  // name alone, and its count is every direct child of either kind - completed out of how many
+  // (UC-WRK-03 check 5); every level, and a count on a branch.
   const heading = page.getByRole('heading', { level: 2, name: /Under this entry/ });
   assert.ok((await heading.textContent()).replace(/\s+/g, ' ').includes('1/3'), 'the section head does not count every kind');
   const rows = page.locator('.level .row [data-row], .level [data-row]');
@@ -270,6 +308,7 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   assert.deepEqual(unstubbed(), []);
 });
 
+// UC-WRK-10 check 1: Responsible and Also on it, two questions; an activity has the first alone.
 test('chromium: 1280 px — assignment is two named questions, and the policy is offered only where there is one', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -416,7 +455,9 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   const editor = page.getByRole('dialog', { name: 'Cover' });
   await editor.waitFor({ timeout: 5_000 });
 
-  // The row says where a cover goes, rather than only what is missing.
+  // The row says where a cover goes, rather than only what is missing. The editor's body is
+  // loaded on first use (`LazyView`), so the dialog stands before its words do.
+  await editor.getByText(/drawn at the top of this entry/).waitFor({ timeout: 5_000 }).catch(() => {});
   assert.match((await editor.textContent()) ?? '', /drawn at the top of this entry and on its card/);
 
   // Both kinds are offered: the ten colours of the design system, and a picture.

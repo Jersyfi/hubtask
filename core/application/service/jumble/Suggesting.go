@@ -196,7 +196,8 @@ func (h SuggestFromJumbleEntry) record(
 // Descriptor is the catalogue entry - and, through it, the MCP tool and the automation action.
 func (h SuggestFromJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SuggestFromJumbleEntryName,
+		Name:       SuggestFromJumbleEntryName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Asks the workspace's AI provider to propose a title, notes, a due date, " +
 			"the subtasks the material implies and the collection it fits best - chosen from " +
 			"those everybody who may convert may write in - for one jumble entry. Not labels: a label is a " +

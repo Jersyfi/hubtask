@@ -24,7 +24,7 @@ import (
 // (engineering-guidelines.md §4). It is applied as a connection parameter rather than per query,
 // so a statement that runs away is cut off by PostgreSQL even when the calling code forgot its
 // own deadline.
-func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool, error) {
+func NewPool(ctx context.Context, cfg env.Config, role env.Role, opts ...PoolOption) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.Database.DSN.Reveal())
 	if err != nil {
 		// The DSN is a secret: it carries the password. Whatever the driver says about it
@@ -48,19 +48,19 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	// once and hand the database a thundering herd on the hour.
 	poolCfg.MaxConnLifetimeJitter = cfg.Database.MaxConnLifetime / 10
 
-	statementTimeout := cfg.StatementTimeoutFor(role)
 	if poolCfg.ConnConfig.RuntimeParams == nil {
 		poolCfg.ConnConfig.RuntimeParams = map[string]string{}
 	}
-	poolCfg.ConnConfig.RuntimeParams["statement_timeout"] = strconv.FormatInt(statementTimeout.Milliseconds(), 10)
-	// Visible in pg_stat_activity, which is where an operator looks first when one role is
-	// holding connections.
-	poolCfg.ConnConfig.RuntimeParams["application_name"] = "hubtask/" + string(role)
+	sessionParams(poolCfg.ConnConfig.RuntimeParams, cfg.StatementTimeoutFor(role), role)
 
 	// The schema's own enum types are registered per connection, before the connection is handed
 	// to anybody. Doing it here rather than at the first failing query means a database whose
 	// types cannot be read fails at startup, like every other unmet dependency (ADR-0015).
 	poolCfg.AfterConnect = RegisterSchemaTypes
+
+	for _, opt := range opts {
+		opt(poolCfg)
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -82,6 +82,19 @@ func NewPool(ctx context.Context, cfg env.Config, role env.Role) (*pgxpool.Pool,
 	}
 
 	return pool, nil
+}
+
+// PoolOption adjusts a pool before it opens.
+type PoolOption func(cfg *pgxpool.Config)
+
+// WithQueryObserver measures every statement the pool runs, filed under the pool's name - the
+// same name its connection gauge carries.
+func WithQueryObserver(observer QueryObserver, pool string) PoolOption {
+	return func(cfg *pgxpool.Config) {
+		if observer != nil {
+			cfg.ConnConfig.Tracer = queryTracer{pool: pool, observer: observer}
+		}
+	}
 }
 
 // boundedPoolSize narrows a configured pool size to int32 within provable bounds.
@@ -123,4 +136,44 @@ func Stats(pool *pgxpool.Pool) PoolStats {
 		AcquireCount: s.AcquireCount(),
 		AcquireWait:  s.AcquireDuration(),
 	}
+}
+
+// The bounds of a transaction left idle and of a lock wait, per role (sessionParams).
+const (
+	apiIdleInTransaction    = 10 * time.Minute
+	workerIdleInTransaction = 30 * time.Minute
+	apiLockTimeout          = 15 * time.Second
+	workerLockTimeout       = time.Minute
+)
+
+// sessionParams sets what every connection of a role's pool runs with.
+//
+// JIT is off: on a generic plan whose row estimates are large, PostgreSQL compiles the statement
+// for some 200 ms before it runs it in 30 - the capacity run at 10⁶ entries saw a hub's figures
+// jump to that tail (observability-reliability.md §13.2). Short statements never repay it.
+//
+// Every statement is planned for its own arguments. The queries spell an optional argument as
+// `narg IS NULL OR …`, which only a custom plan folds away; after five executions PostgreSQL may
+// switch to a generic plan that keeps both branches, and at 10⁷ entries ListWorkItems' generic plan
+// read a 300 000-entry level whole and sorted it for a page of fifty (known-traps.md). The planning
+// it costs is a fraction of a millisecond per statement.
+//
+// A transaction left idle between statements - a request that stalled, a job waiting on an outbound
+// call - is ended rather than kept: it held its locks and pinned the vacuum horizon for as long as
+// it lived. The bound is generous, so that a download streaming a snapshot to a slow client or a
+// backup uploading one large file between reads is not cut. A lock wait is bounded too: a write
+// stuck behind a forgotten lock fails and is retried instead of waiting for ever.
+func sessionParams(params map[string]string, statementTimeout time.Duration, role env.Role) {
+	params["statement_timeout"] = strconv.FormatInt(statementTimeout.Milliseconds(), 10)
+	idle, lock := workerIdleInTransaction, workerLockTimeout
+	if role == env.RoleAPI {
+		idle, lock = apiIdleInTransaction, apiLockTimeout
+	}
+	params["idle_in_transaction_session_timeout"] = strconv.FormatInt(idle.Milliseconds(), 10)
+	params["lock_timeout"] = strconv.FormatInt(lock.Milliseconds(), 10)
+	// Visible in pg_stat_activity, which is where an operator looks first when one role is
+	// holding connections.
+	params["application_name"] = "hubtask/" + string(role)
+	params["jit"] = "off"
+	params["plan_cache_mode"] = "force_custom_plan"
 }

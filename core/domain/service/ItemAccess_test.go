@@ -80,6 +80,7 @@ func TestThePerEntryMatrix(t *testing.T) {
 }
 
 // The narrowing itself: the same role, the same action, and two entries.
+// UC-ID-15 check 3: a contributor changes only what is assigned to them.
 func TestAContributorReachesOnlyWhatIsAssignedToThem(t *testing.T) {
 	cases := []struct {
 		name     string

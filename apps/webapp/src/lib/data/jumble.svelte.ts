@@ -20,7 +20,7 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { ENTRY_LISTS } from './touches.ts';
 
 const ENTRIES = '/jumble/entries';
@@ -195,7 +195,7 @@ class Jumble {
       ...(into.bucketId ? { bucket_id: into.bucketId } : {}),
       ...(into.title ? { title: into.title } : {}),
       ...(into.type ? { type: into.type } : {}),
-    }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES });
+    }, { idempotencyKey: INTENT, invalidates: TOUCHES });
   }
 
   /**
@@ -212,13 +212,13 @@ class Jumble {
   async comment(entryId: string, itemId?: string): Promise<JumbleEntry> {
     return engine.mutate<JumbleEntry>('POST', `${ENTRIES}/${entryId}:comment`,
       itemId ? { item_id: itemId } : {},
-      { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES });
+      { idempotencyKey: INTENT, invalidates: TOUCHES });
   }
 
   /** Decides against one. It stays readable and ages out by retention rule. */
   async dismiss(entryId: string): Promise<void> {
     await engine.mutate('POST', `${ENTRIES}/${entryId}:dismiss`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [ENTRIES],
     });
   }

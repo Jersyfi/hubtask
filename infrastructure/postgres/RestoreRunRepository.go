@@ -6,12 +6,16 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
@@ -232,6 +236,55 @@ func (r RestoreRunRepository) InProgress(ctx context.Context) (bool, error) {
 			WithCause(fmt.Errorf("asking whether a restore is running: %w", err))
 	}
 	return running, nil
+}
+
+// HoldPassphrase keeps the sealed passphrase until the run ends.
+func (r RestoreRunRepository) HoldPassphrase(ctx context.Context, id shared.ID, sealed crypto.Sealed) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	affected, err := queries.HoldRestorePassphrase(ctx, sqlc.HoldRestorePassphraseParams{
+		ID: key, PassphraseEnc: sealed.Ciphertext, PassphraseKeyID: optionalText(sealed.KeyID),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("holding a restore's passphrase: %w", err))
+	}
+	if affected == 0 {
+		return shared.ErrNotFound.WithDetail(domain.CodeRestoreNotFound).
+			WithParams(map[string]string{"restore_id": id.String()})
+	}
+	return nil
+}
+
+// Passphrase answers the sealed passphrase of a run still going, zero where none was given.
+func (r RestoreRunRepository) Passphrase(ctx context.Context, id shared.ID) (crypto.Sealed, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return crypto.Sealed{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return crypto.Sealed{}, err
+	}
+	row, err := queries.RestorePassphrase(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return crypto.Sealed{}, nil
+	}
+	if err != nil {
+		return crypto.Sealed{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a restore's passphrase: %w", err))
+	}
+	sealed := crypto.Sealed{Ciphertext: row.PassphraseEnc}
+	if row.PassphraseKeyID != nil {
+		sealed.KeyID = *row.PassphraseKeyID
+	}
+	return sealed, nil
 }
 
 // selectionRow is how a SELECTIVE restore's choice is stored: identifiers, in the vocabulary the

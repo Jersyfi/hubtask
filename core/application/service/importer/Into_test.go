@@ -5,13 +5,18 @@ package importer_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	"github.com/Jersyfi/hubtask/core/application/service/importer"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -194,4 +199,52 @@ func TestTheRunnerFailsAnImportWhoseCollectionLeftTheHub(t *testing.T) {
 	if len(landed.rows["work_item"]) != 0 || len(stored.deleted) != 1 {
 		t.Error("nothing lands, and the file is still marked for deletion")
 	}
+}
+
+// settlements records the collections an import asked to settle in the workflows in force.
+type settlements struct{ settled []shared.ID }
+
+func (s *settlements) Settle(_ context.Context, _ appshared.ActorContext, collection work.Container, _ time.Time) error {
+	s.settled = append(s.settled, collection.ID)
+	return nil
+}
+
+// What an import wrote stands where the workflows in force put it: a row carries no status, and in
+// a workflow collection it would otherwise sit outside every column of the board by status - so a
+// landed import settles each collection its entries went into, once; a dry run, which wrote
+// nothing, settles none.
+func TestALandedImportSettlesTheCollectionsItWroteInto(t *testing.T) {
+	run := newRuns()
+	run.rows[runID] = pendingRun()
+	object := readyObject()
+	r, _, _, _ := runner(run, object, map[string][]byte{object.StorageKey: []byte("one\ntwo\n")}, converter{})
+	settler := &settlements{}
+	r.Statuses = settler
+	landedIn := backupdomain.DuplicateID(hubID, "import", hex.EncodeToString(sha256Of("one\ntwo\n")))
+	r.Containers = containers{rows: map[shared.ID]work.Container{landedIn: {ID: landedIn, Type: work.ContainerCollection, ParentID: hubID}}}
+	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil {
+		t.Fatal(err)
+	}
+	if run.rows[runID].Status != domain.StatusSucceeded {
+		t.Fatalf("run = %+v", run.rows[runID])
+	}
+	if len(settler.settled) != 1 || settler.settled[0] != landedIn {
+		t.Fatalf("settled %v, want the one collection the entries went into", settler.settled)
+	}
+
+	dry := pendingRun()
+	dry.DryRun = true
+	run.rows[runID] = dry
+	settler.settled = nil
+	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil {
+		t.Fatal(err)
+	}
+	if len(settler.settled) != 0 {
+		t.Errorf("a dry run settled %v", settler.settled)
+	}
+}
+
+func sha256Of(text string) []byte {
+	sum := sha256.Sum256([]byte(text))
+	return sum[:]
 }

@@ -178,3 +178,46 @@ func findJumbleEntry(ctx context.Context, t *testing.T, tenant, id shared.ID) ju
 	}
 	return found
 }
+
+// An erasure of an account-holder takes the mail intake's receipts of their address in both modes,
+// as the address path does: a receipt is the address and a subject (PG-2). Somebody else's, and
+// another workspace's, stay.
+func TestAnErasureTakesTheMailReceiptsOfTheAccountsAddress(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+	for _, full := range []bool{true, false} {
+		w, elsewhere := seedJumbleWorld(ctx, t), seedJumbleWorld(ctx, t)
+		address := "OWEN-" + w.owner.String() + "@example.org"
+		receipt := func(tenant shared.ID, sender string) {
+			if _, err := admin.Exec(ctx, `INSERT INTO mail_receipt (id, tenant_id, message_id, received_at, sender, subject, outcome, door)
+				VALUES ($1, $2, $3, now(), $4, 's', 'JUMBLE', 'MAIL')`,
+				freshID(t).String(), tenant.String(), "<"+freshID(t).String()+"@example.org>", sender); err != nil {
+				t.Fatalf("writing a receipt: %v", err)
+			}
+		}
+		receipt(w.tenant, address)
+		receipt(w.tenant, "someone-else@example.org")
+		receipt(elsewhere.tenant, address)
+		if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
+			var err error
+			if full {
+				_, err = privacyRepo().DiscardIntake(ctx, w.owner)
+			} else {
+				_, err = privacyRepo().ReleaseIntake(ctx, w.owner)
+			}
+			return err
+		}); err != nil {
+			t.Fatalf("full %v: erasing the intake: %v", full, err)
+		}
+		const receipts = `SELECT count(*) FROM mail_receipt WHERE tenant_id = $1 AND lower(sender) = lower($2)`
+		if n := countIn(ctx, t, receipts, w.tenant.String(), address); n != 0 {
+			t.Errorf("full %v: %d receipts of the person's address stayed", full, n)
+		}
+		if n := countIn(ctx, t, receipts, w.tenant.String(), "someone-else@example.org"); n != 1 {
+			t.Errorf("full %v: somebody else's receipt went too", full)
+		}
+		if n := countIn(ctx, t, receipts, elsewhere.tenant.String(), address); n != 1 {
+			t.Errorf("full %v: the erasure reached another workspace's receipt", full)
+		}
+	}
+}

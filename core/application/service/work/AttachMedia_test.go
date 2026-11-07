@@ -209,6 +209,7 @@ func TestAttachingWritesTheLinkTheCountTheEventTheChangeAndTheEntry(t *testing.T
 	}
 }
 
+// UC-MED-01 check 8.
 func TestDetachingRemovesTheLinkAndLowersTheCount(t *testing.T) {
 	h := newAttachmentHarness(t)
 	h.withItem(domain.ItemTask)
@@ -238,6 +239,7 @@ func TestDetachingRemovesTheLinkAndLowersTheCount(t *testing.T) {
 	}
 }
 
+// UC-MED-01 check 7.
 func TestAttachingWhatIsAlreadyAttachedAnnouncesNothingAndCountsOnce(t *testing.T) {
 	h := newAttachmentHarness(t)
 	h.withItem(domain.ItemTask)

@@ -231,6 +231,13 @@ type WorkItem struct {
 	// Drawn by the store on insert and anew on a move to another collection; zero before it is read
 	// back.
 	Number int64
+	// EntryType is the key of the entry's type, empty for its level's system type (UC-FLW-01). A
+	// scalar, so it merges as last writer wins per field (offline-sync.md §4.2).
+	EntryType string
+	// Status is the key of the entry's status in the workflow its collection runs for its type,
+	// empty where none runs (UC-FLW-02). In a workflow collection completion follows its category
+	// (UC-FLW-03 check 4).
+	Status string
 }
 
 // RetentionState is what an entry in a running retention period carries (data-retention.md §6).
@@ -495,6 +502,15 @@ func checkPlacement(id, parentID shared.ID, path string, depth int) error {
 	return nil
 }
 
+// ItemTitle is the rule every title of an entry is held to, for a path that writes one without
+// building the entry anew - a copy's or a split's title.
+func ItemTitle(raw string, form text.Normalizer) (string, error) { return itemTitle(raw, form) }
+
+// ItemNotes is the form every entry's notes are kept in: normal form C, trimmed.
+func ItemNotes(raw string, form text.Normalizer) (string, error) {
+	return shared.NFC(strings.TrimSpace(raw), form)
+}
+
 // itemTitle normalises, trims and checks the title. One line, like a container's name and for
 // the same reason: it survives every layer and then breaks the one that renders it - an export,
 // a log line, a calendar summary. Anything with newlines in it belongs in the notes.
@@ -569,6 +585,10 @@ func contentLanguage(raw string) (string, error) {
 }
 
 // IsArchived reports whether the item is archived: kept, and read-only (I-W4).
+// PresenceKind is the live document kind an entry registers (realtime.Kind): awareness alone -
+// who has it open, who is writing a reply - so two people do not answer the same request twice.
+const PresenceKind = "entry"
+
 func (i WorkItem) IsArchived() bool { return i.ArchivedAt != nil }
 
 // IsTrashed reports whether the item is in the trash - a deletion waiting out its retention
@@ -609,6 +629,10 @@ const (
 	// FieldCollectionID is not something an update may set - an item changes collection by being
 	// moved - but it is a field that moves, and the records of a move name it.
 	FieldCollectionID = "collection_id"
+	// FieldStatus is the entry's status in its workflow. Written by a step, a completion in a
+	// workflow collection, or a publish - never merged from a device's value: a device asks for a
+	// step, and the server decides it (UC-FLW-03 check 5).
+	FieldStatus = "status"
 )
 
 // ItemAttributes is what an update may change.

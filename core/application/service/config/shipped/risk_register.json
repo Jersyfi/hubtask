@@ -1,0 +1,155 @@
+{
+  "key": "risk_register",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "risk_category": {
+        "name": "Category",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Strategic",
+          "Operational",
+          "Financial",
+          "Compliance",
+          "Security"
+        ]
+      },
+      "risk_likelihood": {
+        "name": "Likelihood",
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "risk_impact": {
+        "name": "Impact",
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "risk_score": {
+        "name": "Score",
+        "kind": "CALCULATED",
+        "applies_to": [
+          "TASK"
+        ],
+        "formula": "entry.custom_fields.risk_likelihood * entry.custom_fields.risk_impact"
+      },
+      "risk_status": {
+        "name": "Status",
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Identified",
+          "Assessed",
+          "In treatment",
+          "Accepted",
+          "Closed"
+        ]
+      },
+      "risk_owner": {
+        "name": "Owner",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "risk_mitigation": {
+        "name": "Mitigation",
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "risk_review_on": {
+        "name": "Review on",
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "risk_record": {
+        "level": "TASK",
+        "name": "Risk",
+        "icon": "shield",
+        "color_token": "amber",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "risk",
+              "name": "Risk"
+            },
+            {
+              "key": "assessment",
+              "name": "Assessment"
+            },
+            {
+              "key": "treatment",
+              "name": "Treatment"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "risk",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.risk_category",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.risk_likelihood",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.risk_impact",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.risk_score",
+              "section": "assessment"
+            },
+            {
+              "key": "custom_fields.risk_status",
+              "section": "treatment"
+            },
+            {
+              "key": "custom_fields.risk_owner",
+              "section": "treatment"
+            },
+            {
+              "key": "custom_fields.risk_mitigation",
+              "section": "treatment"
+            },
+            {
+              "key": "custom_fields.risk_review_on",
+              "section": "treatment"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

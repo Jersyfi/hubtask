@@ -1,10 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The instance area's screens (ADR-0070 §5), by route. One module, so the Android build can leave the whole area out and put the page that
-  // names the web app in its place (ADR-0032, `platform/target.ts`).
+  // The installation's area (ADR-0070 §5), by route. One module, so the Android build can leave the
+  // whole area out and put the page that names the web app in its place (ADR-0032,
+  // `platform/target.ts`); loaded on its first visit, like the views beside it.
   import InstanceAiView from './InstanceAiView.svelte';
+  import InstanceDeadLettersView from './InstanceDeadLettersView.svelte';
   import InstanceEncryptionView from './InstanceEncryptionView.svelte';
+  import InstanceFileView from './InstanceFileView.svelte';
   import InstanceJournalView from './InstanceJournalView.svelte';
   import InstanceOperatorsView from './InstanceOperatorsView.svelte';
   import InstanceOverviewView from './InstanceOverviewView.svelte';
@@ -14,6 +17,8 @@
   import InstanceProvidersView from './InstanceProvidersView.svelte';
   import InstanceSettingsView from './InstanceSettingsView.svelte';
   import InstanceTargetsView from './InstanceTargetsView.svelte';
+  import InstanceTemplatesView from './InstanceTemplatesView.svelte';
+  import InstanceUsageView from './InstanceUsageView.svelte';
   import InstanceWorkspacesView from './InstanceWorkspacesView.svelte';
   import type { Resolution } from '../lib/router.ts';
 
@@ -55,4 +60,12 @@
   <InstanceOperatorsView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'instance-journal'}
   <InstanceJournalView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'instance-dead-letters'}
+  <InstanceDeadLettersView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'instance-usage'}
+  <InstanceUsageView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'instance-templates'}
+  <InstanceTemplatesView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'instance-file'}
+  <InstanceFileView onnavigate={(path) => onnavigate(path)} />
 {/if}

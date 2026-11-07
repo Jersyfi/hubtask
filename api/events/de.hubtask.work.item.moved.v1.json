@@ -141,6 +141,10 @@
           ],
           "description": "The level. Extensible by configuration: a consumer that switches on it must tolerate a value it does not know rather than fail."
         },
+        "entry_type": {
+          "type": "string",
+          "description": "The key of the entry's type, beside its level. Absent for the level's system type, as the REST answer leaves it out; a consumer must tolerate a key it does not know."
+        },
         "collection_id": {
           "type": "string",
           "format": "uuid",

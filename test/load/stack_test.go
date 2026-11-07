@@ -15,6 +15,7 @@
 package load
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -35,6 +36,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/Jersyfi/hubtask/core/application/catalogue"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -91,11 +93,22 @@ type stack struct {
 	tenants []tenant
 	// serverPID is the process, so a run can look at what it is costing.
 	serverPID int
+	// serverLog is the server's own output, and database the container whose log is read at the
+	// end: the run's errors are collected from both (accepted.md, "The owner's word on the
+	// performance tests").
+	serverLog string
+	database  *tcpostgres.PostgresContainer
+	// items is the dataset's size, which names the run's errors-<items>.json.
+	items int
+	// opsURL is the internal port, where the metrics are read.
+	opsURL string
 }
 
 type tenant struct {
-	id         string
-	token      string
+	id    string
+	token string
+	// walkToken is R3's: every scope a session carries, so the walk reads what the web app reads.
+	walkToken  string
 	collection string
 	// hub is the tenant's one hub, whose level of collections is read with their figures.
 	hub string
@@ -114,9 +127,16 @@ var (
 )
 
 // TestMain owns the installation's lifetime, because it is the only thing here that outlives a
-// test.
+// test. It collects the run's errors once, after the last scenario and before the teardown ends
+// the server and the container whose logs they are read from.
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if sharedStack != nil {
+		if err := collectRunErrors(sharedStack); err != nil {
+			fmt.Fprintln(os.Stderr, "collecting the run's errors:", err)
+			code = max(code, 1)
+		}
+	}
 	for i := len(teardown) - 1; i >= 0; i-- {
 		teardown[i]()
 	}
@@ -136,7 +156,10 @@ func runningStack(t *testing.T) *stack {
 }
 
 func startStack(tenants, items int) (*stack, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	// Twenty minutes for the nightly's dataset, and ten more per million entries: the COPY and the
+	// index builds grow with the capacity run's 10⁶ and 10⁷.
+	budget := 20*time.Minute + time.Duration(items/1_000_000)*10*time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 
 	container, appDSN, err := startDatabase(ctx)
@@ -157,12 +180,13 @@ func startStack(tenants, items int) (*stack, error) {
 		return nil, fmt.Errorf("minting: %w", err)
 	}
 
-	url, pid, err := startServer(ctx, appDSN)
+	url, opsURL, pid, serverLog, err := startServer(ctx, appDSN)
 	if err != nil {
 		return nil, err
 	}
 
-	return &stack{baseURL: url, tenants: minted, serverPID: pid}, nil
+	return &stack{baseURL: url, tenants: minted, serverPID: pid, serverLog: serverLog, database: container,
+		items: items, opsURL: opsURL}, nil
 }
 
 func postgresImage() string {
@@ -172,8 +196,34 @@ func postgresImage() string {
 	return "pgvector/pgvector:pg16"
 }
 
+// envExplain has PostgreSQL log the plan of every statement slower than explainAfter, which the
+// capacity run keeps per query beside its figures. Not on by default: ANALYZE instruments every
+// statement, so a run under it is a diagnosis, not a measurement.
+const (
+	envExplain   = "HUBTASK_LOAD_EXPLAIN"
+	explainAfter = "100ms"
+)
+
+// explainArgs are auto_explain's settings for a diagnosing run. No parameter is logged (rule 10:
+// a bound value could be content), and no timing per node: the buffers and row counts tell a plan
+// switch apart, and the clock calls would slow every statement under it.
+func explainArgs() []string {
+	if os.Getenv(envExplain) == "" {
+		return nil
+	}
+	return []string{
+		"-c", "shared_preload_libraries=auto_explain",
+		"-c", "auto_explain.log_min_duration=" + explainAfter,
+		"-c", "auto_explain.log_analyze=on",
+		"-c", "auto_explain.log_buffers=on",
+		"-c", "auto_explain.log_timing=off",
+		"-c", "auto_explain.log_parameter_max_length=0",
+	}
+}
+
 func startDatabase(ctx context.Context) (*tcpostgres.PostgresContainer, string, error) {
 	container, err := tcpostgres.Run(ctx, postgresImage(),
+		testcontainers.WithCmdArgs(explainArgs()...),
 		tcpostgres.WithDatabase("hubtask_load"),
 		tcpostgres.WithUsername("postgres"),
 		tcpostgres.WithPassword("postgres"),
@@ -251,52 +301,138 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 		{"membership", "id, tenant_id, account_id, scope_type, role"},
 		{"container", "id, tenant_id, type, parent_id, name, order_key, created_by, policies"},
 		{"work_item", "id, tenant_id, collection_id, type, parent_id, path, depth, title, " +
-			"is_completed, completed_at, order_key, due_at, created_by, created_at"},
+			"is_completed, completed_at, order_key, due_at, created_by, created_at, number"},
 	}
 
 	for _, table := range tables {
+		// Through a file rather than memory: at the capacity run's 10⁷ entries the work_item
+		// stream is gigabytes, which a byte slice would hold twice.
 		rows, err := generate(ctx, table.name, tenants, items)
 		if err != nil {
 			return err
 		}
-		target := "/tmp/" + table.name + ".tsv"
-		// Readable by everyone inside the container on purpose: COPY FROM is read by the server
-		// process, which runs as postgres, while the file arrives owned by root.
-		if err := container.CopyToContainer(ctx, rows, target, 0o644); err != nil {
-			return fmt.Errorf("copying %s: %w", table.name, err)
+		// In parts, each its own statement: one COPY of 10⁷ rows holds every row's queued
+		// after-trigger and foreign-key check in the backend's memory until it ends.
+		parts, err := splitLines(rows, copyPart)
+		_ = os.Remove(rows)
+		if err != nil {
+			return fmt.Errorf("splitting %s: %w", table.name, err)
 		}
-		if err := psql(ctx, container,
-			fmt.Sprintf("COPY %s (%s) FROM '%s'", table.name, table.columns, target)); err != nil {
-			return fmt.Errorf("loading %s: %w", table.name, err)
+		for index, part := range parts {
+			target := fmt.Sprintf("/tmp/%s-%d.tsv", table.name, index)
+			// Readable by everyone inside the container on purpose: COPY FROM is read by the
+			// server process, which runs as postgres, while the file arrives owned by root.
+			err = container.CopyFileToContainer(ctx, part, target, 0o644)
+			_ = os.Remove(part)
+			if err != nil {
+				return fmt.Errorf("copying %s: %w", table.name, err)
+			}
+			if err := psql(ctx, container,
+				fmt.Sprintf("COPY %s (%s) FROM '%s'", table.name, table.columns, target)); err != nil {
+				return fmt.Errorf("loading %s: %w", table.name, err)
+			}
+			if _, _, err := container.Exec(ctx, []string{"rm", "-f", target}); err != nil {
+				return fmt.Errorf("removing %s: %w", target, err)
+			}
 		}
 	}
 	// The planner needs statistics over the new rows. A ramp against a table PostgreSQL believes
-	// is empty measures the wrong plan rather than the hardware.
-	return psql(ctx, container, "ANALYZE tenant, account, membership, container, work_item")
+	// is empty measures the wrong plan rather than the hardware. VACUUM as well, as autovacuum
+	// does to a table after a bulk insert: otherwise it does so in the middle of the measurement.
+	// Without parallel workers, whose shared memory outgrows a container's default 64 MB /dev/shm.
+	return psql(ctx, container, "VACUUM (ANALYZE, PARALLEL 0) tenant, account, membership, container, work_item")
 }
 
-func generate(ctx context.Context, table string, tenants, items int) ([]byte, error) {
+// copyPart is how many rows one COPY statement loads.
+const copyPart = 500_000
+
+// splitLines cuts a COPY file into files of at most lines rows each and answers their paths.
+func splitLines(path string, lines int) ([]string, error) {
+	source, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = source.Close() }()
+
+	var parts []string
+	var part *os.File
+	var writer *bufio.Writer
+	closePart := func() error {
+		if part == nil {
+			return nil
+		}
+		if err := writer.Flush(); err != nil {
+			return err
+		}
+		return part.Close()
+	}
+	scanner := bufio.NewScanner(source)
+	scanner.Buffer(make([]byte, 0, 64<<10), 1<<20)
+	for count := 0; scanner.Scan(); count++ {
+		if count%lines == 0 {
+			if err := closePart(); err != nil {
+				return parts, err
+			}
+			if part, err = os.CreateTemp("", "hubtask-load-part-*.tsv"); err != nil {
+				return parts, err
+			}
+			parts = append(parts, part.Name())
+			writer = bufio.NewWriter(part)
+		}
+		if _, err := writer.Write(append(scanner.Bytes(), '\n')); err != nil {
+			return parts, err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return parts, err
+	}
+	return parts, closePart()
+}
+
+// generate writes one table's COPY text into a temporary file and answers its path.
+func generate(ctx context.Context, table string, tenants, items int) (string, error) {
+	file, err := os.CreateTemp("", "hubtask-load-"+table+"-*.tsv")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = file.Close() }()
 	cmd := exec.CommandContext(ctx, "go", "run", "./test/load/seed",
 		"--table", table,
 		"--tenants", strconv.Itoa(tenants),
 		"--items", strconv.Itoa(items),
 		"--seed", seedName)
 	cmd.Dir = repositoryRoot()
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("generating %s: %w", table, err)
+	cmd.Stdout = file
+	if err := cmd.Run(); err != nil {
+		_ = os.Remove(file.Name())
+		return "", fmt.Errorf("generating %s: %w", table, err)
 	}
-	return out, nil
+	return file.Name(), nil
+}
+
+// loadScopes are the measured runs' token's: automation:manage is here for the storm, which arms a
+// rule and a webhook subscription on the storming tenant; everything else in this package needs
+// only the first three.
+var loadScopes = []string{"items:read", "items:write", "containers:read", "automation:manage"}
+
+// scopeArray is a scope list as a SQL array literal. The scopes are the catalogue's own words, never
+// a request's, so quoting them is enough.
+func scopeArray(scopes []string) string {
+	quoted := make([]string, len(scopes))
+	for i, scope := range scopes {
+		quoted[i] = "'" + strings.ReplaceAll(scope, "'", "''") + "'"
+	}
+	return "ARRAY[" + strings.Join(quoted, ",") + "]"
 }
 
 // mintTokens gives the first few tenants a credential each. Several, because the load is spread
 // over them: one credential driving the whole run would meet the per-token budget rather than the
 // admission threshold, and would measure the rate limiter.
+//
+// Each tenant gets a second credential for R3's walk, carrying every scope a session carries: the
+// web app reads far more than the measured paths, and a walk under the load token sees only the
+// refusals of its other reads.
 func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, tenants int) ([]tenant, error) {
-	// automation:manage is here for the storm, which arms a rule and a webhook subscription on the
-	// storming tenant; everything else in this package needs only the first three.
-	const scopes = "'items:read','items:write','containers:read','automation:manage'"
-
 	credentialled := min(tenants, 8)
 	minted := make([]tenant, 0, credentialled)
 	hasher := security.NewTokenHasher(secret.New(installationSecret))
@@ -309,27 +445,35 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 		if err != nil {
 			return nil, err
 		}
-		material := make([]byte, identity.TokenSecretBytes)
-		if _, err := rand.Read(material); err != nil {
-			return nil, err
+		mint := func(kind string, scopes []string) (string, error) {
+			material := make([]byte, identity.TokenSecretBytes)
+			if _, err := rand.Read(material); err != nil {
+				return "", err
+			}
+			token, err := identity.NewToken(parsed, material)
+			if err != nil {
+				return "", err
+			}
+			return token.Secret(), psql(ctx, container, fmt.Sprintf(
+				`INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
+				 VALUES ('%s', '%s', '%s', 'the load run', decode('%x', 'hex'), 'hbt_pat_',
+				         %s, now() + interval '2 hours')`,
+				derived(ctx, kind, rank), tenantID, accountID, hasher.Hash(token.Secret()), scopeArray(scopes),
+			))
 		}
-		token, err := identity.NewToken(parsed, material)
+		loadToken, err := mint("load-token", loadScopes)
 		if err != nil {
 			return nil, err
 		}
-
-		if err := psql(ctx, container, fmt.Sprintf(
-			`INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-			 VALUES ('%s', '%s', '%s', 'the load run', decode('%x', 'hex'), 'hbt_pat_',
-			         ARRAY[%s], now() + interval '2 hours')`,
-			derived(ctx, "load-token", rank), tenantID, accountID, hasher.Hash(token.Secret()), scopes,
-		)); err != nil {
+		walkToken, err := mint("walk-token", catalogue.SessionScopes())
+		if err != nil {
 			return nil, err
 		}
 
 		minted = append(minted, tenant{
 			id:         tenantID,
-			token:      token.Secret(),
+			token:      loadToken,
+			walkToken:  walkToken,
 			collection: derived(ctx, "collection", rank, 0),
 			hub:        derived(ctx, "hub", rank),
 		})
@@ -340,27 +484,34 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 // startServer builds and runs the real binary rather than wiring the adapters by hand. RT-6 asks
 // whether the process holds - its memory, its garbage collector, its pool - and a stack assembled
 // in a test is a different process from the one that is deployed.
-func startServer(ctx context.Context, dsn string) (string, int, error) {
+func startServer(ctx context.Context, dsn string) (string, string, int, string, error) {
 	home, err := os.MkdirTemp("", "hubtask-load")
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, "", err
 	}
 	teardown = append(teardown, func() { _ = os.RemoveAll(home) })
+
+	// S6's source serves https on loopback under a root the server is told to trust, as a
+	// self-hoster's private CA is (HUBTASK_HTTP_CA_FILE, security.md §10).
+	roots, err := mintSourceCertificate(home)
+	if err != nil {
+		return "", "", 0, "", err
+	}
 
 	binary := filepath.Join(home, "hubtask-server")
 	build := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", binary, "./cmd/server")
 	build.Dir = repositoryRoot()
 	if out, err := build.CombinedOutput(); err != nil {
-		return "", 0, fmt.Errorf("building the server: %w: %s", err, out)
+		return "", "", 0, "", fmt.Errorf("building the server: %w: %s", err, out)
 	}
 
 	httpPort, err := freePort(ctx)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, "", err
 	}
 	opsPort, err := freePort(ctx)
 	if err != nil {
-		return "", 0, err
+		return "", "", 0, "", err
 	}
 
 	// Started with its own context rather than the caller's: the stack outlives the function that
@@ -388,7 +539,6 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 		"HUBTASK_TENANCY_MODE=multi",
 		"HUBTASK_LOG_LEVEL=warn",
 		"HUBTASK_UI_ENABLED=false",
-		"HUBTASK_LOAD_SHED_INFLIGHT="+strconv.Itoa(shedLimit),
 		// The rate limits are raised out of the way on purpose. They are admission control of a
 		// different kind, they are proved by their own tests, and traffic that runs into them
 		// never reaches the threshold this run is about: a 429 is a correct answer that measures
@@ -407,12 +557,29 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 		// by exact host, for a target this run brought up itself.
 		"HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true",
 		"HUBTASK_HTTP_ALLOWED_HOSTS=127.0.0.1",
+		"HUBTASK_HTTP_CA_FILE="+roots,
 	)
-	server.Stdout = os.Stderr
-	server.Stderr = os.Stderr
+	server.Env = append(server.Env, shedEnv(os.Getenv(envCapacity) != "")...)
+	// Kept beside the evidence, where one is named, so the run's errors outlive the process.
+	logDir := os.Getenv(envEvidence)
+	if logDir == "" {
+		logDir = home
+	} else if err := os.MkdirAll(logDir, 0o750); err != nil {
+		stop()
+		return "", "", 0, "", err
+	}
+	serverLog := filepath.Join(logDir, "server.log")
+	logFile, err := os.Create(serverLog)
+	if err != nil {
+		stop()
+		return "", "", 0, "", err
+	}
+	teardown = append(teardown, func() { _ = logFile.Close() })
+	server.Stdout = io.MultiWriter(os.Stderr, logFile)
+	server.Stderr = server.Stdout
 	if err := server.Start(); err != nil {
 		stop()
-		return "", 0, fmt.Errorf("starting the server: %w", err)
+		return "", "", 0, "", fmt.Errorf("starting the server: %w", err)
 	}
 	teardown = append(teardown, func() {
 		stop()
@@ -420,10 +587,22 @@ func startServer(ctx context.Context, dsn string) (string, int, error) {
 	})
 
 	url := "http://127.0.0.1:" + strconv.Itoa(httpPort)
-	if err := waitReady(ctx, "http://127.0.0.1:"+strconv.Itoa(opsPort)+"/readyz"); err != nil {
-		return "", 0, err
+	opsURL := "http://127.0.0.1:" + strconv.Itoa(opsPort)
+	if err := waitReady(ctx, opsURL+"/readyz"); err != nil {
+		return "", "", 0, "", err
 	}
-	return url, server.Process.Pid, nil
+	return url, opsURL, server.Process.Pid, serverLog, nil
+}
+
+// shedEnv is the admission threshold the server runs with: RT-6's small one, except for the
+// capacity run, which measures the read paths at the installation's default. Under shedLimit one
+// workspace's deferrable calls are capped at two in flight, so eight callers of a query would
+// measure the shedder, not the query.
+func shedEnv(capacity bool) []string {
+	if capacity {
+		return nil
+	}
+	return []string{"HUBTASK_LOAD_SHED_INFLIGHT=" + strconv.Itoa(shedLimit)}
 }
 
 // memoryLimitBytes is the ceiling the run holds the process to. 768 MiB is the chart's own limit
@@ -501,13 +680,13 @@ func repositoryRoot() string {
 	}
 }
 
-// residentBytes is what the process is costing right now. Read from /proc, which means the memory
-// half of RT-6 is asserted where the nightly runs it and reported as unknown elsewhere - a number
-// this cannot read is better said than guessed.
-func residentBytes(pid int) (int64, bool) {
+// residentBytes is what the process is costing right now: from /proc where there is one, else
+// from ps, and reported as unknown where neither answers - a number this cannot read is better
+// said than guessed.
+func residentBytes(ctx context.Context, pid int) (int64, bool) {
 	status, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "status"))
 	if err != nil {
-		return 0, false
+		return residentBytesByPs(ctx, pid)
 	}
 	for _, line := range strings.Split(string(status), "\n") {
 		if !strings.HasPrefix(line, "VmRSS:") {
@@ -526,6 +705,21 @@ func residentBytes(pid int) (int64, bool) {
 	return 0, false
 }
 
+// residentBytesByPs asks ps for the resident set, in kilobytes on every platform that has it.
+func residentBytesByPs(ctx context.Context, pid int) (int64, bool) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return 0, false
+	}
+	kilobytes, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return kilobytes * 1024, true
+}
+
 // envEvidence is where a run leaves its numbers. The nightly points it at a directory it uploads
 // as an artefact; without it the finding goes to the test's own temporary directory and the path
 // is logged.
@@ -540,21 +734,51 @@ const envEvidence = "HUBTASK_LOAD_EVIDENCE_DIR"
 // failure is read from the artefact rather than reconstructed from a log.
 func writeEvidence(t *testing.T, name string, finding any) {
 	t.Helper()
-	encoded, err := json.MarshalIndent(finding, "", "  ")
-	if err != nil {
-		t.Fatalf("encoding the finding: %v", err)
-	}
-
 	directory := os.Getenv(envEvidence)
 	if directory == "" {
 		directory = t.TempDir()
-	} else if err := os.MkdirAll(directory, 0o750); err != nil {
-		t.Fatalf("making %s: %v", directory, err)
 	}
-
-	path := filepath.Join(directory, name)
-	if err := os.WriteFile(path, append(encoded, '\n'), 0o600); err != nil {
-		t.Fatalf("writing %s: %v", path, err)
+	path, err := writeEvidenceFile(directory, name, finding)
+	if err != nil {
+		t.Fatal(err)
 	}
 	t.Logf("the run is in %s", path)
+}
+
+func writeEvidenceFile(directory, name string, finding any) (string, error) {
+	encoded, err := json.MarshalIndent(finding, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encoding the finding: %w", err)
+	}
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		return "", fmt.Errorf("making %s: %w", directory, err)
+	}
+	path := filepath.Join(directory, name)
+	if err := os.WriteFile(path, append(encoded, '\n'), 0o600); err != nil {
+		return "", fmt.Errorf("writing %s: %w", path, err)
+	}
+	return path, nil
+}
+
+// The walk's credential carries every scope a session does, so R3 sees what a person's web app
+// sees rather than the refusals of the load token's narrow set.
+func TestTheCapacityRunMeasuresAtTheDefaultShedThreshold(t *testing.T) {
+	if got := shedEnv(true); got != nil {
+		t.Errorf("the capacity run sets %v", got)
+	}
+	if got := shedEnv(false); len(got) != 1 || got[0] != "HUBTASK_LOAD_SHED_INFLIGHT=8" {
+		t.Errorf("RT-6's run sets %v", got)
+	}
+}
+
+func TestWalkTokenCarriesEverySessionScope(t *testing.T) {
+	array := scopeArray(catalogue.SessionScopes())
+	for _, scope := range catalogue.SessionScopes() {
+		if !strings.Contains(array, "'"+scope+"'") {
+			t.Errorf("the walk's scopes lack %s: %s", scope, array)
+		}
+	}
+	if got := scopeArray([]string{"a:b", "c'd"}); got != "ARRAY['a:b','c''d']" {
+		t.Errorf("scopeArray = %s", got)
+	}
 }

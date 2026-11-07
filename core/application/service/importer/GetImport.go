@@ -62,7 +62,8 @@ func (h GetImport) Execute(ctx context.Context, actor appshared.ActorContext, id
 // Descriptor is the catalogue entry.
 func (h GetImport) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetImportName,
+		Name:       GetImportName,
+		Permission: domainservice.PermissionRead,
 		Summary: "An import and its report: what landed, in the restore's shape, and the rows the " +
 			"converter refused by number. Visible to whoever may read the hub it landed in.",
 		SideEffects: "None.",
@@ -91,7 +92,7 @@ func (h GetImport) invoke(ctx context.Context, actor appshared.ActorContext, in 
 func RunOutput(run domain.Run) usecase.Output {
 	out := usecase.Output{
 		"id": run.ID.String(), "kind": string(run.Kind), "hub_id": run.HubID.String(),
-		"collection_id": nil, "media_id": run.MediaID.String(), "status": string(run.Status),
+		"collection_id": nil, "media_id": run.MediaID.String(), "dry_run": run.DryRun, "status": string(run.Status),
 		"created_at": run.CreatedAt, "finished_at": nil, "error_code": nil,
 	}
 	if !run.CollectionID.IsZero() {
@@ -113,7 +114,11 @@ func RunOutput(run domain.Run) usecase.Output {
 	}
 	refused := make([]usecase.Output, 0, len(run.Refused))
 	for _, r := range run.Refused {
-		refused = append(refused, usecase.Output{"row": r.Row, "code": r.Code})
+		row := usecase.Output{"row": r.Row, "code": r.Code}
+		if len(r.Fields) > 0 {
+			row["fields"] = r.Fields
+		}
+		refused = append(refused, row)
 	}
 	out["refused"] = refused
 	return out

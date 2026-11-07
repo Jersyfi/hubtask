@@ -80,6 +80,10 @@ func TestARuleThatCannotBeReadIsRefusedByItsReason(t *testing.T) {
 			rule: port.Rule{RRULE: "FREQ=DAILY;BYHOUR=25", TimeZone: "UTC", Start: start},
 			want: port.ErrRuleUnreadable,
 		},
+		"the server's own zone, which differs between nodes": {
+			rule: port.Rule{RRULE: "FREQ=DAILY", TimeZone: "Local", Start: start},
+			want: port.ErrZoneUnknown,
+		},
 		"a zone this installation does not have": {
 			rule: port.Rule{RRULE: "FREQ=DAILY", TimeZone: "Mars/Olympus_Mons", Start: start},
 			want: port.ErrZoneUnknown,

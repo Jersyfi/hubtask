@@ -27,9 +27,9 @@
  * writer it guessed against, and being tolerant of a name is cheaper than being wrong about one.
  */
 
-import type { ChangeRecord } from '@hubtask/sync-engine';
+import type { ChangeRecord, ResourceRequest } from '@hubtask/sync-engine';
 
-import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, entryDocument, entryHistory } from './touches.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, entryDocument, entryHistory, entryStatus } from './touches.ts';
 
 /** The paths a change to an entry makes stale. */
 function itemPaths(record: ChangeRecord): readonly string[] {
@@ -41,6 +41,8 @@ function itemPaths(record: ChangeRecord): readonly string[] {
     ENTRY_LISTS,
     entryDocument(id),
     entryHistory(id),
+    // Its status, steps and clocks, which somebody else's step or tick moves.
+    ...entryStatus(id),
     // An entry that left for the trash, or came back from it, is a row of that screen too.
     ...(record.op === 'DELETE' ? ['/trash'] : []),
   ];
@@ -123,6 +125,26 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
       // being ahead of it.
       return [];
   }
+}
+
+/** How long a burst of records is gathered before the reads it made stale reload, once each. */
+export const LIVE_BATCH_MS = 300;
+
+/**
+ * Whether an entry record cannot change a list's answer: the list is one level of one collection
+ * (`include_descendants: false`, a collection's level or board), the record is about an entry of
+ * another collection, and the answer holds no row of that entry - an entry moved out still reloads
+ * the list it left. A list over a subtree may span collections, so it is never left alone.
+ */
+export function unaffected(record: ChangeRecord, request: ResourceRequest, data: unknown): boolean {
+  if (record.entity !== 'item' && record.entity !== 'work_item') return false;
+  if (request.path !== ENTRY_LISTS || !record.container_id) return false;
+  const scope = (request.body as { scope?: { container_id?: string; include_descendants?: boolean } } | undefined)?.scope;
+  if (!scope?.container_id || scope.include_descendants !== false || scope.container_id === record.container_id) return false;
+  const answer = data as { data?: readonly { id?: string }[]; groups?: readonly { data?: readonly { id?: string }[] }[] } | null;
+  if (!answer || !Array.isArray(answer.data)) return false;
+  const rows = [...answer.data, ...(answer.groups ?? []).flatMap((group) => group.data ?? [])];
+  return !rows.some((row) => row?.id === record.entity_id);
 }
 
 /**

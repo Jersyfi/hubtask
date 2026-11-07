@@ -10,6 +10,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -63,7 +64,7 @@ func (h SetAiArrivalProposals) Execute(
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
 			return err
 		}
-		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
+		if err = w.Rules.shown(ctx, &state); err != nil {
 			return err
 		}
 		return w.Audit.Append(ctx, audit.Entry{
@@ -87,7 +88,8 @@ func (h SetAiArrivalProposals) Execute(
 // Descriptor registers the switch in every channel.
 func (h SetAiArrivalProposals) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetAiArrivalProposalsName,
+		Permission: service.PermissionStructure,
+		Name:       SetAiArrivalProposalsName,
 		Summary: "Switches whether AI prepares a proposal for each new jumble entry as it arrives, " +
 			"without anybody asking - off by default, and the workspace's own decision. Content is " +
 			"still sent only where the workspace consented and its AI answers, nothing of a person " +

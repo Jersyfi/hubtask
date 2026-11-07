@@ -58,7 +58,7 @@ async function openJumble(browser, width, { ai = true, permissions, onAsk } = {}
 }
 
 async function startSelecting(page) {
-  await page.getByRole('button', { name: 'Jumble actions' }).first().click();
+  await page.getByRole('button', { name: 'Inbox actions' }).first().click();
   await page.getByRole('menuitem', { name: 'Select entries' }).click();
   await page.locator('[data-jumble-selection]').waitFor({ timeout: 5_000 });
 }
@@ -125,7 +125,7 @@ test('chromium: who may only read, and a workspace without AI, are offered no se
       const { page, close } = await openJumble(browser, 1280, options);
       try {
         await page.waitForTimeout(300);
-        assert.equal(await page.getByRole('button', { name: 'Jumble actions' }).count(), 0, JSON.stringify(options));
+        assert.equal(await page.getByRole('button', { name: 'Inbox actions' }).count(), 0, JSON.stringify(options));
         assert.equal(await page.getByRole('checkbox').count(), 0);
       } finally {
         await close();

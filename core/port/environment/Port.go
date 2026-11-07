@@ -13,6 +13,8 @@
 package environment
 
 import (
+	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -187,6 +189,9 @@ type BackupConfig struct {
 	// hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Empty means
 	// no drill records anything here, and the series is absent rather than zero.
 	RestoreDrillRecordFile string
+	// ConcurrentDownloads bounds the owners' workspace downloads one process streams at once: each
+	// holds a pool connection and a snapshot for its whole transfer. Zero is no bound.
+	ConcurrentDownloads int
 }
 
 // EncryptionKey is one master key as the environment gives it: an identifier that is stored in
@@ -302,6 +307,14 @@ type MediaConfig struct {
 	// Interval is how long a tenant's reconciliation waits after a pass that found nothing left to
 	// do. What a quiet installation pays for having the machinery at all.
 	Interval time.Duration
+	// ScannerAddress is the ClamAV daemon uploads are scanned by (`host:port` or `unix:/path`);
+	// empty scans nothing (security.md §4).
+	ScannerAddress string
+	// ScannerTimeout bounds one scan; a scan past it holds the file.
+	ScannerTimeout time.Duration
+	// ScannerStreamMaxBytes is the daemon's StreamMaxLength. With a scanner, uploads are capped to
+	// it, so no accepted file is one the daemon refuses for its size.
+	ScannerStreamMaxBytes int64
 }
 
 // QueueConfig is the background work of the worker and scheduler roles (ADR-0008).
@@ -314,11 +327,18 @@ type QueueConfig struct {
 	// was scheduled without a wake-up has to wait, so it is also the floor under a reminder's
 	// punctuality (SLO-5).
 	PollInterval time.Duration
-	// BatchSize is how many jobs one round claims.
+	// BatchSize is how many jobs one round claims at most.
 	BatchSize int
+	// Concurrency is how many jobs one worker process runs at once. Each running job holds a
+	// connection of the background pool, so the composition root keeps it three below the pool's
+	// size, for the connections the listener and the leaders hold.
+	Concurrency int
 	// JobTimeout bounds one job. Every handler inherits it as a context deadline - no call
 	// without one (ADR-0016).
 	JobTimeout time.Duration
+	// LongJobTimeout bounds one pass of a long-running job - a backup, a restore, an export, an
+	// import - whose lease the worker keeps alive while it runs.
+	LongJobTimeout time.Duration
 	// MaxAttempts is how often a job is tried before it goes to the dead letter.
 	MaxAttempts int
 	// RetryBase and RetryMax are the exponential backoff between attempts, with full jitter.
@@ -388,6 +408,16 @@ type MailConfig struct {
 	// InboundDomain is HUBTASK_MAIL_INBOUND_DOMAIN, the receiving domain places' addresses live on
 	// (ADR-0092). Empty: no place shows an address, and the inbound route takes nothing.
 	InboundDomain string
+	// WatchLimit is HUBTASK_MAILBOX_WATCH_LIMIT: how many connected IMAP mailboxes the watch holds
+	// open at once, one per workspace before any workspace's second; the rest are read every
+	// minute. Zero is the default of a thousand.
+	WatchLimit int
+	// WatchShards is HUBTASK_MAILBOX_WATCH_SHARDS: how many parts the workspaces are split into,
+	// each held by one worker under a lock of its own (1 to 64, default 1: one worker holds all).
+	WatchShards int
+	// WatchShardsPerWorker is HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER: how many shards one worker
+	// leads at most, so they spread over the workers (1 to WatchShards, default WatchShards).
+	WatchShardsPerWorker int
 	// InboundKey is HUBTASK_MAIL_INBOUND_KEY, what the inbound service presents on the route.
 	InboundKey secret.Secret
 	// OAuth are the installation's own OAuth apps for connected mailboxes (ADR-0094), by provider
@@ -453,6 +483,21 @@ type RateLimitConfig struct {
 	AuthPerMinute int
 	// Burst is how much of the budget may be spent at once.
 	Burst int
+	// TenantBurst is how much of the workspace's budget may be spent at once. Zero takes
+	// TenantDepth's default: the workspace's bucket is shared by everyone in it, so the depth of
+	// one person's bucket would answer 429 to the whole workspace when a few open a page together.
+	TenantBurst int
+}
+
+// TenantDepth is the depth of the workspace's bucket: TenantBurst where set, otherwise half the
+// minute's budget, and never less than one person's Burst. Half: fifty people opening a cold page
+// at the same moment (24 requests each) fit in the default 3000, and the minute's budget still
+// bounds what one workspace takes from the others.
+func (r RateLimitConfig) TenantDepth() int {
+	if r.TenantBurst > 0 {
+		return r.TenantBurst
+	}
+	return max(r.TenantPerMinute/2, r.Burst)
 }
 
 // LoadShedConfig is the admission threshold of observability-reliability.md §6: above so many
@@ -471,6 +516,11 @@ type LoadShedConfig struct {
 	// RetryAfter is what a refused caller is told to wait. It reaches the client as the header
 	// of the same name, and it is the only thing that makes a refusal actionable.
 	RetryAfter time.Duration
+	// StreamsPerCredential, StreamsPerTenant and StreamsPerProcess cap the long-lived connections
+	// one process holds (presentation/stream.Limits); zero is no cap at that level.
+	StreamsPerCredential int
+	StreamsPerTenant     int
+	StreamsPerProcess    int
 }
 
 // RequestConfig bounds a single request (security.md §9, threat T-17).
@@ -485,6 +535,11 @@ type RequestConfig struct {
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).
 	Timeout time.Duration
+	// TrustedProxies are the networks (CIDR, or a bare address) whose X-Forwarded-For is
+	// believed: a request whose peer lies inside one is counted under the right-most forwarded
+	// hop outside them. Empty by default, because the header is written by the client and only a
+	// proxy that overwrites it makes it true (security.md §9).
+	TrustedProxies []string
 }
 
 // CORSConfig is the browser side of the API. Empty by default: a self-hosted installation serves
@@ -506,6 +561,9 @@ func (c CORSConfig) AllowsAnyOrigin() bool {
 
 // CORSWildcard is the one value that stands for every origin.
 const CORSWildcard = "*"
+
+// MaxMailboxWatchShards bounds HUBTASK_MAILBOX_WATCH_SHARDS; the shards' locks are a range of their own.
+const MaxMailboxWatchShards = 64
 
 // MaxOutboundRedirects bounds the configured redirect budget. A chain longer than this is not a
 // site that moved, it is a chain being used to walk a request somewhere it may not go (T-07).
@@ -535,6 +593,13 @@ type OutboundConfig struct {
 	// webhook into a port scanner of the host network. A self-hoster with an internal target
 	// on the same LAN is the one legitimate reason to turn it on, and it warns when set.
 	AllowPrivateNetworks bool
+	// CAFile names a PEM file of further roots that outbound calls through GuardedClient trust,
+	// beside the system's (security.md §10): a self-hoster's private CA. Empty adds none; the
+	// system roots are never replaced.
+	CAFile string
+	// CARoots is CAFile's content, read once when the configuration is loaded; nil where none is
+	// named or it could not be read, which the validation refuses.
+	CARoots []byte
 }
 
 // MetricsConfig covers what a metric may say about a tenant.
@@ -564,6 +629,14 @@ type UIConfig struct {
 	// front of it, or a deployment that only serves integrations. Then "/" is 404 and the API is
 	// untouched, which is the honest answer: there is nothing there.
 	Enabled bool
+	// FrameAncestors are the origins that may embed the interface in a frame - a portal such as
+	// openDesk's - each a complete origin. Empty by default, which keeps `frame-ancestors 'none'`;
+	// it widens the interface's policy only, never the API's.
+	FrameAncestors []string
+	// FrameSources are the https origins a page's embed may frame, sandboxed - a dashboard, a
+	// video. Empty by default, which frames nothing and draws every embed as a link card; it
+	// widens the interface's policy only, never the API's.
+	FrameSources []string
 }
 
 // LocaleConfig is the installation-wide fallback, the last link in the resolution chain
@@ -629,4 +702,23 @@ func (e OperatorEntry) String() string {
 		return e.Email
 	}
 	return e.Workspace + ":" + e.Email
+}
+
+// ParseTrustedProxy reads one HUBTASK_TRUSTED_PROXIES entry: a CIDR, or a bare address meaning
+// that address alone.
+func ParseTrustedProxy(raw string) (netip.Prefix, error) {
+	raw = strings.TrimSpace(raw)
+	if strings.Contains(raw, "/") {
+		prefix, err := netip.ParsePrefix(raw)
+		if err != nil {
+			return netip.Prefix{}, err
+		}
+		return prefix.Masked(), nil
+	}
+	address, err := netip.ParseAddr(raw)
+	if err != nil {
+		return netip.Prefix{}, err
+	}
+	address = address.Unmap()
+	return netip.PrefixFrom(address, address.BitLen()), nil
 }

@@ -131,6 +131,7 @@ func (i Idempotent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	captured := &capturedResponse{
 		ResponseWriter: w, limit: maxStoredResponseBytes, shownOnce: ShownOnceRoutes[endpoint],
+		kept: ShownOnceKept[endpoint] != "",
 	}
 	i.Next.ServeHTTP(captured, r)
 
@@ -185,6 +186,9 @@ type capturedResponse struct {
 	// shownOnce says the answer carries a credential shown once: by its route (ShownOnceRoutes) or
 	// by the handler's mark on this answer (ShownOnceHeader).
 	shownOnce bool
+	// kept says the route keeps its body for a replay although it carries a credential
+	// (ShownOnceKept): the handler's mark is taken off and does not drop the body.
+	kept bool
 }
 
 func (c *capturedResponse) WriteHeader(status int) {
@@ -193,7 +197,7 @@ func (c *capturedResponse) WriteHeader(status int) {
 	}
 	// The mark is this layer's and never the client's: read, then taken off the answer.
 	if c.Header().Get(ShownOnceHeader) != "" {
-		c.shownOnce = true
+		c.shownOnce = !c.kept
 		c.Header().Del(ShownOnceHeader)
 	}
 	c.status, c.written = status, true

@@ -111,6 +111,16 @@ export interface Platform {
   saveFile(bytes: Blob, fileName: string): void;
 
   /**
+   * A place on the disk the person picks, to write a file into as it arrives - for a file too
+   * large to hold in memory first, the whole workspace's archive.
+   *
+   * Asked before anything else is awaited, because a browser opens its picker only within the
+   * press. `null` is the person closing the picker; `undefined` is a runtime without one, and the
+   * caller falls back to `saveFile`. Aborting the stream discards what it wrote.
+   */
+  saveStream(fileName: string): Promise<WritableStream<Uint8Array> | null | undefined>;
+
+  /**
    * The languages this reader's device says they read, best first.
    *
    * Here rather than read from `navigator` in a view, for the reason every platform difference is:
@@ -129,6 +139,13 @@ export interface Platform {
    * Nothing under `apps/` touches IndexedDB itself; the package holds the store, this seam names it.
    */
   storageFor(accountId: string): Storage | undefined;
+
+  /**
+   * How many entries this runtime's copy holds before it holds only the hubs somebody opened
+   * lately (offline-sync.md §1), or nothing where the copy is always whole: the browser's is a
+   * best-effort cache bounded by the tab's memory, a shell's carries the offline promise.
+   */
+  readonly replicaEntries: number | undefined;
 
   /**
    * Whether that store may hold a file captured offline until it can be uploaded (offline-sync.md
@@ -157,6 +174,13 @@ export interface Platform {
    */
   rememberAccount(id: string): void;
   lastAccount(): string | undefined;
+
+  /**
+   * Marks an account's store as holding changes not sent yet when its session ended without a
+   * sign-out (offline-sync.md §9.6). Outlives the pair: `rememberAccount` reads it, keeps the store
+   * for the same account and deletes it when a different one signs in.
+   */
+  holdUnsentOf(accountId: string): void;
 
   /**
    * When this session's elevation to the control plane ends, and where it is remembered

@@ -14,9 +14,9 @@
  * allows, what is offered by name, processor and where, and what the workspace chose. Choosing an
  * offered model there is the workspace's consent to it.
  *
- * **Not configured is not a failure.** The read answers `404 ai.not_configured` where a workspace
- * has never set one, and that is an empty screen with a form on it. The state is handed out whole
- * so the screen can tell the two apart.
+ * **Not configured is not a failure.** `/ai-source` says `own_configured`, and the provider is
+ * read only where it is true; where a workspace has never set one, that is an empty screen with a
+ * form on it (`unconfigured`).
  *
  * **Consent is a field of the configuration**, `processing_allowed`, false unless it is said -
  * configuring a provider and consenting to send the workspace's content to it are two decisions
@@ -33,7 +33,7 @@ import type {
   ResourceState,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const PATH = '/ai-provider';
 const SOURCE = '/ai-source';
@@ -69,18 +69,51 @@ class AiProviderStore {
     return this.#state.status === 'ready' ? this.#state.data : undefined;
   }
 
-  /** Starts the read. **From `untrack`**, for the reason every other store records. */
+  /**
+   * Whether the workspace has no provider of its own: the source says so, or the provider's read
+   * answered `404` (a removal from elsewhere between the two reads).
+   */
+  get unconfigured(): boolean {
+    if (this.source?.own_configured === false) return true;
+    return this.#state.status === 'failed' && this.#state.error.status === 404;
+  }
+
+  /**
+   * Starts the reads. **From `untrack`**, for the reason every other store records. The provider
+   * is read only once the source says there is one: a `404` is logged by the browser however the
+   * screen takes it. A source without the flag, or one that failed, reads it as before.
+   */
   open(): () => void {
-    const stopProvider = engine.subscribe<AiProvider>({ path: PATH }, (next) => {
-      this.#state = next;
-    });
+    let stopProvider: (() => void) | undefined;
     const stopSource = engine.subscribe<AiSource>({ path: SOURCE }, (next) => {
       this.#source = next;
+      if (next.status !== 'ready' && next.status !== 'failed') return;
+      const wanted = !(next.status === 'ready' && next.data.own_configured === false);
+      if (wanted && !stopProvider) {
+        stopProvider = engine.subscribe<AiProvider>({ path: PATH }, (state) => {
+          this.#state = state;
+        });
+      } else if (!wanted && stopProvider) {
+        stopProvider();
+        stopProvider = undefined;
+        this.#state = { status: 'idle' };
+      }
     });
     return () => {
-      stopProvider();
       stopSource();
+      stopProvider?.();
+      stopProvider = undefined;
     };
+  }
+
+  /**
+   * Starts only the read of which AI answers - the frame's column figure needs no more, and the
+   * provider's read answers a workspace without one with a 404 every administration page would log.
+   */
+  openSource(): () => void {
+    return engine.subscribe<AiSource>({ path: SOURCE }, (next) => {
+      this.#source = next;
+    });
   }
 
   /**
@@ -121,14 +154,14 @@ class AiProviderStore {
   /** Sets it, whole. `api_key` absent keeps the sealed one; empty clears it; a value replaces it. */
   async configure(body: AiProviderConfiguration): Promise<AiProvider> {
     return engine.mutate<AiProvider>('PUT', PATH, body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHES,
     });
   }
 
   /** Takes it away: the configuration and its sealed key. Nothing already accepted is undone. */
   async remove(): Promise<void> {
-    await engine.mutate('DELETE', PATH, undefined, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES });
+    await engine.mutate('DELETE', PATH, undefined, { idempotencyKey: INTENT, invalidates: TOUCHES });
   }
 }
 

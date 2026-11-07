@@ -15,6 +15,7 @@ import (
 // The receiving domain's door (ADR-0092, UC-JUM-09 checks 7 and 8): the key opens it, the
 // headers say where a message goes and whether a machine sent it.
 
+// UC-JUM-12 check 7.
 func TestTheInboundKeyOpensTheDoor(t *testing.T) {
 	door := AddressedMailIntake{Key: "s3cret"}
 	basic := "Basic " + base64.StdEncoding.EncodeToString([]byte("postmark:s3cret"))
@@ -79,6 +80,7 @@ func TestTheHeadersSayWhereAndWhatKind(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 5, UC-JUM-10 check 3: Hubtask's own notification coming back reads as automatic.
 func TestOwnNotificationsAreAutomatic(t *testing.T) {
 	parsed, err := ParseMail([]byte("From: a@b.test\r\nX-Hubtask-Notification: 1\r\n"+
 		"Auto-Submitted: no\r\nSubject: x\r\n\r\nbody"), MailLimits{})

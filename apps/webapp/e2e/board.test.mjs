@@ -238,3 +238,26 @@ test('chromium: a card says what it holds - its parts, comments and files - and 
   assert.equal(await bare.locator('.footer:visible').count(), 0, 'an empty footer line on a card that holds nothing');
   assert.deepEqual(failures, []);
 });
+
+// user-experience.md §7.5: on a board of buckets completion and the done column are one - a card
+// dropped there completes, and a card marked as done moves there.
+test('chromium: a card marked as done from its menu moves to the done column', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, written, close, unstubbed } = await board(browser);
+  t.after(close);
+
+  const card = ITEMS[2];
+  const trigger = page.getByRole('button', { name: `Actions for ${card.title}`, exact: true }).first();
+  await page.locator(`[data-card="${card.id}"]`).hover();
+  await trigger.click();
+  await page.getByRole('menuitem', { name: 'Mark as done' }).click();
+  await page.waitForTimeout(400);
+
+  const completed = written.findIndex((w) => w.method === 'POST' && w.path.endsWith(`/items/${card.id}:complete`));
+  const moved = written.findIndex((w) => w.method === 'PATCH' && w.path.endsWith(`/items/${card.id}`) && w.body?.bucket_id === BUCKETS[2].id);
+  assert.ok(completed >= 0, `Mark as done sent no :complete: ${JSON.stringify(written)}`);
+  assert.ok(moved > completed, `the card was not moved to the done column after: ${JSON.stringify(written)}`);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});

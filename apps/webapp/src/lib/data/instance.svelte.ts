@@ -29,6 +29,7 @@ import type {
   InstanceJournalEntry,
   InstanceOverview,
   InstanceSettings,
+  InstanceSettingsPlan,
   OfferedAiModel,
   OfferedAiModelConfiguration,
   Operator,
@@ -38,6 +39,7 @@ import type {
   ProvisionedTenant,
   TenantProvision,
   TenantQuotas,
+  WorkspaceNearQuota,
   ResourceState,
   SessionElevation,
 } from '@hubtask/sync-engine';
@@ -45,16 +47,24 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import type { Probe, Target, TargetDraft } from './backup.svelte.ts';
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
+import { workspaceQuery, type WorkspaceFilter } from './workspacequery.ts';
+
+export type { WorkspaceFilter };
 import { identityProviderPresetPath } from './identityprovider.svelte.ts';
 import { platformSubscriptions } from './platformsubscriptions.svelte.ts';
+import { deadLetters } from './deadletters.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ELEVATE = '/auth/sessions:elevate';
 /** The refusal of a raise while the session's hour still runs; it names the end. */
 const ALREADY_ELEVATED = 'auth.session_already_elevated';
 const OVERVIEW = '/admin/overview';
+const NEAR_QUOTA = '/admin/quotas';
 const TENANTS = '/admin/tenants';
+const TENANT_QUERY = '/admin/tenants:query';
+type TenantPage = { readonly data: readonly AdminTenant[]; readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean } };
+
 const OWN_DOMAINS = '/admin/own-domains';
 const SETTINGS = '/admin/settings';
 const OPERATORS = '/admin/operators';
@@ -100,7 +110,10 @@ class Instance {
   #ticking: ReturnType<typeof setInterval> | undefined;
 
   #overview = $state<ResourceState<InstanceOverview>>({ status: 'idle' });
+  #nearQuota = $state<ResourceState<{ readonly data: readonly WorkspaceNearQuota[] }>>({ status: 'idle' });
   #workspaces = $state<ResourceState<readonly AdminTenant[]>>({ status: 'idle' });
+  #workspacePage = $state<ResourceState<TenantPage>>({ status: 'idle' });
+  #workspaceQuery: Record<string, unknown> = workspaceQuery({});
   #ownDomains = $state<ResourceState<readonly AdminOwnDomain[]>>({ status: 'idle' });
   #settings = $state<ResourceState<InstanceSettings>>({ status: 'idle' });
   #operators = $state<ResourceState<readonly Operator[]>>({ status: 'idle' });
@@ -142,6 +155,36 @@ class Instance {
     return this.#workspaces;
   }
 
+  /** The workspaces screen's rows: the pages read so far of the narrowing in force. */
+  get workspacePage(): ResourceState<TenantPage> {
+    return this.#workspacePage;
+  }
+
+  get hasMoreWorkspaces(): boolean {
+    return this.#workspacePage.status === 'ready' && Boolean(this.#workspacePage.data.page?.next_cursor);
+  }
+
+  /**
+   * The workspaces screen reads a page at a time through the filtered query, never the whole
+   * installation: an operator with thousands of workspaces finds one by its short name or reference.
+   */
+  openWorkspacePage(filter: WorkspaceFilter): () => void {
+    this.#workspaceQuery = workspaceQuery(filter);
+    return engine.subscribe<TenantPage>({ path: TENANT_QUERY, body: this.#workspaceQuery }, (next) => {
+      this.#workspacePage = next;
+    });
+  }
+
+  async loadMoreWorkspaces(): Promise<void> {
+    await engine.loadMore<TenantPage>({ path: TENANT_QUERY, body: this.#workspaceQuery });
+  }
+
+  /** Whether a workspace answers at the short name: one read of the query, not the whole list. */
+  async isSlugTaken(slug: string): Promise<boolean> {
+    const state = await engine.refresh<TenantPage>({ path: TENANT_QUERY, body: workspaceQuery({ slug }, 1) });
+    return state.status === 'ready' && state.data.data.length > 0;
+  }
+
   /** Every own domain the workspaces' owners set up, and every block (UC-INS-15 check 10). */
   get ownDomains(): readonly AdminOwnDomain[] {
     return this.#ownDomains.status === 'ready' ? this.#ownDomains.data : [];
@@ -157,6 +200,11 @@ class Instance {
 
   get operatorsState(): ResourceState<readonly Operator[]> {
     return this.#operators;
+  }
+
+  /** The workspaces at 90% or more of a quota (A-18's who), empty until read. */
+  get nearQuota(): readonly WorkspaceNearQuota[] {
+    return this.#nearQuota.status === 'ready' ? this.#nearQuota.data.data : [];
   }
 
   get journal(): readonly InstanceJournalEntry[] {
@@ -209,7 +257,9 @@ class Instance {
   forget(): void {
     this.#until = undefined;
     this.#overview = { status: 'idle' };
+    this.#nearQuota = { status: 'idle' };
     this.#workspaces = { status: 'idle' };
+    this.#workspacePage = { status: 'idle' };
     this.#ownDomains = { status: 'idle' };
     this.#settings = { status: 'idle' };
     this.#operators = { status: 'idle' };
@@ -222,6 +272,7 @@ class Instance {
     this.#offeredAi = { status: 'idle' };
     this.#targets = { status: 'idle' };
     platformSubscriptions.forget();
+    deadLetters.forget();
   }
 
   /**
@@ -370,6 +421,12 @@ class Instance {
     });
   }
 
+  openNearQuota(): () => void {
+    return engine.subscribe<{ readonly data: readonly WorkspaceNearQuota[] }>({ path: NEAR_QUOTA }, (next) => {
+      this.#nearQuota = next;
+    });
+  }
+
   openJournal(): () => void {
     return engine.subscribe<{ readonly data: readonly InstanceJournalEntry[] }>(
       { path: JOURNAL },
@@ -485,7 +542,7 @@ class Instance {
   async provision(request: TenantProvision): Promise<ProvisionedTenant> {
     return stepUp.around((stepUpToken) =>
       engine.mutate<ProvisionedTenant>('POST', TENANTS, request, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         stepUpToken,
         invalidates: EVERYTHING,
       }),
@@ -575,6 +632,11 @@ class Instance {
    * ordinary case, and a save made on values somebody else saved since is refused with
    * `version_conflict` rather than quietly replacing theirs (UC-INS-09 check 8).
    */
+  /** What a save of this level would change, key by key; writes nothing (UC-INS-09 check 9). */
+  planSettings(settings: InstanceSettings): Promise<InstanceSettingsPlan> {
+    return engine.mutate<InstanceSettingsPlan>('POST', `${SETTINGS}:plan`, settings, { invalidates: [] });
+  }
+
   async writeSettings(settings: InstanceSettings): Promise<InstanceSettings> {
     const etag = this.#settings.status === 'ready' ? this.#settings.etag : undefined;
     return stepUp.around((stepUpToken) =>
@@ -654,7 +716,7 @@ class Instance {
     return stepUp.around((stepUpToken) =>
       engine.mutate<Target>('POST', TARGETS, draft, {
         stepUpToken,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         invalidates: [TARGETS, JOURNAL],
       }),
     );

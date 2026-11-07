@@ -1,0 +1,336 @@
+{
+  "key": "risk_controls",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "isms_asset": {
+        "name": "Asset",
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "isms_likelihood": {
+        "name": "Likelihood",
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "isms_impact": {
+        "name": "Impact",
+        "kind": "NUMBER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "isms_score": {
+        "name": "Score",
+        "kind": "CALCULATED",
+        "applies_to": [
+          "TASK"
+        ],
+        "formula": "entry.custom_fields.isms_likelihood * entry.custom_fields.isms_impact"
+      },
+      "isms_treatment": {
+        "name": "Treatment",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Modify",
+          "Retain",
+          "Avoid",
+          "Share"
+        ]
+      },
+      "isms_owner": {
+        "name": "Owner",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "control_reference": {
+        "name": "Reference",
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "control_theme": {
+        "name": "Theme",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Organisational",
+          "People",
+          "Physical",
+          "Technological"
+        ]
+      },
+      "control_owner": {
+        "name": "Owner",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "control_applicable": {
+        "name": "Applicable",
+        "kind": "BOOL",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "control_justification": {
+        "name": "Justification",
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "control_status": {
+        "name": "Status",
+        "kind": "STATUS",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Not started",
+          "Partly implemented",
+          "Implemented"
+        ]
+      },
+      "control_evidence": {
+        "name": "Evidence",
+        "kind": "URL",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "isms_risk": {
+        "level": "TASK",
+        "name": "Information security risk",
+        "icon": "shield",
+        "color_token": "amber",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "risk",
+              "name": "Risk"
+            },
+            {
+              "key": "treatment",
+              "name": "Treatment"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "risk",
+              "required": true
+            },
+            {
+              "key": "custom_fields.isms_asset",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.isms_likelihood",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.isms_impact",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.isms_score",
+              "section": "risk"
+            },
+            {
+              "key": "custom_fields.isms_treatment",
+              "section": "treatment"
+            },
+            {
+              "key": "custom_fields.isms_owner",
+              "section": "treatment"
+            },
+            {
+              "key": "notes",
+              "section": "treatment"
+            }
+          ]
+        }
+      },
+      "control": {
+        "level": "TASK",
+        "name": "Control",
+        "icon": "lock",
+        "color_token": "blue",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "control",
+              "name": "Control"
+            },
+            {
+              "key": "applicability",
+              "name": "Applicability"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "control",
+              "required": true
+            },
+            {
+              "key": "custom_fields.control_reference",
+              "section": "control",
+              "required": true
+            },
+            {
+              "key": "custom_fields.control_theme",
+              "section": "control"
+            },
+            {
+              "key": "custom_fields.control_owner",
+              "section": "control"
+            },
+            {
+              "key": "custom_fields.control_applicable",
+              "section": "applicability"
+            },
+            {
+              "key": "custom_fields.control_justification",
+              "section": "applicability"
+            },
+            {
+              "key": "custom_fields.control_status",
+              "section": "applicability"
+            },
+            {
+              "key": "custom_fields.control_evidence",
+              "section": "applicability"
+            },
+            {
+              "key": "notes",
+              "section": "applicability"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "isms_risk": {
+        "name": "Information security risk",
+        "shape": {
+          "initial": "identified",
+          "statuses": [
+            {
+              "key": "identified",
+              "name": "Identified",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "assessed",
+              "name": "Assessed",
+              "category": "TODO",
+              "color_token": "amber"
+            },
+            {
+              "key": "in_treatment",
+              "name": "In treatment",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "accepted",
+              "name": "Accepted",
+              "category": "DONE",
+              "color_token": "teal"
+            },
+            {
+              "key": "closed",
+              "name": "Closed",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "assess",
+              "name": "Assess",
+              "from": [
+                "identified"
+              ],
+              "to": "assessed"
+            },
+            {
+              "key": "treat",
+              "name": "Treat",
+              "from": [
+                "assessed"
+              ],
+              "to": "in_treatment"
+            },
+            {
+              "key": "accept",
+              "name": "Accept",
+              "from": [
+                "assessed",
+                "in_treatment"
+              ],
+              "to": "accepted"
+            },
+            {
+              "key": "close",
+              "name": "Close",
+              "from": [
+                "in_treatment"
+              ],
+              "to": "closed"
+            },
+            {
+              "key": "reassess",
+              "name": "Reassess",
+              "from": [
+                "accepted",
+                "closed"
+              ],
+              "to": "assessed"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "isms_risk": {
+        "workflow": "isms_risk"
+      }
+    }
+  }
+}

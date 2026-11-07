@@ -28,7 +28,9 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -150,7 +152,7 @@
     <Stack gap="300">
     <p class="quiet">{t('app.groups.intro')}</p>
 
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.groups.reading')} /> <span>{t('app.groups.reading')}</span></p>
@@ -273,7 +275,7 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.groups.none')}</p>
+        <EmptyState kind="unused" title={t('app.groups.none')} />
       {/each}
     {/if}
 

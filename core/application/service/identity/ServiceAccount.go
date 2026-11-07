@@ -150,7 +150,8 @@ func (s ServiceAccounts) recordCreation(
 // Descriptor is the catalogue entry.
 func (h CreateServiceAccount) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateServiceAccountName,
+		Name:       CreateServiceAccountName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Creates an account that exists only to be acted through: no mail address, no " +
 			"sign-in anywhere, and personal access tokens as its only credential. It holds " +
 			"rights the way a person does, through memberships granted to it, and it is what an " +
@@ -189,7 +190,8 @@ func (h CreateServiceAccount) invoke(
 // Descriptor is the catalogue entry.
 func (h ListServiceAccounts) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListServiceAccountsName,
+		Name:       ListServiceAccountsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The workspace's service accounts: the accounts that exist only to be acted " +
 			"through by an integration, a script or a rule. Under the same permission that " +
 			"creates one - whoever answers for access sees what holds it.",

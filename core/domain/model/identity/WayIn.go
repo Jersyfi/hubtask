@@ -30,6 +30,9 @@ const (
 	// WayInPasskeyRemoved is one removed. The notice never carries the name the person gave it: that
 	// is user content, shown on the profile and nowhere else (rule 10).
 	WayInPasskeyRemoved WayInEvent = "PASSKEY_REMOVED"
+	// WayInSecondFactorReset is the authenticator app and the recovery codes removed by an
+	// administrator (fifth answers 6).
+	WayInSecondFactorReset WayInEvent = "SECOND_FACTOR_RESET"
 )
 
 // WayInChange is one change, as the notice carries it: what, when, and for a provider which one by

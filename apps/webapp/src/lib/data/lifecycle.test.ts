@@ -6,7 +6,15 @@ import assert from 'node:assert/strict';
 
 import type { WorkItem } from '@hubtask/sync-engine';
 
-import { archivalOfItem, daysUntil, isBelowArchived, isContainer, remainingDays } from './lifecycle.ts';
+import {
+  archivalOfItem,
+  daysUntil,
+  isBelowArchived,
+  isContainer,
+  isPurgeableAlone,
+  isRestorable,
+  remainingDays,
+} from './lifecycle.ts';
 
 const entry = (extra: Partial<WorkItem> = {}): WorkItem =>
   ({ id: 'i', type: 'TASK', title: 'Buy milk', version: 1, ...extra }) as WorkItem;
@@ -78,4 +86,12 @@ test('the days until the server\'s date round up and never go below zero', () =>
   assert.equal(daysUntil('2026-09-10T01:00:00Z', now), 1);
   assert.equal(daysUntil('2026-09-01T00:00:00Z', now), 0);
   assert.equal(daysUntil('not a date', now), undefined);
+});
+
+test('the one trash restores every kind it lists and purges only an entry on its own', () => {
+  for (const kind of ['CONTAINER', 'ITEM', 'PAGE', 'WHITEBOARD']) assert.equal(isRestorable(kind), true, kind);
+  // A kind a newer server lists is shown, but not sent to a restore this client does not know.
+  assert.equal(isRestorable('LABEL'), false);
+  assert.equal(isPurgeableAlone('ITEM'), true);
+  for (const kind of ['CONTAINER', 'PAGE', 'WHITEBOARD']) assert.equal(isPurgeableAlone(kind), false, kind);
 });

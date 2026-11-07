@@ -91,7 +91,7 @@
     <Button tone="secondary" onclick={() => (isOpen = false)}>{cancelLabel}</Button>
     <!-- Never off for want of a choice, and never silent: pressed with nothing chosen, the list
          says so and takes focus. -->
-    <Button {isBusy} {busyLabel} onclick={move}>
+    <Button tone="primary" {isBusy} {busyLabel} onclick={move}>
       {confirmLabel}
     </Button>
   {/snippet}

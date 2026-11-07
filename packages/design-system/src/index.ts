@@ -69,6 +69,7 @@ export { default as ReadOnlyNotice } from './ReadOnlyNotice.svelte';
 export { default as SaveBar } from './SaveBar.svelte';
 
 // ...and a list, with every state it can be in.
+export { default as Disclosure } from './Disclosure.svelte';
 export { default as EmptyState, type Emptiness } from './EmptyState.svelte';
 export { default as ErrorState } from './ErrorState.svelte';
 export { default as ListRow } from './ListRow.svelte';
@@ -82,6 +83,9 @@ export { default as AppBar, type NavigationToggle } from './AppBar.svelte';
 export { default as NavDrawer } from './NavDrawer.svelte';
 export { default as PageHeader, type PageAction } from './PageHeader.svelte';
 export { default as BottomBar, type Destination } from './BottomBar.svelte';
+export { default as PlaceTabs, type PlaceTab } from './PlaceTabs.svelte';
+export { default as TemplateCard } from './TemplateCard.svelte';
+export { default as TemplateGallery } from './TemplateGallery.svelte';
 export { default as DetailPane } from './DetailPane.svelte';
 export { default as Logo } from './Logo.svelte';
 export { type LogoSize } from './mark.ts';
@@ -90,6 +94,8 @@ export { default as ResizeHandle } from './ResizeHandle.svelte';
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
 export { default as SourceChip } from './SourceChip.svelte';
+export { default as PlanSummary } from './PlanSummary.svelte';
+export type { PlanLine, PlanTone } from './PlanSummary.svelte';
 export { default as TaskRow, type Expansion } from './TaskRow.svelte';
 export { default as LabelChip } from './LabelChip.svelte';
 export { default as LabelPicker, type PickerLabel } from './LabelPicker.svelte';
@@ -109,6 +115,7 @@ export {
   type CustomFieldKind,
   type FieldDefinition,
   type FieldValue,
+  type NumberReading,
 } from './CustomFieldRenderer.svelte';
 export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelte';
 export { default as UploadField } from './UploadField.svelte';
@@ -116,6 +123,8 @@ export { default as DueDateControl, type DueDate } from './DueDateControl.svelte
 export {
   default as Timeline,
   type TimelineCarry,
+  type TimelineDependency,
+  type TimelineLink,
   type TimelineRow,
   type TimelineTick,
 } from './Timeline.svelte';
@@ -138,6 +147,7 @@ export type { Align, Justify, Space } from './space.ts';
 export { anchorTo, positionArea, raiseToTopLayer, type Alignment, type Placement, type Side } from './anchor.ts';
 
 export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
+export { arrive, arrivals, enter, flip, isMotionReduced, leave, reveal } from './motion.ts';
 
 export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
 

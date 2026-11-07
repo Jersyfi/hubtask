@@ -24,6 +24,8 @@
 
   import { Banner, Button, Stack } from '@hubtask/design-system/components';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import PasswordField from '../lib/signin/PasswordField.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
@@ -74,13 +76,13 @@
 {#snippet notice()}
   {#if oidc.failure}
     <!-- The server's own sentence: a link that cannot be used, or a provider that is not there. -->
-    <Banner tone="danger" title={oidc.failure.message}>
+    <FailureNote problem={oidc.failure}>
       {#if oidc.failure.reference}{oidc.failure.reference}{/if}
-    </Banner>
+    </FailureNote>
   {:else if passwordApi.problem}
-    <Banner tone="danger" title={passwordApi.problem.message}>
+    <FailureNote problem={passwordApi.problem}>
       {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
-    </Banner>
+    </FailureNote>
   {/if}
 {/snippet}
 

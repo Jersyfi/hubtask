@@ -166,6 +166,18 @@ func TestTheAgentCapabilityCanBeMinted(t *testing.T) {
 	}
 }
 
+// UC-AGT-06 check 3: the per-section apply scopes are minted like any scope - CreateAccessToken
+// and the consent screen take what Scopes declares - and each is named on the consent screen
+// (test/architecture/consentscopes_test.go holds the wording).
+func TestTheSectionApplyScopesCanBeMinted(t *testing.T) {
+	scopes := catalogue.Scopes()
+	for _, want := range []string{"config:apply:types", "config:apply:workflows", "config:apply:settings"} {
+		if !slices.Contains(scopes, want) {
+			t.Errorf("%q is not a scope a token can be minted with", want)
+		}
+	}
+}
+
 // A hint can never say safe where the server would say no. `readOnlyHint` and
 // `destructiveHint` are what an agent's client decides whether to ask for confirmation on, so a
 // descriptor claiming both would be one whose client asks nothing and whose server refuses.
@@ -366,6 +378,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 		"ReplayWebhookDelivery":          entitlement.Webhooks,
 		"ConfigureIdentityProvider":      entitlement.OwnSignInProviders,
 		"ConfigureFirstIdentityProvider": entitlement.OwnSignInProviders,
+		// An LDAP directory is an own sign-in provider (third answers 6).
+		"ConfigureLdapDirectory": entitlement.OwnSignInProviders,
+		"SyncLdapDirectory":      entitlement.OwnSignInProviders,
 	}
 	got := map[string]entitlement.Feature{}
 	for _, descriptor := range catalogue.Descriptors() {
@@ -379,5 +394,45 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 	}
 	if !maps.Equal(got, want) {
 		t.Errorf("the operations a plan leaves out are %v, want %v", got, want)
+	}
+}
+
+// F-7: a use case declares the catalogue permission it asks for, which *who may do what* and *view
+// as* read. The declarations grow towards every use case; the bound only falls, so a new use case
+// declares one or names why it cannot. The 169 left ask none of the catalogue at their place: the
+// installation's (admin, sealing, legal holds), a person's own (sign-in, sessions, tokens, devices,
+// consent, their AI position, their own settings), an open read of the workspace's vocabulary, one decided per entry
+// (exports, bulk changes, AI acts on an entry), or one asking only under a condition (a shared view,
+// a service account's token). The time module's eighteen are a person's own time - their records,
+// timer and week - or ask APPROVE_TIME only of other people's time (UC-TIM-01 ... 05); its seven
+// more are a person's own capacity and absences, asking MANAGE_MEMBERS or APPROVE_TIME only of
+// another person's, and the shared calendar of absences every member reads (UC-TIM-06, 07). The
+// two of a view as somebody that ask none are a session's own: reading and ending its view (UC-ID-29).
+// The three of a person's notes are their own: the pages shared with them, their personal space and
+// its daily note (UC-DOC-07, UC-DOC-08). The five of approvals are a person's own or decided per
+// approval: deciding one the reader is an approver of, their waiting list, and their delegation
+// set, read and ended (UC-SVC-09, UC-SVC-10). The four of a calendar push are a person's own: their
+// feed written into their own calendar, listed, connected and taken off (UC-INT-16). The six of a
+// file store connection are a person's own sign-in to their own files (UC-INT-17). Planning the
+// installation's level is the installation's, as reading it is (accepted.md D). The installation's
+// dead letters, listed and requeued, are its operator's (UC-INS-12), as the list of workspaces near a
+// quota is. Locating a connector's
+// provider return is anonymous, as locating a sign-in's is. Resolving many names at once is
+// GetAccount's batch and, like it, open to every member; so are listing the groups and reading one. Clearing one's own undeliverable mark is
+// one's own, as renaming oneself is. The running sprints a person is in are judged per sprint on one
+// of their own entries in it (UC-WRK-34). The twelve of a workspace's address are decided inside: a
+// change, an own domain and its main address by the owner's role or the operator's register, the
+// notices and the device's list are a person's own (UC-INS-15, UC-INS-19, UC-ID-25).
+const undeclaredPermissionsAtMost = 218
+
+func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
+	undeclared := 0
+	for _, descriptor := range catalogue.Descriptors() {
+		if descriptor.Permission == "" {
+			undeclared++
+		}
+	}
+	if undeclared > undeclaredPermissionsAtMost {
+		t.Fatalf("%d use cases declare no permission, at most %d may", undeclared, undeclaredPermissionsAtMost)
 	}
 }

@@ -196,6 +196,15 @@ func (h UpdateWorkItem) Execute(
 			return nil
 		}
 
+		// Held to the type's form with the whole patch applied, the due date included.
+		formed := wanted
+		if dueTouched {
+			formed.Due = targetDue
+		}
+		if err := h.Gate.Forms.checkEdit(ctx, actor, collection, item, formed); err != nil {
+			return err
+		}
+
 		current, expected := item, cmd.ExpectedVersion
 		if len(changes) > 0 {
 			if updated, err = h.write(ctx, actor, wanted, changes, profile, expected, item.Version, now); err != nil {
@@ -368,7 +377,8 @@ func (h UpdateWorkItem) collectionOf(
 // REST, MCP and automation at once (arc42 §4).
 func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateWorkItemName,
+		Name:       UpdateWorkItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Changes an item's own fields: its title, its notes where the type carries them, " +
 			"the language they are written in, its start, and its due date. " +
 			"A field that is not sent is left alone; sending `notes` as null clears it, and sending " +

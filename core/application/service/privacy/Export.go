@@ -70,7 +70,13 @@ type Exporter struct {
 	Accounts Accounts
 	// Kudos is the one section a person's copy carries beyond the archive filtered: the kudos they
 	// gave and received, which no workspace archive holds (UC-WRK-29 check 6).
-	Kudos   repository.OwnKudos
+	Kudos repository.OwnKudos
+	// IntakeLines finds what a requester's mail became on entries an account filed: in the copy
+	// of an address (data-protection.md §4.1). Nil leaves them out.
+	IntakeLines repository.IntakeLines
+	// Mail reads the sections of an address's copy: the intake's log of it and the rating links
+	// mailed to it, which no workspace archive holds.
+	Mail    repository.AddressMail
 	Targets TargetStore
 	// Rows is the tenant's rows as the archive writer needs them - the same reader a backup uses,
 	// because this is the same archive.
@@ -123,7 +129,7 @@ func (e Exporter) Export(
 
 	if request.Scope != domain.ScopeInstallation {
 		own := scopes[0]
-		prefix := ArchiveName(own.subjectID, own.email, e.Clock.Now())
+		prefix := ArchiveName(request.ID, e.Clock.Now())
 		manifest, err := e.writeOne(ctx, actor, target, prefix, prefix, own, request)
 		if err != nil {
 			return Written{}, err
@@ -247,8 +253,18 @@ func (e Exporter) writeOne(
 	scope := persistence.Scope{TenantID: in.tenantID}
 	written := exported{prefix: archiveName}
 
+	var pending archive.Pending
 	err := e.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
+		var lines map[string]map[string]bool
+		if address := strings.ToLower(strings.TrimSpace(in.email)); address != "" && e.IntakeLines != nil {
+			found, err := AllIntakeLines(snapshotCtx, e.IntakeLines, []string{address})
+			if err != nil {
+				return err
+			}
+			lines = intakeRecords(found, address)
+		}
 		source := subjectSource{
+			lines: lines,
 			// Redacted for the tenant export's reason (tenant-export.md §9): this archive
 			// leaves unencrypted, and a person's own password hash is still a credential of
 			// this installation - handing it out invites offline guessing against it.
@@ -257,15 +273,13 @@ func (e Exporter) writeOne(
 			email:   in.email,
 			counted: &written.Records,
 			kudos:   e.Kudos,
+			mail:    e.Mail,
 		}
 		media := backupservice.ExportMedia{Export: e.Rows, Objects: e.Objects}
 		// A person known here only by an address gave and received no kudos: kudos name accounts.
-		var sections []archive.Entity
-		if !in.subjectID.IsZero() {
-			sections = []archive.Entity{kudosSection}
-		}
+		sections := copySections(in.subjectID, strings.ToLower(strings.TrimSpace(in.email)))
 
-		_, err := archive.NewWriter(store, e.Cipher, media).Write(snapshotCtx, archive.Request{
+		begun, err := archive.NewWriter(store, e.Cipher, media).Begin(snapshotCtx, archive.Request{
 			ArchiveID: e.IDs.NewID(), Prefix: prefix,
 			Scope:      archive.Scope{Kind: archive.ScopeTenant, ID: in.tenantID.String()},
 			Mode:       archive.ModeFull,
@@ -282,9 +296,14 @@ func (e Exporter) writeOne(
 			IncludeAudit: true,
 			Sections:     sections,
 		}, source)
+		pending = begun
 		return err
 	})
 	if err != nil {
+		return exported{}, err
+	}
+	// The media go after the snapshot ends; their keys were fixed inside it.
+	if _, err := pending.Finish(ctx); err != nil {
 		return exported{}, err
 	}
 
@@ -339,11 +358,8 @@ func BundleName(caseID shared.ID, at time.Time) string {
 // `hubtask-dsr-` rather than `hubtask-backup-`, and that is deliberate on both counts. It is a
 // Hubtask archive and a restore can be pointed at it by name (`archive_id`); it is **not** a backup
 // of the workspace, and the listing at a target keeps what starts with `hubtask-backup-<tenant>-`,
-// so an export never appears among the backups an operator restores from by accident.
-func ArchiveName(subjectID shared.ID, email string, at time.Time) string {
-	who := subjectID.String()
-	if who == "" {
-		who = strings.NewReplacer("@", "-at-", ".", "-").Replace(email)
-	}
-	return fmt.Sprintf("hubtask-dsr-%s-%s", who, at.UTC().Format("20060102T150405Z"))
+// so an export never appears among the backups an operator restores from by accident. It names the
+// case, never the person: the name is in the trail (rule 10).
+func ArchiveName(caseID shared.ID, at time.Time) string {
+	return fmt.Sprintf("hubtask-dsr-%s-%s", caseID.String(), at.UTC().Format("20060102T150405Z"))
 }

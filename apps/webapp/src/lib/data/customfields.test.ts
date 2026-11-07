@@ -7,15 +7,24 @@ import assert from 'node:assert/strict';
 import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
 import {
+  cascadingOptionFault,
+  fieldName,
   FILTER_PREFIX,
   appliesTo,
   definitionsFor,
+  isCalculated,
+  isValidCurrency,
   isValidKey,
   isWorkspaceWide,
+  isHubs,
+  fieldsAtHub,
   operatorsFor,
+  sortsBy,
   queryFieldsFor,
+  takesCurrency,
   takesOptions,
   valueFor,
+  valueText,
 } from './customfields.ts';
 
 function definition(over: Partial<CustomFieldDefinition> = {}): CustomFieldDefinition {
@@ -47,6 +56,18 @@ test('a key is an identifier, and the pattern is the contract’s', () => {
 test('a definition with no collection is the workspace’s', () => {
   assert.equal(isWorkspaceWide(definition({ collection_id: null })), true);
   assert.equal(isWorkspaceWide(definition()), false);
+  assert.equal(isWorkspaceWide(definition({ collection_id: null, hub_id: 'h-1' })), false);
+  assert.equal(isHubs(definition({ collection_id: null, hub_id: 'h-1' })), true);
+});
+
+test('a hub offers the shared fields it has not copied, and lists its own (UC-WRK-12 check 9)', () => {
+  const region = definition({ id: 'f-w1', key: 'region', collection_id: null });
+  const budget = definition({ id: 'f-w2', key: 'budget', collection_id: null });
+  const copied = definition({ id: 'f-h1', key: 'region', collection_id: null, hub_id: 'h-1', copied_from: 'f-w1' });
+  const elsewhere = definition({ id: 'f-h2', key: 'dock', collection_id: null, hub_id: 'h-2' });
+  const atHub = fieldsAtHub([region, budget, copied, elsewhere], 'h-1');
+  assert.deepEqual(atHub.shared.map((d) => d.id), ['f-w2']);
+  assert.deepEqual(atHub.own.map((d) => d.id), ['f-h1']);
 });
 
 test('a type carries only the fields that name it', () => {
@@ -61,7 +82,7 @@ test('a type carries only the fields that name it', () => {
   );
 });
 
-test('only a SELECT and a MULTI_SELECT have options', () => {
+test('only the pick kinds have options', () => {
   assert.equal(takesOptions('SELECT'), true);
   assert.equal(takesOptions('MULTI_SELECT'), true);
   assert.equal(takesOptions('TEXT'), false);
@@ -88,20 +109,78 @@ test('an empty value clears the key rather than setting it to nothing', () => {
   assert.equal(valueFor('TEXT', null), null);
 });
 
-test('the comparisons offered are a subset of the six the grammar permits', () => {
-  // `core/domain/model/view/Field.go` offers the same six for every kind, because the kind is not
-  // known when a filter is validated. Nothing here may add to them, or the editor would offer a
-  // row the server refuses by name.
+test('the comparisons offered are a subset of what the grammar permits for the kind', () => {
+  // `core/domain/model/view/Field.go` accepts these for every key; `CustomShape.go` holds the
+  // ranges to the kinds that have an order. Nothing here may add to that, or the editor would
+  // offer a row the server refuses by name.
   const SERVER = new Set(['EQ', 'NEQ', 'IN', 'NOT_IN', 'IS_NULL', 'CONTAINS']);
-  for (const kind of ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL', 'GEO']) {
+  // The set and prefix operators the grammar holds to a set and to text (CustomShape.typedOperator).
+  const SETS = new Set(['MULTI_SELECT', 'USER_SET']);
+  const TEXTS = new Set(['TEXT', 'URL']);
+  const RANGES = new Set(['LT', 'LTE', 'GT', 'GTE', 'BETWEEN']);
+  const ORDERED = new Set(['TEXT', 'NUMBER', 'DATE', 'SELECT', 'BOOL', 'URL', 'MONEY', 'DURATION']);
+  const kinds = [
+    'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
+    'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT', 'GEO',
+  ];
+  for (const kind of kinds) {
     for (const op of operatorsFor(kind)) {
-      assert.ok(SERVER.has(op), `${kind} offers ${op}, which the grammar does not permit`);
+      const permitted = SERVER.has(op) || (RANGES.has(op) && ORDERED.has(kind)) ||
+        ((op === 'CONTAINS_ANY' || op === 'CONTAINS_ALL') && SETS.has(kind)) ||
+        (op === 'STARTS_WITH' && TEXTS.has(kind));
+      assert.ok(permitted, `${kind} offers ${op}, which the grammar does not permit`);
     }
   }
   assert.deepEqual(operatorsFor('BOOL'), ['EQ', 'NEQ', 'IS_NULL']);
-  assert.deepEqual(operatorsFor('MULTI_SELECT'), ['CONTAINS', 'IS_NULL']);
+  assert.deepEqual(operatorsFor('MULTI_SELECT'), ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL']);
+  assert.deepEqual(operatorsFor('USER_SET'), ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL']);
+  assert.ok(operatorsFor('TEXT').includes('STARTS_WITH'));
+  assert.ok(!operatorsFor('RICH_TEXT').includes('STARTS_WITH'));
+  assert.ok(operatorsFor('MONEY').includes('BETWEEN'));
+  assert.ok(!operatorsFor('REFERENCE').includes('LT'));
   // A kind from a newer server is filterable rather than invisible, on what is true of any value.
   assert.deepEqual(operatorsFor('GEO'), ['EQ', 'NEQ', 'IS_NULL']);
+});
+
+// UC-WRK-17 check 10: a custom field is a sort and a grouping where its kind has one order, and
+// the client says so exactly where the server does (`CustomShape.sorts`, `CustomShape.groups`).
+test('a custom field sorts and groups where its kind has one value with an order', () => {
+  const fields = queryFieldsFor([
+    definition({ key: 'budget', kind: 'MONEY', currency: 'EUR' }),
+    definition({ key: 'owner', kind: 'USER' }),
+    definition({ key: 'tags', kind: 'MULTI_SELECT', options: ['a'] }),
+    definition({ key: 'spec', kind: 'RICH_TEXT' }),
+    definition({ key: 'parent_entry', kind: 'REFERENCE' }),
+  ]);
+  const by = (key: string) => fields.find((field) => field.field === FILTER_PREFIX + key);
+  assert.equal(by('budget')?.sortable, true);
+  assert.equal(by('budget')?.groupable, true);
+  assert.equal(by('owner')?.sortable, false);
+  assert.equal(by('owner')?.groupable, true);
+  assert.equal(by('tags')?.sortable, false);
+  assert.equal(by('tags')?.groupable, false);
+  assert.equal(by('spec')?.groupable, false);
+  assert.equal(by('parent_entry')?.groupable, true);
+  assert.equal(by('parent_entry')?.kind, 'id');
+});
+
+test('the new kinds travel in their contract shape', () => {
+  assert.equal(valueFor('MONEY', '12.5'), 12.5);
+  assert.equal(valueFor('DURATION', 90), 90);
+  assert.deepEqual(valueFor('USER_SET', ['a', 'b']), ['a', 'b']);
+  assert.equal(valueFor('USER_SET', []), null);
+  assert.equal(valueFor('REFERENCE', ' 0192f000-0000-7000-8000-00000000000e '), '0192f000-0000-7000-8000-00000000000e');
+  // Formatted text keeps its leading indentation, which Markdown reads.
+  assert.equal(valueFor('RICH_TEXT', '    code\n'), '    code\n');
+  assert.equal(valueFor('RICH_TEXT', '  '), null);
+});
+
+test('only a MONEY field names a currency, as three capital letters', () => {
+  assert.equal(takesCurrency('MONEY'), true);
+  assert.equal(takesCurrency('NUMBER'), false);
+  assert.equal(isValidCurrency('EUR'), true);
+  assert.equal(isValidCurrency('eur'), false);
+  assert.equal(isValidCurrency('EURO'), false);
 });
 
 test('a definition becomes a filter field under the grammar’s prefix', () => {
@@ -115,9 +194,110 @@ test('a definition becomes a filter field under the grammar’s prefix', () => {
   // `number` is the grammar's own name for a value a definition shapes; a column never has it.
   assert.equal(fields[0]?.kind, 'number');
   assert.deepEqual(fields[1]?.values, ['draft', 'final']);
-  // Filterable and neither sortable nor groupable, which is what the server says too: an order
-  // over a jsonb value is the same mistake `LT` would be.
-  assert.equal(fields[0]?.sortable, false);
-  assert.equal(fields[0]?.groupable, false);
+  // A number has one order, so it is a sort and a grouping as well as a filter.
+  assert.equal(fields[0]?.sortable, true);
+  assert.equal(fields[0]?.groupable, true);
   assert.equal(fields[0]?.nullable, true);
+});
+
+test('a stored value reads the way the reader reads it, people and entries by name', () => {
+  const reading = {
+    number: (value: number) => String(value).replace('.', ','),
+    amount: (value: number, currency: string) => `${String(value).replace('.', ',')} ${currency}`,
+    duration: (minutes: number) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
+    nameOf: (id: string) => ({ a: 'Amelie', b: 'Jonas' })[id],
+    titleOf: (id: string) => (id === 'e-1' ? 'Order chairs' : undefined),
+    unknown: 'Not visible',
+  };
+  assert.equal(valueText({ kind: 'MONEY', currency: 'EUR' }, 12.5, reading), '12,5 EUR');
+  assert.equal(valueText({ kind: 'DURATION' }, 90, reading), '1:30');
+  assert.equal(valueText({ kind: 'USER_SET' }, ['a', 'b', 'x'], reading), 'Amelie, Jonas, Not visible');
+  assert.equal(valueText({ kind: 'REFERENCE' }, 'e-1', reading), 'Order chairs');
+  assert.equal(valueText({ kind: 'REFERENCE' }, 'e-2', reading), 'Not visible');
+  assert.equal(valueText({ kind: 'RICH_TEXT' }, '\n# Scope\nmore', reading), '# Scope');
+  assert.equal(valueText({ kind: 'USER_SET' }, [], reading), undefined);
+  assert.equal(valueText({ kind: 'TEXT' }, '', reading), undefined);
+});
+
+test('a calculated field reads, sorts and filters as a number, and is nobody to fill in', () => {
+  assert.equal(isCalculated('CALCULATED'), true);
+  assert.equal(isCalculated('NUMBER'), false);
+  assert.equal(sortsBy('CALCULATED'), true);
+  assert.ok(operatorsFor('CALCULATED').includes('BETWEEN'));
+});
+
+// A calculated field for an entry whose writes wait to be sent: computed in the browser over the
+// scope's number, money, duration and boolean fields.
+import { calculatedOf } from './customfields.ts';
+
+test('a calculated field is computed in the browser from the scope\'s number fields', () => {
+  const inScope = [{ key: 'hours', kind: 'NUMBER' }, { key: 'rate', kind: 'MONEY' }, { key: 'note', kind: 'TEXT' }] as never;
+  const total = { kind: 'CALCULATED', formula: 'entry.custom_fields.hours * entry.custom_fields.rate + 10' } as never;
+  assert.equal(calculatedOf(total, inScope, { hours: 2, rate: 40.5 }), 91);
+  assert.equal(calculatedOf(total, inScope, { hours: 2 }), null, 'an empty input leaves no value');
+  assert.equal(calculatedOf({ kind: 'CALCULATED', formula: 'entry.custom_fields.note + 1' } as never, inScope, { note: 'x' }), null, 'a text field is no input');
+  assert.equal(calculatedOf({ kind: 'NUMBER' } as never, inScope, {}), null);
+});
+
+test('the register kinds: options, travel shape, comparisons, order and reading', () => {
+  for (const kind of ['CASCADING_SELECT', 'STATUS']) assert.equal(takesOptions(kind), true);
+  for (const kind of ['LABEL', 'DATE_TIME', 'GROUP', 'IP_ADDRESS', 'FILE']) assert.equal(takesOptions(kind), false);
+
+  assert.equal(cascadingOptionFault(['Hardware', 'Hardware/Laptop']), undefined);
+  assert.equal(cascadingOptionFault(['Hardware/Laptop']), 'Hardware/Laptop');
+  assert.equal(cascadingOptionFault(['A', 'A/B/C']), 'A/B/C');
+
+  assert.deepEqual(valueFor('LABEL', 'Backend ops, backend'), ['backend', 'ops']);
+  assert.deepEqual(valueFor('LABEL', ['V2', 'v2']), ['v2']);
+  assert.equal(valueFor('LABEL', ' '), null);
+  assert.equal(valueFor('IP_ADDRESS', ' 10.0.0.1 '), '10.0.0.1');
+  assert.equal(valueFor('DATE_TIME', '2026-10-31T09:00:00.000Z'), '2026-10-31T09:00:00.000Z');
+
+  const fields = queryFieldsFor([
+    definition({ key: 'seen', kind: 'DATE_TIME' }),
+    definition({ key: 'address', kind: 'IP_ADDRESS' }),
+    definition({ key: 'tags', kind: 'LABEL' }),
+    definition({ key: 'team', kind: 'GROUP' }),
+    definition({ key: 'state', kind: 'STATUS', options: ['Planned', 'In use'] }),
+    definition({ key: 'category', kind: 'CASCADING_SELECT', options: ['Hardware', 'Hardware/Laptop'] }),
+  ]);
+  const by = (key: string) => fields.find((field) => field.field === FILTER_PREFIX + key);
+  assert.equal(by('seen')?.sortable, true);
+  assert.ok(by('seen')?.operators.includes('BETWEEN'));
+  assert.ok(by('address')?.operators.includes('STARTS_WITH'));
+  assert.equal(by('address')?.sortable, true);
+  assert.deepEqual(by('tags')?.operators, ['CONTAINS', 'CONTAINS_ANY', 'CONTAINS_ALL', 'IS_NULL']);
+  assert.equal(by('tags')?.groupable, false);
+  assert.equal(by('team')?.kind, 'id');
+  assert.equal(by('team')?.sortable, false);
+  assert.equal(by('team')?.groupable, true);
+  assert.deepEqual(by('state')?.values, ['Planned', 'In use']);
+  assert.ok(by('category')?.operators.includes('STARTS_WITH'));
+
+  const reading = {
+    number: String,
+    amount: String,
+    duration: String,
+    nameOf: () => undefined,
+    titleOf: () => undefined,
+    groupOf: (id: string) => (id === 'g-1' ? 'Service desk' : undefined),
+    fileOf: (id: string) => (id === 'm-1' ? 'contract.pdf' : undefined),
+    moment: (iso: string) => `at ${iso}`,
+    unknown: 'Not visible',
+  };
+  assert.equal(valueText({ kind: 'GROUP' }, 'g-1', reading), 'Service desk');
+  assert.equal(valueText({ kind: 'GROUP' }, 'g-2', reading), 'Not visible');
+  assert.equal(valueText({ kind: 'FILE' }, 'm-1', reading), 'contract.pdf');
+  assert.equal(valueText({ kind: 'DATE_TIME' }, '2026-10-31T09:00:00Z', reading), 'at 2026-10-31T09:00:00Z');
+  assert.equal(valueText({ kind: 'CASCADING_SELECT' }, 'Hardware/Laptop', reading), 'Hardware › Laptop');
+  assert.equal(valueText({ kind: 'LABEL' }, ['backend', 'ops'], reading), 'backend, ops');
+});
+
+test('a field is labelled by its name, and by its key only where it has none', () => {
+  const base = { key: 'first_response' } as CustomFieldDefinition;
+  assert.equal(fieldName({ ...base, name: 'First response' }), 'First response');
+  assert.equal(fieldName({ ...base, name: null }), 'first_response');
+  assert.equal(fieldName(base), 'first_response');
+  assert.equal(fieldName({ ...base, name: '  ' }), 'first_response');
+  assert.equal(fieldName(undefined, 'customer'), 'customer', 'a field not read yet is named by the key asked for');
 });

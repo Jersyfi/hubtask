@@ -75,8 +75,9 @@ async function openDefaults(browser, { manifest = MULTI, isEnforced = false, wid
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/instance/settings`);
-  await page.getByRole('heading', { name: 'Defaults', level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.goto(`${served.origin}/instance/templates`);
+  // The installation's templates are a row of their own (user-experience.md §8.4).
+  await page.getByRole('heading', { name: 'Templates', level: 1 }).first().waitFor({ timeout: 15_000 });
   return { page, written, read, failures, close: () => context.close() };
 }
 
@@ -168,7 +169,6 @@ test('chromium: a single installation shows no presets of the installation and r
   const { page, read, failures, close } = await openDefaults(browser, { manifest: { ...MANIFEST, tenancy_mode: 'single' } });
   t.after(close);
 
-  await page.getByRole('button', { name: 'Change these values' }).waitFor({ timeout: 10_000 });
   await page.waitForTimeout(600);
   assert.equal(await page.locator('[data-installation-presets]').count(), 0, 'the installation level is drawn in single mode');
   assert.ok(!read.includes('/admin/presets'), 'the installation presets were read in single mode');

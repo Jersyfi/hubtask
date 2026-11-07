@@ -287,3 +287,587 @@ tests:
       - eval_time: 35m
         alertname: HubtaskPlatformDeadLetters
         exp_alerts: []
+
+  # A-22: awareness keeps failing to reach the other replicas for a quarter of an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="failed"}'
+        values: '0+5x40'
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="sent"}'
+        values: '0+50x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: HubtaskAwarenessRelayFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-22
+            exp_annotations:
+              summary: "Co-editors on different replicas do not see each other"
+              description: "Awareness - cursors and presence on a live document - could not be handed to the other replicas for a quarter of an hour. Editing still works and every word arrives; people on different replicas only miss each other's cursors.\n"
+              runbook: RB-A22-awareness-relay.md
+
+  # A-22 stays quiet while awareness is only too large or sent: a large state stays on its replica
+  # by design.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="too_large"}'
+        values: '0+5x40'
+      - series: 'hubtask_realtime_awareness_relayed_total{outcome="sent"}'
+        values: '0+50x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: HubtaskAwarenessRelayFailing
+        exp_alerts: []
+
+  # A-23: a workspace's uploads stay held for over an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_media_scan_held_workspaces'
+        values: '1x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskUploadsHeldForScan
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-23
+            exp_annotations:
+              summary: "Uploads wait for a malware scan"
+              description: "Files confirmed while the scanner did not answer are held and cannot be downloaded until it does. Check the daemon at HUBTASK_CLAMD_ADDRESS; the scan job settles the held files by itself once it answers.\n"
+              runbook: RB-A23-uploads-held-for-scan.md
+
+  # A-23 stays quiet for a daemon restart: the held files settle within the hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_media_scan_held_workspaces'
+        values: '1x20 0x70'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskUploadsHeldForScan
+        exp_alerts: []
+
+  # A-24: updates keep landing past the backlog alarm for half an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_document_backlog_total{outcome="overdue"}'
+        values: '0+5x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskDocumentLogNotCompacted
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-24
+            exp_annotations:
+              summary: "A live document's log is not compacted"
+              description: "Updates keep landing on a live document whose log is far past its snapshot, or are refused at its ceiling. Opening the document gets slower; past the ceiling its writers wait for a snapshot before their words are stored.\n"
+              runbook: RB-A24-document-log-not-compacted.md
+
+  # A-24 stays quiet once a writer compacts: the counter stops within minutes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_realtime_document_backlog_total{outcome="overdue"}'
+        values: '0+5x10 50x50'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskDocumentLogNotCompacted
+        exp_alerts: []
+
+  # A-25: a snapshot held past two hours.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_oldest_transaction_seconds'
+        values: '7000+60x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskLongTransaction
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-25
+            exp_annotations:
+              summary: "A database transaction has been open for over two hours"
+              description: "Vacuum cannot reclaim rows changed since the oldest open transaction began, so tables and indexes grow while it stays open. Find it in pg_stat_activity; a backup or export of a large workspace is the usual one.\n"
+              runbook: RB-A25-long-transaction.md
+
+  # A-25 stays quiet for a backup of an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_oldest_transaction_seconds'
+        values: '0+60x60 0x30'
+    alert_rule_test:
+      - eval_time: 80m
+        alertname: HubtaskLongTransaction
+        exp_alerts: []
+
+  # A-26: workspaces refused at their cap for ten minutes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_stream_refused_total{reason="tenant"}'
+        values: '0+3x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskStreamCapacityReached
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-26
+            exp_annotations:
+              summary: "Live connections are refused at the stream cap"
+              description: "A workspace or a pod holds as many live connections as allowed, so new ones are refused and those clients work without live updates. Raise HUBTASK_STREAM_PER_TENANT or HUBTASK_STREAM_PER_PROCESS, or add a replica.\n"
+              runbook: RB-A26-stream-capacity-reached.md
+
+  # A-26 stays quiet for a client over its own cap.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_stream_refused_total{reason="credential"}'
+        values: '0+3x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskStreamCapacityReached
+        exp_alerts: []
+
+  # A-27: trash passes completed hourly for three days, then stopped for three days.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_retention_run_duration_seconds_count{data_kind="trash"}'
+        values: '0+1x72 72x72'
+    alert_rule_test:
+      - eval_time: 124h
+        alertname: HubtaskRetentionStalled
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-27
+              data_kind: trash
+            exp_annotations:
+              summary: "No retention pass of trash has completed in 48 hours"
+              description: "The retention sweep ran this week and has stopped: data of this kind stays past its period. Look for dead letters of retention.sweep and for a scheduler that does not run.\n"
+              runbook: RB-A27-retention-stalled.md
+
+  # A-27 stays quiet while the passes go on, across a restart that reset the counter.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_retention_run_duration_seconds_count{data_kind="trash"}'
+        values: '0+1x72 0+1x72'
+    alert_rule_test:
+      - eval_time: 140h
+        alertname: HubtaskRetentionStalled
+        exp_alerts: []
+
+  # A-27 stays quiet for a kind that has not run all week.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_retention_run_duration_seconds_count{data_kind="comment"}'
+        values: '5x200'
+    alert_rule_test:
+      - eval_time: 190h
+        alertname: HubtaskRetentionStalled
+        exp_alerts: []
+
+  # A-28: an index left invalid for over an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_invalid_indexes'
+        values: '1x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskInvalidIndex
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-28
+            exp_annotations:
+              summary: "An index of the database has been invalid for an hour"
+              description: "An interrupted concurrent index build left an index that queries do not use and that, if unique, does not enforce its uniqueness. Find it in pg_index and build it again.\n"
+              runbook: RB-A28-invalid-index.md
+
+  # A-28 stays quiet for a concurrent build of forty minutes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_invalid_indexes'
+        values: '1x40 0x60'
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: HubtaskInvalidIndex
+        exp_alerts: []
+
+  # A-38: three mailboxes left to the minute's read for over an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watches_unheld'
+        values: '3x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskMailboxWatchFull
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-38
+            exp_annotations:
+              summary: "3 connected mailboxes are read only every minute"
+              description: "The mailbox watch holds as many mailboxes as HUBTASK_MAILBOX_WATCH_LIMIT allows, one per workspace before a second; the rest arrive by the minute's read. Raise the limit if the watching worker has the connections to spare.\n"
+              runbook: RB-A38-mailbox-watch-full.md
+
+  # A-38 stays quiet while the watch holds every mailbox.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watches_unheld'
+        values: '0x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskMailboxWatchFull
+        exp_alerts: []
+
+  # A-38: four shards, two workers leading one each - two shards without a worker.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watch_shards{instance="w1"}'
+        values: '4x60'
+      - series: 'hubtask_mailbox_watch_shards{instance="w2"}'
+        values: '4x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w1"}'
+        values: '1x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskMailboxWatchShardUnled
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-38
+            exp_annotations:
+              summary: "2 shards of the mailbox watch have no worker"
+              description: "No worker leads these shards, so their workspaces' connected mailboxes are read only every minute. Start more workers or raise HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER.\n"
+              runbook: RB-A38-mailbox-watch-full.md
+
+  # A-38 stays quiet while every shard has its worker.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watch_shards{instance="w1"}'
+        values: '2x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w1"}'
+        values: '1x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskMailboxWatchShardUnled
+        exp_alerts: []
+
+  # A-39: a first synchronisation skipped the labels.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_sync_kinds_skipped_total{kind="label"}'
+        values: '0 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: HubtaskSyncKindSkipped
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-39
+              kind: label
+            exp_annotations:
+              summary: "First synchronisations skip the kind label"
+              description: "Its read fails, so devices are told everything else and go without it until a later pull reads it. The server's log names the kind and the failure's code."
+              runbook: RB-A39-sync-kind-skipped.md
+
+  # A-39 stays quiet while no kind is skipped.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_sync_kinds_skipped_total{kind="label"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: HubtaskSyncKindSkipped
+        exp_alerts: []
+
+  # A-29: every mailbox on the installation's google app fails - its secret ran out.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mail_app_mailboxes{app="google"}'
+        values: '4x30'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="google"}'
+        values: '4x30'
+      - series: 'hubtask_mail_app_mailboxes{app="microsoft"}'
+        values: '6x30'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="microsoft"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskMailAppFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-29
+              app: google
+            exp_annotations:
+              summary: "Most mailboxes on the installation's google mail app fail"
+              description: "At least half of the mailboxes that sign in through the installation's own google app have failed for over an hour. Check the app's client secret at the provider and in HUBTASK_MAIL_OAUTH_*.\n"
+              runbook: RB-A29-mail-app-failing.md
+
+  # A-29 stays quiet for one workspace's mailbox of ten: that is its administrators' to fix.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mail_app_mailboxes{app="google"}'
+        values: '10x60'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="google"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskMailAppFailing
+        exp_alerts: []
+
+  # A-29 stays quiet for an app with no mailbox at all.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mail_app_mailboxes{app="microsoft"}'
+        values: '0x60'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="microsoft"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskMailAppFailing
+        exp_alerts: []
+
+  # A-31: four sends in five fail - a mail server refusing every recipient.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_notification_failures_total{category="REMINDER",channel="EMAIL",reason="mail.recipient_rejected"}'
+        values: '0+4x60'
+      - series: 'hubtask_notification_send_duration_seconds_count{category="REMINDER",channel="EMAIL"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskNotificationsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-31
+            exp_annotations:
+              summary: "Notifications are failing to send"
+              description: "More than 5% of notification sends failed over 15 minutes. hubtask_notification_failures_total names the channel and the reason."
+              runbook: RB-A31-notifications-failing.md
+
+  # A-31 fires where nothing has ever been sent, and stays quiet for one failure in a hundred.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_notification_failures_total{category="MENTION",channel="EMAIL",reason="dependency.unavailable"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskNotificationsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-31
+            exp_annotations:
+              summary: "Notifications are failing to send"
+              description: "More than 5% of notification sends failed over 15 minutes. hubtask_notification_failures_total names the channel and the reason."
+              runbook: RB-A31-notifications-failing.md
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_notification_failures_total{category="REMINDER",channel="EMAIL",reason="mail.recipient_rejected"}'
+        values: '0+1x60'
+      - series: 'hubtask_notification_send_duration_seconds_count{category="REMINDER",channel="EMAIL"}'
+        values: '0+100x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskNotificationsFailing
+        exp_alerts: []
+
+  # A-32: one occurrence arrived two hours late among punctual ones.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_count{mode="FIXED"}'
+        values: '0x30 1+0x30'
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_bucket{mode="FIXED",le="3600"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskRecurrenceLate
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-32
+            exp_annotations:
+              summary: "Recurring entries were created more than an hour late"
+              description: "At least one occurrence of a recurrence arrived over an hour after its moment in the last hour."
+              runbook: RB-A32-recurrence-late.md
+
+  # A-32 stays quiet while every occurrence is in time.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_count{mode="FIXED"}'
+        values: '0+2x60'
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_bucket{mode="FIXED",le="3600"}'
+        values: '0+2x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskRecurrenceLate
+        exp_alerts: []
+
+  # A-33: connections lost twelve times a minute; the serialisation retries beside them count not.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_errors_total{pool="api",kind="connection"}'
+        values: '0+12x60'
+      - series: 'hubtask_db_errors_total{pool="api",kind="serialization"}'
+        values: '0+600x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskDatabaseErrors
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-33
+              kind: connection
+            exp_annotations:
+              summary: "Database statements are failing (connection)"
+              description: "More than one statement every ten seconds fails with connection for 15 minutes."
+              runbook: RB-A33-database-errors.md
+
+  # A-34: aged entries stay in the default partition past six hours.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_audit_default_partition_aged_rows'
+        values: '40x480'
+      - series: 'hubtask_audit_partitions_held'
+        values: '2x480'
+    alert_rule_test:
+      - eval_time: 7h
+        alertname: HubtaskAuditDefaultPartitionAged
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-34
+            exp_annotations:
+              summary: "Audit entries past their period are stuck in the default partition"
+              description: "No partition drop reaches them; move them into their monthly partitions so retention can remove them."
+              runbook: RB-A34-audit-default-partition.md
+
+  # A-34 stays quiet for months a legal hold keeps whole: that is the hold working.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_audit_default_partition_aged_rows'
+        values: '0x480'
+      - series: 'hubtask_audit_partitions_held'
+        values: '3x480'
+    alert_rule_test:
+      - eval_time: 7h
+        alertname: HubtaskAuditDefaultPartitionAged
+        exp_alerts: []
+
+  # A-35: a timer that fails to fire raises a ticket per purpose.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_timer_failures_total{purpose="SLA"}'
+        values: '0 1 1 2 2 2'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HubtaskTimerFailing
+        exp_alerts:
+          - exp_labels:
+              purpose: SLA
+              severity: ticket
+              alert_id: A-35
+            exp_annotations:
+              summary: "Durable timers of purpose SLA fail to fire"
+              description: "Each failing timer is put back with a growing delay while the others fire. The worker's log names the timer and the failure's code."
+              runbook: RB-A35-timer-failing.md
+
+  # A-36: the NOTIFY queue more than half full for two minutes pages.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_notify_queue_usage_ratio'
+        values: '0.1 0.6 0.6 0.6 0.6 0.6'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HubtaskNotifyQueueFilling
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-36
+            exp_annotations:
+              summary: "PostgreSQL's NOTIFY queue is more than half full"
+              description: "A listening session stopped reading. When the queue is full, every write that notifies fails. Find and end the stuck listener."
+              runbook: RB-A36-notify-queue-filling.md
+
+  # A-37: a transaction-ID age past a billion for half an hour raises a ticket.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_frozen_xid_age'
+        values: '1100000000x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskTransactionIdAgeHigh
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-37
+            exp_annotations:
+              summary: "The database's transaction-ID age is past one billion"
+              description: "Vacuum is not freezing old rows. Near two billion PostgreSQL refuses writes; find what holds vacuum back before then."
+              runbook: RB-A37-transaction-id-age.md
+
+  # A-40: no process gets a socket through the public address.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="one"}'
+        values: '0x30'
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="two"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskRealtimeUnreachable
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-40
+            exp_annotations:
+              summary: "Live editing does not get through the public address"
+              description: "A WebSocket opened through HUBTASK_BASE_URL does not reach the server: the proxy in front drops the upgrade or answers it itself. People can still work, but pages and whiteboards are not edited together."
+              runbook: RB-A40-realtime-unreachable.md
+
+  # A-40 stays quiet while one process gets through.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="one"}'
+        values: '0x30'
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="two"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskRealtimeUnreachable
+        exp_alerts: []
+
+  # A-42: the database at 85% of the recorded budget for an hour raises a ticket; without a
+  # recorded budget nothing fires.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_size_bytes{instance="one"}'
+        values: '850x90'
+      - series: 'hubtask:db_size_budget_bytes'
+        values: '1000x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskDatabaseNearBudget
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-42
+            exp_annotations:
+              summary: "The database is past 80% of its size budget"
+              description: "The database grows towards the size its plan or volume allows. Raise the budget or find what grows before writes are refused."
+              runbook: RB-A42-database-near-budget.md
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_size_bytes{instance="one"}'
+        values: '850x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskDatabaseNearBudget
+        exp_alerts: []

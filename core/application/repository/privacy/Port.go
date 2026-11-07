@@ -237,6 +237,9 @@ type Erasure interface {
 	// credentials, the feeds, the devices, the consents and the notifications with it.
 	Delete(ctx context.Context, accountID shared.ID) (bool, error)
 
+	// DiscardPersonalRules removes the person's own rules (scope PERSON), their configuration,
+	// with their runs. AutomationsRunningAs counts the workspace's rules alone.
+	DiscardPersonalRules(ctx context.Context, accountID shared.ID) (int, error)
 	// AutomationsRunningAs counts the automation rules that act as the person.
 	//
 	// It is asked before a full deletion is attempted, because `automation_rule.run_as` is the one
@@ -244,6 +247,15 @@ type Erasure interface {
 	// somebody must not quietly start acting as nobody. The deletion is refused with that count
 	// rather than attempted and failed on a foreign key (PG-2).
 	AutomationsRunningAs(ctx context.Context, accountID shared.ID) (int, error)
+	// IntegrationsRunningAs counts the switched-on integrations that act as the person, asked
+	// before a full deletion for the reason AutomationsRunningAs is.
+	IntegrationsRunningAs(ctx context.Context, accountID shared.ID) (IntegrationsAs, error)
+	// ReownSwitchedOffIntegrations moves the switched-off connectors and code hooks that run as
+	// `from`, and `from`'s retired agents, to `to`; they stay off.
+	ReownSwitchedOffIntegrations(ctx context.Context, from, to shared.ID, at time.Time) (IntegrationsAs, error)
+	// IntegrationsNaming counts every connector, code hook and agent that still names the account,
+	// switched on or off.
+	IntegrationsNaming(ctx context.Context, accountID shared.ID) (IntegrationsAs, error)
 
 	// RevokeCredentials removes every token, calendar feed and sync device of the person, and ends
 	// an invitation nobody accepted at the given moment. Called in both modes: an anonymised account
@@ -262,17 +274,27 @@ type Erasure interface {
 	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
 	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
 
+	// DiscardArrangements removes what stands in the person's name alone: the digests mailed to
+	// them, the dashboards only they see and the approval delegations by and to them.
+	DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error)
+
+	// PseudonymiseTime keeps the person's time - records, weeks, capacities, absences and their own
+	// cost rate - so that the sums accounting reads stay (accepted.md B), and removes the words: the
+	// notes on their records and a rejection's reason on their weeks. Their running timer goes. It
+	// reports what it cleared and removed.
+	PseudonymiseTime(ctx context.Context, accountID shared.ID) (int, error)
+
 	// CountIntake answers how much of the intake carries the person's address or names them as
 	// its submitter.
 	CountIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// DiscardIntake removes what the person sent in by mail, matched by their address, which is
 	// all an inbound message carries, and what they captured, matched by the account that
-	// submitted it. Only `FULL_DELETE` calls it.
+	// submitted it, and the mail intake's receipts of the address. Only `FULL_DELETE` calls it.
 	DiscardIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// ReleaseIntake is the same in the mode that keeps the workspace's content: the text stays and
-	// stops being anybody's.
+	// stops being anybody's; the receipts of the address go all the same.
 	ReleaseIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// OrphanedMedia answers the media the person uploaded that nothing points at any more, with
@@ -292,6 +314,13 @@ type Erasure interface {
 	// DeleteComments removes the person's comments named, and no others.
 	DeleteComments(ctx context.Context, accountID shared.ID, ids []shared.ID) (int, error)
 
+	// DeleteWritings removes what the person wrote outside entries, of one kind (a page or board
+	// comment, a check-in, a portfolio update, a page draft), named and no others. It answers the
+	// identifiers removed, which owe a journal entry and a tombstone, and how many were blanked
+	// instead: a page or board comment others replied to loses its words and its author and stays
+	// as a removed comment, because removing it would take the replies with it.
+	DeleteWritings(ctx context.Context, accountID shared.ID, kind ContributionKind, ids []shared.ID, at time.Time) ([]shared.ID, int, error)
+
 	// ReleaseAssignmentsOn hands the entries named back to nobody, where they are assigned to the
 	// person.
 	ReleaseAssignmentsOn(ctx context.Context, accountID shared.ID, itemIDs []shared.ID, at time.Time) (int, error)
@@ -304,6 +333,12 @@ const (
 	ContributedComment    ContributionKind = "COMMENT"
 	ContributedAssignment ContributionKind = "ASSIGNMENT"
 	ContributedEntry      ContributionKind = "ENTRY"
+
+	ContributedPageComment     ContributionKind = "PAGE_COMMENT"
+	ContributedBoardComment    ContributionKind = "WHITEBOARD_COMMENT"
+	ContributedCheckIn         ContributionKind = "GOAL_CHECK_IN"
+	ContributedPortfolioUpdate ContributionKind = "PORTFOLIO_UPDATE"
+	ContributedPageDraft       ContributionKind = "PAGE_DRAFT"
 )
 
 // Contribution is one row of the person's on an entry, and where that entry is.
@@ -341,3 +376,104 @@ type Pseudonyms interface {
 	// For answers the pseudonyms of the actors named, and nothing for the actors that have none.
 	For(ctx context.Context, actorIDs []shared.ID) (map[shared.ID]string, error)
 }
+
+// IntakeLine is an entry's notes, a comment or a page whose first line may be the mail intake's
+// "From:" line for a requester; WrittenBy is the account that filed it on their behalf. A page's
+// Text is the first of its body, its draft and its versions, newest first, that may hold the line;
+// ID and ItemID are then the page's.
+type IntakeLine struct {
+	Comment   bool
+	Page      bool
+	ID        shared.ID
+	ItemID    shared.ID
+	WrittenBy shared.ID
+	Text      string
+}
+
+// IntakeCursor is where a page of intake lines ends: comments come before entries and entries
+// before pages, each by id. The zero cursor is before the first line.
+type IntakeCursor struct {
+	Started bool
+	Comment bool
+	Page    bool
+	ID      shared.ID
+}
+
+// After is the cursor just past the line.
+func (l IntakeLine) After() IntakeCursor {
+	return IntakeCursor{Started: true, Comment: l.Comment, Page: l.Page, ID: l.ID}
+}
+
+// IntakePageTexts are the texts of one page an intake line may stand in: the body, the draft's
+// body where a draft holds one, and the versions whose body opens with the intake's prefix.
+type IntakePageTexts struct {
+	Body     string
+	Draft    *string
+	Versions map[int]string
+}
+
+// IntakePages reads and rewrites a page's texts for the removal of an intake line (sixth answers
+// 11): written directly, since a version is history no use case edits.
+type IntakePages interface {
+	// PageTexts answers the page's texts, locked for the transaction; found false for no page.
+	PageTexts(ctx context.Context, pageID shared.ID) (IntakePageTexts, bool, error)
+	// WritePageTexts writes the texts back: the body as the page's next version, the draft where
+	// one is given, and each version given by its number.
+	WritePageTexts(ctx context.Context, pageID shared.ID, texts IntakePageTexts) error
+}
+
+// IntakeLines finds the intake's lines naming a requester's address (third answers 2).
+type IntakeLines interface {
+	// IntakeLinesFrom answers a page of at most limit live entries and comments whose first line
+	// names one of the addresses, in key order after the cursor (the zero cursor starts at the
+	// first); the caller judges the exact line.
+	IntakeLinesFrom(ctx context.Context, addresses []string, after IntakeCursor, limit int) ([]IntakeLine, error)
+	// ExpiredAddresses answers a page of the addresses of requesters past the cutoff, oldest
+	// first, past the first skip of them.
+	ExpiredAddresses(ctx context.Context, cutoff time.Time, skip, batch int) ([]string, error)
+}
+
+// MailReceipt is one line of the mail intake's log of an address: when a mail from it arrived,
+// its subject, and what the intake made of it.
+type MailReceipt struct {
+	ID         shared.ID
+	MessageID  string
+	ReceivedAt time.Time
+	Sender     string
+	Subject    string
+	Outcome    string
+	Reason     string
+	// ItemID and EntryID are the entry or jumble entry the mail became, zero when none.
+	ItemID  shared.ID
+	EntryID shared.ID
+	Door    string
+}
+
+// RatingLink is a resolution mail's rating link sent to an address, without its token.
+type RatingLink struct {
+	ItemID    shared.ID
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	// UsedAt is when it was answered, nil while it was not.
+	UsedAt *time.Time
+}
+
+// AddressMail is what a person's own copy reads of the mail an address sent and was sent, which no
+// workspace archive carries: the intake's log and the rating links (data-protection.md §4.1).
+type AddressMail interface {
+	// MailReceiptsFrom answers the intake's log of mails whose sender is the address.
+	MailReceiptsFrom(ctx context.Context, address string) ([]MailReceipt, error)
+	// RatingLinksTo answers the rating links mailed to the requester of the address.
+	RatingLinksTo(ctx context.Context, address string) ([]RatingLink, error)
+}
+
+// IntegrationsAs is how many of each integration act as one account: the inventory connectors and
+// forge hooks switched on with it as run_as, and the agents it owns that are not retired.
+type IntegrationsAs struct {
+	Connectors int
+	Hooks      int
+	Agents     int
+}
+
+// Any reports whether one of them acts as the account.
+func (i IntegrationsAs) Any() bool { return i.Connectors+i.Hooks+i.Agents > 0 }

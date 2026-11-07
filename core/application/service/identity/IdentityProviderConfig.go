@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -81,6 +82,10 @@ type IdentityProviderWriter struct {
 	// RedirectURL is this installation's own callback, which every registration form at every
 	// provider asks for. It is what the presets' instructions are rendered with.
 	RedirectURL string
+	// SAMLACSURL and SAMLMetadataURL are this installation's assertion consumer service and service
+	// provider metadata, which a SAML provider is registered with (identity.md §26).
+	SAMLACSURL      string
+	SAMLMetadataURL string
 	// StepUp is the proof a change to a way in demands (ADR-0071's addendum, E2): which provider
 	// may vouch for this workspace's people is as much a sign-in rule as the password's length, and
 	// without the proof an administrator's stolen session could point a provider it controls at
@@ -246,6 +251,9 @@ type ConfigureIdentityProviderCommand struct {
 	// out of a replace clears them.
 	NewcomerRole    string
 	NewcomerGroupID shared.ID
+	// SAMLSSOURL and SAMLCertificate are a SAML provider's (identity.md §26).
+	SAMLSSOURL      string
+	SAMLCertificate string
 
 	// switchInList marks a workspace's own door: the form configures and never switches, because
 	// the list of ways to sign in is the one place a way in is turned on or off (UC-ID-11 check 8).
@@ -354,7 +362,16 @@ func (w IdentityProviderWriter) ConfigureAt(
 		return domain.IdentityProvider{}, err
 	}
 	creating := cmd.ID.IsZero()
-	if creating && cmd.ClientSecret.IsEmpty() {
+	saml := strings.EqualFold(strings.TrimSpace(cmd.Kind), string(domain.KindSAML))
+	if saml && !cmd.ClientSecret.IsEmpty() {
+		// A SAML provider holds no secret; one sent is somebody's belief that it does.
+		return domain.IdentityProvider{}, shared.ErrValidation.WithDetail("identity_provider.saml_no_secret")
+	}
+	if saml && creating {
+		// The column holds an envelope on every row; a SAML row's seals nothing.
+		cmd.ClientSecret = secret.New("")
+	}
+	if !saml && creating && cmd.ClientSecret.IsEmpty() {
 		return domain.IdentityProvider{}, shared.ErrValidation.
 			WithDetail("identity_provider.client_secret_required")
 	}
@@ -381,20 +398,24 @@ func (w IdentityProviderWriter) ConfigureAt(
 		AllowedDirectories: cmd.AllowedDirectories,
 		Enabled:            enabled, Now: w.Session.Clock.Now(),
 		NewcomerRole: cmd.NewcomerRole, NewcomerGroupID: cmd.NewcomerGroupID,
+		SAMLSSOURL: cmd.SAMLSSOURL, SAMLCertificate: cmd.SAMLCertificate,
 	})
 	if err != nil {
 		return domain.IdentityProvider{}, err
 	}
 
-	if err := w.Relying.Check(ctx, configured.Issuer); err != nil {
-		return domain.IdentityProvider{}, err
+	// A SAML provider publishes no discovery; its address and certificate the domain checked.
+	if !configured.IsSAML() {
+		if err := w.Relying.Check(ctx, configured.Issuer); err != nil {
+			return domain.IdentityProvider{}, err
+		}
 	}
 
 	// Sealed outside the transaction: the envelope is somebody else's key store in some
 	// deployments, and a transaction held open across a network call is a connection nobody else
 	// can have.
 	var sealed *cryptoport.Sealed
-	if !cmd.ClientSecret.IsEmpty() {
+	if !cmd.ClientSecret.IsEmpty() || (configured.IsSAML() && creating) {
 		envelope, err := w.Session.Encryptor.Seal(ctx, cmd.ClientSecret, ClientSecretPurpose(tenantID))
 		if err != nil {
 			return domain.IdentityProvider{}, err
@@ -421,6 +442,9 @@ func (w IdentityProviderWriter) ConfigureAt(
 			if err != nil {
 				return err
 			}
+			if err := w.seedSAMLWatch(ctx, tenantID, stored); err != nil {
+				return err
+			}
 			return w.record(ctx, actor, tenantID, IdentityProviderConfiguredAction, stored)
 		}
 
@@ -441,12 +465,24 @@ func (w IdentityProviderWriter) ConfigureAt(
 			return shared.ErrNotFound.WithDetail("identity_provider.not_found")
 		}
 		stored = written
+		if err := w.seedSAMLWatch(ctx, tenantID, stored); err != nil {
+			return err
+		}
 		return w.record(ctx, actor, tenantID, IdentityProviderConfiguredAction, stored)
 	})
 	if err != nil {
 		return domain.IdentityProvider{}, err
 	}
 	return stored, nil
+}
+
+// seedSAMLWatch starts the workspace's certificate watch with the save of a SAML provider
+// (identity.md §26.1); nothing in this system may enumerate workspaces to start it otherwise.
+func (w IdentityProviderWriter) seedSAMLWatch(ctx context.Context, tenantID shared.ID, stored domain.IdentityProvider) error {
+	if stored.Kind != domain.KindSAML || tenantID.IsZero() || w.Session.Jobs == nil {
+		return nil
+	}
+	return SeedSAMLCertificateWatch(ctx, w.Session.Jobs, tenantID, w.Session.Clock.Now())
 }
 
 // newcomerGroupHolds checks a newcomer group inside the write's transaction: it has to be this
@@ -704,6 +740,16 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 		"withdraw_at":       nil,
 		"newcomer_role":     newcomerRoleValue(configured),
 		"newcomer_group_id": newcomerGroupValue(configured),
+		"saml_sso_url":      nil,
+		"saml_certificate":  nil,
+		// When nobody can sign in through the provider any more (identity.md §26.1).
+		"saml_certificate_expires_at": nil,
+	}
+	if configured.IsSAML() {
+		out["saml_sso_url"], out["saml_certificate"] = configured.SAMLSSOURL, configured.SAMLCertificate
+		if end, ok := domain.SAMLCertificatesEnd(configured.SAMLCertificate); ok {
+			out["saml_certificate_expires_at"] = end.UTC()
+		}
 	}
 	if !configured.WithdrawAt.IsZero() {
 		out["withdraw_at"] = configured.WithdrawAt.UTC()
@@ -758,7 +804,12 @@ func stringsOutput(paths []string) []any {
 	return out
 }
 
-func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Output {
+// presetOutputAt is presetOutput where the installation's SAML addresses are known: a SAML preset's
+// redirect is the assertion consumer service, and its metadata address the suggested entity ID.
+func presetOutputAt(preset domain.ProviderPreset, redirectURL, acsURL, metadataURL string) usecase.Output {
+	if preset.Kind == domain.KindSAML && acsURL != "" {
+		redirectURL = acsURL
+	}
 	scopes := make([]any, 0, len(preset.Scopes))
 	for _, scope := range preset.Scopes {
 		scopes = append(scopes, scope)
@@ -794,6 +845,9 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 	if preset.Issuer != "" {
 		out["issuer"] = preset.Issuer
 	}
+	if preset.Kind == domain.KindSAML && metadataURL != "" {
+		out["metadata_url"] = metadataURL
+	}
 	return out
 }
 
@@ -804,6 +858,10 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 // INVITED_ONLY is on every list since ADR-0071's addendum (E2): what keeps an address from handing
 // over an account is the account's own proof, not the provider kind.
 func provisioningOf(preset domain.ProviderPreset, installation bool) []any {
+	// A SAML provider is a workspace's own: the installation offers it in no mode (identity.md §26).
+	if installation && preset.Kind == domain.KindSAML {
+		return []any{}
+	}
 	if installation && preset.DirectoryClaim == "" {
 		return []any{string(domain.ProvisionInvitedOnly)}
 	}
@@ -844,7 +902,8 @@ func (h ListIdentityProviderPresets) Execute(
 
 func (h ListIdentityProviders) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListIdentityProvidersName,
+		Name:       ListIdentityProvidersName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The providers people can sign in to this workspace through: the workspace's " +
 			"own and the ones its installation offers every workspace, each with its issuer, the " +
 			"mark it draws, whom it lets in, and whether it is switched on. The client secret is " +
@@ -877,6 +936,7 @@ func (h ListIdentityProviders) invoke(
 func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        ConfigureIdentityProviderName,
+		Permission:  service.PermissionManageMembers,
 		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Adds or replaces one of the providers this workspace signs its people in " +
 			"through: the issuer, the client registration, whom the provider may bring in, and " +
@@ -897,7 +957,9 @@ func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 			{Name: "display_name", Kind: usecase.KindString,
 				Description: "The name on the button. Absent is the issuer's host."},
 			{Name: "kind", Kind: usecase.KindString,
-				Description: "The preset: GENERIC, GOOGLE or MICROSOFT. Absent is read from the issuer."},
+				Description: "The preset: GENERIC, GOOGLE, MICROSOFT or SAML. Absent is read from the issuer; SAML is stated."},
+			SAMLSSOURLField,
+			SAMLCertificateField,
 			{Name: "provisioning", Kind: usecase.KindString,
 				Description: "INVITED_ONLY, DOMAINS or ANY - who this provider may admit, and what happens to whoever it admitted."},
 			{Name: "position", Kind: usecase.KindInt,
@@ -977,8 +1039,23 @@ func ConfigureCommandOf(in usecase.Input) (ConfigureIdentityProviderCommand, err
 		return ConfigureIdentityProviderCommand{}, err
 	}
 	cmd.NewcomerGroupID = group
+	cmd.SAMLSSOURL = in.String("saml_sso_url")
+	cmd.SAMLCertificate = in.String("saml_certificate")
 	return cmd, nil
 }
+
+// SAMLSSOURLField and SAMLCertificateField are a SAML provider's, declared at both levels so that
+// the installation's door answers its own refusal rather than an unknown field.
+var (
+	SAMLSSOURLField = usecase.Field{
+		Name: "saml_sso_url", Kind: usecase.KindString,
+		Description: "For kind SAML: the provider's single sign-on address, https. Refused for every other kind.",
+	}
+	SAMLCertificateField = usecase.Field{
+		Name: "saml_certificate", Kind: usecase.KindString,
+		Description: "For kind SAML: one or two PEM certificates its assertions are signed with, valid now. Refused for every other kind.",
+	}
+)
 
 // NewcomerRoleField and NewcomerGroupField are what newcomers get, declared at both levels so that
 // the installation's door answers its own refusal rather than an unknown field.
@@ -1010,7 +1087,8 @@ var EnabledFieldOfAWorkspace = usecase.Field{
 
 func (h RemoveIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RemoveIdentityProviderName,
+		Name:       RemoveIdentityProviderName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Removes one of the workspace's identity providers and its sealed secret. The " +
 			"accounts it provisioned keep their rows and their live sessions; what they lose is " +
 			"the way to sign in again.",
@@ -1048,7 +1126,8 @@ func (h RemoveIdentityProvider) invoke(
 
 func (h ListIdentityProviderPresets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListIdentityProviderPresetsName,
+		Name:       ListIdentityProviderPresetsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The providers Hubtask has a preset for, and what registering with each of them " +
 			"takes: the scopes it asks for, whether it may sign in people nobody invited, the one " +
 			"thing about it that is not like the others, and this installation's own callback " +
@@ -1073,7 +1152,7 @@ func (h ListIdentityProviderPresets) invoke(
 	}
 	rows := make([]usecase.Output, 0, len(presets))
 	for _, preset := range presets {
-		rows = append(rows, presetOutput(preset, h.Writer.RedirectURL))
+		rows = append(rows, presetOutputAt(preset, h.Writer.RedirectURL, h.Writer.SAMLACSURL, h.Writer.SAMLMetadataURL))
 	}
 	return usecase.Output{"data": rows}, nil
 }

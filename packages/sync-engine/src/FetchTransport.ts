@@ -14,6 +14,7 @@ import type {
   SnapshotLine,
   SnapshotOptions,
   TransportDocument,
+  TransportDocumentHead,
   RequestOptions,
   Response,
   StreamConnection,
@@ -27,7 +28,17 @@ export interface FetchTransportOptions {
   readonly baseUrl: string;
   /** Injected so a test can supply its own, and so no module-level global is captured. */
   readonly fetch?: typeof globalThis.fetch;
+  /**
+   * The build this client was loaded from, sent as `X-Hubtask-Client-Build`. With it, a route a
+   * server of another build does not know is a retry rather than a 404 (api-guidelines.md §8).
+   */
+  readonly clientBuild?: string;
+  /** Told the `X-Hubtask-Build` of every answer that names one. */
+  readonly onServerBuild?: (build: string) => void;
 }
+
+/** How often a route unknown to a server of another build is tried again before it surfaces. */
+const BUILD_MISMATCH_RETRIES = 2;
 
 /**
  * What a request body is sent as. `PATCH` is a merge patch throughout this contract; everything
@@ -51,11 +62,15 @@ interface ProblemBody {
 export class FetchTransport implements Transport {
   readonly #baseUrl: string;
   readonly #fetch: typeof globalThis.fetch;
+  readonly #clientBuild?: string;
+  readonly #onServerBuild?: (build: string) => void;
 
   constructor(options: FetchTransportOptions) {
     // Trailing slash removed once, here, so that every path below is written the same way.
     this.#baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.#clientBuild = options.clientBuild;
+    this.#onServerBuild = options.onServerBuild;
   }
 
   get<T>(path: string, options: RequestOptions): Promise<Response<T>> {
@@ -273,12 +288,37 @@ export class FetchTransport implements Transport {
    * A `POST` whose answer is a file.
    *
    * The same request every other call makes — bearer, deadline, same-origin credentials — with two
-   * differences: `Accept` names the three things an export can be, and the answer is read as bytes
+   * differences: `Accept` names the three things an export can be unless the caller names one, and the answer is read as bytes
    * rather than parsed. A refusal still arrives as a problem document, so it is read as one: a
    * caller that handed a person a file containing `{"code":"forbidden"}` would be a caller that
    * checked nothing.
    */
   async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {
+    const answer = await this.#documentAnswer(path, body, options);
+    return { ...headOf(answer), body: await answer.blob() };
+  }
+
+  async documentTo(
+    path: string,
+    body: unknown,
+    sink: WritableStream<Uint8Array>,
+    options: RequestOptions,
+  ): Promise<TransportDocumentHead> {
+    const answer = await this.#documentAnswer(path, body, options);
+    const head = headOf(answer);
+    try {
+      // pipeTo aborts the sink when the body breaks off and closes it after the last byte.
+      if (answer.body) await answer.body.pipeTo(sink);
+      else await sink.close();
+    } catch (cause) {
+      const aborted = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
+      throw new TransportError(aborted ? 'timeout' : 'offline', { cause });
+    }
+    return head;
+  }
+
+  /** The request both document calls make, up to a `2xx` answer whose body is still unread. */
+  async #documentAnswer(path: string, body: unknown, options: RequestOptions): Promise<globalThis.Response> {
     if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
       throw new TypeError('a request needs a positive timeoutMs; there is no default of "forever"');
     }
@@ -286,9 +326,10 @@ export class FetchTransport implements Transport {
     const deadline = AbortSignal.timeout(options.timeoutMs);
     const signal = options.signal ? AbortSignal.any([deadline, options.signal]) : deadline;
 
-    const headers = new Headers({ Accept: 'text/csv, application/json, text/calendar' });
+    const headers = new Headers({ Accept: options.accept ?? 'text/csv, application/json, text/calendar' });
     if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
     if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey);
+    if (options.stepUpToken) headers.set('X-Hubtask-Step-Up', options.stepUpToken);
     headers.set('Content-Type', 'application/json');
 
     let answer: globalThis.Response;
@@ -318,16 +359,7 @@ export class FetchTransport implements Transport {
         requestId: problem.request_id ?? undefined,
       });
     }
-
-    const collected = new Map<string, string>();
-    answer.headers.forEach((value, name) => collected.set(name.toLowerCase(), value));
-
-    return {
-      body: await answer.blob(),
-      contentType: answer.headers.get('Content-Type') ?? undefined,
-      fileName: fileNameOf(answer.headers.get('Content-Disposition')),
-      headers: collected,
-    };
+    return answer;
   }
 
   async #call<T>(
@@ -357,7 +389,27 @@ export class FetchTransport implements Transport {
     // (`api-guidelines.md` §7). A per-call option would be the same rule written once per call
     // site, and the call site that got it wrong would be the one nobody reads.
     if (body !== undefined) headers.set('Content-Type', mediaTypeFor(method));
+    if (this.#clientBuild) headers.set('X-Hubtask-Client-Build', this.#clientBuild);
 
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.#attempt<T>(method, path, body, headers, signal);
+      } catch (error) {
+        // The server ran nothing for an unrouted request, so sending it again is safe for every
+        // method; the wait is the server's Retry-After, bounded by the deadline through `signal`.
+        if (!(error instanceof TransportError) || error.detailCode !== 'route.build_mismatch' || attempt >= BUILD_MISMATCH_RETRIES) throw error;
+        await pause(Math.min(error.retryAfterMs ?? 1000, 1000), signal);
+      }
+    }
+  }
+
+  async #attempt<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    headers: Headers,
+    signal: AbortSignal,
+  ): Promise<Response<T>> {
     let answer: globalThis.Response;
     try {
       answer = await this.#fetch(`${this.#baseUrl}${path}`, {
@@ -382,6 +434,8 @@ export class FetchTransport implements Transport {
 
   async #read<T>(answer: globalThis.Response): Promise<Response<T>> {
     const etag = answer.headers.get('ETag') ?? undefined;
+    const build = answer.headers.get('X-Hubtask-Build');
+    if (build && this.#onServerBuild) this.#onServerBuild(build);
 
     // 204 and an empty body are the same thing to a caller: nothing came back, and that is not an
     // error. Parsing it as JSON would be.
@@ -407,12 +461,29 @@ export class FetchTransport implements Transport {
       code: problem.code,
       detailCode: problem.detail_code,
       params: problem.params,
+      retryAfterMs: retryAfterOf(answer.headers),
       // Passed on rather than interpreted: which field a message belongs under is the frame's
       // question, and it needs the server's `path` to answer it (ADR-0025).
       fieldErrors: Array.isArray(problem.field_errors) ? problem.field_errors : undefined,
       requestId: problem.request_id ?? answer.headers.get('X-Request-Id') ?? undefined,
     });
   }
+}
+
+/** Waits `ms`, or rejects as a timeout once `signal` aborts. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stop = () => {
+      clearTimeout(timer);
+      reject(new TransportError('timeout', { cause: signal.reason }));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    if (signal.aborted) stop();
+    else signal.addEventListener('abort', stop, { once: true });
+  });
 }
 
 /**
@@ -625,6 +696,17 @@ function counted(
       controller.enqueue(chunk);
     },
   }));
+}
+
+/** What a document answer says about its bytes, read before the body is. */
+function headOf(answer: globalThis.Response): TransportDocumentHead {
+  const headers = new Map<string, string>();
+  answer.headers.forEach((value, name) => headers.set(name.toLowerCase(), value));
+  return {
+    contentType: answer.headers.get('Content-Type') ?? undefined,
+    fileName: fileNameOf(answer.headers.get('Content-Disposition')),
+    headers,
+  };
 }
 
 /**

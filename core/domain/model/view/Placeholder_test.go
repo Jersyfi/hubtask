@@ -146,6 +146,36 @@ func TestADayIsADayAcrossADaylightSavingBoundary(t *testing.T) {
 	}
 }
 
+// A month on from the 31st is the last day of the next month, never the first days of the month
+// after it: "due within a month" on 31 January ends in February, and "a month back" on 31 March
+// starts in February rather than on 3 March, which would leave most of the month out.
+func TestAMonthFromTheEndOfAMonthStaysInTheMonthItNames(t *testing.T) {
+	location := berlin(t)
+
+	tests := []struct {
+		now         time.Time
+		placeholder string
+		want        time.Time
+	}{
+		{time.Date(2026, 3, 31, 9, 0, 0, 0, location), "@today-P1M", time.Date(2026, 2, 28, 0, 0, 0, 0, location)},
+		{time.Date(2026, 1, 31, 9, 0, 0, 0, location), "@today+P1M", time.Date(2026, 2, 28, 0, 0, 0, 0, location)},
+		{time.Date(2028, 2, 29, 9, 0, 0, 0, location), "@today+P1Y", time.Date(2029, 2, 28, 0, 0, 0, 0, location)},
+		{time.Date(2026, 1, 31, 9, 0, 0, 0, location), "@today+P1M1D", time.Date(2026, 3, 1, 0, 0, 0, 0, location)},
+		{time.Date(2026, 5, 31, 9, 0, 0, 0, location), "@now-P3M", time.Date(2026, 2, 28, 9, 0, 0, 0, location)},
+		{time.Date(2026, 1, 15, 9, 0, 0, 0, location), "@today+P1M", time.Date(2026, 2, 15, 0, 0, 0, 0, location)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.now.Format("2006-01-02")+" "+test.placeholder, func(t *testing.T) {
+			at := Resolution{Now: test.now, Location: location, ActorID: actor}
+			got := resolveValue(t, "created_at", test.placeholder, at)
+			if !got.Time.Equal(test.want) {
+				t.Errorf("resolved to %s, want %s", got.Time.In(location), test.want)
+			}
+		})
+	}
+}
+
 func TestResolveTheActor(t *testing.T) {
 	at := Resolution{Now: time.Now(), ActorID: actor}
 
@@ -194,6 +224,40 @@ func TestAMomentOnASetOfIdentifiersIsRefused(t *testing.T) {
 	}
 	if detail := detailOf(t, err); detail != "query.placeholder_not_applicable" {
 		t.Errorf("detail %q", detail)
+	}
+}
+
+// A group's queue is the asker's own (user-experience.md §3.3): `@me` and the actor's own
+// identifier resolve, anybody else's is refused, since the answer would say whose groups they are.
+func TestAGroupQueueIsOnlyTheAskersOwn(t *testing.T) {
+	at := Resolution{Now: time.Now(), ActorID: actor}
+	other := "0190a4c2-7b1e-7000-8000-0000000000ff"
+	tests := []struct {
+		name  string
+		value string
+		code  string
+	}{
+		{"by @me", "@me", ""},
+		{"by the actor's own identifier", actor.String(), ""},
+		{"by somebody else's", other, "query.group_queue_not_yours"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			node, err := ParseFilter(leaf(FieldGroupQueueOf, "EQ", test.value), filterPath)
+			if err != nil {
+				t.Fatalf("refused at parse: %v", err)
+			}
+			resolved, err := node.Resolve(at, filterPath)
+			if test.code == "" {
+				if err != nil || resolved.Values[0].ID != actor {
+					t.Fatalf("resolved to %+v, %v", resolved, err)
+				}
+				return
+			}
+			if detail := detailOf(t, err); detail != test.code {
+				t.Errorf("detail %q, want %q", detail, test.code)
+			}
+		})
 	}
 }
 

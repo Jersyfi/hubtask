@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -159,6 +160,7 @@ func TestAnEmailIsRenderedInTheRecipientsLocale(t *testing.T) {
 
 // A reminder rides the same delivery as everything else, and gets the one pair of message codes
 // with no actor in it: nobody caused it, and a sentence naming somebody would name the clock.
+// UC-NOT-02 check 6.
 func TestAReminderIsRenderedInItsOwnWordsAndInTheRecipientsLocale(t *testing.T) {
 	fixture := delivery(t, domain.CategoryReminder, true)
 	fixture.delivery.Accounts = newAccounts(
@@ -190,6 +192,7 @@ func TestAReminderIsRenderedInItsOwnWordsAndInTheRecipientsLocale(t *testing.T) 
 
 // The acceptance criterion of data-protection.md §9: no rendered email carries item content beyond
 // the title. Not a habit but a test over the output.
+// UC-NOT-01 check 3.
 func TestNoRenderedEmailCarriesContentBeyondTheTitle(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	// The entry's notes are content this message must never carry.
@@ -214,6 +217,7 @@ func TestNoRenderedEmailCarriesContentBeyondTheTitle(t *testing.T) {
 
 // The title is switchable, and switching it off leaves a message that says something concerns you
 // and where to look.
+// UC-NOT-03 check 3.
 func TestAWithheldTitleUsesTheOtherSentence(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	quiet := domain.DefaultPreference(tenant, bert, domain.CategoryComment, domain.ChannelEmail)
@@ -273,8 +277,30 @@ func TestSwitchingOffWhileTheMessageWaitsSuppressesIt(t *testing.T) {
 	}
 }
 
+// An installation without a mail server sends no email by its operator's decision: the record is
+// suppressed with that reason at once, rather than retried into a dead letter nothing will drain.
+// UC-NOT-05 check 2.
+func TestWithoutAMailServerTheMessageIsSuppressedNotRetried(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	fixture.delivery.WithoutMail = true
+	fixture.mailbox.err = shared.ErrUnavailable.WithDetail("dependency.unavailable")
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering without a mail server failed the job, which the queue retries: %v", err)
+	}
+	if len(fixture.mailbox.sent) != 0 || len(fixture.signals.failed) != 0 {
+		t.Errorf("sent %v, failed %v - nothing is tried", fixture.mailbox.sent, fixture.signals.failed)
+	}
+	stored := fixture.stored(t)
+	if stored.State != domain.StateSuppressed || stored.Reason != domain.ReasonNoMailServer {
+		t.Errorf("record %+v - it has to say why", stored)
+	}
+}
+
 // SMTP down means the notification waits: the record stays pending, the error comes back, and the
 // queue's retry is what catches up (observability-reliability.md §7).
+// UC-NOT-01 check 7.
+// UC-NOT-05 check 3.
 func TestAnUnreachableServerLeavesTheNotificationWaiting(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	fixture.mailbox.err = shared.ErrUnavailable.WithDetail("dependency.unavailable")
@@ -298,6 +324,7 @@ func TestAnUnreachableServerLeavesTheNotificationWaiting(t *testing.T) {
 }
 
 // The last attempt is the queue's judgement, and the record follows it.
+// UC-NOT-01 check 7.
 func TestTheLastAttemptMarksTheRecordFailed(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	fixture.mailbox.err = errors.New("refused for good")
@@ -310,6 +337,96 @@ func TestTheLastAttemptMarksTheRecordFailed(t *testing.T) {
 	stored := fixture.stored(t)
 	if stored.State != domain.StateFailed || stored.Reason != domain.ReasonDeliveryFailed {
 		t.Errorf("record %+v", stored)
+	}
+}
+
+// A message the mail server refused for good fails on its first attempt: asking eight times meets
+// the same answer, and the record says FAILED now rather than after the queue's budget.
+func TestARefusedRecipientFailsTheRecordAtOnce(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	fixture.mailbox.err = shared.ErrValidation.WithDetail("mail.recipient_rejected")
+
+	err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false)
+	if shared.AsError(err).DetailCode != "mail.recipient_rejected" {
+		t.Fatalf("error %v, want the refusal carried back", err)
+	}
+	stored := fixture.stored(t)
+	if stored.State != domain.StateFailed || stored.Reason != domain.ReasonDeliveryFailed {
+		t.Errorf("record %+v, want FAILED on the first attempt", stored)
+	}
+}
+
+// undeliverableStore is the marks of addresses refused for good, by account.
+type undeliverableStore struct {
+	address map[shared.ID]string
+}
+
+func (u *undeliverableStore) Mark(_ context.Context, account shared.ID, address string, _ time.Time) error {
+	if u.address == nil {
+		u.address = map[shared.ID]string{}
+	}
+	u.address[account] = address
+	return nil
+}
+
+func (u *undeliverableStore) Find(_ context.Context, account shared.ID) (string, time.Time, error) {
+	if address, ok := u.address[account]; ok {
+		return address, now, nil
+	}
+	return "", time.Time{}, shared.ErrNotFound
+}
+
+func (u *undeliverableStore) Clear(_ context.Context, account shared.ID) error {
+	delete(u.address, account)
+	return nil
+}
+
+// A refusal for good marks the recipient's address, and the next message to it is not tried: it
+// is suppressed with the reason the person reads, not refused again by the server.
+func TestARefusedAddressIsMarkedAndSkippedAfterwards(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	marks := &undeliverableStore{}
+	fixture.delivery.Undeliverable = marks
+	fixture.mailbox.err = shared.ErrValidation.WithDetail("mail.recipient_rejected")
+
+	_ = fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false)
+	if marks.address[bert] != "bert@example.org" {
+		t.Fatalf("marks %v, want Bert's address marked", marks.address)
+	}
+
+	next := delivery(t, domain.CategoryComment, true)
+	next.delivery.Undeliverable = marks
+	if err := next.delivery.Execute(t.Context(), tenant, next.record.ID, false); err != nil {
+		t.Fatalf("a marked address: %v", err)
+	}
+	if len(next.mailbox.sent) != 0 {
+		t.Error("a message was sent to an address refused for good")
+	}
+	if stored := next.stored(t); stored.State != domain.StateSuppressed || stored.Reason != domain.ReasonUndeliverable {
+		t.Errorf("record %+v, want SUPPRESSED as undeliverable", stored)
+	}
+}
+
+// A mark at an address the person has since changed holds nothing, and a passing failure marks
+// nothing: only the server's refusal for good does.
+func TestAMarkAtAnOldAddressOrAPassingFailureSkipsNothing(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	marks := &undeliverableStore{address: map[shared.ID]string{bert: "bert@old.example.org"}}
+	fixture.delivery.Undeliverable = marks
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(fixture.mailbox.sent) != 1 {
+		t.Errorf("%d sent, want the new address tried", len(fixture.mailbox.sent))
+	}
+
+	passing := delivery(t, domain.CategoryComment, true)
+	fresh := &undeliverableStore{}
+	passing.delivery.Undeliverable = fresh
+	passing.mailbox.err = shared.ErrUnavailable.WithDetail("dependency.unavailable")
+	_ = passing.delivery.Execute(t.Context(), tenant, passing.record.ID, false)
+	if len(fresh.address) != 0 {
+		t.Errorf("marks %v after a passing failure", fresh.address)
 	}
 }
 
@@ -510,6 +627,7 @@ func (r subscriptionReader) Find(_ context.Context, id shared.ID) (integrationre
 // A message about a rule is rendered in the rule's own words with the rule's name
 // as its title and a link to the rule's screen; the entry is never asked for. A rule that is gone
 // leaves the withheld sentence, as an entry that is gone does.
+// UC-NOT-04 check 1.
 func TestAMessageAboutARuleNamesTheRuleAndLinksToIt(t *testing.T) {
 	ruleID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f1")
 	fixture := delivery(t, domain.CategoryIntegration, false)
@@ -621,4 +739,254 @@ func (w workspaceSlugged) Find(context.Context) (identity.Workspace, error) {
 	workspace := identity.Workspace{}
 	workspace.Slug = w.slug
 	return workspace, nil
+}
+
+// UC-SVC-05 check 6: a requester's reply notice reads as a comment and links into the portal,
+// never to the entry's screen, which is the team's.
+func TestARequestReplyLinksIntoThePortal(t *testing.T) {
+	fixture := delivery(t, domain.CategoryRequestReply, true)
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(fixture.mailbox.sent) != 1 {
+		t.Fatalf("%d messages sent, want one", len(fixture.mailbox.sent))
+	}
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Body, mainBase+"/portal/requests/"+itemID.String()) || strings.Contains(message.Body, "/items/") {
+		t.Errorf("the link is not the portal's: %q", message.Body)
+	}
+	if !strings.Contains(message.Subject, "title=Review the quote") {
+		t.Errorf("the subject does not name the request: %q", message.Subject)
+	}
+}
+
+// UC-AUT-09 check 2: what a rule's notification step tells reads as the rule's notice, names the
+// entry and links to it - a title and a link, nothing else.
+func TestARuleNoticeNamesTheEntryAndLinksToIt(t *testing.T) {
+	fixture := delivery(t, domain.CategorySLA, true)
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if len(fixture.mailbox.sent) != 1 {
+		t.Fatalf("%d messages sent, want one", len(fixture.mailbox.sent))
+	}
+	message := fixture.mailbox.sent[0]
+	if !strings.Contains(message.Subject, subjectRuleNotice) || !strings.Contains(message.Body, bodyRuleNotice) {
+		t.Errorf("not the rule's notice: %q / %q", message.Subject, message.Body)
+	}
+	if !strings.Contains(message.Body, mainBase+"/items/"+itemID.String()) {
+		t.Errorf("the link is not the entry's: %q", message.Body)
+	}
+	if !strings.Contains(message.Subject, "title=Review the quote") {
+		t.Errorf("the subject does not name the entry: %q", message.Subject)
+	}
+}
+
+// A notice whose subject is the recipient's own - their personal rule, their agent - links to the
+// profile's screen, which a member reaches without any administration permission; a workspace
+// rule keeps the administration's.
+func TestAPersonalRulesAndAnAgentsNoticeLinkToTheProfile(t *testing.T) {
+	ruleID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f3")
+	agentID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f4")
+	cases := []struct {
+		name  string
+		input domain.NewInput
+		want  string
+	}{
+		{name: "a personal rule", want: "/profile/rules/" + ruleID.String(),
+			input: domain.NewInput{ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f5"), RuleID: ruleID}},
+		{name: "an agent", want: "/profile/agents",
+			input: domain.NewInput{ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f6"), AgentID: agentID}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := delivery(t, domain.CategoryIntegration, false)
+			input := tc.input
+			input.TenantID, input.RecipientID, input.Category, input.Channel, input.At =
+				tenant, bert, domain.CategoryIntegration, domain.ChannelEmail, now
+			record, err := domain.New(input)
+			if err != nil {
+				t.Fatalf("building the record: %v", err)
+			}
+			if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+				t.Fatalf("seeding the record: %v", err)
+			}
+			fixture.delivery.Rules = ruleReader{rules: map[shared.ID]automation.Rule{ruleID: {
+				ID: ruleID, Name: "Mine", Scope: automation.Scope{Type: automation.ScopePerson, ID: bert},
+			}}}
+			if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			body := fixture.mailbox.sent[0].Body
+			if !strings.Contains(body, "link="+mainBase+tc.want) {
+				t.Errorf("the body links elsewhere than %s: %q", tc.want, body)
+			}
+			if strings.Contains(body, "/administration/") {
+				t.Errorf("a member's own notice links into the administration: %q", body)
+			}
+		})
+	}
+}
+
+type mailboxAddresses map[shared.ID]string
+
+func (m mailboxAddresses) MailboxAddress(_ context.Context, id shared.ID) (string, error) {
+	if address, ok := m[id]; ok {
+		return address, nil
+	}
+	return "", shared.ErrNotFound
+}
+
+// A mailbox that turned failing is said in its own words, names the mailbox and links to the mail
+// page, never as "Hubtask stopped calling" a webhook.
+func TestAFailingMailboxIsSaidInItsOwnWords(t *testing.T) {
+	mailboxID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f7")
+	fixture := delivery(t, domain.CategoryIntegration, false)
+	record, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f8"), TenantID: tenant, RecipientID: bert,
+		Category: domain.CategoryIntegration, Channel: domain.ChannelEmail, MailboxID: mailboxID, At: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+		t.Fatal(err)
+	}
+	fixture.delivery.Mailboxes = mailboxAddresses{mailboxID: "support@example.org"}
+	if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	sent := fixture.mailbox.sent[0]
+	if !strings.Contains(sent.Subject, "email.mailbox_failing.subject") || !strings.Contains(sent.Subject, "support@example.org") {
+		t.Errorf("subject %q", sent.Subject)
+	}
+	if !strings.Contains(sent.Body, "link="+mainBase+"/administration/mail") {
+		t.Errorf("body %q", sent.Body)
+	}
+}
+
+type samlEnds map[shared.ID]time.Time
+
+func (s samlEnds) SAMLProviderEnd(_ context.Context, id shared.ID) (string, time.Time, error) {
+	end, ok := s[id]
+	if !ok {
+		return "", time.Time{}, shared.ErrNotFound
+	}
+	return "Corporate directory", end, nil
+}
+
+// identity.md §26.1: the warning names the provider, says when its certificates end and links the
+// screen where a new one is pasted.
+func TestASAMLCertificateEndingIsSaidWithItsEnd(t *testing.T) {
+	providerID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f9")
+	fixture := delivery(t, domain.CategoryIntegration, false)
+	record, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fa"), TenantID: tenant, RecipientID: bert,
+		Category: domain.CategoryIntegration, Channel: domain.ChannelEmail, IdentityProviderID: providerID, At: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+		t.Fatal(err)
+	}
+	fixture.delivery.SAMLProviders = samlEnds{providerID: time.Date(2026, 12, 1, 9, 0, 0, 0, time.UTC)}
+	if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	sent := fixture.mailbox.sent[0]
+	if !strings.Contains(sent.Subject, "email.saml_certificate_ending.subject") || !strings.Contains(sent.Subject, "Corporate directory") {
+		t.Errorf("subject %q", sent.Subject)
+	}
+	if !strings.Contains(sent.Body, "until=") || !strings.Contains(sent.Body, "2026") ||
+		!strings.Contains(sent.Body, "link="+mainBase+"/administration/sign-in") {
+		t.Errorf("body %q", sent.Body)
+	}
+}
+
+type connectionNames struct{}
+
+func (connectionNames) CalendarPushName(context.Context, shared.ID) (string, error) {
+	return "ada@example.org", nil
+}
+
+func (connectionNames) ConnectorName(context.Context, shared.ID) (string, error) {
+	return "netbox", nil
+}
+
+func (connectionNames) CodeHook(context.Context, shared.ID) (string, shared.ID, error) {
+	return "web", shared.ID("01936f2a-7c1e-7000-8000-0000000000fe"), nil
+}
+
+// A stopped calendar push, and a connector or forge hook that switched itself off, are each said in
+// their own words, by the name they are known by, with the page where they are connected again.
+func TestAStoppedConnectionIsSaidInItsOwnWords(t *testing.T) {
+	cases := []struct {
+		name  string
+		input domain.NewInput
+		code  string
+		title string
+		page  string
+	}{
+		{name: "calendar push", input: domain.NewInput{CalendarPushID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fb")},
+			code: "email.calendar_push_stopped.subject", title: "ada@example.org", page: "/profile/calendars"},
+		{name: "connector", input: domain.NewInput{ConnectorID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fc")},
+			code: "email.connector_switched_off.subject", title: "netbox", page: "/administration/configuration-items"},
+		{name: "forge hook", input: domain.NewInput{CodeHookID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fd")},
+			code: "email.code_hook_switched_off.subject", title: "web",
+			page: "/hubs/01936f2a-7c1e-7000-8000-0000000000fe/settings/code"},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := delivery(t, domain.CategoryIntegration, false)
+			in := tc.input
+			in.ID = shared.ID("01936f2a-7c1e-7000-8000-0000000001f" + string(rune('0'+i)))
+			in.TenantID, in.RecipientID, in.At = tenant, bert, now
+			in.Category, in.Channel = domain.CategoryIntegration, domain.ChannelEmail
+			record, err := domain.New(in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+				t.Fatal(err)
+			}
+			fixture.delivery.Connections = connectionNames{}
+			if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			sent := fixture.mailbox.sent[0]
+			if !strings.Contains(sent.Subject, tc.code) || !strings.Contains(sent.Subject, tc.title) {
+				t.Errorf("subject %q", sent.Subject)
+			}
+			if !strings.Contains(sent.Body, "link="+mainBase+tc.page) {
+				t.Errorf("body %q", sent.Body)
+			}
+		})
+	}
+}
+
+type replyAddresses struct{ address string }
+
+func (r replyAddresses) ReplyAddress(context.Context, shared.ID, shared.ID) (string, error) {
+	return r.address, nil
+}
+
+// UC-JUM-10 check 1: a message about an entry asks for the entry's address as its Reply-To; one
+// about no entry, or of a category nobody answers, carries none.
+func TestAMessageAboutAnEntryAnswersToItsAddress(t *testing.T) {
+	deliver := DeliverNotification{Replies: replyAddresses{address: "familie+web-42@in.example.test"}}
+	about := domain.Notification{TenantID: tenant, ItemID: itemID, Category: domain.CategoryComment}
+	if got := deliver.replyTo(context.Background(), about); got != "familie+web-42@in.example.test" {
+		t.Errorf("a comment about an entry answers to %q", got)
+	}
+	noEntry := about
+	noEntry.ItemID = ""
+	if got := deliver.replyTo(context.Background(), noEntry); got != "" {
+		t.Errorf("a message about no entry answers to %q", got)
+	}
+	membership := about
+	membership.Category = domain.CategoryMembership
+	if got := deliver.replyTo(context.Background(), membership); got != "" {
+		t.Errorf("a membership message answers to %q", got)
+	}
 }

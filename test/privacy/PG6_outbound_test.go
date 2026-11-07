@@ -34,9 +34,20 @@ var dialableExceptions = map[string]string{
 	"cmd/hubctl/Import.go":                                 "the two Graph requests a person makes with their own sign-in, printed as instructions and never dialled",
 	"infrastructure/httpclient/Guard.go":                   "the cloud metadata address, in a comment, as the thing the guard refuses",
 	"core/domain/model/automation/Outbound.go":             "the scheme prefixes an HTTP_REQUEST's address is checked against: a shape rule, never a destination",
+	"core/domain/model/knowledge/Render.go":                "the schemes an exported page's link is checked against: a shape rule, never a destination",
 	"core/domain/model/identity/IdentityProviderPreset.go": "the Google preset's issuer, the value a form fills in when somebody chooses Google: dialled only once a person saves a provider with it",
 	"infrastructure/alexa/Verifier.go":                     "Amazon's certificate store, the one host Alexa's signing rule allows: dialled only to verify a request that names it, and only where the operator allows the host out",
 	"core/domain/model/mail/Mailbox.go":                    "the mail providers' presets (Fastmail's JMAP session), the values a form fills in when somebody chooses a provider: dialled only once a person connects a mailbox with it",
+	"core/domain/model/integration/CalendarPush.go":        "the OAuth scopes a calendar push asks for, written as addresses by the providers: names in a consent, never dialled",
+	"infrastructure/calendarpush/Calendar.go":              "the two providers' event endpoints: dialled only for a push its owner connected, through an app the operator configured for that provider",
+	"infrastructure/chatbot/Slack.go":                      "Slack's Web API: dialled only for a Slack bot a hub's administrator seated with the app they registered",
+	"infrastructure/chatbot/Teams.go":                      "the Bot Framework's keys and Microsoft's sign-in: dialled only for a Teams bot a hub's administrator seated with the bot they registered",
+	"infrastructure/chatbot/Mattermost.go":                 "the scheme a Mattermost server's address is held to, never dialled itself: the server arrives as data an administrator entered",
+	"core/domain/model/filelink/Connection.go":             "the OAuth scopes a file store connection asks Microsoft for, written as addresses: names in a consent, never dialled",
+	"core/domain/model/integration/ChatBot.go":             "the scheme a homeserver's address is held to, never dialled itself: the homeserver arrives as data an administrator entered",
+	"infrastructure/filestore/Store.go":                    "Microsoft Graph's address: dialled only for a connection its owner made, through an app the operator configured",
+	"infrastructure/mailbox/Graph.go":                      "Microsoft Graph's address: dialled only for a GRAPH mailbox an administrator connected with its own OAuth grant",
+	"infrastructure/environment/EnvConfig.go":              "the scheme prefix a framed origin is held to (HUBTASK_UI_FRAME_SOURCES): a shape rule, never a destination",
 	"presentation/rest/Security.go":                        "the installed apps' fixed origins (security.md §9), compared with a request's Origin header and never dialled",
 }
 
@@ -80,6 +91,13 @@ func isIdentifierURL(value string) bool {
 		// The CalendarServer namespace of `getctag`: a WebDAV property name every CalDAV client
 		// asks by, written into an XML document and never fetched.
 		"calendarserver.org/ns",
+		// The Adaptive Card schema a chat room's card names as its `$schema`, a dialect like
+		// JSON Schema's: written into the message and never fetched.
+		"adaptivecards.io/schemas/",
+		// The claim types an identity provider names SAML attributes by: attribute names inside
+		// a signed assertion, never fetched.
+		"schemas.xmlsoap.org/ws/2005/05/identity/claims/",
+		"schemas.microsoft.com/identity/claims/",
 	} {
 		if strings.Contains(value, identifier) {
 			return true

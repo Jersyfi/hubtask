@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -17,6 +18,7 @@ import (
 // Descriptor is the catalogue entry.
 func (h ShowMailSettings) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ShowMailSettingsName,
 		Summary:     "The workspace's mail intake: whether it is on, its name on the receiving domain, the default collection, who may write and the rules that file a sender's mail.",
 		SideEffects: "None. Reads only.",
@@ -30,6 +32,7 @@ func (h ShowMailSettings) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h SaveMailSettings) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        SaveMailSettingsName,
 		Summary:     "Replaces the workspace's mail intake settings in one write; whoever saves is the account a sender who is not a member writes through.",
 		SideEffects: "Stores the settings and writes an audit entry.",
@@ -52,6 +55,7 @@ func (h SaveMailSettings) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ListMailReceipts) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ListMailReceiptsName,
 		Summary:     "The newest messages the mail intake received - when, from whom, what each became and why - for the last 30 days.",
 		SideEffects: "None. Reads only.",
@@ -66,6 +70,7 @@ func (h ListMailReceipts) Descriptor() usecase.Descriptor {
 func (h SetCollectionHandle) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        SetCollectionHandleName,
+		Permission:  service.PermissionStructure,
 		Summary:     "Gives a collection another handle - the short name a mail subject, an address and its entries' ticket keys use for it.",
 		SideEffects: "Changes the handle and writes an audit entry; mail to the old handle no longer reaches the collection.",
 		TokenScope:  containersWrite,
@@ -117,6 +122,7 @@ func (r Replies) ReplyAddress(ctx context.Context, tenantID, itemID shared.ID) (
 // Descriptor is the catalogue entry.
 func (h ListMailboxes) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ListMailboxesName,
 		Summary:     "The workspace's connected mailboxes - where each is, how its last read went - and the provider presets a new one can start from. Never a secret.",
 		SideEffects: "None. Reads only.",
@@ -130,6 +136,7 @@ func (h ListMailboxes) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ConnectMailbox) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ConnectMailboxName,
 		Summary:     "Connects a mailbox to the workspace's mail intake: signs in once, stores it with its secret sealed, and reads it every minute from then on. Only mail that arrives after connecting is taken.",
 		SideEffects: "Signs in to the mail server, stores the mailbox, queues its read and writes an audit entry.",
@@ -157,6 +164,7 @@ func (h ConnectMailbox) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h CheckMailbox) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        CheckMailboxName,
 		Summary:     "Signs in to a connected mailbox again, records how that went, and reads it now.",
 		SideEffects: "Signs in to the mail server, records the result, queues a read and writes an audit entry.",
@@ -175,6 +183,7 @@ func (h CheckMailbox) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h RemoveMailbox) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        RemoveMailboxName,
 		Summary:     "Disconnects a mailbox: its secret is forgotten and it is read no more. The mail in it stays where it is.",
 		SideEffects: "Removes the mailbox and writes an audit entry.",
@@ -193,6 +202,7 @@ func (h RemoveMailbox) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h AuthorizeMailbox) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        AuthorizeMailboxName,
 		Summary:     "Starts connecting a mailbox through its provider's sign-in (OAuth with PKCE): Google or Microsoft with the installation's app or one's own, or any provider by its endpoints. Answers the provider's page to send the browser to; the answer is good for ten minutes and for whoever asked.",
 		SideEffects: "Stores the waiting connection with its verifier sealed. Nothing is signed in to yet.",
@@ -219,6 +229,7 @@ func (h AuthorizeMailbox) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h CompleteMailboxAuthorization) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        CompleteMailboxName,
 		Summary:     "Finishes connecting a mailbox with what its provider sent back: trades the code, signs in once with the token, and stores the mailbox with its refresh token sealed. A state is good once.",
 		SideEffects: "Calls the provider's token endpoint, signs in to the mail server, stores the mailbox, queues its read and writes an audit entry.",

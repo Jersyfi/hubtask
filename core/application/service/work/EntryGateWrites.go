@@ -31,6 +31,28 @@ func (o entryOffer) requireLevel(itemType domain.ItemType, path string) error {
 	return o.offered.RequireLevel(itemType, o.ancestors, path)
 }
 
+// entryTypesOn is the type keys the collection offers on a level, nil where it offers every one.
+func (o entryOffer) entryTypesOn(level domain.ItemType) []string {
+	if !o.wired {
+		return nil
+	}
+	return o.offered.EntryTypesOn(level)
+}
+
+// requireEntryType refuses an entry whose type the collection does not offer on its level: a move
+// into it is refused rather than keeping a type nothing there may create, or silently changing it
+// (UC-FLW-01 check 3). The entry's type is changed first, with its drops confirmed.
+func (o entryOffer) requireEntryType(item domain.WorkItem) error {
+	offered := o.entryTypesOn(item.Type)
+	key := entryTypeKeyOf(item)
+	if offered == nil || slices.Contains(offered, key) {
+		return nil
+	}
+	return shared.ErrValidation.WithDetail("entry_types.not_offered").
+		WithParams(map[string]string{"entry_type": key}).
+		WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.not_offered"})
+}
+
 // narrow is the profile the writer gates its values with.
 func (o entryOffer) narrow(profile domain.CapabilityProfile) domain.CapabilityProfile {
 	if !o.wired {
@@ -90,7 +112,7 @@ func (g EntryGate) gatedProfile(
 	if err := offer.requireLevel(item.Type, ""); err != nil {
 		return domain.CapabilityProfile{}, err
 	}
-	return offer.narrow(profile), nil
+	return narrowByEntryType(ctx, g.EntryTypes, item, offer.narrow(profile))
 }
 
 // chains answers the types above each entry, nearest first, in one statement for all of them. Not
@@ -130,7 +152,11 @@ func (g EntryGate) gatedProfileFor(
 	ctx context.Context, profiles metarepo.CapabilityProfiles, item domain.WorkItem,
 ) (domain.CapabilityProfile, error) {
 	if !g.Wired() {
-		return profileOf(ctx, profiles, item.Type)
+		profile, err := profileOf(ctx, profiles, item.Type)
+		if err != nil {
+			return domain.CapabilityProfile{}, err
+		}
+		return narrowByEntryType(ctx, g.EntryTypes, item, profile)
 	}
 	collection, err := findCollection(ctx, g.Structure.Containers, item.CollectionID)
 	if err != nil {
@@ -161,4 +187,18 @@ func (g EntryGate) placing(
 	}
 	offer.ancestors = append([]domain.ItemType{parent.Type}, above[parent.ID]...)
 	return offer, nil
+}
+
+// OfferedTaskTypes answers the type keys a collection offers its top-level entries, inside the
+// caller's transaction; nil offers every type - also in a build without the structure (the
+// portal's catalogue, UC-SVC-05).
+func (g EntryGate) OfferedTaskTypes(ctx context.Context, collection domain.Container) ([]string, error) {
+	if !g.Wired() {
+		return nil, nil
+	}
+	offered, err := g.offeredIn(ctx, collection)
+	if err != nil {
+		return nil, err
+	}
+	return offered.EntryTypesOn(domain.ItemTask), nil
 }

@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -526,5 +527,42 @@ func TestAnAdministratorCannotRevokeAnOwner(t *testing.T) {
 	}
 	if len(grants.revoked) != 0 || len(sink.entries) != 0 {
 		t.Errorf("a refused revocation removed %v and wrote %v", grants.revoked, sink.entries)
+	}
+}
+
+// UC-ID-14 check 4: the dialog invites and then grants, so the trail holds the invitation and its
+// grant. Together they record the role and the scope for the invited account; neither carries the
+// address in clear.
+func TestTheTrailRecordsAnInvitationsRoleAndScopeWithoutTheAddress(t *testing.T) {
+	accounts, sink := newAccounts(), &auditSink{}
+	const address = "bert@example.org"
+
+	if _, err := inviteHandler(accounts, &authorizer{}, sink, &notifier{}).
+		Execute(t.Context(), admin(), InviteAccountCommand{Email: address}); err != nil {
+		t.Fatalf("inviting: %v", err)
+	}
+	if _, err := grantHandler(newGrants(), accounts, newGroups(), &authorizer{}, sink).
+		Execute(t.Context(), admin(), GrantMembershipCommand{
+			AccountID: invitedID, Scope: domain.HubScope(hubID), Role: domain.RoleContributor,
+		}); err != nil {
+		t.Fatalf("granting: %v", err)
+	}
+
+	if len(sink.entries) != 2 || sink.entries[0].Action != AccountInvitedAction ||
+		sink.entries[1].Action != MembershipGrantedAction {
+		t.Fatalf("trail %v, want the invitation and then its grant", sink.entries)
+	}
+	recorded := func(field string) any {
+		change, _ := sink.entries[1].Changes[field].(map[string]any)
+		return change["to"]
+	}
+	if recorded("role") != string(domain.RoleContributor) || recorded("scope_type") != "HUB" ||
+		recorded("scope_id") != hubID.String() || recorded("subject_id") != invitedID.String() {
+		t.Errorf("the grant records %v, want the role and the hub for the invited account", sink.entries[1].Changes)
+	}
+	for _, entry := range sink.entries {
+		if strings.Contains(fmt.Sprintf("%v", entry), address) {
+			t.Errorf("%s carries the address in clear: %v", entry.Action, entry)
+		}
 	}
 }

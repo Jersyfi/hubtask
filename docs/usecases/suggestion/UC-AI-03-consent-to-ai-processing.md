@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-14, P-11, P-12]
 state: built
 tasks: [J-01, J-02, UX-21]
-checked_by: [core/application/service/integration/AiProviderConfig_test.go]
+checked_by: [core/application/service/integration/AiProviderConfig_test.go, apps/webapp/e2e/aisettings.test.mjs, core/domain/model/integration/AiProvider_test.go, infrastructure/ai/Resolver_test.go]
 ---
 
 # Decide whether our content may be sent to a model, and take it back

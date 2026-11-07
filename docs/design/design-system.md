@@ -283,11 +283,15 @@ no reason moves a box. The eight cases, and the pattern each takes:
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
-Drawer · SearchField · ReadOnlyNotice · SaveBar
+Drawer · SearchField · ReadOnlyNotice · SaveBar · Disclosure
 
 `structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
 `Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
-`overlay` rank, so a dialog opened from inside one closes first.
+`overlay` rank, so a dialog opened from inside one closes first. `Disclosure` folds what is
+needed later on the same page ([`user-experience.md`](../architecture/user-experience.md) UX-4):
+*Advanced* in a settings block, *Details for support* under a refusal; a button with
+`aria-expanded`, a quiet line of what is inside, the content arriving in the `reveal` role and
+absent while closed.
 
 **`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
@@ -309,7 +313,9 @@ the screen; a drag let go below the floor closes it. `size` is bindable: where a
 is the caller's decision.
 
 `EmptyState` takes a required `kind` with no default — the three causes of
-[`voice-and-tone.md`](./voice-and-tone.md) §4 — and refuses a call to action on the third. A failure
+[`voice-and-tone.md`](./voice-and-tone.md) §4 — and refuses a call to action on the third. Under the action it takes a `secondary` row (a product's
+templates) and one quiet `footnote` (its guide, or who may create), both refused on the third too.
+A failure
 is not an empty state (§4.4 there): `ErrorState` is its own component.
 
 **`LoadMore` is the only pager in this system.** A control the reader presses, never a load on
@@ -340,13 +346,14 @@ the rows and fields under it say nothing about it.
 | `DueDateControl` | `dueDateOnly` (all-day) vs. timed vs. differing `dueTimeZone`; it holds the start and the due together |
 | `RecurrenceEditor` | RRULE, `ON_SCHEDULE` vs. `ON_COMPLETION`. It shows the rule; no client expands an RRULE |
 | `ReminderEditor` | `REL:-PT1H` presets plus free entry, multiple channels |
-| `CustomFieldRenderer` | Eight field kinds from `CustomFieldDefinition` |
+| `CustomFieldRenderer` | The thirteen field kinds from `CustomFieldDefinition` |
 | `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` never becomes silent ignoring. A refusal the manifest predicts is a client defect; one it could not is rendered as a sentence. **An optional feature the installation does not serve is not rendered at all**; a served feature degraded now is gated with the reason `/meta/health` names. A control that never applies to this reader is absent, not gated |
 | `SourceChip` | Where a value comes from, beside its name — *Set here*, *Default*, *Plan*, *Installation* — the order P-07 resolves; a lock a mark and a word. Pressed, a `Popover` with the value, its source and whom to ask. It knows no levels: the source and the lock are the application's answer |
+| `PlanSummary` | A plan in words ([`user-experience.md`](../architecture/user-experience.md) §5.4): what an act would do — or did — one resolved sentence a change, each with its kind (*add*, *keep*, *change*, *remove*, *refuse*) as a mark beside it, never a colour alone; an empty plan is a sentence, and `reach` the one line under the list. A list, not a live region: the caller announces the plan once. It knows no plan and no key |
 | `CommentThread` | Nested, with "removed" as its own state |
-| `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced** |
+| `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced**. Variant `button` draws the button alone, for a toolbar, and `icon` the paperclip alone with its words as the name, for a bar of icon buttons; no screen draws a native file input of its own (`apps/webapp/build/forms.test.js`) |
 | `ActivityFeed` | `verb` is an i18n code the component **never sees** — every sentence arrives resolved. An ordered list with a real `<time datetime>`; a step with no change set is a shorter sentence |
-| `Timeline` | A **schedule**: dated gridlines at the caller's `scale` (day · week · month), **today marked across every row**, a **span** where `start_at` and `due_at` exist and a **point** where only the due does; what it cannot place it **trays** beside the axis. The window opens where the work is. **A drag names columns, never dates.** A bar moves both ends, an end moves one, a trayed entry carried onto the axis asks for its first dates, and the span **redraws where it would land**. A bar one column wide has **no** end handles; a handle's target is the whole cell. The alternative to every drag is the row, which opens the date editor (§10, 2.5.7 and 2.5.8). One cell per column, a span *marks* its cells, because `style-src 'self'` refuses an inline `grid-column` |
+| `Timeline` | A **schedule**: dated gridlines at the caller's `scale` (day · week · month · quarter · year), **today marked across every row**, a **span** where `start_at` and `due_at` exist and a **point** where only the due does; what it cannot place it **trays** beside the axis. The window opens where the work is. **A drag names columns, never dates.** A bar moves both ends, an end moves one, a trayed entry carried onto the axis asks for its first dates, and the span **redraws where it would land**. A bar one column wide has **no** end handles; a handle's target is the whole cell. The alternative to every drag is the row, which opens the date editor (§10, 2.5.7 and 2.5.8). One cell per column, a span *marks* its cells, because `style-src 'self'` refuses an inline `grid-column`. **A dependency is an arrow** from the end of the bar waited for to the start of the waiting one, measured off the two bars, dashed and tinted where the waiting entry starts too early, and said in words under the axis. **As a Gantt chart** (UC-PLN-02) a row is a milestone (a diamond), a summary (a thin, darker bar) or critical (tinted and **hatched in the surface's colour**, at 3:1 against a normal bar, and *critical* in the row's name through `criticalLabel`), may carry a **baseline** as a thin lane under its bar, is indented by its depth, and a dependency is **drawn by dragging** from the knob after a bar's end onto the waiting row; the keyboard path to the same link is the caller's table. The row under the pointer or the focus draws and says **its dependencies more strongly**, and its title is described by their words. With `resizeLabel` a **grip** between the titles and the axis sets the title column to one of four token steps, by the arrow keys or by carrying it |
 | `ViewSwitcher` | A **radio group**, not a tab strip. List, board and timeline, with "show what is inside" a toggle within list; `LIST_COLLAPSED` and `LIST_EXPANDED` stay the stored values. A layout the manifest reports and the client cannot draw is shown **with the reason**. Switching keeps the selection (§11.9) |
 | `QueryBuilder` | The query DSL made visible, knowing **no grammar** — fields, their comparisons and whether a comparison takes a value are handed in. Changing the field resets the comparison |
 | `JumbleInboxItem` | `NEW` / `PROCESSED` / `DISMISSED`, optionally with an AI suggestion. Subject, body and sender **arrived from outside**: drawn as text, never markup or a live link, the sender labelled as what the transport claimed; `{@html}` is refused package-wide. `PROCESSED` links to the result; `DISMISSED` is a state, not a deletion |
@@ -359,6 +366,7 @@ the rows and fields under it say nothing about it.
 | `SyncStatus` + `ConflictResolver` | `SyncStatus` is the connection mark (§11.6), fed by `engine.queue()` and the stream's state, with **no sentence of its own**. Pressed, it lists every waiting change as *what* and *where* and every refused one with its reason and a dismiss — never swallowed ([`offline-sync.md`](../architecture/offline-sync.md) §9). Losing the server is announced once through a `status` region; a moving count is not. `ConflictResolver` handles a `CONFLICT` on the notes: both versions as text — theirs in place, mine already a system comment it links to — and two ways out: keep theirs, or write mine again as an ordinary `PATCH`. **Never a merge, never an automatic retry** ([ADR-0021](../adr/ADR-0021-offline-sync.md)). It opens from the mark's list and from the entry's strip |
 | `Celebration` | §7's slot: `tier` 1–3, one asset per tier, no taller than `--motion-celebration-area`, moving no further than `--motion-celebration-travel`. **Never blocking**: `inert`, off the tree, unmounted by the caller on `onDone`, its one sentence a `status` region. Under reduced motion every tier is rule 6's colour change. Assets may change; tiers, tokens and triggers may not |
 | `Tour` + `CoachMark` | §8's pattern: a spotlight on one element of the real interface, positioned by CSS (`spotlightTo` in `anchor.ts`), the overlay of rule 2 being the cut-out's shadow; the element stays interactive. `CoachMark` is a caption, one body line, the count, and *next*, *back*, *skip*; a non-modal `dialog` — focus moves to it, `Escape` skips, the tab order is its controls and the element. The steps are the client's (`apps/webapp/src/lib/tour.ts`) |
+| `TemplateCard` + `TemplateGallery` | A template as a person chooses it ([`user-experience.md`](../architecture/user-experience.md) §5.2): mark, name, one sentence, the products it switches on as chips, a quiet note of where it stands (*In use*, *Update available*), *Preview* folded (`details`, what taking it creates, in words), the caller's act — never its key or version as the subtitle. Where the template draws something (a board), a small drawing of it stands in place of the mark; in a gallery that is a choice the chosen card has a thicker brand edge and its act is pressed, and `isCompact` tightens it inside a dialog. The gallery is one family as a named list of cards that wraps to the width; every create dialog and the catalogue draw it |
 | `AISuggestion` | Separable through `ai.*` (§1), gone without residue when AI is off. One component for every kind: the heading names the kind as a proposal, the payload is the caller's slot in the product's editor for its shape, accept and dismiss are the caller's buttons, the provenance one collapsed line ([`voice-and-tone.md`](./voice-and-tone.md) §7). `pending` is the job running, `stale` the target moved. It arrives in the `attach` role, in opacity alone |
 
 **The automation rule editor is the web client's own**, in `apps/webapp/src/lib/automation/`
@@ -377,8 +385,8 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (7)
-AppBar · NavDrawer · BottomBar · PageHeader · DetailPane · Logo · ResizeHandle
+### Wave 5 — the shell (8)
+AppBar · NavDrawer · BottomBar · PlaceTabs · PageHeader · DetailPane · Logo · ResizeHandle
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
@@ -389,8 +397,14 @@ the mark the bar carries; how the product uses them is §11.
   shadow; the title is a span, never a heading; the top safe-area inset goes into its padding.
 * **`NavDrawer`** — `Drawer` holding `SideNav`; composition only.
 * **`BottomBar`** — three to five destinations with a mark and a word, `aria-current`, the bottom
-  safe-area inset in its padding. It switches routes, so it is not `Tabs`. It hides, by opacity,
+  safe-area inset in its padding; one may be an act (a button with its mark filled) and one an
+  opener (*More*, a quiet button that opens a dialog). It switches routes, so it is not `Tabs`. It hides, by opacity,
   while an input has focus, so it does not ride the on-screen keyboard over the field.
+* **`PlaceTabs`** — the views of one place (a product's home, a hub, a collection) as one strip
+  under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav`
+  of links with `aria-current`, because each switches routes — not `Tabs`, for `BottomBar`'s
+  reason. One tab stop, the arrows, Home and End between the links; narrow, it scrolls inside
+  itself with the current link in view and never wraps. An optional mark and count per link.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
   subtitle, **one** primary action, at most two secondary ones, a `Menu` for the rest, and an
   optional second row for a `ViewSwitcher` or `Tabs`. It cannot draw a fourth button. With
@@ -463,14 +477,20 @@ below it.
    narrower than the focus ring, or the container cuts the ring.
 6. **Motion only in `opacity` and `transform`.** Layout is never animated. A component animates
    through a `motion.<role>` token — a duration paired with an easing — never a primitive. The roles
-   are `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`; `attach`
+   are `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis`, `reorder`, `reveal` and
+   `celebration`; `attach`
    (arriving against the pointer, a tooltip) and `entrance` (arriving away from it, a dialog) are
    different roles. `--dur-instant` stays a primitive: the floor is the *absence* of movement. Under
    reduced motion the completion celebration reduces to a colour change and the acknowledgement is
    never absent. Component CSS honours `[data-motion="reduced"]` alongside
    `prefers-reduced-motion` ([ADR-0037](../adr/ADR-0037-component-workbench.md)); in the web app
    `apps/webapp/src/lib/motion.ts` is the one module that sets `data-motion`, and the choice is the
-   device's (§11.10).
+   device's (§11.10). A list's movement goes through `packages/design-system/src/motion.ts`
+   ([user-experience.md §6](../architecture/user-experience.md#6-motion-and-liveliness)): a row
+   arrives (`arrive` on `ListRow`, `arrivals` on `Table`'s body and `BucketColumn`'s cards; the
+   first eight of one arrival a `--dur-stagger` apart), a keyed card travels to its new place
+   (`animate:flip`), an opened section's content is revealed; each reads its role's custom
+   properties at run time and does nothing under reduced motion.
 
 **The layering scale.** `primitive.layer` is the only source of a `z-index`: `base` · `raised` ·
 `sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten apart so a component may sit
@@ -538,7 +558,7 @@ The WorkItem hierarchy, not a heuristic, says what is special.
 |---|---|---|
 | **1 — always, subtle** | Every completion | A micro-animation, part of the normal motion system. No trigger logic |
 | **2 — structural, medium** | A completion completes the next level up: every sibling under the parent is now complete | Deterministic, read directly off the domain model |
-| **3 — rare, the big moment** | A collection or a hub with nothing open left; the last entry due today completed; the **first-ever completion** — any completion while the account's `onboarding_completed_at` is null (§8) | At most **one tier-3 celebration per day**. A second qualifying event on the same day falls back to tier 2 |
+| **3 — rare, the big moment** | A collection or a hub with nothing open left; the last entry due today completed; the **first-ever completion** — any completion while the account's `onboarding_completed_at` is null, or the first after the tour led to creating one in this tab (§8) | At most **one tier-3 celebration per day**. A second qualifying event on the same day falls back to tier 2 |
 
 ### What stays visible
 
@@ -603,12 +623,21 @@ screenshots.
   screen, and the tour waits until the person first arrives on the overview.
 * **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
-  complete a first task, which fires the tier-3 onboarding moment (§7). Any completion while
-  `onboarding_completed_at` is null also ends the tour.
+  complete a first task, which fires the tier-3 onboarding moment (§7). Reaching the end writes
+  the field already - a dialog closed without an entry does not bring the tour back on the next
+  sign-in - and the tab remembers that the next completion is still the first. Any completion
+  while `onboarding_completed_at` is null also ends the tour.
 * The design system defines the **pattern** (`Tour`, `CoachMark`, §4): presentation (spotlight,
   glass overlay per rule 2), tone ([`voice-and-tone.md`](./voice-and-tone.md), no exclamation marks)
   and interaction (next, back, skip, keyboard, visible focus). The steps are the client's, in
-  `apps/webapp/src/lib/tour.ts`, anchored by `data-tour` attributes.
+  `apps/webapp/src/lib/tour.ts`, anchored by `data-tour` attributes. Where a product is on, the
+  second step, *Your products live here*, points at the products band's first row (user-experience.md
+  §3.4). The starter comes before the tour (user-experience.md §3.1).
+* **A product's tour** is three steps on the same pattern - where to create, where to find it,
+  where to configure it -, in `apps/webapp/src/lib/product/producttour.ts`. The first visit of a
+  product's home opens it at its first step, once per person: the products seen are the account's
+  `products_seen`, written when the tour ends, walked or skipped. *Help* and the product's first
+  empty state offer it again (user-experience.md §3.4).
 
 ---
 
@@ -661,9 +690,10 @@ below names its proof: a rule above, or a walk filed in `docs/evidence/`.
 | 2.4.3 Focus order | DOM order is the sensible order; focus never falls to `body` after a write, an inline edit or a card changing column | Every route walked; `SyncEngine` keeps a `ready` state through a reload, and `focusFirst()` |
 | 2.4.7 / 2.4.11 Focus visible, not obscured | 2 px ring, 2 px offset, `--focus-ring`, never hidden by a sticky region | Rule 5; the layering scale (§6); every stop walked |
 | 2.5.7 Dragging movements | Every drag has a keyboard or button alternative | The row's menu, the card's menu, the collection's toolbar — announced, focus kept (§11.9) |
-| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§5) and its token test. **One exception**: a `Timeline` bar's end handles are one column wide — 24, 8 or 4 px at the day, week and month scales. This rests on SC 2.5.8's **Equivalent** clause: the row's title opens the entry, where `DueDateControl` sets both dates at full size |
+| 2.5.8 Target size | 24 × 24 CSS px minimum in every density | `density` (§5) and its token test. **One exception**: a `Timeline` bar's end handles are one column wide — 24, 8, 4, 2 or 1 px at the day, week, month, quarter and year scales. This rests on SC 2.5.8's **Equivalent** clause: the row's title opens the entry, where `DueDateControl` sets both dates at full size |
 | 2.3.3 Animation from interactions | Reduced motion from the media query and from the product's own switch on *On this device* | Rule 6; `[data-motion="reduced"]`; `lib/motion.ts` |
 | 3.1.1 / 3.1.2 Language of page and parts | `lang` on the root from the negotiated locale; `lang` on an entry in another language (`content_language`) | [`i18n-l10n.md`](../architecture/i18n-l10n.md) §6; the tree (`h1[lang=pt-BR]`) |
+| 3.2.6 Consistent help | Help is in one place on every screen: the frame's help (`HelpDialog`, the tour beside it), never moved or dropped by a screen | The frame (§11), which every signed-in route renders inside |
 | 3.2.1 / 3.2.2 On focus, on input | Nothing navigates or submits on focus or on a change alone | No `onfocus` handler in either client tree, no `onchange` that navigates |
 | 3.3.1 / 3.3.3 Error identification and suggestion | A refusal names the field and what would be accepted — the problem document's `fields[]`, rendered from codes; a form's refusal is an alert. **A refused password gets no banner**: the field is `aria-invalid`, the rules list names each rule broken, the live region announces the count once | The problem-details rendering; the tree of every route |
 | 3.3.7 Redundant entry | Nothing asks twice for what the flow already has; a second proof for a second privileged action is the security exception (one grant, one action) | Reviewed per flow |
@@ -691,6 +721,28 @@ installation in multi mode that set none is named in the health report
 
 **What is deliberately not promised.** Level AAA anywhere; sign language or audio description (the
 product has no video); a conformance claim for a third-party client.
+
+### 10.1 The EN 301 549 v4.1.1 programme
+
+EN 301 549 v4.1.1 (published 2026-09, carrying WCAG 2.2 AA, its citation as the harmonised standard
+expected for 2026-12) is the standard the accessibility statement names; the table above is its
+clause 9. The programme is how the rest is kept, clause by clause:
+
+| Clause | What it asks of Hubtask | How it is kept |
+|---|---|---|
+| 4 Functional performance | Usable without vision, with limited vision, without perception of colour, without hearing, with limited manipulation, with limited cognition | Follows from clauses 9 and 11; the screen-reader pass and the keyboard walk test it as a whole |
+| 5 Generic | Closed functionality none (the clients are open web content); accessibility features activated without help (5.2); no biometric as the only way in (5.3: Hubtask reads no biometric; a passkey is unlocked by whatever the device offers, a PIN among it) | [identity.md](../architecture/identity.md) §23; the sign-in surfaces |
+| 9 Web | WCAG 2.2 AA, the table above | The proofs named in each row |
+| 10 Non-web documents | The documents the product produces for a person - exports, the calendar feed, mails - carry structure (headings, table headers, a language) | The export and mail templates; reviewed per format |
+| 11 Software | The desktop and mobile shells render the web app and add only the platform's own chrome; 11.5 platform accessibility services are the web view's, 11.6 user preferences (contrast, text size, reduced motion) are honoured from the platform | The shells inherit clause 9; a shell's own control is a row here when one is added |
+| 12 Documentation and support | The documentation lists the accessibility features and how to use them; support channels reachable without a single sense | The documentation site; `SECURITY.md` and the issue tracker are text channels |
+
+**The cadence.** Each release that changes a screen keeps its proofs green; before each major and at
+least once a year, the two walks are repeated and filed, and the **Accessibility Conformance Report**
+(the EN 301 549 edition of the VPAT form) is written from this table as `docs/evidence/ACR-<date>.md`
+- every clause and criterion with *Supports*, *Partially supports* or *Does not support* and the
+reason, an exception carrying its date. The statement (above) is updated from the newest report;
+a regression found between two reports is a defect with the criterion's number in its title.
 
 ---
 
@@ -772,14 +824,18 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 
 **`apps/webapp/src/lib/navigation.ts` is the one list of destinations; every width draws it and
 nothing else.** No second list, second tree or "advanced" navigation. Each destination carries a
-route, a group, an icon, a message code and, where the mobile build needs it, an `area` (§11.5).
+route, a group, an icon, a message code, where the palette needs them a code of synonyms
+(`words`), and, where the mobile build needs it, an `area` (§11.5).
 
-**Three bands, in this order.** Nothing outside a band, nothing in two.
+**Five bands, in this order** ([`user-experience.md`](../architecture/user-experience.md) §2.1).
+Nothing outside a band, nothing in two.
 
 | Band | What is in it | Where |
 |---|---|---|
-| `places` | Today, Search, Jumble | At the top. Search is here on every width |
+| `places` | Today, Search, Inbox, *Waiting for your yes* (where the service desk is on) | At the top. Search is here on every width |
+| `products` | One row per product switched on, in `Module.Keys()` order: Plans, Pages, Whiteboards, Service desk, Assets, Time, Goals, Agents, each opening its home | Under the caption *Products*; absent while no product is on |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
+| `workspace` | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing | Under the caption *Workspace*, below the hubs |
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
@@ -802,11 +858,10 @@ settings' *General* section. Each is the page menu's own act: choosing it opens 
 which runs it with its own handler. The figure and the *⋯* share one cell
 at the end of the row, so a row with a menu wraps where one without does.
 
-**The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
-on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
-settings*; *Workspace administration*, only where the manifest's `workspace_permissions` carry
-`STRUCTURE` or the auditor's `READ_CONFIGURATION` - and an address under `/administration` typed by
-anybody else answers as one that reaches nothing; *Installation*, only for an account in the operator register, as the
+**The account group is not in the column.** It is the bar's account menu behind the avatar on
+every width, a menu from `medium` up and a sheet on `compact`. It holds only what is about the
+person (user-experience.md §2.3), in `navigation.ts`'s order: the display name and e-mail as the
+head; *Your settings*; *Appearance*; *Installation*, only for an account in the operator register, as the
 manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)) - except on a single-workspace
 installation, where an operator who reaches the administration finds it as the administration's last
 group instead, "Installation · Applies to every workspace you create", and not in this menu; *Help and shortcuts* (§11.4), which holds the tour; *About
@@ -818,8 +873,8 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` | `BottomBar`: the `places` destinations, with *Capture* between *Search* and *Jumble*, and *You*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
-| `medium` | `NavDrawer`: one `SideNav` with all three bands |
+| `compact` | `BottomBar`: Today, Search, *Capture*, Inbox and *More*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. *More* opens the `NavDrawer` (as ☰ does): the places the bar does not carry, then the `products`, `tree`, `workspace` and `keeping` bands, so no destination is drawn twice; *More* is current on a place only the drawer lists. The account is the avatar in the bar |
+| `medium` | `NavDrawer`: all five bands |
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10). Its end edge is a `ResizeHandle`: dragged, or moved by the arrows, between `layout.sidenav.min` and `layout.sidenav.max`, a double-click back to `layout.sidenav.width`; the width is the device's (§11.10) |
 
 In a build that excludes the administration area — the installed mobile clients
@@ -1028,9 +1083,13 @@ A card with nothing to say is not drawn; with nothing beside it *On you* takes t
 shows six rows at most, then how many more and the way to the search, and its count in its head;
 empty, it says so with *Capture*. A workspace with nothing for the reader yet - no entry on them,
 no list, no project, nothing opened, nothing waiting - shows *First steps* instead, each with its
-act. It uses only existing reads — the workspace-wide search with a filter
+act, but only while no hub holds an entry the reader can see. Where one does (an owner of a busy
+workspace who holds nothing themselves), *On you* says it is empty and *In use here* stands beside
+it: the hubs that hold entries, each with its count of collections, and the products switched on,
+each leading to its home. It uses only existing reads — the workspace-wide search with a filter
 ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)), each hub's collections with their figures,
-one anchored query per project, and the jumble's first page.
+one anchored query per project, the jumble's first page and, while the page looks new, one anchored
+query of one entry per hub.
 
 **The archive (`/archive`)** lists the archived containers and entries the reader may see, each with
 where it lives and the way back, from the container list and the collection's query with
@@ -1046,6 +1105,12 @@ archived container leaves the tree.
 * **On a hub**: *Create collection*, with *Import* as the secondary action (`POST /imports` needs
   `STRUCTURE` on the hub). The file goes through the media flow; the report is drawn by the same
   component as a restore's dry run, refused rows beneath it by number and code.
+* **Under the head, the place's tab strip** (`PlaceTabs`, user-experience.md §2.4): a hub's
+  *Overview · Plan · Pages · Whiteboards · Assets · Time · Goals*, a collection's *Entries · Plan ·
+  Sprints · Portal · Time*, each only where its module is on there (`lib/workspace/placeTabs.ts`),
+  drawn again on every screen a tab opens; a tab with several views (the plan's releases, time's
+  workload) draws them as a second strip. No product is a head button or an item of the place's
+  menu, which holds only verbs on the place; the palette offers each tab as *Go to <place> › <tab>*.
 * **On a collection**: *Add entry*, which opens capture pointed at the collection — no split, its
   other ways being capture's modes. The filter is the toolbar's, with its count — inline from
   `expanded` up, a `Drawer` below.
@@ -1078,12 +1143,19 @@ figure its own head shows (UC-WRK-29); one column on `compact`.
 
 **Settings are pages** (UC-WRK-23): `/collections/:id/settings/:section` and
 `/hubs/:id/settings/:section`, in the administration's shape — the sections as a list at the start,
-the open one beside it, each at its own address. *General* is the edit dialog's fields in place;
-*Structure* is the preset and the eight settings in one save bar: each setting with its
-`SourceChip`, a reset where the value is set here, and a lock drawn as the chip's lock with the
-controls still readable and unavailable, their reason naming who set it (§4, cases 2 and 6). A
-collection's labels, fields, templates, automation (the policies) and people follow, a hub's people
-— each the same component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
+the open one beside it, each at its own address. The sections are one list in one order
+(`user-experience.md` §5.7; `lib/workspace/placeSections.ts`, its test pinning the order per level):
+a collection's *General · Templates and presets · Types & forms · Fields · Labels · Entry templates · Workflow ·
+Views · Rules · People*, a hub's *General · Products · Templates and presets · Types & forms · Workflow · Views ·
+Rules*, its working hours, code and chat, and *People*. *General* is the edit dialog's fields in
+place. The structure's preset and settings are spread over *Templates and presets* (the preset), *Types &
+forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows), *Views* (views,
+what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
+held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
+set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
+their reason naming who set it (§4, cases 2 and 6). The old addresses `…/settings/structure` and
+`…/settings/automation` open *Types & forms* and *Rules*. The other sections are each the same
+component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
 the shape is offered *Settings…*; anybody else at the address reads whose the settings are.
 What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
 view or bulk operation for it — the installation's manifest narrowed to the structure in force
@@ -1094,11 +1166,11 @@ on screen, renaming, sharing or deleting a view, exporting the list as it is fil
 calendar subscriptions; the page menu carries none of them.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
-*Structure* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
+*Templates and presets* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
 the installation's, the workspace's, yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
 unavailable with its reason while the save bar holds changes; its dialog offers *For me*, *For the
 workspace* (only to a reader who may shape the workspace) and *Replace* a preset the reader may
-change. The workspace's presets have their own administration view, *Presets*: each to rename or
+change. The workspace's presets have their own administration view, *Templates and presets*: each to rename or
 withdraw — the default's *Withdraw* unavailable with its reason —, the preset a new hub starts
 from, and the whole settings locked for every hub and collection, a lock from the installation or
 the plan unavailable with where it comes from; an installation preset is never offered as the
@@ -1120,7 +1192,9 @@ between columns is the card's menu (§11.9).
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips,
    one height whether or not they carry a mark. Where the collection has columns and the reader may
    write, the column's chip is the menu that moves the entry to another column, the done column
-   completing it as a drop on the board does.
+   completing it as a drop on the board does. Where a workflow runs for the entry, the head
+   carries its status with the steps the reader may take from it instead, and names the type in
+   place of the level; neither the level nor *No column* is drawn there (`user-experience.md` §5.6).
    A set cover is drawn above the title; no room is taken for an absent one. Its menu is the one
    entry menu (UC-WRK-28 check 2) without *Open*, the page being the entry open; where the reader
    may not share, *People* reads who has access in *Share*'s place. Moving it to the trash leaves
@@ -1136,7 +1210,8 @@ between columns is the card's menu (§11.9).
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
    `DetailPane` as a grid of two. It shows what is set; the fields with nothing set wait behind
    *More fields (n)* - *Add a field* where nothing is set - and are never folded over a standing
-   proposal. The head beside the title carries only the level, the column and *archived*.
+   proposal. The head beside the title carries only the level (the type where a workflow runs), the column
+   or the status, and *archived*.
 4. **The description, the parts and the activity** in the main column: the description a box,
    one quiet line while empty; the parts one card; comments and activity as tabs, writing first,
    the five newest under it, then ten more at a time before the server's older page.
@@ -1165,7 +1240,7 @@ row is ticked by a tap on its start — a target of at least 44 points around th
 towards the inline end, and a tap anywhere else but its controls opens the entry; a still hold opens
 the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
 and the grip drags within its section. The row's menu holds the amount and the category. For somebody who may change the shape, the *Done* heading can be
-renamed and *Categories* chosen and ordered where the list is used; the *Structure* section opens
+renamed and *Categories* chosen and ordered where the list is used; the *Types & forms* section opens
 the same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
 swipe included.
 
@@ -1342,7 +1417,7 @@ both modes; G5–G8 by the walks of each act.
 |---|---|
 | G1 | **One edge.** The trail, the title, the toolbar and the content of a page share one inline-start edge. |
 | G2 | **One control size.** Every icon control in one region — the bar, a toolbar, a row — is the same square with the same hover shape; text buttons share one height per density. |
-| G3 | **Text never breaks inside a word.** Names in rows, tabs, chips, menus and the tree are one line cut with an ellipsis and the full name as their title, or wrap between words where two lines are the drawing (the tree, a card's title); buttons never wrap. |
+| G3 | **Text never breaks inside a word.** Names in rows, tabs, chips, menus and the tree are one line cut with an ellipsis and the full name as their title, or wrap between words where two lines are the drawing (a card's title); the tree's names are one line (user-experience.md §2.5); buttons never wrap. |
 | G4 | **What is centred.** Empty states, a page's single message and a lone primary action are centred in their region; forms, lists, tables and settings start at the edge; a dialog's actions end at the inline end. |
 | G5 | **Where feedback goes.** A field's error under the field, a summary at the form's top on submit and the focus on the first; a refused act as a toast with the reason; a page-wide problem as one banner under the page head; a done act as a toast with *Undo* where it can be undone; loading as a skeleton in place. |
 | G6 | **One surface per job.** A dialog creates or decides; a popover changes one value; the entry panel shows one entry beside its list; a page holds settings. |

@@ -182,3 +182,27 @@ func TestTheEpochRoundTripsAndALegacyCursorReadsAsEpochZero(t *testing.T) {
 		t.Error("a negative epoch was accepted")
 	}
 }
+
+// The kinds a walk skipped travel in the signed cursor, on a delta position and on a walk that
+// retries them; a delta cursor that names none keeps its three fields.
+func TestTheSkippedKindsRoundTripInTheCursor(t *testing.T) {
+	codec := streamCursors()
+	for _, position := range []security.StreamPosition{
+		{Seq: 41, IssuedAt: issued, Epoch: 2, Skipped: "label,comment"},
+		{Seq: 41, IssuedAt: issued, Epoch: 2, Kind: "comment", After: "0192f000-0000-7000-8000-00000000000a",
+			Skipped: "label", Retry: "label,comment"},
+		{Seq: 41, IssuedAt: issued, Kind: "item", After: "x", Skipped: "label"},
+	} {
+		back, err := codec.Decode(codec.Encode(position))
+		if err != nil {
+			t.Fatalf("decoding %+v: %v", position, err)
+		}
+		if back != position {
+			t.Errorf("%+v came back as %+v", position, back)
+		}
+	}
+	if plain := codec.Encode(security.StreamPosition{Seq: 41, IssuedAt: issued}); len(plain) >= len(codec.Encode(
+		security.StreamPosition{Seq: 41, IssuedAt: issued, Skipped: "label"})) {
+		t.Error("a delta cursor naming no skipped kind is not the short one")
+	}
+}

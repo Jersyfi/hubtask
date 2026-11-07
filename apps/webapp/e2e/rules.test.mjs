@@ -324,12 +324,18 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   // meets the credential's burst on one screen.
   const gets = seen.filter((line) => line.startsWith('GET ') && !line.endsWith('/stream'));
   assert.deepEqual(gets.filter((line, index) => gets.indexOf(line) !== index), [], 'no resource read twice on open');
-  for (const path of ['/labels', '/buckets', '/templates', '/groups', '/integrations/webhooks']) {
+  for (const path of ['/labels', '/buckets', '/templates', '/groups']) {
     assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
   }
-  // Thirteen: the frame's own reads grew by the person's AI notice and their emergency notices,
-  // each read once per frame (PH-03, PH-05) - what this bounds is the editor's.
-  assert.ok(gets.length <= 13, `${gets.length} reads on open: ${gets.join(', ')}`);
+  // The webhooks are the administration frame's, read once for its column's figure
+  // (user-experience.md §7.10); the editor shares that read rather than asking again.
+  assert.equal(gets.filter((line) => line.includes('/integrations/webhooks')).length, 1, 'the webhooks are read once, by the frame');
+  // Seventeen: the frame's own reads grew by the person's AI notice, their emergency notices and
+  // their address notices, each read once per frame (PH-03, PH-05, UC-INS-19), and the
+  // administration's by the private hubs, the webhooks and the mailboxes its column counts
+  // (user-experience.md §7.10) - what this bounds is the editor's.
+  assert.equal(gets.filter((line) => line.includes('/accounts/me/address-notices')).length, 1, 'the address notices are read once, by the frame');
+  assert.ok(gets.length <= 17, `${gets.length} reads on open: ${gets.join(', ')}`);
 
   // And the canvas meets the content region rather than standing in its padding: standing in it
   // draws a slab of one colour on a page of another, which reads as a border no other screen has.
@@ -882,7 +888,7 @@ test('chromium: the list checks the rules when it opens and says what the check 
   // On the shell: one heading, from the PageHeader; the check's banner among its
   // notices; *Write a rule* the primary action, which opens the editor at its address.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
-  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Automation');
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Rules');
   await page.locator('[data-opener="new-rule"]').click();
   await page.waitForURL(/\/administration\/rules\/new$/, { timeout: 5_000 });
   await page.goBack();
@@ -942,7 +948,7 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.ok(written.some((body) => body.runs?.rule_id === RULE.id), 'the listing was asked for the rule');
   // On the shell: one heading, from the PageHeader.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
-  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'What the rules did');
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Rule runs');
   // Trying and starting a rule left this page for the editor (ux-inventory.md §E9).
   assert.equal(await page.getByRole('heading', { name: 'Try a rule' }).count(), 0);
   assert.equal(await page.getByRole('combobox', { name: 'Which rule' }).count(), 0);

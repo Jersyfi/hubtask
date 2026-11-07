@@ -25,9 +25,9 @@ import type {
   WorkItem,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
-import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, touchesOf } from './touches.ts';
+import { ANY_ENTRY_DOCUMENT, CONFIG_CHECK, ENTRY_LISTS, touchesOf } from './touches.ts';
 
 /**
  * Where a scope's definitions live.
@@ -36,8 +36,8 @@ import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, touchesOf } from './touches.ts';
  * the same one with a missing argument — and the engine keys a resource on the path, so the two
  * are two subscriptions rather than one that changes its mind.
  */
-export const definitionsPath = (collectionId?: string) =>
-  collectionId ? `/custom-fields?collection_id=${collectionId}` : '/custom-fields';
+export const definitionsPath = (collectionId?: string, hubId?: string) =>
+  collectionId ? `/custom-fields?collection_id=${collectionId}` : hubId ? `/custom-fields?hub_id=${hubId}` : '/custom-fields';
 
 /**
  * What a definition write invalidates.
@@ -46,7 +46,7 @@ export const definitionsPath = (collectionId?: string) =>
  * path begins with it. `/items` is there because a definition decides what an entry *shows*: a
  * field taken out of use has to stop being drawn on the entries that hold a value for it.
  */
-const TOUCHES = ['/custom-fields', ENTRY_LISTS, ANY_ENTRY_DOCUMENT];
+const TOUCHES = ['/custom-fields', ENTRY_LISTS, ANY_ENTRY_DOCUMENT, CONFIG_CHECK];
 
 class CustomFields {
   #scopes = $state<Record<string, ResourceState<readonly CustomFieldDefinition[]>>>({});
@@ -55,6 +55,28 @@ class CustomFields {
   of(collectionId?: string): readonly CustomFieldDefinition[] {
     const state = this.#scopes[definitionsPath(collectionId)];
     return state?.status === 'ready' ? state.data : [];
+  }
+
+  /** A hub's own definitions and the workspace's, empty until they have been read. */
+  atHub(hubId: string): readonly CustomFieldDefinition[] {
+    const state = this.#scopes[definitionsPath(undefined, hubId)];
+    return state?.status === 'ready' ? state.data : [];
+  }
+
+  /** Starts a hub's list. **From `untrack`**, like `open`. */
+  openHub(hubId: string): () => void {
+    const path = definitionsPath(undefined, hubId);
+    return engine.subscribe<readonly CustomFieldDefinition[]>({ path }, (next) => {
+      this.#scopes = { ...this.#scopes, [path]: next };
+    });
+  }
+
+  /** Makes a hub's own copy of a workspace-wide field under its key (UC-WRK-12 check 9). */
+  async copyHere(fieldId: string, hubId: string): Promise<CustomFieldDefinition> {
+    return engine.mutate<CustomFieldDefinition>('POST', `/custom-fields/${fieldId}:copy-here`, { hub_id: hubId }, {
+      idempotencyKey: INTENT,
+      invalidates: TOUCHES,
+    });
   }
 
   stateOf(collectionId?: string): ResourceState<readonly CustomFieldDefinition[]> | undefined {

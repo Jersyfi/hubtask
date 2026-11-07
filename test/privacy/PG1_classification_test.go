@@ -6,6 +6,8 @@ package privacy
 import (
 	"go/ast"
 	"go/token"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -18,7 +20,8 @@ import (
 // direction that cannot be taken back - a title written into the trail is a copy no deletion
 // reaches (audit.md §4).
 //
-// So this is what PG-1 checks: no `Change` literal anywhere in the source omits `Classification`.
+// So this is what PG-1 checks: no `Change` literal anywhere in the source omits `Classification`
+// (UC-PRV-08 check 3).
 // It is a build-time rule rather than a review habit, which is the whole point of a gate; the port
 // masks an unclassified field at run time as well, for the case where something builds one from a
 // variable.
@@ -26,9 +29,10 @@ func TestPG1EveryRecordedChangeIsClassified(t *testing.T) {
 	found := 0
 
 	forEachGoFile(t, func(path string, file *ast.File, fset *token.FileSet) {
+		inPort := strings.Contains(filepath.ToSlash(path), "core/port/audit/")
 		ast.Inspect(file, func(node ast.Node) bool {
 			literal, ok := node.(*ast.CompositeLit)
-			if !ok || !isAuditChange(literal.Type) {
+			if !ok || !isAuditChange(literal.Type, inPort) {
 				return true
 			}
 			found++
@@ -57,11 +61,12 @@ func TestPG1EveryRecordedChangeIsClassified(t *testing.T) {
 
 // isAuditChange recognises the port's type however the importing package spells it: `audit.Change`
 // where the port is imported plainly, `port.Change` where the importing package is itself called
-// audit, and `Change` inside the port.
-func isAuditChange(expr ast.Expr) bool {
+// audit, and `Change` inside the port - and only there, since another package's own `Change` (a
+// page's, a draft's) is no audit change.
+func isAuditChange(expr ast.Expr, inPort bool) bool {
 	switch typed := expr.(type) {
 	case *ast.Ident:
-		return typed.Name == "Change"
+		return inPort && typed.Name == "Change"
 	case *ast.SelectorExpr:
 		if pkg, ok := typed.X.(*ast.Ident); ok {
 			return typed.Sel.Name == "Change" && (pkg.Name == "audit" || pkg.Name == "port")

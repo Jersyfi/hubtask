@@ -20,6 +20,7 @@ import (
 // restore succeeds, which is what Applier.succeed does through the same repository - and the
 // device's next pull is refused, the full synchronisation delivers the restored rows, and the
 // stream refuses the same cursor.
+// UC-SYN-05 check 2.
 func TestARestoredWorkspaceResynchronisesByItself(t *testing.T) {
 	ctx := context.Background()
 	tenant, author := seedMaterialisingTenant(ctx, t)
@@ -103,6 +104,7 @@ func TestARestoredWorkspaceResynchronisesByItself(t *testing.T) {
 // A restore into a new workspace advances nothing (the applier's rule, tested there); here, that
 // a workspace nobody restored into stands at its start, and that another tenant's restore does
 // not move it - the cross-tenant negative for both methods (gate SG-3).
+// UC-SYN-05 check 3.
 func TestTheEpochIsTheWorkspacesOwn(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

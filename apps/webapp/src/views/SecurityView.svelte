@@ -39,7 +39,9 @@
   import { untrack } from 'svelte';
 
   import { canCopy } from '@hubtask/design-system/components';
-  import { Banner, Button, EmptyState, OneTimeSecret, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import { Button, EmptyState, OneTimeSecret, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AuthenticatorReplacement from '../lib/frame/AuthenticatorReplacement.svelte';
@@ -162,13 +164,13 @@
           <!-- An account that signs in only through a provider: there is no password to change,
                and offering to would be offering a control the server cannot honour (UC-ID-05
                check 5). -->
-          <p class="quiet">{t('app.password.none')}</p>
+          <EmptyState kind="unused" title={t('app.password.none')} />
         {:else}
         <p class="quiet">{t('app.password.change_body')}</p>
         {#if passwordApi.problem}
-          <Banner tone="danger" title={passwordApi.problem.message}>
+          <FailureNote problem={passwordApi.problem}>
             {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
-          </Banner>
+          </FailureNote>
         {/if}
         <form onsubmit={changePassword}>
           <Stack gap="150">
@@ -203,9 +205,9 @@
           <h2>{t('app.identities.title')}</h2>
           <p class="quiet">{t('app.identities.body')}</p>
           {#if identities.failure}
-            <Banner tone="danger" title={identities.failure.message}>
+            <FailureNote problem={identities.failure}>
               {#if identities.failure.reference}{identities.failure.reference}{/if}
-            </Banner>
+            </FailureNote>
           {/if}
           {#if identities.connected.length > 0}
             <ul class="identities">
@@ -267,7 +269,7 @@
                      here it is always a number somebody can act on, because the button beside it
                      works. -->
                 {#if left === 0}
-                  <Banner tone="danger">{t('app.recovery.none_left')}</Banner>
+                  <FailureNote problem={t('app.recovery.none_left')} />
                 {:else if left !== undefined}
                   <p class="quiet">{t('app.recovery.left', { count: String(left), total: '10' })}</p>
                 {/if}

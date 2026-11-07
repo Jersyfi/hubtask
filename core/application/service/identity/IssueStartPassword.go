@@ -177,7 +177,8 @@ func (h IssueStartPassword) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h IssueStartPassword) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: IssueStartPasswordName,
+		Name:       IssueStartPasswordName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Gives a managed account - a sign-in name and no mail address - a new start " +
 			"password when its person forgot theirs, answered once. Every session of the account " +
 			"ends; the next sign-in asks for the second factor where one is set up, then for a new " +

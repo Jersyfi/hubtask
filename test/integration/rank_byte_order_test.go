@@ -56,10 +56,12 @@ func TestTheLastRankIsReadInByteOrder(t *testing.T) {
 		{
 			name: "work item",
 			shadow: `CREATE TEMPORARY TABLE work_item
-			           (collection_id uuid, parent_id uuid, order_key text COLLATE hubtask_name) ON COMMIT DROP`,
-			insert: `INSERT INTO work_item (collection_id, parent_id, order_key)
-			         VALUES ('0191a1b2-0000-7000-8000-00000000c011', NULL, 'Zz'),
-			                ('0191a1b2-0000-7000-8000-00000000c011', NULL, 'a0')`,
+			           (id uuid DEFAULT gen_random_uuid(), collection_id uuid, parent_id uuid,
+			            order_key text COLLATE hubtask_name, deleted_at timestamptz) ON COMMIT DROP`,
+			// The highest rank is a trashed entry's: its place is still occupied.
+			insert: `INSERT INTO work_item (collection_id, parent_id, order_key, deleted_at)
+			         VALUES ('0191a1b2-0000-7000-8000-00000000c011', NULL, 'Zz', NULL),
+			                ('0191a1b2-0000-7000-8000-00000000c011', NULL, 'a0', now())`,
 			last: func(ctx context.Context) (string, error) {
 				return itemRepo().LastOrderKey(ctx, "0191a1b2-0000-7000-8000-00000000c011", "")
 			},

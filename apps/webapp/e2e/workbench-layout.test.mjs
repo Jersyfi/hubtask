@@ -478,6 +478,11 @@ describe('a reason never moves the page', { concurrency: true }, () => {
             const what = `${story.id} ${label(each)} in ${name}`;
             await page.goto(`${server.origin}/${query(story.id, each)}`);
             await page.waitForSelector('.host :is(.contexts, [data-scroll-area])');
+            // A row arrives with the entrance role (motion.ts), a transform that ends: measured while
+            // it runs, the arrival would read as a box the hover moved. A pending mark never ends.
+            await page.evaluate(() => Promise.all(document.getAnimations()
+              .filter((each) => each.effect?.getTiming().iterations !== Infinity)
+              .map((each) => each.finished.catch(() => undefined))));
             await page.mouse.move(1, 1);
             await CHECKS[story.kind](page, what, name);
             const violations = await page.evaluate(() => window.__violations.filter((each) => each.inside));

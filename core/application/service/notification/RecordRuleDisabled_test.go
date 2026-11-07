@@ -36,6 +36,7 @@ func disabledRule(author shared.ID) automation.Rule {
 
 // A rule that stopped acting and told nobody is a rule whose owner discovers the silence weeks
 // later, by which time the work has not been done and nobody knows since when.
+// UC-NOT-04 check 1.
 func TestADisabledRuleTellsItsAuthor(t *testing.T) {
 	service, notifications, jobs := ruleRecorder(newPreferences())
 
@@ -85,6 +86,7 @@ func TestARuleWithNoAuthorTellsNobody(t *testing.T) {
 
 // The preference is honoured, exactly as it is for every other notification - the record still
 // exists and says why nothing was sent.
+// UC-NOT-04 check 4.
 func TestAnAuthorWhoSwitchedIntegrationMessagesOffIsNotSent(t *testing.T) {
 	preferences := newPreferences()
 	preferences.switchOff(anna, domain.CategoryIntegration)

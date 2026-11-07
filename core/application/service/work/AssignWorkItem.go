@@ -430,7 +430,8 @@ func (w AssignmentWriter) readCollectionOf(
 // REST, MCP and automation at once (arc42 §4).
 func (h AssignWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AssignWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       AssignWorkItemName,
 		Summary: "Puts one person on an entry. Every type carries an assignee; an activity carries " +
 			"this and no member list. The account has to be able to see the entry - it has to hold " +
 			"a membership somewhere on the path above it - and one that cannot is refused rather " +
@@ -461,7 +462,8 @@ func (h AssignWorkItem) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h UnassignWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UnassignWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       UnassignWorkItemName,
 		Summary: "Takes the assignee off an entry. Idempotent: an entry nobody is on succeeds and " +
 			"announces nothing.",
 		SideEffects: "Clears the assignee, announces " + string(event.ItemUnassigned) +

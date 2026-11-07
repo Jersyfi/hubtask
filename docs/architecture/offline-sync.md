@@ -28,8 +28,18 @@ conflicts nobody can resolve.
 ([README](../../packages/sync-engine/README.md#the-replica)):
 
 * The **browser** holds a replica in IndexedDB as a best-effort cache with no encryption of its own,
-  deleted whole at sign-out, never the offline promise. It sends no scope: its replica is everything
-  the caller may read.
+  deleted whole at sign-out, never the offline promise. It sends no scope - its replica is everything
+  the caller may read - until that passes 100 000 entries (decided 2026-11-01): the walk then stops,
+  and the copy holds the hubs this device opened in the last thirty days (a hub, or a collection in
+  it, kept on the device by identifier, per account, until sign-out), most recent first, asked for as scopes (§3.1) on every snapshot
+  and pull. A narrowed walk still past the bound holds the first half of those hubs, down to one,
+  which is held whole; the stream's records outside the held hubs are not written to the copy and
+  still make their reads stale. The rest is read online: a hub the copy leaves to the server says
+  *Online only* in the navigation, and its lists are not answered from the copy while the server is
+  away (`sync.needs_connection`). Each start asks the device's visits again and takes a narrowed copy afresh
+  where they changed (`packages/sync-engine` `ReplicaBound`, `renarrow`). There is no pinned hub
+  yet, so a hub is held for having been opened, and a workspace that shrinks below the bound stays
+  narrowed until the store is deleted.
 * The **shells** hold the same replica in SQLite encrypted at rest (SQLCipher), one database per
   server and account under a key created once for it and held only in the platform's keystore
   (`SqliteStorage` over the shell's `copy.rs`); the promise lives there. A reset, a revocation and
@@ -91,10 +101,94 @@ moment it was minted (against the window, §7) and the workspace's synchronisati
 
 A **null cursor is the initial synchronisation**: the current state, one kind at a time
 (containers, buckets, labels, entries, set elements, comments, reminders, recurrence rules,
-templates), paged by identifier, each row judged by the same permission as a delta record, with the
-log position taken *before* the first page so a change landing mid-walk is the first delta's. A
+templates, entry types, link types, workflows, custom roles, links, the reader's own role grants,
+pages, configuration items, their relations, the CMDB's catalogue, entry schedules, goal periods,
+goals, check-ins, dashboards, sprints, entries' open sprints and estimates, releases and entries' releases, custom field definitions, the reader's own time records, running timer, weeks and capacities, the kinds of work, the time policy, the absences, the cost rates and the budgets, portfolios, the agents' models, agents, held acts, evaluation cases and runs, and the workflow scheme), paged by identifier, each row
+judged by the same permission as a delta record, with the log position taken *before* the first
+page so a change landing mid-walk is the first delta's. Entry types, link types and workflows are
+the workspace's vocabulary and reach every member; a custom role reaches whoever may read at the
+workspace; a link is filed under its source's collection and reaches a reader only when they may
+read its target's as well (`target_collection_id`), so that a link never tells of an entry out of
+reach. A reader's own grants of custom roles (`role_grant`) are walked for that reader alone - named to
+them or to a group they are in - so a device predicts a form's `actor.roles` and `actor.permissions`
+offline; the server still decides (§4.3). A configuration item (`cmdb_ci`, merged ones left out of
+the walk) and a relation between two (`cmdb_relation`) are filed under their hub, so READ there
+decides who holds a hub's inventory; every write of either records it, a merge the duplicate's
+relations as removed and the survivor's as they stand, and a sighting alone records nothing. The
+CMDB's classes and relation types, shipped and the workspace's own, travel as one record
+(`cmdb_catalogue`, under the workspace's identifier and no container, judged as a workspace-wide
+read), recorded again whenever one is defined. While the server is away the web app answers a hub's
+inventory, a CI with its relations and the catalogue from the copy, nothing writable: a CI is
+written through the reconciliation, which needs the server. A goal period (`goal_period`) is
+workspace-wide and judged as a workspace-wide read; a goal (`goal`), a check-in (`goal_check_in`, with
+its goal's hub) and a dashboard (`dashboard`) are filed under their hub - none for the workspace's -,
+a private dashboard reaches its owner alone and one shared with groups their members besides. A goal travels as its definition and its manual key
+results' values, never a progress, a view's live value or a share of linked entries done, which
+differ per reader (P-05) and are asked for online; every write of these records them, a period's
+closing each graded goal, a goal's deletion the goals moved to its parent. They are written online
+only; while the server is away the web app answers the periods, the goals and the dashboards from
+the copy as their definitions. Portfolios are narrowed per reader (below). A link carries its dependency's kind
+and lag (`dependency_kind`, `lag_days`) in the walk as in the delta, and setting them records the
+link again. An entry's scheduling mode and milestone mark (`entry_schedule`, by the entry's
+identifier) are filed under its collection and walked last; an entry without one is MANUAL and no
+milestone. Both are written online only: the plan is scheduled by the server. A sprint
+(`sprint`), an entry's open membership of one (`sprint_entry`, by the entry's identifier - one
+open sprint per entry) and an entry's estimate (`entry_estimate`, by the entry's identifier) are
+filed under the collection; every write records them - a start each member as committed, a close
+a carried entry in the next sprint and the others as removed, a planned sprint's deletion its
+entries as removed. A past membership, the burndown and the velocity are the server's, asked for
+online; while it is away the web app answers a collection's sprints from the copy. All three are
+written online only. A release (`release`) and an entry's membership of one (`release_entry`, by the
+entry's identifier - one release per entry) are filed under the hub; a release, its entries
+joining and leaving, its deletion and its release - its open entries carried or removed - record
+them. Both are written online only. A custom field definition (`custom_field`, a deleted one left out) is filed
+under its collection, a workspace-wide one under none and reaching every member as the types do:
+a read-restricted field narrows its values (UC-ID-27), never its definition. Defining, changing
+and deleting one records it; while the server is away the web app answers the definitions in force
+from the copy, so an entry's form is drawn offline. A person's time records (`time_record`) and
+running timer (`time_timer`, by the account) are walked for that person alone, filed under no
+container and addressed by `account_id` - a removal as well -, so the stream delivers them to that
+account only, as a custom role's grant (§4.3); the workspace's kinds of work (`time_work_types`)
+and its time policy (`time_policy`, as in force under the installation and the plan) are one
+record each under the workspace's identifier, walked once there is something to tell and reaching
+every member. While the server is away the web app
+answers the timer, its minutes counted on the device, the kinds of work and the policy from the
+copy. A person's weeks (`timesheet`, by the week's row) and capacities (`time_capacities`, one
+record per person) are theirs alone in the same way; the absences (`time_absence`) are the shared
+calendar and reach every member; the cost rates (`time_cost_rates`, one record under the
+workspace's identifier) and a budget (`time_budget`, filed under its hub or collection, never its
+burn) reach only whoever holds `MANAGE_COSTS` there, as `ListCostRates` and `ReadBudget` ask. A
+portfolio (`portfolio`) is filed under no container and reaches whoever may read at the workspace,
+as `ListPortfolios` answers it; its record names each project by its container, and the walk and
+the stream keep of them only those the reader may read - each judged as a change filed under it -,
+so one record is narrowed per reader. Its names, counts and budgets are read for the reader online
+or from the reader's own copy of the containers. The registry's rows - `agent_model`, `agent`,
+`agent_request` (a held act), `agent_eval_case`, `agent_eval_run` - are filed under no container;
+an agent, a held act and a run reach the agent's owner, whom a held act's and a run's record name as
+`owner_id`, and every row reaches whoever administers agents (`MANAGE_MEMBERS` at the workspace), as
+the registry's lists answer. An agent's record says whether its approval covers its model's revision
+when it was written; a changed model records its agents again. The ledger, the jobs and the
+spending are read online. The service desk's records about an entry - an approval with its trail
+(`approval`), one goal's SLA record (`entry_sla`) and a request's score (`satisfaction_rating`) -
+are filed under the entry's collection and reach whoever reads the entry, as `ReadEntryApprovals`
+and `ReadEntrySla` ask; every write of one records it as now stored, the stores themselves
+announcing it, so the clocks and the timers do too. An approval's record grants nobody the leave to
+decide: who may is asked online, and a decision needs the server; the reader's own waiting list
+(`/approvals`) is read online for the same reason. While the server is away the web app answers an
+entry's goals and approvals from the copy. An entry's commits, branches and pull requests
+(`code_link`, UC-INT-13) and its files in a store (`file_link`, UC-INT-14) are filed under its
+collection too and read from the copy while the server is away; a forge's hooks are read online. A
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
+
+**A kind whose read fails is skipped, not fatal.** One unreadable kind would otherwise stop every
+device's first synchronisation of the workspace. The walk goes on without it, counts it
+(`hubtask_sync_kinds_skipped_total`, A-39), and names it in the signed cursor and on the answer
+(`skipped_kinds`). A pull from a delta cursor that names skipped kinds serves the delta first; once
+the delta is current it walks those kinds again from the log position the delta reached - the
+first walk's rule, so a change landing meanwhile is the next delta's. A kind that fails again stays
+named and is tried on the next pull; the stream carries the names on and walks nothing. A cancelled
+request is not a skip: the walk ends with it.
 
 The device names itself on every pull and push (`device_id`, a client-minted UUIDv7) and registers by
 turning up (§6).
@@ -129,8 +223,11 @@ bucket each have `*_CREATE` (the route's body as `payload`, the client's identif
 object; a label's and a bucket's patch and deletion name their collection (`container_id`), and a
 reminder's and a series' name their entry (`item_id`). `TEMPLATE_APPLY` carries the instantiation's
 body; its entries arrive as ordinary creations. Each is applied through the route's own use case as
-the pushing person, never a code path of its own. A new kind is an additive enum value. Each mutation is answered `applied`, `merged`
-(with the resulting object), `rejected` (with a stable code) or `conflict` (with both values, §5).
+the pushing person, never a code path of its own. `ENTITY_UPSERT`, `ENTITY_PATCH` and
+`ENTITY_DELETE` are for the workspace's vocabulary (`entity` and `entity_key` name what, §4.4). A
+new kind is an additive enum value. Each mutation is answered `applied`, `merged` (with the
+resulting object), `rejected` (with a stable code, its `params` and the `field_errors` a problem
+document would carry) or `conflict` (with both values, §5).
 
 * **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once. An identifier already held — in this workspace or another, since every primary key is global — refuses the creation as `<area>.id_taken` (a `REJECTED` result, not a failure pushed again); it never reaches the row that holds it.
 * **An `op_id` per mutation** is kept server-side for the offline window (`HUBTASK_TOMBSTONE_WINDOW`, 90 days by default — the one period the change log, the operation log and the tombstones share, retention kind `SYNC_LOG`); a duplicate push takes effect exactly once.
@@ -146,8 +243,18 @@ source of truth.
 
 * It resumes from `Last-Event-ID` as a change-log cursor; one past the window is `sync.cursor_too_old`.
 * It authorises every record for its reader rather than trusting the subscription.
-* It is capped per credential, per tenant and per process; a refusal is `503` with `Retry-After`.
+* It is capped per credential, per tenant and per process (`HUBTASK_STREAM_PER_*`, deployment.md);
+  a refusal is `503` with `Retry-After`. Snapshots and live documents hold at most half of a
+  tenant's and a process's share, so they never leave the streams without room. A client refused
+  at a cap waits at least `Retry-After`, longer and spread with each refusal, pulls the delta on
+  each turn and shows "live updates paused" rather than "reconnecting".
 * A browser reads it through `fetch`, never `EventSource`, which cannot carry a bearer.
+* A workspace's first commit wakes its streams at once; commits in the 250 ms after it wake them
+  once more at the window's end (`ChangeListener`), so a burst of commits costs each stream one
+  read per window, not one per commit.
+* The web app gathers a burst of records for 300 ms and reloads each stale read once; an entry
+  record of another collection leaves a collection's level or board alone unless the board shows
+  that entry (`unaffected` in `apps/webapp/src/lib/data/live.ts`).
 
 ---
 
@@ -177,7 +284,7 @@ logged.
 | Definitions beside the entries | A container's name, description, icon and colour; a label; a bucket | Like a reminder: **whole** on creation (the client's identifier) and deletion, **LWW per field** between. A container's structure and privacy are refused in a patch (`sync.field_not_mergeable`), its policies and place and a bucket's place are not in the frame yet (`sync.field_unavailable`) |
 | Suggestions | Everything on an `ai_suggestion` | **Server-side, not merged**: delivered as an `UPSERT` with the whole record and its status; the change a decision caused arrives as the entry's own `UPSERT`. A second answer to one proposal is refused as already decided |
 | Account preferences | `locale`, `time_zone`, `week_start`, `celebrations`, `onboarding_completed_at` | **Last writer wins** through `UpdateAccountPreferences`, never a push: an account is not a synchronised entity |
-| Counters | Progress, derived values, a collection's figure | Computed server-side, never set by a client; a collection's figure travels in no change record and is answered only by the server's read, so a read the replica answers carries none |
+| Counters | Progress, derived values, a collection's figure | Computed server-side, never set by a client (a calculated field of an entry whose writes wait is shown as the browser computes it, `packages/expression`, until the server's answer lands); a collection's figure travels in no change record and is answered only by the server's read, so a read the replica answers carries none |
 | A container's structure in force | `structure` on a hub or collection ([domain-model.md](./domain-model.md) §2) | **Resolved by the server, never merged or pushed**: the record carries the structure in force whole - each setting's value, its source and the locks - and a later record replaces it whole. A change of a layer records it for every container that inherits that layer, in the writer's transaction: a hub's for its collections, the workspace's for every hub and collection, past a thousand by advancing the epoch instead (§8). A structure is written online; a client offline offers no change of it (`sync.needs_connection`). A container record held from before the server answered `structure` lacks it; a client that finds `features.structure` and such a record takes a fresh snapshot once. A collection moved to another hub records its structure in force too, since it now inherits from there. An entry record never carries the `hidden` mark a read answers ([domain-model.md](./domain-model.md) §2): the client derives it from the container's structure and the installation's types, and a container record makes the entries under it stale |
 | Provenance | `recurrence_rule_id`, `recurrence_source_id`, `origin_jumble_id` on an entry | Written by the materialisation or the conversion, never merged, delivered inside the item's `UPSERT`, never cleared when what they name is deleted. The jumble does not synchronise; a device reads the inbox online |
 | Calendar address | `calendar_uid` on an entry | Set once by the create (the CalDAV tree's, for the client that chose the UID), never merged — a moved UID is a todo the client cannot find again; a patch naming it is `sync.field_not_mergeable`. Not the entry's identifier (§9 rule 1) |
@@ -224,10 +331,77 @@ Permissions, the tenant boundary, the capability matrix's invariants (which type
 maximum depth), uniqueness, quotas, recurring follow-up instances, automatic assignment. A client may
 predict them to show something at once, but adopts the server's result.
 
+To predict, a device holds **its own person's grants of custom roles** and nobody else's. A grant
+given is recorded as `role_grant` with the role's key, the place and its holder (`account_id` or
+`group_id`); the stream delivers it to that account or to the group's members, asked at the moment
+it is read. A grant taken away, a role deleted and a group deleted record a removal naming no
+holder, delivered to every device - it carries an identifier only, and a device holding nothing
+under it drops nothing. A person joining a group is sent the group's grants again; a person leaving
+it is sent their removal addressed to them alone (`account_id`), so the members who stay keep
+them. Built-in memberships stay out of the replica: the device learns them from `/access/explain`.
+
 The `auto_assign` key of a collection's policies merges as one scalar, like `completion_policy`. A
 `ROUND_ROBIN` rotation state is the server's, advanced under a row lock in the assigning transaction
 and never sent to a client; the `item.assigned` record carries the answer.
 
+
+### 4.4 Entity mutations: the vocabulary written offline
+
+An `ENTITY_*` mutation writes one entity of the replica's vocabulary through the use case a person
+would call - `entry_type` (`CreateEntryType`, `ChangeEntryType`, `DeleteEntryType`), `link_type`,
+`workflow` (`CreateWorkflow`, `SaveWorkflowDraft`, `DeleteWorkflow`), `custom_role` (`CreateRole`,
+`ChangeRole`, `DeleteRole`) and `entry_link` (`LinkEntries`, `UnlinkEntries`). Each entity declares
+one merge rule (`core/domain/model/sync`, `Entity.Rule`):
+
+* **Versioned** - types, link types, workflows, roles. A patch or upsert carrying `base_version` is
+  applied only on that version; a stale one is `rejected` with the entity's own version conflict
+  (`roles.version_conflict`, …) and the device adopts the server's copy from the next pull. There is
+  no field-wise merge: a type, a workflow or a role is read and decided as a whole. An upsert asks the
+  change first and creates on "not found"; of a held entity it leaves out what only a creation sets
+  (a type's level, a link type's direction, cardinality, cycles and waits), so the server's stands.
+* **Presence** - links. A link is drawn under the identifier the device minted (UUIDv7) or removed;
+  `ENTITY_PATCH` is refused `sync.entity_not_patchable`.
+
+Under either rule a deletion of an entity already gone is `applied`, and a deletion is not versioned:
+the use case's own guards (a type in use, a system type) decide. A workflow is written to its
+draft; publishing it moves entries and stays online, as does setting the scheme. The scheme itself
+travels as one record (`workflow_scheme`, under the workspace's identifier and no container, reaching
+every member as `ListWorkflows` does), recorded whenever a hub or collection takes or drops a workflow
+and carrying the shipped workflow as the domain defines it, so a device that holds no row of it still
+knows its statuses; the shipped workflow's first row, stored when it is first used, is recorded as a
+`workflow` too. Custom field definitions are in
+the replica but have no entity mutation; they, grants of a role, the configuration document and
+settings are written online.
+
+A client queues them like an entry's: the web app maps a type's, link type's, workflow's or role's
+creation, change and deletion and a link drawn or removed to the entity mutation
+(`apps/webapp/src/lib/data/replica.ts`, `vocabularyOf`), a change carrying the version its copy holds
+as `base_version`, and answers the type, link type and workflow lists - the workflows with the
+scheme, so a board draws its columns and a step is offered - from the replica while offline. The
+role catalogue (`GET /roles`) stays online: the permission catalogue and the shipped roles are the
+server's, and the roles screen is an administrator's. A
+creation is predicted under an identifier the device mints; the server's answer names the entity's
+own and replaces the prediction. A change of an entity the copy does not hold goes online.
+
+The person's own timer is the one entity outside the vocabulary: `time_timer` (UC-TIM-01). An upsert
+starts it through `StartTimer` at the payload's `started_at`, a patch stops it through `StopTimer`
+at `stopped_at` in `zone`, a deletion discards it through `DiscardTimer`; its key names nothing the
+server reads, the timer being the caller's. The device's moments are held to the server's clock -
+ahead of it is now, a start more than a day before it is `timers.ran_too_long` - so a timer started
+and stopped without the server records the minutes it ran, not the minutes the push waited. The
+answer names the caller's account, under which the walk hands the timer out; a stop answers nothing,
+and the record it wrote and the timer's removal arrive with the stream. While a stop waits, the web
+app reads the timer as stopped.
+
+The person's own time records are the second: `time_record` (user-experience.md §5.11). An upsert
+records time through `LogTime` - its key is the identifier the device minted, which the server's
+answer replaces - or, carrying `corrects`, records a correction of that record through
+`CorrectTimeRecord`; a patch changes the record its key names through `UpdateTimeRecord`, a deletion
+deletes it through `DeleteTimeRecord`, each at the version the copy holds as `base_version`. A
+change or a deletion of a record the copy does not hold goes online. A refusal (a locked period, a
+week handed in) is kept and opens as a draft at `/time`. A record recorded and then changed before
+one push still names the minted identifier in its change, which the server does not hold; that
+change is refused and kept as a draft.
 ---
 
 ## 5. Conflicts are visible, not silent
@@ -277,6 +451,7 @@ The classic bug: a device offline for eight weeks recreates an item deleted mean
 * **Recurring tasks:** only the server creates a follow-up instance, bound to the status transition rather than to the event. An `ON_COMPLETION` series owes an occurrence only while nothing of it is open, so a second completion writes and seeds nothing; two concurrent passes are decided by the watermark's compare-and-set. **No client expands an RRULE**, for a series or a backup schedule ([ADR-0008](../adr/ADR-0008-jobs-and-scheduling.md)).
 * **Reminders** fire server-side. A client may schedule local notifications but must reconcile them on sync. `LAPSED` — a reminder whose moment passed while the data sat in an archive ([backup-restore.md](./backup-restore.md) §8.4) — means to a device what a cancellation means: do not remind.
 * **A structure change too large to send row by row resynchronises the workspace.** A change of the workspace's or a hub's structure that more than a thousand containers inherit advances the workspace's epoch rather than recording a row for each (§4.2); so does a migration that narrows the installation's capability profile, which changes the structure in force of containers without writing them.
+* **The goals reach a device only while their module is on.** Periods, goals, check-ins, dashboards and portfolios are withheld by the walk and the stream while the GOALS module is off at the workspace, the question the registry's gate asks ([UC-INS-21](../usecases/admin/UC-INS-21-switch-a-module-on.md) check 5); a removal is withheld alike. A switch at the workspace that changes what the module resolves to advances the epoch, so every device walks again and holds the goals exactly while they are on. Every other module's records stay in the copy - the base product's screens draw from them - and the client hides them. A hub's narrowing narrows nothing in the copy - the registry's gate refuses the module's operations that name a place in that hub; a switch at the installation or a plan advances no workspace's epoch and reaches a device that walked before it at its next walk.
 * **A restored workspace resynchronises by itself.** A restore writes rows without change log entries, so a successful restore into a workspace advances its synchronisation epoch, and a cursor from an older one is `sync.cursor_too_old` (§3.1, [backup-restore.md](./backup-restore.md) §8.3). A restore into a new workspace advances nothing.
 
 ---
@@ -290,7 +465,7 @@ Binding for every client, including third-party implementations:
 3. After `ACCESS_REVOKED` or `sync.gone`, local data is deleted.
 4. On `sync.cursor_too_old`, a full resynchronisation follows.
 5. Server responses overwrite local predictions; rejected mutations are shown to the user.
-6. Local storage is encrypted and discarded completely on sign-out.
+6. Local storage is encrypted and discarded completely on sign-out. Changes not sent yet are never discarded unasked: a sign-out with a non-empty queue first asks *send first* or *discard*, and a session that ends without one - expired, ended by an administrator, a refused credential - deletes the copy and keeps the queue, the refused changes and the device in the account's store, pushed when the same account signs in again and deleted when a different one does.
 7. Unknown fields and enum values are tolerated and written back unchanged (forward compatibility).
 8. Nothing in the right-hand column of §1 is offered offline.
 9. A document the replica assembled from field records carries no version the server confirmed: a read answered from the local copy carries no `ETag`, a direct write made from it sends no `If-Match`, and a queued mutation's `base_version` is the version of the last whole object received (the initial synchronisation or a full-object record).
@@ -356,3 +531,127 @@ to QS-27 of [arc42.md](./arc42.md) §10) is filed under `docs/evidence/SY-<date>
 | SY-A | Character-level merging for long notes (CRDT text) — assess the need after user feedback | After `1.0.0` |
 | SY-B | The default sync scope on a mobile shell (everything vs. subscribed containers). The browser asks for everything (§1): 66,867 entries measured 60 MB (4.1 MB gzipped), 6–11 s, once. The phone asks for everything too unless a measurement rules it out (F7 Decision 7), and its first synchronisation walks the pages so that an interruption resumes where it stopped (§3.1). Open until the first synchronisation of that workspace is measured on a reference phone - time, storage, memory, a resumption - and filed under `docs/evidence/` | The shells |
 | SY-D | The local cache encryption of a third-party client. First-party clients use SQLite encrypted at rest with the key in the platform keystore ([ADR-0033](../adr/ADR-0033-shared-client-architecture.md)) | Each third-party client |
+
+## 13. Live documents
+
+A page or a whiteboard is edited by several people at once (F-8). It is not an entry and does not
+travel through §3: its content is a CRDT, merged by the editors, and the server's part is to keep
+it, order it and decide who may touch it.
+
+* **The store** (migration 0251): per document a head (`realtime_document`: the last place given,
+  the place the newest snapshot covers), an append-only log of updates (`realtime_update`, each at
+  most 1 MiB, with its author) and snapshots (`realtime_snapshot`, at most 16 MiB). The server never
+  merges an update; it reads only what one covers - per editor the clock ranges of its content and
+  of its deletions, from the update's headers (`core/application/service/realtime` `Coverage`, a reader of
+  the editors' update encoding version one, no CRDT library). An update the editors could not read
+  is refused (`realtime.update_unreadable`), since stored it would break every opener. Two writers are ordered by the head's row lock; every insert rings the change
+  stream's doorbell (migration 0022), so a connection on another process catches up.
+* **The connection** is `GET /api/v1/realtime/documents/{kind}/{documentId}`, a WebSocket in the
+  editors' sync and awareness framing. The server sends the newest snapshot as sync step two, every
+  update after it, and - to a writer - an empty state vector, since it keeps none. The writer
+  derives the server's vector from the snapshot and updates it just received and answers with the
+  difference: its offline edits and its delete set, not its whole state (SY-F). An update appended
+  by another writer meanwhile only lowers that vector, so a writer may send more, never less;
+  duplicates are harmless to the editors and compaction bounds the log. Two messages are the server's own: `100` a writer's snapshot (the place
+  it covers, then the state) and `101` the server asking for one, after 500 updates past the last.
+  The place asked for is what the connection holds: every update up to it handed out on that
+  connection or written by its writer, so another writer's update still on its way stays after the
+  snapshot instead of being hidden by one that never held it. A snapshot for a place the
+  connection was not asked for is not stored (`presentation/realtime` `askSnapshot`), and neither is
+  one that does not cover the held snapshot and the updates up to its place, content and deletions
+  alike (`realtime.snapshot_incomplete`; more is a writer's words not yet sent): an opener reads
+  the snapshot and only what follows, so a buggy or hostile writer's snapshot would hide the rest.
+  The connection stays, its updates still land, the next request asks again, and the refusal is
+  counted (`hubtask_realtime_document_backlog_total{outcome="incomplete"}`, A-24). Checked against
+  real editors' updates (`Coverage_test.go`, fixtures from `packages/editor/scripts/coverage-fixtures.mjs`).
+* **Authorisation** is the realtime service's (`core/application/service/realtime`): a document's
+  kind names the place it sits at (a `Locator`), and reading needs READ there, writing WRITE_ITEMS,
+  with the token scopes `items:read` and `items:write`. Asked when the connection opens and again,
+  without a record, before every catch-up: access ended while connected closes it with `4403`. The
+  credential the connection was admitted with is asked again every thirty seconds: a session
+  revoked, signed out or expired since, a disabled account, or a credential that now names another
+  person closes it with `4401` and the code of the refusal - the client renews its pair then, as
+  for a refused call, so its reconnect carries a fresh bearer, and a pair it cannot renew ends the
+  session; a view as somebody (UC-ID-29) closes at its end. **A byte budget** bounds what is
+  written: a connection's updates and snapshots refill at 2 MiB a minute after a burst of one
+  snapshot and one update, and a workspace's connections on one process share 16 MiB a minute after
+  64 MiB (`presentation/realtime/Budget.go`, per process like the REST rate limit). The message past
+  either is not stored; the connection closes with `4429` and `realtime.too_fast:<seconds>`, and the
+  client reconnects no sooner, its words kept in the document meanwhile. The change stream asks the same at its next round after thirty seconds, and an agent's MCP
+  stream every thirty seconds; both end with the comment `credential`. A session, access token or
+  OAuth grant revoked, an account's status or a workspace's status changed rings
+  `hubtask_credential` (migration 0353, `tenant/account` or `tenant`), and every process asks the
+  credential of its held connections of that account or workspace at once; the thirty seconds stay
+  the bound when the listener is down. A
+  connection catches up when its own document's log moves (migration 0317 rings
+  `hubtask_document` with the document's key); any other change of the workspace - a grant taken
+  among them - asks the reader's access again at most every five seconds, and every thirty
+  seconds a connection catches up regardless, should a wake-up have been lost. A
+  kind no step registered answers not found. A browser's bearer may arrive as the subprotocol
+  `hubtask.bearer.<token>` on the upgrade and nowhere else.
+* **Bounds** (rule 7): a write that takes ten seconds, or ninety seconds without a message, ends the
+  connection; a ping every thirty seconds keeps a live one; the connections count against the
+  change stream's caps.
+* **Awareness** - a cursor, a selection, a name - is relayed to the document's other connections in
+  the same process and, through `AwarenessBus`, to those on the other processes as notifications
+  on `hubtask_awareness`. The bus keeps the newest message of each connection and sends all of a
+  process's every 100 ms in one transaction (system scope, through the transaction wrapper),
+  packed several to a notification under 7,900 bytes; a message that would not fit alone stays in
+  its process. It relays only while another relaying process has announced itself
+  (`origin/hello` on the same channel, every five seconds, at start and on hearing a new peer;
+  forgotten after fifteen), so a single process opens no transaction for a cursor - at most ten
+  per second per process otherwise, whatever the number of connections. It is never stored. No
+  sticky routing is needed behind a load balancer. Each message is counted in
+  `hubtask_realtime_awareness_relayed_total{outcome}` (`sent`, `local` without a peer,
+  `too_large`, `failed`); A-22 tells the operator when failures persist.
+* **The browser client** is `packages/editor`: a Yjs document per page bound to the block editor,
+  its connection in this framing (a reader sends no update; a writer answers `101` with a `100`)
+  and a reconnect with a doubling wait up to thirty seconds. The socket comes from the sync engine
+  (`liveSocket`), which adds the bearer as the subprotocol. A writer's editor starts once the
+  server's state has arrived and seeds an empty document from the page's Markdown body; the
+  editor saves that body beside the document a moment after the typing stops. A reader is not
+  connected and reads the body as last saved.
+* **A whiteboard** (kind `whiteboard`) is the same connection over a Yjs document of the board's
+  objects (`packages/whiteboard`): each object a map of its own, keyed by its identifier, ordered
+  by a number per object. A writer seeds an empty document from the board's saved scene and saves
+  the scene beside the document a moment after the drawing stops, without `If-Match`; a reader is
+  connected read-only and, before the document holds anything, draws the scene as last saved.
+  Offline, an open board keeps being drawn on and merges when the connection is back.
+* **Unsent words are kept on the device.** A writer's local changes of a page or a board that no
+  answered connection carried yet are merged into one update and kept in the account's own store
+  (collection `live_unsent`, one of the device's own collections: emptying a stale copy keeps it,
+  sign-out deletes it with the store). A document opened again applies them before it connects and
+  sends them in its answer to the server's vector; the status line says how many changes wait, and
+  leaving the page while any wait asks first (`packages/editor` `UpdateKeeper`,
+  `apps/webapp/src/lib/data/unsentdocs.ts`). A tab never opened again on that device leaves them
+  there until the next sign-in or sign-out.
+* **An entry's presence** (kind `entry`) is awareness alone: who has the entry open and who is
+  writing a reply (UC-SVC-03 check 4). It is read with READ on the entry itself - a role reading
+  only its own entries is judged on it - and never written: the service answers it read-only and
+  refuses an update or a snapshot as `realtime.read_only`, so nothing of it is stored. Offline,
+  nobody is shown.
+* **Read offline.** A board's saved scene is an ordinary record of the change log and the walk
+  (entity `whiteboard`, filed under its hub): making, drawing, renaming, trashing and restoring a
+  board record it as it now stands. While the server is away the web app answers a hub's boards
+  and a board from the copy - one never opened included -, never writable. A page's saved state - its Markdown body included - is an ordinary record of the
+  change log and the walk (entity `page`, filed under its hub, so READ there decides who holds it):
+  every write of a page, a trash and a restore with the pages that moved with it, record it. While
+  the server is away the web app answers a hub's tree and a page from the copy, the page not
+  writable: writing is the live document's, which needs the server.
+  A page restricted to fewer of its hub's readers, or under one, is not every reader's: the walk
+  leaves it out and every record of it is a `DELETE`, so devices drop it and read it from the
+  server (domain-model.md §3.8).
+* **Retention and erasure.** A snapshot covers the updates at or below its place - by range, no
+  update row is rewritten - and marks the snapshot it replaces; `DOCUMENT_HISTORY` removes both
+  thirty days after the covering snapshot was written ([data-retention.md](./data-retention.md) §3),
+  held by a workspace hold. The document itself - the newest snapshot and the updates after it - is
+  never aged out. An erased author leaves the update without a name (`ON DELETE SET NULL`); the
+  owning kind erases its documents with itself: a page or a board removed - by its hub's purge, a
+  workspace's or a replacing restore - takes its document in the same statement (a row trigger,
+  migration 0281; `Documents.Erase` for a kind removed on its own). The archive carries all three
+  tables ([tenant-export.md](./tenant-export.md) §6).
+
+| # | Open point | Needed by |
+|---|---|---|
+| SY-E | Awareness across processes - closed: relayed on `hubtask_awareness` (see *Awareness* above) | - |
+| SY-F | Reconnect traffic - closed on the client: the writer answers the server's empty vector with the difference to the state it was just handed (`packages/editor` `LiveDocument`). Measured by `live.test.ts` (*a reconnecting writer sends only what the server lacks*): a page of about 107 KB and 20 writers reconnecting, half with offline words, sent 107,090 bytes per reconnect before and under 200 after, so the log grows by the offline words. Compacting without a writer needs a server-side merge (a CRDT library in Go), which the owner's answer A rules out; the log is bounded instead: a writer that opens a document past 500 updates is asked at once, an update landing more than 2,500 past the snapshot is counted (`hubtask_realtime_document_backlog_total{outcome="overdue"}`, A-24), and at 5,000 the log refuses new updates (`realtime.compaction_overdue`, counted `refused`) and asks the writer again - its snapshot is its whole state, the refused words included, and lifts the refusal (`TestALogNobodyCompactsIsBounded`, `TestALogNobodyCompactsRefusesUpdatesUntilASnapshot`, `TestARefusedUpdateAsksTheWriterForItsSnapshot`) | a log measured to outgrow the 500-update compaction |

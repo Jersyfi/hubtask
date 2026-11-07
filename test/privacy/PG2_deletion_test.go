@@ -79,6 +79,7 @@ var permittedAfterErasure = map[string]string{
 func TestPG2AnErasureLeavesNothingBehind(t *testing.T) {
 	ctx := context.Background()
 	subject, tenant, email := seedErasableSubject(ctx, t, runsAsARobot)
+	written := seedWritings(ctx, t, tenant, subject)
 
 	objects := newBucket()
 	eraser := eraserFor(ctx, t, objects)
@@ -105,6 +106,102 @@ func TestPG2AnErasureLeavesNothingBehind(t *testing.T) {
 		t.Errorf("%s.%s still holds the erased person (%d row(s)) — PG-2. Either the erasure has "+
 			"to serve that location, or it belongs in permittedAfterErasure with the reason it is "+
 			"evidence rather than data", hit.table, hit.column, hit.rows)
+	}
+
+	// By identifier, not by the column the sweep reads: an author reference set to NULL by a
+	// cascade removes the identifier the sweep looks for and leaves the words behind.
+	admin := dbtest.AdminPool(ctx, t)
+	for _, row := range written {
+		var left int
+		if err := admin.QueryRow(ctx, "SELECT count(*) FROM "+row.table+" WHERE "+row.key+" = $1",
+			row.id.String()).Scan(&left); err != nil {
+			t.Fatalf("reading %s: %v", row.table, err)
+		}
+		if left != 0 {
+			t.Errorf("%s %s the person wrote survived the full deletion (PG-2)", row.table, row.id)
+		}
+	}
+	var words string
+	if err := admin.QueryRow(ctx, "SELECT body || quote || coalesce(author_id::text, '') FROM page_comment WHERE id = $1",
+		written[len(written)-1].answered.String()).Scan(&words); err != nil {
+		t.Fatalf("reading the answered comment: %v", err)
+	}
+	if words != "" {
+		t.Errorf("the person's answered page comment kept its words or its author: %q", words)
+	}
+}
+
+// written is one row the person wrote outside entries, seeded for PG-2.
+type written struct {
+	table, key string
+	id         shared.ID
+	// answered is, on the last row, the person's page comment somebody else replied to.
+	answered shared.ID
+}
+
+// seedWritings adds, for the person, one row of each kind they write outside entries - a page and
+// a board comment, a goal check-in, a portfolio update, a page draft - and a page comment of theirs
+// another person answered, which stays as a removed comment.
+func seedWritings(ctx context.Context, t *testing.T, tenant, subject shared.ID) []written {
+	t.Helper()
+	admin := dbtest.AdminPool(ctx, t)
+	other, hub := freshID(), freshID()
+	page, board, period, goal, portfolio := freshID(), freshID(), freshID(), freshID(), freshID()
+	pageComment, answered, reply, boardComment, checkIn, update := freshID(), freshID(), freshID(), freshID(), freshID(), freshID()
+	statements := []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO account (id, tenant_id, email, display_name) VALUES ($1, $2, $3, 'Ben')`,
+			[]any{other.String(), tenant.String(), "ben-" + strings.ReplaceAll(other.String(), "-", "") + "@example.org"}},
+		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		  VALUES ($1, $2, 'HUB', 'Knowledge', 'b0', $3)`,
+			[]any{hub.String(), tenant.String(), other.String()}},
+		{`INSERT INTO page (id, tenant_id, hub_id, title, order_key, created_by, created_at, updated_by, updated_at)
+		  VALUES ($1, $2, $3, 'Handbook', 'a0', $4, now(), $4, now())`,
+			[]any{page.String(), tenant.String(), hub.String(), other.String()}},
+		{`INSERT INTO page_comment (id, tenant_id, page_id, author_id, body, quote, created_at)
+		  VALUES ($1, $2, $3, $4, 'my remark', 'a quote', now()), ($5, $2, $3, $4, 'my question', '', now())`,
+			[]any{pageComment.String(), tenant.String(), page.String(), subject.String(), answered.String()}},
+		{`INSERT INTO page_comment (id, tenant_id, page_id, parent_id, author_id, body, created_at)
+		  VALUES ($1, $2, $3, $4, $5, 'an answer', now())`,
+			[]any{reply.String(), tenant.String(), page.String(), answered.String(), other.String()}},
+		{`INSERT INTO page_draft (tenant_id, page_id, title, body, updated_by, updated_at)
+		  VALUES ($1, $2, 'Handbook', 'my unpublished words', $3, now())`,
+			[]any{tenant.String(), page.String(), subject.String()}},
+		{`INSERT INTO whiteboard (id, tenant_id, hub_id, title, created_by, created_at, updated_by, updated_at)
+		  VALUES ($1, $2, $3, 'Plan', $4, now(), $4, now())`,
+			[]any{board.String(), tenant.String(), hub.String(), other.String()}},
+		{`INSERT INTO whiteboard_comment (id, tenant_id, whiteboard_id, author_id, body, created_at)
+		  VALUES ($1, $2, $3, $4, 'on the board', now())`,
+			[]any{boardComment.String(), tenant.String(), board.String(), subject.String()}},
+		{`INSERT INTO goal_period (id, tenant_id, name, start_on, end_on, state, created_at, updated_at)
+		  VALUES ($1, $2, 'Q1', '2026-01-01', '2026-03-31', 'OPEN', now(), now())`,
+			[]any{period.String(), tenant.String()}},
+		{`INSERT INTO goal (id, tenant_id, period_id, title, status, created_at, updated_at)
+		  VALUES ($1, $2, $3, 'Ship it', 'ON_TRACK', now(), now())`,
+			[]any{goal.String(), tenant.String(), period.String()}},
+		{`INSERT INTO goal_check_in (id, tenant_id, goal_id, author_id, status, confidence, note, created_at)
+		  VALUES ($1, $2, $3, $4, 'ON_TRACK', 7, 'my note', now())`,
+			[]any{checkIn.String(), tenant.String(), goal.String(), subject.String()}},
+		{`INSERT INTO portfolio (id, tenant_id, name, status, created_at, updated_at)
+		  VALUES ($1, $2, 'Programme', 'ON_TRACK', now(), now())`,
+			[]any{portfolio.String(), tenant.String()}},
+		{`INSERT INTO portfolio_update (id, tenant_id, portfolio_id, author_id, status, summary, created_at)
+		  VALUES ($1, $2, $3, $4, 'ON_TRACK', 'my summary', now())`,
+			[]any{update.String(), tenant.String(), portfolio.String(), subject.String()}},
+	}
+	for _, statement := range statements {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding what the person wrote: %v\n%s", err, statement.sql)
+		}
+	}
+	return []written{
+		{table: "page_comment", key: "id", id: pageComment},
+		{table: "whiteboard_comment", key: "id", id: boardComment},
+		{table: "goal_check_in", key: "id", id: checkIn},
+		{table: "portfolio_update", key: "id", id: update},
+		{table: "page_draft", key: "page_id", id: page, answered: answered},
 	}
 }
 
@@ -242,7 +339,7 @@ func seedErasableSubject(
 
 	tenant, subject = freshID(), freshID()
 	hub, collection, item := freshID(), freshID(), freshID()
-	rule, subscription, robot := freshID(), freshID(), freshID()
+	rule, subscription, robot, dashboard := freshID(), freshID(), freshID(), freshID()
 	runAs := robot
 	if ruleRunsAsThePerson {
 		runAs = subject
@@ -329,6 +426,20 @@ func seedErasableSubject(
 		{`INSERT INTO webhook_delivery (id, tenant_id, subscription_id, event_id, status)
 		  VALUES ($1, $2, $3, $4, 'SUCCEEDED')`,
 			[]any{freshID().String(), tenant.String(), subscription.String(), freshID().String()}},
+		// Standing arrangements of the person's: a dashboard only they see, a digest of the
+		// workspace's dashboard mailed to them, and approvals delegated by them and to them.
+		{`INSERT INTO dashboard (id, tenant_id, owner_id, name, sharing, created_at, updated_at, updated_by)
+		  VALUES ($1, $2, $3, 'mine', 'PRIVATE', now(), now(), $3),
+		         ($4, $2, $5, 'the team''s', 'SCOPE', now(), now(), $5)`,
+			[]any{freshID().String(), tenant.String(), subject.String(), dashboard.String(), robot.String()}},
+		{`INSERT INTO dashboard_digest (id, tenant_id, dashboard_id, account_id, cadence, hour, time_zone,
+		    next_at, created_at, updated_at)
+		  VALUES ($1, $2, $3, $4, 'DAILY', 8, 'Europe/Berlin', now(), now(), now())`,
+			[]any{freshID().String(), tenant.String(), dashboard.String(), subject.String()}},
+		{`INSERT INTO approval_delegation (tenant_id, account_id, delegate_id, starts_at, ends_at)
+		  VALUES ($1, $2, $3, now(), now() + interval '7 days'),
+		         ($1, $3, $2, now(), now() + interval '7 days')`,
+			[]any{tenant.String(), subject.String(), robot.String()}},
 	}
 
 	for _, statement := range statements {

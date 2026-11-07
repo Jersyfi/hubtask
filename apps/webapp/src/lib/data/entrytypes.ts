@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+/**
+ * The workspace's entry types (UC-FLW-01): which a new entry of a level may take, what an entry's
+ * type is, and how it is drawn. Pure, for the reason `levels.ts` is; `entrytypes.svelte.ts` binds it
+ * to the read.
+ *
+ * **Without the workflows module nothing here is shown** (check 8): `typesShown` is the one place
+ * that asks, so a picker and a row mark cannot disagree about it. A system type - the level's own,
+ * keyed after it - is never marked on a row: it is what an entry is without a type of its own.
+ */
+
+import { ICON_NAMES, type IconName } from '@hubtask/design-system/icons';
+import type { Capabilities, EntryType } from '@hubtask/sync-engine';
+
+/** The module whose screens these are, as `modules_on` names it. */
+export const WORKFLOWS = 'WORKFLOWS';
+
+/** Whether the workspace shows types at all: the workflows module is on. */
+export function typesShown(manifest: Capabilities | undefined): boolean {
+  const on = (manifest as { modules_on?: readonly string[] } | undefined)?.modules_on ?? [];
+  return on.includes(WORKFLOWS);
+}
+
+/** The key of a level's own type: the level in lower case. */
+export const systemKeyOf = (level: string): string => level.toLowerCase();
+
+/**
+ * The types a new entry of the level may take - not archived, the level's own first. `offered` is
+ * the collection's `entry_types` for the level: only those, in its order, the level's own still
+ * first where it is among them. A key that names no type in use is passed over, and a list of which
+ * none is left offers every type - the server's rule (`EntryTypes.ChooseAmong`), so the first one
+ * here is the one an entry sent without a type gets.
+ */
+export function offeredTypes(
+  types: readonly EntryType[], level: string, offered?: readonly string[], hub?: string | null,
+): readonly EntryType[] {
+  const inUse = types
+    .filter((type) => type.level === level && !type.archived && usableIn(type, hub))
+    .sort((a, b) => Number(b.system) - Number(a.system) || a.position - b.position || a.key.localeCompare(b.key));
+  if (!offered || offered.length === 0) return inUse;
+  const narrowed = offered.flatMap((key) => inUse.filter((type) => type.key === key));
+  if (narrowed.length === 0) return inUse;
+  return [...narrowed].sort((a, b) => Number(b.system) - Number(a.system));
+}
+
+/**
+ * Whether an entry inside the hub may take the type (UC-FLW-01 check 10): a type of the whole
+ * workspace everywhere, a hub's own only inside it - the server's `EntryTypes.Within`. Without a
+ * hub, only the workspace's.
+ */
+export function usableIn(type: Pick<EntryType, 'hub_id'>, hub?: string | null): boolean {
+  return !type.hub_id || type.hub_id === hub;
+}
+
+/** A hub's settings: the types shared with it, read-only there, and its own. */
+export function typesAtHub(types: readonly EntryType[], hub: string): { readonly shared: readonly EntryType[]; readonly own: readonly EntryType[] } {
+  return { shared: types.filter((type) => !type.hub_id), own: types.filter((type) => type.hub_id === hub) };
+}
+
+/** A key free in the workspace for a copy of the type: `<key>_copy`, then `_2`, `_3`, … */
+export function copyKeyFor(types: readonly EntryType[], key: string): string {
+  const taken = new Set(types.map((type) => type.key));
+  const stem = `${key}_copy`.slice(0, 44);
+  if (!taken.has(stem)) return stem;
+  for (let n = 2; ; n++) {
+    const candidate = `${stem}_${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+/** The type keys a collection's settings offer on a level, or none where it offers every type. */
+export function entryTypesOffered(settings: { entry_types?: Record<string, readonly string[]> } | undefined, level: string): readonly string[] | undefined {
+  return settings?.entry_types?.[level];
+}
+
+/** An entry's type: its own key, or its level's own where it names none or one not read yet. */
+export function typeOf(types: readonly EntryType[], level: string, key: string | undefined): EntryType | undefined {
+  const own = key ? types.find((type) => type.key === key) : undefined;
+  return own ?? types.find((type) => type.key === systemKeyOf(level));
+}
+
+/** The mark a row draws for its entry's type; none for the level's own type. */
+export function rowMarkOf(
+  types: readonly EntryType[],
+  level: string,
+  key: string | undefined,
+): { readonly icon: IconName; readonly colorToken: string; readonly name: string } | undefined {
+  const type = typeOf(types, level, key);
+  if (!type || type.system) return undefined;
+  return { icon: iconOf(type), colorToken: type.color_token, name: type.name ?? type.key };
+}
+
+/** The icon a type names, where the set has it; a tag otherwise, never a broken image. */
+export function iconOf(type: Pick<EntryType, 'icon'>): IconName {
+  return (ICON_NAMES as readonly string[]).includes(type.icon) ? (type.icon as IconName) : 'tag';
+}
+
+/** The levels a type sits on, in the order the administration lists them. */
+export const TYPE_LEVELS = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'] as const;
+
+/**
+ * The types that may be named as allowed underneath a type of the level (UC-FLW-01 check 9): those
+ * of the level below that are not archived, the level's own first; none below an activity. A key
+ * still listed but archived stays, so saving does not drop it unseen.
+ */
+export function childTypes(types: readonly EntryType[], level: string, listed: readonly string[] = []): readonly EntryType[] {
+  const at = TYPE_LEVELS.indexOf(level as (typeof TYPE_LEVELS)[number]);
+  const below = at < 0 ? undefined : TYPE_LEVELS[at + 1];
+  if (!below) return [];
+  return levelTypes(types, below).filter((type) => !type.archived || listed.includes(type.key));
+}
+
+/** The icons the administration offers a type, from the design system's set. */
+export const TYPE_ICONS: readonly IconName[] = [
+  'tag', 'task', 'work-package', 'activity', 'square-check', 'star', 'flag', 'zap', 'lightbulb',
+  'rocket', 'wrench', 'hammer', 'code', 'git-branch', 'shield', 'lock', 'key', 'circle-alert',
+  'triangle-alert', 'file-text', 'book-open', 'briefcase', 'calendar', 'mail', 'inbox', 'user',
+  'users', 'globe', 'house', 'heart', 'gift', 'shopping-cart', 'wallet', 'sparkles',
+];
+
+/** Every type of a level as the administration lists it - archived ones included, last. */
+export function levelTypes(types: readonly EntryType[], level: string): readonly EntryType[] {
+  return types
+    .filter((type) => type.level === level)
+    .sort(
+      (a, b) =>
+        Number(a.archived) - Number(b.archived) ||
+        Number(b.system) - Number(a.system) ||
+        a.position - b.position ||
+        a.key.localeCompare(b.key),
+    );
+}
+
+/**
+ * The positions that move a type one place up or down among its level's types that are not
+ * archived: every type of the level numbered anew from 1, and only those whose number changes
+ * returned, so a move writes as few types as it can. The level's own type stays first.
+ */
+export function reorder(
+  types: readonly EntryType[],
+  key: string,
+  by: -1 | 1,
+): readonly { readonly type: EntryType; readonly position: number }[] {
+  const moved = types.find((type) => type.key === key);
+  if (!moved || moved.system || moved.archived) return [];
+  const order = offeredTypes(types, moved.level).filter((type) => !type.system);
+  const at = order.findIndex((type) => type.key === key);
+  const to = at + by;
+  if (to < 0 || to >= order.length) return [];
+  const next = [...order];
+  [next[at], next[to]] = [next[to] as EntryType, next[at] as EntryType];
+  return next
+    .map((type, index) => ({ type, position: index + 1 }))
+    .filter(({ type, position }) => type.position !== position);
+}
+
+/** A key from a name, as the administration proposes it: lower case, words joined by `_`. */
+export function keyFrom(name: string): string {
+  return name
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+}
+
+/**
+ * Every type in the order a list groups by and a filter offers them (S-03): by level as the
+ * administration lists them, each level's own type first, archived ones last - an archived type
+ * still marks the entries that keep it, so it is still a value to group or filter by.
+ */
+export function typeOrder(types: readonly EntryType[]): readonly EntryType[] {
+  return TYPE_LEVELS.flatMap((level) => levelTypes(types, level));
+}
+
+/**
+ * A type's name by its key: its own, a level's own type named after its level (`levelName`, the
+ * caller's translation), a key no read type carries as itself - a list and a board head a group so.
+ */
+export function typeNameOf(types: readonly EntryType[], key: string, levelName: (level: string) => string): string {
+  const type = types.find((each) => each.key === key);
+  if (!type) return key;
+  return type.name ?? levelName(type.level);
+}
+
+/** The values a change of type clears once confirmed; a completion is never among them. */
+export const DROPPABLE = ['due_at', 'recurrence'] as const;
+
+/**
+ * The values a change of type would drop, by field, from the server's refusal
+ * (`entry_types.values_dropped`, UC-FLW-01 check 4); none for any other answer. `isConfirmable` is
+ * false where one of them is a completion, which is never dropped: the entry is reopened first.
+ */
+export function droppedBy(error: unknown): { readonly fields: readonly string[]; readonly isConfirmable: boolean } | undefined {
+  const refusal = error as { detailCode?: string; fieldErrors?: readonly { path?: string }[] } | undefined;
+  if (refusal?.detailCode !== 'entry_types.values_dropped') return undefined;
+  const fields = (refusal.fieldErrors ?? []).flatMap((each) => (each.path ? [each.path.replace(/^\//, '')] : []));
+  if (fields.length === 0) return undefined;
+  return { fields, isConfirmable: fields.every((field) => (DROPPABLE as readonly string[]).includes(field)) };
+}
+
+/** One language's texts of a type as the editor holds them: a row per language. */
+export interface TranslationRow {
+  readonly language: string;
+  readonly name: string;
+  readonly description: string;
+}
+
+/** A type's texts per language as the editor's rows, in the order of their tags. */
+export function translationRowsOf(type: Pick<EntryType, 'translations'> | undefined): TranslationRow[] {
+  return Object.entries(type?.translations ?? {})
+    .map(([language, words]) => ({ language, name: words.name ?? '', description: words.description ?? '' }))
+    .sort((a, b) => a.language.localeCompare(b.language));
+}
+
+/**
+ * The rows as the contract's `translations` (UC-SVC-05 check 7): trimmed, a member left empty
+ * left out, and a language whose texts are all empty dropped - it would read the defaults anyway.
+ */
+export function translationsOf(rows: readonly TranslationRow[]): NonNullable<EntryType['translations']> {
+  const out: Record<string, { name?: string; description?: string }> = {};
+  for (const row of rows) {
+    const name = row.name.trim();
+    const description = row.description.trim();
+    if (!name && !description) continue;
+    out[row.language] = { ...(name ? { name } : {}), ...(description ? { description } : {}) };
+  }
+  return out;
+}
+
+/** Whether two sets of texts per language say the same. */
+export function sameTranslations(a: EntryType['translations'], b: EntryType['translations']): boolean {
+  const canonical = (value: EntryType['translations']) =>
+    JSON.stringify(translationRowsOf({ translations: value ?? {} }).map((row) => [row.language, row.name, row.description]));
+  return canonical(a) === canonical(b);
+}
+
+/** The languages a row may still be added for: the installation's, less those already written. */
+export function languagesLeft(supported: readonly string[], rows: readonly TranslationRow[]): readonly string[] {
+  return supported.filter((language) => !rows.some((row) => row.language === language));
+}

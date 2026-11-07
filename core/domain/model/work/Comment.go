@@ -48,6 +48,9 @@ type Comment struct {
 	Kind         CommentKind
 	SystemCode   string
 	SystemParams map[string]string
+	// Internal marks a note the team writes for itself (UC-SVC-04): every reader of the entry
+	// reads it, a requester following the entry through the portal never does. Fixed at writing.
+	Internal bool
 }
 
 // CommentKind is who a comment is from: the person, or the server on the person's behalf.
@@ -82,6 +85,8 @@ type NewCommentInput struct {
 	// parameters of its heading. Empty is what somebody wrote.
 	SystemCode   string
 	SystemParams map[string]string
+	// Internal writes a note for the team rather than a reply the requester reads.
+	Internal bool
 
 	// Text brings the body to normal form C before it is bounded and stored (i18n-l10n.md §5);
 	// NewWorkItemInput says why it is handed in.
@@ -139,6 +144,8 @@ func NewComment(input NewCommentInput) (Comment, error) {
 		CreatedAt:       input.Now,
 		Version:         1,
 		Kind:            CommentByUser,
+		// A reply to an internal note is internal: the requester never reads what it answers.
+		Internal: input.Internal || (input.Parent != nil && input.Parent.Internal),
 	}
 	if input.SystemCode != "" {
 		comment.Kind, comment.SystemCode, comment.SystemParams = CommentBySystem, input.SystemCode, input.SystemParams

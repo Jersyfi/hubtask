@@ -41,6 +41,7 @@ import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
 import { recents } from './recents.svelte.ts';
+import { forgetHubVisits } from './data/offlinehubs.ts';
 import { search } from './data/search.svelte.ts';
 import { recoveryNote } from './data/recoverynote.svelte.ts';
 import { stepUp } from './data/stepup.svelte.ts';
@@ -238,7 +239,7 @@ class Session {
     if (this.#signingIn || this.#status === 'signed-out') return;
     this.#paused = {};
     this.#problem = undefined;
-    void this.#discard();
+    void this.#discard({ keepUnsent: true });
   }
 
   /** Whether step one is back because the second step's time ran out. Cleared by the next attempt. */
@@ -505,7 +506,13 @@ class Session {
       ? { terms_url: terms.url, ...(terms.version ? { terms_version: terms.version } : {}) }
       : {};
     return this.#open(() =>
-      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', REDEEM, { token, password, ...agreed }),
+      // The card's language: the owner a workspace was made for finds its defaults named in it.
+      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', REDEEM, {
+        token,
+        password,
+        locale: messages.locale,
+        ...agreed,
+      }),
     );
   }
 
@@ -575,7 +582,7 @@ class Session {
       return true;
     } catch (error) {
       // Everything the engine throws is a `TransportError`; anything else would be a defect in
-      // the seam rather than an answer, and `errors.internal` is what a reader is owed for one.
+      // the seam rather than an answer, with no reference to quote.
       if (isPaused(error)) {
         // Not a refusal of what the person typed: the workspace is paused, and the screen says so
         // in its own words rather than as a red sentence beside the form.
@@ -588,10 +595,10 @@ class Session {
       } else {
         this.#problem = error instanceof TransportError
           ? renderProblem(error, messages)
-          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+          : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
       }
       if (error instanceof TransportError) options.onRefusal?.(error);
-      void this.#discard();
+      void this.#discard({ keepUnsent: true });
       return false;
     } finally {
       this.#signingIn = false;
@@ -607,9 +614,11 @@ class Session {
    * session listing is where ending one elsewhere is a thing somebody can act on.
    *
    * `offline-sync.md` §9.6 — "local storage is discarded completely on sign-out" — is why
-   * `engine.reset()` is in `#discard` and not a to-do.
+   * `engine.reset()` is in `#discard` and not a to-do. Changes not sent yet are discarded only
+   * once the person was asked (`unsent`, below); `keepUnsent` holds them for the same account's
+   * next sign-in instead, for a sign-out that could not ask.
    */
-  async signOut(): Promise<void> {
+  async signOut(options: { keepUnsent?: boolean } = {}): Promise<void> {
     this.#problem = undefined;
     this.#intended = undefined;
     this.#owed = undefined;
@@ -625,7 +634,18 @@ class Session {
     } catch {
       // Already expired, already revoked, or unreachable. All three end the same way here.
     }
-    void this.#discard();
+    void this.#discard(options);
+  }
+
+  /** The changes this device has not sent yet - what a sign-out asks about before discarding them. */
+  get unsent(): number {
+    return engine.queueState.count;
+  }
+
+  /** Sends what is waiting now, and answers what is still waiting afterwards. */
+  async sendUnsent(): Promise<number> {
+    await engine.push().catch(() => {});
+    return engine.queueState.count;
   }
 
   /**
@@ -644,7 +664,7 @@ class Session {
     // person who was in the middle of something.
     this.#ended = true;
     this.#problem = undefined;
-    void this.#discard();
+    void this.#discard({ keepUnsent: true });
   }
 
   /** Takes the remembered path, once. A path that navigated twice is a path that fights the reader. */
@@ -688,7 +708,7 @@ class Session {
     await this.#discard();
   }
 
-  #discard(): Promise<void> {
+  #discard({ keepUnsent = false }: { keepUnsent?: boolean } = {}): Promise<void> {
     // The elevation belongs to the session that proved for it (ADR-0070 §4), and this store is a
     // module singleton whose clock outlived one. Signing out and back in inside one page load left
     // the countdown running for whoever signed in next.
@@ -697,11 +717,17 @@ class Session {
     // Read before the pair goes, which takes the account with it.
     const account = platform.lastAccount();
     platform.releaseBearer();
-    // The copy's key after the copy (offline-sync.md §9.6): the reset deletes the store first, so
-    // nothing writes into a copy whose key is already gone and brings a new one into being.
-    const gone = engine.reset().then(async () => {
-      if (account !== undefined) await platform.forgetCopy(account);
-    }).catch(() => {});
+    // An end nobody chose keeps what the person did: the copy goes, the queue stays in the
+    // account's store and is pushed when that account signs in again; another account signing in
+    // deletes it (offline-sync.md §9.6). Otherwise the copy's key goes after the copy: the reset
+    // deletes the store first, so nothing writes into a copy whose key is already gone.
+    const gone = keepUnsent && account
+      ? engine.release().then((kept) => {
+        if (kept > 0) platform.holdUnsentOf(account);
+      }).catch(() => {})
+      : engine.reset().then(async () => {
+        if (account !== undefined) await platform.forgetCopy(account);
+      }).catch(() => {});
     // A passing message - an *Undo* least of all - belongs to the account that caused it.
     toast.clear();
     // What this device remembered of the person who was signed in. Both hold their content - the
@@ -709,6 +735,7 @@ class Session {
     // rather than outliving them in a browser somebody else also uses.
     recents.forget();
     search.forget();
+    forgetHubVisits(account);
     // A trip to the provider and the grant it earned belong to the session that is ending too.
     stepUp.forget();
     recoveryNote.close();

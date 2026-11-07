@@ -11,11 +11,13 @@
 -- name: InsertWebhookSubscription :exec
 INSERT INTO webhook_subscription (
   id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+  format, chat_room, chat_locale,
   secret_enc, secret_key_id, state, created_by, created_at, version
 )
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('target_url'), sqlc.arg('event_types'),
   sqlc.narg('filter_expr'), sqlc.narg('scope_type'), sqlc.narg('scope_id'),
+  sqlc.arg('format'), sqlc.narg('chat_room'), sqlc.narg('chat_locale'),
   sqlc.arg('secret_enc'), sqlc.narg('secret_key_id'),
   sqlc.arg('state'), sqlc.arg('created_by'), sqlc.arg('created_at'), 1
 );
@@ -25,6 +27,7 @@ VALUES (
 -- audit entry is written under the subscription's tenant, and a subscription read back without one
 -- is a subscription no auditable operation can be performed on.
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -36,6 +39,7 @@ WHERE id = sqlc.arg('id');
 -- Not paged - a workspace has a handful of integrations, and a cursor over a handful is machinery
 -- nobody reads.
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -49,6 +53,7 @@ ORDER BY id DESC;
 -- subscription of the tenant on every event. The array containment is what the whole shape of
 -- `event_types` is for.
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -90,6 +95,7 @@ WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 -- key other than the current one. Both, because a grace that outlives a rotation is still a
 -- secret the verifier has to open.
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -164,6 +170,19 @@ SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_statu
        next_attempt_at, created_at, push_id, subject, event_type
 FROM webhook_delivery
 WHERE id = sqlc.arg('id');
+
+-- name: LockWebhookDelivery :one
+-- Holds one attempt for the transaction: a replay of it waits for another replay of it to commit.
+SELECT id FROM webhook_delivery WHERE id = sqlc.arg('id') FOR UPDATE;
+
+-- name: LaterWebhookDeliveryExists :one
+-- Whether the event was attempted again after this attempt under the subscription - asked in a
+-- statement of its own after the lock, so that it sees a replay committed while it waited.
+SELECT EXISTS (
+  SELECT 1 FROM webhook_delivery
+  WHERE subscription_id = sqlc.arg('subscription_id') AND event_id = sqlc.arg('event_id')
+    AND attempt > sqlc.arg('attempt')
+);
 
 -- name: WebhookDeliveries :many
 -- One subscription's attempts, newest first, optionally narrowed to one outcome - DEAD_LETTER is

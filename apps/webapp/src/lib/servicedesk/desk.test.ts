@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { byPriorityOf, byPriorityText, dayLengthOf, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policiesAtHub, policyCopyKey, policyDefinitionOf, reportRows, minutesFor, withMinutes, wordsOf, textOf } from './desk.ts';
+
+test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
+  const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
+  assert.deepEqual(hours, [{ day: 'MONDAY', from: '08:00', to: '18:00' }, { day: 'FRIDAY', from: '08:00', to: '18:00' }]);
+  assert.deepEqual(formOf({ hours }), { days: ['MONDAY', 'FRIDAY'], from: '08:00', to: '18:00' });
+  assert.deepEqual(holidaysOf('2026-12-25\n2026-12-26, 2027-01-01 '), ['2026-12-25', '2026-12-26', '2027-01-01']);
+});
+
+test('a goal’s targets per priority are read and written as pairs (UC-SVC-02 check 1)', () => {
+  assert.deepEqual(byPriorityOf('P1=15, P2 = 60'), { P1: 15, P2: 60 });
+  assert.deepEqual(byPriorityOf(''), {});
+  assert.equal(byPriorityOf('P1=fast'), undefined);
+  assert.equal(byPriorityOf('P1=0'), undefined);
+  assert.equal(byPriorityText({ by_priority: { P1: 15, P2: 60 } }), 'P1=15, P2=60');
+});
+
+test('the report counts each policy’s goals by standing and the share met (UC-SVC-02 check 7)', () => {
+  const rows = reportRows({
+    data: [
+      { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION', standing: 'MET', entries: 3 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION', standing: 'BREACHED', entries: 1 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION', standing: 'RUNNING', entries: 2 },
+      { kind: 'SLA', policy_key: 'incidents', goal: 'FIRST_RESPONSE', standing: 'PAUSED', entries: 1 },
+    ],
+  });
+  assert.deepEqual(rows[0], { policy: 'incidents', goal: 'RESOLUTION', met: 3, breached: 1, running: 2, paused: 0, metShare: 75 });
+  assert.equal(rows[1]?.metShare, undefined);
+});
+
+test('a hub\'s own calendar stands beside the workspace\'s of its key (UC-SVC-01 check 5)', () => {
+  const office = { key: 'office', name: 'Office', zone: 'Europe/Berlin', hours: hoursOf(['MONDAY'], '08:00', '18:00'), holidays: [], version: 1 };
+  const night = { ...office, key: 'night', name: 'Night' };
+  const ownOffice = { ...office, name: 'Office (Munich)', hub_id: 'h-1', holidays: ['2026-11-01'] };
+  const rows = hubCalendarRows([office, night], [ownOffice]);
+  assert.deepEqual(rows.map((row) => row.key), ['night', 'office']);
+  assert.equal(rows[0]!.own, undefined);
+  assert.equal(rows[1]!.own?.name, 'Office (Munich)');
+});
+
+test('a requester panel lists their other open requests, newest first, the request itself left out (UC-SVC-03 check 7)', async () => {
+  const { otherRequests, requesterRequests, REQUESTER_OPEN } = await import('./desk.ts');
+  const asked = requesterRequests('kim');
+  assert.deepEqual(asked.filter.nodes[0], { op: 'EQ', field: 'created_by', value: 'kim' });
+  assert.deepEqual(asked.filter.nodes[1], { op: 'EQ', field: 'is_completed', value: false });
+  assert.equal(asked.page.size, REQUESTER_OPEN + 1);
+  const rows = ['a', 'self', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id }));
+  assert.deepEqual(otherRequests(rows, 'self').map((row) => row.id), ['a', 'b', 'c', 'd', 'e']);
+});
+
+test('an entry\'s goals keep apart the requester\'s and each team\'s (UC-SVC-02 check 12)', () => {
+  const keys = [
+    { kind: 'SLA', policy_key: 'incidents', goal: 'RESOLUTION' },
+    { kind: 'OLA', policy_key: 'network_team', goal: 'RESOLUTION' },
+    { kind: 'OLA', policy_key: 'database_team', goal: 'RESOLUTION' },
+    { policy_key: 'incidents', goal: 'FIRST_RESPONSE' },
+  ].map(goalKey);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.equal(keys[3], 'SLA:incidents:FIRST_RESPONSE');
+});
+
+test('a policy keeps the group that makes it an OLA, and an OLA names no organisations (UC-SVC-02 check 10)', () => {
+  const form = { name: ' Network team ', types: 'incident, problem', organisations: 'acme', calendar: 'office', priority: '', position: '2', enabled: true, group: '' };
+  const goals = [{ kind: 'RESOLUTION' as const, minutes: 60, by_priority: {}, pause_statuses: [], warn_percent: 80 }];
+  assert.deepEqual(policyDefinitionOf(form, goals), {
+    name: 'Network team', entry_types: ['incident', 'problem'], organisations: ['acme'], goals, position: 2, enabled: true, calendar: 'office',
+  });
+  const ola = policyDefinitionOf({ ...form, group: '0192f000-0000-7000-8000-00000000000a' }, goals);
+  assert.equal(ola.assignee_group, '0192f000-0000-7000-8000-00000000000a');
+  assert.deepEqual(ola.organisations, []);
+});
+
+test('a hub’s settings show the shared SLA policies apart from its own, never another hub’s (UC-SVC-02 check 13)', () => {
+  const policies = [
+    { key: 'incidents' }, { key: 'desk', hub_id: 'hub-1', copied_from: 'incidents' }, { key: 'sales', hub_id: 'hub-2' },
+  ] as never[];
+  const atHub = policiesAtHub(policies, 'hub-1');
+  assert.deepEqual(atHub.shared.map((p: { key: string }) => p.key), ['incidents']);
+  assert.deepEqual(atHub.own.map((p: { key: string }) => p.key), ['desk']);
+  assert.equal(policyCopyKey(policies, 'incidents'), 'incidents_copy');
+  assert.equal(policyCopyKey([...policies, { key: 'incidents_copy' } as never], 'incidents'), 'incidents_copy_2');
+});
+
+test('a calendar\'s business day is its working minutes on each day it works, where all are alike', () => {
+  assert.equal(dayLengthOf({ hours: hoursOf(['MONDAY', 'FRIDAY'], '08:00', '17:00') }), 540);
+  assert.equal(dayLengthOf({ hours: [{ day: 'MONDAY', from: '08:00', to: '12:00' }, { day: 'MONDAY', from: '13:00', to: '17:00' }, { day: 'TUESDAY', from: '09:00', to: '17:00' }] }), 480);
+  // Days of different lengths have no one business day; nor has a calendar of no hours.
+  assert.equal(dayLengthOf({ hours: [{ day: 'MONDAY', from: '08:00', to: '17:00' }, { day: 'FRIDAY', from: '08:00', to: '12:00' }] }), undefined);
+  assert.equal(dayLengthOf({ hours: [] }), undefined);
+});
+
+// user-experience.md §7.4, §5.4: a policy's targets per priority are a table of durations, one per
+// option of the priority field, kept as the text the API's map is read from.
+test('a priority\'s target is read from and written into the per-priority text', () => {
+  assert.equal(minutesFor('P1=15, P2=60', 'P2'), '60');
+  assert.equal(minutesFor('P1=15', 'P3'), '');
+  assert.equal(withMinutes('P1=15, P2=60', 'P2', '90'), 'P1=15, P2=90');
+  assert.equal(withMinutes('P1=15', 'P3', '240'), 'P1=15, P3=240');
+  assert.equal(withMinutes('P1=15, P2=60', 'P1', ''), 'P2=60');
+  assert.equal(withMinutes('', 'P1', '15'), 'P1=15');
+  assert.deepEqual(byPriorityOf(withMinutes(withMinutes('', 'P1', '15'), 'P2', '60')), { P1: 15, P2: 60 });
+  assert.deepEqual(wordsOf(textOf(['incident', 'problem'])), ['incident', 'problem']);
+});

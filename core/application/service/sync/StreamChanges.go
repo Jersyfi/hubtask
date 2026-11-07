@@ -19,8 +19,12 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -57,6 +61,12 @@ type Position struct {
 	// stream resumes from.
 	Kind  string
 	After string
+	// Skipped names the kinds, comma-separated, whose read failed during a walk: the walk went
+	// on without them, and a pull from the delta position walks them again before the device is
+	// current. Retry is the order of such a walk again - the skipped kinds -, set while Kind is
+	// one of them (offline-sync.md §3.1). Strings rather than lists keep a position comparable.
+	Skipped string
+	Retry   string
 }
 
 // Walking reports whether the position is inside an initial synchronisation.
@@ -122,9 +132,28 @@ type StreamChanges struct {
 	// minimum tombstone period (offline-sync.md §7). Beyond it the log no longer holds everything
 	// that happened, so a delta would be silently wrong.
 	Window time.Duration
+	// Fields takes from an entry's record the fields hidden from the reader (UC-ID-27 check 3).
+	// Optional: a build without it narrows nothing.
+	Fields workservice.FieldSight
+	// Groups answers whether the reader is in the group a grant of a custom role names. Nil
+	// withholds every group's grant, the answer that does not leak one.
+	Groups GroupMembers
+	// Modules answers the modules on at the workspace: a module that narrows the replica reaches
+	// a device only while on (offline-sync.md §8). Nil narrows nothing.
+	Modules ModulesOn
 	// Batch is how many entries one round reads. A bound rather than a tuning knob: a round is a
 	// read inside one transaction, and an unbounded one would hold it open across a backlog.
 	Batch int
+}
+
+// ModulesOn answers the modules on at the workspace, or at a hub when one is named.
+type ModulesOn interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
+}
+
+// GroupMembers answers whether an account is a member of a group.
+type GroupMembers interface {
+	InGroup(ctx context.Context, accountID, groupID shared.ID) (bool, error)
 }
 
 // Resume decides where a connection starts.
@@ -139,6 +168,10 @@ func (s StreamChanges) Resume(
 	// presented, so it is where the credential is judged - and a token without the scope is
 	// refused rather than handed an empty stream it would watch forever.
 	if err := actor.RequireScope(streamScope); err != nil {
+		return Position{}, err
+	}
+	// A view as somebody is online only (UC-ID-29): no device keeps a copy of their work.
+	if err := actor.RefuseACopy(); err != nil {
 		return Position{}, err
 	}
 
@@ -249,7 +282,7 @@ func (s StreamChanges) page(
 		return Batch{}, err
 	}
 	if len(entries) == 0 {
-		return Batch{Cursor: s.at(from.Seq, from.Epoch)}, nil
+		return Batch{Cursor: s.at(from.Seq, from)}, nil
 	}
 
 	// One decision per container rather than one per record. A batch is usually a handful of
@@ -257,6 +290,8 @@ func (s StreamChanges) page(
 	// membership resolutions for one answer. The judgement is still per record: every record is
 	// checked, and what is cached is the answer to the question it asks.
 	resolved := map[shared.ID]visibility{}
+	costed := map[shared.ID]bool{}
+	var lens *workservice.FieldLens
 	records := make([]Record, 0, len(entries))
 	for _, entry := range entries {
 		if entry.Op == repository.AccessRevoked {
@@ -266,7 +301,17 @@ func (s StreamChanges) page(
 			// narrow it - the device drops whatever it holds under the root, and a device holding
 			// nothing there drops nothing.
 			if entry.ActorID == actor.AccountID {
-				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from)})
+			}
+			continue
+		}
+		if heldByOne(entry.Entity) {
+			held, err := s.holds(ctx, actor, entry.Op, entry.Payload)
+			if err != nil {
+				return Batch{}, err
+			}
+			if held {
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from)})
 			}
 			continue
 		}
@@ -280,7 +325,24 @@ func (s StreamChanges) page(
 		if keep != nil && !keep(seen.container) {
 			continue
 		}
-		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
+		other, err := s.mayReadOtherEnd(ctx, actor, entry.Entity, entry.Payload, resolved)
+		if err != nil {
+			return Batch{}, err
+		}
+		if !other {
+			continue
+		}
+		beyond, err := s.mayReadBeyond(ctx, actor, entry.Entity, seen, entry.Payload, costed)
+		if err != nil {
+			return Batch{}, err
+		}
+		if !beyond {
+			continue
+		}
+		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload, resolved); err != nil {
+			return Batch{}, err
+		}
+		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from)})
 	}
 
 	last := entries[len(entries)-1].Seq
@@ -288,9 +350,66 @@ func (s StreamChanges) page(
 		Records: records,
 		// The cursor of the last entry *read*, not of the last one sent. A cursor that stalled on
 		// a container somebody lost access to would re-read it on every round forever.
-		Cursor: s.at(last, from.Epoch),
+		Cursor: s.at(last, from),
 		More:   len(entries) == batch,
 	}, nil
+}
+
+// narrowed takes from an entry's record the fields hidden from the reader in its collection, and
+// from a portfolio's the projects the reader may not read; the lens is started on the first entry
+// a page meets, and a record of anything else passes as it is. ForACopy, for the reason mayRead
+// asks so: what passes here lands in a replica.
+func (s StreamChanges) narrowed(
+	ctx context.Context, actor appshared.ActorContext, lens **workservice.FieldLens, entity string,
+	seen visibility, payload map[string]any, resolved map[shared.ID]visibility,
+) (map[string]any, error) {
+	if entity == entityPortfolio && payload != nil {
+		return s.portfolioNarrowed(ctx, actor, payload, resolved)
+	}
+	if entity != entityItem || payload == nil || !s.Fields.Wired() || seen.container.ID.IsZero() {
+		return payload, nil
+	}
+	if *lens == nil {
+		started, err := s.Fields.Lens(ctx, s.UnitOfWork, actor.ForACopy())
+		if err != nil {
+			return nil, err
+		}
+		*lens = started
+	}
+	keys, err := (*lens).HiddenIn(ctx, seen.container)
+	if err != nil {
+		return nil, err
+	}
+	return workservice.PayloadWithout(payload, keys), nil
+}
+
+// portfolioNarrowed keeps of a portfolio's projects those the reader may read, as ReadPortfolio
+// answers them: each judged as a change filed under it would be, the answer remembered for the page.
+func (s StreamChanges) portfolioNarrowed(
+	ctx context.Context, actor appshared.ActorContext, payload map[string]any, resolved map[shared.ID]visibility,
+) (map[string]any, error) {
+	items, _ := payload["items"].([]any)
+	kept := make([]any, 0, len(items))
+	for _, item := range items {
+		project, _ := item.(map[string]any)
+		id, _ := project["container_id"].(string)
+		if id == "" {
+			continue
+		}
+		seen, err := s.mayRead(ctx, actor, entityPortfolio, shared.ID(id), resolved)
+		if err != nil {
+			return nil, err
+		}
+		if seen.allowed {
+			kept = append(kept, project)
+		}
+	}
+	out := make(map[string]any, len(payload))
+	for key, value := range payload {
+		out[key] = value
+	}
+	out["items"] = kept
+	return out, nil
 }
 
 // visibility is what one container lookup settles for the rest of a page: whether the actor may
@@ -352,12 +471,35 @@ func (s StreamChanges) mayRead(
 // from. Only an entity the reader knows is read that way: a record of a kind the walk does not
 // name is withheld, because nothing here can say what it describes, and the safe answer to a
 // change nobody can place is the one that does not leak it.
+//
+// An entry type is the workspace's vocabulary, which ListEntryTypes answers every member: a
+// member whose roles are all on hubs needs it as much to write an entry there.
 func (s StreamChanges) mayReadWorkspaceWide(
 	ctx context.Context, actor appshared.ActorContext, entity string,
 	resolved map[shared.ID]visibility,
 ) (visibility, error) {
 	if !knownEntity(entity) {
 		return visibility{}, nil
+	}
+	switch entity {
+	case entityEntryType, entityLinkType, entityWorkflow, entityWorkflowScheme, entityCustomField,
+		entityWorkTypes, entityTimePolicy, entityAbsence:
+		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, the
+		// workspace-wide definitions ListCustomFields answers within every collection, what every
+		// member fills a time record in with and the shared calendar ListAbsences answers: any
+		// member's, no requester's (access.Request.AnyMember).
+		return s.mayReadAsMember(ctx, actor, resolved)
+	case entityRoleGrant, entityTimeRecord, entityTimer, entityTimesheet, entityCapacities:
+		// The walk reads the reader's own grants and time only; the stream decides each record by
+		// holds.
+		return visibility{allowed: true}, nil
+	case entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun:
+		// Decided per record by mayReadBeyond: the owner, or whoever administers agents.
+		return visibility{allowed: true}, nil
+	case entityCostRates:
+		// What ListCostRates answers: MANAGE_COSTS at the workspace.
+		allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), timeservice.CostsRequest([]identity.Scope{identity.TenantScope()}))
+		return visibility{allowed: allowed}, err
 	}
 	if seen, decided := resolved[shared.ID("")]; decided {
 		return seen, nil
@@ -374,6 +516,218 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	return seen, nil
 }
 
+// memberKey is where a batch remembers the member question's answer: no container has it.
+const memberKey = shared.ID("member")
+
+// mayReadAsMember asks once per batch whether the reader is a member of the workspace.
+func (s StreamChanges) mayReadAsMember(
+	ctx context.Context, actor appshared.ActorContext, resolved map[shared.ID]visibility,
+) (visibility, error) {
+	if seen, decided := resolved[memberKey]; decided {
+		return seen, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), access.Request{AnyMember: true})
+	if err != nil {
+		return visibility{}, err
+	}
+	resolved[memberKey] = visibility{allowed: allowed}
+	return resolved[memberKey], nil
+}
+
+// mayReadOtherEnd decides the second collection a record names: a link's target. A record of
+// any other entity, and a link's removal - which carries no payload and names only an identifier -
+// have none to decide.
+func (s StreamChanges) mayReadOtherEnd(
+	ctx context.Context, actor appshared.ActorContext, entity string, payload map[string]any,
+	resolved map[shared.ID]visibility,
+) (bool, error) {
+	if payload == nil {
+		return true, nil
+	}
+	if entity == entityDashboard {
+		// A private dashboard is its owner's alone (UC-GOL-04 check 3), one shared with groups
+		// their members' too.
+		sharing, _ := payload["sharing"].(string)
+		owner, _ := payload["owner_id"].(string)
+		switch {
+		case owner != "" && owner == actor.AccountID.String():
+			return true, nil
+		case sharing == string(goal.SharingScope):
+			return true, nil
+		case sharing == string(goal.SharingGroups):
+			return s.inAnyGroup(ctx, actor, payload["group_ids"])
+		}
+		return false, nil
+	}
+	if entity != entityEntryLink {
+		return true, nil
+	}
+	target, _ := payload[workservice.LinkTargetCollectionKey].(string)
+	if target == "" {
+		// A link record without its target's collection cannot be placed; withheld, as a record
+		// of a kind nobody can place is.
+		return false, nil
+	}
+	seen, err := s.mayRead(ctx, actor, entity, shared.ID(target), resolved)
+	if err != nil {
+		return false, err
+	}
+	return seen.allowed, nil
+}
+
+// holds decides a record of a custom role grant: it reaches the account it names, or the members
+// of the group it names. A removal naming nobody reaches every device - it carries an identifier
+// only, and a device holding nothing under it drops nothing; one naming an account, its holder
+// leaving a group, reaches that account alone.
+func (s StreamChanges) holds(
+	ctx context.Context, actor appshared.ActorContext, op repository.Operation, payload map[string]any,
+) (bool, error) {
+	account, _ := payload["account_id"].(string)
+	if account != "" {
+		return shared.ID(account) == actor.AccountID, nil
+	}
+	if op == repository.Delete {
+		return true, nil
+	}
+	group, _ := payload["group_id"].(string)
+	if group == "" || s.Groups == nil {
+		return false, nil
+	}
+	var member bool
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		member, err = s.Groups.InGroup(ctx, actor.AccountID, shared.ID(group))
+		return err
+	})
+	return member, err
+}
+
+// inAnyGroup answers whether the reader is a member of one of a record's groups. Nil Groups
+// withholds it, the answer that does not leak one.
+func (s StreamChanges) inAnyGroup(ctx context.Context, actor appshared.ActorContext, raw any) (bool, error) {
+	if s.Groups == nil {
+		return false, nil
+	}
+	var groups []string
+	switch list := raw.(type) {
+	case []string:
+		groups = list
+	case []any:
+		for _, each := range list {
+			if text, ok := each.(string); ok {
+				groups = append(groups, text)
+			}
+		}
+	}
+	for _, g := range groups {
+		var member bool
+		if err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			member, err = s.Groups.InGroup(ctx, actor.AccountID, shared.ID(g))
+			return err
+		}); err != nil || member {
+			return member, err
+		}
+	}
+	return false, nil
+}
+
+// heldByOne reports whether a kind's every record names the one account that holds it: the stream
+// decides it by holds, never by a container.
+func heldByOne(entity string) bool {
+	switch entity {
+	case entityRoleGrant, entityTimeRecord, entityTimer, entityTimesheet, entityCapacities:
+		return true
+	}
+	return false
+}
+
+// administersAgents is the key the page remembers whether the reader administers agents under.
+const administersAgents = shared.ID("agents")
+
+// mayReadBeyond decides what reading a record's place does not: a budget by what ReadBudget asks,
+// MANAGE_COSTS at its plan, and the registry's rows by what their lists answer - an agent, a held
+// act and a run to the agent's owner, every row to whoever administers agents (MANAGE_MEMBERS at
+// the workspace) -, each answer remembered for the rest of the page. A record of anything else
+// passes.
+func (s StreamChanges) mayReadBeyond(
+	ctx context.Context, actor appshared.ActorContext, entity string, seen visibility, payload map[string]any,
+	costed map[shared.ID]bool,
+) (bool, error) {
+	if key := moduleOf(entity); key != "" {
+		on, err := s.moduleOn(ctx, actor, key, costed)
+		if err != nil || !on {
+			return false, err
+		}
+	}
+	switch entity {
+	case entityAgent, entityAgentRequest, entityAgentRun:
+		if owner, _ := payload["owner_id"].(string); owner != "" && shared.ID(owner) == actor.AccountID {
+			return true, nil
+		}
+		return s.administers(ctx, actor, costed)
+	case entityAgentModel, entityAgentCase:
+		return s.administers(ctx, actor, costed)
+	case entityBudget:
+	default:
+		return true, nil
+	}
+	if seen.container.ID.IsZero() {
+		return false, nil
+	}
+	if allowed, decided := costed[seen.container.ID]; decided {
+		return allowed, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), timeservice.CostsRequest(service.ContainerScopes(seen.container)))
+	if err != nil {
+		return false, err
+	}
+	costed[seen.container.ID] = allowed
+	return allowed, nil
+}
+
+// moduleOf is the module whose switch narrows a kind's records in the replica; empty for the rest.
+func moduleOf(entity string) module.Key {
+	switch entity {
+	case entityGoalPeriod, entityGoal, entityGoalCheckIn, entityDashboard, entityPortfolio:
+		return module.Goals
+	}
+	return ""
+}
+
+// moduleOn answers whether the module is on at the workspace, once a page, as the registry's gate
+// asks it. A removal is withheld alike: the walk that follows the switch drops what it names.
+func (s StreamChanges) moduleOn(ctx context.Context, actor appshared.ActorContext, key module.Key, decided map[shared.ID]bool) (bool, error) {
+	if s.Modules == nil {
+		return true, nil
+	}
+	remembered := shared.ID("module." + string(key))
+	if on, known := decided[remembered]; known {
+		return on, nil
+	}
+	set, err := s.Modules.On(ctx, actor, "")
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return false, err
+	}
+	decided[remembered] = set.Has(key)
+	return set.Has(key), nil
+}
+
+// administers answers whether the reader administers agents, once a page.
+func (s StreamChanges) administers(ctx context.Context, actor appshared.ActorContext, decided map[shared.ID]bool) (bool, error) {
+	if allowed, known := decided[administersAgents]; known {
+		return allowed, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), access.Request{
+		Permission: service.PermissionManageMembers, Path: []identity.Scope{identity.TenantScope()},
+	})
+	if err != nil {
+		return false, err
+	}
+	decided[administersAgents] = allowed
+	return allowed, nil
+}
+
 // knownEntity reports whether the reader can place a change of this kind: the entities the walk
 // hands out are the ones a client holds.
 func knownEntity(entity string) bool {
@@ -386,9 +740,10 @@ func knownEntity(entity string) bool {
 }
 
 // at is a position minted now, under the epoch the round was resumed under: a restore succeeding
-// in the middle of a connection is judged the next time the cursor is presented.
-func (s StreamChanges) at(seq, epoch int64) Position {
-	return Position{Seq: seq, IssuedAt: s.Clock.Now(), Epoch: epoch}
+// in the middle of a connection is judged the next time the cursor is presented. The kinds a walk
+// skipped travel on until a pull walks them again.
+func (s StreamChanges) at(seq int64, from Position) Position {
+	return Position{Seq: seq, IssuedAt: s.Clock.Now(), Epoch: from.Epoch, Skipped: from.Skipped}
 }
 
 // Encode is how the presentation layer turns a position into the event's `id`, without knowing what

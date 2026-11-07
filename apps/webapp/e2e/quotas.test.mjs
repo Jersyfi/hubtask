@@ -51,6 +51,12 @@ test('chromium: a locked limit is set by the installation, an open one is its de
   assert.doesNotMatch(await row('Entries').textContent() ?? '', /default/);
   assert.match(await row('Export jobs').textContent() ?? '', /The installation's default/);
   assert.match(await row('Webhook').textContent() ?? '', /This workspace/);
+
+  // UC-INS-10 check 4: use and limit side by side, and nothing here changes a limit.
+  assert.equal(await row('Entries').getByRole('cell').nth(0).textContent(), '5000');
+  assert.equal(await row('Entries').getByRole('cell').nth(1).textContent(), '12');
+  assert.equal(await page.locator('main').getByRole('textbox').count(), 0, 'a limit can be typed in');
+  assert.equal(await page.locator('main').getByRole('spinbutton').count(), 0, 'a limit can be typed in');
 });
 
 /** *Limits* with the given standings, on an installation of the given tenancy. */

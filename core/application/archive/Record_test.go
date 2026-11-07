@@ -6,6 +6,7 @@ package archive
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -324,7 +325,13 @@ func TestOnlyEntitiesThatCanDateAChangeAreDeltas(t *testing.T) {
 			}
 		}
 		switch {
-		case entity.Whole && canDate:
+		case entity.Unmarked && !entity.Whole:
+			t.Errorf("%s loses its deletions without a marker and is written as a delta - an "+
+				"incremental would bring a deleted row back", entity)
+		case entity.Unmarked && !canDate:
+			t.Errorf("%s is marked Unmarked, and %s cannot date a change - plain Whole says it",
+				entity, entity.Table)
+		case entity.Whole && canDate && !entity.Unmarked:
 			t.Errorf("%s is written whole, and %s can date a change - it could be a delta",
 				entity, entity.Table)
 		case !entity.Whole && !canDate:
@@ -429,6 +436,63 @@ func TestAnEntityWithItsOwnIdentitySaysSo(t *testing.T) {
 		own := len(entity.Keys) == 1 && entity.Keys[0] == "id"
 		if entity.HasOwnIdentity() != own {
 			t.Errorf("%s disagrees with itself about having its own identity", entity)
+		}
+	}
+}
+
+// A field that names its target by key is a word a restore carries unchanged, so it has to name a
+// column that picks one row of an entity written before it - and it may not also be declared a
+// Reference, where the DUPLICATE remap would put a key through the identity derivation.
+func TestAReferenceByKeyNamesOneRowOfAnEarlierEntity(t *testing.T) {
+	position := map[string]int{}
+	for i, entity := range RestoredEntities() {
+		position[entity.Table] = i
+	}
+
+	for _, entity := range Entities() {
+		for _, named := range entity.ByKey {
+			target, known := FindEntityByTable(named.Table)
+			if !known {
+				t.Errorf("%s.%s names %s, which the archive does not hold", entity.Table, named.Field, named.Table)
+				continue
+			}
+			if position[named.Table] >= position[entity.Table] {
+				t.Errorf("%s.%s names %s, which a restore writes after it", entity.Table, named.Field, named.Table)
+			}
+			picksOne := slices.Contains(target.Keys, named.Key) ||
+				slices.ContainsFunc(target.Unique, func(u UniqueField) bool { return u.Field == named.Key })
+			if !picksOne {
+				t.Errorf("%s.%s compares with %s.%s, which is neither a key nor a declared uniqueness",
+					entity.Table, named.Field, named.Table, named.Key)
+			}
+			if slices.ContainsFunc(entity.References, func(r Reference) bool { return r.Field == named.Field }) {
+				t.Errorf("%s.%s is declared both by key and as a reference the remap rewrites",
+					entity.Table, named.Field)
+			}
+		}
+	}
+}
+
+// An entity the oldest archive in the repository does not carry must be Later: otherwise the
+// Reader refuses that archive - and every archive written before the entity was added - as one
+// somebody added a file to, and no backup from an earlier release restores. The full import is
+// test/backup's TestTheGoldenArchivesImport; this holds the rule without a container.
+func TestAnEntityTheOldestArchiveLacksIsMarkedLater(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "test", "backup", "golden", "v1", ManifestName))
+	if err != nil {
+		t.Fatalf("reading the golden manifest: %v", err)
+	}
+	manifest, err := ReadManifest(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("decoding the golden manifest: %v", err)
+	}
+	carried := map[string]bool{}
+	for _, file := range manifest.Files {
+		carried[file.Path] = true
+	}
+	for _, entity := range Entities() {
+		if !entity.Later && !entity.Optional && !carried[DataName(entity.Name)] {
+			t.Errorf("%s is not in the oldest archive and not Later: that archive no longer reads", entity.Name)
 		}
 	}
 }

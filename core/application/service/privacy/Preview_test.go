@@ -5,6 +5,7 @@ package privacy
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -25,9 +26,12 @@ type previewRig struct {
 	registry   *usecase.Registry
 }
 
-func newPreviewRig(t *testing.T) *previewRig {
+func newPreviewRig(t *testing.T, setup ...func(*erasureHarness)) *previewRig {
 	t.Helper()
 	rig := &previewRig{requests: newRequestStore(), authorizer: &authorizerDouble{}, erasure: newErasureHarness()}
+	for _, s := range setup {
+		s(rig.erasure)
+	}
 	cases := Cases{
 		Requests: rig.requests, Authorizer: rig.authorizer, Audit: &auditSink{},
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
@@ -118,5 +122,77 @@ func TestAPreviewOfWhatIsNoErasureIsRefused(t *testing.T) {
 	rig := newPreviewRig(t)
 	if _, err := rig.preview(erasureCase(""), usecase.Input{"mode": "SHRED"}); err == nil {
 		t.Error("a mode outside the enum was accepted")
+	}
+}
+
+// A case known only by address: a workspace hold keeps what the address sent, so the preview names
+// that hold, as the erasure records it - not "nothing reaches this person".
+func TestThePreviewOfAnAddressCaseNamesTheWorkspaceHold(t *testing.T) {
+	addresses := &addressStore{held: 3}
+	rig := newPreviewRig(t, func(h *erasureHarness) { h.addresses = addresses })
+	hold := shared.MustParseID("0192f000-0000-7000-8000-0000000000f1")
+	rig.erasure.holds.holds = lifecycle.Holds{{ID: hold, Scope: lifecycle.HoldTenant, Reason: "Litigation"}}
+
+	out, err := rig.preview(addressCase(domain.ModeFullDelete), nil)
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	parts, _ := out["kept"].([]map[string]any)
+	if len(parts) != 1 || parts[0]["intake"] != 3 || parts[0]["hold_id"] != hold.String() {
+		t.Errorf("the preview answered %+v", parts)
+	}
+	if len(addresses.erased) != 0 {
+		t.Errorf("a preview erased %v", addresses.erased)
+	}
+
+	// Without a hold on the workspace, nothing is kept: a narrower hold does not reach an address.
+	rig.erasure.holds.holds = lifecycle.Holds{{ID: hold, Scope: lifecycle.HoldContainer, ScopeID: erasureHub}}
+	out, err = rig.preview(addressCase(domain.ModeFullDelete), nil)
+	if parts, _ := out["kept"].([]map[string]any); err != nil || len(parts) != 0 {
+		t.Errorf("a container hold kept %+v (%v)", parts, err)
+	}
+}
+
+// Every kind the eraser handles has a line in the preview (user-experience.md §5.9): a field added
+// to Erased without a line here fails, so the confirmation never says less than the erasure does.
+func TestEveryKindTheEraserHandlesHasALineInThePreview(t *testing.T) {
+	linesOf := map[string][]string{
+		"Credentials": {"CREDENTIALS"}, "Notifications": {"NOTIFICATIONS"}, "AiDrafts": {"AI_DRAFTS"},
+		"Kudos": {"KUDOS"}, "Arrangements": {"ARRANGEMENTS"}, "Time": {"TIME"},
+		"Assignments": {"ASSIGNMENTS"}, "Comments": {"COMMENTS"}, "Intake": {"INTAKE"}, "Media": {"MEDIA"},
+		"Writings":       {"PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS"},
+		"AccountRemoved": {"ACCOUNT"}, "AccountAnonymised": {"ACCOUNT"}, "AccountKept": {"ACCOUNT"},
+		// Not kinds: the mode the erasure ran in, and what the holds kept, which `kept` answers; the
+		// switched-off integrations moved to another owner are the workspace's, not the person's.
+		"Mode": nil, "Kept": nil, "Reowned": nil, "ReownedTo": nil,
+	}
+	rig := newPreviewRig(t)
+	request := erasureCase("")
+	request.Status = domain.StatusReceived
+	out, err := rig.preview(request, usecase.Input{"mode": "FULL_DELETE"})
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	lines, _ := out["lines"].([]map[string]any)
+	has := map[string]bool{}
+	for _, line := range lines {
+		kind, _ := line["kind"].(string)
+		has[kind] = true
+		if line["fate"] == "" {
+			t.Errorf("the line of %s says no fate", kind)
+		}
+	}
+	erased := reflect.TypeOf(Erased{})
+	for i := range erased.NumField() {
+		field := erased.Field(i).Name
+		kinds, known := linesOf[field]
+		if !known {
+			t.Errorf("the eraser handles %s, which has no line in the preview", field)
+		}
+		for _, kind := range kinds {
+			if !has[kind] {
+				t.Errorf("%s has no %s line in the preview: %v", field, kind, lines)
+			}
+		}
 	}
 }

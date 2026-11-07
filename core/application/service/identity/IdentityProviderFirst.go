@@ -136,7 +136,8 @@ func (h ConfigureFirstIdentityProvider) Execute(
 
 func (h ReadIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadIdentityProviderName,
+		Name:       ReadIdentityProviderName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The workspace's first identity provider — the singular surface, kept from before " +
 			"providers were plural. It reads the workspace's own first one and never a provider " +
 			"the installation offers. The client secret is not among the fields, and there is no " +
@@ -165,6 +166,7 @@ func (h ReadIdentityProvider) invoke(
 func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        ConfigureFirstIdentityProviderName,
+		Permission:  service.PermissionManageMembers,
 		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Sets the workspace's first identity provider whole, creating it where the " +
 			"workspace has none — the singular surface, kept. The same rules the collection " +
@@ -189,7 +191,13 @@ func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The order the buttons are drawn in."},
 			{Name: "allowed_email_domains", Kind: usecase.KindList,
 				Description: "The domains a verified address must be inside under DOMAINS."},
+			{Name: "allowed_directories", Kind: usecase.KindList,
+				Description: "The organisations this provider admits under DOMAINS, in its own identifiers. Read instead of the domains where the preset has one."},
 			EnabledFieldOfAWorkspace,
+			NewcomerRoleField,
+			NewcomerGroupField,
+			SAMLSSOURLField,
+			SAMLCertificateField,
 			ProviderStepUpField,
 		},
 		StepUp: providerStepUp,

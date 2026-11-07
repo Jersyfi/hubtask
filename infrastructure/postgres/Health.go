@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -17,6 +18,10 @@ import (
 // turns a slow database into an unresponsive pod, because Kubernetes has its own patience and
 // it is shorter than PostgreSQL's (ADR-0016).
 const probeTimeout = 2 * time.Second
+
+// probeAcquireBudget is how long the probe waits for a connection of a pool every one of whose
+// connections is in use, before it calls the database busy rather than down.
+const probeAcquireBudget = time.Second
 
 // Probe reports whether PostgreSQL can serve queries. It is the only mandatory dependency
 // (ADR-0003): when it is down the process is not ready, and no amount of degradation helps.
@@ -47,14 +52,18 @@ func (p *Probe) Check(ctx context.Context) health.Result {
 	defer cancel()
 
 	started := time.Now()
-	// A round trip, not just a pool statistic: an idle pool looks healthy right up to the
-	// moment someone tries to use it.
-	err := p.pool.Ping(ctx)
+	busy, err := p.roundTrip(ctx)
 	latency := time.Since(started)
 
 	status := health.StatusOK
 	errorCode := ""
-	if err != nil {
+	switch {
+	case busy:
+		// Overload, not an outage: every connection is at work. Not ready would take every pod
+		// out at once (ADR-0016); the load shedder and A-11 answer an overload instead.
+		status = health.StatusDegraded
+		errorCode = "postgres.pool_busy"
+	case err != nil:
 		status = health.StatusDown
 		// A code, not the driver's message: that message names hosts and users, and this
 		// report is served over HTTP (T-18, security.md §9).
@@ -73,10 +82,27 @@ func (p *Probe) Check(ctx context.Context) health.Result {
 		ErrorCode: errorCode,
 		Since:     since,
 	}
-	if status != health.StatusOK {
+	if status == health.StatusDown {
 		// Everything is affected. PostgreSQL is not a feature that can degrade - it is the
 		// write path.
 		result.Impact = []string{"all"}
 	}
 	return result
+}
+
+// roundTrip pings the database on a connection of the pool - a round trip, not a pool statistic:
+// an idle pool looks healthy right up to the moment someone tries to use it. busy is a pool that
+// had no connection to spare within the budget because every one was in use; the database said
+// nothing either way then.
+func (p *Probe) roundTrip(ctx context.Context) (busy bool, err error) {
+	acquireCtx, cancel := context.WithTimeout(ctx, probeAcquireBudget)
+	defer cancel()
+	conn, err := p.pool.Acquire(acquireCtx)
+	if err != nil {
+		stat := p.pool.Stat()
+		saturated := stat.AcquiredConns() >= stat.MaxConns()
+		return saturated && ctx.Err() == nil && errors.Is(acquireCtx.Err(), context.DeadlineExceeded), err
+	}
+	defer conn.Release()
+	return false, conn.Ping(ctx)
 }

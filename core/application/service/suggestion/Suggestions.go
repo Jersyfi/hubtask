@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
+
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -109,6 +111,14 @@ type Cases struct {
 	// Containers is how a listing checks that a proposed destination is still in the shared set.
 	// Nil answers a proposal's destination as it was stored.
 	Containers ContainerFinder
+	// Marks keeps the provenance of what an acceptance wrote beyond the suggestion's own retention
+	// (ai-first.md §2.1, AI-2); nil keeps none.
+	Marks MarkWriter
+}
+
+// MarkWriter writes an accepted AI value's mark inside the acceptance's transaction.
+type MarkWriter interface {
+	InsertMark(ctx context.Context, m agentdomain.Mark) error
 }
 
 // ContainerFinder reads one container inside the caller's transaction, judging no permission.
@@ -466,7 +476,7 @@ func (c Cases) decideAs(
 				return err
 			}
 		}
-		if !proposal.Fresh(digest) {
+		if status == domain.StatusAccepted && !proposal.Fresh(digest) {
 			return domain.ErrStale
 		}
 		return nil
@@ -491,10 +501,9 @@ func (c Cases) decideAs(
 		if err != nil {
 			return err
 		}
-		// Staleness is checked for both answers and not only for acceptance. Dismissing a stale
-		// proposal is harmless, but telling somebody it was stale is what stops them wondering
-		// why the one they meant to accept was refused.
-		if !proposal.Fresh(digest) {
+		// A stale proposal is refused for acceptance and still dismissed (UC-AI-04 check 3): it no
+		// longer fits the entry, and clearing it is the one answer left that changes nothing.
+		if status == domain.StatusAccepted && !proposal.Fresh(digest) {
 			return domain.ErrStale
 		}
 
@@ -513,6 +522,9 @@ func (c Cases) decideAs(
 			// actor, and therefore the ordinary permission check - somebody who could not make
 			// this change by hand cannot make it by accepting.
 			if err := c.apply(ctx, actor, proposal, overrides, taken); err != nil {
+				return err
+			}
+			if err := c.mark(ctx, actor, proposal, overrides, taken); err != nil {
 				return err
 			}
 		}
@@ -550,6 +562,62 @@ func (c Cases) decideAs(
 		return domain.Suggestion{}, err
 	}
 	return answered, nil
+}
+
+// mark keeps, for each object an acceptance wrote, which of its fields came from AI, the model
+// and prompt behind them, and who accepted them when - never a value. What the person overrode
+// is theirs, not the model's, and is left out of the fields.
+func (c Cases) mark(
+	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion, overrides map[string]any, taken *taking,
+) error {
+	if c.Marks == nil || c.IDs == nil {
+		return nil
+	}
+	fields := make([]string, 0, len(proposal.Payload))
+	for key := range proposal.Payload {
+		if _, overridden := overrides[key]; !overridden {
+			fields = append(fields, key)
+		}
+	}
+	targets := []struct {
+		kind string
+		id   shared.ID
+	}{{string(proposal.TargetType), proposal.TargetID}}
+	if taken != nil {
+		if !taken.Created.IsZero() {
+			targets = append(targets, struct {
+				kind string
+				id   shared.ID
+			}{string(proposal.Kind), taken.Created})
+		}
+		for _, id := range taken.CreatedIDs {
+			targets = append(targets, struct {
+				kind string
+				id   shared.ID
+			}{string(domain.TargetWorkItem), id})
+		}
+	}
+	model := proposal.Model
+	if model == "" {
+		model = "unknown"
+	}
+	for _, target := range targets {
+		if target.id.IsZero() {
+			continue
+		}
+		m, err := agentdomain.NewMark(agentdomain.Mark{
+			ID: c.IDs.NewID(), TargetType: target.kind, TargetID: target.id, Fields: fields, SuggestionID: proposal.ID, AgentID: proposal.AgentID,
+			Model: model, PromptID: proposal.PromptID, PromptVersion: proposal.PromptVersion,
+			AcceptedBy: actor.AccountID, AcceptedAt: c.Clock.Now(),
+		})
+		if err != nil {
+			return err
+		}
+		if err := c.Marks.InsertMark(ctx, m); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // accepted is what accepting one shape of proposal does.
@@ -664,12 +732,12 @@ var draftableActions = map[string]draftable{
 		Never: []string{
 			"parent_id", "bucket_id", "content_language", "auto_assign", "start_at", "due_at",
 			"due_date_only", "due_time_zone", "calendar_uid", "label_ids", "custom_fields", "cover",
-			"before_item_id", "member_ids", "amount",
+			"before_item_id", "member_ids", "amount", "entry_type",
 		},
 	},
 	"ADD_COMMENT": {
 		Fields: map[string]fieldUse{"body": useText},
-		Never:  []string{"parent_comment_id"},
+		Never:  []string{"parent_comment_id", "internal"},
 	},
 	"CONVERT_JUMBLE_ENTRY": {
 		Fields: map[string]fieldUse{"collection_id": useCollection, "type": useItemType, "title": useText},
@@ -1272,7 +1340,8 @@ func suggestionOutput(proposal domain.Suggestion) usecase.Output {
 
 func (h ListSuggestions) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListSuggestionsName,
+		Name:       ListSuggestionsName,
+		Permission: service.PermissionRead,
 		Summary: "What AI has proposed about one entry, newest first. Nothing here has changed " +
 			"anything: a suggestion is a record carrying the model, the prompt version and the " +
 			"moment it was produced, and it becomes a change only when somebody accepts it.",
@@ -1327,7 +1396,8 @@ func (h ListSuggestions) invoke(
 
 func (h AcceptSuggestion) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AcceptSuggestionName,
+		Permission: service.PermissionWriteItems,
+		Name:       AcceptSuggestionName,
 		Summary: "Applies what was proposed, as the accepting person's own write: the ordinary " +
 			"use case, with the ordinary permission check and the ordinary history entry. A " +
 			"suggestion made against an entry that has since been rewritten is stale and is " +
@@ -1397,7 +1467,8 @@ func (h AcceptSuggestion) invoke(
 
 func (h DismissSuggestion) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DismissSuggestionName,
+		Permission: service.PermissionWriteItems,
+		Name:       DismissSuggestionName,
 		Summary: "Turns a proposal down. A state and not a deletion, so \"what was proposed and " +
 			"turned down\" has an answer, and the retention engine ages it out by rule.",
 		SideEffects: "Marks the suggestion dismissed and writes an audit entry. Changes nothing else.",

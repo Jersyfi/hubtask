@@ -48,7 +48,8 @@ func TestAnArrivalIsStoredNewAndWhole(t *testing.T) {
 	}
 }
 
-// The bounds, each named at its field: a crafted payload costs a refusal rather than storage.
+// The bounds, each named at its field: a crafted payload costs a refusal rather than storage
+// (UC-JUM-01 checks 2 and 3).
 func TestAnArrivalIsBoundedAtTheDoor(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -98,6 +99,21 @@ func TestAnArrivalIsBoundedAtTheDoor(t *testing.T) {
 				t.Errorf("refused with %+v, want %s", coded.Fields, tc.code)
 			}
 		})
+	}
+}
+
+// The body is kept exactly as typed: a pasted code block or a quoted mail keeps its lines and its
+// indentation (UC-JUM-01 check 6).
+func TestTheBodyIsKeptAsTyped(t *testing.T) {
+	in := validInput()
+	in.RawBody = "\n  > quoted line\n\n\tfunc main() {}\n   "
+
+	entry, err := jumble.NewEntry(in)
+	if err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if entry.RawBody != in.RawBody {
+		t.Errorf("the body came back %q, want %q", entry.RawBody, in.RawBody)
 	}
 }
 

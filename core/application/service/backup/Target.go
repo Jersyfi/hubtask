@@ -527,7 +527,8 @@ func readAll(from io.Reader) ([]byte, error) {
 // Descriptor registers the creation in all three channels.
 func (h CreateBackupTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateBackupTargetName,
+		Name:       CreateBackupTargetName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Writes down where backups go: the kind of target, where it points, and what it " +
 			"authenticates with. Credentials are stored encrypted and are never returned by any " +
 			"read. Storing an archive unencrypted, or reaching a target over a protocol that " +
@@ -572,6 +573,11 @@ func (h CreateBackupTarget) Descriptor() usecase.Descriptor {
 				Description: "Required for an unencrypted target or a plaintext protocol. Who " +
 					"gave it and when are recorded.",
 			},
+			{
+				Name: "encryption_passphrase", Kind: usecase.KindString,
+				Description: "Not served by this build: a passphrase is refused rather than " +
+					"ignored. The archive's key is the installation's.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TargetChangedAction, TargetType: targetType,
@@ -584,7 +590,8 @@ func (h CreateBackupTarget) Descriptor() usecase.Descriptor {
 // Descriptor registers the listing.
 func (h ListBackupTargets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListBackupTargetsName,
+		Name:       ListBackupTargetsName,
+		Permission: service.PermissionStructure,
 		Summary: "Lists the targets configured for this tenant, by name. Never a credential: what " +
 			"comes back is where a target points, how it is encrypted, what it warns about, and " +
 			"how its last connection test went.",
@@ -602,7 +609,8 @@ func (h ListBackupTargets) Descriptor() usecase.Descriptor {
 // Descriptor registers the connection test.
 func (h TestBackupTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TestBackupTargetName,
+		Name:       TestBackupTargetName,
+		Permission: service.PermissionStructure,
 		Summary: "Writes a small probe object to the target, reads it back, and removes it. " +
 			"Answers whether it worked, how long it took, whether the target is writable, how " +
 			"much room is left where the protocol can say, and a message code when it did not " +
@@ -627,11 +635,28 @@ func (h TestBackupTarget) Descriptor() usecase.Descriptor {
 func (h CreateBackupTarget) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	if err := RefusePassphrase(in); err != nil {
+		return nil, err
+	}
 	target, err := h.Execute(ctx, actor, CreateCommandOf(in))
 	if err != nil {
 		return nil, err
 	}
 	return targetOutput(target), nil
+}
+
+// RefusePassphrase refuses a passphrase this build does not serve. Refused rather than ignored:
+// a passphrase that had no effect would leave somebody believing their archives are protected by
+// it.
+func RefusePassphrase(in usecase.Input) error {
+	if in.String("encryption_passphrase") == "" {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("backup.encryption_passphrase_not_available").
+		WithFields(shared.FieldError{
+			Path: "/encryption_passphrase", Code: "backup.encryption_passphrase_not_available",
+		})
 }
 
 // CreateCommandOf reads a target's creation as every channel sends it.

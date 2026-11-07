@@ -34,11 +34,12 @@ const touches = (itemId: string) => [commentsPath(itemId)];
 
 class Comments {
   /** Adds a comment, or a reply to one. A reply carries the parent; a comment carries none. */
-  async add(itemId: string, body: string, parentCommentId: string | undefined, idempotencyKey: string): Promise<Comment> {
+  async add(itemId: string, body: string, parentCommentId: string | undefined, idempotencyKey: string, internal = false): Promise<Comment> {
     return engine.mutate<Comment>(
       'POST',
       commentsPath(itemId),
-      { body, parent_comment_id: parentCommentId ?? null },
+      // `internal` only when asked for: a note for the team, never shown in the portal (UC-SVC-04).
+      internal ? { body, parent_comment_id: parentCommentId ?? null, internal: true } : { body, parent_comment_id: parentCommentId ?? null },
       { idempotencyKey, invalidates: touches(itemId) },
     );
   }

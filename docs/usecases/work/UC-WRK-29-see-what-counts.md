@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
 state: verified
 tasks: [UX-24, UX-25, UX-26]
-checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, test/integration/celebrations_archive_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs, apps/webapp/e2e/flow.test.mjs]
+checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/domain/model/work/FigureKept_test.go, core/application/service/work/FigureKept_test.go, test/integration/figure_kept_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, core/application/service/work/HubFigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, test/integration/celebrations_archive_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs, apps/webapp/e2e/flow.test.mjs]
 ---
 
 # See what counts in a hub or collection
@@ -25,10 +25,11 @@ The shopping list says "5 items · about €38", the household "3 due today", th
 1. The collection's setting *What counts* offers: open entries, the sum of a number field, due, the week's rhythm, progress, flow, or nothing; the head of the collection and its row in the navigation show the chosen figure.
 2. A list never shows a percentage; progress is offered only where a collection has entries with an end.
 3. The week's rhythm counts the days with something completed and never resets to zero or names a missed day.
-4. Finishing every entry of a collection or hub records a milestone shown on it with the date.
+4. Finishing every entry of a collection or hub records a milestone shown on it with the date; it stays when entries are added afterwards, and the open ones created after it are counted beside it: "All done on 2 Nov · 5 open since" (decision: the owner's sixth answers 15).
 5. A person may give *kudos* on an entry somebody else completed; the person who completed it sees who did, nobody sees counts per person.
 6. Figures about one person are shown only to that person: no administrator, auditor or report sees them; team figures count the collection, not people.
 7. The account's `celebrations` preference switches milestones, kudos and celebrations off together.
+8. In a collection written to all the time, a figure shows the last count kept for up to a minute after that count was made, marked "as of <time>", while a newer count runs beside the read - not "could not be counted" and not a recount in every read (decision: the owner's fifth answers 3).
 
 ## Where it ends
 

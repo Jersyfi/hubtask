@@ -82,6 +82,27 @@ export function isContainer(kind: string): boolean {
   return kind === 'CONTAINER';
 }
 
+/** The kinds the one trash lists, in the contract's order (user-experience.md §5.9). */
+export const TRASH_KINDS = ['CONTAINER', 'ITEM', 'PAGE', 'WHITEBOARD'] as const;
+export type TrashKind = (typeof TRASH_KINDS)[number];
+
+/**
+ * Whether a row of the trash can be restored from it: one of the kinds whose `:restore` this
+ * client knows. A kind a newer server lists is shown without a restore rather than sent to the
+ * wrong endpoint.
+ */
+export function isRestorable(kind: string): kind is TrashKind {
+  return (TRASH_KINDS as readonly string[]).includes(kind);
+}
+
+/**
+ * Whether a row can be deleted for good on its own: only an entry has `:purge`. A container, a
+ * page and a whiteboard go when the trash is emptied or the period runs out.
+ */
+export function isPurgeableAlone(kind: string): boolean {
+  return kind === 'ITEM';
+}
+
 /**
  * How many whole days are left until a moment the server named - the trash entry's `purge_after`,
  * the pass's own date. Rounded up and never below zero, for the reasons `remainingDays` gives.

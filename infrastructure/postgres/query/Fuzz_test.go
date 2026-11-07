@@ -11,6 +11,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
@@ -39,8 +40,15 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"title","op":"STARTS_WITH","value":"\\"}`,
 		`{"field":"text","op":"MATCHES","value":"a & b | !c <-> d"}`,
 		`{"field":"type","op":"IN","value":["TASK","ACTIVITY"]}`,
+		`{"field":"entry_type","op":"NOT_IN","value":["bug","'; DROP TABLE work_item; --"]}`,
 		`{"field":"depth","op":"BETWEEN","value":[0,3]}`,
 		`{"field":"notes","op":"IS_NULL"}`,
+		`{"field":"blocked","op":"EQ","value":true}`,
+		`{"field":"blocked","op":"NEQ","value":false}`,
+		`{"field":"blocking","op":"EQ","value":true}`,
+		`{"field":"linked_to","op":"IN","value":["0190a4c2-7b1e-7000-8000-000000000001"]}`,
+		`{"field":"sla_due","op":"LTE","value":"2026-10-30T09:00:00Z"}`,
+		`{"field":"sla_standing","op":"IN","value":["AT_RISK","BREACHED"]}`,
 		`{"field":"bucket_id","op":"NOT_IN","value":["0192f000-0000-7000-8000-00000000000f"]}`,
 		`{"field":"labels","op":"CONTAINS_ALL","value":["0192f000-0000-7000-8000-00000000000f"]}`,
 		`{"field":"created_at","op":"GTE","value":"2026-08-19T00:00:00Z"}`,
@@ -61,6 +69,18 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"custom_fields.priority","op":"IS_NULL"}`,
 		`{"field":"custom_fields.'; DROP TABLE work_item; --","op":"EQ","value":"x"}`,
 		`{"field":"custom_fields.a\" OR 1=1 --","op":"EQ","value":"x"}`,
+		// The typed side (F-2): ranges over the value table, the column chosen by the shape.
+		`{"field":"custom_fields.budget","op":"GT","value":1000}`,
+		`{"field":"custom_fields.review","op":"BETWEEN","value":["2026-01-01","2026-12-31"]}`,
+		`{"field":"custom_fields.code","op":"LTE","value":"'; DROP TABLE work_item; --"}`,
+		`{"field":"custom_fields.x","op":"LT","value":"$1"}`,
+		// An aggregation over a key that tries to close the statement (S-11).
+		`{"field":"custom_fields.hours) FROM work_item; --","op":"GT","value":0}`,
+		// The set and prefix operators on a custom field (S-11): a text set, a text, undefined.
+		`{"field":"custom_fields.release_tags","op":"CONTAINS_ANY","value":["a","'; DROP TABLE work_item; --"]}`,
+		`{"field":"custom_fields.release_tags","op":"CONTAINS_ALL","value":["a","b"]}`,
+		`{"field":"custom_fields.colours","op":"STARTS_WITH","value":"%_\\"}`,
+		`{"field":"custom_fields.tags","op":"CONTAINS_ALL","value":["x"]}`,
 		`not json at all`,
 		`{}`,
 		`[]`,
@@ -87,6 +107,13 @@ func FuzzCompile(f *testing.F) {
 		if err != nil {
 			t.Fatalf("the default sort does not parse: %v", err)
 		}
+		// The use case shapes every custom field before the compiler sees it; a filter the
+		// shape refuses never reaches it.
+		shaped, err := view.Spec{Filter: node, Sort: sort}.Shaped(fuzzShapes(node))
+		if err != nil {
+			return
+		}
+		node = shaped.Filter
 		search := searchFor(node, sort)
 
 		statement, err := Rows(search, Boundary{}, 51)
@@ -104,7 +131,123 @@ func FuzzCompile(f *testing.F) {
 		assertParameters(t, statement)
 		assertShapeOnly(t, node, sort, statement)
 		assertAlphabet(t, statement, document)
+
+		// The same filter under an aggregation (S-11): a count per status and week, a lead time
+		// per Sunday week, and across a set of collections.
+		for _, raw := range []map[string]any{
+			{"function": "COUNT", "group_by": "status",
+				"bucket": map[string]any{"field": "created_at", "period": "week"}},
+			{"function": "AVG", "field": "lead_time",
+				"bucket": map[string]any{"field": "completed_at", "period": "week", "week_start": "sunday"}},
+			{"function": "SUM", "field": "scheduled_span", "group_by": "assignee_id"},
+			{"source": "links", "function": "COUNT", "group_by": "link_type",
+				"bucket": map[string]any{"field": "created_at", "period": "month"}},
+			{"source": "time", "function": "SUM", "field": "minutes", "group_by": "person",
+				"bucket": map[string]any{"field": "day", "period": "week", "week_start": "sunday"}},
+			{"source": "pages", "function": "COUNT", "group_by": "verification",
+				"bucket": map[string]any{"field": "created_at", "period": "day"}},
+		} {
+			counted, err := view.ParseAggregation(raw, "/aggregate")
+			if err != nil {
+				t.Fatalf("the aggregation does not parse: %v", err)
+			}
+			for _, anchor := range []repository.Anchor{search.Anchor, {
+				Kind: repository.AnchorCollections, CollectionIDs: []shared.ID{collection}, ItemIDs: []shared.ID{collection},
+			}} {
+				summary, err := Aggregate(repository.ItemSearch{Anchor: anchor, Spec: search.Spec},
+					counted, document, 5001)
+				if err != nil && !hasPlaceholder(node) {
+					t.Fatalf("an aggregation did not compile: %v", err)
+				}
+				if err == nil {
+					assertParameters(t, summary)
+					assertAlphabet(t, summary, document)
+				}
+			}
+		}
+
+		// The same keys as a sort and a grouping, which write the typed value in two more places.
+		for _, key := range (view.Spec{Filter: node}).CustomKeys() {
+			raw := map[string]any{"field": view.CustomFieldPrefix + key, "dir": "DESC"}
+			custom, err := view.ParseSort([]any{raw}, "/sort")
+			if err != nil {
+				t.Fatalf("a custom sort does not parse: %v", err)
+			}
+			group, err := view.ParseGroupBy(map[string]any{"field": view.CustomFieldPrefix + key}, "/group_by")
+			if err != nil {
+				t.Fatalf("a custom grouping does not parse: %v", err)
+			}
+			spec, err := view.Spec{Filter: node, Sort: custom, GroupBy: group}.Shaped(fuzzShapes(node))
+			if err != nil {
+				continue
+			}
+			sorted, err := Rows(repository.ItemSearch{Anchor: search.Anchor, Spec: spec},
+				Boundary{Keys: []string{keyNull}, ID: collection}, 51)
+			if err != nil {
+				t.Fatalf("a custom sort did not compile: %v", err)
+			}
+			assertParameters(t, sorted)
+			assertAlphabet(t, sorted, document)
+			grouped, err := Groups(repository.ItemSearch{Anchor: search.Anchor, Spec: spec}, 51)
+			if err != nil {
+				t.Fatalf("a custom grouping did not compile: %v", err)
+			}
+			assertParameters(t, grouped)
+			assertAlphabet(t, grouped, document)
+			counted, err := Count(repository.ItemSearch{Anchor: search.Anchor, Spec: spec})
+			if err != nil {
+				t.Fatalf("a custom count did not compile: %v", err)
+			}
+			assertParameters(t, counted)
+			assertAlphabet(t, counted, document)
+
+			// The key as an aggregation's measure, grouping and bucket, each where its shape allows.
+			for _, raw := range []map[string]any{
+				{"function": "SUM", "field": view.CustomFieldPrefix + key},
+				{"function": "COUNT", "group_by": view.CustomFieldPrefix + key},
+				{"function": "COUNT", "bucket": map[string]any{"field": view.CustomFieldPrefix + key, "period": "day"}},
+			} {
+				aggregation, err := view.ParseAggregation(raw, "/aggregate")
+				if err != nil {
+					t.Fatalf("a custom aggregation does not parse: %v", err)
+				}
+				aggregation, err = aggregation.Shaped(fuzzShapes(node))
+				if err != nil {
+					continue
+				}
+				summary, err := Aggregate(repository.ItemSearch{Anchor: search.Anchor, Spec: spec},
+					aggregation, document, 5001)
+				if err != nil {
+					t.Fatalf("a custom aggregation did not compile: %v", err)
+				}
+				assertParameters(t, summary)
+				assertAlphabet(t, summary, document)
+			}
+		}
 	})
+}
+
+// fuzzShapes gives every custom key a shape chosen by its length, so the corpus walks every typed
+// column and the undefined key without the shape depending on anything but the name.
+func fuzzShapes(node *view.Node) map[string]view.CustomShape {
+	shapes := map[string]view.CustomShape{}
+	if node == nil {
+		return shapes
+	}
+	columns := []view.CustomColumn{
+		view.CustomNumber, view.CustomInstant, view.CustomText, view.CustomRef, "",
+	}
+	for _, key := range (view.Spec{Filter: node}).CustomKeys() {
+		column := columns[len(key)%len(columns)]
+		if column == "" {
+			shapes[key] = view.CustomShape{Resolved: true}
+			continue
+		}
+		// A text key of even length holds several values, so the set operators meet a set.
+		set := column == view.CustomText && len(key)%2 == 0
+		shapes[key] = view.CustomShape{Resolved: true, Defined: true, Column: column, Set: set}
+	}
+	return shapes
 }
 
 func searchFor(node *view.Node, sort []view.SortTerm) repository.ItemSearch {

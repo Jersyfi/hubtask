@@ -31,6 +31,8 @@ UPDATE account SET
   email            = NULL,
   sign_in_name     = NULL,
   external_subject = NULL,
+  -- The directory's identifier of the person (migration 0263): personal, so it goes too.
+  external_id      = NULL,
   password_hash    = NULL,
   start_password_at = NULL,
   terms_url        = NULL,
@@ -107,7 +109,7 @@ func (q *Queries) AuditPseudonyms(ctx context.Context, actorIds []pgtype.UUID) (
 
 const automationsRunningAs = `-- name: AutomationsRunningAs :one
 SELECT count(*) FROM automation_rule
-WHERE tenant_id = current_tenant_id() AND run_as = $1
+WHERE tenant_id = current_tenant_id() AND run_as = $1 AND scope_type <> 'PERSON'
 `
 
 // What stands in the way of a full deletion, counted before it is attempted.
@@ -117,11 +119,59 @@ WHERE tenant_id = current_tenant_id() AND run_as = $1
 // acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
 // rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
 // caller as a dependency error and told them nothing.
+// A person's own rules (PERSON) are not counted: they go with the person (DeletePersonalRulesOfAccount).
 func (q *Queries) AutomationsRunningAs(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, automationsRunningAs, accountID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const blankPageCommentsOf = `-- name: BlankPageCommentsOf :execrows
+UPDATE page_comment
+SET body = '', quote = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, $1), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = $2
+  AND id = ANY($3::uuid[])
+`
+
+type BlankPageCommentsOfParams struct {
+	At       pgtype.Timestamptz
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// What is left of the person's page comments named once the unanswered ones are gone: the words,
+// the quote and the author go, and the comment stays a removed one so its replies keep their thread.
+func (q *Queries) BlankPageCommentsOf(ctx context.Context, arg BlankPageCommentsOfParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blankPageCommentsOf, arg.At, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const blankWhiteboardCommentsOf = `-- name: BlankWhiteboardCommentsOf :execrows
+UPDATE whiteboard_comment
+SET body = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, $1), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = $2
+  AND id = ANY($3::uuid[])
+`
+
+type BlankWhiteboardCommentsOfParams struct {
+	At       pgtype.Timestamptz
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// As BlankPageCommentsOf, for a board's comments.
+func (q *Queries) BlankWhiteboardCommentsOf(ctx context.Context, arg BlankWhiteboardCommentsOfParams) (int64, error) {
+	result, err := q.db.Exec(ctx, blankWhiteboardCommentsOf, arg.At, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const blockErasureKept = `-- name: BlockErasureKept :execrows
@@ -163,6 +213,32 @@ func (q *Queries) ClearAssignmentsOn(ctx context.Context, arg ClearAssignmentsOn
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const clearTimeNotesOfAccount = `-- name: ClearTimeNotesOfAccount :one
+WITH notes AS (
+  UPDATE time_record SET note = ''
+  WHERE time_record.tenant_id = current_tenant_id() AND time_record.account_id = $1::uuid
+    AND time_record.note <> ''
+  RETURNING 1
+), reasons AS (
+  UPDATE timesheet SET reason = ''
+  WHERE timesheet.tenant_id = current_tenant_id() AND timesheet.account_id = $1::uuid
+    AND timesheet.reason <> ''
+  RETURNING 1
+)
+SELECT ((SELECT count(*) FROM notes) + (SELECT count(*) FROM reasons))::bigint AS cleared
+`
+
+// A person's erasure keeps their time - day, minutes, entry, kind, billable, the week and its
+// decision - so that what accounting sums stays (accepted.md B): what goes is the words, the notes
+// on their records and a rejection's reason on their weeks. The account identifier stays, and is
+// the pseudonym once the account is anonymised or gone.
+func (q *Queries) ClearTimeNotesOfAccount(ctx context.Context, subject pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, clearTimeNotesOfAccount, subject)
+	var cleared int64
+	err := row.Scan(&cleared)
+	return cleared, err
 }
 
 const completeReappliedErasure = `-- name: CompleteReappliedErasure :execrows
@@ -258,6 +334,52 @@ func (q *Queries) DeleteAiRequestsOfAccount(ctx context.Context, accountID pgtyp
 	return result.RowsAffected(), nil
 }
 
+const deleteChatLinksOfAccount = `-- name: DeleteChatLinksOfAccount :execrows
+DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// A chat account linked to the person names them on the platform (migration 0328).
+func (q *Queries) DeleteChatLinksOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteChatLinksOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteCheckInsOf = `-- name: DeleteCheckInsOf :many
+DELETE FROM goal_check_in
+WHERE tenant_id = current_tenant_id() AND author_id = $1
+  AND id = ANY($2::uuid[])
+RETURNING id
+`
+
+type DeleteCheckInsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's goal check-ins a hold does not keep, by identifier.
+func (q *Queries) DeleteCheckInsOf(ctx context.Context, arg DeleteCheckInsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteCheckInsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteCommentsOf = `-- name: DeleteCommentsOf :execrows
 DELETE FROM comment
 WHERE tenant_id = current_tenant_id() AND author_id = $1
@@ -293,12 +415,40 @@ func (q *Queries) DeleteCredentialsOfAccount(ctx context.Context, accountID pgty
 	return result.RowsAffected(), nil
 }
 
+const deleteDelegationsOfAccount = `-- name: DeleteDelegationsOfAccount :execrows
+DELETE FROM approval_delegation
+WHERE tenant_id = current_tenant_id()
+  AND (account_id = $1 OR delegate_id = $1)
+`
+
+// Both directions: approvals must neither wait on nor be routed to somebody who is gone.
+func (q *Queries) DeleteDelegationsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDelegationsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteDevicesOfAccount = `-- name: DeleteDevicesOfAccount :execrows
 DELETE FROM sync_device WHERE account_id = $1
 `
 
 func (q *Queries) DeleteDevicesOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteDevicesOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteDigestsOfAccount = `-- name: DeleteDigestsOfAccount :execrows
+DELETE FROM dashboard_digest WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// A digest is mail about to be sent to the person, like a notification.
+func (q *Queries) DeleteDigestsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDigestsOfAccount, accountID)
 	if err != nil {
 		return 0, err
 	}
@@ -333,6 +483,37 @@ func (q *Queries) DeleteKudosOfAccount(ctx context.Context, accountID pgtype.UUI
 	return result.RowsAffected(), nil
 }
 
+const deleteMailReceiptsOfAccount = `-- name: DeleteMailReceiptsOfAccount :execrows
+DELETE FROM mail_receipt
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+`
+
+// The mail intake's log of the person's address, in both modes, as the address path removes it
+// (DeleteMailReceiptsFrom): a receipt is the address and a subject. Before the account is
+// anonymised, which clears the address this matches by.
+func (q *Queries) DeleteMailReceiptsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMailReceiptsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteMailUndeliverableOfAccount = `-- name: DeleteMailUndeliverableOfAccount :execrows
+DELETE FROM mail_undeliverable WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// The mark of an address the mail server refused holds that address; an anonymised account keeps
+// its row, so the mark does not go by the cascade.
+func (q *Queries) DeleteMailUndeliverableOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMailUndeliverableOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMediaObject = `-- name: DeleteMediaObject :execrows
 DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = $1
 `
@@ -359,6 +540,76 @@ func (q *Queries) DeleteNotificationsOfAccount(ctx context.Context, accountID pg
 	return result.RowsAffected(), nil
 }
 
+const deletePageCommentsOf = `-- name: DeletePageCommentsOf :many
+DELETE FROM page_comment pc
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = $1
+  AND pc.id = ANY($2::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM page_comment r WHERE r.tenant_id = pc.tenant_id AND r.parent_id = pc.id)
+RETURNING pc.id
+`
+
+type DeletePageCommentsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's page comments a hold does not keep, by identifier, that nobody answered: a comment
+// with replies is blanked instead (BlankPageCommentsOf), because removing it would take the
+// replies of others with it by cascade.
+func (q *Queries) DeletePageCommentsOf(ctx context.Context, arg DeletePageCommentsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePageCommentsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deletePageDraftsOf = `-- name: DeletePageDraftsOf :many
+DELETE FROM page_draft
+WHERE tenant_id = current_tenant_id() AND updated_by = $1
+  AND page_id = ANY($2::uuid[])
+RETURNING page_id
+`
+
+type DeletePageDraftsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The drafts the person edited last that a hold does not keep, by page. The published page stays.
+func (q *Queries) DeletePageDraftsOf(ctx context.Context, arg DeletePageDraftsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePageDraftsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var page_id pgtype.UUID
+		if err := rows.Scan(&page_id); err != nil {
+			return nil, err
+		}
+		items = append(items, page_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deletePasskeysOfAccount = `-- name: DeletePasskeysOfAccount :execrows
 DELETE FROM webauthn_credential WHERE account_id = $1
 `
@@ -371,6 +622,132 @@ func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const deletePersonSettingsOfAccount = `-- name: DeletePersonSettingsOfAccount :execrows
+DELETE FROM setting_value
+WHERE tenant_id = current_tenant_id() AND level = 'PERSON' AND scope_id = $1
+`
+
+// The person's own settings (level PERSON, scope_id the account): their configuration, which no
+// foreign key takes with the account.
+func (q *Queries) DeletePersonSettingsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePersonSettingsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePersonalRulesOfAccount = `-- name: DeletePersonalRulesOfAccount :execrows
+DELETE FROM automation_rule
+WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = $1
+`
+
+// The person's own rules (scope PERSON, migration 0319): their configuration, gone with them
+// whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.
+func (q *Queries) DeletePersonalRulesOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePersonalRulesOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePortfolioUpdatesOf = `-- name: DeletePortfolioUpdatesOf :many
+DELETE FROM portfolio_update
+WHERE tenant_id = current_tenant_id() AND author_id = $1
+  AND id = ANY($2::uuid[])
+RETURNING id
+`
+
+type DeletePortfolioUpdatesOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// The person's portfolio updates a hold does not keep, by identifier.
+func (q *Queries) DeletePortfolioUpdatesOf(ctx context.Context, arg DeletePortfolioUpdatesOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deletePortfolioUpdatesOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deletePrivateDashboardsOfAccount = `-- name: DeletePrivateDashboardsOfAccount :execrows
+DELETE FROM dashboard
+WHERE tenant_id = current_tenant_id() AND owner_id = $1 AND sharing = 'PRIVATE'
+`
+
+// A PRIVATE dashboard is seen by its owner alone; a shared one is the workspace's and keeps a bare
+// owner reference.
+func (q *Queries) DeletePrivateDashboardsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePrivateDashboardsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTimerOfAccount = `-- name: DeleteTimerOfAccount :execrows
+DELETE FROM time_timer WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// A running timer is not time anybody recorded: it goes with the person.
+func (q *Queries) DeleteTimerOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTimerOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteWhiteboardCommentsOf = `-- name: DeleteWhiteboardCommentsOf :many
+DELETE FROM whiteboard_comment bc
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = $1
+  AND bc.id = ANY($2::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM whiteboard_comment r WHERE r.tenant_id = bc.tenant_id AND r.parent_id = bc.id)
+RETURNING bc.id
+`
+
+type DeleteWhiteboardCommentsOfParams struct {
+	AuthorID pgtype.UUID
+	Ids      []pgtype.UUID
+}
+
+// As DeletePageCommentsOf, for a board's comments.
+func (q *Queries) DeleteWhiteboardCommentsOf(ctx context.Context, arg DeleteWhiteboardCommentsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteWhiteboardCommentsOf, arg.AuthorID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const discardIntakeOf = `-- name: DiscardIntakeOf :execrows
@@ -453,6 +830,29 @@ SELECT 'ENTRY'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.crea
 FROM work_item w
 JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
 WHERE w.tenant_id = current_tenant_id() AND w.created_by = $1
+UNION ALL
+SELECT 'PAGE_COMMENT'::text, pc.id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_comment pc
+JOIN page p ON p.tenant_id = pc.tenant_id AND p.id = pc.page_id
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = $1
+UNION ALL
+SELECT 'WHITEBOARD_COMMENT'::text, bc.id, NULL::uuid, ''::text, NULL::uuid, b.hub_id, NULL::uuid
+FROM whiteboard_comment bc
+JOIN whiteboard b ON b.tenant_id = bc.tenant_id AND b.id = bc.whiteboard_id
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = $1
+UNION ALL
+SELECT 'GOAL_CHECK_IN'::text, gc.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM goal_check_in gc
+WHERE gc.tenant_id = current_tenant_id() AND gc.author_id = $1
+UNION ALL
+SELECT 'PORTFOLIO_UPDATE'::text, pu.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM portfolio_update pu
+WHERE pu.tenant_id = current_tenant_id() AND pu.author_id = $1
+UNION ALL
+SELECT 'PAGE_DRAFT'::text, d.page_id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_draft d
+JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
+WHERE d.tenant_id = current_tenant_id() AND d.updated_by = $1
 `
 
 type ErasureContributionsRow struct {
@@ -467,7 +867,9 @@ type ErasureContributionsRow struct {
 
 // The person's rows that sit on an entry, with where the entry is: what a hold on the workspace, a
 // hub, a collection, an entry or another person is judged against. Their comments, the entries
-// assigned to them, the entries they created.
+// assigned to them, the entries they created - and what they wrote outside entries: page and board
+// comments (with the hub), goal check-ins and portfolio updates (in no hub), the drafts of pages
+// they edited last (the page's identifier, with the hub).
 func (q *Queries) ErasureContributions(ctx context.Context, accountID pgtype.UUID) ([]ErasureContributionsRow, error) {
 	rows, err := q.db.Query(ctx, erasureContributions, accountID)
 	if err != nil {
@@ -830,6 +1232,59 @@ func (q *Queries) InsertRecoveredErasureCase(ctx context.Context, arg InsertReco
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const integrationsNamingAccount = `-- name: IntegrationsNamingAccount :one
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.run_as = $1)::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.run_as = $1)::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = $1)::int AS agents
+`
+
+type IntegrationsNamingAccountRow struct {
+	Connectors int32
+	Hooks      int32
+	Agents     int32
+}
+
+// Every connector, hook and agent that still names the account, switched on or off: what a full
+// deletion must have moved before the account row goes (0376's foreign keys refuse it otherwise).
+func (q *Queries) IntegrationsNamingAccount(ctx context.Context, accountID pgtype.UUID) (IntegrationsNamingAccountRow, error) {
+	row := q.db.QueryRow(ctx, integrationsNamingAccount, accountID)
+	var i IntegrationsNamingAccountRow
+	err := row.Scan(&i.Connectors, &i.Hooks, &i.Agents)
+	return i, err
+}
+
+const integrationsRunningAs = `-- name: IntegrationsRunningAs :one
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.enabled AND c.run_as = $1)::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.enabled AND h.run_as = $1)::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = $1
+       AND a.status <> 'RETIRED')::int AS agents
+`
+
+type IntegrationsRunningAsRow struct {
+	Connectors int32
+	Hooks      int32
+	Agents     int32
+}
+
+// The integrations that act as one account and would fail on every run once it is gone, counted
+// before a full deletion as the rules are: none has a foreign key to refuse it. A connector or
+// hook switched off takes a new run_as when it is switched on again; an agent keeps its owner, so
+// every agent but a retired one counts - a drafted or suspended one can be put live again.
+func (q *Queries) IntegrationsRunningAs(ctx context.Context, accountID pgtype.UUID) (IntegrationsRunningAsRow, error) {
+	row := q.db.QueryRow(ctx, integrationsRunningAs, accountID)
+	var i IntegrationsRunningAsRow
+	err := row.Scan(&i.Connectors, &i.Hooks, &i.Agents)
+	return i, err
 }
 
 const kudosOfAccount = `-- name: KudosOfAccount :many
@@ -1301,6 +1756,48 @@ func (q *Queries) ReleaseIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const reownSwitchedOffIntegrations = `-- name: ReownSwitchedOffIntegrations :one
+WITH connectors AS (
+  UPDATE cmdb_connector c SET run_as = $1, updated_at = $2, version = c.version + 1
+  WHERE c.tenant_id = current_tenant_id() AND NOT c.enabled AND c.run_as = $3
+  RETURNING 1
+), hooks AS (
+  UPDATE code_hook h SET run_as = $1, updated_at = $2
+  WHERE h.tenant_id = current_tenant_id() AND NOT h.enabled AND h.run_as = $3
+  RETURNING 1
+), agents AS (
+  UPDATE agent a SET owner_id = $1, updated_at = $2, version = a.version + 1
+  WHERE a.tenant_id = current_tenant_id() AND a.status = 'RETIRED' AND a.owner_id = $3
+  RETURNING 1
+)
+SELECT (SELECT count(*) FROM connectors)::int AS connectors,
+       (SELECT count(*) FROM hooks)::int AS hooks,
+       (SELECT count(*) FROM agents)::int AS agents
+`
+
+type ReownSwitchedOffIntegrationsParams struct {
+	ToAccount   pgtype.UUID
+	Now         pgtype.Timestamptz
+	FromAccount pgtype.UUID
+}
+
+type ReownSwitchedOffIntegrationsRow struct {
+	Connectors int32
+	Hooks      int32
+	Agents     int32
+}
+
+// Before a full deletion: the switched-off connectors and code hooks that would run as the person
+// and their retired agents move to another owner of the workspace, and stay off - an erasure does
+// not decide to delete the workspace's integrations, nor to switch one on (data-protection.md §4).
+// Each updated row's version moves, so an editor's stale write is refused.
+func (q *Queries) ReownSwitchedOffIntegrations(ctx context.Context, arg ReownSwitchedOffIntegrationsParams) (ReownSwitchedOffIntegrationsRow, error) {
+	row := q.db.QueryRow(ctx, reownSwitchedOffIntegrations, arg.ToAccount, arg.Now, arg.FromAccount)
+	var i ReownSwitchedOffIntegrationsRow
+	err := row.Scan(&i.Connectors, &i.Hooks, &i.Agents)
+	return i, err
 }
 
 const restrictedPeople = `-- name: RestrictedPeople :many

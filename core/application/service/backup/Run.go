@@ -296,7 +296,8 @@ func (r Runner) record(
 // Descriptor registers starting a backup in all three channels.
 func (h StartBackup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: StartBackupName,
+		Name:       StartBackupName,
+		Permission: service.PermissionStructure,
 		Summary: "Writes one archive to one backup target, now, rather than waiting for a " +
 			"schedule. Answers the job that will do it and the run it will produce - and the " +
 			"run's identifier is the archive's identifier in the manifest at the target, so a " +
@@ -365,7 +366,8 @@ func (h StartBackup) invoke(
 // Descriptor registers the run resource.
 func (h GetBackupRun) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetBackupRunName,
+		Name:       GetBackupRunName,
+		Permission: service.PermissionStructure,
 		Summary: "What one backup run did: what was written, where, how much of it, when the " +
 			"snapshot it represents was taken, and whether it has been verified since. Read from " +
 			"the database rather than from the target - the listing at the target is the reading " +
@@ -402,7 +404,8 @@ func (h GetBackupRun) invoke(
 // Descriptor registers the verification.
 func (h VerifyBackup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: VerifyBackupName,
+		Name:       VerifyBackupName,
+		Permission: service.PermissionStructure,
 		Summary: "Checks an archive at its target without restoring it: every member is read and " +
 			"its checksum compared, and the manifest and checksums.txt have to agree with each " +
 			"other. It needs no archive key - the checksums are over the bytes as stored. The " +

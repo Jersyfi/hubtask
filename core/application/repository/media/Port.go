@@ -65,10 +65,17 @@ type Objects interface {
 	// be served is the domain's question.
 	Find(ctx context.Context, id shared.ID) (media.Object, error)
 
-	// Seal writes the confirmation: PENDING becomes READY with the judged type and the measured
-	// size. Zero rows matched - already READY, marked, gone - comes back as ErrConflict, and the
+	// Seal writes the confirmation: PENDING becomes object.Status - READY, or PENDING_SCAN where
+	// the scanner could not answer - with the judged type and the measured size. Zero rows matched - already READY, marked, gone - comes back as ErrConflict, and the
 	// caller reads the row again to answer from what is there.
 	Seal(ctx context.Context, object media.Object) error
+
+	// Held returns up to batch live objects held for a scan, oldest first.
+	Held(ctx context.Context, batch int) ([]media.Object, error)
+
+	// Settle writes a scan's verdict on a held object - READY or INFECTED, as object.Status says.
+	// One no longer held, marked or gone comes back as ErrConflict.
+	Settle(ctx context.Context, object media.Object) error
 
 	// AdjustRefCount moves the counter by delta, floored at zero. The fast half of reference
 	// counting; the reconciliation's recount is what keeps it honest.
@@ -99,9 +106,21 @@ type Objects interface {
 	// for the authorisation question.
 	ReferencingItems(ctx context.Context, mediaID shared.ID) ([]ItemRef, error)
 
+	// ReferencingBoards returns the hubs of the boards that draw the object and are not trashed,
+	// bounded, for the authorisation question (UC-CNV-08).
+	ReferencingBoards(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
+
+	// ReferencingPages returns the pages that hold the object and are not trashed, bounded, for
+	// the authorisation question the knowledge module answers (UC-DOC-14).
+	ReferencingPages(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
+
 	// ServesAvatar answers whether some account shows the object as its picture - which makes it
 	// readable by every member, as the name beside it is.
 	ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error)
+
+	// ServedDesks returns the live collections that show the object as their desk's logo, bounded,
+	// for the authorisation question: whoever may raise a request there may read it.
+	ServedDesks(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
 
 	// ListForItem returns one page of an item's attachments as media objects.
 	ListForItem(ctx context.Context, itemID shared.ID, page repository.Page) (ObjectPage, error)

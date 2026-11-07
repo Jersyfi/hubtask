@@ -1,0 +1,60 @@
+{
+  "key": "team_wiki",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "knowledge": {
+        "switch": "ON"
+      }
+    },
+    "template_pages": {
+      "start_here": {
+        "title": "Start here",
+        "icon": "📘",
+        "body": "This is the team's wiki: what we know, how we work and what we decided, one page each. Anybody in the hub reads it; whoever may write changes a page and its history keeps every version.\n\n## Find your way\n\n- **How we write here** - the few rules that keep the wiki easy to read.\n- **Team handbook** - how the team works, its meetings, its decisions and its guides.\n\nChange these pages as your team changes: they are yours now, and a newer version of the template never rewrites them.",
+        "subpages": [
+          {
+            "title": "How we write here",
+            "icon": "✍️",
+            "body": "- One page, one subject; link to a page instead of repeating it.\n- The first sentence says what the page is for.\n- Mark a page as verified once it is right, and give it a review date, so nobody trusts a page that went stale.\n- Write for the colleague who joins next month."
+          }
+        ]
+      },
+      "team_handbook": {
+        "title": "Team handbook",
+        "icon": "📚",
+        "body": "How this team works: who does what, when we meet and how we decide. Keep it short and keep it right.",
+        "subpages": [
+          {
+            "title": "Meeting notes",
+            "icon": "🗓️",
+            "body": "One page per meeting under this one: the date, who was there, what was decided and who does what by when."
+          },
+          {
+            "title": "Decisions",
+            "icon": "⚖️",
+            "body": "One page per decision that is hard to undo: the question, the options we weighed, what we chose and why."
+          },
+          {
+            "title": "How-to guides",
+            "icon": "🧭",
+            "body": "Step-by-step guides for what the team does again and again, one task per page."
+          }
+        ]
+      }
+    }
+  }
+}

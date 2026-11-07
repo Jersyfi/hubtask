@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, ruleLines } from './overview.ts';
+import { backupState, findingsIn, limitAmount, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines } from './overview.ts';
 
 test('limits: fullest first, reached and near told apart, no line without a ceiling or a count', () => {
   const lines = limitLines([
@@ -26,6 +26,17 @@ test('limits: fullest first, reached and near told apart, no line without a ceil
 
 test('limits: a ratio the server leaves out is computed from use and ceiling', () => {
   assert.equal(limitLines([{ quota: 'items', limit: 10, used: 9 }])[0]?.state, 'near');
+});
+
+test('limits: a workspace without AI is shown no AI limit; one with AI sees them', () => {
+  const standings = [
+    { quota: 'items', limit: 1000, used: 1 },
+    { quota: 'ai_tokens_per_day', limit: 200000, used: 0 },
+    { quota: 'ai_own_tokens_per_day', limit: 5000, used: 0 },
+    { quota: 'ai_arrival_proposals_per_day', limit: 200, used: 0 },
+  ];
+  assert.deepEqual(limitLines(standings, { aiOn: false }).map((line) => line.quota), ['items']);
+  assert.equal(limitLines(standings, { aiOn: true }).length, 4);
 });
 
 test('rules: failing first by failures, then broken, then attention; a quiet rule is no line', () => {
@@ -75,4 +86,56 @@ test('requests: overdue and soon only, soonest first', () => {
 test('a degraded feature links to its page only where the workspace sets it', () => {
   assert.equal(pageOfFeature('ai'), '/administration/ai');
   assert.equal(pageOfFeature('media'), undefined);
+});
+
+test('a configuration finding opens the page of the block it names', () => {
+  assert.equal(pageOfFinding('workflows.incident'), '/administration/workflows');
+  assert.equal(pageOfFinding('rules.loops'), '/administration/rules');
+  assert.equal(pageOfFinding('scheme.incident', 'h1'), '/hubs/h1/settings/workflow');
+  assert.equal(pageOfFinding('scheme.incident'), undefined);
+  assert.equal(pageOfFinding('nothing.here'), undefined);
+});
+
+// configuration.md §11: each block's own page shows the findings about its sections, in the
+// check's order, and none about another page's blocks.
+test('a page shows the findings about its own sections', () => {
+  const findings = [
+    { path: 'types.incident', code: 'config.check.required_unfillable' },
+    { path: 'workflows.flow', code: 'config.check.done_unreachable' },
+    { path: 'types.change', code: 'config.check.required_unfillable' },
+    { path: 'typesetting.x', code: 'other' },
+  ];
+  assert.deepEqual(findingsIn(findings, ['types']).map((f) => f.path), ['types.incident', 'types.change']);
+  assert.deepEqual(findingsIn(findings, ['roles']), []);
+});
+
+test('waiting: the proposals waiting for a person and the templates with an update, each to its page', () => {
+  const waiting = waitingLines(
+    [{ id: 'p1' }, { id: 'p2' }],
+    [
+      { key: 'itil_service_desk', name: 'ITIL service desk', taken_version: 5, update_available: true },
+      { key: 'kanban_team', name: 'Kanban team', taken_version: 1, update_available: false },
+      { key: 'scrum_team', name: 'Scrum team', taken_version: null, update_available: true },
+    ],
+  );
+  assert.equal(waiting.proposals, 2);
+  assert.deepEqual(waiting.updates.map((update) => update.key), ['itil_service_desk']);
+  assert.equal(waiting.needs, true);
+  assert.equal(waitingLines([], []).needs, false);
+});
+
+test('mailboxes: a switched-on mailbox refusing for over an hour is a line, a quiet or switched-off one is not', () => {
+  const lines = mailboxLines([
+    { id: 'b', address: 'support@b.example', enabled: true, failing: true, failure: 'mail.mailbox_refused' },
+    { id: 'a', address: 'help@a.example', enabled: true, failing: true },
+    { id: 'c', address: 'quiet@c.example', enabled: true, failing: false },
+    { id: 'd', address: 'off@d.example', enabled: false, failing: true },
+  ]);
+  assert.deepEqual(lines.map((line) => line.id), ['a', 'b']);
+});
+
+test('a limit\'s figures are grouped the reader\'s way, bytes as sizes', () => {
+  assert.equal(limitAmount('items', 200000, 'en'), '200,000');
+  assert.equal(limitAmount('items', 200000, 'de'), '200.000');
+  assert.match(limitAmount('media_bytes', 2_000_000, 'en'), /MB/);
 });

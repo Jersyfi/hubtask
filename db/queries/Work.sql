@@ -35,7 +35,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -82,8 +82,9 @@ INSERT INTO container (
                        'completion_policy', sqlc.arg('completion_policy')::text)
   END
 )
--- The handle the store gave a collection (migration 0204), so the create answers it.
-RETURNING handle;
+-- The handle and the key prefix the store gave a collection (migrations 0204, 0363), so the create
+-- answers them.
+RETURNING handle, key_prefix;
 
 -- name: ListContainers :many
 -- One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -121,7 +122,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -137,11 +138,42 @@ WHERE c.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
 ORDER BY c.order_key COLLATE "C", c.id
 LIMIT sqlc.arg('page_size');
 
+-- name: ListHubCollections :many
+-- The collections a hub's figure counts (UC-WRK-29), for a page of hubs in one statement: neither
+-- trashed nor archived - what the tree shows under each - and at most `per_hub` of each, in its
+-- manual order, so that a hub of very many collections costs one bounded read and the caller can
+-- tell from one more row that it holds more than it counts. The same columns as ListContainers,
+-- because each one's structure is resolved from them.
+WITH ranked AS (
+  SELECT c.id,
+         row_number() OVER (PARTITION BY c.parent_id ORDER BY c.order_key COLLATE "C", c.id) AS place
+    FROM container c
+   WHERE c.parent_id = ANY (sqlc.arg('hub_ids')::uuid[])
+     AND c.type = 'COLLECTION' AND c.deleted_at IS NULL AND c.archived_at IS NULL
+)
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private, c.handle, c.key_prefix
+FROM ranked r
+JOIN container c ON c.id = r.id
+LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE r.place <= sqlc.arg('per_hub')::int
+ORDER BY c.parent_id, c.order_key COLLATE "C", c.id;
+
 -- name: ListCollectionsInOrder :many
 -- Every collection a conversion could land in, across the hubs, in the order a person reads the
--- tree: the hubs' manual order, then each hub's collections in theirs. Trashed and archived ones are
--- never here, and neither is a collection under an archived hub - it is archived too (I-C3), and a
--- create there is refused. A private hub's collections only when the caller asks for them: the
+-- tree: the hubs' manual order, then each hub's collections in theirs. Trashed ones are never here,
+-- archived ones only when asked (a workspace summary over archived entries), and neither is a
+-- collection under an archived hub otherwise - it is archived too (I-C3), and a create there is
+-- refused. A private hub's collections only when the caller asks for them: the
 -- shared set a model chooses from leaves them out, a person's own picker keeps them and has them
 -- narrowed to what that person may create in.
 --
@@ -156,14 +188,14 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, hub.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle,
+  c.private, c.handle, c.key_prefix,
   hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
 FROM container c
 JOIN container hub ON hub.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.type = 'COLLECTION'
   AND c.deleted_at IS NULL AND hub.deleted_at IS NULL
-  AND c.archived_at IS NULL AND hub.archived_at IS NULL
+  AND (sqlc.arg('include_archived')::boolean OR (c.archived_at IS NULL AND hub.archived_at IS NULL))
   AND (sqlc.arg('include_private')::boolean OR NOT hub.private)
   AND (
     sqlc.narg('cursor_hub_order_key')::text IS NULL
@@ -195,6 +227,9 @@ UPDATE container SET
   description = sqlc.narg('description'),
   icon        = sqlc.narg('icon'),
   color_token = sqlc.narg('color_token'),
+  -- A collection's key prefix; one another collection holds is refused by 0363's trigger as a
+  -- unique violation on container_key_prefix_uq.
+  key_prefix  = sqlc.narg('key_prefix'),
   updated_at  = sqlc.arg('updated_at'),
   version     = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
@@ -326,18 +361,21 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
-  -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
-  -- because §6's point is that the object itself says what is coming.
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  -- (data-retention.md §6). Read here rather than assembled by a second query, because §6's
+  -- point is that the object itself says what is coming; read from the side table (F-10, 0234),
+  -- which the trigger keeps equal to the columns every writer still writes.
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.id = $1;
 
 -- name: FindWorkItems :many
@@ -357,16 +395,32 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: EntryIDsAfter :many
+-- One page of the live entries of a collection, of a hub's collections, or of the whole workspace
+-- for neither, in
+-- identifier order after a cursor: the walk that fills a new CALCULATED field on the entries
+-- defined before it (domain-model.md §3.5). Another tenant's rows are absent (row level security).
+SELECT wi.id
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND (sqlc.narg('collection_id')::uuid IS NULL OR wi.collection_id = sqlc.narg('collection_id')::uuid
+       OR wi.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.narg('collection_id')::uuid))
+  AND wi.id > sqlc.arg('after')::uuid
+ORDER BY wi.id
+LIMIT sqlc.arg('page_size')::int;
 
 -- name: WorkItemTypes :many
 -- The type of each entry among ids, and nothing else: what a collection hides of an entry depends on
@@ -439,10 +493,31 @@ LIMIT sqlc.arg('max_rows');
 --
 -- COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
 -- byte order, and under a linguistic collation "Zz" would sort above "a0".
-SELECT order_key
-FROM work_item
-WHERE collection_id = sqlc.arg('collection_id')::uuid
-  AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+--
+-- The parent is spelled `= OR IS NULL` rather than IS NOT DISTINCT FROM, which no index answers:
+-- the planner folds the absent parent into `parent_id IS NULL`, and the live siblings are read
+-- backwards from wi_level_order_idx's end, the trashed ones from wi_trash_idx. Spelled as one
+-- comparison, every create read its whole level - tens of milliseconds at tens of thousands of
+-- entries (observability-reliability.md §13.2).
+SELECT order_key FROM (
+  (SELECT wi.order_key
+     FROM work_item wi
+    WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
+      AND (wi.parent_id = sqlc.narg('parent_id')::uuid
+           OR (sqlc.narg('parent_id')::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NULL
+    ORDER BY wi.order_key COLLATE "C" DESC, wi.id DESC
+    LIMIT 1)
+  UNION ALL
+  (SELECT wi.order_key
+     FROM work_item wi
+    WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
+      AND (wi.parent_id = sqlc.narg('parent_id')::uuid
+           OR (sqlc.narg('parent_id')::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NOT NULL
+    ORDER BY wi.order_key COLLATE "C" DESC
+    LIMIT 1)
+) siblings
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
@@ -464,14 +539,18 @@ LIMIT 1;
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
-  updated_at, version
+  updated_at, version, entry_type, status
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
   normalize(sqlc.arg('title')::text, NFC), sqlc.narg('amount'),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
-  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
+  -- The entry's type, null for its level's system type (migration 0216).
+  sqlc.narg('entry_type')::text,
+  -- Its status in the workflow in force where it is created, null where none runs (0223).
+  sqlc.narg('status')::text
 )
 -- The number the store drew in the collection (migration 0204), so the create answers it.
 RETURNING number;
@@ -493,15 +572,17 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = sqlc.arg('calendar_uid')::text;
 
 -- name: SubtreeOfWorkItem :many
@@ -539,15 +620,17 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.path LIKE sqlc.arg('path_prefix')::text || '%'
   AND wi.id <> sqlc.arg('item_id')::uuid
   AND wi.deleted_at IS NULL
@@ -568,6 +651,10 @@ LIMIT sqlc.arg('row_limit');
 -- and would be a false record on an entry that person never touched, the deletion stamps, and the
 -- trash batch. The archive stamp is here, because an entry that was put away below the copied one
 -- stays put away in the copy rather than being silently brought back.
+--
+-- The workspace's entry type and the status travel: the use case has already settled the status in
+-- the destination's workflow (DuplicateWorkItem.openStatus), and a copy without them would come
+-- back its level's system type, standing nowhere on a board by status.
 --
 -- The custom field document and its definition references arrive together and already resolved
 -- against the destination: which definition a value belongs to is decided where the losses are
@@ -592,7 +679,7 @@ INSERT INTO work_item (
   bucket_id, order_key, assignee_id,
   start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
-  content_language, archived_at, created_by, created_at, updated_at, version
+  content_language, archived_at, entry_type, status, created_by, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
@@ -603,7 +690,8 @@ INSERT INTO work_item (
   sqlc.narg('due_time_zone'),
   sqlc.narg('cover_kind'), sqlc.narg('cover_color_token'), sqlc.narg('cover_media_id'),
   sqlc.arg('custom_fields')::jsonb, sqlc.arg('custom_field_refs')::jsonb,
-  sqlc.narg('content_language'), sqlc.narg('archived_at'), sqlc.arg('created_by'),
+  sqlc.narg('content_language'), sqlc.narg('archived_at'), sqlc.narg('entry_type'),
+  sqlc.narg('status'), sqlc.arg('created_by'),
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
@@ -632,17 +720,22 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
-  AND wi.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+  -- `= OR IS NULL` rather than IS NOT DISTINCT FROM, as LastWorkItemOrderKey: the page is then
+  -- read in order from the index instead of sorting the whole level for fifty rows.
+  AND (wi.parent_id = sqlc.narg('parent_id')::uuid
+       OR (sqlc.narg('parent_id')::uuid IS NULL AND wi.parent_id IS NULL))
   AND wi.deleted_at IS NULL
   AND (sqlc.arg('include_archived')::boolean OR wi.archived_at IS NULL)
   -- The entries the caller may see, when that is fewer than the level: null is no restriction at
@@ -694,6 +787,9 @@ UPDATE work_item SET
   is_completed = sqlc.arg('is_completed'),
   completed_at = sqlc.narg('completed_at'),
   completed_by = sqlc.narg('completed_by'),
+  -- The status moves with the completion it decides in a workflow collection (UC-FLW-03 check 4), and stays
+  -- what it was - null in every other collection - where a completion writes no step.
+  status       = sqlc.narg('status')::text,
   updated_at   = sqlc.arg('updated_at'),
   version      = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
@@ -868,23 +964,33 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
 -- nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
 -- for every row, which empties this list and reports an anchor that is present as missing.
-WITH level AS (
-  SELECT id, order_key
-  FROM work_item
-  WHERE collection_id = sqlc.arg('collection_id')::uuid
-    AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
-    AND deleted_at IS NULL
-    AND id IS DISTINCT FROM sqlc.narg('moving_id')::uuid
-), anchor AS (
-  SELECT order_key FROM level WHERE id = sqlc.narg('before_id')::uuid
+-- The greatest rank below is the first row read backwards from wi_level_order_idx, bounded by the
+-- anchor - or by a bound above every rank, chr(1114111), when there is none - rather than a max over
+-- the whole level; the parent is spelled as LastWorkItemOrderKey spells it, for the same reason.
+WITH anchor AS (
+  SELECT wi.order_key
+  FROM work_item wi
+  WHERE wi.id = sqlc.narg('before_id')::uuid
+    AND wi.collection_id = sqlc.arg('collection_id')::uuid
+    AND (wi.parent_id = sqlc.narg('parent_id')::uuid
+         OR (sqlc.narg('parent_id')::uuid IS NULL AND wi.parent_id IS NULL))
+    AND wi.deleted_at IS NULL
+    AND wi.id IS DISTINCT FROM sqlc.narg('moving_id')::uuid
 )
 SELECT
   coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
   coalesce((
-    SELECT max(order_key COLLATE "C")
-    FROM level
-    WHERE (SELECT order_key FROM anchor) IS NULL
-       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+    SELECT wi.order_key
+    FROM work_item wi
+    WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
+      AND (wi.parent_id = sqlc.narg('parent_id')::uuid
+           OR (sqlc.narg('parent_id')::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NULL
+      AND wi.id IS DISTINCT FROM sqlc.narg('moving_id')::uuid
+      AND wi.order_key COLLATE "C"
+          < coalesce((SELECT order_key FROM anchor), chr(1114111)) COLLATE "C"
+    ORDER BY wi.order_key COLLATE "C" DESC, wi.id DESC
+    LIMIT 1
   ), '')::text AS previous_key;
 
 -- name: CountOpenItemsByAssignee :many

@@ -288,3 +288,31 @@ test('a collection is offered only the fields its profile gives meaning to', () 
   // Without a profile, the installation's answer stands.
   assert.equal(offeredByProfile(fields).length, fields.length);
 });
+
+// UC-WRK-17 check 10: the custom fields in force are offered in the order and grouping menus where
+// their kind has one, and the document sends them.
+test('a custom field with an order is a sort and a grouping', () => {
+  const custom = queryFieldsFor([
+    { id: 'f-1', collection_id: 'c-1', key: 'budget', kind: 'MONEY', currency: 'EUR', options: [], is_required: false, applies_to: ['TASK'], version: 1 },
+    { id: 'f-2', collection_id: 'c-1', key: 'tags', kind: 'MULTI_SELECT', options: ['a'], is_required: false, applies_to: ['TASK'], version: 1 },
+  ] as never);
+
+  assert.ok(sortableFields(today, custom).some((each) => each.field === 'custom_fields.budget'));
+  assert.ok(!sortableFields(today, custom).some((each) => each.field === 'custom_fields.tags'));
+  assert.ok(groupableFields(today, custom).some((each) => each.field === 'custom_fields.budget'));
+  assert.deepEqual(sortOf(today, 'custom_fields.budget', 'DESC', custom), [
+    { field: 'custom_fields.budget', dir: 'DESC', nulls: 'LAST' },
+  ]);
+  assert.equal(sortOf(today, 'custom_fields.tags', 'ASC', custom), undefined);
+  assert.deepEqual(groupOf(today, 'custom_fields.budget', custom), { field: 'custom_fields.budget', limit_per_group: 50 });
+});
+
+test('several types chosen for IN travel as a list and come back as the parts the chooser ticks', () => {
+  const typed = {
+    query_fields: [field('entry_type', 'enum', ['EQ', 'IN', 'NOT_IN'], { groupable: true })],
+  } as unknown as Capabilities;
+  // The chooser joins the ticked keys with commas, as a person would type them.
+  const node = filterOf(typed, [{ field: 'entry_type', op: 'NOT_IN', value: 'bug, feature' }]);
+  assert.deepEqual(node, { op: 'NOT_IN', field: 'entry_type', value: ['bug', 'feature'] });
+  assert.deepEqual(conditionsOf(node), [{ field: 'entry_type', op: 'NOT_IN', value: 'bug, feature' }]);
+});

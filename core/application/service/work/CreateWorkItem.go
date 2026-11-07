@@ -123,6 +123,9 @@ type CreateWorkItemCommand struct {
 	// than a silent append, because a client that asked for a position and got the end of the list
 	// has been ignored.
 	BeforeItemID shared.ID
+	// EntryType is the key of the entry's type, empty for its level's system type (UC-FLW-01
+	// check 3).
+	EntryType string
 }
 
 // CreateWorkItem creates a task, a work package, or an activity.
@@ -188,6 +191,13 @@ type CreateWorkItem struct {
 	// Flow refuses an entry created into a column past the first without its required fields,
 	// where the collection applies that (FlowGate).
 	Flow FlowGate
+	// EntryTypes is the workspace's type registry: which type a new entry may take, and what that
+	// type takes from its level's profile (UC-FLW-01). Nil in a build without it: every entry is
+	// then its level's system type.
+	EntryTypes repository.EntryTypes
+	// Workflow gives a new entry the initial status of the workflow its collection runs for its
+	// type (UC-FLW-02). A build without it runs none.
+	Workflow WorkflowGate
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -208,7 +218,7 @@ func (h CreateWorkItem) Execute(
 
 	// Before the transaction, deliberately: a refusal writes an audit entry, and an entry written
 	// inside this transaction would be rolled back together with the refusal (audit.md §7).
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionWriteItems,
 		Path:       path,
 		Action:     ItemCreatedAction,
@@ -219,7 +229,13 @@ func (h CreateWorkItem) Execute(
 		// assigned, so the path ends at the container (access.ItemSubject).
 		TargetID: collectionID,
 		On:       access.ItemSubject{Does: service.ItemCreate},
-	}); err != nil {
+	}
+	if actor.Channel == string(domain.ChannelPortal) {
+		// A request raised through the portal asks REQUEST at the collection (UC-SVC-05); the
+		// portal's own use case is the one caller that sets this channel.
+		request.Permission, request.On = service.PermissionRequest, access.ItemSubject{}
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return domain.WorkItem{}, nil, err
 	}
 
@@ -264,6 +280,15 @@ func (h CreateWorkItem) Execute(
 		item, err := h.build(ctx, actor, cmd, collectionID, now)
 		if err != nil {
 			return err
+		}
+		if h.Workflow.Wired() {
+			collection, err := findCollection(ctx, h.Containers, item.CollectionID)
+			if err != nil {
+				return err
+			}
+			if item.Status, err = h.Workflow.initialStatus(ctx, collection, item); err != nil {
+				return err
+			}
 		}
 		if item, err = h.Items.Insert(ctx, item); err != nil {
 			return err
@@ -347,6 +372,28 @@ func (h CreateWorkItem) Execute(
 		// Sorted, so that a document with several keys writes its changes in one order whatever
 		// order the request's map was read in - two runs of one request would otherwise announce
 		// the same facts in different sequences.
+		// What the type's form starts a new entry with - its channel's presets, its defaults - for
+		// every field the request left out, written as if the request had carried it.
+		starting, err := h.Gate.Forms.starting(ctx, actor, collection, created, cmd.CustomFields)
+		if err != nil {
+			return err
+		}
+		if len(starting) > 0 {
+			merged := make(map[string]any, len(cmd.CustomFields)+len(starting))
+			for key, value := range cmd.CustomFields {
+				merged[key] = value
+			}
+			for key, value := range starting {
+				if value == nil {
+					// A field the channel hides, with neither preset nor default: what was
+					// sent for it is not the form's (Form.Starting).
+					delete(merged, key)
+					continue
+				}
+				merged[key] = value
+			}
+			cmd.CustomFields = merged
+		}
 		if len(cmd.CustomFields) > 0 {
 			profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, created)
 			if err != nil {
@@ -380,8 +427,12 @@ func (h CreateWorkItem) Execute(
 				return err
 			}
 		}
-		// Last, with every value the request carried already on the entry: a creation into a
-		// column past the first passes with its required fields and is refused whole without them.
+		// Last, with every value the request carried already on the entry: the type's form - a
+		// channel it closes, a required field, a validation - refuses the creation whole, and so
+		// does a column past the first without its required fields.
+		if err := h.Gate.Forms.checkCreate(ctx, actor, collection, created); err != nil {
+			return err
+		}
 		return h.Flow.ensureMayEnter(ctx, h.Gate.Structure, collection, created, created.BucketID)
 	})
 	if err != nil {
@@ -611,6 +662,12 @@ func (h CreateWorkItem) build(
 		return domain.WorkItem{}, err
 	}
 	profile = offer.narrow(profile)
+	entryType, profile, err := chooseEntryType(
+		ctx, h.EntryTypes, cmd.Type, cmd.EntryType, parent, profile, offer.entryTypesOn(cmd.Type), hubOf(collection),
+	)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
 
 	if strings.TrimSpace(cmd.Amount) != "" {
 		if err := ensureAmountOffered(ctx, h.Structure, collection, cmd.Type); err != nil {
@@ -618,6 +675,13 @@ func (h CreateWorkItem) build(
 		}
 	}
 
+	if cmd.BucketID.IsZero() && placement.ParentID.IsZero() && cmd.Type == domain.ItemTask && profile.Allows(domain.CapabilityBucket) {
+		landed, err := landingColumn(ctx, h.Structure, h.Buckets, collection)
+		if err != nil {
+			return domain.WorkItem{}, err
+		}
+		cmd.BucketID = landed
+	}
 	if !cmd.BucketID.IsZero() {
 		// Checked against the collection the entry is being created in, before the constructor
 		// checks the capability: a column of another collection's board is a reference nothing
@@ -640,7 +704,7 @@ func (h CreateWorkItem) build(
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
-	return domain.NewWorkItem(domain.NewWorkItemInput{
+	item, err := domain.NewWorkItem(domain.NewWorkItemInput{
 		ID:           id,
 		TenantID:     actor.TenantID,
 		CollectionID: collection.ID,
@@ -665,6 +729,8 @@ func (h CreateWorkItem) build(
 		Now:             now,
 		Text:            h.Text,
 	})
+	item.EntryType = entryType
+	return item, err
 }
 
 // languageOr answers the stated language, or the fallback where nothing was stated.
@@ -931,6 +997,11 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		// The entry's number in its collection - with the collection's handle, its ticket key
 		// (ADR-0094). Null only before the store has drawn one.
 		"number": int64OrNil(item.Number),
+		// The key of the entry's type, its level's own where it has none (UC-FLW-01).
+		"entry_type": entryTypeKeyOf(item),
+		// Its status in the workflow its collection runs for its type, null where none runs
+		// (UC-FLW-02).
+		"status": stringOrNil(item.Status),
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()
@@ -994,7 +1065,8 @@ func dueZoneOrNil(due *domain.DueDate) any {
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateWorkItemName,
+		Name:       CreateWorkItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Creates a task, a work package or an activity. A task sits directly in a " +
 			"collection; a work package sits in a task, and an activity in a task or a work package. " +
 			"Which combinations are permitted is configured per workspace rather than fixed, " +
@@ -1043,6 +1115,12 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 				Description: "How much of it - \"2\", \"1 kg\" - beside the title: one line, at most " +
 					"40 characters, empty for none. Only where the collection's structure carries " +
 					"AMOUNT for the type; elsewhere it is refused rather than ignored.",
+			},
+			{
+				Name: "entry_type", Kind: usecase.KindString,
+				Description: "The key of a type of the entry's level the workspace offers; omitted is " +
+					"the level's own. An archived type, another level's, or one the parent's type " +
+					"does not allow underneath is refused.",
 			},
 			{
 				Name: "bucket_id", Kind: usecase.KindID,
@@ -1205,6 +1283,7 @@ func (h CreateWorkItem) invoke(
 		Title:           in.String("title"),
 		Notes:           in.String("notes"),
 		Amount:          in.String("amount"),
+		EntryType:       in.String("entry_type"),
 		BucketID:        bucketID,
 		AssigneeID:      assigneeID,
 		AutoAssign:      in.Bool("auto_assign"),

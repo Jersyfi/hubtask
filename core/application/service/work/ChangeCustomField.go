@@ -50,6 +50,8 @@ type CustomFieldWriter struct {
 	Clock      clock.Clock
 	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Changes tells offline devices of the change.
+	Changes FieldChanges
 }
 
 // UpdateCustomField changes what a definition permits.
@@ -83,14 +85,27 @@ type DeleteCustomFieldCommand struct {
 func (h UpdateCustomField) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateCustomFieldCommand,
 ) (domain.CustomFieldDefinition, error) {
-	if _, err := h.Writer.reachable(
-		ctx, actor, cmd.FieldID, CustomFieldUpdatedAction,
-	); err != nil {
+	reached, err := h.Writer.reachable(ctx, actor, cmd.FieldID, CustomFieldUpdatedAction)
+	if err != nil {
 		return domain.CustomFieldDefinition{}, err
+	}
+	// Whoever decides who may write a field holds its permission (UC-ID-27): otherwise STRUCTURE
+	// alone would open a restricted field to its writer.
+	if cmd.Attributes.Restricted != nil || cmd.Attributes.ReadRestricted != nil {
+		if err := h.Writer.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.FieldWrite(reached.Key),
+			Path:       []identity.Scope{identity.TenantScope()},
+			Action:     CustomFieldUpdatedAction,
+			TokenScope: customFieldsWrite,
+			TargetType: customFieldTarget,
+			TargetID:   cmd.FieldID,
+		}); err != nil {
+			return domain.CustomFieldDefinition{}, err
+		}
 	}
 
 	var updated domain.CustomFieldDefinition
-	err := h.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		stored, err := findCustomField(ctx, h.Writer.Fields, cmd.FieldID)
 		if err != nil {
 			return err
@@ -132,6 +147,9 @@ func (h UpdateCustomField) Execute(
 		}
 		wanted.Version = expected + 1
 		updated = wanted
+		if err := h.Writer.Changes.record(ctx, actor, wanted); err != nil {
+			return err
+		}
 
 		return h.Writer.recordAudit(ctx, wanted, actor, CustomFieldUpdatedAction, changes, now)
 	})
@@ -181,6 +199,9 @@ func (h DeleteCustomField) Execute(
 		if err := h.Writer.Fields.SetDeleted(ctx, deleted, expected); err != nil {
 			return err
 		}
+		if err := h.Writer.Changes.record(ctx, actor, deleted); err != nil {
+			return err
+		}
 		return h.Writer.recordAudit(ctx, deleted, actor, CustomFieldDeletedAction, changes, now)
 	})
 }
@@ -213,11 +234,12 @@ func (w CustomFieldWriter) reachable(
 
 		path = []identity.Scope{identity.TenantScope()}
 		if !found.IsTenantWide() {
-			collection, err := findCollection(ctx, w.Containers, found.CollectionID)
+			// A collection's or a hub's: the permission is asked where it was defined.
+			container, err := findCollection(ctx, w.Containers, found.ScopeID())
 			if err != nil {
 				return err
 			}
-			path = containerPath(collection)
+			path = containerPath(container)
 		}
 		return nil
 	})
@@ -255,7 +277,7 @@ func (w CustomFieldWriter) recordAudit(
 		audit.Change{Field: "key", Classification: audit.Open, To: definition.Key},
 		audit.Change{
 			Field: "collection_id", Classification: audit.Open,
-			To: scopeLabel(definition.CollectionID),
+			To: scopeLabel(definition.ScopeID()),
 		},
 	)
 
@@ -280,7 +302,7 @@ func (w CustomFieldWriter) recordAudit(
 // enough to read it (audit.md §4).
 func auditChangeOf(change domain.FieldChange) audit.Change {
 	classification := audit.Open
-	if change.Field == domain.FieldOptions {
+	if change.Field == domain.FieldOptions || change.Field == domain.FieldName {
 		classification = audit.Sensitive
 	}
 	return audit.Change{
@@ -326,7 +348,8 @@ func findCustomField(
 // Descriptor is the catalogue entry.
 func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateCustomFieldName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateCustomFieldName,
 		Summary: "Changes what a definition permits: its options, whether it is required, and " +
 			"which types carry it. The key and the kind are not among them - a key that moved " +
 			"would orphan every value stored under it, and a kind that changed would reinterpret " +
@@ -340,12 +363,27 @@ func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 				Description: "The definition to change.",
 			},
 			{
+				Name: "name", Kind: usecase.KindString,
+				Description: "What a person reads for the field, at most 100 characters; null or " +
+					"blank removes it. The key stays.",
+			},
+			{
 				Name: "options", Kind: usecase.KindList,
 				Description: "The values a SELECT or a MULTI_SELECT may hold, replacing the list.",
 			},
 			{
 				Name: "is_required", Kind: usecase.KindBool,
 				Description: "Whether the field has to hold a value from now on.",
+			},
+			{
+				Name: "restricted", Kind: usecase.KindBool,
+				Description: "Whether only holders of the field's permission FIELD_WRITE:<key> may " +
+					"write it from now on. Changing it takes that permission; false lifts read_restricted too.",
+			},
+			{
+				Name: "read_restricted", Kind: usecase.KindBool,
+				Description: "Whether the field is hidden from readers who hold neither FIELD_READ:<key> " +
+					"nor FIELD_WRITE:<key>. Changing it takes FIELD_WRITE:<key>; true restricts it too.",
 			},
 			{
 				Name: "applies_to", Kind: usecase.KindList,
@@ -378,6 +416,10 @@ func (h UpdateCustomField) invoke(
 	}
 
 	attributes := domain.CustomFieldAttributes{}
+	if in.Present("name") {
+		name := in.String("name")
+		attributes.Name = &name
+	}
 	if in.Present("options") {
 		options, err := in.StringList("options")
 		if err != nil {
@@ -388,6 +430,14 @@ func (h UpdateCustomField) invoke(
 	if in.Present("is_required") {
 		required := in.Bool("is_required")
 		attributes.IsRequired = &required
+	}
+	if in.Present("restricted") {
+		restricted := in.Bool("restricted")
+		attributes.Restricted = &restricted
+	}
+	if in.Present("read_restricted") {
+		hidden := in.Bool("read_restricted")
+		attributes.ReadRestricted = &hidden
 	}
 	if in.Present("applies_to") {
 		raw, err := in.StringList("applies_to")
@@ -418,7 +468,8 @@ func (h UpdateCustomField) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteCustomFieldName,
+		Permission: service.PermissionStructure,
+		Name:       DeleteCustomFieldName,
 		Summary: "Takes a definition out of use. A soft delete: the values stay in the entries and " +
 			"stop being visible, because rewriting the custom fields of every entry in a " +
 			"collection would be an unbounded write from one request. The key is free again at " +

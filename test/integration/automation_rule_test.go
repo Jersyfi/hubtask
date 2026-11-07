@@ -126,6 +126,42 @@ func TestARuleSurvivesTheColumnsItIsStoredIn(t *testing.T) {
 	}
 }
 
+// A relative date on a business calendar comes back with its calendar (UC-AUT-04 check 9): a
+// column that dropped it would count plain days and close earlier than promised.
+func TestARelativeDateKeepsItsCalendarInTheColumn(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	runAs := seedServiceAccount(ctx, t, tenantA)
+
+	written, err := domain.NewRule(domain.NewRuleInput{
+		ID: freshID(t), TenantID: tenantA, Name: freshName(t),
+		Scope: domain.Scope{Type: domain.ScopeTenant}, RunAs: runAs,
+		Trigger:  domain.Trigger{Kind: domain.TriggerRelativeDate, Anchor: domain.AnchorCompletedAt, Offset: "P5D", Calendar: "office"},
+		Actions:  []domain.Action{{Kind: "ADD_LABEL", Params: map[string]any{"label_id": "x"}}},
+		Throttle: domain.Throttle{MaxRunsPerHour: 100}, OnError: domain.OnErrorContinue,
+		CreatedBy: authorA, Now: time.Now().UTC().Truncate(time.Microsecond),
+	})
+	if err != nil {
+		t.Fatalf("building the rule: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Insert(ctx, written)
+	}); err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	var stored domain.Rule
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var findErr error
+		stored, findErr = automationRules().Find(ctx, written.ID)
+		return findErr
+	}); err != nil {
+		t.Fatalf("reading the rule: %v", err)
+	}
+	if stored.Trigger.Calendar != "office" || stored.Trigger.Offset != "P5D" || stored.Trigger.Anchor != domain.AnchorCompletedAt {
+		t.Errorf("trigger %+v", stored.Trigger)
+	}
+}
+
 // The guard is in the WHERE rather than in a read-then-write, because a check in the application
 // layer is a check something else can commit between.
 func TestAStaleVersionCannotOverwriteARule(t *testing.T) {
@@ -153,6 +189,10 @@ func TestAStaleVersionCannotOverwriteARule(t *testing.T) {
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("error %v, want ErrConflict", err)
+	}
+	// UC-AUT-01 check 7: the code the server sends for it.
+	if code := shared.AsError(err).DetailCode; code != "automation.version_conflict" {
+		t.Errorf("the refusal is %q, want automation.version_conflict", code)
 	}
 }
 
@@ -657,5 +697,61 @@ func TestTheResolverAnswersForThisWorkspaceOnly(t *testing.T) {
 		return err
 	}); err == nil {
 		t.Error("a kind the resolver does not know answered rather than failing")
+	}
+}
+
+// A person's own rules (UC-AUT-01 check 10) against the database: a PERSON rule acting as anybody
+// but its owner is refused by the CHECK, and an erasure takes the person's own rules alone - not
+// another person's, not another workspace's - and counts none of them as standing in its way.
+func TestAPersonsOwnRulesGoWithThemAlone(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	owner := seedServiceAccount(ctx, t, tenantA)
+	colleague := seedServiceAccount(ctx, t, tenantA)
+	elsewhere := seedServiceAccount(ctx, t, tenantB)
+	personal := func(tenant, account shared.ID) domain.Rule {
+		rule := ruleFixture(t, tenant, account, account)
+		rule.Scope = domain.Scope{Type: domain.ScopePerson, ID: account}
+		return rule
+	}
+	theirs, colleagues, otherWorkspace := personal(tenantA, owner), personal(tenantA, colleague), personal(tenantB, elsewhere)
+	for tenant, rule := range map[shared.ID]domain.Rule{tenantA: theirs, tenantB: otherWorkspace} {
+		if err := write(ctx, t, tenant, func(ctx context.Context) error { return automationRules().Insert(ctx, rule) }); err != nil {
+			t.Fatalf("writing a person's rule: %v", err)
+		}
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return automationRules().Insert(ctx, colleagues) }); err != nil {
+		t.Fatalf("writing the colleague's rule: %v", err)
+	}
+	impersonating := personal(tenantA, owner)
+	impersonating.RunAs = colleague
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Insert(ctx, impersonating)
+	}); err == nil {
+		t.Error("a person's rule acting as a colleague was stored")
+	}
+
+	privacy := postgres.NewPrivacyRepository(pageCursors())
+	var removed, standing int
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		if standing, err = privacy.AutomationsRunningAs(ctx, owner); err != nil {
+			return err
+		}
+		removed, err = privacy.DiscardPersonalRules(ctx, owner)
+		return err
+	}); err != nil {
+		t.Fatalf("discarding: %v", err)
+	}
+	if standing != 0 || removed != 1 {
+		t.Errorf("%d rules stood in the way and %d were removed, want 0 and the person's one", standing, removed)
+	}
+	for tenant, rule := range map[shared.ID]domain.Rule{tenantA: colleagues, tenantB: otherWorkspace} {
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			_, err := automationRules().Find(ctx, rule.ID)
+			return err
+		}); err != nil {
+			t.Errorf("another person's own rule went too: %v", err)
+		}
 	}
 }

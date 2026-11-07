@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -224,8 +225,9 @@ var allowedLabels = map[string]bool{
 	"job_type": true, "attempt_class": true,
 	// hubtask_build_info
 	"version": true, "commit": true, "go_version": true,
-	// hubtask_db_pool_connections
-	"pool": true, "state": true,
+	// hubtask_db_pool_connections, hubtask_db_query_duration_seconds, hubtask_db_slow_queries_total,
+	// hubtask_db_errors_total
+	"pool": true, "state": true, "outcome": true, "query": true, "kind": true,
 	// hubtask_rule_runs_total, hubtask_rule_disabled_total
 	"trigger_type": true, "reason": true,
 	// Only with HUBTASK_METRICS_TENANT_LABEL, and covered by its own test.
@@ -259,11 +261,16 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.OutboxLag(ctx, 1.5)
 	m.SchedulerTickLag(ctx, 2)
 	m.PoolConnections(ctx, "api", 4, 6, 10)
+	m.DBQuery(ctx, "api", "ClaimJobs", "ok", 0.002)
+	m.DBQuery(ctx, "background", "dynamic", "canceled", 1.2)
+	m.DBError(ctx, "api", "serialization")
 	m.MigrationVersion(ctx, 68)
 	m.RuleRun(ctx, "succeeded", "event")
 	m.RuleDisabled(ctx, "consecutive_failures")
 	m.WebhookDelivery(ctx, "retry", "5xx")
 	m.WebhookRetryBacklog(ctx, 3)
+	m.MediaScanHeldWorkspaces(ctx, 1)
+	m.OldestTransaction(ctx, 12.5)
 }
 
 // The gate for label cardinality: no label may appear that the catalogue does not list. A test
@@ -412,17 +419,29 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 	m.JobFailed(ctx, "outbox.dispatch", "retry")
 	m.JobFailed(ctx, "reminder.fire", "final")
 	m.JobDeadLettered(ctx, "reminder.fire")
+	m.JobLeaseExpired(ctx, "backup.run")
 	m.QueueDepth(ctx, "outbox.dispatch", 12)
 	m.OutboxLag(ctx, 1.5)
 	m.SchedulerTickLag(ctx, 4)
+	m.SchedulerTicked(ctx, time.Unix(1793534400, 0))
+	m.TimerFailed(ctx, "SLA")
+	m.KindSkipped(ctx, "label")
+	m.DatabaseHorizon(ctx, 0.25, 1200, 5<<30)
 
 	body := scrape(t, m)
 	for _, want := range []string{
+		`hubtask_timer_failures_total{purpose="SLA"} 1`,
+		`hubtask_sync_kinds_skipped_total{kind="label"} 1`,
+		`hubtask_db_notify_queue_usage_ratio 0.25`,
+		`hubtask_db_frozen_xid_age 1200`,
+		`hubtask_db_size_bytes 5.36870912e+09`,
 		`hubtask_job_failures_total{attempt_class="retry",job_type="outbox.dispatch"} 1`,
 		`hubtask_job_failures_total{attempt_class="final",job_type="reminder.fire"} 1`,
 		`hubtask_job_dead_letter_total{job_type="reminder.fire"} 1`,
+		`hubtask_job_lease_expired_total{job_type="backup.run"} 1`,
 		`hubtask_job_queue_depth{job_type="outbox.dispatch"} 12`,
 		`hubtask_scheduler_tick_lag_seconds 4`,
+		`hubtask_scheduler_last_tick_timestamp_seconds 1.7935344e+09`,
 		`hubtask_job_duration_seconds_sum{job_type="outbox.dispatch"} 0.25`,
 		`hubtask_outbox_lag_seconds_sum 1.5`,
 	} {
@@ -503,5 +522,17 @@ func TestWithoutARecordPathNoDrillGaugeExists(t *testing.T) {
 	m := newTestMetrics(t, env.Config{Version: "test"})
 	if body := scrape(t, m); strings.Contains(body, "restore_drill") {
 		t.Errorf("the gauge exists without a record path:\n%s", body)
+	}
+}
+
+// A-24 reads a log nobody compacts under this name and outcome, never naming the document
+// (rule 10).
+func TestADocumentBacklogIsCountedByOutcome(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+
+	m.DocumentBacklog(context.Background(), "refused")
+
+	if body := scrape(t, m); !strings.Contains(body, `hubtask_realtime_document_backlog_total{outcome="refused"} 1`) {
+		t.Errorf("the refusal was not counted:\n%s", body)
 	}
 }

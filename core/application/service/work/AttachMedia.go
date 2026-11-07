@@ -402,7 +402,8 @@ func attachmentSetOutput(set ItemAttachmentSet) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h AttachMedia) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AttachMediaName,
+		Permission: service.PermissionWriteItems,
+		Name:       AttachMediaName,
 		Summary: "Attaches a media object to an entry. The object has to be READY, staged as an " +
 			"attachment and of this workspace, and the entry's type has to carry attachments at " +
 			"all: an activity does not. The bytes are shared, never copied - attaching raises the " +
@@ -425,7 +426,8 @@ func (h AttachMedia) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h DetachMedia) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DetachMediaName,
+		Permission: service.PermissionWriteItems,
+		Name:       DetachMediaName,
 		Summary: "Takes a media object off an entry. Idempotent: an entry that does not carry it " +
 			"succeeds and announces nothing. The object itself stays - it may serve other entries - " +
 			"and one that loses its last reference is removed by the reconciliation job rather " +

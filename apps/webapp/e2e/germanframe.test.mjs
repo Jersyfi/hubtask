@@ -127,6 +127,7 @@ test('chromium: 1280 px — *Du* offers the workspace\'s language and zone in gr
   assert.deepEqual(failures, []);
 });
 
+// UC-INS-04 check 2: the proof is asked once, and nothing is read before it.
 test('chromium: 1280 px — the installation asks for its proof once and reads nothing before it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

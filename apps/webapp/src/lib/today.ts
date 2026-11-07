@@ -16,7 +16,7 @@
  * * **A project shows its next due step** (check 3): a collection whose figure is *progress*.
  */
 
-import type { Container, WorkItem } from '@hubtask/sync-engine';
+import type { Container, EntrySlaList, WorkItem } from '@hubtask/sync-engine';
 
 import { dateIn, instantOf, todayIn } from './i18n/zone.ts';
 import { isOverdue, nextDay } from './data/due.ts';
@@ -107,4 +107,154 @@ export function greetingOf(zone: string, now: number): DayPart {
   if (hour >= 5 && hour < 11) return 'morning';
   if (hour >= 11 && hour < 18) return 'day';
   return 'evening';
+}
+
+/** A band *Today* draws for a product (user-experience.md §3.3), in the order it is drawn. */
+export type ProductBand = 'desk' | 'approvals' | 'agent_acts' | 'reviews' | 'time' | 'sprint';
+
+/**
+ * The product bands, each only where its module is on (UC-WRK-34 check 8): none while the modules
+ * are unknown, because a band whose read the server refuses would be an error, not a day.
+ * *Waiting for your yes* gathers three of them: approvals, agents' held acts and page reviews.
+ */
+export function productBandsOf(modulesOn: readonly string[] | undefined): ProductBand[] {
+  const on = new Set(modulesOn ?? []);
+  return [
+    ...(on.has('SERVICE_DESK') ? ['desk' as const, 'approvals' as const] : []),
+    ...(on.has('AGENTS') ? ['agent_acts' as const] : []),
+    ...(on.has('KNOWLEDGE') ? ['reviews' as const] : []),
+    ...(on.has('TIME') ? ['time' as const] : []),
+    ...(on.has('PLANNING') ? ['sprint' as const] : []),
+  ];
+}
+
+/**
+ * *Needs your answer* at one hub (§3.3): the open entries on the reader, or on nobody yet in a
+ * collection whose auto-assign policy names a group of the reader's (their groups' queue), whose
+ * SLA target runs - `sla_due` is absent where none runs -, the one about to breach first. A hub at
+ * a time, because the query needs a scope (api-guidelines.md, "Scope").
+ */
+export function deskAnswerQuery(hubId: string, size: number): Record<string, unknown> {
+  return {
+    scope: { container_id: hubId, include_descendants: true },
+    filter: {
+      op: 'AND',
+      nodes: [
+        { op: 'EQ', field: 'is_completed', value: false },
+        // `@me` is resolved on the server: the client never names who is signed in.
+        {
+          op: 'OR',
+          nodes: [
+            { op: 'EQ', field: 'assignee_id', value: '@me' },
+            { op: 'AND', nodes: [{ op: 'IS_NULL', field: 'assignee_id' }, { op: 'EQ', field: 'group_queue_of', value: '@me' }] },
+          ],
+        },
+        { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'sla_due' }] },
+      ],
+    },
+    sort: [{ field: 'sla_due', dir: 'ASC', nulls: 'LAST' }],
+    page: { size },
+  };
+}
+
+/**
+ * The moment an entry's SLA is due, as the server sorts a queue by `sla_due`: the earliest due
+ * moment of its goals that still run. None where no goal runs.
+ */
+export function runningDue(goals: EntrySlaList['data']): number | undefined {
+  const due = goals.filter((goal) => goal.standing === 'RUNNING' && goal.due_at).map((goal) => Date.parse(goal.due_at as string));
+  return due.length > 0 ? Math.min(...due) : undefined;
+}
+
+/**
+ * *Needs your answer* across hubs (§3.3): each hub answers its own nearest first, so the hubs' rows
+ * are merged by their due moments - an entry whose moment is not read yet keeps its place behind
+ * those that are, in the order it came.
+ */
+export function nearestFirst<T extends { readonly id: string }>(rows: readonly T[], dueOf: Readonly<Record<string, number | undefined>>): T[] {
+  const key = (row: T): number => dueOf[row.id] ?? Number.POSITIVE_INFINITY;
+  return rows.map((row, index) => ({ row, index })).sort((a, b) => key(a.row) - key(b.row) || a.index - b.index).map(({ row }) => row);
+}
+
+/** The days a sprint has left, today among them: one on its last day, none after it. */
+export function sprintDaysLeft(endOn: string, today: string): number {
+  const days = (Date.parse(`${endOn}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000;
+  return Math.max(0, Math.round(days) + 1);
+}
+
+/**
+ * The count the *Today* row carries (user-experience.md §3.3): the approvals, the agents' held
+ * acts and the pages waiting for the reader's yes. Nothing while unknown or none, so the row
+ * never says "0".
+ */
+export function todayRowCountOf(
+  approvals: readonly { readonly state: string }[] | undefined,
+  acts?: readonly { readonly status: string }[],
+  approvalsHaveMore = false,
+  reviews = 0,
+): number | string | undefined {
+  const count = (approvals?.filter((approval) => approval.state === 'PENDING').length ?? 0)
+    + (acts?.filter((act) => act.status === 'PENDING').length ?? 0)
+    + reviews;
+  if (count === 0) return undefined;
+  return approvalsHaveMore ? `${count}+` : count;
+}
+
+/** One held act on Today: whose agent, since when, and where it is decided. */
+export interface HeldActRow {
+  readonly id: string;
+  readonly name: string;
+  readonly at: string;
+  /** An act that cannot be undone is approved where its preview is read, never from a row. */
+  readonly mayApproveHere: boolean;
+  readonly path: string | undefined;
+}
+
+/**
+ * The agents' acts waiting for the reader (`GET /agent-requests` answers only those the reader
+ * may decide), each leading to the agents' held acts narrowed to its agent (user-experience.md
+ * §7.8) where the reader may decide it: their own agent's, or anybody's where they reach the
+ * administration.
+ */
+export function heldActRows(
+  acts: readonly { readonly id: string; readonly agent_id: string; readonly class: string; readonly status: string; readonly created_at: string }[] | undefined,
+  agents: readonly { readonly id: string; readonly name: string; readonly owner_id: string | null }[],
+  viewerId: string | undefined,
+  isAdministrationReachable: boolean,
+): HeldActRow[] {
+  const byId = new Map(agents.map((agent) => [agent.id, agent]));
+  return (acts ?? [])
+    .filter((act) => act.status === 'PENDING')
+    .map((act) => {
+      const agent = byId.get(act.agent_id);
+      const isOwn = agent !== undefined && viewerId !== undefined && agent.owner_id === viewerId;
+      return {
+        id: act.id,
+        name: agent?.name ?? '',
+        at: act.created_at,
+        mayApproveHere: act.class === 'REVERSIBLE',
+        path: isOwn || isAdministrationReachable ? `/agents?tab=requests&agent=${encodeURIComponent(act.agent_id)}` : undefined,
+      };
+    });
+}
+
+/** What *Time today* says: today's recorded minutes, the week's, and the timer while it runs. */
+export interface TimeToday {
+  readonly today: number;
+  readonly week: number;
+  readonly running: { readonly minutes: number; readonly entryId: string | null | undefined; readonly entryTitle?: string | undefined } | undefined;
+}
+
+/** Undefined until the week is read: a zero shown before then would be a figure nobody measured. */
+export function timeTodayOf(
+  week: { readonly minutes: number; readonly days: readonly { readonly day: string; readonly minutes: number }[] } | undefined,
+  day: string,
+  timer: { readonly running: boolean; readonly elapsed_minutes?: number; readonly entry_id?: string | null; readonly entry_title?: string } | undefined,
+): TimeToday | undefined {
+  if (!week) return undefined;
+  return {
+    today: week.days.find((each) => each.day === day)?.minutes ?? 0,
+    week: week.minutes,
+    running: timer?.running ? { minutes: timer.elapsed_minutes ?? 0, entryId: timer.entry_id, ...(timer.entry_title ? { entryTitle: timer.entry_title } : {}) } : undefined,
+  };
 }

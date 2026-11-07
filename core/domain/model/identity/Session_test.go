@@ -393,6 +393,7 @@ func TestProviderProofFreshSince(t *testing.T) {
 	}
 }
 
+// UC-ID-13 check 2: a session opened before the rotation is refused on its next request.
 // VerifyOpen is the one definition of "open": the session's own bounds first, in Verify's order,
 // then the workspace's cutoff - and a session that passes all of them is open.
 func TestVerifyOpenAsksEveryComparisonTheNextRequestMakes(t *testing.T) {

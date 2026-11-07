@@ -4,50 +4,13 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-const (
-	listBackupsAtTargetUseCase = "ListBackupsAtTarget"
-)
-
-// ListBackupsAtTarget answers GET /backup-targets/{targetId}/backups.
-//
-// An array rather than a page, for the reason the target list is one: a generation plan tops out at
-// a few dozen archives, and a cursor over those would be ceremony. What the answer is made of comes
-// from the manifests at the target - so this route is the one that still works on the day the
-// database is a fresh empty one.
-func (c *RestController) ListBackupsAtTarget(
-	w http.ResponseWriter, r *http.Request,
-	targetID openapi_types.UUID, params openapi.ListBackupsAtTargetParams,
-) {
-	in := usecase.Input{"target_id": targetID.String()}
-	if params.TenantId != nil {
-		in["tenant_id"] = params.TenantId.String()
-	}
-	if params.Refresh != nil {
-		in["refresh"] = *params.Refresh
-	}
-
-	out, ok := c.read(w, r, listBackupsAtTargetUseCase, in)
-	if !ok {
-		return
-	}
-
-	archives := []openapi.BackupArchive{}
-	for _, row := range rowsOf(out) {
-		archives = append(archives, backupArchiveResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, archives)
-}
 
 // backupArchiveResponse maps one archive at the target.
 func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {
@@ -114,99 +77,6 @@ func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {
 		// (rule 10).
 	}
 	return archive
-}
-
-const (
-	startRestoreUseCase  = "StartRestore"
-	getRestoreRunUseCase = "GetRestoreRun"
-)
-
-// StartRestore answers POST /restores.
-//
-// 202 with a JobRef, because a restore takes minutes: the rows are written by a worker, and what
-// the caller gets now is something to poll. `result_url` names the restore run, which carries the
-// report the dry run produced.
-func (c *RestController) StartRestore(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	var body openapi.RestoreRequest
-	if err := decodeFrom(r.Body, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{
-		"target_id":  body.TargetId.String(),
-		"archive_id": body.ArchiveId,
-		"mode":       string(body.Mode),
-	}
-	if body.TargetTenantId != nil {
-		in["target_tenant_id"] = body.TargetTenantId.String()
-	}
-	if body.ConflictRule != nil {
-		in["conflict_rule"] = string(*body.ConflictRule)
-	}
-	if body.DryRun != nil {
-		in["dry_run"] = *body.DryRun
-	}
-	if body.CreateSafetyBackup != nil {
-		in["create_safety_backup"] = *body.CreateSafetyBackup
-	}
-	for name, value := range map[string]*string{
-		"confirmation": body.Confirmation, "step_up_token": body.StepUpToken,
-	} {
-		if value != nil {
-			in[name] = *value
-		}
-	}
-	if body.Selection != nil {
-		if body.Selection.ContainerIds != nil {
-			in["selection_container_ids"] = identifierList(*body.Selection.ContainerIds)
-		}
-		if body.Selection.ItemIds != nil {
-			in["selection_item_ids"] = identifierList(*body.Selection.ItemIds)
-		}
-	}
-
-	// The one field of the contract this installation does not serve, and it is refused rather
-	// than ignored. A passphrase that had no effect would leave somebody believing the archive
-	// they are restoring was protected by one - and the key an archive is written under is derived
-	// from the installation's master key rather than from anything a caller sends.
-	if body.DecryptionPassphrase != nil && *body.DecryptionPassphrase != "" {
-		WriteProblem(w, shared.ErrValidation.
-			WithDetail("backup.encryption_passphrase_not_available").
-			WithFields(shared.FieldError{
-				Path: "/decryption_passphrase",
-				Code: "backup.encryption_passphrase_not_available",
-			}), requestID)
-		return
-	}
-
-	out, ok := c.read(w, r, startRestoreUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, acceptedRestore(out))
-}
-
-// GetRestoreRun answers GET /restores/{restoreId}.
-func (c *RestController) GetRestoreRun(
-	w http.ResponseWriter, r *http.Request, restoreID openapi_types.UUID,
-) {
-	out, ok := c.read(w, r, getRestoreRunUseCase, usecase.Input{"restore_id": restoreID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, restoreRunResponse(out))
-}
-
-// identifierList turns a body's identifiers into what the catalogue takes.
-func identifierList(ids []openapi_types.UUID) []any {
-	out := make([]any, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, id.String())
-	}
-	return out
 }
 
 // acceptedRestore is the pointer a 202 hands back.

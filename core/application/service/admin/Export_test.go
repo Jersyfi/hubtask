@@ -53,6 +53,7 @@ func exportCommand() ExportTenantCommand {
 }
 
 // Every lifecycle state exports - the suspended and the leaving are exactly who needs it (§5).
+// UC-INS-08 check 2: a suspended workspace still exports.
 func TestEveryLifecycleStateExports(t *testing.T) {
 	for _, status := range []domain.TenantStatus{
 		domain.TenantActive, domain.TenantSuspended, domain.TenantPendingDeletion,

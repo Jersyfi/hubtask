@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -202,11 +203,12 @@ func (r AiRule) OriginOf(name AiSwitch) identity.PolicySource {
 // EffectiveAi resolves product default → instance → plan → workspace into the rule in force.
 //
 // The instance may set any value; the plan only narrows what the instance leaves in force - both
-// are the levels a lock comes from. The workspace may only narrow, and only where no lock lies,
-// except that narrowing to NONE is always its own (ADR-0072 §2: a lock holds a workspace out of a
-// source, never in one). A workspace value
-// that is no narrowing of what is above it now is ignored rather than honoured - written before
-// the level above moved, the way sign-in's Effective treats a stale row.
+// are the levels a lock comes from, and both resolve through the settings catalogue
+// (AiSettings.go). The workspace may only narrow, and only where no lock lies, except that
+// narrowing to NONE is always its own (ADR-0072 §2: a lock holds a workspace out of a source,
+// never in one). A workspace value that is no narrowing of what is above it now is ignored rather
+// than honoured - written before the level above moved, the way sign-in's Effective treats a
+// stale row.
 func EffectiveAi(instance, plan, workspace AiLayer, offered bool) AiRule {
 	rule := AiRule{
 		Sources:         AiSourcesOwn,
@@ -216,35 +218,22 @@ func EffectiveAi(instance, plan, workspace AiLayer, offered bool) AiRule {
 		Origins:         map[AiSwitch]identity.PolicySource{},
 	}
 
-	for _, level := range []struct {
-		layer  AiLayer
-		origin identity.LockOrigin
-		source identity.PolicySource
-	}{{instance, identity.LockInstance, identity.SourceInstance}, {plan, identity.LockPlan, identity.SourcePlan}} {
-		// The plan narrows what the installation left in force and never widens it; a value written
-		// before the installation narrowed is ignored, as sign-in's Effective treats one (§4.2).
-		below := level.origin != identity.LockInstance
-		if level.layer.Sources != nil && level.layer.Sources.Valid() && rule.Locks[AiSwitchSources] == identity.LockNone &&
-			(!below || level.layer.Sources.Within(rule.Sources)) {
-			rule.Sources = *level.layer.Sources
-			rule.Origins[AiSwitchSources] = level.source
+	layers := []setting.Layer{aiLayerAt(setting.LevelInstance, instance), aiLayerAt(setting.LevelPlan, plan)}
+	for _, name := range AiSwitches() {
+		resolution := setting.Resolve(AiDefinition(name), layers...)
+		if resolution.Locked() {
+			rule.Locks[name] = identity.LockOrigin(resolution.LockedBy)
 		}
-		if level.layer.MinJurisdiction != nil && level.layer.MinJurisdiction.Valid() &&
-			rule.Locks[AiSwitchMinJurisdiction] == identity.LockNone &&
-			(!below || slices.Index(aiMinOrder, *level.layer.MinJurisdiction) >= slices.Index(aiMinOrder, rule.MinJurisdiction)) {
-			rule.MinJurisdiction = *level.layer.MinJurisdiction
-			rule.Origins[AiSwitchMinJurisdiction] = level.source
+		if resolution.Source == setting.LevelDefault {
+			continue
 		}
-		// Only OFFERED is honoured above the workspace: a level that cannot name a legal basis
-		// cannot make AI part of everybody's work (milestone PH, decision 4).
-		if level.layer.PersonOptOut != nil && *level.layer.PersonOptOut == AiOptOutOffered &&
-			rule.Locks[AiSwitchPersonOptOut] == identity.LockNone {
-			rule.Origins[AiSwitchPersonOptOut] = level.source
-		}
-		for _, name := range AiSwitches() {
-			if level.layer.Locks[name] && rule.Locks[name] == identity.LockNone {
-				rule.Locks[name] = level.origin
-			}
+		rule.Origins[name] = identity.PolicySource(resolution.Source)
+		switch name {
+		case AiSwitchSources:
+			rule.Sources, _ = resolution.Effective.(AiSources)
+		case AiSwitchMinJurisdiction:
+			rule.MinJurisdiction, _ = resolution.Effective.(AiMinJurisdiction)
+		case AiSwitchPersonOptOut:
 		}
 	}
 

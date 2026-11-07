@@ -274,6 +274,7 @@ func TestTheInstallationDefaultIsTheLastResort(t *testing.T) {
 	}
 }
 
+// UC-ID-17 check 5, its first half: a revoked token's next request fails (`access.token_revoked`).
 func TestARefusedCredential(t *testing.T) {
 	raw, valid := mintCredential(t)
 
@@ -340,6 +341,8 @@ func TestARefusedCredential(t *testing.T) {
 	}
 }
 
+// UC-ID-17 check 5, its second half: the last use is written back, which the list answers as
+// `last_used_at` (TestTheProjectionCarriesNoCredential).
 func TestTheLastUseIsWrittenBackAtMostOncePerInterval(t *testing.T) {
 	raw, credential := mintCredential(t)
 
@@ -428,6 +431,7 @@ func TestTheActorCarriesTheAccountLabel(t *testing.T) {
 // A suspended workspace refuses at authentication, once, for every route (multi-tenancy.md §5): the
 // credential is real, so the answer is forbidden with the lifecycle's own code rather than
 // unauthenticated.
+// UC-INS-08 check 2: a suspended workspace refuses work with the sentence that it is suspended.
 func TestASuspendedTenantRefusesAuthentication(t *testing.T) {
 	raw, credential := mintCredential(t)
 	credential.TenantStatus = identity.TenantSuspended

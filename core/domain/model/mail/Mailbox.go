@@ -24,11 +24,10 @@ const (
 	ProtocolIMAP Protocol = "IMAP"
 	// ProtocolJMAP reads over JMAP (RFC 8620/8621), JSON over HTTPS, where the provider speaks it.
 	ProtocolJMAP Protocol = "JMAP"
+	// ProtocolGraph reads a Microsoft 365 or Outlook.com mailbox through Microsoft Graph, for a
+	// tenant whose administrator switched IMAP off. It signs in through OAuth only.
+	ProtocolGraph Protocol = "GRAPH"
 )
-
-// MaxMailboxes is how many mailboxes one workspace connects: a household's and a team's, and a
-// shared support address beside them.
-const MaxMailboxes = 5
 
 // DefaultDoneFolder is where a fetched message is moved, so the mailbox shows what Hubtask took and
 // nothing is fetched twice even before the receipt is read.
@@ -175,6 +174,9 @@ func NewMailbox(in NewMailboxInput) (Mailbox, error) {
 		if parsed, err := url.Parse(box.SessionURL); err != nil || parsed.Scheme != "https" || parsed.Host == "" {
 			fields = append(fields, shared.FieldError{Path: "/session_url", Code: "mail.mailbox_session_url_invalid"})
 		}
+	case ProtocolGraph:
+		// The endpoint is Microsoft's own; nothing the person typed names where it is.
+		box.Host, box.Port, box.SessionURL = "", 0, ""
 	default:
 		fields = append(fields, shared.FieldError{Path: "/protocol", Code: "mail.mailbox_protocol_unknown"})
 	}
@@ -251,7 +253,12 @@ type OAuthClient struct {
 
 // OAuthPreset is a provider's endpoints and its IMAP server, so connecting is one button.
 type OAuthPreset struct {
-	Key          string
+	Key string
+	// Protocol is how the mailbox is read once connected; IMAP when empty.
+	Protocol Protocol
+	// App is the installation's app this preset signs in through, when it shares another preset's
+	// registration (one Microsoft app grants IMAP or Graph by the scopes asked); Key when empty.
+	App          string
 	AuthorizeURL string
 	TokenURL     string
 	Scopes       []string
@@ -282,6 +289,33 @@ var OAuthPresets = []OAuthPreset{
 		Params: map[string]string{"prompt": "select_account"},
 		Hint:   "mail.oauth_microsoft",
 	},
+	{ //nolint:gosec // G101: a provider's public endpoints, no credential
+		// Graph rather than IMAP: Exchange Online often has IMAP switched off. Mail.ReadWrite reads,
+		// marks read and moves; the host only fills the pending connection, a GRAPH mailbox has none.
+		Key: "microsoft_graph", Protocol: ProtocolGraph, App: "microsoft",
+		AuthorizeURL: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+		TokenURL:     "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+		Scopes:       []string{"https://graph.microsoft.com/Mail.ReadWrite", "offline_access", "openid", "email"},
+		Host:         "graph.microsoft.com", Port: 443,
+		Params: map[string]string{"prompt": "select_account"},
+		Hint:   "mail.oauth_microsoft_graph",
+	},
+}
+
+// InstallationApp is the key of the installation's app a provider signs in through.
+func InstallationApp(provider string) string {
+	if preset, ok := OAuthPresetNamed(provider); ok && preset.App != "" {
+		return preset.App
+	}
+	return provider
+}
+
+// ProtocolOf is how a mailbox connected through a provider is read.
+func ProtocolOf(provider string) Protocol {
+	if preset, ok := OAuthPresetNamed(provider); ok && preset.Protocol != "" {
+		return preset.Protocol
+	}
+	return ProtocolIMAP
 }
 
 // OAuthPresetNamed is a provider by key.

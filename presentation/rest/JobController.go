@@ -4,44 +4,12 @@
 package rest
 
 import (
-	"net/http"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-const (
-	getJobUseCase    = "GetJob"
-	cancelJobUseCase = "CancelJob"
-)
-
-// GetJob answers GET /jobs/{jobId}.
-//
-// The resource a `202 Accepted` points at. Nothing here decides what a
-// caller may see: the use case asks that question, and a job in another tenant reaches this
-// method as the same not-found the catalogue answers for one that never existed.
-func (c *RestController) GetJob(w http.ResponseWriter, r *http.Request, jobID openapi.JobId) {
-	out, ok := c.read(w, r, getJobUseCase, usecase.Input{"job_id": jobID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, jobResponse(out))
-}
-
-// CancelJob answers POST /jobs/{jobId}:cancel.
-//
-// 200 with the job rather than 204, because what a caller wants next is the state it is now in -
-// and because a cancellation is cooperative: the answer says CANCELLED, and the pass that was
-// under way is still winding itself up.
-func (c *RestController) CancelJob(
-	w http.ResponseWriter, r *http.Request, jobID openapi.JobId, _ openapi.CancelJobParams,
-) {
-	out, ok := c.read(w, r, cancelJobUseCase, usecase.Input{"job_id": jobID.String()})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, jobResponse(out))
-}
+// Reading and cancelling a job are answered by the generated mapping (Doors.gen.go); jobResponse
+// draws a job wherever one is answered.
 
 // jobResponse maps the catalogue's answer.
 //

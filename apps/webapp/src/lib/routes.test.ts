@@ -37,16 +37,22 @@ test('the administration area is exactly these screens, by name', () => {
     .sort();
   assert.deepEqual(built, [
     'administration',
+    'agents',
     'ai',
     'apps',
     'audit',
     'backup',
+    'changes',
+    'cmdb',
+    'entry-types',
     'groups',
     'identity-provider',
     'legal',
+    'link-types',
     'machines',
     'mail',
     'mail-oauth',
+    'modules',
     'people',
     'permissions',
     'presets',
@@ -60,9 +66,12 @@ test('the administration area is exactly these screens, by name', () => {
     'rules',
     'runs',
     'service-accounts',
+    'service-desk',
     'sign-in-settings',
+    'time-settings',
     'voice',
     'webhooks',
+    'workflows',
     'workspace-address',
     'workspace-settings',
   ]);
@@ -91,16 +100,21 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // does not belong to this area however convenient it would be. The list is written out so that
   // adding one is a decision somebody made against that sentence rather than a file that appeared.
   //
-  // Twelve, among them the plans' two (multi-tenancy.md §4.2) and the five the control plane would otherwise have only at a terminal — the
+  // Thirteen, among them the plans' two (multi-tenancy.md §4.2) and the five the control plane would otherwise have only at a terminal — the
   // providers and the AI models it offers every workspace (ADR-0072 §1), its own backup targets
   // (multi-tenancy.md §5), the subscriptions of a purchase platform (§4.3), and the keyring's census
   // — here by the parity rule (ADR-0070 §5). None reads into a workspace: four are the
-  // installation's own rows, the other a count per key that names no workspace at all.
+  // installation's own rows, the other a count per key that names no workspace at all. *Usage* is
+  // counts per workspace and day, the metering read `hubctl admin usage` already has. *Templates*
+  // and *Configuration file* are the installation's own level too: its presets and its settings
+  // as the document, neither reading into a workspace.
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
     'instance',
     'instance-ai',
+    'instance-dead-letters',
     'instance-encryption',
+    'instance-file',
     'instance-journal',
     'instance-operators',
     'instance-plan',
@@ -109,6 +123,8 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
     'instance-providers',
     'instance-settings',
     'instance-targets',
+    'instance-templates',
+    'instance-usage',
     'instance-workspaces',
   ]);
 });
@@ -128,15 +144,21 @@ test('every route resolves to one of the four areas, and the profile ones are na
       `${route.name} is in ${area}`,
     );
   }
-  // Your settings is a section since ADR-0065 decision 3, so the area is its eight screens rather
+  // Your settings is a section since ADR-0065 decision 3, so the area is its screens rather
   // than the two it began with. Every one of them is about the reader themselves, which is what
   // `profile` means and why the mobile shell ships them all.
   const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
   assert.deepEqual(profile, [
     'appearance',
+    'calendars',
     'devices',
+    'filestores',
     'grants',
     'notifications',
+    'own-agents',
+    'own-rule',
+    'own-rule-new',
+    'own-rules',
     'profile',
     'security',
     'sessions',
@@ -189,6 +211,11 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   assert.equal(movedTo(resolve(ROUTES, '/administration/permissions').name), '/administration/people?tab=permissions');
   assert.equal(movedTo(resolve(ROUTES, '/administration/service-accounts').name), '/administration/machines');
   assert.equal(movedTo(resolve(ROUTES, '/administration/apps').name), '/administration/machines?tab=apps');
+  // A product's settings live at its home's last tab (user-experience.md §8.2).
+  assert.equal(movedTo(resolve(ROUTES, '/administration/service-desk').name), '/desk/settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/configuration-items').name), '/assets/settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time?tab=settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents?tab=settings');
   for (const route of ROUTES) {
     const target = movedTo(route.name);
     if (target === undefined) continue;
@@ -214,4 +241,15 @@ test('the detail pane is a place, not a feature: a pane from large, a redirect b
   assert.deepEqual(paneFor(resolve(ROUTES, '/items/i1?item=i2'), { isLarge: false }), { kind: 'none' });
   // A hub has no list of entries to open one beside.
   assert.deepEqual(paneFor(resolve(ROUTES, '/hubs/h1?item=i1'), { isLarge: true }), { kind: 'none' });
+});
+
+// The links a member's own notices carry (DeliverNotification's link) resolve to screens outside
+// the administration, which App.svelte draws without any administration permission.
+test('a personal rule and an agent notice lead to profile screens', () => {
+  const rule = resolve(ROUTES, '/profile/rules/01936f2a-7c1e-7000-8000-0000000000f3');
+  assert.equal(rule.name, 'own-rule');
+  assert.equal(rule.area, 'profile');
+  const agents = resolve(ROUTES, '/profile/agents');
+  assert.equal(agents.name, 'own-agents');
+  assert.equal(agents.area, 'profile');
 });

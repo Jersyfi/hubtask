@@ -735,3 +735,34 @@ func TestAChangeNamingAFieldStampsTheClockAndAPushesReadingReplacesTheWriters(t 
 		t.Fatalf("reading from tenant B: %v", err)
 	}
 }
+
+// A session revoked by any path rings the credential channel with its workspace and account
+// (migration 0339), so every process holding a stream of that account asks again at once.
+func TestARevokedSessionRingsTheCredentialChannel(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	listener := postgres.NewChangeListener(appPool(ctx, t))
+	type heard struct{ tenant, account shared.ID }
+	rung := make(chan heard, 4)
+	listener.OnCredential(func(tenantID, accountID shared.ID) { rung <- heard{tenantID, accountID} })
+	listening, stopListening := context.WithCancel(ctx)
+	defer stopListening()
+	concurrency.Go(listening, "test.change_listener", listener.Run)
+	waitFor(t, 5*time.Second, "the listener to connect", listener.Connected)
+
+	session := seedSession(ctx, t, tenantA, authorA)
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE session SET revoked_at = now() WHERE id = $1`,
+		session.String()); err != nil {
+		t.Fatalf("revoking the session: %v", err)
+	}
+
+	select {
+	case got := <-rung:
+		if got != (heard{tenantA, authorA}) {
+			t.Errorf("heard %v, want the session's workspace and account", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a revoked session rang nobody")
+	}
+}

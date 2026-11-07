@@ -5,6 +5,7 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -407,6 +408,45 @@ func TestAStoredResultRoundTripsThroughTheRecord(t *testing.T) {
 		back.ServerState["title"] != "x" || back.Conflict == nil || back.Conflict.Field != "notes" ||
 		back.Conflict.PreservedCommentID != purged || back.Error == nil || back.Error.MessageCode != "sync.conflict" {
 		t.Errorf("came back as %+v", back)
+	}
+}
+
+// A refusal keeps what the use case said about each field, so that a device can show the reason
+// beside the field it is about - also when the answer is a repeat read from the log.
+func TestARefusalCarriesItsParametersAndFieldsThroughTheRecord(t *testing.T) {
+	f := pushing(t)
+	f.catalogue.errs["TrashWorkItem"] = shared.ErrValidation.WithDetail("work.title_invalid").
+		WithParams(map[string]string{"max": "500"}).
+		WithFields(shared.FieldError{Path: "/title", Code: "work.title_too_long", Params: map[string]string{"max": "500"}})
+
+	deletion := Mutation{OpID: opA, Kind: domain.ItemDelete, ItemID: itemX}
+	for attempt := range 2 {
+		response, err := f.push.Push(t.Context(), pusher(), PushRequest{DeviceID: device, Mutations: []Mutation{deletion}})
+		if err != nil {
+			t.Fatalf("pushing: %v", err)
+		}
+		refused := response.Results[0].Error
+		if refused == nil || refused.Params["max"] != "500" || len(refused.Fields) != 1 ||
+			refused.Fields[0].Path != "/title" || refused.Fields[0].Code != "work.title_too_long" ||
+			refused.Fields[0].Params["max"] != "500" {
+			t.Errorf("attempt %d: the refusal is %+v", attempt, refused)
+		}
+	}
+
+	// The log keeps the answer as JSON; read back from it, nothing is lost.
+	record := f.ops.records[opA]
+	stored, err := json.Marshal(record.Response)
+	if err != nil {
+		t.Fatalf("encoding: %v", err)
+	}
+	record.Response = nil
+	if err := json.Unmarshal(stored, &record.Response); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	back := resultFromRecord(record).Error
+	if back == nil || back.Params["max"] != "500" || len(back.Fields) != 1 || back.Fields[0].Path != "/title" ||
+		back.Fields[0].Params["max"] != "500" {
+		t.Errorf("read back from the log as %+v", back)
 	}
 }
 

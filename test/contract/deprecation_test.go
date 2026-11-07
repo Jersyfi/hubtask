@@ -38,6 +38,18 @@ func TestEveryDeprecatedFieldIsInTheManifest(t *testing.T) {
 			if err := node.Decode(&op); err != nil {
 				t.Fatalf("%s %s: %v", method, path, err)
 			}
+			// An operation and a query parameter are announced as a body field is.
+			if op.Deprecated {
+				want[op.OperationID+"."] = true
+			}
+			for _, param := range op.Parameters {
+				if param != nil && param.Ref != "" {
+					param = spec.Components.Parameters[strings.TrimPrefix(param.Ref, "#/components/parameters/")]
+				}
+				if param != nil && param.In == "query" && param.Deprecated {
+					want[op.OperationID+"."+param.Name] = true
+				}
+			}
 			if op.RequestBody == nil {
 				continue
 			}

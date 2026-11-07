@@ -310,6 +310,10 @@ func TestAnAccountThatLostAccessCanStillBeRemoved(t *testing.T) {
 	if len(set.AccountIDs) != 0 {
 		t.Errorf("the entry still carries %v", set.AccountIDs)
 	}
+	// UC-WRK-10 check 4: adding and removing each write their own step.
+	if len(h.history.entries) != 2 || h.history.entries[0].Verb != activity.ItemMemberAdded || h.history.entries[1].Verb != activity.ItemMemberRemoved {
+		t.Errorf("the history is %+v, want item.member_added then item.member_removed", h.history.entries)
+	}
 }
 
 // Adding somebody an entry already carries succeeds and announces nothing - but the tag moves

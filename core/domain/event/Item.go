@@ -63,15 +63,19 @@ func NewItemUpdated(id shared.ID, item work.WorkItem, changes []work.FieldChange
 		changeSet[change.Field] = map[string]any{"from": change.From, "to": change.To}
 	}
 
+	payload := map[string]any{
+		"id":            item.ID.String(),
+		"type":          string(item.Type),
+		"collection_id": item.CollectionID.String(),
+		"updated_at":    item.UpdatedAt.UTC(),
+		"version":       item.Version,
+		"change_set":    changeSet,
+	}
+	if item.EntryType != "" {
+		payload["entry_type"] = item.EntryType
+	}
 	return NewEnvelope(id, ItemUpdated, item.TenantID,
-		ItemSubject(item.ID), actor, occurredAt, cause, map[string]any{
-			"id":            item.ID.String(),
-			"type":          string(item.Type),
-			"collection_id": item.CollectionID.String(),
-			"updated_at":    item.UpdatedAt.UTC(),
-			"version":       item.Version,
-			"change_set":    changeSet,
-		})
+		ItemSubject(item.ID), actor, occurredAt, cause, payload)
 }
 
 // NewItemCompleted announces that an item is done.
@@ -206,6 +210,11 @@ func itemPayload(item work.WorkItem) map[string]any {
 	if item.Amount != "" {
 		payload["amount"] = item.Amount
 	}
+	// The entry's type beside its level, so a subscriber tells a bug from a feature (UC-FLW-01);
+	// absent for the level's system type, as the REST answer leaves it out.
+	if item.EntryType != "" {
+		payload["entry_type"] = item.EntryType
+	}
 	return payload
 }
 
@@ -268,6 +277,38 @@ func newItemLabelChange(id shared.ID, eventType Type, item work.WorkItem, labelI
 			"item_id":       item.ID.String(),
 			"collection_id": item.CollectionID.String(),
 			"label_id":      labelID.String(),
+		})
+}
+
+// NewItemLinked announces a link drawn from the source to the target (UC-PLN-01). The payload is
+// the reference, for the label events' reason: a link is a set element, not a field.
+func NewItemLinked(id shared.ID, link work.EntryLink, source work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newLinkChange(id, ItemLinked, link, source, actor, occurredAt, cause)
+}
+
+// NewItemUnlinked announces that a link was removed.
+func NewItemUnlinked(id shared.ID, link work.EntryLink, source work.WorkItem, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return newLinkChange(id, ItemUnlinked, link, source, actor, occurredAt, cause)
+}
+
+func newLinkChange(id shared.ID, eventType Type, link work.EntryLink, source work.WorkItem,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if link.ID.IsZero() || link.SourceID != source.ID {
+		// An event about no link, or about one the entry does not start: a defect, not input.
+		return Envelope{}, shared.ErrInternal.WithDetail("events.link_missing")
+	}
+	return NewEnvelope(id, eventType, source.TenantID,
+		ItemSubject(source.ID), actor, occurredAt, cause, map[string]any{
+			"item_id":       source.ID.String(),
+			"collection_id": source.CollectionID.String(),
+			"link_id":       link.ID.String(),
+			"link_type":     link.Type,
+			"target_id":     link.TargetID.String(),
 		})
 }
 
@@ -665,4 +706,46 @@ func lifecyclePayload(item work.WorkItem) map[string]any {
 		payload["trash_batch_id"] = item.TrashBatchID.String()
 	}
 	return payload
+}
+
+// SLAMoment is what an SLA announcement says: which goal of which policy, its target in working
+// seconds, and when it falls due.
+type SLAMoment struct {
+	ItemID       shared.ID
+	CollectionID shared.ID
+	PolicyKey    string
+	Goal         string
+	TargetSecs   int64
+	DueAt        *time.Time
+	// AssigneeGroup is the group of an OLA's goal, and zero for the requester's promise.
+	AssigneeGroup shared.ID
+}
+
+// NewItemSLAAtRisk announces that a goal passed its warning share unmet.
+func NewItemSLAAtRisk(id, tenant shared.ID, moment SLAMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	return newSLAMoment(id, ItemSLAAtRisk, tenant, moment, occurredAt, cause)
+}
+
+// NewItemSLABreached announces that a goal ran out of working time unmet.
+func NewItemSLABreached(id, tenant shared.ID, moment SLAMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	return newSLAMoment(id, ItemSLABreached, tenant, moment, occurredAt, cause)
+}
+
+func newSLAMoment(id shared.ID, eventType Type, tenant shared.ID, moment SLAMoment, occurredAt time.Time, cause Cause) (Envelope, error) {
+	payload := map[string]any{
+		"item_id":        moment.ItemID.String(),
+		"collection_id":  moment.CollectionID.String(),
+		"policy_key":     moment.PolicyKey,
+		"goal":           moment.Goal,
+		"target_seconds": moment.TargetSecs,
+		"due_at":         nil,
+	}
+	if moment.DueAt != nil {
+		payload["due_at"] = moment.DueAt.UTC()
+	}
+	if !moment.AssigneeGroup.IsZero() {
+		payload["assignee_group_id"] = moment.AssigneeGroup.String()
+	}
+	return NewEnvelope(id, eventType, tenant, ItemSubject(moment.ItemID), Actor{Kind: shared.ActorSystem},
+		occurredAt, cause, payload)
 }

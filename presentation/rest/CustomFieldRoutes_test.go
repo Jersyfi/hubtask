@@ -61,7 +61,7 @@ func TestDefiningAFieldAnswersWithItsLocationAndVersion(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != defineCustomFieldUseCase {
+	if cat.name != "DefineCustomField" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	if got := response.Header().Get("Location"); got != APIBasePath+"/custom-fields/"+definitionID.String() {
@@ -102,7 +102,7 @@ func TestListingDefinitionsAnswersAnArrayAndThreadsTheScope(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != listCustomFieldsUseCase {
+	if cat.name != "ListCustomFields" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	if cat.in["collection_id"] != fieldTenantID.String() {
@@ -132,7 +132,7 @@ func TestUpdatingADefinitionIsAMergePatch(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != updateCustomFieldUseCase {
+	if cat.name != "UpdateCustomField" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	if cat.in["expected_version"] != 1 {
@@ -158,7 +158,7 @@ func TestDeletingADefinitionAnswersWithoutABody(t *testing.T) {
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != deleteCustomFieldUseCase {
+	if cat.name != "DeleteCustomField" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	if response.Body.Len() != 0 {
@@ -185,7 +185,7 @@ func TestSettingAValueThreadsTheKeyAndTheRawValue(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
-	if cat.name != setCustomFieldUseCase {
+	if cat.name != "SetCustomField" {
 		t.Errorf("the controller invoked %q", cat.name)
 	}
 	if cat.in["key"] != "priority" || cat.in["expected_version"] != 3 {
@@ -222,7 +222,7 @@ func TestClearingAValueSendsAnExplicitNull(t *testing.T) {
 		t.Fatalf("status %d, body %s", response.Code, response.Body.String())
 	}
 	value, present := cat.in["value"]
-	if !present && value != nil {
+	if !present {
 		t.Errorf("the clearing reached the catalogue as %#v (present=%v)", value, present)
 	}
 	if value != nil {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -40,6 +41,9 @@ type InstanceLevel struct {
 	// least its own model must declare, each with a lock that holds a workspace out of a source and
 	// never in one.
 	Ai integration.AiLayer
+	// Modules is which modules the installation switches on or off for every workspace, and which
+	// of them it locks (UC-INS-21 check 6).
+	Modules module.Decisions
 	// BlocklistFile is the path to the operator's own list of refused passwords, read offline.
 	// Instance-only and deliberately not a workspace switch: the file is on the operator's disk,
 	// so there is nothing for a workspace to point at (ADR-0068 §1, and the reason the thirteenth

@@ -170,6 +170,10 @@
         },
         "version": {
           "type": "integer"
+        },
+        "internal": {
+          "type": "boolean",
+          "description": "An internal note for the team, never shown to the requester in the portal."
         }
       }
     }

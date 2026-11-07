@@ -57,14 +57,17 @@ type memberships struct {
 	// hubs is what storage says each container or entry sits under; asked records the questions.
 	hubs  map[shared.ID]identityrepository.Hub
 	asked [][]shared.ID
-	// holdsNothing makes HoldsAny answer no.
-	holdsNothing bool
+	// holdsNothing makes HoldsAny answer no; holdsNothingFor answers no for the accounts named.
+	holdsNothing    bool
+	holdsNothingFor []shared.ID
 	// opened is the hubs the account holds a running emergency access to.
 	opened []shared.ID
+	// byAccount, where set, answers each account its own memberships rather than held.
+	byAccount map[shared.ID][]identity.Membership
 }
 
-func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) {
-	return !m.holdsNothing, m.err
+func (m *memberships) HoldsAny(_ context.Context, account shared.ID) (bool, error) {
+	return !m.holdsNothing && !slices.Contains(m.holdsNothingFor, account), m.err
 }
 
 // HubsOpenedFor answers the hubs named in opened: the running emergency accesses of the test.
@@ -94,8 +97,11 @@ func (m *memberships) Administrators(context.Context, []identity.Scope) ([]share
 	return nil, m.err
 }
 
-func (m *memberships) Along(_ context.Context, _ shared.ID, path []identity.Scope) ([]identity.Membership, error) {
+func (m *memberships) Along(_ context.Context, account shared.ID, path []identity.Scope) ([]identity.Membership, error) {
 	m.path = path
+	if m.byAccount != nil {
+		return m.byAccount[account], m.err
+	}
 	return m.held, m.err
 }
 
@@ -223,7 +229,7 @@ func TestARefusalIsRecorded(t *testing.T) {
 }
 
 // The token scope is the second bound: the role may allow it and the credential still may not
-// (ADR-0005). It is checked first, because it needs no database at all.
+// (ADR-0005, UC-ID-17 check 2). It is checked first, because it needs no database at all.
 func TestTheTokenScopeIsCheckedBeforeTheRole(t *testing.T) {
 	authorize, store, trail, _ := serviceWith([]identity.Membership{
 		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleOwner},

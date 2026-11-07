@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
@@ -35,6 +35,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   // On the shell (ADR-0061): the page's head is a `PageHeader`, the title the bar's on
   // a phone. The filters stay beside the list they narrow, under its own heading and above the
@@ -192,9 +193,7 @@
     >
       {#snippet notices()}
         {#if failure}
-          <Banner tone="danger" title={failure.message}>
-            {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-          </Banner>
+          <FailureNote problem={failure} />
         {/if}
       {/snippet}
     </PageHeader>
@@ -252,9 +251,7 @@
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="waiting"><Spinner label={t('app.runs.reading')} /> <span>{t('app.runs.reading')}</span></p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each listed as run (run.id)}
           <div class="run">
@@ -355,7 +352,7 @@
             </Stack>
           </div>
         {:else}
-          <p class="quiet">{t('app.runs.none')}</p>
+          <EmptyState kind="unused" title={t('app.runs.none')} />
         {/each}
 
         <!-- Drawn whole while something is to be said after the last page: the live regions go

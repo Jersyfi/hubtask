@@ -67,8 +67,9 @@
   .slot { display: inline-flex; }
 
   /* Every slot but the one at the edge pulls the next one over itself. The edge slot is left alone
-     so that the group still starts where its container does. */
-  .slot:not(:last-child) { margin-inline-start: calc(var(--sp-100) * -1); }
+     so that the group still starts where its container does. The overlap is the face's rim, not
+     its middle: any more and the face on top covers the next one's first letter. */
+  .slot:not(:last-child) { margin-inline-start: calc(var(--sp-050) * -1); }
 
   .more {
     display: inline-flex;

@@ -25,6 +25,7 @@ import type { Account, OwnAccountUpdate, ResourceState } from '@hubtask/sync-eng
 import { deviceZone } from '../i18n/zone.ts';
 import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
+import { viewAs } from './viewas.svelte.ts';
 
 const PATH = '/accounts/me';
 
@@ -85,6 +86,11 @@ class Actor {
     return this.account?.has_access === false;
   }
 
+  /** The portals this account uses as a requester - where somebody holding nothing else goes. */
+  get portals(): readonly { readonly collection_id: string; readonly name: string }[] {
+    return this.account?.portals ?? [];
+  }
+
   /** Whether a second factor stands: the authenticator app armed, or a passkey (identity.md §23.2). */
   get hasSecondFactor(): boolean | undefined {
     return this.account?.has_second_factor;
@@ -120,6 +126,19 @@ class Actor {
    */
   get recoveryCodesLeft(): number | undefined {
     return this.account?.recovery_codes_remaining;
+  }
+
+  /**
+   * Since when the mail server refuses this account's address for good, or `undefined` where it
+   * takes mail. No message goes to it until the person clears the mark.
+   */
+  get mailUndeliverableSince(): string | undefined {
+    return this.account?.mail_undeliverable_since ?? undefined;
+  }
+
+  /** Has mail to the address tried again (`POST /accounts/me:clear-undeliverable`). */
+  async clearUndeliverable(): Promise<void> {
+    await engine.mutate<void>('POST', `${PATH}:clear-undeliverable`, undefined, { invalidates: [PATH] });
   }
 
   /**
@@ -174,7 +193,8 @@ class Actor {
       }
       // Remembered beside the pair, so that a tab reloading while the server is away still knows
       // whose replica to open.
-      if (next.status === 'ready') platform.rememberAccount(next.data.id);
+      // Not the person a view shows (UC-ID-29): their replica is never opened on this device.
+      if (next.status === 'ready' && !viewAs.running) platform.rememberAccount(next.data.id);
       this.#state = next;
     });
   }

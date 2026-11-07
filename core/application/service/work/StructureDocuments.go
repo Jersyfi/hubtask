@@ -8,7 +8,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// StructureValuesFrom reads the eight settings a document carries, as every structure write here
+// StructureValuesFrom reads the nine settings a document carries, as every structure write here
 // reads them: the control plane's installation presets meet the same reading and the same
 // refusals as a workspace's.
 func StructureValuesFrom(raw map[string]any) (domain.StructureValues, error) {

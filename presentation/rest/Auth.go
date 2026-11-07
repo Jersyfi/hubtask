@@ -14,6 +14,8 @@ import (
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
+	"github.com/Jersyfi/hubtask/presentation/realtime"
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 // PublicRoutes are the operations api/openapi.yaml declares with `security: []`. Everything else
@@ -25,6 +27,9 @@ import (
 // missing from this list is authenticated, never the reverse.
 var PublicRoutes = map[string]bool{
 	http.MethodGet + " " + APIBasePath + "/meta/capabilities": true,
+	// The installation's own WebSocket probe (`security: []`): its health check opens it through the
+	// public address with no credential, and it closes at once, reading and writing nothing.
+	http.MethodGet + " " + APIBasePath + "/realtime/probe": true,
 	// Sign-in, refresh and redemption are how a credential is obtained, so there is none to
 	// demand yet: the password, the refresh token and the redemption token travel in the body and
 	// are the whole of what authenticates the call (security.md §5). Each route verifies
@@ -86,6 +91,14 @@ var PublicRoutes = map[string]bool{
 	// Where the return belongs is asked by the same signed-out browser, before :callback, with the
 	// same handle; it reads and spends nothing (multi-tenancy.md §3).
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:locate": true,
+	// A connector's return (mailbox, calendar push, file store) lands signed out on the
+	// installation's host in multi-tenant operation, and is located the same way.
+	http.MethodPost + " " + APIBasePath + "/auth/connector:locate": true,
+	// A SAML provider posts the browser to the assertion consumer service, signed out; the flow's
+	// state in RelayState is what it is checked against, and nothing is verified or opened there.
+	// The metadata is this installation's, public as a provider's own is (identity.md §26).
+	http.MethodPost + " " + APIBasePath + "/auth/saml:acs":     true,
+	http.MethodGet + " " + APIBasePath + "/auth/saml:metadata": true,
 	// The device's list of workspaces is checked by the installation's own address, where nobody
 	// is signed in; the entries are signed by the installation and are the call's whole input
 	// (ADR-0095 §7).
@@ -105,6 +118,26 @@ var PublicRoutes = map[string]bool{
 	// bearer header. The token is the whole of the authorisation, and the route validates it
 	// itself (security.md §4 T-21).
 	http.MethodGet + " " + APIBasePath + "/calendar/{token}.ics": true,
+	// A data feed, for a reporting tool that has a feed's address and no bearer header either
+	// (UC-INT-15): the calendar feed's trust model, the route validating the token itself.
+	http.MethodGet + " " + APIBasePath + "/odata/{token}":           true,
+	http.MethodGet + " " + APIBasePath + "/odata/{token}/$metadata": true,
+	http.MethodGet + " " + APIBasePath + "/odata/{token}/Entries":   true,
+	// A page's public link, on the same trust model: the token is the whole authorisation, and
+	// the route validates it itself (UC-DOC-08).
+	http.MethodGet + " " + APIBasePath + "/public/pages/{token}": true,
+	// A picture that page draws, by the same token and only one the page holds (T-21).
+	http.MethodGet + " " + APIBasePath + "/public/pages/{token}/media/{mediaId}": true,
+	// A portfolio's roadmap opened by its public link, the same again (UC-GOL-03 check 15).
+	http.MethodGet + " " + APIBasePath + "/public/roadmaps/{token}": true,
+	// A collection's public form, the same again (UC-SVC-13): the submission is counted per
+	// client address and per network (PublicFormBucket, PublicFormNetworkBucket) and carries its
+	// proof of work.
+	http.MethodGet + " " + APIBasePath + "/public/forms/{token}":  true,
+	http.MethodPost + " " + APIBasePath + "/public/forms/{token}": true,
+	// A resolution mail's satisfaction link, the same again (UC-SVC-07 check 6): it signs nobody
+	// in and is counted per client address (PublicFormBucket).
+	http.MethodPost + " " + APIBasePath + "/public/satisfaction/{token}": true,
 	// The inbound webhook carries its credential in the URL for the same reasons, and it
 	// authenticates the *rule* rather than a person: there is no account behind the token, so
 	// there is nothing for this middleware to resolve. The route validates it itself, and what
@@ -124,6 +157,13 @@ var PublicRoutes = map[string]bool{
 	// Alexa's endpoint (ADR-0093): Amazon's signature and the linked account's token in the body
 	// are its credentials, both checked by the route.
 	http.MethodPost + " " + APIBasePath + "/voice/alexa": true,
+	// A forge's delivery to a code hook, a chat platform's post to a bot and a monitoring or
+	// inventory tool's post to a CMDB intake: no account sends them, and the hook's, bot's or
+	// intake's secret - a signature, a token, a bearer - is checked by the use case behind the route.
+	http.MethodPost + " " + APIBasePath + "/code-intake/{tenantId}/{hookId}":                true,
+	http.MethodPost + " " + APIBasePath + "/chat-intake/{tenantId}/{botId}":                 true,
+	http.MethodPost + " " + APIBasePath + "/cmdb/alert-intake/{tenantId}/{connectorId}":     true,
+	http.MethodPost + " " + APIBasePath + "/cmdb/inventory-intake/{tenantId}/{connectorId}": true,
 	// The CalDAV discovery address is outside the contract - it is the mount's own path, as
 	// Mounted labels it - and public because RFC 6764 §5 has a client ask it before it has
 	// presented anything: the answer is a redirect into the tree, which asks for the credential
@@ -184,6 +224,10 @@ var OwnCredentialRoutes = map[string]bool{
 	// Alexa signs its requests and carries the linked account's token in the body; the route
 	// checks both (ADR-0093).
 	http.MethodPost + " " + APIBasePath + "/voice/alexa": true,
+	// A CMDB intake's secret may travel as a bearer or a Basic password (presentedSecret); verified
+	// as an account token, it would refuse every post.
+	http.MethodPost + " " + APIBasePath + "/cmdb/alert-intake/{tenantId}/{connectorId}":     true,
+	http.MethodPost + " " + APIBasePath + "/cmdb/inventory-intake/{tenantId}/{connectorId}": true,
 }
 
 func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -221,7 +265,7 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A credential that was presented is always verified, even on a public route: answering a
 	// wrong token as though it were anonymous would hide a revoked or mistyped credential from
 	// whoever is holding it.
-	actor, err := a.Authenticator.Execute(r.Context(), usecase.AuthenticateTokenCommand{
+	command := usecase.AuthenticateTokenCommand{
 		Credential:       credential,
 		RequestedLocale:  requestedLocaleFrom(r.Context()),
 		FallbackLocale:   a.Locale.DefaultLocale,
@@ -229,7 +273,8 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// The host as it arrived: the use case asks whether it names another workspace than the
 		// credential (multi-tenancy.md §3).
 		Host: r.Host,
-	})
+	}
+	actor, err := a.Authenticator.Execute(r.Context(), command)
 	if err != nil {
 		if BasicRoutes[route] {
 			writeBasicChallenge(w, err, requestID)
@@ -249,9 +294,14 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A person waiting on this answer: what a running emergency access counts for. Not a CalDAV
-	// client, which keeps what it reads in a calendar beyond the hour (ActorContext.Present).
-	actor.Present = !BasicRoutes[route]
+	// client, which keeps what it reads in a calendar beyond the hour (ActorContext.Present), nor
+	// an administrator viewing as somebody: the access is for the owner looking as themselves.
+	actor.Present = !BasicRoutes[route] && !actor.IsViewingAs()
 	ctx := appshared.ContextWithActor(r.Context(), actor)
+	// A held connection asks the same credential again later (stream.CredentialStill).
+	authenticator := a.Authenticator
+	ctx = stream.WithReauthentication(ctx,
+		func(ctx context.Context) (appshared.ActorContext, error) { return authenticator.Execute(ctx, command) })
 	// The tenant reaches the log lines and the metric label from here (§3.1). An identifier of an
 	// installation, never user content (rule 10).
 	ctx = correlation.ContextWithTenant(ctx, actor.TenantID.String())
@@ -274,7 +324,7 @@ func bearerCredential(r *http.Request) (string, error) {
 func credentialOf(r *http.Request, basicAllowed bool) (string, error) {
 	header := r.Header.Get("Authorization")
 	if header == "" {
-		return "", nil
+		return websocketBearer(r), nil
 	}
 
 	scheme, value, found := strings.Cut(header, " ")
@@ -302,6 +352,7 @@ func credentialOf(r *http.Request, basicAllowed bool) (string, error) {
 // same problem document, under the challenge a CalDAV client prompts on. A Bearer challenge
 // would make the client show an error instead of asking again.
 func writeBasicChallenge(w http.ResponseWriter, err error, requestID string) {
+	noteProblem(w, err)
 	problem := ProblemFrom(err, requestID)
 	if problem.Status == http.StatusUnauthorized {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Hubtask", charset="UTF-8"`)
@@ -316,6 +367,8 @@ func writeBasicChallenge(w http.ResponseWriter, err error, requestID string) {
 // to ask for the credential again - which is why the header is set from the mapped status rather
 // than assumed.
 func WriteUnauthenticated(w http.ResponseWriter, err error, requestID string) {
+	// A credential that could not be read is a 503, and its line names the cause (WriteProblem).
+	noteProblem(w, err)
 	problem := ProblemFrom(err, requestID)
 	if problem.Status == http.StatusUnauthorized {
 		// The scheme only. RFC 6750's error parameter would tell an attacker which of "unknown",
@@ -324,4 +377,21 @@ func WriteUnauthenticated(w http.ResponseWriter, err error, requestID string) {
 		w.Header().Set("WWW-Authenticate", "Bearer")
 	}
 	writeProblem(w, problem)
+}
+
+// websocketBearer reads the bearer a browser offers as a WebSocket subprotocol, the one header it
+// may set on one (api/openapi.yaml, openRealtimeDocument). Only on an upgrade: anywhere else the
+// header means nothing, and reading it there would be a second way to present a credential.
+func websocketBearer(r *http.Request) string {
+	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		return ""
+	}
+	for _, offered := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for _, protocol := range strings.Split(offered, ",") {
+			if token, found := strings.CutPrefix(strings.TrimSpace(protocol), realtime.BearerPrefix); found && token != "" {
+				return token
+			}
+		}
+	}
+	return ""
 }

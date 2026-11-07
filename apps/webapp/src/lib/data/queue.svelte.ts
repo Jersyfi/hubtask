@@ -10,6 +10,7 @@
 import type { ConflictRecord, QueuedKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ENTITY_PLACES, fieldRefusals } from './queueplaces.ts';
 import { messages, t } from '../i18n/i18n.svelte.ts';
 
 /** The message code for a mutation kind, and for a patch the field that moved. */
@@ -24,8 +25,15 @@ export function whatOf(kind: QueuedKind, mutation?: SyncMutation): string {
     }
     return t('app.sync.what.patch.fields', { count: fields.length });
   }
+  if (mutation?.entity && (kind === 'ENTITY_UPSERT' || kind === 'ENTITY_PATCH' || kind === 'ENTITY_DELETE')) {
+    return t(`app.sync.what.entity.${mutation.entity}.${kind === 'ENTITY_DELETE' ? 'delete' : 'write'}`);
+  }
   return t(`app.sync.what.${kind.toLowerCase()}`);
 }
+
+/** The source entry a link mutation draws from, where it names one. */
+const linkSourceOf = (mutation?: SyncMutation): string | undefined =>
+  mutation?.entity === 'entry_link' && typeof mutation.payload?.item_id === 'string' ? mutation.payload.item_id : undefined;
 
 /** What a change names, as the copy knows it: the entry it hangs off, or the container, label or bucket. */
 interface Subject {
@@ -35,16 +43,36 @@ interface Subject {
   readonly mutation?: SyncMutation;
 }
 
+/** An entry's title from the copy, or its identifier where the copy has none. */
+async function titleOf(itemId: string): Promise<string> {
+  const held = await engine.storage?.get<StoredRecord<{ title?: string }>>('items', itemId);
+  return held?.document.title ?? itemId;
+}
+
+/** For the vocabulary, the name of what was written, or its key; a link names its source entry. */
+async function vocabularyWhereOf(itemId: string, mutation: SyncMutation): Promise<string> {
+  const vocabulary = mutation.entity ? ENTITY_PLACES[mutation.entity] : undefined;
+  if (vocabulary?.collection) {
+    const held = await engine.storage?.get<StoredRecord<{ name?: string }>>(vocabulary.collection, itemId);
+    return held?.document.name ?? String(mutation.entity_key ?? itemId);
+  }
+  const source = linkSourceOf(mutation);
+  if (mutation.entity === 'entry_link') return source ? titleOf(source) : String(mutation.entity_key ?? itemId);
+  return titleOf(itemId);
+}
+
 /**
- * Where a change sits: the entry's title and page; for a container, a label, a bucket or a template
- * applied, the collection's name and page (or the hub's), from the copy - its identifier where the
- * copy has none.
+ * Where a change sits: the entry's title and page; for the vocabulary, what was written and its
+ * screen; for a container, a label, a bucket or a template applied, the collection's name and page
+ * (or the hub's), from the copy - its identifier where the copy has none.
  */
 async function whereOf(subject: Subject): Promise<{ where: string; href: string }> {
   const storage = engine.storage;
+  if (subject.mutation?.entity) {
+    return { where: await vocabularyWhereOf(subject.itemId, subject.mutation), href: hrefOf(subject.itemId, subject.mutation) };
+  }
   if (subject.itemId) {
-    const held = await storage?.get<StoredRecord<{ title?: string }>>('items', subject.itemId);
-    return { where: held?.document.title ?? subject.itemId, href: `/items/${subject.itemId}` };
+    return { where: await titleOf(subject.itemId), href: `/items/${subject.itemId}` };
   }
   const payload = (subject.mutation?.payload ?? {}) as { collection_id?: string; parent_id?: string };
   const containerId = subject.kind.startsWith('CONTAINER_')
@@ -53,6 +81,13 @@ async function whereOf(subject: Subject): Promise<{ where: string; href: string 
   const held = await storage?.get<StoredRecord<{ name?: string; type?: string }>>('containers', String(containerId));
   const kind = held?.document.type === 'HUB' ? 'hubs' : 'collections';
   return { where: held?.document.name ?? String(containerId), href: `/${kind}/${containerId}` };
+}
+
+/** Where a queued change is opened: its entry, or the screen of the vocabulary it writes. */
+function hrefOf(itemId: string, mutation?: SyncMutation): string {
+  const vocabulary = mutation?.entity ? ENTITY_PLACES[mutation.entity] : undefined;
+  if (vocabulary?.href) return vocabulary.href;
+  return `/items/${linkSourceOf(mutation) ?? itemId}`;
 }
 
 export interface ListedChange {
@@ -64,6 +99,8 @@ export interface ListedChange {
 
 export interface ListedRefusal extends ListedChange {
   readonly reason: string;
+  /** The reason beside each draft field the server named, where the catalogue words it. */
+  readonly fieldReasons: Readonly<Record<string, string>>;
   readonly record: RejectedMutation;
 }
 
@@ -124,11 +161,14 @@ class QueueView {
     }
     const refused: ListedRefusal[] = [];
     for (const record of state.rejected) {
+      // The mutation it was, where the record keeps it: a vocabulary or timer refusal reads as
+      // what it is and links to its screen (user-experience.md §5.11).
       refused.push({
         id: record.id,
-        what: whatOf(record.kind),
+        what: whatOf(record.kind, record.mutation),
         ...(await whereOf(record)),
         reason: reasonOf(record),
+        fieldReasons: fieldReasonsOf(record),
         record,
       });
     }
@@ -139,6 +179,11 @@ class QueueView {
 
   async dismiss(id: string): Promise<void> {
     await engine.dismissRejected(id);
+  }
+
+  /** Sends a refused change again with what its draft now says. */
+  async resend(id: string, values: Readonly<Record<string, unknown>>): Promise<boolean> {
+    return engine.resendRejected(id, values);
   }
 
   async dismissConflict(id: string): Promise<void> {
@@ -158,9 +203,18 @@ function reasonOf(record: RejectedMutation): string {
   if (code === 'access.forbidden' || record.code === 'forbidden') return t('app.sync.refused.forbidden');
   if (code === 'sync.device_revoked') return t('app.sync.refused.device_revoked');
   if (record.messageCode && messages.has(record.messageCode)) {
-    return t('app.sync.refused.named', { reason: t(record.messageCode) });
+    return t('app.sync.refused.named', { reason: t(record.messageCode, record.params ?? {}) });
   }
   return t('app.sync.refused.other');
+}
+
+/** Each named field's reason in words; a code the catalogue lacks stays with the refusal's own. */
+function fieldReasonsOf(record: RejectedMutation): Record<string, string> {
+  const reasons: Record<string, string> = {};
+  for (const [field, refusal] of Object.entries(fieldRefusals(record.fieldErrors))) {
+    if (messages.has(refusal.code)) reasons[field] = t(refusal.code, refusal.params);
+  }
+  return reasons;
 }
 
 export const queue = new QueueView();

@@ -57,5 +57,6 @@ or a role, or a group.
 
 * Presets for further providers (Okta, Auth0, GitLab, Slack …) are not required; *Other OpenID
   Connect provider* with instructions covers them.
-* SAML is not offered ([NG-saml-before-1](../../vision/non-goals.md)).
+* A SAML provider is configured on the same form and signs in by UC-ID-30 (the owner's answer of
+  2026-10-30, `docs/backlog/suite/accepted.md` A); its own checks are there, not here.
 * No logo upload for a custom provider: it gets a letter tile.

@@ -24,7 +24,9 @@
   import { untrack } from 'svelte';
 
   import { canCopy } from '@hubtask/design-system/components';
-  import { Banner, Button, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from './FailureNote.svelte';
+  import { Button, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
 
   import { focusFirst } from '../forms/missing.ts';
   import { toast } from './toasts.svelte.ts';
@@ -137,9 +139,9 @@
     <h2>{t('app.passkeys.title')}</h2>
     <p class="quiet">{t('app.passkeys.body')}</p>
     {#if passkeys.failure}
-      <Banner tone="danger" title={passkeys.failure.message}>
+      <FailureNote problem={passkeys.failure}>
         {#if passkeys.failure.reference}{passkeys.failure.reference}{/if}
-      </Banner>
+      </FailureNote>
     {/if}
 
     {#if passkeys.fresh}

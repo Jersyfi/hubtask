@@ -212,14 +212,14 @@ func (w WorkspaceWriter) keepsAWayIn(
 		})
 }
 
-// applyLegal folds the four links in, refusing one the instance locked.
+// applyLegal folds the four links and the two help links in, refusing one a level above locked.
 func (WorkspaceWriter) applyLegal(
 	resolved ResolvedPolicy, stored domain.LegalLinks, sent map[domain.LegalLink]string,
 ) (domain.LegalLinks, []domain.FieldChange, error) {
 	links := stored
 	moved := make([]domain.FieldChange, 0, len(sent))
 
-	for _, name := range domain.LegalLinkNames() {
+	for _, name := range append(domain.LegalLinkNames(), domain.HelpLinkNames()...) {
 		value, held := sent[name]
 		if !held {
 			continue

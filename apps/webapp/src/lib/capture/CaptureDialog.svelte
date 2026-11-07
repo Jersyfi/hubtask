@@ -22,6 +22,7 @@
   import { SIGILS, offersFor, pick, tokenAt, type Offer, type Sigil, type Token } from './suggest.ts';
   import { offersMakeEntries } from './entries.ts';
   import MakeEntries from './MakeEntries.svelte';
+  import CaptureForm from './CaptureForm.svelte';
   import Lookalikes from '../entries/Lookalikes.svelte';
   import ImportDialog from '../entries/ImportDialog.svelte';
   import TemplatesDialog from '../entries/TemplatesDialog.svelte';
@@ -40,6 +41,8 @@
   import { containers } from '../data/containers.svelte.ts';
   import { archivalOf } from '../data/containers.ts';
   import { engine } from '../data/engine.ts';
+  import { entryTypes, entryTypesOffered, offeredTypes, typesShown } from '../data/entrytypes.svelte.ts';
+  import { hasForm, refusalsByField, unfilled } from '../data/entryforms.ts';
   import { itemPath } from '../data/item.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { jumble } from '../data/jumble.svelte.ts';
@@ -71,6 +74,8 @@
   let chosen = $state<string | undefined>(undefined);
   /** The level chosen where the door offers several. */
   let chosenType = $state<string | undefined>(undefined);
+  /** The entry type picked in the type pill, a key; none is the level's own (UC-FLW-01 check 3). */
+  let chosenKind = $state<string | undefined>(undefined);
   /** Whether the entry still goes under the door's entry; its chip takes it out. */
   let isUnderParent = $state(true);
   let mode = $state<Mode>('one');
@@ -210,6 +215,38 @@
   /** The levels the door offers, where it named them: under an entry, its child levels. */
   const doorTypes = $derived(door?.types && door.types.length > 0 && (!door.collectionId || door.collectionId === current) ? door.types : undefined);
   const entryType = $derived(chosenType ?? doorTypes?.[0] ?? topLevelOf(settings, rootTypes()));
+  /** The entry types the level offers, where the workflows module is on (UC-FLW-01 checks 3, 8). */
+  const kinds = $derived(typesShown(manifest.value) && entryType ? offeredTypes(entryTypes.all, entryType, entryTypesOffered(settings, entryType), hubHere) : []);
+  const kind = $derived(kinds.find((each) => each.key === chosenKind) ?? kinds[0]);
+  const kindName = (each: (typeof kinds)[number]) => each.name ?? offerLevelName(each.level);
+  /** The target type's form, where it has one: unfolded under the line (UC-FLW-01 check 2). */
+  const formed = $derived(kind && hasForm(kind.form) && collection ? kind : undefined);
+  let formValues = $state<{ notes: string; custom: Record<string, unknown> }>({ notes: '', custom: {} });
+  let formState = $state<import('@hubtask/sync-engine').EntryFormState | undefined>(undefined);
+  let formRefusals = $state<ReadonlyMap<string, string>>(new Map());
+  // Another type or another place asks its own form: what was typed for the last one is not carried over.
+  $effect(() => {
+    void formed?.key;
+    void collection?.id;
+    untrack(() => {
+      formValues = { notes: '', custom: {} };
+      formState = undefined;
+      formRefusals = new Map();
+    });
+  });
+  /** What the form adds to each entry's body: only what was filled in. */
+  const formBody = $derived.by(() => {
+    if (!formed) return undefined;
+    const custom = Object.fromEntries(Object.entries(formValues.custom).filter(([, value]) => value !== null && value !== undefined));
+    return {
+      ...(formValues.notes.trim() !== '' ? { notes: formValues.notes } : {}),
+      ...(Object.keys(custom).length > 0 ? { custom_fields: custom } : {}),
+    };
+  });
+  $effect(() => {
+    if (!typesShown(manifest.value)) return;
+    return untrack(() => entryTypes.open());
+  });
   /** The entry it goes under, while the door's collection is still the target. */
   const parentId = $derived(isUnderParent && door?.parentId && door.collectionId === collection?.id ? door.parentId : undefined);
   const bucketId = $derived(door?.bucketId && door.collectionId === collection?.id ? door.bucketId : undefined);
@@ -381,28 +418,46 @@
 
       const place = target.collection;
       if (!amountRules || !entryType) return;
+      if (formed && formState?.closed) {
+        error = t('app.capture.form_closed');
+        return;
+      }
+      if (formed) {
+        const missing = unfilled(formed.form, formState, formValues);
+        if (missing.length > 0) {
+          formRefusals = new Map(missing.map((key) => [key, t('app.forms.required')]));
+          error = t('app.capture.form_unfilled');
+          return;
+        }
+      }
       const { lines, rest } = readLinesOf(text, amountRules, readOne);
       if (lines.length === 0 || lines.some((each) => each.reading.title === '')) {
         error = t('items.title_empty');
         return;
       }
       const bodies = lines.map((each) =>
-        bodyOf(each.reading, { collectionId: place.id, type: entryType, parentId, bucketId }, { now, zone: context.zone }, each.amount),
+        ({
+          ...bodyOf(each.reading, { collectionId: place.id, type: entryType, parentId, bucketId, entryTypeKey: kind && !kind.system ? kind.key : undefined }, { now, zone: context.zone }, each.amount),
+          ...formBody,
+        }),
       );
       const outcome = await createAll(writer, bodies, keysFor(text, bodies.length), lines.map((each) => each.line), rest);
       if (outcome.kind !== 'items') return;
 
       if (outcome.failure !== undefined) {
         error = say(outcome.failure);
+        if (formed) formRefusals = refusalsByField(renderProblem(outcome.failure as TransportError, messages).fields);
         text = outcome.rest;
         attempt = undefined;
       } else {
         finish(outcome.rest);
+        if (outcome.rest === '') formValues = { notes: '', custom: {} };
+        formRefusals = new Map();
       }
       if (outcome.created.length === 0) return;
       const only = outcome.created.length === 1 ? outcome.created[0] : undefined;
       offerUndo(
-        { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name },
+        { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name, title: only?.title },
         undefined,
         { label: t('app.capture.open'), href: only ? `/items/${only.id}` : `/collections/${place.id}` },
       );
@@ -742,6 +797,19 @@
           {/snippet}
         </Menu>
       {/if}
+      {#if kinds.length > 1 && kind && (mode === 'one' || mode === 'lines')}
+        <Menu
+          label={t('app.capture.type_choose')}
+          items={kinds.map((each) => ({ id: each.key, label: kindName(each) }))}
+          onselect={(key) => (chosenKind = key)}
+        >
+          {#snippet trigger(props)}
+            <button type="button" class="pill" data-chip="entry-type" {...props}>
+              <span class="pill-key">{t('app.capture.type_key')}</span><span class="pill-value">{kindName(kind)}</span><span class="pill-more" aria-hidden="true">▾</span>
+            </button>
+          {/snippet}
+        </Menu>
+      {/if}
     </div>
 
     <div class="panel" id={`${listId}-mode`} role="tabpanel" aria-labelledby={`${listId}-tab-${mode}`}>
@@ -797,6 +865,17 @@
           <Kbd size="sm">Esc</Kbd> {t('app.capture.offers_close')}
         </p>
       </div>
+    {/if}
+    {#if formed && collection && entryType}
+      <CaptureForm
+        type={formed}
+        level={entryType}
+        collectionId={collection.id}
+        title={reading.title}
+        bind:values={formValues}
+        bind:answer={formState}
+        refusals={formRefusals}
+      />
     {/if}
     {#if collection && mode === 'one' && !text.includes('\n')}
       <!-- What already looks like it, while it is typed (UC-AI-04 check 7): nothing when nothing is. -->
@@ -867,6 +946,7 @@
         isEmbedded
         bind:isOpen={isImportOpen}
         hubId={importHub.id}
+        from={door?.importFrom}
         onnavigate={(path) => {
           capture.close();
           onnavigate?.(path);
@@ -878,6 +958,7 @@
         bind:isOpen={isImportOpen}
         hubId={collection.parent_id}
         collection={{ id: collection.id, name: collection.name }}
+        from={door?.importFrom}
         onnavigate={(path) => {
           capture.close();
           onnavigate?.(path);

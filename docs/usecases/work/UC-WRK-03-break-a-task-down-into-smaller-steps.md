@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [B-03, B-05, B-08, F2-09, F10-12, UX-08]
-checked_by: [test/integration/capability_profile_test.go, test/integration/create_work_item_test.go, test/integration/activity_under_task_test.go, core/domain/model/work/CapabilityProfile_test.go, apps/webapp/e2e/entry.test.mjs]
+checked_by: [test/integration/capability_profile_test.go, test/integration/create_work_item_test.go, test/integration/activity_under_task_test.go, core/domain/model/work/CapabilityProfile_test.go, apps/webapp/e2e/entry.test.mjs, core/application/service/work/CreateWorkItem_test.go, core/domain/service/Hierarchy_test.go, apps/webapp/src/lib/data/capability.test.ts]
 ---
 
 # Break a task down into smaller steps
@@ -48,6 +48,7 @@ small by design: one person responsible, a due date, a reminder, no labels and n
   ([domain model §2](../../architecture/domain-model.md)).
 * A collection narrowing what its entries offer — for example no activities — is
   [UC-WRK-23](./UC-WRK-23-choose-how-much-structure-a-collection-has.md).
-* No dependencies between steps ("B starts when A is done") — not planned.
+* No dependencies between steps ("B starts when A is done") here — they are
+  [UC-PLN-01](../planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md).
 * Completing a parent when its children are done is [UC-WRK-04](./UC-WRK-04-tick-work-off-and-take-it-back.md).
 * An AI proposing the steps is the suggestion context's, and optional.

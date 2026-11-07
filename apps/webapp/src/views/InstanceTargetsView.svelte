@@ -28,6 +28,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -84,7 +85,7 @@
       failure =
         cause instanceof TransportError
           ? renderProblem(cause, messages)
-          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+          : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
       return false;
     } finally {
       working = undefined;
@@ -102,9 +103,7 @@
       <p class="prose">{t('app.instance.targets_intro')}</p>
 
       {#if failure && !removing}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -113,9 +112,7 @@
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else}
         {#if targets.length === 0}
           <Banner tone="info">{t('app.instance.targets_none')}</Banner>
@@ -185,9 +182,7 @@
   {/snippet}
   <Stack gap="150">
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
     <Banner tone="warning">{t('app.instance.targets_remove_note', { name: removing?.name ?? '' })}</Banner>
   </Stack>

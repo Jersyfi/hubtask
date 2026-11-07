@@ -25,12 +25,6 @@ func dueGroup() group {
 				summary: "date an entry",
 				run:     dueSet,
 			},
-			{
-				name:    "clear",
-				usage:   "<id> [--expect-version <n>]",
-				summary: "take the date off an entry",
-				run:     dueClear,
-			},
 		},
 	}
 }
@@ -98,33 +92,6 @@ func dueSet(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(updated, dueTable([]openapi.WorkItem{updated}))
-}
-
-func dueClear(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "due clear <id> [--expect-version <n>]"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "due", "clear", "<id> [--expect-version <n>]")
-	expected := flags.Int("expect-version", 0, "refuse unless the entry is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(
-		ctx, itemsPath+"/"+item.String()+"/due", versionPrecondition(*expected),
-	); err != nil {
-		return err
-	}
-	// No payload, so the confirmation goes to standard error and `--json` writes nothing into a
-	// pipe (the shape `item rm` set).
-	printf(cli.Err, "date cleared: %s\n", item)
-	return nil
 }
 
 // versionPrecondition spells an expected version as an entity tag, or nothing at all.

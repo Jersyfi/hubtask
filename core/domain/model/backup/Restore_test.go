@@ -285,6 +285,23 @@ func TestADuplicatedNameStaysInsideTheColumn(t *testing.T) {
 	}
 }
 
+// Identities minted in the same millisecond share their first twelve hex digits (UUIDv7's
+// timestamp), so two NEW_TENANT restores started together must still get two slugs.
+func TestTwoCopiesMintedInTheSameMillisecondGetTwoSlugs(t *testing.T) {
+	first := shared.ID("0198f0a0-1234-7abc-8def-0000000000a1")
+	second := shared.ID("0198f0a0-1234-7abc-8def-0000000000a2")
+
+	if a, b := domain.RestoredSlug(first), domain.RestoredSlug(second); a == b {
+		t.Fatalf("both copies are called %q", a)
+	}
+	if want := "restored-0198f0a01234-0000000000a1"; domain.RestoredSlug(first) != want {
+		t.Errorf("the slug is %q, want %q", domain.RestoredSlug(first), want)
+	}
+	if slug := domain.RestoredSlug(first); len(slug) > 40 {
+		t.Errorf("%q is past the slug's forty characters", slug)
+	}
+}
+
 func TestTheReportCountsEachDecisionOnce(t *testing.T) {
 	var report domain.Report
 

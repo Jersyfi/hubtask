@@ -60,10 +60,15 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import FailureState from '../lib/frame/FailureState.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { TransportError } from '@hubtask/sync-engine';
 
   import IdentityProviderView from './IdentityProviderView.svelte';
+  import LdapDirectoryPanel from '../lib/signin/LdapDirectoryPanel.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import { withdrawalPhase } from '../lib/instance/withdrawal.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
@@ -82,6 +87,8 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
 
   interface Props {
     /** The sign-in rules in tabs, or the legal links on their own page. */
@@ -103,12 +110,14 @@
     passwords: PASSWORD_KEYS,
     sessions: ['session_max_days', 'session_idle_minutes'],
     ways: [],
-    legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url'],
+    directory: [],
+    legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url', 'support_url', 'docs_url'],
   };
   const TABS = [
     { id: 'passwords', code: 'app.signin_settings.passwords' },
     { id: 'sessions', code: 'app.signin_settings.sessions' },
     { id: 'ways', code: 'app.signin_settings.ways_and_providers' },
+    { id: 'directory', code: 'app.signin_settings.directory' },
   ] as const;
   const current = $derived(
     part === 'legal' ? 'legal' : TABS.some((each) => each.id === tab) ? (tab as string) : 'passwords',
@@ -180,6 +189,9 @@
       privacy_url: ownLink(policy.legal.privacy_url),
       terms_url: ownLink(policy.legal.terms_url),
       accessibility_url: ownLink(policy.legal.accessibility_url),
+      // The help links, absent from a server that predates them.
+      ...(policy.legal.support_url ? { support_url: ownLink(policy.legal.support_url) } : {}),
+      ...(policy.legal.docs_url ? { docs_url: ownLink(policy.legal.docs_url) } : {}),
       // The terms' version, own where the workspace's own terms carry one (UC-ID-19).
       ...(policy.legal.terms_version ? { terms_version: ownLink(policy.legal.terms_version) } : {}),
       // Absent from a server that predates it, and then not a row this form sends.
@@ -317,6 +329,8 @@
 
   /** How many rules moved: the save bar's count, and whether it is there at all. */
   const changedCount = $derived(Object.keys(moved()).length);
+  /** Every tab's unsaved rules: what the leave guard holds, as a tab change keeps them. */
+  const unsaved = $derived(Object.keys(SCOPES).reduce((count, scope) => count + Object.keys(moved(scope)).length, 0));
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -502,19 +516,21 @@
   </div>
 {/snippet}
 
-{#snippet linkRow(key: 'imprint_url' | 'privacy_url' | 'terms_url' | 'accessibility_url', label: string)}
-  {#if policy}
-    {@const locked = policy.legal[key].lock !== null}
+{#snippet linkRow(key: 'imprint_url' | 'privacy_url' | 'terms_url' | 'accessibility_url' | 'support_url' | 'docs_url', label: string, hint?: string)}
+  {@const setting = policy?.legal[key]}
+  {#if setting}
+    {@const locked = setting.lock !== null}
     <div data-rule>
       <Input
         {label}
+        {hint}
         type="url"
-        value={locked ? policy.legal[key].value : String(draft[key] ?? '')}
+        value={locked ? setting.value : String(draft[key] ?? '')}
         oninput={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).value)}
-        disabledReason={lockedBecause(policy.legal[key].lock)}
+        disabledReason={lockedBecause(setting.lock)}
         error={refusalOf(key)}
       />
-      {@render origin(policy.legal[key], policy.legal[key].value || t('app.source.nothing'), linkOrigin(policy.legal[key], String(draft[key] ?? '')))}
+      {@render origin(setting, setting.value || t('app.source.nothing'), linkOrigin(setting, String(draft[key] ?? '')))}
     </div>
   {/if}
 {/snippet}
@@ -540,16 +556,12 @@
       {/if}
     {/snippet}
   </PageHeader>
+  <div class="file"><ViewSectionsAsFile {...pagePart(part === 'legal' ? '/administration/legal' : '/administration/sign-in')} /></div>
 
   {#if unreadable && !policy}
     <!-- Never a spinner for a read that failed (check 8, P-11): the server's sentence, and a way to
          ask again. -->
-    <ErrorState
-      title={unreadable.message}
-      reference={unreadable.reference}
-      retryLabel={t('app.retry')}
-      onRetry={() => signInPolicy.retry()}
-    />
+    <FailureState problem={unreadable} onRetry={() => signInPolicy.retry()} />
   {:else if reading.status === 'ready' && !policy}
     <!-- Read, and the workspace answered no rule: an installation wired without the level above,
          where there is nothing to set. Said, rather than drawn as eighteen rows nobody can save. -->
@@ -564,22 +576,27 @@
       <p class="lead">{part === 'legal' ? t('app.signin_settings.legal_hint') : t('app.signin_settings.lead')}</p>
 
       {#if general}
-        <Banner tone="danger" title={general.message}>
+        <FailureNote problem={general}>
           {#if general.reference}{general.reference}{/if}
-        </Banner>
+        </FailureNote>
       {/if}
 
+      <!-- One tab at a time on the shell (user-experience.md §5.4); the save bar stays in the
+           form, where Enter submits, and the shell's guard counts every tab's unsaved rules. -->
       {#if part === 'sign-in'}
-        <Tabs
-          label={t('app.signin_settings.title')}
+        <SettingsPage
+          label={t('app.settings_page.sections', { name: t('app.signin_settings.title') })}
+          sections={TABS.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'passwords' ? '/administration/sign-in' : `/administration/sign-in?tab=${each.id}` }))}
           selected={current}
           onselect={select}
-          tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
+          changes={unsaved}
         >
           {@render panel()}
-        </Tabs>
+        </SettingsPage>
       {:else}
-        {@render panel()}
+        <SettingsPage label={t('app.settings_page.sections', { name: t('app.signin_settings.legal') })} sections={[{ id: 'legal', label: t('app.signin_settings.legal') }]} changes={unsaved}>
+          {@render panel()}
+        </SettingsPage>
       {/if}
     </Stack>
   {/if}
@@ -588,7 +605,7 @@
 {#snippet panel()}
   {#if policy}
     <Stack gap="300">
-      {#if current !== 'ways'}
+      {#if current !== 'ways' && current !== 'directory'}
       <WorkspaceGate permission="STRUCTURE">
         <form bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="300">
@@ -703,6 +720,17 @@
                 {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
               </Stack>
             </section>
+            {#if policy.legal.support_url || policy.legal.docs_url}
+              <!-- Not in the footer: Help shows them (user-experience.md §5.8). -->
+              <section class="panel" data-help-links>
+                <Stack gap="200">
+                  <h2>{t('app.signin_settings.help_links')}</h2>
+                  <p class="lead">{t('app.signin_settings.help_links_hint')}</p>
+                  {@render linkRow('support_url', t('app.help.support_contact'), t('app.signin_settings.support_url_hint'))}
+                  {@render linkRow('docs_url', t('app.help.documentation'))}
+                </Stack>
+              </section>
+            {/if}
             {/if}
 
           </Stack>
@@ -720,6 +748,11 @@
           </WriteOnly>
         </form>
       </WorkspaceGate>
+      {/if}
+
+      {#if current === 'directory'}
+        <!-- The LDAP directory the people are synchronised from (UC-ID-31): its own saves. -->
+        <LdapDirectoryPanel />
       {/if}
 
       {#if current === 'ways'}
@@ -955,4 +988,5 @@
     margin-block-start: var(--sp-100);
   }
 
+  .file { display: flex; justify-content: flex-end; }
 </style>

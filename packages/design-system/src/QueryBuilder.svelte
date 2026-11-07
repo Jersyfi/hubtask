@@ -19,6 +19,7 @@
   // anything, and what keeps the decision about which conditions are sendable in one place.
 
   import Button from './Button.svelte';
+  import CheckboxGroup from './CheckboxGroup.svelte';
   import IconButton from './IconButton.svelte';
   import Input from './Input.svelte';
   import Select from './Select.svelte';
@@ -31,6 +32,8 @@
     readonly takesValue: boolean;
     /** Whether the value is a list, so the field can say how it should be typed. */
     readonly hint?: string;
+    /** The value is a list: a field with a fixed set offers several of it, joined by commas. */
+    readonly takesList?: boolean;
   }
 
   /** One field the installation reports, with what may be asked of it. */
@@ -110,6 +113,9 @@
     );
   }
 
+  /** A list value as its parts - the text a list operator's caller splits at its commas. */
+  const partsOf = (value: string): string[] => value.split(',').map((part) => part.trim()).filter((part) => part !== '');
+
   function change(index: number, patch: Partial<QueryCondition>) {
     apply(conditions.map((condition, at) => (at === index ? { ...condition, ...patch } : condition)));
   }
@@ -143,7 +149,15 @@
              absence has nothing to compare against, and drawing an empty box beside it would be
              asking the reader for something that will not be sent. -->
         {#if operator?.takesValue !== false}
-          {#if field?.values}
+          {#if field?.values && operator?.takesList}
+            <!-- Several of a fixed set, as the list a person would type: the parts joined by commas. -->
+            <CheckboxGroup
+              label={valueLabel}
+              options={field.values.map((each) => ({ value: each.value, label: each.label }))}
+              selected={partsOf(condition.value)}
+              onChange={(chosen) => change(index, { value: chosen.join(', ') })}
+            />
+          {:else if field?.values}
             <Select
               label={valueLabel}
               size="sm"

@@ -71,6 +71,7 @@ func TestAFiredReminderBecomesARecordPerRecipient(t *testing.T) {
 
 // Somebody who has switched reminders off gets the record that says so and no message. The record
 // is the point: a person asking why they heard nothing deserves better than silence.
+// UC-NOT-02 check 5.
 func TestAReminderSomebodySwitchedOffIsSuppressedAndRecorded(t *testing.T) {
 	preferences := newPreferences()
 	preferences.switchOff(bert, domain.CategoryReminder)

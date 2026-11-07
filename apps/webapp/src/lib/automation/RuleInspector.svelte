@@ -9,6 +9,8 @@
   // they name, as the old form showed them.
 
   import { Button, Callout, Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import FrequencyPicker from '../forms/FrequencyPicker.svelte';
+  import ZonePicker from '../forms/ZonePicker.svelte';
 
   import ActionForm, { type Choice, type Field } from './ActionForm.svelte';
   import Composer from './Composer.svelte';
@@ -48,6 +50,8 @@
     onaddcondition: () => void;
     /** The inbound address, the view's to mint. Starting a rule is the head's *Start now*. */
     inbound?: { rotatedAt?: string; onmint: () => void; isWorking: boolean };
+    /** The workflows and their steps a STEP_TAKEN rule may name (UC-FLW-04 check 4). */
+    workflowChoices?: readonly (Choice & { readonly steps: readonly Choice[] })[];
   }
 
   const {
@@ -71,7 +75,10 @@
     onremovecondition,
     onaddcondition,
     inbound,
+    workflowChoices = [],
   }: Props = $props();
+
+  const stepChoices = $derived(workflowChoices.find((choice) => choice.value === draft.trigger.workflow)?.steps ?? []);
 
   const words = { t, has: (code: string) => messages.has(code) };
 
@@ -267,25 +274,19 @@
         </Stack>
       {/if}
     {:else if draft.trigger.kind === 'SCHEDULE'}
-      <Input
+      <FrequencyPicker
         label={t('app.rules.rrule')}
-        hint={t('app.flow.rrule_hint')}
+        rawHint={t('app.flow.rrule_hint')}
         error={errors.get('/trigger/rrule')}
-        value={draft.trigger.rrule ?? ''}
-        oninput={(event: Event) => {
-          const rrule = value(event);
-          onupdate((current) => ({ ...current, trigger: { ...current.trigger, rrule } }));
-        }}
+        rule={draft.trigger.rrule ?? ''}
+        onchange={(rrule) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, rrule } }))}
       />
-      <Input
+      <ZonePicker
         label={t('app.rules.timezone')}
         hint={t('app.rules.timezone_hint')}
         error={errors.get('/trigger/timezone')}
         value={draft.trigger.timezone ?? ''}
-        oninput={(event: Event) => {
-          const timezone = value(event);
-          onupdate((current) => ({ ...current, trigger: { ...current.trigger, timezone } }));
-        }}
+        onchange={(timezone) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, timezone } }))}
       />
     {:else if draft.trigger.kind === 'RELATIVE_DATE'}
       <Input
@@ -305,13 +306,61 @@
         options={[
           { value: 'DUE_DATE', label: t('app.flow.anchor_due_date') },
           { value: 'CREATED_AT', label: t('app.flow.anchor_created_at') },
+          { value: 'COMPLETED_AT', label: t('app.flow.anchor_completed_at') },
+          { value: 'FIELD', label: t('app.flow.anchor_field') },
         ]}
         onchange={(event: Event) => {
           const anchor = value(event);
           onupdate((current) => ({ ...current, trigger: { ...current.trigger, anchor } }));
         }}
       />
+      {#if draft.trigger.anchor === 'FIELD'}
+        <Input
+          label={t('app.flow.anchor_field_key')}
+          hint={t('app.flow.anchor_field_key_hint')}
+          error={errors.get('/trigger/anchor_field')}
+          value={draft.trigger.anchor_field ?? ''}
+          oninput={(event: Event) => {
+            const anchor_field = value(event);
+            onupdate((current) => ({ ...current, trigger: { ...current.trigger, anchor_field } }));
+          }}
+        />
+      {/if}
+      <Input
+        label={t('app.flow.relative_calendar')}
+        hint={t('app.flow.relative_calendar_hint')}
+        error={errors.get('/trigger/calendar')}
+        value={draft.trigger.calendar ?? ''}
+        autocomplete="off"
+        spellcheck={false}
+        oninput={(event: Event) => {
+          const calendar = value(event).trim();
+          onupdate((current) => ({ ...current, trigger: { ...current.trigger, calendar: calendar === '' ? undefined : calendar } }));
+        }}
+      />
       <Callout>{t('app.flow.relative_hint')}</Callout>
+    {:else if draft.trigger.kind === 'STEP_TAKEN'}
+      <Select
+        label={t('app.flow.trigger_workflow')}
+        error={errors.get('/trigger/workflow')}
+        value={draft.trigger.workflow ?? ''}
+        options={[{ value: '', label: t('app.flow.choose_workflow') }, ...workflowChoices]}
+        onchange={(event: Event) => {
+          const workflow = value(event);
+          onupdate((current) => ({ ...current, trigger: { kind: 'STEP_TAKEN', workflow } }));
+        }}
+      />
+      <Select
+        label={t('app.flow.trigger_step')}
+        error={errors.get('/trigger/step')}
+        value={draft.trigger.step ?? ''}
+        options={[{ value: '', label: t('app.flow.choose_step') }, ...stepChoices]}
+        onchange={(event: Event) => {
+          const step = value(event);
+          onupdate((current) => ({ ...current, trigger: { ...current.trigger, step } }));
+        }}
+      />
+      <Callout>{t('app.flow.step_taken_hint')}</Callout>
     {:else if draft.trigger.kind === 'INBOUND_WEBHOOK'}
       {#if inbound && ruleId}
         <Callout tone="warning">{t(inbound.rotatedAt ? 'app.rules.rotate_cost' : 'app.rules.rotate_first')}</Callout>

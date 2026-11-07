@@ -27,7 +27,10 @@ import (
 
 // reclaimable is the media record store as one pass sees it. Only the methods a pass calls do
 // anything; the rest exist because the port is one interface.
-type reclaimable struct{ orphans []mediarepo.Orphan }
+type reclaimable struct {
+	orphans []mediarepo.Orphan
+	held    []mediadomain.Object
+}
 
 func (r *reclaimable) Recount(context.Context, time.Time) error { return nil }
 func (r *reclaimable) MarkOrphans(
@@ -54,8 +57,10 @@ func (r *reclaimable) Insert(context.Context, mediadomain.Object) error { return
 func (r *reclaimable) Find(context.Context, shared.ID) (mediadomain.Object, error) {
 	return mediadomain.Object{}, shared.ErrNotFound
 }
-func (r *reclaimable) Seal(context.Context, mediadomain.Object) error       { return nil }
-func (r *reclaimable) AdjustRefCount(context.Context, shared.ID, int) error { return nil }
+func (r *reclaimable) Seal(context.Context, mediadomain.Object) error          { return nil }
+func (r *reclaimable) Held(context.Context, int) ([]mediadomain.Object, error) { return r.held, nil }
+func (r *reclaimable) Settle(context.Context, mediadomain.Object) error        { return nil }
+func (r *reclaimable) AdjustRefCount(context.Context, shared.ID, int) error    { return nil }
 func (r *reclaimable) MarkDeleted(context.Context, shared.ID, time.Time) (bool, error) {
 	return false, nil
 }
@@ -64,7 +69,14 @@ func (r *reclaimable) ReferencingItems(
 ) ([]mediarepo.ItemRef, error) {
 	return nil, nil
 }
-func (r *reclaimable) ServesAvatar(context.Context, shared.ID) (bool, error) { return false, nil }
+func (r *reclaimable) ServesAvatar(context.Context, shared.ID) (bool, error)       { return false, nil }
+func (r *reclaimable) ServedDesks(context.Context, shared.ID) ([]shared.ID, error) { return nil, nil }
+func (r *reclaimable) ReferencingBoards(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
+func (r *reclaimable) ReferencingPages(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
 func (r *reclaimable) ListForItem(
 	context.Context, shared.ID, workrepo.Page,
 ) (mediarepo.ObjectPage, error) {

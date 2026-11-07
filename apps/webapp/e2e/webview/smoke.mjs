@@ -298,6 +298,9 @@ async function walk(server, browser) {
   step('edit it');
   await session.click('main a', ENTRY);
   const title = await session.wait('input, textarea', 'Title', { exact: false });
+  // The title stays read-only until the reader's role is known (ItemView), and a driver refuses
+  // to clear a read-only field.
+  await until('the title to take typing', () => title.editable());
   await title.clear();
   await title.type(EDITED + ENTER);
   await until('the new title on the server', async () => (await items(server)).find((item) => item.id === created.id && item.title === EDITED));
@@ -311,6 +314,38 @@ async function walk(server, browser) {
   await account.click();
   await session.click('button, [role="menuitem"], a', 'Sign out');
   await session.wait('h1, h2', `You are signed out of ${WORKSPACE}`);
+}
+
+/** What the broken screen's "Copy details" puts on the clipboard, or null where no screen broke. */
+async function crashDetails() {
+  const pressed = await session.script(`
+    const button = [...document.querySelectorAll('[data-crash] button')].find((each) => each.textContent.includes('Copy details'));
+    if (!button) return false;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { window.__walkCrash = text; } } });
+    button.click();
+    return true;`);
+  if (!pressed) return null;
+  return until('the copied details', () => session.script('return window.__walkCrash ?? null;'), 5_000);
+}
+
+/** The bundle's text around each of the first two frames of a crash's details. */
+async function codeAt(details) {
+  const frames = [...String(details ?? '').matchAll(/^frame: .*?@(\S+):(\d+):(\d+)$/gm)].slice(0, 2);
+  const out = [];
+  for (const [, url, line, column] of frames) {
+    const text = await session.script(`return fetch(${JSON.stringify(url)}).then((r) => r.text());`);
+    const row = String(text).split('\n')[Number(line) - 1] ?? '';
+    const at = Number(column) - 1;
+    out.push(`${url}:${line}:${column}\n${row.slice(Math.max(0, at - 400), at)} <<HERE>> ${row.slice(at, at + 200)}`);
+  }
+  // Whether the first frame's module evaluates at all: a screen running before its module's body
+  // has (a template still undefined) and a module whose body throws read the same from the frames.
+  if (frames[0]) {
+    out.push(`importing ${frames[0][1]}: ${await session.script(`return import(${JSON.stringify(frames[0][1])}).then(
+      (m) => 'evaluated, its default a ' + typeof m.default,
+      (e) => 'refused: ' + (e && e.name) + ': ' + (e && e.message));`)}`);
+  }
+  return out.join('\n\n');
 }
 
 async function items({ token, collection }) {
@@ -331,9 +366,22 @@ async function explain() {
     writeFileSync(join(out, 'failure.txt'), String(text));
     say('the screen\'s text', String(text).slice(0, 3000));
     say('the page\'s address', await session.url().catch((error) => `(unreadable: ${error.message})`));
+    // Where this document was loaded - a link the router let pass is a full load at its address -
+    // and the two origins the router compares: a custom scheme's URL has an opaque one.
+    say('the document\'s load and origins', await session.script(
+      'const [load] = performance.getEntriesByType("navigation"); return [`loaded ${load?.type ?? "?"} at ${load?.name ?? "?"}`, `location.origin ${location.origin}`, `URL origin ${new URL(location.href).origin}`].join("\\n");',
+    ).catch((error) => `(unreadable: ${error.message})`));
     say('the page\'s requests', await session.script(
       'return performance.getEntriesByType("resource").slice(-40).map((e) => `${e.initiatorType} ${e.responseStatus ?? ""} ${e.name}`).join("\\n");',
     ).catch((error) => `(unreadable: ${error.message})`));
+    // A broken screen's own details - the failure's kind and frames, never its message (crash.ts):
+    // what "Copy details" would hand support, caught from the clipboard. No engine's driver here
+    // reads the console of WebKitGTK, so this is how a crash there names its place in the code.
+    const details = await crashDetails().catch((error) => `(unreadable: ${error.message})`);
+    say('the broken screen\'s details', details);
+    // The bundle CI built is gone with the runner, and a local build hashes differently: the code
+    // at the first frames, read from the page itself, is what places the failure in the source.
+    say('the code at the failing frames', await codeAt(details).catch((error) => `(unreadable: ${error.message})`));
     say('the page\'s console', await session.log()
       .then((entries) => entries.map((entry) => `${entry.level} ${entry.message}`).join('\n'))
       .catch((error) => `(unreadable: ${error.message})`));

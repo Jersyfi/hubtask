@@ -100,6 +100,7 @@ test('chromium: a sensitive field set for the first time reads as changed', asyn
   assert.doesNotMatch(text, /name became/);
 });
 
+// UC-AUD-01 check 8: the list continues on request, with no page numbers.
 test('chromium: the next page of the trail is announced, and its end is said', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -182,6 +183,7 @@ test('chromium: checking and exporting with nothing named mark the fields and se
 });
 
 // ux-inventory §E8: the export has a period of its own, sent as named, whatever the check holds.
+// UC-AUD-04 check 1: the web app starts an export for a period to one of the workspace's targets.
 test('chromium: the export takes away its own period, not the one checked above it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -198,6 +200,12 @@ test('chromium: the export takes away its own period, not the one checked above 
     if (path === '/audit:export') {
       sent.push(request.postDataJSON());
       return route.fulfill({ status: 202, json: { job_id: '01a0e2e0-0000-7000-8000-0000000007e1' } });
+    }
+    if (path === '/jobs/01a0e2e0-0000-7000-8000-0000000007e1') {
+      return route.fulfill({ json: {
+        job_id: '01a0e2e0-0000-7000-8000-0000000007e1', status: 'SUCCEEDED', progress: 1, result_url: null,
+        error_code: null, created_at: '2026-10-01T00:00:00Z', finished_at: '2026-10-01T00:00:05Z',
+      } });
     }
     return stub(route);
   });
@@ -220,4 +228,9 @@ test('chromium: the export takes away its own period, not the one checked above 
   assert.equal(sent[0].target_id, 'bt-export');
   assert.equal(sent[0].from, new Date('2026-09-01T00:00').toISOString());
   assert.equal(sent[0].to, new Date('2026-09-30T23:59').toISOString());
+  // UC-AUD-04 check 7: once written, the screen says where the archive is and offers no download.
+  await section.getByText('It is at the target Basement disk', { exact: false }).waitFor({ timeout: 15_000 });
+  await section.getByText('There is no download here', { exact: false }).waitFor();
+  assert.equal(await page.locator('a[download]').count(), 0);
+  assert.equal(await page.getByRole('link', { name: /download/i }).count(), 0);
 });

@@ -5,10 +5,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -77,8 +80,12 @@ func (r ItemRepository) rows(
 		return repository.ItemQueryResult{}, err
 	}
 
+	derived, err := derivedKeys(ctx, tx, search.Spec.Sort, items)
+	if err != nil {
+		return repository.ItemQueryResult{}, err
+	}
 	result := repository.ItemQueryResult{Groups: []repository.ItemGroup{}}
-	result.Items, result.Info = pageOf(items, size, r.cursors, r.positionIn(search.Spec.Sort))
+	result.Items, result.Info = pageOf(items, size, r.cursors, r.positionIn(search.Spec.Sort, derived))
 	return result, nil
 }
 
@@ -101,8 +108,12 @@ func (r ItemRepository) groups(
 		return repository.ItemQueryResult{}, err
 	}
 
+	derived, err := derivedKeys(ctx, tx, search.Spec.Sort, items)
+	if err != nil {
+		return repository.ItemQueryResult{}, err
+	}
 	result := repository.ItemQueryResult{Items: []work.WorkItem{}, Groups: []repository.ItemGroup{}}
-	boundary := r.positionIn(search.Spec.Sort)
+	boundary := r.positionIn(search.Spec.Sort, derived)
 
 	for _, item := range items {
 		key, present := groupKeyOf(search.Spec.GroupBy.Field, item)
@@ -133,6 +144,40 @@ func (r ItemRepository) counted(
 		return repository.ItemQueryResult{}, err
 	}
 
+	// A savepoint holds the count's own statement timeout and is always rolled back: the count only
+	// reads, and rolling back is what returns the transaction's timeout to what it was, whether the
+	// count finished or was cancelled. The budget never raises a shorter timeout already in force.
+	bounded, err := tx.Begin(ctx)
+	if err != nil {
+		return repository.ItemQueryResult{}, queryFailed("bounding the count", err)
+	}
+	defer func() { _ = bounded.Rollback(ctx) }()
+	if _, err := bounded.Exec(ctx, `SELECT set_config('statement_timeout',
+		CASE WHEN current_setting('statement_timeout')::interval = interval '0'
+		       OR current_setting('statement_timeout')::interval > $1::bigint * interval '1 millisecond'
+		     THEN $1::text ELSE current_setting('statement_timeout') END, true)`,
+		strconv.FormatInt(r.countBudget.Milliseconds(), 10)); err != nil {
+		return repository.ItemQueryResult{}, queryFailed("bounding the count", err)
+	}
+
+	counted, err := r.count(ctx, bounded, statement, search, result)
+	if err != nil && ctx.Err() == nil && outlastedItsBudget(err) {
+		result.Uncounted = true
+		return result, nil
+	}
+	return counted, err
+}
+
+// outlastedItsBudget is a statement cancelled by its own timeout, as opposed to the caller leaving.
+func outlastedItsBudget(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "57014"
+}
+
+func (r ItemRepository) count(
+	ctx context.Context, tx pgx.Tx, statement query.Statement, search repository.ItemSearch,
+	result repository.ItemQueryResult,
+) (repository.ItemQueryResult, error) {
 	rows, err := tx.Query(ctx, statement.SQL, statement.Args...)
 	if err != nil {
 		return repository.ItemQueryResult{}, queryFailed("counting the query's rows", err)
@@ -211,6 +256,7 @@ func readItems(ctx context.Context, tx pgx.Tx, statement query.Statement) ([]wor
 			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
+			&row.Number, &row.EntryType, &row.Status,
 		); err != nil {
 			return nil, queryFailed("reading a queried item", err)
 		}
@@ -239,15 +285,56 @@ func (r ItemRepository) boundary(cursor string) (query.Boundary, error) {
 }
 
 // positionIn renders a row as the boundary of the walk it ends: one key per sort term, in the sort's
-// own order, and the identifier that breaks the tie.
-func (r ItemRepository) positionIn(sort []view.SortTerm) func(work.WorkItem) security.Position {
+// own order, and the identifier that breaks the tie. A derived term's key is read from derived.
+func (r ItemRepository) positionIn(
+	sort []view.SortTerm, derived map[shared.ID]*time.Time,
+) func(work.WorkItem) security.Position {
 	return func(last work.WorkItem) security.Position {
 		keys := make([]string, 0, len(sort))
 		for _, term := range sort {
+			if query.Derived(term.Field) {
+				keys = append(keys, query.DerivedKey(derived[last.ID]))
+				continue
+			}
 			keys = append(keys, query.Key(term, last))
 		}
 		return security.Position{Keys: keys, ID: last.ID}
 	}
+}
+
+// derivedKeys reads the value of a sort field that is no column of the row - an entry's next SLA
+// due moment - for the page's entries, in the same transaction; nil when the sort has none.
+func derivedKeys(
+	ctx context.Context, tx pgx.Tx, sort []view.SortTerm, items []work.WorkItem,
+) (map[shared.ID]*time.Time, error) {
+	wanted := false
+	for _, term := range sort {
+		wanted = wanted || query.Derived(term.Field)
+	}
+	if !wanted || len(items) == 0 {
+		return nil, nil
+	}
+	ids := make([]shared.ID, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := sqlc.New(tx).SlaDueOf(ctx, keys)
+	if err != nil {
+		return nil, queryFailed("reading the entries' next SLA due moments", err)
+	}
+	due := make(map[shared.ID]*time.Time, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ItemID)
+		if err != nil {
+			return nil, err
+		}
+		due[id] = optionalTime(row.DueAt)
+	}
+	return due, nil
 }
 
 // groupKeyOf renders the grouping value of one entry, and says whether it has one at all.
@@ -256,15 +343,27 @@ func (r ItemRepository) positionIn(sort []view.SortTerm) func(work.WorkItem) sec
 // group key is a nullable string, and a board column is looked up by the identifier it was drawn
 // with (api-guidelines.md §3).
 func groupKeyOf(field view.Field, item work.WorkItem) (string, bool) {
+	if _, custom := view.CustomField(field.Name); custom {
+		return query.GroupKey(field, item)
+	}
 	switch field.Name {
 	case view.FieldBucketID:
 		return item.BucketID.String(), !item.BucketID.IsZero()
 	case view.FieldCollection:
 		return item.CollectionID.String(), true
+	case view.FieldStatus:
+		return item.Status, item.Status != ""
 	case view.FieldCreatedBy:
 		return item.CreatedBy.String(), true
 	case view.FieldType:
 		return string(item.Type), true
+	case view.FieldEntryType:
+		if item.EntryType == "" {
+			return work.SystemEntryTypeKey(item.Type), true
+		}
+		return item.EntryType, true
+	case view.FieldAssigneeID:
+		return item.AssigneeID.String(), !item.AssigneeID.IsZero()
 	case view.FieldIsCompleted:
 		if item.Completion.IsCompleted {
 			return "true", true
@@ -354,7 +453,15 @@ func (r ItemRepository) searchRows(
 		return repository.ItemHitPage{}, err
 	}
 
-	position := r.positionIn(search.Request.Sort)
+	items := make([]work.WorkItem, 0, len(hits))
+	for _, hit := range hits {
+		items = append(items, hit.Item)
+	}
+	derived, err := derivedKeys(ctx, tx, search.Request.Sort, items)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	position := r.positionIn(search.Request.Sort, derived)
 	var page repository.ItemHitPage
 	page.Hits, page.Info = pageOf(hits, size, r.cursors, func(last repository.ItemHit) security.Position {
 		return position(last.Item)
@@ -394,6 +501,7 @@ func readHits(
 			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
+			&row.Number, &row.EntryType, &row.Status,
 			&hub, &rank, &byMeaning,
 		); err != nil {
 			return nil, queryFailed("reading a search hit", err)
@@ -441,4 +549,60 @@ func (r ItemRepository) searchBoundary(cursor string) (query.SearchBoundary, err
 // that lost a digit on the way out would skip a row or repeat one.
 func rankKey(rank float32) string {
 	return strconv.FormatFloat(float64(rank), 'g', -1, 32)
+}
+
+var _ repository.ItemAggregates = ItemRepository{}
+
+// Aggregate answers a summary of the entries the search keeps, one row per group and period.
+func (r ItemRepository) Aggregate(
+	ctx context.Context, search repository.ItemSearch, aggregation view.Aggregation, timeZone string,
+) (repository.ItemAggregateResult, error) {
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return repository.ItemAggregateResult{}, err
+	}
+	statement, err := query.Aggregate(search, aggregation, timeZone, view.MaxAggregateRows+1)
+	if err != nil {
+		return repository.ItemAggregateResult{}, err
+	}
+
+	rows, err := tx.Query(ctx, statement.SQL, statement.Args...)
+	if err != nil {
+		return repository.ItemAggregateResult{}, queryFailed("aggregating the query's rows", err)
+	}
+	defer rows.Close()
+
+	var result repository.ItemAggregateResult
+	for rows.Next() {
+		var group, period *string
+		var value pgtype.Numeric
+		var row repository.ItemAggregateRow
+		if err := rows.Scan(&group, &period, &row.Count, &value); err != nil {
+			return repository.ItemAggregateResult{}, queryFailed("reading an aggregate row", err)
+		}
+		if group != nil {
+			row.Group = *group
+		}
+		if period != nil {
+			row.Period = *period
+		}
+		if value.Valid {
+			text, err := value.Value()
+			if err != nil {
+				return repository.ItemAggregateResult{}, queryFailed("reading an aggregate value", err)
+			}
+			if spelled, ok := text.(string); ok {
+				row.Value = &spelled
+			}
+		}
+		if len(result.Rows) == view.MaxAggregateRows {
+			result.Truncated = true
+			break
+		}
+		result.Rows = append(result.Rows, row)
+	}
+	if err := rows.Err(); err != nil {
+		return repository.ItemAggregateResult{}, queryFailed("aggregating the query's rows", err)
+	}
+	return result, nil
 }

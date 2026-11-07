@@ -69,7 +69,7 @@ func TestCreatingABucketAnswers201WithTheColumn(t *testing.T) {
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status %d, want 201: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != createBucketUseCase {
+	if registry.name != "CreateBucket" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	// The collection comes from the path rather than from the body: the route already says which
@@ -120,7 +120,7 @@ func TestListingABoardAnswersAnArray(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != listBucketsUseCase {
+	if registry.name != "ListBuckets" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 
@@ -251,7 +251,7 @@ func TestReorderingWithNoBodyMeansTheEnd(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != reorderBucketUseCase {
+	if registry.name != "ReorderBucket" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if _, sent := registry.in["before_bucket_id"]; sent {
@@ -290,7 +290,7 @@ func TestDeletingABucketAnswersWithWhatBecameOfTheEntries(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != deleteBucketUseCase {
+	if registry.name != "DeleteBucket" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 

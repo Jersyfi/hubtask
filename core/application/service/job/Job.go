@@ -270,7 +270,8 @@ func missingJobID() error {
 // Descriptor registers the read in all three channels.
 func (h GetJob) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetJobName,
+		Name:       GetJobName,
+		Permission: service.PermissionRead,
 		Summary: "Answers how a piece of background work is getting on: its status, how far along " +
 			"it is where it can say, where its result will be, and the code of the last failure. " +
 			"This is what the job reference in a 202 Accepted points at. A job that has not " +
@@ -297,7 +298,8 @@ func (h GetJob) Descriptor() usecase.Descriptor {
 // Descriptor registers the cancellation in all three channels.
 func (h CancelJob) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CancelJobName,
+		Name:       CancelJobName,
+		Permission: service.PermissionStructure,
 		Summary: "Stops a piece of background work that has not finished, and answers the job as " +
 			"it now stands. Cooperative rather than a kill: a pass that is under way finds at its " +
 			"next write that the job is no longer its own and leaves nothing behind, but whatever " +

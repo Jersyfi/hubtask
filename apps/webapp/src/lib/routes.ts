@@ -26,6 +26,15 @@ export const ROUTES: readonly Route[] = [
   // Where the mail confirming a managed account's new address links (`SendAddressConfirmation.go`).
   // Signed in or not, like `/reset`: whoever holds the mailbox may open it from any device.
   { name: 'confirm-address', pattern: '/confirm-address' },
+  // A collection's public form (UC-SVC-13): opened by anybody holding its link, signed in or not,
+  // and never in the frame - the visitor is nobody this workspace knows.
+  { name: 'public-form', pattern: '/form' },
+  // A portfolio's roadmap opened by its public link (UC-GOL-03 check 15), the same way: read as
+  // the link's maker, never as this tab's reader.
+  { name: 'public-roadmap', pattern: '/shared-roadmap' },
+  // The satisfaction question of a resolution mail (UC-SVC-07 check 6), the same way: whoever
+  // holds the link answers it, signed in or not.
+  { name: 'rate', pattern: '/rate' },
   // The redirect URI `cmd/server/main.go` derives and registers with the provider. The address is
   // the server's rather than this table's choice: nothing about where an authorization code comes
   // back may be taken from a request.
@@ -54,6 +63,20 @@ export const ROUTES: readonly Route[] = [
   { name: 'sessions', pattern: '/profile/sessions', area: 'profile' },
   { name: 'devices', pattern: '/profile/devices', area: 'profile' },
   { name: 'grants', pattern: '/profile/apps', area: 'profile' },
+  // The calendar feeds written into the reader's own calendar, and the page a provider sends the
+  // browser back to after the sign-in (UC-INT-16).
+  { name: 'calendars', pattern: '/profile/calendars', area: 'profile' },
+  // The reader's own file store connections, and the page Microsoft sends the browser back to
+  // after the sign-in (UC-INT-17).
+  { name: 'filestores', pattern: '/profile/files', area: 'profile' },
+  // The reader's own rules (UC-AUT-01 check 10): theirs, not the workspace's, so kept beside their
+  // other settings and reached without the administration. `new` before `:id`, as the editor's.
+  { name: 'own-rules', pattern: '/profile/rules', area: 'profile' },
+  { name: 'own-rule-new', pattern: '/profile/rules/new', area: 'profile' },
+  { name: 'own-rule', pattern: '/profile/rules/:id', area: 'profile' },
+  // The agents acting for the reader and what they wait on (UC-AGT-02), reached without the
+  // administration: a member's agent is theirs, and its notice links here.
+  { name: 'own-agents', pattern: '/profile/agents', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,
@@ -84,6 +107,19 @@ export const ROUTES: readonly Route[] = [
   { name: 'runs', pattern: '/administration/runs', area: 'administration' },
   { name: 'webhooks', pattern: '/administration/webhooks', area: 'administration' },
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
+  // The suite's modules, switched for the workspace (UC-INS-21).
+  { name: 'modules', pattern: '/administration/modules', area: 'administration' },
+  // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
+  { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
+  { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
+  // The time policy and the kinds of work, where the time module is on (UC-TIM-03 check 4).
+  { name: 'time-settings', pattern: '/administration/time', area: 'administration' },
+  // The service desk's calendars, SLA policies, canned replies and report (M5, UC-SVC-01, 02, 06).
+  { name: 'service-desk', pattern: '/administration/service-desk', area: 'administration' },
+  { name: 'cmdb', pattern: '/administration/configuration-items', area: 'administration' },
+  { name: 'changes', pattern: '/administration/changes', area: 'administration' },
+  // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).
+  { name: 'workflows', pattern: '/administration/workflows', area: 'administration' },
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },
@@ -102,6 +138,8 @@ export const ROUTES: readonly Route[] = [
   // The AI provider and the consent that lets it be used: where a workspace's content may
   // be sent is administration, exactly as the sign-in provider above it is.
   { name: 'ai', pattern: '/administration/ai', area: 'administration' },
+  // The governed agents, their models, held acts and metering, where the agents module is on (M9).
+  { name: 'agents', pattern: '/administration/agents', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content
   // and a query string travels through access logs, proxies and browser history. A route that
   // carried the term would undo that in the address bar (security.md §9, ADR-0018).
@@ -110,12 +148,71 @@ export const ROUTES: readonly Route[] = [
   // is the work rather than the administration of it. The workspace's own: drawn for somebody who
   // reads the workspace itself, and inside it each control only for the permission it needs.
   { name: 'jumble', pattern: '/jumble' },
+  // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
+  // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
+  { name: 'time', pattern: '/time' },
+  // Goals, portfolios and dashboards (M8): a period's goals, the portfolios and the dashboards as
+  // tabs (`?tab=`, `?period=`, `?hub=`), and one of each by itself.
+  // The products' workspace-wide homes (user-experience.md §2.2): one door per product, across the
+  // hubs the reader may read. End-user, so the installed clients carry them.
+  { name: 'plans-home', pattern: '/plans' },
+  { name: 'pages-home', pattern: '/pages' },
+  { name: 'whiteboards-home', pattern: '/whiteboards' },
+  { name: 'desk-home', pattern: '/desk' },
+  // The desk's home's other views (§7.4): the desks across hubs and the desk's settings.
+  { name: 'desk-desks', pattern: '/desk/desks' },
+  { name: 'desk-settings', pattern: '/desk/settings' },
+  { name: 'assets-home', pattern: '/assets' },
+  { name: 'assets-settings', pattern: '/assets/settings' },
+  { name: 'agents-home', pattern: '/agents' },
+  { name: 'goals', pattern: '/goals' },
+  { name: 'goal', pattern: '/goals/:id' },
+  { name: 'portfolio', pattern: '/portfolios/:id' },
+  // A portfolio's roadmap (M2): a lane per hub, a bar per top-level entry.
+  { name: 'portfolio-roadmap', pattern: '/portfolios/:id/roadmap' },
+  { name: 'dashboard', pattern: '/dashboards/:id' },
   { name: 'trash', pattern: '/trash' },
   { name: 'archive', pattern: '/archive' },
   // The address the board's cards and the search results link to. An entry is
   // a thing with its own history, so it is a screen rather than a row somewhere.
   { name: 'item', pattern: '/items/:id' },
   { name: 'hub', pattern: '/hubs/:id' },
+  // A hub's space and one of its pages (M3). A page's own address names only the page: it is linked
+  // from a mention, a search hit or a backlink, which know the page and not its hub.
+  { name: 'hub-pages', pattern: '/hubs/:id/pages' },
+  { name: 'page', pattern: '/pages/:id' },
+  // The reader's own notes and the pages shared with them (UC-DOC-07, UC-DOC-08).
+  { name: 'notes', pattern: '/notes' },
+  // The approvals waiting for the reader's yes (UC-SVC-09). End-user: deciding is the work.
+  { name: 'approvals', pattern: '/approvals' },
+  // The requester portal (M5): a service's catalogue, the reader's own requests and the articles
+  // the service publishes - the same app, its own route area by address (NG-second-app).
+  { name: 'portal-request', pattern: '/portal/requests/:id' },
+  { name: 'portal-article', pattern: '/portal/:id/articles/:pageId' },
+  { name: 'portal', pattern: '/portal/:id' },
+  // A hub's whiteboards and one of them (M4), addressed as a page is.
+  { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
+  // A hub's desk (user-experience.md §2.4): the handler's queues across its desk collections.
+  { name: 'hub-desk', pattern: '/hubs/:id/desk' },
+  { name: 'whiteboard', pattern: '/whiteboards/:id' },
+  // A hub's or a collection's plan (M2): the schedule as a Gantt chart and as a table.
+  { name: 'hub-plan', pattern: '/hubs/:id/plan' },
+  { name: 'collection-plan', pattern: '/collections/:id/plan' },
+  // A collection's sprints (M2): the sprints, the backlog, the burndown and the velocity.
+  { name: 'collection-sprints', pattern: '/collections/:id/sprints' },
+  // A hub's releases (M2): the releases, their entries and their notes.
+  { name: 'hub-releases', pattern: '/hubs/:id/releases' },
+  // A hub's or a collection's estimates against the time recorded (M7, UC-TIM-04 check 6).
+  { name: 'hub-actuals', pattern: '/hubs/:id/actuals' },
+  { name: 'collection-actuals', pattern: '/collections/:id/actuals' },
+  // Who has room in a hub or a collection, people by weeks (M7, UC-TIM-06 check 7).
+  { name: 'hub-workload', pattern: '/hubs/:id/workload' },
+  { name: 'collection-workload', pattern: '/collections/:id/workload' },
+  // A hub's assets (M6) by section, and one configuration item, addressed by itself because an
+  // impact, a duplicate or a health problem links it without its hub.
+  { name: 'hub-assets', pattern: '/hubs/:id/assets' },
+  { name: 'hub-assets-section', pattern: '/hubs/:id/assets/:section' },
+  { name: 'ci', pattern: '/cis/:id' },
   { name: 'collection', pattern: '/collections/:id' },
   // A place's settings, a section each (design-system.md §11.8): an address, so a section is
   // linked, reloaded and gone back to like any page. The bare path opens the first section.
@@ -142,6 +239,10 @@ export const ROUTES: readonly Route[] = [
   { name: 'instance-encryption', pattern: '/instance/encryption', area: 'instance' },
   { name: 'instance-operators', pattern: '/instance/operators', area: 'instance' },
   { name: 'instance-journal', pattern: '/instance/journal', area: 'instance' },
+  { name: 'instance-dead-letters', pattern: '/instance/dead-letters', area: 'instance' },
+  { name: 'instance-usage', pattern: '/instance/usage', area: 'instance' },
+  { name: 'instance-templates', pattern: '/instance/templates', area: 'instance' },
+  { name: 'instance-file', pattern: '/instance/configuration-file', area: 'instance' },
 ];
 
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */
@@ -158,6 +259,11 @@ const MOVED: Readonly<Record<string, string>> = {
   permissions: '/administration/people?tab=permissions',
   'service-accounts': '/administration/machines',
   apps: '/administration/machines?tab=apps',
+  // A product's settings are its home's last tab (user-experience.md §8.2).
+  'service-desk': '/desk/settings',
+  cmdb: '/assets/settings',
+  'time-settings': '/time?tab=settings',
+  agents: '/agents?tab=settings',
 };
 
 /** Where an address that moved now is, or nothing for one that did not. */

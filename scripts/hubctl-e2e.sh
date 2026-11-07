@@ -817,7 +817,8 @@ expect_contains "backup run --follow" "$run" "SUCCEEDED"
 archives="$(hubctl backup ls --target "$TARGET_ID")"
 ARCHIVE="$(printf '%s\n' "$archives" | awk 'NR==2 {print $1}')"
 [ -n "$ARCHIVE" ] || { echo "FAILED: nothing is lying at the target: $archives"; exit 1; }
-expect_contains "backup ls" "$archives" "yes"
+# The sixth column is COMPLETE: whether checksums.txt is there.
+expect_contains "backup ls, complete" "$(printf '%s\n' "$archives" | awk 'NR==2 {print $6}')" "true"
 
 verified="$(hubctl backup verify "$BACKUP_ID" --follow --wait 5m)"
 expect_contains "backup verify" "$verified" "ok"
@@ -907,7 +908,8 @@ echo "--- an instruction not to delete something ---"
 hold="$(hubctl hold place --scope CONTAINER --id "$COLLECTION_ID" --reason 'the end-to-end drill')"
 HOLD_ID="$(printf '%s\n' "$hold" | first_id)"
 [ -n "$HOLD_ID" ] || { echo "FAILED: placing the hold produced no identifier: $hold"; exit 1; }
-expect_contains "hold ls" "$(hubctl hold ls)" "in force"
+# Without --include-released the list holds only the holds in force.
+expect_contains "hold ls" "$(hubctl hold ls)" "$HOLD_ID"
 hubctl hold release "$HOLD_ID" --reason 'the drill ended' >/dev/null
 # A released hold is only visible when asked for, and it carries why it was lifted.
 expect_missing "hold ls" "$(hubctl hold ls)" "$HOLD_ID"
@@ -995,7 +997,7 @@ expect_missing "token ls" "$listed" "$TOKEN"
 
 # A service account: no address, nothing to accept, active from the moment it exists. A rule's
 # run_as points at one of these, so that a rule outlives its author.
-MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
+MACHINE_ID="$(hubctl --json service-account create --display-name 'the nightly export' | answer_field id)"
 [ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
 expect_contains "service-account ls" "$(hubctl service-account ls)" "$MACHINE_ID"
 
@@ -1142,8 +1144,8 @@ sleep 2
 echo "--- the inbox's own verbs ---"
 # The near channel, and the decision that is not a deletion. Both through the client, because an
 # inbox somebody cannot empty from a terminal is an inbox they will empty in the database.
-captured="$(run_hubctl jumble submit --subject 'Call the printer' --channel QUICK_CAPTURE)"
-CAPTURED_ID="$(printf '%s\n' "$captured" | first_id)"
+captured="$(run_hubctl --json jumble submit --raw-subject 'Call the printer' --channel QUICK_CAPTURE)"
+CAPTURED_ID="$(json_field id "$captured")"
 [ -n "$CAPTURED_ID" ] || fail "the quick capture produced no entry: $captured"
 expect_contains "jumble ls" "$(run_hubctl jumble ls --status NEW)" "Call the printer"
 if [ -n "$CAPTURED_ID" ]; then
@@ -1234,7 +1236,7 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 
 	# The entry exists; it is the asking that is refused. A workspace with no provider is not a
 	# workspace with no jumble.
-	NOAI_ENTRY_ID="$(hubctl jumble submit --subject 'Order 42' --body 'please send the invoice' | first_id)"
+	NOAI_ENTRY_ID="$(hubctl --json jumble submit --raw-subject 'Order 42' --raw-body 'please send the invoice' | answer_field id)"
 	[ -n "$NOAI_ENTRY_ID" ] || fail "the jumble entry was not created on an installation without AI"
 
 	# Every route that asks a provider something, by hand rather than through the client: what is
@@ -1294,7 +1296,7 @@ if [ -n "${HUBTASK_E2E_WITHOUT_AI:-}" ]; then
 
 	# And the reads, which are not refusals: a workspace with no provider still has an inbox of
 	# proposals, and it is empty rather than broken.
-	standing="$(run_hubctl suggestion ls --target "$NOAI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
+	standing="$(run_hubctl suggestion ls --target-id "$NOAI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
 	expect_contains "the suggestions of a workspace with no provider" "$standing" "ID"
 
 	# The search still answers, both ways round: no provider means a lexical search rather than an
@@ -1371,7 +1373,7 @@ expect_contains "rule ls --disabled" "$(hubctl rule ls --disabled)" "$RULE_ID"
 
 # An entry, and the ask. The ask is answered 202: an AI call reaches somebody else's machine, so
 # the suggestion appears when the provider has answered rather than in the response.
-AI_ENTRY_ID="$(hubctl jumble submit --subject 'Order 42' --body 'please send the invoice' | first_id)"
+AI_ENTRY_ID="$(hubctl --json jumble submit --raw-subject 'Order 42' --raw-body 'please send the invoice' | answer_field id)"
 [ -n "$AI_ENTRY_ID" ] || fail "the jumble entry the suggestion is about was not created"
 run_hubctl suggestion ask --target "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY
 
@@ -1383,7 +1385,7 @@ while [ "$waited" -lt 90 ]; do
 	# stderr kept rather than dropped: a listing that is *refused* looks exactly like one that is
 	# empty once its error is thrown away, and ninety seconds of that is a wait with no answer at
 	# the end of it.
-	standing="$(hubctl --json suggestion ls --target "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY 2>&1 || true)"
+	standing="$(hubctl --json suggestion ls --target-id "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY 2>&1 || true)"
 	SUGGESTION_ID="$(json_field id "$standing")"
 	[ -n "$SUGGESTION_ID" ] && break
 	sleep 2
@@ -1402,7 +1404,7 @@ if [ -z "$SUGGESTION_ID" ]; then
 	echo "the suggestions stored: $stored"
 	echo "what the listing answered: $standing"
 else
-	listed="$(run_hubctl suggestion ls --target "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
+	listed="$(run_hubctl suggestion ls --target-id "$AI_ENTRY_ID" --target-type JUMBLE_ENTRY)"
 	# The provenance is what makes a suggestion traceable a year later, and it is what the table
 	# is for. The payload is model output about somebody's content and stays in --json.
 	expect_contains "the suggestion" "$listed" "stub-1"
@@ -1658,7 +1660,7 @@ expect_contains "auth status" "$status" '"signed_in": true'
 
 # The session the person is holding, seen from the listing that exists to show it, and the walls
 # the workspace is inside.
-expect_contains "session ls" "$(owner session ls)" "yes"
+expect_contains "session ls" "$(owner session ls)" "true"
 expect_contains "quota show" "$(owner quota show)" "items"
 
 echo "--- and the second workspace, invisible ---"

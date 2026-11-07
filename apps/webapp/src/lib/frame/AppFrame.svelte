@@ -31,21 +31,28 @@
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { PLACE_ROUTES } from '../routes.ts';
+  import { placeTabOf, tabNodeId } from '../workspace/placeTabs.ts';
+  import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
   import { jumbleWritable, liveCollections, mayCaptureHere, openLevels, openRoles } from '../capture/places.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
   import HelpDialog from './HelpDialog.svelte';
+  import UnsentChangesDialog from './UnsentChangesDialog.svelte';
   import AskDialog from '../ask/AskDialog.svelte';
   import { offersAsk } from '../ask/answer.ts';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import ToastStack from './ToastStack.svelte';
+  import ViewAsBanner from './ViewAsBanner.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
   import AppUpdateBanner from './AppUpdateBanner.svelte';
   import { appUpdate } from './appupdate.svelte.ts';
   import TourGuide from './TourGuide.svelte';
+  import ProductTourGuide from './ProductTourGuide.svelte';
+  import { productTour } from '../product/producttour.svelte.ts';
+  import { homeModuleOf } from '../product/producttour.ts';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
   import { page } from './page.svelte.ts';
@@ -70,8 +77,16 @@
   import { webAppAddress, webAppHost } from '../webApp.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administrationFor, currentDestination, instanceSection, leftToWebApp, primary, type AccountAction } from '../navigation.ts';
+  import { DESTINATIONS, MORE_CODE, PRODUCTS, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
+  import { webhooks } from '../data/webhooks.svelte.ts';
+  import { webhookColumnFigure } from '../data/webhooks.ts';
+  import { calendarPushesPath, pushColumnFigure } from '../data/calendarpush.ts';
+  import { MAILBOXES, mailboxColumnFigure, type MailboxesRead } from '../data/mailintake.svelte.ts';
+  import { engine } from '../data/engine.ts';
+  import { aiProvider } from '../data/aiprovider.svelte.ts';
+  import { aiAnsweringOf, aiColumnFigure } from '../data/aianswering.ts';
+  import type { CalendarPushList } from '@hubtask/sync-engine';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import { addressNotices } from '../data/addressnotices.svelte.ts';
@@ -166,6 +181,51 @@
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => privateHubs.open());
   });
+  // The webhooks too, so the column counts a connection switched off after failures
+  // (user-experience.md §7.10) before anybody opens the screen.
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => webhooks.open());
+  });
+  // The mailboxes, for whoever may shape the intake (the mail screen's own gate), and the
+  // reader's calendar pushes while Your settings is open: each failing connection is counted on
+  // its row. A read that fails only leaves the figure off.
+  let mailboxes = $state<MailboxesRead['mailboxes']>([]);
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration || holdsHere('AUTOMATION') !== true) return;
+    return untrack(() =>
+      engine.subscribe<MailboxesRead>({ path: MAILBOXES }, (next) => (mailboxes = next.status === 'ready' ? (next.data.mailboxes ?? []) : [])),
+    );
+  });
+  // And which AI answers, for an offered model the installation withdrew: nothing answers then.
+  // The figure is the source's alone, so the provider is not read here.
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => aiProvider.openSource());
+  });
+  let pushes = $state<CalendarPushList['data']>([]);
+  $effect(() => {
+    if (!session.isSignedIn || route.area !== 'profile') return;
+    return untrack(() =>
+      engine.subscribe<CalendarPushList>({ path: calendarPushesPath }, (next) => (pushes = next.status === 'ready' ? (next.data.data ?? []) : [])),
+    );
+  });
+  const sectionFigures = $derived.by((): Readonly<Record<string, string>> => {
+    const figures: Record<string, string> = {};
+    if (isInAdministration) {
+      const switchedOff = webhookColumnFigure(webhooks.all, t);
+      if (switchedOff) figures['webhooks'] = switchedOff;
+      const failing = holdsHere('AUTOMATION') === true ? mailboxColumnFigure(mailboxes, t) : undefined;
+      if (failing) figures['mail'] = failing;
+      const silent = aiProvider.source ? aiColumnFigure(aiAnsweringOf(aiProvider.source, undefined), t) : undefined;
+      if (silent) figures['ai'] = silent;
+    }
+    if (route.area === 'profile') {
+      const stopped = pushColumnFigure(pushes, t);
+      if (stopped) figures['calendars'] = stopped;
+    }
+    return figures;
+  });
   // And the workspace, for whether it holds more than one person: there the row stays drawn with
   // no private hub in it, because it is where *Private hubs allowed* is set (ADR-0073 §6).
   $effect(() => {
@@ -226,6 +286,11 @@
     });
   });
 
+  // A product's home visited takes its *new* mark away (user-experience.md §2.8).
+  $effect(() => {
+    const row = PRODUCTS.find((each) => each.routes.includes(route.name ?? ''));
+    if (row) untrack(() => newMarks.seen(row.module));
+  });
   // The installed apps look for a newer release once a start; the browser has nothing to look for.
   $effect(() => untrack(() => void appUpdate.start()));
 
@@ -236,13 +301,16 @@
    * the workspace page the workspace row; inside a collection the collection, not the row above it.
    * On an entry's page its collection, and nothing until the entry says which - never the workspace.
    */
-  const currentNode = $derived(
-    PLACE_ROUTES.includes(route.name ?? '')
-      ? route.params.id
-      : route.name === 'item'
-        ? page.place
-        : destination,
-  );
+  const currentNode = $derived.by(() => {
+    if (PLACE_ROUTES.includes(route.name ?? '')) return route.params.id;
+    if (route.name === 'item') return page.place;
+    // A hub's tab is its row mirrored under the hub (user-experience.md §2.4); a collection's tab
+    // is the collection's own row.
+    const tab = placeTabOf(route.name ?? '', route.query);
+    const placeId = route.name === 'goals' ? route.query['hub'] : route.params.id;
+    if (tab && placeId) return route.name?.startsWith('collection-') ? placeId : tabNodeId(placeId, tab.tab);
+    return destination;
+  });
   /**
    * The section the reader is inside, or nothing while they are in the workspace.
    *
@@ -261,9 +329,12 @@
             isPrivateHubsReadable: privateHubs.isReadable,
             hasAnyPrivateHub: privateHubs.hasAny,
             hasSeveralPeople: workspace.workspace?.several_people === true,
+            isOnePerson: workspace.workspace?.several_people === false,
+            inUse: webhooks.all.length > 0 ? ['webhooks'] : [],
             isInstanceReachable: manifest.isInstanceReachable,
             isAdministrationReachable,
             isSingleWorkspace: manifest.isSingleTenant,
+            modulesOn: manifest.value?.modules_on,
           }),
         }
       : route.area === 'instance'
@@ -290,17 +361,25 @@
       holdsWorkspaces: appWorkspaces.isHeld,
     }),
   );
-  /** The bottom bar: the primary group and "You", the account group's head on a phone. */
+  /**
+   * The bottom bar (user-experience.md §2.6): Today, Search, Capture, Inbox and *More*, which opens
+   * the drawer with the products, the tree, the administration and the keeping band.
+   */
   const bottomDestinations = $derived([
-    ...primary({ hasJumble: holdsHere('READ') === true, hasCapture: isCaptureOffered }).map((each) =>
+    ...bar({ hasJumble: holdsHere('READ') === true, hasCapture: isCaptureOffered }).map((each) =>
       each.target.kind === 'capture'
         ? { id: each.id, label: t(each.code), icon: each.icon, isAction: true }
         : { id: each.id, label: t(each.code), icon: each.icon, href: each.target.kind === 'route' ? each.target.path : '/' },
     ),
-    { id: 'you', label: t(YOU_CODE), icon: 'user' as const, href: '/profile' },
+    { id: 'more', label: t(MORE_CODE), icon: 'menu' as const, isOpener: true },
   ]);
+  /** A place the bar carries is its own; any other place of the list is *More*'s. */
   const bottomCurrent = $derived(
-    accountGroup.some((each) => each.id === destination) ? 'you' : destination === 'trash' ? 'workspace' : destination,
+    bottomDestinations.some((each) => each.id === destination) && destination !== 'more'
+      ? destination
+      : destination === undefined || accountGroup.some((each) => each.id === destination)
+        ? undefined
+        : 'more',
   );
 
   /** The drawer below `expanded`, closed by a navigation; focus returns to ☰. */
@@ -413,12 +492,15 @@
   let isSwitchOpen = $state(false);
   /** *Add a workspace*, open: an installed app's (UC-SYN-07 check 4). */
   let isAddOpen = $state(false);
+  let unsentCount = $state(0);
 
   /** The account's verbs, wherever they are chosen - the menu, the palette or a key. */
   function accountVerb(action: AccountAction) {
     if (action === 'help') isHelpOpen = true;
     else if (action === 'switch-workspace') isSwitchOpen = true;
     else if (action === 'add-workspace') isAddOpen = true;
+    // Changes not sent yet are never discarded on one press (offline-sync.md §9.6).
+    else if (session.unsent > 0) unsentCount = session.unsent;
     else void session.signOut();
   }
 
@@ -569,8 +651,8 @@
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
-      {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={false} {elsewhere} onchoose={chooseAccount} />
+      {#if session.isSignedIn}
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -584,7 +666,7 @@
       {#if viewport.isBelowExpanded}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
-            <SectionNav label={section.label} groups={section.groups} current={sectionRow} onnavigate={go} />
+            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} onnavigate={go} />
           {/if}
@@ -603,7 +685,7 @@
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
                  `hubs` step points at the tree, so it does not point here: a step that pointed at
                  a column the tree is not in would explain the wrong thing. -->
-            <SectionNav label={section.label} groups={section.groups} current={sectionRow} {isRail} onnavigate={go} />
+            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
           {/if}
@@ -663,6 +745,8 @@
               </Banner>
             </div>
           {/if}
+          <!-- The session shows the app as another person (UC-ID-29). -->
+          <ViewAsBanner />
           <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
           <EmergencyNotices onnavigate={go} />
           {#if addressNotices.notice}
@@ -725,16 +809,18 @@
       destinations={bottomDestinations}
       current={bottomCurrent}
       onnavigate={(id) => {
-        if (id === 'you') isAccountOpen = true;
+        if (id === 'more') isDrawerOpen = true;
         // Search opens the palette here, the bar having no field to type in: its *All results*
         // and *Open search* are the way to the search screen (UC-WRK-27 check 1).
         else if (id === 'search') palette.summon();
         // The ＋ is an act, not a place: it opens the capture field where the reader is.
         else if (id === 'capture') capture.summon();
-        else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
+        else {
+          const chosen = bottomDestinations.find((each) => each.id === id);
+          go(chosen && 'href' in chosen && chosen.href ? chosen.href : '/');
+        }
       }}
     />
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount} />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isBelowExpanded && palette.isOpen}
@@ -745,7 +831,9 @@
     <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} onnavigate={go} />
   {/if}
   {#if isHelpOpen}
-    <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
+    <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()}
+      product={homeModuleOf(route.name, PRODUCTS)} onproducttour={(module) => void productTour.start(module)} />
+    <UnsentChangesDialog count={unsentCount} onClose={() => (unsentCount = 0)} />
   {/if}
   {#if appWorkspaces.isHeld}
     <!-- The installed apps' own list, with adding and forgetting (UC-ID-25 check 7). -->
@@ -766,6 +854,7 @@
   <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
     <TourGuide path={route.path} {onnavigate} />
+    <ProductTourGuide routeName={route.name} {onnavigate} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a

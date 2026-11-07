@@ -101,7 +101,9 @@ type ImportEntries struct {
 	Jobs       Enqueuer
 	// Kinds is which kinds this build converts; a kind the contract declares and no converter
 	// serves is refused by name here rather than in the job.
-	Kinds      []domain.Kind
+	Kinds []domain.Kind
+	// Audit records the request (`import.requested`) in the transaction that writes the run.
+	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -116,6 +118,8 @@ type ImportCommand struct {
 	// collections under the hub.
 	CollectionID shared.ID
 	Mapping      map[string]string
+	// DryRun plans the import and writes nothing but its report.
+	DryRun bool
 }
 
 // Accepted is what the use case answers: the job, and the run whose report the job will write.
@@ -131,6 +135,13 @@ func (h ImportEntries) Execute(
 	if cmd.HubID.IsZero() {
 		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeHubRequired).
 			WithFields(shared.FieldError{Path: "/hub_id", Code: domain.CodeHubRequired})
+	}
+	if err := domain.CheckMapping(cmd.Mapping); err != nil {
+		return Accepted{}, err
+	}
+	if cmd.Kind.LandsPages() && !cmd.CollectionID.IsZero() {
+		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeKindTakesNoCollection).
+			WithFields(shared.FieldError{Path: "/collection_id", Code: domain.CodeKindTakesNoCollection})
 	}
 	if !h.serves(cmd.Kind) {
 		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported).
@@ -192,7 +203,7 @@ func (h ImportEntries) Execute(
 		if err := h.Runs.Insert(ctx, domain.Run{
 			ID: importID, TenantID: actor.TenantID, RequestedBy: actor.AccountID,
 			Kind: cmd.Kind, MediaID: cmd.MediaID, HubID: cmd.HubID, CollectionID: cmd.CollectionID,
-			Mapping: cmd.Mapping, Zone: actor.TimeZone, Language: actor.Locale,
+			Mapping: cmd.Mapping, Zone: actor.TimeZone, Language: actor.Locale, DryRun: cmd.DryRun,
 			Status: domain.StatusPending, CreatedAt: h.Clock.Now(),
 		}); err != nil {
 			return err
@@ -210,6 +221,24 @@ func (h ImportEntries) Execute(
 			DedupeKey: "import:" + importID.String(),
 		})
 		if err != nil {
+			return err
+		}
+		changes := []audit.Change{
+			{Field: "kind", Classification: audit.Open, To: string(cmd.Kind)},
+			{Field: "hub_id", Classification: audit.Open, To: cmd.HubID.String()},
+			{Field: "dry_run", Classification: audit.Open, To: cmd.DryRun},
+		}
+		if !cmd.CollectionID.IsZero() {
+			changes = append(changes, audit.Change{Field: "collection_id", Classification: audit.Open, To: cmd.CollectionID.String()})
+		}
+		if err := h.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: h.Clock.Now(),
+			Action: ImportedAction, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
+			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
+			TargetType: importTarget, TargetID: importID,
+			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+			Changes: audit.Changes(changes...),
+		}); err != nil {
 			return err
 		}
 		accepted = Accepted{JobID: jobID, ImportID: importID}
@@ -273,15 +302,18 @@ func (h ImportEntries) serves(kind domain.Kind) bool {
 // Descriptor is the catalogue entry.
 func (h ImportEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ImportEntriesName,
+		Name:       ImportEntriesName,
+		Permission: domainservice.PermissionStructure,
 		Summary: "Imports entries from another system - a CSV, a Trello board, a Google Tasks " +
-			"export, a Microsoft To Do dump - as collections under a hub, or as entries in one of its " +
-			"collections, through the same path a " +
+			"export, a Microsoft To Do dump, an issue tracker's projects with their types, statuses, " +
+			"fields, history and attachments - as collections under a hub, or as entries in one of its " +
+			"collections, or a wiki space's pages into the hub, through the same path a " +
 			"restore uses: converted into archive records under derived identities and applied " +
 			"in MERGE mode with skip, so that the same file twice creates nothing the second " +
 			"time. The file arrives first through the media upload staged as an import.",
 		SideEffects: "Writes the import run and enqueues its job; the job writes the collections, " +
-			"buckets, labels, entries and links, advances the workspace's synchronisation epoch, " +
+			"buckets, labels, entry types, workflows, fields, entries, their history, comments, " +
+			"attachments and links, or the pages, advances the workspace's synchronisation epoch, " +
 			"and deletes the uploaded file. Records the request in the audit trail.",
 		TokenScope:  containersWrite,
 		Destructive: false,
@@ -289,15 +321,20 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 			{Name: "media_id", Kind: usecase.KindID, Required: true, Description: "The uploaded file, staged with usage IMPORT and confirmed."},
 			{
 				Name: "kind", Kind: usecase.KindString, Required: true,
-				Enum:        []string{string(domain.KindCSV), string(domain.KindTrello), string(domain.KindGoogleTasks), string(domain.KindMicrosoftTodo)},
+				Enum: []string{
+					string(domain.KindCSV), string(domain.KindTrello), string(domain.KindGoogleTasks), string(domain.KindMicrosoftTodo),
+					string(domain.KindIssueTracker), string(domain.KindWiki), string(domain.KindMarkdown), string(domain.KindHTML),
+					string(domain.KindDOCX), string(domain.KindXLSX),
+				},
 				Description: "The system the file came from.",
 			},
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub the imported collections land under."},
 			{Name: "collection_id", Kind: usecase.KindID, Description: "A collection of that hub to land the entries in, instead of new collections under the hub."},
 			{
 				Name: "mapping", Kind: usecase.KindObject,
-				Description: "For CSV: which column carries which field, by header name, where the header does not already say.",
+				Description: "For CSV and XLSX: which column carries which field, by header name, where the header does not already say.",
 			},
+			{Name: "dry_run", Kind: usecase.KindBool, Description: "Read and plan only: the report says what the import would do, and the file is kept for the import itself."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ImportedAction, TargetType: importTarget, Severity: audit.SeverityInfo, Required: true,
@@ -333,7 +370,9 @@ func (h ImportEntries) invoke(
 			}
 		}
 	}
-	accepted, err := h.Execute(ctx, actor, ImportCommand{MediaID: mediaID, Kind: kind, HubID: hubID, CollectionID: collectionID, Mapping: mapping})
+	accepted, err := h.Execute(ctx, actor, ImportCommand{
+		MediaID: mediaID, Kind: kind, HubID: hubID, CollectionID: collectionID, Mapping: mapping, DryRun: in.Bool("dry_run"),
+	})
 	if err != nil {
 		return nil, err
 	}

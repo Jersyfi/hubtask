@@ -4,8 +4,8 @@
   // The custom fields in force for a collection: defining one, changing what it permits, and
   // taking it out of use.
   //
-  // **The key and the kind are settled once.** `CustomFieldDefinitionUpdate` does not carry
-  // either, and the contract gives the reason in its own words — a key that moved would orphan
+  // **The key, the kind and a MONEY field's currency are settled once.**
+  // `CustomFieldDefinitionUpdate` carries none of them, and the contract gives the reason in its own words — a key that moved would orphan
   // every value stored under it, a kind that changed would reinterpret them. So both controls stay
   // on screen and are off with that reason: a control that vanished after creation would leave the
   // reader wondering whether they had missed it.
@@ -35,7 +35,8 @@
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { isValidKey, isWorkspaceWide, takesOptions } from '../data/customfields.ts';
+  import { keyFrom } from '../data/entrytypes.ts';
+  import { cascadingOptionFault, fieldName, isCalculated, isValidCurrency, isHubs, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -60,20 +61,40 @@
 
   const existing = $derived(customFields.of(collectionId));
 
-  /** The eight the contract declares, read from nowhere but the contract's own enum. */
-  const KINDS = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL'];
+  /** The kinds the contract declares, in the contract's own order. */
+  const KINDS = [
+    'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
+    'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT', 'CALCULATED',
+    'DATE_TIME', 'GROUP', 'CASCADING_SELECT', 'IP_ADDRESS', 'FILE', 'LABEL', 'STATUS',
+  ];
 
+  let name = $state('');
   let key = $state('');
+  /** Whether the person wrote the key themselves; until then it follows the name. */
+  let isKeyWritten = $state(false);
   let kind = $state('TEXT');
   let options = $state('');
+  let currency = $state('');
+  let formula = $state('');
   let isRequired = $state(false);
+  /** Whether only holders of `FIELD_WRITE:<key>` write it (UC-ID-27 check 1). */
+  let isRestricted = $state(false);
+  /** Whether it is hidden from readers without `FIELD_READ:<key>` as well (UC-ID-27 check 3). */
+  let isHidden = $state(false);
+  // A hidden field is restricted as well: a reader who could write it would overwrite it blind.
+  $effect(() => {
+    if (isHidden) isRestricted = true;
+  });
   let chosen = $state<string[]>([]);
   let editing = $state<CustomFieldDefinition | undefined>(undefined);
   let deleting = $state<CustomFieldDefinition | undefined>(undefined);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  /** The first option of a two-level choice that breaks its rule, named on the options field. */
+  let orphanOption = $state<string | undefined>(undefined);
 
   const keyIsWrong = $derived(key !== '' && !isValidKey(key));
+  const currencyIsWrong = $derived(currency !== '' && !isValidCurrency(currency));
   /** Whether the reader may shape fields here: the controls that do are drawn only then (P-05). */
   const mayShape = $derived(structure.status === 'permitted');
   /** What *Define* found missing when it was pressed; each mark goes when its field changes. */
@@ -88,10 +109,16 @@
   });
 
   function reset() {
+    name = '';
     key = '';
+    isKeyWritten = false;
     kind = 'TEXT';
     options = '';
+    currency = '';
+    formula = '';
     isRequired = false;
+    isRestricted = false;
+    isHidden = false;
     // The default is what the column's default is — every carrier rather than a guess at one.
     chosen = [...carriers];
     editing = undefined;
@@ -102,10 +129,15 @@
 
   function startEdit(definition: CustomFieldDefinition) {
     editing = definition;
+    name = definition.name ?? '';
     key = definition.key;
     kind = definition.kind;
     options = (definition.options ?? []).join('\n');
+    currency = definition.currency ?? '';
+    formula = definition.formula ?? '';
     isRequired = definition.is_required ?? false;
+    isRestricted = definition.restricted ?? false;
+    isHidden = definition.read_restricted ?? false;
     chosen = [...((definition.applies_to ?? []) as readonly string[])];
     failure = undefined;
   }
@@ -140,20 +172,35 @@
     missing = check([
       { kind: 'field', key: 'key', code: 'fields.key_required', isFilled: editing !== undefined || key !== '' },
       { kind: 'at-least-one', key: 'types', code: 'app.fields.applies_to_empty', chosen: chosen.length },
+      {
+        kind: 'field', key: 'currency', code: 'app.fields.currency_required',
+        isFilled: editing !== undefined || !takesCurrency(kind) || currency !== '',
+      },
+      {
+        kind: 'field', key: 'formula', code: 'fields.formula_required',
+        isFilled: editing !== undefined || !isCalculated(kind) || formula.trim() !== '',
+      },
     ]);
     if (!isComplete(missing)) {
       queueMicrotask(() => focusFirst(form));
       return;
     }
     if (keyIsWrong && editing === undefined) return;
+    // A two-level choice's child names its parent among the options, said before the server would.
+    orphanOption = (editing?.kind ?? kind) === 'CASCADING_SELECT' ? cascadingOptionFault(optionList()) : undefined;
+    if (orphanOption !== undefined) return;
+    if (currencyIsWrong && editing === undefined) return;
     const current = editing;
     void attempt(async () => {
       if (current) {
         await customFields.update(
           current.id,
           {
+            ...(name.trim() !== (current.name ?? '') ? { name: name.trim() === '' ? null : name.trim() } : {}),
             options: takesOptions(current.kind) ? optionList() : [],
             is_required: isRequired,
+            ...(isRestricted !== (current.restricted ?? false) ? { restricted: isRestricted } : {}),
+            ...(isHidden !== (current.read_restricted ?? false) ? { read_restricted: isHidden } : {}),
             applies_to: chosen as never,
           },
           current.version,
@@ -163,9 +210,14 @@
           {
             collection_id: collectionId,
             key,
+            ...(name.trim() !== '' ? { name: name.trim() } : {}),
             kind: kind as never,
             options: takesOptions(kind) ? optionList() : [],
-            is_required: isRequired,
+            ...(takesCurrency(kind) ? { currency } : {}),
+            ...(isCalculated(kind) ? { formula } : {}),
+            is_required: isCalculated(kind) ? false : isRequired,
+            restricted: isCalculated(kind) ? false : isRestricted || isHidden,
+            read_restricted: isCalculated(kind) ? false : isHidden,
             applies_to: chosen as never,
           },
           crypto.randomUUID(),
@@ -199,17 +251,20 @@
           <li>
             <div class="row">
               <div>
-                <span class="key">{definition.key}</span>
+                <span class="name">{fieldName(definition)}</span>
+                {#if definition.name}<span class="key">{definition.key}</span>{/if}
                 <span class="meta">
-                  {kindLabel(definition.kind)} ·
-                  {isWorkspaceWide(definition)
-                    ? t('app.fields.workspace_wide')
-                    : t('app.fields.this_collection')}
+                  {kindLabel(definition.kind)}{#if definition.currency} ({definition.currency}){/if} ·
+                  {isHubs(definition)
+                    ? t('app.fields.this_hub')
+                    : isWorkspaceWide(definition)
+                      ? t('app.fields.workspace_wide')
+                      : t('app.fields.this_collection')}
                 </span>
               </div>
               <!-- A definition is changed where it was defined. The workspace-wide ones are listed
                    here because they apply here, and their controls are not. -->
-              {#if !isWorkspaceWide(definition) && mayShape}
+              {#if !isWorkspaceWide(definition) && !isHubs(definition) && mayShape}
                 <Inline gap="050">
                   <Button size="sm" tone="secondary" onclick={() => startEdit(definition)}>
                     {t('app.fields.edit')}
@@ -231,10 +286,21 @@
       <div bind:this={form}>
       <Stack gap="150">
         <Input
+          label={t('app.fields.name')}
+          hint={t('app.fields.name_hint')}
+          bind:value={name}
+          maxlength={100}
+          oninput={() => {
+            if (editing || isKeyWritten) return;
+            key = keyFrom(name);
+            missing = without(missing, 'key');
+          }}
+        />
+        <Input
           label={t('app.fields.key')}
           hint={t('app.fields.key_hint')}
           bind:value={key}
-          oninput={() => (missing = without(missing, 'key'))}
+          oninput={() => { isKeyWritten = true; missing = without(missing, 'key'); }}
           error={missing.key ? t(missing.key) : keyIsWrong ? t('app.fields.key_invalid') : undefined}
           disabledReason={editing ? t('app.fields.immutable') : undefined}
         />
@@ -245,16 +311,54 @@
           disabledReason={editing ? t('app.fields.immutable') : undefined}
         />
 
+        {#if takesCurrency(editing?.kind ?? kind)}
+          <Input
+            label={t('app.fields.currency')}
+            hint={t('app.fields.currency_hint')}
+            bind:value={currency}
+            maxlength={3}
+            autocapitalize="characters"
+            oninput={() => {
+              currency = currency.toUpperCase();
+              missing = without(missing, 'currency');
+            }}
+            error={missing.currency ? t(missing.currency) : currencyIsWrong ? t('app.fields.currency_invalid') : undefined}
+            disabledReason={editing ? t('app.fields.currency_immutable') : undefined}
+          />
+        {/if}
+
+        {#if isCalculated(editing?.kind ?? kind)}
+          <Textarea
+            label={t('app.fields.formula')}
+            hint={t('app.fields.formula_hint')}
+            bind:value={formula}
+            rows={2}
+            oninput={() => (missing = without(missing, 'formula'))}
+            error={missing.formula ? t(missing.formula) : undefined}
+            disabledReason={editing ? t('app.fields.formula_immutable') : undefined}
+          />
+        {/if}
+
         {#if takesOptions(editing?.kind ?? kind)}
+          {@const optionKind = editing?.kind ?? kind}
           <Textarea
             label={t('app.fields.options')}
-            hint={t('app.fields.options_hint')}
+            hint={optionKind === 'CASCADING_SELECT'
+              ? t('app.fields.cascading_hint')
+              : optionKind === 'STATUS'
+                ? t('app.fields.status_hint')
+                : t('app.fields.options_hint')}
+            error={orphanOption === undefined ? undefined : t('fields.option_without_parent', { option: orphanOption })}
             bind:value={options}
             rows={4}
           />
         {/if}
 
-        <Checkbox label={t('app.fields.required')} bind:checked={isRequired} />
+        {#if !isCalculated(editing?.kind ?? kind)}
+          <Checkbox label={t('app.fields.required')} bind:checked={isRequired} />
+          <Checkbox label={t('app.fields.restricted')} hint={t('app.fields.restricted_hint')} bind:checked={isRestricted} />
+          <Checkbox label={t('app.fields.hidden')} hint={t('app.fields.hidden_hint')} bind:checked={isHidden} />
+        {/if}
 
         {#if carriers.length === 0}
           <fieldset class="types">
@@ -319,6 +423,7 @@
 
   .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
 
+  .name { display: block; }
   .key { display: block; font-family: var(--font-mono); }
 
   .meta { display: block; color: var(--text-secondary); font-size: var(--fs-075); }

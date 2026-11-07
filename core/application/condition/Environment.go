@@ -125,6 +125,13 @@ func ItemDocument(item work.WorkItem) map[string]any {
 	if item.ContentLanguage != "" {
 		document["content_language"] = item.ContentLanguage
 	}
+	document["entry_type"] = item.EntryType
+	if item.EntryType == "" {
+		document["entry_type"] = work.SystemEntryTypeKey(item.Type)
+	}
+	if item.Status != "" {
+		document["status"] = item.Status
+	}
 	return document
 }
 

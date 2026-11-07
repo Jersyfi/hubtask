@@ -15,7 +15,7 @@ import { SyncEngine } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import { MemoryStorage } from '../src/storage/MemoryStorage.ts';
 import { SqliteStorage, copyNameFor } from '../src/storage/SqliteStorage.ts';
-import { collectionOf, META } from '../src/replica.ts';
+import { collectionOf, LIVE_UNSENT, META } from '../src/replica.ts';
 import type { ChangeRecord, StoredRecord } from '../src/schema.ts';
 import type { Storage, StreamEvent } from '../src/ports.ts';
 import { FakeTransport, FixedClock } from './fakes.ts';
@@ -315,6 +315,7 @@ for (const [store, fresh] of STORES) {
   });
 }
 
+// UC-SYN-05 check 1: a position that is too old loads the workspace again from the start.
 test('§9.4: sync.cursor_too_old empties the store and resynchronises; the device stays', async () => {
   const transport = new FakeTransport()
     .snapshotSessions({ records: WORKSPACE.slice(0, 5), cursor: 'c-old' }, { records: WORKSPACE, cursor: 'c-new' })
@@ -328,11 +329,14 @@ test('§9.4: sync.cursor_too_old empties the store and resynchronises; the devic
     { changes: [], cursor: 'c-new', has_more: false },
   ]);
   const { engine, storage, device } = await attached(transport);
+  // A live document's words typed offline are the device's, not the stale copy's.
+  await storage.put(LIVE_UNSENT, 'page:p1', { id: 'page:p1', updates: [new Uint8Array([7])] });
   const stop = engine.listen({ pathsFor });
   await settle(30);
   stop();
 
   assert.equal(transport.snapshots.length, 2, 'the refusal led to a second initial synchronisation');
+  assert.deepEqual(await storage.get(LIVE_UNSENT, 'page:p1'), { id: 'page:p1', updates: [new Uint8Array([7])] }, 'the unsent words stay');
   assert.equal((await storage.get<{ cursor: string }>(META, 'position'))?.cursor, 'c-new');
   assert.equal((await held(storage, 'comment', COMMENT))?.document.body, 'soon', 'the second snapshot filled the store again');
   assert.equal((await storage.get<{ id: string }>(META, 'device'))?.id, device.id, 'the device is the same device');
@@ -684,4 +688,9 @@ test('a label deleted and then restored is held whole again', async () => {
   assert.deepEqual(label?.document, restored, 'the restored label is held with every field');
   const item = await held(storage, 'item', ITEM);
   assert.deepEqual(item?.sets, { labels: [LABEL] }, 'the entry still carries it: the deletion rewrote no entry');
+});
+
+// UC-PLN-02 check 2 offline: an entry's scheduling mode is held in a collection of its own.
+test('an entry\'s scheduling is held under its own collection', () => {
+  assert.equal(collectionOf('entry_schedule'), 'entry_schedules');
 });

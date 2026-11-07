@@ -284,9 +284,9 @@ class Mfa {
     try {
       return await work();
     } catch (cause) {
-      this.#failure = cause instanceof TransportError
-        ? (cause.detailCode ?? cause.code ?? 'errors.internal')
-        : 'errors.internal';
+      // Drawn by its code alone, so never `errors.internal`: its sentence quotes a request id.
+      const code = cause instanceof TransportError ? (cause.detailCode ?? cause.code) : undefined;
+      this.#failure = code && code !== 'errors.internal' ? code : 'app.something_went_wrong';
       return false;
     } finally {
       this.#working = false;

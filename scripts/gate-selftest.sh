@@ -1214,7 +1214,7 @@ expect_brand_mark_failure "a brand mark without its row" BRAND_MARKS_LICENSES \
 expect_brand_mark_failure "a row without its brand mark" BRAND_MARKS_LICENSES \
 	THIRD-PARTY-LICENSES.md '$_ .= "| Other | `SELFTEST` | x | y |\n" if /`GOOGLE`/'
 expect_brand_mark_failure "a brand mark without a preset" BRAND_MARKS_CONTRACT \
-	api/openapi.yaml 's/enum: \[GENERIC, GOOGLE, MICROSOFT\]/enum: [GENERIC, GOOGLE]/'
+	api/openapi.yaml 's/(enum: \[GENERIC, GOOGLE), MICROSOFT\b/$1/'
 
 printf '\n%d checks, %d failures, %d skipped\n' "$CHECKS" "$FAILURES" "$SKIPPED"
 test "$FAILURES" -eq 0

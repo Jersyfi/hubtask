@@ -65,7 +65,10 @@ type Filter struct {
 	TargetID   shared.ID
 	// Outcome is SUCCESS, DENIED or FAILED. Empty is all three.
 	Outcome port.Outcome
-	Page    Page
+	// RequestID is the entries of one request: the reference a person quotes from an error
+	// answer, which links their ticket to the record. Empty is every request.
+	RequestID string
+	Page      Page
 }
 
 // Page is where to continue and how much to read. The cursor is opaque and adapter-owned

@@ -8,8 +8,10 @@ package integration
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -351,4 +353,273 @@ func shortSuffix(t *testing.T) string {
 	t.Helper()
 	id := freshID(t)
 	return "k" + id.String()[len(id.String())-6:]
+}
+
+// UC-ID-27 check 3 against the real boundary: a field hidden from readers round-trips with its
+// flag, is answered by ReadRestricted with its scope, and stops being answered when the hiding is
+// lifted - and the workspace next door is answered none of it (gate SG-3).
+func TestAHiddenFieldIsAnsweredOnlyInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+
+	key := "cost_" + shortSuffix(t)
+	built, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: freshID(t), TenantID: tenantA, CollectionID: collection, Key: key, Kind: work.CustomFieldNumber,
+		ReadRestricted: true, AppliesTo: []work.ItemType{work.ItemTask}, Now: created,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return fieldRepo().Insert(ctx, built) }); err != nil {
+		t.Fatalf("defining the hidden field: %v", err)
+	}
+	stored := findField(ctx, t, tenantA, built.ID)
+	if !stored.Restricted || !stored.ReadRestricted {
+		t.Fatalf("restricted/read = %v/%v, want both", stored.Restricted, stored.ReadRestricted)
+	}
+
+	hidden := func(tenant shared.ID) []repository.FieldHiding {
+		t.Helper()
+		var answered []repository.FieldHiding
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			answered, err = fieldRepo().ReadRestricted(ctx)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return answered
+	}
+	if !slices.Contains(hidden(tenantA), repository.FieldHiding{Key: key, CollectionID: collection}) {
+		t.Fatalf("the hidden field is not answered: %v", hidden(tenantA))
+	}
+	if slices.ContainsFunc(hidden(tenantB), func(h repository.FieldHiding) bool { return h.Key == key }) {
+		t.Fatal("tenant B was answered tenant A's hidden field")
+	}
+
+	open := false
+	lifted, _, err := stored.Updated(work.CustomFieldAttributes{ReadRestricted: &open}, text.Composing{}, changedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return fieldRepo().SetAttributes(ctx, lifted, stored.Version)
+	}); err != nil {
+		t.Fatalf("lifting the hiding: %v", err)
+	}
+	if slices.ContainsFunc(hidden(tenantA), func(h repository.FieldHiding) bool { return h.Key == key }) {
+		t.Fatal("a lifted hiding is still answered")
+	}
+	if again := findField(ctx, t, tenantA, built.ID); !again.Restricted || again.ReadRestricted {
+		t.Fatalf("restricted/read after lifting = %v/%v, want true/false", again.Restricted, again.ReadRestricted)
+	}
+}
+
+// UC-ID-27 check 3 against the real boundary: ReadFormulas answers a calculated field with its
+// formula and a number field it may read, a text field not at all, and the workspace next door
+// none of them (gate SG-3).
+func TestTheFormulaFieldsAreAnsweredOnlyInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+
+	suffix := shortSuffix(t)
+	hours, cost, note := "hours_"+suffix, "cost_"+suffix, "note_"+suffix
+	for _, in := range []work.NewCustomFieldInput{
+		{Key: hours, Kind: work.CustomFieldNumber},
+		{Key: cost, Kind: work.CustomFieldCalculated, Formula: "entry.custom_fields." + hours + " * 2"},
+		{Key: note, Kind: work.CustomFieldText},
+	} {
+		in.ID, in.TenantID, in.CollectionID, in.Now = freshID(t), tenantA, collection, created
+		in.AppliesTo = []work.ItemType{work.ItemTask}
+		built, err := work.NewCustomFieldDefinition(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error { return fieldRepo().Insert(ctx, built) }); err != nil {
+			t.Fatalf("defining %s: %v", in.Key, err)
+		}
+	}
+
+	formulas := func(tenant shared.ID) []repository.FieldFormula {
+		t.Helper()
+		var answered []repository.FieldFormula
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			answered, err = fieldRepo().ReadFormulas(ctx)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return answered
+	}
+	answered := formulas(tenantA)
+	if !slices.Contains(answered, repository.FieldFormula{Key: hours, CollectionID: collection, Kind: work.CustomFieldNumber}) {
+		t.Fatalf("the number field is not answered: %v", answered)
+	}
+	if !slices.Contains(answered, repository.FieldFormula{Key: cost, CollectionID: collection, Kind: work.CustomFieldCalculated,
+		Formula: "entry.custom_fields." + hours + " * 2"}) {
+		t.Fatalf("the calculated field is not answered with its formula: %v", answered)
+	}
+	if slices.ContainsFunc(answered, func(f repository.FieldFormula) bool { return f.Key == note }) {
+		t.Fatal("a text field is answered as a formula's")
+	}
+	if slices.ContainsFunc(formulas(tenantB), func(f repository.FieldFormula) bool { return f.Key == hours || f.Key == cost }) {
+		t.Fatal("tenant B was answered tenant A's formula fields")
+	}
+}
+
+// The cross-tenant negative test for EntriesHolding, a plan's reach for a field it removes or
+// hides: A's entry holding a value counts for A's field, and B, asking about the same key, counts
+// nothing of A's.
+func TestEntriesHoldingCountsOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	task := seedTask(ctx, t, tenantA, authorA, collection)
+	key := "reach_" + shortSuffix(t)
+	defined := definedField(ctx, t, tenantA, collection, key, work.CustomFieldText)
+
+	item := findItem(ctx, t, tenantA, task)
+	written, _ := item.WithCustomField(key, "high", changedAt)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return itemRepo().SetCustomField(ctx, written, key, defined.ID, item.Version)
+	}); err != nil {
+		t.Fatalf("writing the value: %v", err)
+	}
+
+	var inA, inB int
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		inA, err = fieldRepo().EntriesHolding(ctx, defined)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	foreign := defined
+	foreign.TenantID, foreign.CollectionID = tenantB, ""
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		inB, err = fieldRepo().EntriesHolding(ctx, foreign)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if inA != 1 || inB != 0 {
+		t.Fatalf("A counts %d, B counts %d", inA, inB)
+	}
+}
+
+// The walk's definitions stay in their workspace and leave a deleted one out (offline-sync.md
+// §3.1): the workspace next door walks none of them.
+func TestTheDefinitionWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	live := definedField(ctx, t, tenantA, collection, "walked", work.CustomFieldText)
+	gone := definedField(ctx, t, tenantA, collection, "walked_gone", work.CustomFieldText)
+	deleted, _, err := gone.Deleted(changedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return fieldRepo().SetDeleted(ctx, deleted, gone.Version)
+	}); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+	walked := func(tenant shared.ID) map[shared.ID]string {
+		found := map[shared.ID]string{}
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			definitions, err := postgres.NewSnapshotRepository().CustomFields(ctx, "", 5000)
+			for _, d := range definitions {
+				found[d.ID] = d.Key
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found
+	}
+	own := walked(tenantA)
+	if own[live.ID] != "walked" {
+		t.Errorf("the workspace's walk holds %v, want the live definition", own)
+	}
+	if _, found := own[gone.ID]; found {
+		t.Errorf("the walk holds a deleted definition: %v", own)
+	}
+	if next := walked(tenantB); len(next) != 0 {
+		for id := range next {
+			if id == live.ID || id == gone.ID {
+				t.Errorf("the workspace next door walked the definition: %v", next)
+			}
+		}
+	}
+}
+
+// The same round trip for a custom field definition: a field hidden from readers that came back
+// readable from an archive would show every reader what the workspace had hidden (UC-ID-27 check 3).
+func TestARealCustomFieldSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	defined := definedField(ctx, t, tenantA, collection, "salary_band", work.CustomFieldText)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE custom_field_definition SET restricted = true, read_restricted = true
+		 WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), defined.ID.String()); err != nil {
+		t.Fatalf("hiding the field: %v", err)
+	}
+
+	exportedRow := exportedRowOf(ctx, t, tenantA, "custom_field_definition", defined.ID)
+	if exportedRow["read_restricted"] != true {
+		t.Fatal("the export carries no hidden field, so this test proves nothing")
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`DELETE FROM custom_field_definition WHERE tenant_id = $1 AND id = $2`,
+		tenantA.String(), defined.ID.String()); err != nil {
+		t.Fatalf("removing the original: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "custom_field_definition", exportedRow, false)
+		return err
+	}); err != nil {
+		t.Fatalf("importing the row back: %v", err)
+	}
+
+	restored := exportedRowOf(ctx, t, tenantA, "custom_field_definition", defined.ID)
+	for column, before := range exportedRow {
+		if after := restored[column]; !sameJSON(before, after) {
+			t.Errorf("%s came back as %#v, want %#v", column, after, before)
+		}
+	}
+}
+
+// A field's name is stored, renamed and removed; the key stays (migration 0362).
+func TestAFieldsNameRoundTripsAndIsRemovedAsNull(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	defined := definedField(ctx, t, tenantA, collection, "client_"+shortSuffix(t), work.CustomFieldText)
+	if stored := findField(ctx, t, tenantA, defined.ID); stored.Name != "" {
+		t.Fatalf("an unnamed field came back named %q", stored.Name)
+	}
+
+	version := defined.Version
+	for _, name := range []string{"Client account", ""} {
+		stored := findField(ctx, t, tenantA, defined.ID)
+		updated, _, err := stored.Updated(work.CustomFieldAttributes{Name: &name}, text.Composing{}, changedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			return fieldRepo().SetAttributes(ctx, updated, version)
+		}); err != nil {
+			t.Fatalf("writing the name %q: %v", name, err)
+		}
+		version++
+		if again := findField(ctx, t, tenantA, defined.ID); again.Name != name || again.Key != defined.Key {
+			t.Fatalf("the name came back as %q under %q, want %q", again.Name, again.Key, name)
+		}
+	}
 }

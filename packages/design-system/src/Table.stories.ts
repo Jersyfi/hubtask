@@ -51,3 +51,10 @@ export const wide: Story = {
     'It scrolls inside its own box rather than widening the page — a wide table that widened the page would make everything else scroll sideways with it. Narrow the width axis. The edge fades in as soon as there is something past it, **over** the rows rather than behind them, so the row under the pointer no longer erases it; what drives it is the scroll position through a scroll timeline, with no clock and no listener, so the website gets it too. The scroll container is focusable, because a region that scrolls has to be reachable by keyboard (WCAG 2.1.1) or its last columns are unreachable to anybody who does not use a pointer.',
   args: { mode: 'wide' },
 };
+
+export const stacked: Story = {
+  name: 'Stacked on a narrow width',
+  about:
+    'With `isStacked`, below `medium` of its own container each row is a card of label and value, so nothing scrolls sideways on a phone (user-experience.md §5.12). The labels come from `columns` and are not read twice; the parts carry their table roles, since a table drawn as blocks loses them in some engines. Narrow the width axis.',
+  args: { mode: 'stacked' },
+};

@@ -34,7 +34,9 @@ hubtask/
 │   └── shared/                # concurrency/SafeGo.go (the only place `go` is allowed),
 │                              # correlation/, secret/ (the masking type)
 ├── presentation/              # inbound adapters: rest, mcp, stream, calendar, intake,
-│                              # worker (the job loops, §4), webui (§7), openapi (generated)
+│                              # worker (the job loops, §4), webui (§7), openapi (generated),
+│                              # realtime (live documents over a WebSocket), odata (a data
+│                              # feed for reporting tools), voice (a voice assistant's protocol)
 ├── infrastructure/            # outbound adapters, one package per port or concern; postgres/
 │                              # holds the transaction wrapper (Tenant.go), outbox, queue, the
 │                              # query DSL compiler and sqlc/ (generated); oidc/ is the only
@@ -53,7 +55,9 @@ hubtask/
 │   └── website/               # hubtask.eu; static, never embedded
 ├── packages/                  # design-system (tokens/tokens.json, CSS, components, workbench),
 │                              # api-client (generated only), sync-engine (the client's data
-│                              # seam, the only caller of fetch), n8n-nodes-hubtask and
+│                              # seam, the only caller of fetch), editor (a page's block
+│                              # editor over a live document), whiteboard (a board's scene),
+│                              # expression (CEL conditions offline), n8n-nodes-hubtask and
 │                              # zapier-app (generated, §2.2)
 ├── sdk/                       # go/, python/, typescript/ — generated client SDKs (§2.2)
 ├── locales/                   # en.json (the source), the translations, Embed.go
@@ -107,10 +111,13 @@ linter can be reconfigured in a pull request and a red test is visible in review
 The JavaScript half points inwards too, towards what is shared:
 
 ```
-apps/webapp  → packages/design-system, packages/sync-engine
+apps/webapp  → packages/design-system, packages/sync-engine, packages/expression, packages/editor,
+               packages/whiteboard
 apps/website → packages/design-system, packages/api-client (the document, at build time)
 packages/*   → other packages/* only, acyclically (ADR-0033)
              sync-engine → api-client, and nothing else new
+             expression → api-client (its types) and the accepted CEL evaluator for the browser
+             editor → the accepted block editor (TipTap's MIT core on ProseMirror) and CRDT (Yjs)
              n8n-nodes-hubtask, zapier-app → api-client (the document, at build time)
 sdk/*        → nothing in the workspace, and nothing in the workspace → sdk/*
 ```
@@ -134,6 +141,26 @@ it generates its own types and has no edge to any first-party member.
 * **The engine never merges.** Merging is the server's ([offline-sync.md](./offline-sync.md) §4);
   the engine queues, pushes, applies the server's answer and surfaces `conflict`/`rejected`. A merge
   rule in the package is a defect.
+* `packages/expression` evaluates a type's form and a calculated field in the browser while the
+  server cannot be reached, over the names the server's environments declare; online the server's
+  answer is the one drawn, and every write is judged by the server again (foundation.md F-4).
+* `packages/editor` is a page's block editor: TipTap's MIT core over a Yjs live document, its
+  connection in the server's framing ([offline-sync.md](./offline-sync.md) §13) and the Markdown
+  projection a page saves beside it. The socket is opened by the sync engine (`liveSocket`), which
+  holds the bearer; the editor knows no address, no token and no screen (foundation.md §3).
+  Its formula (`$$` … `$$`, KaTeX drawn as MathML, `trust` off), diagram (a `mermaid` fence drawn
+  as a picture under it, so Mermaid's style element never reaches the page) and code colours
+  (lowlight) load their library on the first block that needs one; `@hubtask/editor/libraries`
+  names the three for the web app's precache (`lib/frame/parts.ts`), and nothing of them is in a
+  first screen. The emoji picker's sets (emojibase-data, in the reader's language, English where
+  emojibase has none) are the web app's, loaded the same way. Mermaid measures its labels in the
+  page, so the policy refuses its inline styles there - console lines, not a failure: the picture
+  is drawn from the SVG text, styled inside its own image document (`e2e/pageblocks.test.mjs`).
+* `packages/whiteboard` is a board's scene (M4): its objects in a Yjs live document (one map per
+  object, so two people's drawing merges), the projection a board saves beside it, the geometry the
+  canvas draws, culls and hits by, and the board drawn as SVG for export with the colours the
+  application hands in (rule 15). The live document's connection is `packages/editor`'s
+  `LiveDocument`, which takes any Yjs document.
 * **The engine is product-agnostic.** Which paths a record makes stale, which reads the local copy
   answers and which writes are which mutation kind come from `apps/webapp/src/lib/data/`
   (`pathsFor`, `storeFor`, `mutationFor`); the engine never learns what a hub is.
@@ -155,12 +182,18 @@ Forbidden:
 * **A monorepo build orchestrator** (Nx, Turborepo, Bazel): pnpm workspaces plus the `Makefile`.
 
 One reach out of a member is deliberate: **the catalogues under `locales/`**, which
-`apps/webapp/src/lib/i18n/catalogue.ts` reads — `en.json` imported as the source, the others through
-`import.meta.glob('locales/*.json')`, one lazy chunk each, none in the initial bundle. The source is
-the product's single catalogue of display text ([i18n-l10n.md](./i18n-l10n.md) §3) and sits at the
-root because the Go binary embeds it. The lint allows exactly `locales/<name>.json` from that one
-module, so anything else — `locales/Embed.go` included — is still refused, and its selftest plants
-both.
+`apps/webapp/src/lib/i18n/catalogue.ts` reads — every one, the source `en.json` included, through
+`import.meta.glob('locales/*.json')`, one lazy chunk each, none in the initial bundle; `source.ts`
+beside it imports `en.json` for the tests alone. The source is the product's single catalogue of
+display text ([i18n-l10n.md](./i18n-l10n.md) §3) and sits at the root because the Go binary embeds
+it. The lint allows exactly `locales/<name>.json`, so anything else — `locales/Embed.go` included —
+is still refused, and its selftest plants both.
+
+The web app's first screen is held to a budget: the entry and the chunks `index.html` preloads cost
+at most 200,000 gzip bytes and carry no part of the editor (yjs, the
+block editor) - `apps/webapp/build/budget.test.js`, run after the build in CI. The doors draw from
+the entry alone; the frame and the work's screens (`lib/frame/parts.ts`) load once somebody is
+signed in, the editor when a document is opened.
 
 Tooling: `build/lint-workspace-map.mjs` (`pnpm lint:workspace`), the pnpm counterpart of
 `gate-architecture`. It reads manifests and imports — a manifest cannot see a deep or relative
@@ -196,7 +229,7 @@ Publishing a connector or an SDK to a registry is an account and a review outsid
 | Generated code | Never changed by hand; the list is §6 |
 | Tests | Domain = table tests without mocks; application = fakes of the ports; infrastructure = Testcontainers ([engineering-guidelines.md](./engineering-guidelines.md) §1) |
 | Comments | Explain the *why*; public types and functions carry a godoc comment; a decision's argument belongs in an ADR, cited by number |
-| CLI (`hubctl`) | Every command keeps `--json` pipeable, renders errors through the message-code catalogue, prints a secret once with its warning on stderr, and follows a `202` to completion through `/jobs/{id}` |
+| CLI (`hubctl`) | A command for a new use case is a line in the contract (`x-hubtask-cli: "<group> <verb>"`), not a hand-written function; every command keeps `--json` pipeable, renders errors through the message-code catalogue, prints a secret once with its warning on stderr, and follows a `202` to completion through `/jobs/{id}` |
 | Jobs in a client | Watched only through the one job store, `apps/webapp/src/lib/data/jobs.svelte.ts`, which polls `/jobs/{id}` with a backoff and stops at a terminal status; no screen polls a job itself |
 
 ---
@@ -245,6 +278,7 @@ toolchain needs it:
 | `api/openapi.json` | `make generate`, through `tools/openapijson` | the website's reference and the SDK generators read JSON and ship no YAML parser, and their Node lanes have no Go |
 | `sdk/typescript/src/client.gen.ts`, `sdk/python/hubtask/client.py`, `types.py`, `sdk/go/hubtask/client.gen.go` | `make generate`, through `tools/sdkgen` and `oapi-codegen` | the generator is Go, and the lanes that test its output have none |
 | `presentation/openapi/Api.gen.go`, `infrastructure/postgres/sqlc/`, `presentation/rest/Deprecations.gen.go`, `docs/audit/event-matrix.md` | `make generate` | ordinary Go-side output, so a checkout builds without the generators |
+| `presentation/rest/Doors.gen.go`, `cmd/hubctl/Doors.gen.go` | `make generate`, through `tools/doors` from the contract and `Api.gen.go` | the REST mapping and the `hubctl` commands an operation names with `x-hubtask-rest: generated` and `x-hubtask-cli` (api-guidelines.md §1, F-7); ordinary Go-side output |
 
 **None of them may be edited by hand.** CI regenerates them and fails on any difference.
 `LabelTokens.go` and `packages/api-client` (`make api-client`) stay outside `make generate` because

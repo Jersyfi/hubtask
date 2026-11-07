@@ -79,6 +79,9 @@ export function review(
     case 'RELATIVE_DATE':
       if (!draft.trigger.offset?.trim()) notes.push({ level: 'broken', card: 'trigger', code: 'app.flow.review_offset_missing' });
       break;
+    case 'STEP_TAKEN':
+      if (!draft.trigger.workflow || !draft.trigger.step) notes.push({ level: 'broken', card: 'trigger', code: 'app.flow.review_step_missing' });
+      break;
     case 'INBOUND_WEBHOOK':
       // An inbound rule with no address minted is a rule nothing can reach.
       if (context.hasInboundAddress === false) notes.push({ level: 'attention', card: 'trigger', code: 'app.flow.review_address_missing' });

@@ -61,6 +61,7 @@ func httpRuleCommand(secretValue string) CreateRuleCommand {
 
 // The acceptance criterion: the header secret never appears anywhere after creation. The stored
 // rule carries ciphertext, and every channel's projection answers the mask.
+// UC-INT-05 check 3.
 func TestAnHTTPSecretIsSealedAtTheWriteAndMaskedEverAfter(t *testing.T) {
 	h := newHarness()
 	h.writer.Conditions = compiler{}
@@ -109,6 +110,7 @@ func TestAnHTTPSecretIsSealedAtTheWriteAndMaskedEverAfter(t *testing.T) {
 
 // Sending the mask back on an edit keeps the stored secret - which is the only way a client that
 // can never read the secret again can edit the rest of the rule.
+// UC-INT-05 check 3.
 func TestTheMaskKeepsTheStoredSecretOnAnEdit(t *testing.T) {
 	h := newHarness()
 	h.writer.Conditions = compiler{}

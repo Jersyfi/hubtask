@@ -30,6 +30,7 @@ func TestASentenceBecomesThingsAndAPlace(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 2: a list is understood with or without its list word.
 func TestAPlaceIsNamedWithoutItsListWord(t *testing.T) {
 	cases := map[string]string{
 		"die Einkaufsliste": "einkauf",

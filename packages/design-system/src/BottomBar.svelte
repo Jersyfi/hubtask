@@ -34,6 +34,12 @@
      * current for it.
      */
     readonly isAction?: boolean;
+    /**
+     * Whether it opens the rest of the navigation rather than going somewhere - the phone's *More*,
+     * which opens the drawer (user-experience.md §2.6). Drawn as a button like the act, but as
+     * quiet as a place, and current while the reader is on a place only the drawer lists.
+     */
+    readonly isOpener?: boolean;
   }
 
   interface Props {
@@ -52,7 +58,18 @@
   <ul>
     {#each destinations as destination (destination.id)}
       <li>
-        {#if destination.isAction}
+        {#if destination.isOpener}
+          <button
+            type="button"
+            class="item"
+            aria-haspopup="dialog"
+            aria-current={destination.id === current ? 'page' : undefined}
+            onclick={() => onnavigate?.(destination.id)}
+          >
+            <span class="mark"><Icon name={destination.icon} /></span>
+            <span class="word">{destination.label}</span>
+          </button>
+        {:else if destination.isAction}
           <button type="button" class="item" data-action="" onclick={() => onnavigate?.(destination.id)}>
             <span class="mark"><Icon name={destination.icon} /></span>
             <span class="word">{destination.label}</span>
@@ -132,6 +149,7 @@
   /* Rule 3: the current destination is the colour and the tint under the mark, and the word and
      `aria-current` say it without either. */
   .item[aria-current='page'] { color: var(--text-brand); }
+
 
   .item[aria-current='page'] .mark { background: var(--accent-primary-subtle); }
 

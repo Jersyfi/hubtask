@@ -472,7 +472,8 @@ func (w LifecycleWriter) collectionOf(
 // REST, MCP and automation at once (arc42 §4).
 func (h ArchiveWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ArchiveWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       ArchiveWorkItemName,
 		Summary: "Archives a task, work package or activity: it is kept and becomes read-only. " +
 			"Distinct from the trash, which is a deletion with a retention period running against " +
 			"it - an archived entry stays until somebody says otherwise. Nothing below it is " +
@@ -492,7 +493,8 @@ func (h ArchiveWorkItem) Descriptor() usecase.Descriptor {
 
 func (h UnarchiveWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UnarchiveWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       UnarchiveWorkItemName,
 		Summary: "Makes an archived task, work package or activity writable again. Refused for an " +
 			"entry in the trash: restore it first, and the answer says so. Idempotent.",
 		SideEffects: "Clears the archive stamp, announces " + string(event.ItemUnarchived) +

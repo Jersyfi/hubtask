@@ -102,6 +102,7 @@ func dueCmd(t *testing.T) DueDateCommand {
 }
 
 // One change owes four things, and this is the test that says so.
+// UC-WRK-13 check 6.
 func TestSettingADueDateWritesTheRowTheEventTheChangesAndTheEntry(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())
 	h.withItem(domain.ItemTask)
@@ -229,6 +230,7 @@ func TestMovingTheDateAloneRecordsTheDateAlone(t *testing.T) {
 
 // Clearing takes the trio off together, and every record says so: the event names the date that
 // was there, the change log clears each stored field by name, and the history reads "removed".
+// UC-WRK-13 check 6.
 func TestClearingWritesTheTrioWholeAndAnnouncesTheDateThatWas(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())
 	item := h.withItem(domain.ItemTask)
@@ -348,6 +350,29 @@ func TestADueDateOnANarrowedTypeIsRefused(t *testing.T) {
 	}
 }
 
+// UC-FLW-01: a type that is not schedulable takes the due date off its entries' profile, so the
+// writer refuses it as it refuses a level without one; the level's own type keeps it.
+func TestADueDateOnATypeThatIsNotSchedulableIsRefused(t *testing.T) {
+	h := newDueDateHarness(t, dueDateProfiles())
+	h.set.Due.Gate.EntryTypes = workspaceTypes()
+	item := h.withItem(domain.ItemTask)
+	item.EntryType = "server"
+	h.items.stored[dueItem] = item
+
+	if _, err := h.set.Execute(context.Background(), actor(), dueCmd(t)); !errors.Is(err, shared.ErrCapabilityNotSupported) {
+		t.Fatalf("a record's due date answered %v", err)
+	}
+	if len(h.items.dueDates) != 0 {
+		t.Error("the refusal still wrote the row")
+	}
+
+	item.EntryType = "bug"
+	h.items.stored[dueItem] = item
+	if _, err := h.set.Execute(context.Background(), actor(), dueCmd(t)); err != nil {
+		t.Fatalf("a schedulable type's due date answered %v", err)
+	}
+}
+
 // The permission question is the entry's: moving a deadline is writing an entry.
 func TestSettingADueDateAsksForThePermissionToWriteItems(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())
@@ -391,6 +416,7 @@ func TestTheDueDateChannelsReachTheSameCommand(t *testing.T) {
 		t.Errorf("the output carries %v, want %v", out["due_at"], berlinFriday)
 	}
 
+	// UC-WRK-13 check 8: a malformed date through the API.
 	t.Run("an unparseable instant is refused by name", func(t *testing.T) {
 		_, err := h.set.Descriptor().Handler.Invoke(context.Background(), actor(), usecase.Input{
 			"item_id": dueItem.String(), "due_at": "tomorrow",

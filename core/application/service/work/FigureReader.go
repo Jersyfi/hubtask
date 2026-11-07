@@ -6,6 +6,8 @@ package work
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"sync"
 	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
@@ -15,11 +17,32 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
 
 // figureDeadline bounds the figure statements of one read (rule 7). A figure that cannot be counted
 // in it is answered as unavailable; the read it rides on is never held up past it.
 const figureDeadline = 300 * time.Millisecond
+
+// figureCountDeadline bounds a count the read's deadline cut off, run again after the read (rule 7):
+// long enough for a collection of a million entries, short enough that a stuck one is let go.
+const figureCountDeadline = 20 * time.Second
+
+// lateCounts are the figures being counted after a read in this process, by workspace and kept key:
+// one late count per figure at a time, however many reads were cut off on it.
+var lateCounts sync.Map
+
+// slowCounts are the figures whose last count took longer than a read waits, by the same key: a
+// read that would count one only waits out its deadline and leaves a cancelled statement behind,
+// so it hands the count to a late one at once. A late count that answers within the read's
+// deadline makes its figure an ordinary one again.
+var slowCounts sync.Map
+
+type lateCount struct {
+	tenant shared.ID
+	key    repository.KeptFigureKey
+}
 
 // FigureReader counts what counts in the collections a container read answers (UC-WRK-29; the
 // server counts, the client draws - domain-model.md §2). Called after the permission question and
@@ -28,10 +51,25 @@ const figureDeadline = 300 * time.Millisecond
 //
 // Which entries count is the entry gate's question (EntryGate, Offered): the installation's bound is
 // read in the figure's own transaction, so that a figure leaves out exactly what a read marks hidden.
+//
+// Kept, where wired, answers a count from the last read with the same basis while the collection is
+// unchanged (migration 0299), and keeps what had to be counted after the read's transaction ended;
+// Jobs then schedules the workspace's recount (FigureRecount), which corrects what a write outside
+// its workspace's context left behind.
 type FigureReader struct {
 	Figures  repository.Figures
 	Clock    clock.Clock
 	Profiles metarepo.CapabilityProfiles
+	Kept     repository.KeptFigures
+	Jobs     FigureJobs
+	// Spawn runs a late count beside the read; concurrency.Go when unset, a test's own runner
+	// otherwise.
+	Spawn func(ctx context.Context, component string, fn func(context.Context))
+}
+
+// FigureJobs is the slice of the queue a read schedules the recount through.
+type FigureJobs interface {
+	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
 // Wired reports whether the reader can count. A read built without one answers no figure.
@@ -64,39 +102,279 @@ func (r FigureReader) Count(
 	if len(requests) == 0 {
 		return figures
 	}
+	return r.countRequests(ctx, actor, uow, requests, structures, r.window(actor))
+}
 
+// window is the reader's day and week now.
+func (r FigureReader) window(actor appshared.ActorContext) domain.FigureWindow {
 	location := time.UTC
 	if actor.TimeZone != "" {
 		if loaded, err := time.LoadLocation(actor.TimeZone); err == nil {
 			location = loaded
 		}
 	}
-	window := domain.NewFigureWindow(r.Clock.Now(), location, actor.WeekStart)
+	return domain.NewFigureWindow(r.Clock.Now(), location, actor.WeekStart)
+}
 
+// countRequests counts the requests in the window, from what is kept where it still answers; each
+// request's collection has its structure in structures.
+func (r FigureReader) countRequests(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	requests []domain.FigureRequest, structures map[shared.ID]domain.EffectiveStructure, window domain.FigureWindow,
+) map[shared.ID]domain.CollectionFigure {
+	figures := map[shared.ID]domain.CollectionFigure{}
 	bounded, cancel := context.WithTimeout(ctx, figureDeadline)
 	defer cancel()
-	var counted map[shared.ID]domain.FigureCounts
+	var offered []domain.FigureRequest
+	var states map[repository.KeptFigureKey]repository.KeptFigureState
 	err := uow.WithinReadOnly(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
 		bound, err := structureBound(ctx, r.Profiles)
 		if err != nil {
 			return err
 		}
-		offered := make([]domain.FigureRequest, len(requests))
+		offered = make([]domain.FigureRequest, len(requests))
 		for i, request := range requests {
 			offered[i] = request.Offer(domain.NewOffered(bound, structures[request.CollectionID]))
 		}
-		counted, err = r.Figures.Count(ctx, offered, window)
+		if r.Kept == nil {
+			return nil
+		}
+		states, err = r.Kept.States(ctx, keptKeys(offered, window))
 		return err
 	})
-	for _, request := range requests {
-		if err != nil {
+	if offered == nil {
+		for _, request := range requests {
+			figures[request.CollectionID] = domain.UnavailableFigure(request, window)
+		}
+		return figures
+	}
+	if err != nil {
+		// What is kept could not be read: everything is counted, and nothing kept on that basis.
+		states = nil
+	}
+
+	answered := map[shared.ID]domain.FigureCounts{}
+	asOf := map[shared.ID]time.Time{}
+	var missing, late []domain.FigureRequest
+	for _, request := range offered {
+		if counts, at, held := keptAnswer(states, request, window); held {
+			answered[request.CollectionID] = counts
+			if !at.IsZero() {
+				// Answered as of its time; a late count makes the next read's (fifth answers 3).
+				asOf[request.CollectionID] = at
+				late = append(late, request)
+			}
+			continue
+		}
+		// Being counted late already: counting it here as well would only wait out the deadline
+		// for the same mark, beside the count that will answer the next read.
+		key := lateCount{tenant: actor.TenantID, key: keptKey(request, window)}
+		if _, running := lateCounts.Load(key); running {
 			figures[request.CollectionID] = domain.UnavailableFigure(request, window)
 			continue
 		}
-		figures[request.CollectionID] = domain.NewCollectionFigure(request, window, counted[request.CollectionID])
+		if _, slow := slowCounts.Load(key); slow && states != nil {
+			figures[request.CollectionID] = domain.UnavailableFigure(request, window)
+			late = append(late, request)
+			continue
+		}
+		missing = append(missing, request)
+	}
+	if len(late) > 0 {
+		r.countLate(ctx, actor, uow, late, window, states)
+	}
+	if len(missing) > 0 {
+		var counted map[shared.ID]domain.FigureCounts
+		err = uow.WithinReadOnly(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			counted, err = r.Figures.Count(ctx, missing, window)
+			return err
+		})
+		if err != nil {
+			for _, request := range missing {
+				figures[request.CollectionID] = domain.UnavailableFigure(request, window)
+			}
+			// Cut off by the read's deadline, nothing would be kept, and every next read would
+			// pay the deadline again for the same mark: the count is run once more beside the
+			// read, under a deadline of its own, and what it counts kept.
+			if states != nil && (errors.Is(err, context.DeadlineExceeded) || bounded.Err() != nil) {
+				for _, request := range missing {
+					slowCounts.Store(lateCount{tenant: actor.TenantID, key: keptKey(request, window)}, struct{}{})
+				}
+				r.countLate(ctx, actor, uow, missing, window, states)
+			}
+			missing = nil
+		}
+		for _, request := range missing {
+			answered[request.CollectionID] = counted[request.CollectionID]
+		}
+		if states != nil {
+			r.keep(ctx, actor, uow, missing, window, states, counted)
+		}
+	}
+	for _, request := range offered {
+		if counts, done := answered[request.CollectionID]; done {
+			figure := domain.NewCollectionFigure(request, window, counts)
+			if at, stale := asOf[request.CollectionID]; stale {
+				figure = figure.AsOf(at)
+			}
+			figures[request.CollectionID] = figure
+		}
 	}
 	return figures
+}
+
+// keptKeys names the kept count each request may be answered from.
+func keptKeys(requests []domain.FigureRequest, window domain.FigureWindow) []repository.KeptFigureKey {
+	keys := make([]repository.KeptFigureKey, 0, len(requests))
+	for _, request := range requests {
+		keys = append(keys, keptKey(request, window))
+	}
+	return keys
+}
+
+func keptKey(request domain.FigureRequest, window domain.FigureWindow) repository.KeptFigureKey {
+	return repository.KeptFigureKey{
+		CollectionID: request.CollectionID, Kind: request.Kind, BasisKey: request.Basis(window).Key(),
+	}
+}
+
+// keptAnswer answers a request from its kept count where that count was made at the collection's
+// number of changes now - and, for a kind the clock moves, no longer ago than the kind allows. A
+// count made before the collection's last change answers for domain.FigureStaleFor after it was
+// made, with that moment: the zero time is a current count.
+func keptAnswer(
+	states map[repository.KeptFigureKey]repository.KeptFigureState, request domain.FigureRequest,
+	window domain.FigureWindow,
+) (domain.FigureCounts, time.Time, bool) {
+	state, known := states[keptKey(request, window)]
+	if !known || !state.Kept.Present {
+		return domain.FigureCounts{}, time.Time{}, false
+	}
+	if life := request.Kind.KeptFor(); life > 0 {
+		age := window.Now.Sub(state.Kept.CountedAt)
+		if age < 0 || age >= life {
+			return domain.FigureCounts{}, time.Time{}, false
+		}
+	}
+	if state.Kept.Changes != state.Changes {
+		if !domain.StaleAnswers(state.Kept.CountedAt, window.Now) {
+			return domain.FigureCounts{}, time.Time{}, false
+		}
+		return state.Kept.Counts, state.Kept.CountedAt, true
+	}
+	return state.Kept.Counts, time.Time{}, true
+}
+
+// countLate counts the requests a read was cut off on, outside the read and its deadline, and keeps
+// what it counted; a figure already being counted late in this process is left to that count.
+func (r FigureReader) countLate(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	requests []domain.FigureRequest, window domain.FigureWindow,
+	states map[repository.KeptFigureKey]repository.KeptFigureState,
+) {
+	var claimed []domain.FigureRequest
+	var keys []lateCount
+	for _, request := range requests {
+		key := lateCount{tenant: actor.TenantID, key: keptKey(request, window)}
+		if _, running := lateCounts.LoadOrStore(key, struct{}{}); running {
+			continue
+		}
+		claimed, keys = append(claimed, request), append(keys, key)
+	}
+	if len(claimed) == 0 {
+		return
+	}
+	spawn := r.Spawn
+	if spawn == nil {
+		spawn = concurrency.Go
+	}
+	spawn(context.WithoutCancel(ctx), "figure-late-count", func(ctx context.Context) {
+		defer func() {
+			for _, key := range keys {
+				lateCounts.Delete(key)
+			}
+		}()
+		bounded, cancel := context.WithTimeout(ctx, figureCountDeadline)
+		defer cancel()
+		started := r.Clock.Now()
+		var counted map[shared.ID]domain.FigureCounts
+		err := uow.WithinReadOnly(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			counted, err = r.Figures.Count(ctx, claimed, window)
+			return err
+		})
+		if err != nil {
+			return
+		}
+		if r.Clock.Now().Sub(started) < figureDeadline {
+			for _, key := range keys {
+				slowCounts.Delete(key)
+			}
+		}
+		// Stored at once: the read whose transaction keep would wait for has ended long since.
+		if figures := keptOf(claimed, window, states, counted); len(figures) > 0 {
+			r.store(ctx, actor, uow, figures, window)
+		}
+	})
+}
+
+// figureRecountAfter is how soon after a count was first kept the workspace's recount runs; the job
+// reschedules itself from then on (FigureRecount).
+const figureRecountAfter = 10 * time.Minute
+
+// keep stores what this read had to count, at the numbers of changes read before counting, once the
+// read's transaction has ended (store).
+func (r FigureReader) keep(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	counted []domain.FigureRequest, window domain.FigureWindow,
+	states map[repository.KeptFigureKey]repository.KeptFigureState, counts map[shared.ID]domain.FigureCounts,
+) {
+	figures := keptOf(counted, window, states, counts)
+	if len(figures) == 0 {
+		return
+	}
+	persistence.After(ctx, func(ctx context.Context) { r.store(ctx, actor, uow, figures, window) })
+}
+
+// keptOf is what may be kept of the counts: each at the number of changes read before counting.
+func keptOf(
+	counted []domain.FigureRequest, window domain.FigureWindow,
+	states map[repository.KeptFigureKey]repository.KeptFigureState, counts map[shared.ID]domain.FigureCounts,
+) []repository.KeptFigure {
+	figures := make([]repository.KeptFigure, 0, len(counted))
+	for _, request := range counted {
+		key := keptKey(request, window)
+		state, known := states[key]
+		if !known {
+			continue
+		}
+		figures = append(figures, repository.KeptFigure{
+			Key: key, Basis: request.Basis(window), Changes: state.Changes,
+			Counts: counts[request.CollectionID], CountedAt: window.Now, Present: true,
+		})
+	}
+	return figures
+}
+
+// store keeps the figures and schedules the workspace's recount in the same transaction. Best
+// effort: a count that is not kept is counted again by the next read.
+func (r FigureReader) store(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	figures []repository.KeptFigure, window domain.FigureWindow,
+) {
+	bounded, cancel := context.WithTimeout(ctx, figureDeadline)
+	defer cancel()
+	_ = uow.Within(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := r.Kept.Keep(ctx, figures); err != nil {
+			return err
+		}
+		if r.Jobs == nil {
+			return nil
+		}
+		_, err := r.Jobs.Enqueue(ctx, queue.FigureRecount(actor.TenantID, window.Now.Add(figureRecountAfter)))
+		return err
+	})
 }
 
 // withFigure adds a collection's figure to its output, where one was counted.
@@ -113,6 +391,9 @@ func figureOutput(figure domain.CollectionFigure) map[string]any {
 	if figure.Unavailable {
 		out["unavailable"] = true
 		return out
+	}
+	if !figure.CountedAt.IsZero() {
+		out["counted_at"] = figure.CountedAt.Format(time.RFC3339)
 	}
 	counts := figure.Counts
 	switch figure.Kind {

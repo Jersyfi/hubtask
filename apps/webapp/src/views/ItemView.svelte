@@ -25,6 +25,7 @@
   // `lib/data/accounts.svelte.ts`. The reader is still "You", and an actor whose name did not
   // resolve is named by its kind.
 
+  import LazyView from '../lib/frame/LazyView.svelte';
   import { untrack } from 'svelte';
 
   import {
@@ -33,7 +34,6 @@
     Button,
     Checkbox,
     EmptyState,
-    ErrorState,
     Icon,
     IconButton,
     LoadMore,
@@ -41,6 +41,7 @@
     PageHeader,
     provideReasonGroup,
     ReadOnlyNotice,
+    Select,
     Skeleton,
     Stack,
     Tabs,
@@ -48,6 +49,8 @@
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { ActivityEntry, ActivityPage, CommentPage, MediaPage, ResourceState, Suggestion, SuggestionPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -66,7 +69,15 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
-  import { definitionsFor } from '../lib/data/customfields.ts';
+  import { definitionsFor, fieldName, valueText } from '../lib/data/customfields.ts';
+  import { hasForm, panelRows, triageKeys } from '../lib/data/entryforms.ts';
+  import { droppedBy, entryTypes, entryTypesOffered, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import { actsAsDesk } from '../lib/portal/portal.ts';
+  import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
+  import TypeDropsDialog from '../lib/entries/TypeDropsDialog.svelte';
+  import type { EntryFormState } from '@hubtask/sync-engine';
+  import { formatDecimal } from '../lib/i18n/number.ts';
+  import { formatDuration } from '../lib/i18n/duration.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { entryEditOf } from '../lib/data/edits.ts';
@@ -85,13 +96,25 @@
   import AmountPanel from '../lib/entries/AmountPanel.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
+  import LinksSection from '../lib/entries/LinksSection.svelte';
+  import AffectedCis from '../lib/entries/AffectedCis.svelte';
+  import EntryApprovals from '../lib/servicedesk/EntryApprovals.svelte';
+  import EntrySla from '../lib/servicedesk/EntrySla.svelte';
+  import RequesterPanel from '../lib/servicedesk/RequesterPanel.svelte';
+  import EntryProvenance from '../lib/entries/EntryProvenance.svelte';
+  import EntryCode from '../lib/code/EntryCode.svelte';
+  import EntryFiles from '../lib/files/EntryFiles.svelte';
+  import EntryTimer from '../lib/time/EntryTimer.svelte';
+  import EntryGoals from '../lib/goals/EntryGoals.svelte';
+  import StepControl from '../lib/entries/StepControl.svelte';
+  import MentionDialog from '../lib/entries/MentionDialog.svelte';
+  import { inserted } from '../lib/data/links.ts';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import DuePanel from '../lib/entries/DuePanel.svelte';
-  import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
   import ConflictStrip from '../lib/entries/ConflictStrip.svelte';
   import AiAsk from '../lib/entries/AiAsk.svelte';
@@ -101,9 +124,7 @@
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { entryAsks } from '../lib/data/entryasks.svelte.ts';
   import { hasChoices, suggestionsPath } from '../lib/data/suggestions.ts';
-  import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
-  import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import CommentPanel from '../lib/people/CommentPanel.svelte';
   import EntryActions from '../lib/entries/EntryActions.svelte';
@@ -116,6 +137,7 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { entryParts } from '../lib/frame/parts.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -261,7 +283,7 @@
   const isCollectionArchived = $derived(collection !== undefined && archivalOf(collection) !== 'active');
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
   /** The entry's ticket key, `EINKAUF-42` (ADR-0094): what a mail subject quotes to reach it. */
-  const ticketKey = $derived(ticketKeyOf(collection?.handle, item?.number));
+  const ticketKey = $derived(ticketKeyOf(collection, item?.number));
 
   async function copyTicketKey(key: string) {
     await navigator.clipboard.writeText(key);
@@ -334,11 +356,112 @@
     }
   }
 
+  /** Whether a workflow runs for the entry, as its status control found. */
+  let hasWorkflow = $state(false);
   const columnName = $derived(item?.bucket_id ? buckets.of(item.collection_id).find((each) => each.id === item?.bucket_id)?.name : undefined);
   const carriedLabels = $derived(
     item ? (item.label_ids ?? []).map((labelId) => labels.of(item.collection_id).find((each) => each.id === labelId)).filter((each) => each !== undefined) : [],
   );
   const definitions = $derived(item ? definitionsFor(customFields.of(item.collection_id), item.type as string) : []);
+
+  // The modules on where this place is (UC-INS-21 check 3): a hub narrows the workspace's, so its
+  // screens are drawn for its own set, read beside the place; the workspace's until it answers.
+  // The collection alone, so that a new version of the entry does not read the set again.
+  const placeId = $derived(item?.collection_id);
+  let placeModules = $state<readonly string[] | undefined>(undefined);
+  $effect(() => {
+    const at = placeId;
+    placeModules = undefined;
+    if (!at) return;
+    return untrack(() => modules.here(at, (next) => {
+      if (next.status === 'ready') placeModules = next.data.modules_on;
+    }));
+  });
+  const modulesOn = $derived(modulesHere(manifest.value?.modules_on, placeModules));
+  // An entry of a desk collection, not every entry where the module is on: a Scrum story beside
+  // an ITIL desk has no requester, no promised times and no internal notes (UC-SVC-05).
+  const isDeskEntry = $derived(
+    modulesOn.includes('SERVICE_DESK') && collection !== undefined
+      && actsAsDesk(entryTypes.all, entryTypesOffered(collection.structure?.settings ?? undefined, 'TASK'), collection.parent_id),
+  );
+  const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
+
+  // The entry's type's form, in edit mode (UC-FLW-01 check 2): its custom fields in the form's
+  // sections and order, a hidden one left out, a read-only one opening nothing. The server answers
+  // the conditions for the entry as it is stored, again whenever its version moves.
+  $effect(() => {
+    if (!typesShown(placeManifest) && !modulesOn.includes('SERVICE_DESK')) return;
+    return untrack(() => entryTypes.open());
+  });
+  const itemType = $derived(
+    item && typesShown(placeManifest) ? typeOf(entryTypes.all, item.type as string, item.entry_type ?? undefined) : undefined,
+  );
+  const itemForm = $derived(itemType && hasForm(itemType.form) ? itemType.form : undefined);
+  // The entry's type, changed in place (UC-FLW-01 check 4): the types of its level still offered,
+  // the one it has kept even when archived. A row only where there is a choice.
+  const typeChoices = $derived.by(() => {
+    if (!item || !itemType) return [];
+    const offered = offeredTypes(entryTypes.all, item.type as string, undefined, containers.find(item.collection_id)?.parent_id);
+    return offered.some((each) => each.key === itemType.key) ? offered : [itemType, ...offered];
+  });
+  const entryTypeName = (type: { name?: string | null; level: string }) => type.name ?? t('app.entry_types.level', { level: type.level });
+  let typeDraft = $state('');
+  $effect(() => {
+    typeDraft = itemType?.key ?? '';
+  });
+  // What a change of type would drop, as the server named it; asked before anything is cleared.
+  let typeDrops = $state<{ readonly fields: readonly string[]; readonly isConfirmable: boolean } | undefined>(undefined);
+  let isTypeDropsOpen = $state(false);
+  const typeDraftName = $derived.by(() => {
+    const chosen = typeChoices.find((each) => each.key === typeDraft);
+    return chosen ? entryTypeName(chosen) : typeDraft;
+  });
+  async function saveType(dropValues = false) {
+    if (!item || !itemType || typeDraft === '' || typeDraft === itemType.key) return;
+    writeFailure = undefined;
+    isTypeDropsOpen = false;
+    try {
+      await items.setEntryType(item.id, typeDraft, item.version, dropValues);
+      typeDrops = undefined;
+      announcer.say(t('app.entries.saved_announced'));
+    } catch (error) {
+      const drops = dropValues ? undefined : droppedBy(error);
+      if (drops) {
+        typeDrops = drops;
+        isTypeDropsOpen = true;
+        return;
+      }
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  let formAnswer = $state<EntryFormState | undefined>(undefined);
+  $effect(() => {
+    const key = itemForm && itemType ? itemType.key : undefined;
+    const itemId = item?.id;
+    void item?.version;
+    if (!key || !itemId) {
+      formAnswer = undefined;
+      return;
+    }
+    let isCurrent = true;
+    entryTypes.evaluate(key, { item_id: itemId }).then(
+      (answer) => { if (isCurrent) formAnswer = answer; },
+      () => { if (isCurrent) formAnswer = undefined; },
+    );
+    return () => { isCurrent = false; };
+  });
+  const fieldRows = $derived(
+    panelRows(itemForm, formAnswer, definitions.map((definition) => definition.key)).flatMap((row) => {
+      const definition = definitions.find((each) => each.key === row.key);
+      return definition ? [{ ...row, definition }] : [];
+    }),
+  );
+
+  // A desk entry's triage under its head (user-experience.md §5.6), not folded among the details.
+  const triage = $derived(isDeskEntry ? triageKeys(itemForm, fieldRows.map((row) => row.key)) : []);
+  const triageRows = $derived(fieldRows.filter((row) => triage.includes(row.key)));
+  const detailFieldRows = $derived(fieldRows.filter((row) => !triage.includes(row.key)));
 
   /** The due date as the row says it - the same words `DueMark` draws. */
   const dueValue = $derived(
@@ -825,6 +948,17 @@
    * draws its row - `DetailRow` draws a read-only row only with a value. While the type is unknown
    * or not offered the card stays: it says why there are no rows.
    */
+  /** A field's value as its row shows it, the reader's way (`valueText`). */
+  const fieldReading = $derived({
+    number: (value: number) => formatDecimal(value, messages.locale),
+    amount: (value: number, currency: string) =>
+      t('app.fields.money_value', { amount: formatDecimal(value, messages.locale), currency }),
+    duration: formatDuration,
+    nameOf: (id: string) => accounts.nameOf(id),
+    titleOf: (id: string) => items.find(id)?.title,
+    unknown: t('app.fields.value_unnamed'),
+  });
+
   const holdsDetails = $derived.by(() => {
     if (!item) return false;
     if (!(isTypeKnown && isTypeOffered)) return true;
@@ -941,6 +1075,27 @@
     }
   }
 
+  /**
+   * A mention or a card put into the notes where the caret was when the reader left them, and
+   * saved as any other change of the notes is (UC-PLN-01 check 7).
+   */
+  let notesSelection = { start: 0, end: 0 };
+  let isMentionOpen = $state(false);
+
+  function rememberSelection(event: FocusEvent) {
+    const field = event.currentTarget as HTMLTextAreaElement;
+    notesSelection = { start: field.selectionStart, end: field.selectionEnd };
+  }
+
+  function insertMention(text: string) {
+    const at = Math.min(notesSelection.start, inlineNotes.length);
+    const result = inserted(inlineNotes, at, Math.max(at, Math.min(notesSelection.end, inlineNotes.length)), text);
+    inlineNotes = result.text;
+    notesSelection = { start: result.caret, end: result.caret };
+    isInlineDirty = true;
+    void commitInline();
+  }
+
   function onNotesKey(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
     event.preventDefault();
@@ -952,13 +1107,7 @@
 {#if entry.state.status === 'loading' || entry.state.status === 'idle'}
   <div aria-busy="true"><Skeleton lines={3} /></div>
 {:else if failure}
-  <ErrorState
-    title={failure.message}
-    reference={failure.reference}
-    referenceLabel={t('app.reference')}
-    retryLabel={t('app.retry')}
-    onRetry={() => entry.refresh()}
-  />
+  <FailureState problem={failure} onRetry={() => entry.refresh()} />
 {:else if !item}
   <EmptyState kind="filtered" title={t('app.item.not_found')} />
 {:else}
@@ -1015,8 +1164,9 @@
         <div class="cover-stripe" data-token={item.cover.color_token} aria-hidden="true"></div>
       {/if}
       <div class="title-row">
-        <!-- Completing the entry from its own page: the same control the row has, the same write. -->
-        {#if isChangeable}
+        <!-- Completing the entry from its own page: the same control the row has, the same write.
+             Not where a workflow runs: its status category decides completion there. -->
+        {#if isChangeable && !hasWorkflow}
           <Checkbox
             label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}
             isLabelHidden
@@ -1073,9 +1223,14 @@
            stays stored and is not drawn, as its row is not. -->
       <!-- Beside the title only what the entry *is*: its level, its column, archived. Who, when and
            which labels are the details' (concept round 2, §4), not a second row of the same facts. -->
+      <!-- In a workflow collection the status is the column and the type says more than the level
+           (user-experience.md §5.6): neither the level nor *No column* is drawn there. -->
       <div class="marks">
-        <Badge size="sm">{typeName(item.type)}</Badge>
-        {#if isWritable && columnsHere.length > 0}
+        {#if !hasWorkflow}<Badge size="sm">{typeName(item.type)}</Badge>
+        {:else if itemType?.name}<Badge size="sm">{itemType.name}</Badge>{/if}
+        {#if hasWorkflow}
+          <!-- Nothing: the status below is the place on the board. -->
+        {:else if isWritable && columnsHere.length > 0}
           <!-- The column is changed here as well as on the board (concept round 3): the mark is
                the menu of the collection's columns. -->
           <Menu label={t('app.item.column_menu')} items={columnItems} onselect={(id) => void setColumn(id === 'none' ? null : id)}>
@@ -1090,6 +1245,8 @@
           <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
         {/if}
       </div>
+      <!-- The status and the steps the reader may take from it, in the head (UC-FLW-03, §5.6). -->
+      {#key item.id}<StepControl {item} bind:runs={hasWorkflow} />{/key}
       <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the
            celebrations are off (check 7), or while the entry is open. -->
       {#if kudosOffer(item, signedIn.account?.id, celebration.isOn) !== 'none'}
@@ -1141,10 +1298,7 @@
                      on. The rows are missing because the installation could not be read, and that
                      is what it says — with the sentence the server gave, and where to ask again. -->
                 <p class="unread" role="status">{t('app.item.type_unread')}</p>
-                <p class="unread-detail">{typeFailure.message}</p>
-                {#if typeFailure.reference}
-                  <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
-                {/if}
+                <FailureNote problem={typeFailure} />
               {:else}
                 <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
               {/if}
@@ -1162,6 +1316,16 @@
       {/if}
 
       <div class="main-column">
+        <!-- A desk entry's promised times first, directly under the head and above the notes
+             (user-experience.md §5.6; UC-SVC-02 check 6): the handler reads what breaks first. -->
+        {#if isDeskEntry}
+          {#key item.id}<EntrySla itemId={item.id} />{/key}
+        {/if}
+        {#if triageRows.length > 0 && carries('CUSTOM_FIELDS')}
+          <div class="rows triage" role="group" aria-label={t('app.item.triage')} data-entry-triage>
+            {#each triageRows as row (row.definition.id)}{@render fieldRow(row, false)}{/each}
+          </div>
+        {/if}
         <!-- The description first in the main column, as the concept draws it: a box that reads
              as text, one quiet line while empty (concept round 2, §4). -->
           {#if !isTypeKnown}
@@ -1176,9 +1340,15 @@
             bind:value={inlineNotes}
             readonly={!isWritable}
             oninput={() => (isInlineDirty = true)}
-            onblur={() => void commitInline()}
+            onblur={(event) => { rememberSelection(event); void commitInline(); }}
             onkeydown={onNotesKey}
           ></textarea>
+          {#if isWritable}
+            <div class="notes-tools">
+              <Button size="sm" tone="subtle" icon="link" data-mention-entry onclick={() => (isMentionOpen = true)}>{t('app.mentions.insert')}</Button>
+            </div>
+            <MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={insertMention} />
+          {/if}
           {/if}
           {#if hasAi && isTypeKnown && carries('NOTES')}
             {#if isChangeable}
@@ -1187,6 +1357,11 @@
             <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
           {/if}
 
+        {#if isDeskEntry}
+          <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7),
+               before what sits under it. -->
+          {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
+        {/if}
         {#if !isTypeKnown}
           <!-- What a type holds is the manifest's answer too, so "nothing sits under this" is
                not something this screen may say before it has one. -->
@@ -1218,6 +1393,32 @@
           </Stack></div>
         {/if}
 
+        <!-- The reader's timer on this entry, where the time module is on (UC-TIM-01 check 8). -->
+        {#if modulesOn.includes('TIME')}
+          {#key item.id}<EntryTimer itemId={item.id} onnavigate={(path) => onnavigate?.(path)} />{/key}
+        {/if}
+        <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
+        {#if modulesOn.includes('SERVICE_DESK')}
+          {#key item.id}<EntryApprovals itemId={item.id} />{/key}
+        {/if}
+        <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
+             each entry reads its own. -->
+        {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}
+        <!-- The configuration items it is about, where the assets module is on (UC-AST-09 check 6). -->
+        {#if modulesOn.includes('ASSETS')}
+          {#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} />{/key}
+        {/if}
+        <!-- Its commits, branches and pull requests, where a forge named its key (UC-INT-13 check 3). -->
+        {#key item.id}<EntryCode itemId={item.id} />{/key}
+        <!-- Its files in a store, linked by address (UC-INT-14 checks 1, 2). -->
+        {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} />{/key}
+        <!-- Which of its values came from AI, where any did (UC-AGT-05 check 5). -->
+        {#key item.id}<EntryProvenance itemId={item.id} />{/key}
+        <!-- The goals the entry serves, where the goals module is on (UC-GOL-01 check 4). -->
+        {#if modulesOn.includes('GOALS')}
+          {#key item.id}<EntryGoals itemId={item.id} />{/key}
+        {/if}
+
         <Tabs
           label={t('app.item.tabs')}
           tabs={[
@@ -1238,17 +1439,12 @@
               <div class="field-ai"><AiAsk {item} place="comments" mayChange={isWritable} {hasComments} standing={standingAt('comments')} /></div>
               <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
             {/if}
-            <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined} />
+            <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
+              isDesk={isDeskEntry} />
           {:else}
             <Stack gap="150">
               {#if historyFailure}
-                <ErrorState
-                  title={historyFailure.message}
-                  reference={historyFailure.reference}
-                  referenceLabel={t('app.reference')}
-                  retryLabel={t('app.retry')}
-                  onRetry={() => history.refresh()}
-                />
+                <FailureState problem={historyFailure} onRetry={() => history.refresh()} />
               {:else if history.state.status === 'loading' || history.state.status === 'idle'}
                 <div aria-busy="true"><Skeleton lines={3} /></div>
               {:else}
@@ -1322,12 +1518,25 @@
             {/if}
             {#if carries('REMINDER')}
               <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined} isReadOnly={!isWritable}>
-                <ReminderPanel {item} path={peoplePath} />
+                <LazyView load={entryParts.ReminderPanel} props={{ item, path: peoplePath }} />
               </DetailRow>
             {/if}
             {#if carries('RECURRENCE')}
               <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isWritable}>
-                <RecurrencePanel {item} />
+                <LazyView load={entryParts.RecurrencePanel} props={{ item }} />
+              </DetailRow>
+            {/if}
+            {#if itemType && typeChoices.length > 1}
+              <DetailRow id="entry-type" label={t('app.item.entry_type')} value={entryTypeName(itemType)} isReadOnly={!isWritable}>
+                <Stack gap="150">
+                  <Select label={t('app.item.entry_type')} bind:value={typeDraft} options={typeChoices.map((each) => ({ value: each.key, label: entryTypeName(each) }))} />
+                  <div>
+                    <Button size="sm" onclick={() => void saveType()}>{t('app.workspace.save')}</Button>
+                  </div>
+                </Stack>
+                {#if typeDrops}
+                  <TypeDropsDialog bind:isOpen={isTypeDropsOpen} typeName={typeDraftName} fields={typeDrops.fields} isConfirmable={typeDrops.isConfirmable} onconfirm={() => void saveType(true)} />
+                {/if}
               </DetailRow>
             {/if}
             <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isWritable}>
@@ -1348,7 +1557,7 @@
             </DetailRow>
             {#if carries('COVER')}
               <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined} isReadOnly={!isWritable}>
-                <CoverPanel {item} />
+                <LazyView load={entryParts.CoverPanel} props={{ item }} />
               </DetailRow>
             {/if}
             {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
@@ -1359,13 +1568,24 @@
               </DetailRow>
             {/if}
             {#if carries('CUSTOM_FIELDS')}
-              {#each definitions as definition (definition.id)}
-                {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)} isReadOnly={!isWritable}>
-                  <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
-                </DetailRow>
-              {/each}
+              {#each detailFieldRows as row (row.definition.id)}{@render fieldRow(row, true)}{/each}
             {/if}
+  {/if}
+{/snippet}
+
+{#snippet fieldRow(row: (typeof fieldRows)[number], opensSection: boolean)}
+  {#if item}
+    {@const definition = row.definition}
+    {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
+    {#if opensSection && row.opens}<h3 class="form-section" data-form-section>{row.opens}</h3>{/if}
+    <DetailRow
+      id={`field-${definition.key}`}
+      label={row.required ? t('app.entry_forms.required_label', { name: fieldName(definition) }) : fieldName(definition)}
+      value={valueText(definition, held, fieldReading)}
+      isReadOnly={!isWritable || row.readOnly}
+    >
+      <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
+    </DetailRow>
   {/if}
 {/snippet}
 
@@ -1382,6 +1602,14 @@
 {/if}
 
 <style>
+  .form-section {
+    margin: 0;
+    margin-block-start: var(--sp-150);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
   .section {
     margin: 0;
     font-family: var(--font-display);
@@ -1407,11 +1635,20 @@
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     background: none;
-    color: var(--text-subtle);
+    color: var(--text-secondary);
     font-family: var(--font-mono);
     font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
     cursor: pointer;
   }
+  /* On a phone the key stands on its own line above the title (§5.6), so a long title keeps the
+     line's width instead of a column between the checkbox and the key. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .title-row { flex-wrap: wrap; row-gap: 0; }
+    .ticket-key { order: -1; flex-basis: 100%; text-align: start; padding-inline: 0; }
+  }
+
   .ticket-key:hover { background: var(--bg-surface-hover); color: var(--text-secondary); }
   .ticket-key:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
 
@@ -1469,6 +1706,8 @@
     field-sizing: content;
     min-block-size: var(--density-control-md-min);
   }
+
+  .notes-tools { display: flex; justify-content: end; }
 
   .notes-field:placeholder-shown { color: var(--text-subtle); }
   .notes-field:hover:not(:read-only) { border-color: var(--border-default); }
@@ -1533,6 +1772,8 @@
   }
 
   .rows { display: flex; flex-direction: column; padding: 0 var(--sp-100) var(--sp-100); }
+  .triage { flex-direction: row; flex-wrap: wrap; gap: var(--sp-100); padding: 0; }
+  .triage > :global(*) { flex: 1 1 var(--layout-barsearch-side); min-inline-size: 0; }
 
   /* Folded: the fields with nothing set are out of the way until *More fields* is pressed. */
   .rows[data-folded] > :global(.detail[data-empty]) { display: none; }
@@ -1583,7 +1824,6 @@
 
   .unread { margin: var(--sp-150) 0 0; color: var(--text-primary); font-size: var(--fs-075); }
 
-  .unread-detail { margin: var(--sp-050) 0 var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* The column mark as a menu: a small badge's measure, with the turn that says it opens. */
   .column-mark {

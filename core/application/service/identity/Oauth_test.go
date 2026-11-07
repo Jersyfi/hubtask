@@ -361,6 +361,7 @@ func TestTheExchangeRefusesEveryForgery(t *testing.T) {
 	}
 }
 
+// UC-INT-08 check 3.
 func TestAuthorizeRefusesTheWrongShape(t *testing.T) {
 	fixture := newOauthFixture(now)
 	registered := register(t, fixture, true)

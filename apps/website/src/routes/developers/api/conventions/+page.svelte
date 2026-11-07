@@ -16,16 +16,17 @@
   const problem = reference.schemas.find((schema) => schema.name === 'Problem');
 
   const problemExample = `{
-  "type": "about:blank",
-  "title": "Unprocessable Entity",
+  "type": "https://docs.hubtask.dev/errors/validation_failed",
+  "title": "validation_failed",
   "status": 422,
   "code": "validation_failed",
   "detail_code": "items.title_too_long",
   "params": { "max": 500 },
   "field_errors": [
-    { "path": "title", "code": "items.title_too_long", "params": { "max": 500 } }
+    { "path": "/title", "code": "items.title_too_long", "params": { "max": 500 } }
   ],
-  "request_id": "018f6e2a-2b7c-7c1e-9b1a-3d5e6f7a8b9c"
+  "request_id": "018f6e2a2b7c7c1e9b1a3d5e6f7a8b9c",
+  "docs": "https://hubtask.eu/errors/validation_failed/"
 }`;
 
   const pageExample = `GET ${reference.baseUrl}/items?collection_id=…&limit=50
@@ -92,6 +93,7 @@ If-Match: "3"
           Every error is RFC 9457 with a stable <code>code</code> that is part of the contract, a
           <code>detail_code</code> that names a message in the catalogue, the parameters that message takes, and one
           entry per field where a field was wrong. There is no English in it: the client owns every sentence.
+          Each code has <a href="/errors/">its page</a>, and <code>docs</code> links to it.
         </p>
         {#if problem}
           <ParameterTable label="Problem" isLabelHidden {headings} {words} rows={problem.rows} />
@@ -125,7 +127,7 @@ If-Match: "3"
         <p>
           Every resource answers an <code>ETag</code> and carries a <code>version</code>. A partial write sends the
           ETag it last read as <code>If-Match</code>; a write against a state somebody else has moved on is refused
-          with <code>412</code> and <code>version_conflict</code>, and the client reads again rather than overwriting
+          with <code>409</code> and <code>version_conflict</code>, and the client reads again rather than overwriting
           what it never saw. Partial writes are <code>application/merge-patch+json</code>: an absent key changes
           nothing, <code>null</code> clears.
         </p>

@@ -13,8 +13,19 @@ import (
 	"context"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/agent"
+	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/filelink"
+	"github.com/Jersyfi/hubtask/core/domain/model/forge"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
@@ -146,6 +157,180 @@ type Snapshot interface {
 	Recurrences(ctx context.Context, after shared.ID, batch int) ([]InCollection[work.RecurrenceRule], error)
 	// Templates pages every live template.
 	Templates(ctx context.Context, after shared.ID, batch int) ([]work.Template, error)
+	// EntryTypes pages the workspace's type rows (UC-FLW-01).
+	EntryTypes(ctx context.Context, after shared.ID, batch int) ([]work.EntryType, error)
+	// Workflows pages the workspace's workflow rows (UC-FLW-02).
+	Workflows(ctx context.Context, after shared.ID, batch int) ([]work.Workflow, error)
+	// WorkflowSchemes reads the workspace's whole scheme: which container runs which workflow.
+	WorkflowSchemes(ctx context.Context) ([]work.WorkflowScheme, error)
+	// LinkTypes pages the workspace's own link type rows (UC-PLN-01).
+	LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error)
+	// EntryLinks pages every link between two live entries, with the collection of each end.
+	EntryLinks(ctx context.Context, after shared.ID, batch int) ([]LinkBetween, error)
+	// EntrySchedules pages every live entry's stored scheduling mode and milestone mark, with
+	// its collection (M2). An entry without a row is MANUAL and no milestone, and is not paged.
+	EntrySchedules(ctx context.Context, after shared.ID, batch int) ([]ScheduleOf, error)
+	// Sprints pages the workspace's sprints; SprintEntries every live entry's open sprint, by the
+	// entry; EntryEstimates every live entry's estimate (M2).
+	Sprints(ctx context.Context, after shared.ID, batch int) ([]planning.Sprint, error)
+	SprintEntries(ctx context.Context, after shared.ID, batch int) ([]SprintEntryOf, error)
+	EntryEstimates(ctx context.Context, after shared.ID, batch int) ([]EstimateOf, error)
+	// CustomFields pages the custom field definitions in force, a deleted one left out.
+	CustomFields(ctx context.Context, after shared.ID, batch int) ([]work.CustomFieldDefinition, error)
+	// Approvals pages every live entry's approvals with their trail, EntrySlas every live entry's
+	// SLA records by goal, and SatisfactionRatings every live request's rating - each with the
+	// entry's collection (M5).
+	Approvals(ctx context.Context, after shared.ID, batch int) ([]ApprovalOf, error)
+	EntrySlas(ctx context.Context, after shared.ID, batch int) ([]EntrySLAOf, error)
+	SatisfactionRatings(ctx context.Context, after shared.ID, batch int) ([]RatingOf, error)
+	// CodeLinks pages every live entry's commits, branches and pull requests with the entry's
+	// collection (UC-INT-13).
+	CodeLinks(ctx context.Context, after shared.ID, batch int) ([]CodeLinkOf, error)
+	// FileLinks pages every live entry's files in a store with the entry's collection
+	// (UC-INT-14).
+	FileLinks(ctx context.Context, after shared.ID, batch int) ([]FileLinkOf, error)
+	// OwnTimeRecords pages one person's time records and OwnTimer reads their running timer -
+	// the only time read for one person; TimeWorkTypes and TimePolicy read the workspace's (M7).
+	OwnTimeRecords(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Record, error)
+	OwnTimer(ctx context.Context, account shared.ID) (timekeeping.Timer, bool, error)
+	TimeWorkTypes(ctx context.Context) ([]timekeeping.WorkType, error)
+	TimePolicy(ctx context.Context) (timekeeping.Policy, error)
+	// OwnTimesheets pages one person's weeks and OwnCapacities reads their capacities, for that
+	// person alone; TimeAbsences pages the shared calendar; TimeCostRates and TimeBudgets read what
+	// MANAGE_COSTS reads (UC-TIM-06 … 08).
+	OwnTimesheets(ctx context.Context, account, after shared.ID, batch int) ([]timekeeping.Timesheet, error)
+	OwnCapacities(ctx context.Context, account shared.ID, limit int) ([]timekeeping.Capacity, error)
+	TimeAbsences(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Absence, error)
+	TimeCostRates(ctx context.Context, limit int) ([]timekeeping.CostRate, error)
+	TimeBudgets(ctx context.Context, after shared.ID, batch int) ([]timekeeping.Budget, error)
+	// Releases pages the workspace's releases; ReleaseEntries every live entry's release, by the
+	// entry (M2).
+	Releases(ctx context.Context, after shared.ID, batch int) ([]planning.Release, error)
+	ReleaseEntries(ctx context.Context, after shared.ID, batch int) ([]ReleaseEntryOf, error)
+	// CustomRoles pages the workspace's own roles (UC-ID-26).
+	CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error)
+	// Pages pages the workspace's living pages with their bodies, for reading offline (M3).
+	Pages(ctx context.Context, after shared.ID, batch int) ([]knowledge.Page, error)
+	// Whiteboards pages the workspace's boards outside the trash with their scenes, for reading
+	// offline (M4).
+	Whiteboards(ctx context.Context, after shared.ID, batch int) ([]whiteboard.Board, error)
+	// CIs pages the workspace's configuration items that are not merged away, for reading a
+	// hub's inventory offline (M6).
+	CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error)
+	// GoalPeriods, Goals, GoalCheckIns and Dashboards page the goals module's rows (M8): a goal
+	// as its definition, a check-in with its goal's hub, a dashboard as its widgets' queries.
+	GoalPeriods(ctx context.Context, after shared.ID, batch int) ([]goal.Period, error)
+	Goals(ctx context.Context, after shared.ID, batch int) ([]goal.Goal, error)
+	GoalCheckIns(ctx context.Context, after shared.ID, batch int) ([]GoalCheckIn, error)
+	Dashboards(ctx context.Context, after shared.ID, batch int) ([]goal.Dashboard, error)
+	// Portfolios pages the workspace's portfolios with every project; the walk narrows them.
+	Portfolios(ctx context.Context, after shared.ID, batch int) ([]goal.Portfolio, error)
+	// AgentModels, Agents, AgentRequests, AgentCases and AgentRuns page the registry (M9); a held
+	// act and a run carry their agent's owner, whom they reach.
+	AgentModels(ctx context.Context, after shared.ID, batch int) ([]agent.Model, error)
+	Agents(ctx context.Context, after shared.ID, batch int) ([]agent.Agent, error)
+	AgentRequests(ctx context.Context, after shared.ID, batch int) ([]HeldActOf, error)
+	AgentCases(ctx context.Context, after shared.ID, batch int) ([]agent.Case, error)
+	AgentRuns(ctx context.Context, after shared.ID, batch int) ([]RunOf, error)
+	// CIRelations pages the relations between them.
+	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
+	// CIAffected pages the CIs entries name as affected, each with its CI's hub; CIGroups and
+	// CIAssets page a hub's CI groups and the CIs' asset records (migration 0274).
+	CIAffected(ctx context.Context, after shared.ID, batch int) ([]AffectedRow, error)
+	CIGroups(ctx context.Context, after shared.ID, batch int) ([]cmdb.Group, error)
+	CIAssets(ctx context.Context, after shared.ID, batch int) ([]cmdb.Asset, error)
+	// CmdbCatalogue reads the workspace's own classes and relation types.
+	CmdbCatalogue(ctx context.Context) ([]cmdb.Class, []cmdb.RelationType, error)
+	// OwnRoleGrants pages the grants of custom roles the account holds, named to it or to a
+	// group it is in: a person's own (offline-sync.md §4.3).
+	OwnRoleGrants(ctx context.Context, accountID, after shared.ID, batch int) ([]identityrepo.CustomGrantRow, error)
+}
+
+// ScheduleOf is an entry's scheduling as the walk carries it, filed under the entry's collection.
+type ScheduleOf struct {
+	EntryID      shared.ID
+	CollectionID shared.ID
+	Mode         string
+	Milestone    bool
+	Version      int
+}
+
+// SprintEntryOf is an entry's open membership of a sprint, with the sprint's collection.
+type SprintEntryOf struct {
+	EntryID      shared.ID
+	SprintID     shared.ID
+	CollectionID shared.ID
+	Committed    bool
+}
+
+// HeldActOf is a held act with its agent's owner.
+type HeldActOf struct {
+	Request agent.Request
+	OwnerID shared.ID
+}
+
+// RunOf is an evaluation run with its agent's owner.
+type RunOf struct {
+	Run     agent.Run
+	OwnerID shared.ID
+}
+
+// ApprovalOf is an approval with its decisions and its entry's collection.
+type ApprovalOf struct {
+	Approval     servicedesk.Approval
+	Decisions    []servicedesk.Decision
+	CollectionID shared.ID
+}
+
+// EntrySLAOf is one goal's record on an entry, with the entry's collection.
+type EntrySLAOf struct {
+	Record       servicedesk.EntrySLA
+	CollectionID shared.ID
+}
+
+// FileLinkOf is an entry's file link, with the entry's collection.
+type FileLinkOf struct {
+	Link         filelink.Link
+	CollectionID shared.ID
+}
+
+// CodeLinkOf is an entry's code link, with the entry's collection.
+type CodeLinkOf struct {
+	Link         forge.Link
+	CollectionID shared.ID
+}
+
+// RatingOf is a request's satisfaction rating, with the request's collection.
+type RatingOf struct {
+	Rating       servicedesk.Rating
+	CollectionID shared.ID
+}
+
+// ReleaseEntryOf is an entry's release, with the release's hub.
+type ReleaseEntryOf struct {
+	EntryID   shared.ID
+	ReleaseID shared.ID
+	HubID     shared.ID
+}
+
+// EstimateOf is an entry's estimate with its collection.
+type EstimateOf struct {
+	Estimate     planning.Estimate
+	CollectionID shared.ID
+}
+
+// GoalCheckIn is a check-in with the hub of its goal, which decides who is told of it.
+type GoalCheckIn struct {
+	CheckIn goal.CheckIn
+	HubID   shared.ID
+}
+
+// LinkBetween is a link with the collection each of its ends is in: a reader is told of it only
+// when they may read both.
+type LinkBetween struct {
+	Link               work.EntryLink
+	SourceCollectionID shared.ID
+	TargetCollectionID shared.ID
 }
 
 // SetElementKey is where a page of set elements resumes: the primary key of the row.
@@ -221,4 +406,10 @@ type Epochs interface {
 	// Advance moves the workspace to the next epoch and answers it. Inside the caller's
 	// transaction: the restore's success and the epoch it owes commit together.
 	Advance(ctx context.Context) (int64, error)
+}
+
+// AffectedRow is an entry's affected CI with the CI's hub it is filed under.
+type AffectedRow struct {
+	cmdb.Affected
+	HubID shared.ID
 }

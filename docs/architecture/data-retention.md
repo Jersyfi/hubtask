@@ -73,7 +73,7 @@ into both, needs no engine change, and needs something that removes it.
 |---|---|---|---|---|
 | `COMPLETED_ITEM` | `completed_at` | off | The sweep | Tasks, work packages, activities |
 | `OPEN_ITEM_STALE` | `updated_at` | off | Nothing — a rule is refused | Only `NOTIFY_ONLY` is ever offered: deleting open work automatically is dangerous |
-| `TRASH` | `deleted_at` | 30 days | The sweep | Lower bound 7 days. No marking phase |
+| `TRASH` | `deleted_at` | 30 days | The sweep | Lower bound 7 days. No marking phase. Entries, hubs and collections, and pages and boards trashed on their own (accepted.md B): a page goes with its versions, comments, references, pictures and files (`page_media`), its articles and its live document, a board with its versions, comments, media rows and live document; a page goes only once no page is left under it, journalled and tombstoned like an entry. A hold on the workspace, the hub, or an account that created, edited or commented on it keeps it, and so does a restricted contributor. Pages and boards are read-only offline, so the offline window does not hold them back |
 | `ARCHIVED_ITEM` | `archived_at` | off | The sweep | Permanent; deletion only by an explicit rule |
 | `COMMENT` | `created_at` | off | Nothing — a rule is refused | Comments often outlive the case's relevance |
 | `ATTACHMENT` | `created_at` | off | Nothing — a rule is refused | Deleting the attachment would leave the item in place |
@@ -84,6 +84,15 @@ into both, needs no engine change, and needs something that removes it.
 | `RULE_RUN` | `started_at` | 30 days | The leader, as month partitions | Automation log |
 | `WEBHOOK_DELIVERY` | `created_at` | 30 days | The sweep | A pending attempt a living `webhook.deliver` job still names is never due; a hold on the workspace keeps the log. No lower bound |
 | `MAIL_RECEIPT` | `created_at` (the arrival, `received_at`) | 30 days | The sweep | The mail intake's log (ADR-0094): when a message arrived, from whom, what it became and why. A hold on the workspace keeps it. No lower bound |
+| `DOCUMENT_HISTORY` | `compacted_at` (an update a snapshot covers, from that snapshot's `created_at` - compacted by range, never marked row by row; a snapshot's `superseded_at`) | 30 days | The sweep | A live document's history behind its snapshot (offline-sync.md §13): the updates a writer's snapshot merged and the snapshots a newer one replaced. The document - the newest snapshot and the updates after it - is never touched. A hold on the workspace keeps it. No lower bound |
+| `AGENT_LEDGER` | `at` | 13 months (397 days) | The sweep | The agents' ledger (`agent_action`, UC-AGT-02): what each act was, its class, decision and code, never its input. 397 days is also the lower bound - the account of what an agent did is not shortened. A hold on the workspace keeps it |
+| `AGENT_REQUEST` | `created_at` | 90 days | The sweep | An agent's held acts with their input (`agent_request`); one nobody decided by then goes too, and the ledger keeps that it was held. A hold on the workspace keeps them. No lower bound |
+| `AGENT_JOB` | `ended_at` | 90 days | The sweep | A shipped agent's jobs (`agent_job`, UC-AGT-07): target, outcome code, proposals and tokens; a running job never. A hold on the workspace keeps them. No lower bound |
+| `TIMER` | `ended_at` (a fired timer's `fired_at`, a stopped one's last change) | 30 days | The sweep | Durable timers that fired or were stopped (`durable_timer`, domain-model.md §3.7): what each meant its purpose recorded (the SLA's breach, the approval's escalation). A live timer never; one whose subject was purged fires once into nothing and goes with the others. A hold on the workspace keeps them. No lower bound |
+| `CONNECTOR_RUN` | `created_at` (`started_at`) | 90 days | The sweep | A connector's runs with their decisions (`cmdb_run`) and their resolved held items (`cmdb_hold`, by cascade). Each connector's newest run and a run with an item still held for review stay whatever their age. A hold on the workspace keeps them. No lower bound |
+| `PAGE_VERSION` | `created_at` | 90 days | The sweep | A page's versions (`page_version`, UC-DOC-06) thinned out: one past the period that is neither named nor the newest of its day (UTC) goes; named versions and each day's last stay as long as the page. A hold on the workspace or the page's hub, or on an author, keeps a version, and so does a restricted author. No lower bound |
+| `WHITEBOARD_HISTORY` | `created_at` (an unnamed version; a resolved thread's `resolved_at`) | 90 days for the versions; the threads off | The sweep | A whiteboard's history (`whiteboard_version`, `whiteboard_comment`; UC-CNV-06, UC-CNV-09): the versions thinned like a page's after ninety days and the threads kept unless the workspace writes a rule, which names the whole workspace (`lifecycle.scope_workspace_only` refuses a hub's) and `HARD_DELETE`. Past the period an unnamed version goes unless it is the newest of its day (UTC; accepted.md, third answers 1); a rule that only announces or is switched off removes nothing, and a resolved thread goes with its replies; a named version and an open thread stay. A hold on the workspace stops it, one on the board's hub or an author keeps what it covers, and so does a restricted author. No marking phase: nobody takes a version out of its period, they name it |
+| `REQUESTER` | `last_contact_at` | 24 months (730 days) | The sweep | A requester without an account (`requester`, `requester_contact`): an address that wrote in by mail and was filed on an account's behalf, its name, its first and last contact and the entries it wrote on. The entries are the team's and keep their own periods. A hold on the workspace keeps it; the erasure path is a case by address ([data-protection.md](./data-protection.md) §4). Before a requester goes, the intake's "From:" lines naming it are removed through the ordinary edits; one that cannot be changed now (nobody may edit it, or its collection is archived or trashed) keeps that requester for the next pass, so the record of where the address still is never goes before the line. A pass reads past kept requesters, oldest first, within the read budget of §5, and counts them as held, so a batch of them neither hides the ones behind it nor brings the job straight back. No lower bound |
 | `OUTBOX_EVENT` | `occurred_at` | 7 days | The sweep; whole months fall as partitions | ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md)). An event nobody has consumed is never due. A polling trigger's cursor older than this is refused, not restarted ([automation.md](./automation.md) §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | The sweep | No marking phase |
 | `DEVICE` | `last_seen_at` | 30 days | The sweep | A silent device's session is revoked before its row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |
@@ -139,7 +148,12 @@ Evaluated in this order; the first that applies wins:
    emptying the trash or purging an entry is not stopped: a restriction is not a lock
    ([UC-PRV-04](../usecases/privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md)).
 3. **Lower bounds per data kind** (`min_days`) → no accidental immediate deletion; trash at least 7
-   days.
+   days. A kind outside the entries with a default period — `MAIL_RECEIPT`, `DOCUMENT_HISTORY`,
+   `AGENT_*`, `PAGE_VERSION`, `REQUESTER`, the jumble and the webhook deliveries — is swept at the
+   workspace's `TENANT`-scope rule where one exists, raised to the bound; a rule that only announces
+   or is switched off removes nothing, and without a rule the default above holds. Such a rule's
+   preview counts nothing and never calls it broad: the counting is of entries, and the bound is
+   what guards these kinds.
 4. **Upper bounds per data kind** (`max_days`, where the operator set one) → exceeding it requires a
    `justification` and writes an audit entry.
 5. **The minimum tombstone period** → an object disappears for good only once every known offline
@@ -194,6 +208,8 @@ Evaluated in this order; the first that applies wins:
   never every object. A rule set aside because its condition could not be evaluated (§2) is a log
   line with the rule and the code, and its `last_failure` is written in a transaction of its own
   beside the pass, so a pass that rolls back afterwards keeps it.
+* **Stopped passes alert:** a data kind whose passes completed during the week and not once in 48
+  hours raises A-27 (`hubtask_retention_run_duration_seconds_count`, written per completed pass).
 * **Finished jobs** go seven days after they ended, in every terminal state, dead letters included
   (the data catalogue's period; a payload names people by identifier). The `job` table has no
   tenant, so the scheduler's leader removes them installation-wide, on the first tick of each hour,

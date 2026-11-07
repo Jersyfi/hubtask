@@ -12,6 +12,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -32,41 +33,67 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
-	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	importrepo "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
+	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	calendarservice "github.com/Jersyfi/hubtask/core/application/service/calendar"
+	calendarpushservice "github.com/Jersyfi/hubtask/core/application/service/calendarpush"
+	chatbotservice "github.com/Jersyfi/hubtask/core/application/service/chatbot"
+	cmdbservice "github.com/Jersyfi/hubtask/core/application/service/cmdb"
+	configservice "github.com/Jersyfi/hubtask/core/application/service/config"
+	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
+	filestoreservice "github.com/Jersyfi/hubtask/core/application/service/filestore"
+	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
+	glanceservice "github.com/Jersyfi/hubtask/core/application/service/glance"
+	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	knowledgeservice "github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	planningservice "github.com/Jersyfi/hubtask/core/application/service/planning"
 	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
+	realtimeservice "github.com/Jersyfi/hubtask/core/application/service/realtime"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
+	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	timeservice "github.com/Jersyfi/hubtask/core/application/service/timekeeping"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
+	whiteboardservice "github.com/Jersyfi/hubtask/core/application/service/whiteboard"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
+	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	calendardomain "github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	identitymodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	knowledgedomain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	realtimedomain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
+	servicedeskdomain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	whiteboarddomain "github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
+	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	providerport "github.com/Jersyfi/hubtask/core/port/ai"
+	chatbotport "github.com/Jersyfi/hubtask/core/port/chatbot"
 	clockport "github.com/Jersyfi/hubtask/core/port/clock"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	eventbusport "github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -85,17 +112,23 @@ import (
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
+	calendarpushadapter "github.com/Jersyfi/hubtask/infrastructure/calendarpush"
+	chatbotadapter "github.com/Jersyfi/hubtask/infrastructure/chatbot"
+	"github.com/Jersyfi/hubtask/infrastructure/clamd"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	dnsadapter "github.com/Jersyfi/hubtask/infrastructure/dns"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
+	filestoreadapter "github.com/Jersyfi/hubtask/infrastructure/filestore"
 	healthadapter "github.com/Jersyfi/hubtask/infrastructure/health"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
 	"github.com/Jersyfi/hubtask/infrastructure/instancefile"
+	ldapadapter "github.com/Jersyfi/hubtask/infrastructure/ldap"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
 	mailboxadapter "github.com/Jersyfi/hubtask/infrastructure/mailbox"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
@@ -103,6 +136,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	recurrenceadapter "github.com/Jersyfi/hubtask/infrastructure/recurrence"
 	"github.com/Jersyfi/hubtask/infrastructure/resilience"
+	samladapter "github.com/Jersyfi/hubtask/infrastructure/saml"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
@@ -111,6 +145,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
+	realtimeadapter "github.com/Jersyfi/hubtask/presentation/realtime"
 	"github.com/Jersyfi/hubtask/presentation/rest"
 	voicepresentation "github.com/Jersyfi/hubtask/presentation/voice"
 	"github.com/Jersyfi/hubtask/presentation/webui"
@@ -126,6 +161,13 @@ const defaultOpsPort = 9090
 // configurable: it is a sampling rate for a handful of gauges, and every dependency probe is
 // already bounded by its own timeout.
 const healthSampleInterval = 30 * time.Second
+
+// previousUIAssets is where the release image keeps the previous release's interface assets.
+const previousUIAssets = "/app/ui-previous"
+
+// poolCloseDeadline bounds a pool's Close, which waits for every connection to come back: one held
+// by a loop abandoned at the grace period would otherwise keep the process alive after SIGTERM.
+const poolCloseDeadline = 5 * time.Second
 
 // Set at build time via ldflags.
 var (
@@ -144,9 +186,17 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "operator" {
 		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// The instance file checked before a restart, without a database (deployment.md §6.1).
+	if len(os.Args) > 1 && os.Args[1] == "instance" {
+		os.Exit(runInstanceCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	// The rest of that way: a workspace its own state locks every operator out of.
 	if len(os.Args) > 1 && os.Args[1] == "workspace" {
 		os.Exit(runWorkspaceCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
+	// A person's way back where no mail goes out: the reset link, printed on the machine.
+	if len(os.Args) > 1 && os.Args[1] == "account" {
+		os.Exit(runAccountCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
@@ -239,11 +289,12 @@ func run() error {
 	// gets seconds, background work gets a minute. A process in several roles opens a second pool
 	// below for the background ones, so that a runaway job cannot take the connections the
 	// interactive path needs (bulkheads, observability-reliability.md §6).
-	pool, err := postgres.NewPool(ctx, cfg, primaryRole(cfg))
+	pool, err := postgres.NewPool(ctx, cfg, primaryRole(cfg),
+		postgres.WithQueryObserver(metrics, string(primaryRole(cfg))))
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
-	defer pool.Close()
+	defer closeWithin("database", poolCloseDeadline, pool.Close)
 
 	// The background roles get a pool of their own whenever this process also serves the API.
 	// Their budget is the long one, and their saturation is theirs alone: a worker holding ten
@@ -251,11 +302,12 @@ func run() error {
 	// outage.
 	backgroundPool := pool
 	if cfg.HasRole(envport.RoleAPI) && runsBackgroundWork(cfg) {
-		backgroundPool, err = postgres.NewPool(ctx, cfg, envport.RoleWorker)
+		backgroundPool, err = postgres.NewPool(ctx, cfg, envport.RoleWorker,
+			postgres.WithQueryObserver(metrics, "background"))
 		if err != nil {
 			return fmt.Errorf("database (background): %w", err)
 		}
-		defer backgroundPool.Close()
+		defer closeWithin("database (background)", poolCloseDeadline, backgroundPool.Close)
 	}
 
 	// Every loop started below runs under this context, and it ends on any return - before the
@@ -267,6 +319,13 @@ func run() error {
 
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
+	if cfg.HasRole(envport.RoleAPI) {
+		// Through the public address, the way a browser comes in: the base URL is the operator's
+		// own configuration, so its host may be on a private network.
+		registry.Register(healthadapter.NewRealtimeProbe(cfg.BaseURL, rest.APIBasePath,
+			httpclient.NewGuardedClient(cfg.Outbound, httpclient.NewGuard(cfg.Outbound).ForOperatorService(baseHostOf(cfg.BaseURL))).
+				HTTPClient(healthadapter.RealtimeDependency), time.Now))
+	}
 
 	// The object store exists from here on, whether or not a use case consumes it yet: an
 	// operator who pointed the
@@ -282,25 +341,35 @@ func run() error {
 		return fmt.Errorf("object storage: %w", err)
 	}
 	mediaGuard := storageadapter.NewUploadGuard()
+	// The upload scanner (security.md §4): none unless the instance file or HUBTASK_CLAMD_ADDRESS
+	// names a daemon.
+	mediaScanner, err := uploadScanner(cfg)
+	if err != nil {
+		return fmt.Errorf("upload scanner: %w", err)
+	}
+	cfg.Request.MaxUploadBytes = scannableUploadLimit(cfg, mediaScanner != nil)
 
 	// The stream's cursor codec and its wake-up. The codec is keyed on the installation secret
 	// like every other opaque value this server mints; the listener holds one connection of the
 	// pool for as long as the process serves streams (ADR-0007).
 	streamCursors := streamCursorAdapter{codec: security.NewStreamCursorCodec(cfg.SecretKey)}
 	changeListener := postgres.NewChangeListener(pool)
+	// A live document's awareness crosses the processes through the listener (offline-sync.md §13).
+	liveRelay := realtimeadapter.NewRelay()
+	changeListener.OnAwareness(liveRelay.Deliver)
 
 	// The change stream's process-local bookkeeping. Built before the chain, because the
 	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
-	// but CloseAll tells it there is one.
+	// but CloseInWaves tells it there is one.
 	streams := stream.NewRegistry(stream.Limits{
-		// Four per client, so an ordinary application with a couple of tabs open is never refused
-		// and a client reconnecting in a loop is. Sixty-four per workspace and two hundred and
-		// fifty-six per pod: a bound on the resource rather than a tuning knob, sized so that the
-		// file descriptors and the goroutine stacks of a full complement stay well inside what a
-		// container with the default limits has.
-		PerCredential: 4,
-		PerTenant:     64,
-		PerProcess:    256,
+		PerCredential: cfg.LoadShed.StreamsPerCredential,
+		PerTenant:     cfg.LoadShed.StreamsPerTenant,
+		PerProcess:    cfg.LoadShed.StreamsPerProcess,
+	})
+	// A credential ended on any process asks this process's streams of that account again at once
+	// (migration 0353); without the listener they still ask every 30 seconds.
+	changeListener.OnCredential(func(tenantID, accountID shared.ID) {
+		streams.Recheck(tenantID.String(), accountID.String())
 	})
 
 	// The mail channel, and the renderer that decides its language. Both are built whatever the
@@ -348,18 +417,45 @@ func run() error {
 	// with the observer on the way in, so no use case can run without its metric and its span
 	// (gate RT-12), and REST, MCP and automation then execute the same handlers (arc42 §4).
 	unitOfWork := postgres.NewUnitOfWork(pool)
+	awarenessBus := &postgres.AwarenessBus{Work: unitOfWork, Listener: changeListener, Signals: metrics}
+	liveRelay.Bus = awarenessBus
+	concurrency.Go(ctx, "realtime.awareness", awarenessBus.Run)
 	// Readiness compares the database's migrations with the ones this build embeds (deployment.md
 	// §5): behind is not ready. The start only says so in the log - a failing startup probe would
 	// restart a pod that is merely waiting for its migration.
-	registry.SetMigration(dbfiles.Versions(), postgres.SchemaLedger{UnitOfWork: unitOfWork}.Applied)
+	schemaLedger := postgres.SchemaLedger{UnitOfWork: unitOfWork}
+	registry.SetMigration(dbfiles.Versions(), schemaLedger.Applied)
+	registry.SetCompatibilityFloor(schemaLedger.Floor)
+	// The deep report's backlogs, counted in the background and served from the last count; an
+	// installation without Prometheus reads its dead letters and outbox lag there.
+	backlogs := postgres.Backlogs{UnitOfWork: unitOfWork, Clock: clockadapter.System{}}.Read
+	registry.SetBacklogs(backlogs)
+	if mediaScanner == nil {
+		// Files held while a scanner was named stay held with none: say so at start, and on the
+		// report as critical, rather than leave the operator to hear it from the people.
+		registry.ScanningSwitchedOff()
+		warnUploadsHeldWithoutScanner(ctx, backlogs)
+	}
 	// The worker and the scheduler ask the same comparison before they claim or lead.
 	schemaBehind := func(ctx context.Context) bool {
 		state, known := registry.Migration(ctx)
-		return known && state.Status == healthadapter.MigrationBehind
+		return known && healthadapter.Unserviceable(state)
 	}
-	if state, known := registry.Migration(ctx); known && state.Status == healthadapter.MigrationBehind {
-		slog.Warn("the database lacks migrations this build needs; not ready until they have run",
-			slog.Int("applied", state.Applied), slog.Int("expected", state.Expected))
+	if state, known := registry.Migration(ctx); known {
+		switch state.Status {
+		case healthadapter.MigrationBehind:
+			slog.Warn("the database lacks migrations this build needs; not ready until they have run",
+				slog.Int("applied", state.Applied), slog.Int("expected", state.Expected))
+		case healthadapter.MigrationTooOld:
+			// A rollback across a contract step: this build names what the schema dropped. Refusing
+			// to start is the honest answer - serving would fail every write that touches it, and
+			// waiting changes nothing, since a schema never moves back (deployment.md §5).
+			slog.Error("this build is older than the schema allows; deploy a newer one or restore",
+				slog.String("error_code", "config.binary_older_than_schema"),
+				slog.Int("binary_migration", state.Expected), slog.Int("minimum_migration", state.CompatibleFrom))
+			return fmt.Errorf("config.binary_older_than_schema: this build's newest migration is %d, the schema needs at least %d",
+				state.Expected, state.CompatibleFrom)
+		}
 	}
 	ids := clockadapter.NewUUIDv7(clockadapter.System{})
 	// The device identifier of this process. Two replicas are two devices, which is what breaks a
@@ -485,6 +581,11 @@ func run() error {
 	// (ADR-0028). The path is the web UI's callback route, which reads the code and the state
 	// out of the query and hands them to the API.
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
+	// The SAML service provider's two addresses (identity.md §26): the metadata's is the entity ID a
+	// form suggests, the assertion consumer service the one every SAML provider posts to.
+	samlMetadataURL := strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/auth/saml:metadata"
+	samlACSURL := strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/auth/saml:acs"
+	serviceProvider := samladapter.New(clockadapter.System{})
 
 	// Who is told the provider's account link: one decision for the manifest and the sign-in
 	// (multi-tenancy.md §4.2). The resolver is stateless, so this copy reads what the later one does.
@@ -653,6 +754,10 @@ func run() error {
 		security.NewInboundTokenHasher(cfg.SecretKey))
 
 	ruleCatalogue := &deferredCatalogue{}
+	// The STEP_TAKEN rules a step runs in its own transaction (UC-FLW-04 check 4). Its engine is
+	// the queue's, completed below once that exists: the engine dispatches into the registry this
+	// step is an entry of.
+	stepRules := &automationservice.StepTaken{}
 	ruleReader := automationservice.Reader{
 		Runs:       postgres.NewAutomationRunRepository(cursors),
 		Rules:      postgres.NewAutomationRuleRepository(cursors),
@@ -663,6 +768,9 @@ func run() error {
 		Schedules: postgres.NewAutomationRuleRepository(cursors),
 		Accounts:  accounts,
 		Catalogue: ruleCatalogue,
+		// Whom a notification step names, resolved at the save (UC-AUT-09 check 4).
+		References:  postgres.NewAutomationReferenceRepository(),
+		CustomRoles: postgres.NewCustomRoleRepository(),
 		// The one place the expression engine is constructed. A rule's conditions are compiled
 		// when it is written, so a mistake reaches its author rather than a log (ADR-0009).
 		Conditions: celexpression.New(),
@@ -725,16 +833,34 @@ func run() error {
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
 	milestones := postgres.NewMilestoneRepository()
-	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
+	// Kept between reads while the collection is unchanged (migration 0313), recounted by
+	// figure.recount.
+	keptFigures := postgres.NewKeptFigureRepository()
+	figures := work.FigureReader{
+		Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles,
+		Kept: keptFigures, Jobs: jobs,
+	}
+	// A hub's figure: the open entries of its collections, each counted as above.
+	hubFigures := work.HubFigureReader{Collections: containers, Structure: structures, Figures: figures}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
-	entryGate := work.EntryGate{Structure: structures, Types: items}
+	entryTypes := postgres.NewEntryTypeRepository()
+	// Links and references (F-3, UC-PLN-01): one store answers the links, the walk and the
+	// summaries a reference resolves to.
+	entryLinks := postgres.NewEntryLinkRepository()
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
 	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
 	// entry says in it.
 	customFields := postgres.NewCustomFieldRepository()
+	// A type's form holds every writer of its entries (P-18, D-13), through the one gate.
+	// What a reader may not see of an entry's fields (UC-ID-27 check 3): every read and every
+	// answer, the change stream included, narrows through it.
+	fieldSight := work.FieldSight{Hidings: customFields, Containers: containers, Roles: authorizer, Compiler: celexpression.New()}
+	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes, Forms: work.FormGate{
+		Types: entryTypes, Fields: customFields, Compiler: celexpression.New(), Roles: authorizer,
+	}, Sight: fieldSight}
 	// The bookmark shelf: stored queries, interpreted by nobody on this side of a client.
 	savedViews := postgres.NewSavedViewRepository()
 	// The subscriptions over those bookmarks. Its own hasher, derived from the
@@ -757,6 +883,12 @@ func run() error {
 		importdomain.KindTrello:        importadapter.Trello{},
 		importdomain.KindGoogleTasks:   importadapter.GoogleTasks{},
 		importdomain.KindMicrosoftTodo: importadapter.MicrosoftTodo{},
+		importdomain.KindIssueTracker:  importadapter.IssueTracker{},
+		importdomain.KindWiki:          importadapter.Wiki{},
+		importdomain.KindMarkdown:      importadapter.Markdown{},
+		importdomain.KindHTML:          importadapter.HTMLFiles{},
+		importdomain.KindDOCX:          importadapter.DOCX{},
+		importdomain.KindXLSX:          importadapter.XLSX{},
 	}
 	importKinds := make([]importdomain.Kind, 0, len(importConverters))
 	for kind := range importConverters {
@@ -796,17 +928,20 @@ func run() error {
 		Media: mediaservice.IngestMedia{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
-			Text: forms,
+			Text: forms, Scanner: mediaScanner,
 		},
 		Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
+		// A sender without an account, filed on an account's behalf (REQUESTER, accepted.md B).
+		Requesters: postgres.RequesterRepository{IDs: ids},
 	}
-	// Connected mailboxes (ADR-0094): IMAP spoken in-house through the egress guard, JMAP through
-	// the guarded HTTP client; the secret sealed under the installation's key.
+	// Connected mailboxes (ADR-0094): IMAP spoken in-house through the egress guard, JMAP and
+	// Microsoft Graph through the guarded HTTP client; the secret sealed under the installation's key.
 	mailBoxes := mailservice.Boxes{
 		Writer: mailWriter, Mailboxes: postgres.NewMailboxRepository(),
 		Reader: mailboxadapter.Readers{
 			IMAP: mailboxadapter.IMAP{Guard: outboundGuard}, JMAP: mailboxadapter.JMAP{Client: outboundClient},
+			Graph: mailboxadapter.Graph{Client: outboundClient},
 		},
 		Encryptor: encryptor, Jobs: jobs, IDs: ids,
 		// A mailbox connected through its provider's sign-in: the token endpoint through the guarded
@@ -837,6 +972,24 @@ func run() error {
 		Changes: changes, HLC: hybrid,
 	}
 
+	// A rule's notification steps (UC-AUT-09): the notification path every message takes, the
+	// authoriser for who may read the entry and who holds a role along it.
+	noticeDesk := notification.NoticeDesk{
+		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
+		Items: items, Containers: containers, Groups: groups,
+		Holders: postgres.NewMembershipRepository(), CustomRoles: postgres.NewCustomRoleRepository(),
+		Restricted: accounts, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+
+	// The workspace's own roles (UC-ID-26): shared by the seven role use cases.
+	customRoles := identity.Roles{
+		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Reach: authorizer, Held: authorizer,
+		Revocations: revocations, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+		Rules: automationservice.RulesNaming{Rules: postgres.NewAutomationRuleRepository(cursors)},
+	}
+
 	// What every writer of an entry needs in order to leave a step in its history. Held as one
 	// value rather than two fields per writer, so that what the history says about a change cannot
 	// depend on which use case made it (work.ActivityJournal).
@@ -845,12 +998,17 @@ func run() error {
 	// Both directions of completion share one dependency set. The two operations are the same walk in
 	// opposite directions, and wiring them separately would be two places to get one of eleven fields
 	// wrong (work.CompletionWriter).
+	// The workflows in force (UC-FLW-02 … 05): one gate for the step a completion, a board's drop,
+	// the status control and a device's push take.
+	workflows := postgres.NewWorkflowRepository()
+	workflowGate := work.WorkflowGate{Workflows: workflows, Compiler: celexpression.New(), Roles: authorizer, Groups: groups}
 	completion := work.CompletionWriter{
-		Gate:  entryGate,
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		Workflow: workflowGate,
+		Gate:     entryGate,
+		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Structure: structures, Milestones: milestones,
+		Structure: structures, Milestones: milestones, EntryTypes: entryTypes,
 	}
 
 	// The three kudos use cases share one desk: the same entry read, the same permission question
@@ -865,9 +1023,11 @@ func run() error {
 	// The one gate every writer placing an entry in a column asks (UC-WRK-31 check 2).
 	flowGate := work.FlowGate{Buckets: buckets, Fields: customFields}
 	placement := work.PlacementWriter{
-		Gate:  entryGate,
-		Flow:  flowGate,
-		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles,
+		Gate:     entryGate,
+		Flow:     flowGate,
+		Workflow: workflowGate,
+		Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+		Items:    items, Buckets: buckets, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
@@ -1038,7 +1198,8 @@ func run() error {
 		Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms, Compiler: celexpression.New(),
+		Groups: groups, Attachments: mediaObjects,
 	}
 
 	// The three changes to an existing view share one dependency set (work.SavedViewWriter): the
@@ -1059,6 +1220,13 @@ func run() error {
 		Entropy: clockadapter.CryptoRandom{},
 	}
 
+	fieldDefiner := work.DefineCustomField{
+		Fields: customFields, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(), Jobs: jobs,
+		Changes: work.FieldChanges{Changes: changes, HLC: hybrid},
+	}
+
 	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
 	// the same read, the same scope resolution, the same permission question, and only the write
 	// at the end differs.
@@ -1066,6 +1234,7 @@ func run() error {
 		Fields: customFields, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Text: forms,
+		Changes: work.FieldChanges{Changes: changes, HLC: hybrid},
 	}
 
 	// Both directions of an entry's attachments share one dependency set (work.ItemAttachmentWriter).
@@ -1154,11 +1323,13 @@ func run() error {
 			UnitOfWork: unitOfWork, Scopes: unitOfWork, Clock: clockadapter.System{},
 		},
 	}
+	mailBoxes.Quota = quotaGuard
 
 	duplicate := work.DuplicateWorkItem{
-		Gate:  entryGate,
-		Quota: quotaGuard,
-		Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
+		Gate:     entryGate,
+		Quota:    quotaGuard,
+		Workflow: workflowGate,
+		Items:    items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
 		Buckets: buckets, Fields: customFields, Containers: containers,
 		Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
 		// The authorisation service under three names: the permission, the question about the
@@ -1193,6 +1364,9 @@ func run() error {
 	// the validation, the event and the entry's own history are the ones a person's own write
 	// would have produced, because it *is* a person's own write.
 	suggestionCatalogue := &deferredCatalogue{}
+	// The governed agents (M9): the store, and the catalogue a held act is performed through.
+	agentStore := postgres.NewAgentRepository()
+	agentCatalogue := &deferredCatalogue{}
 	suggestionStore := postgres.NewSuggestionRepository(cursors)
 	suggestionCases := suggestionservice.Cases{
 		Suggestions: suggestionStore,
@@ -1203,6 +1377,8 @@ func run() error {
 		Requests: suggestionStore, IDs: ids,
 		// A proposed destination is answered while it is still in the shared set.
 		Containers: containers,
+		// An accepted value keeps its provenance beyond the suggestion (AI-2).
+		Marks: agentStore,
 	}
 
 	// The cases the privacy use cases share.
@@ -1250,6 +1426,8 @@ func run() error {
 		People:      quotaGuard,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
+		SAML:        serviceProvider,
+		SAMLACSURL:  samlACSURL,
 		// What a provider names for newcomers is given in the arrival's own transaction.
 		Grants: grants,
 		Groups: groups,
@@ -1451,7 +1629,9 @@ func run() error {
 		Instance: postgres.NewInstanceSettingRepository(),
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
-		RedirectURL: oidcRedirectURL,
+		RedirectURL:     oidcRedirectURL,
+		SAMLACSURL:      samlACSURL,
+		SAMLMetadataURL: samlMetadataURL,
 		// What a newcomer gets names a group of this workspace, checked at configuration.
 		Groups: groups,
 		Grants: grants,
@@ -1499,6 +1679,25 @@ func run() error {
 	}
 	targetWarnings.Refresh(ctx)
 	registry.AddWarningSource(targetWarnings.Warnings)
+	// The client address, resolved once at the edge for every bucket and every session
+	// (HUBTASK_TRUSTED_PROXIES); it warns when an ingress forwards addresses nobody trusts.
+	proxyTrust := rest.NewProxyTrust(cfg.Request.TrustedProxies)
+	registry.AddWarningSource(proxyTrust.Warnings)
+	// Connections refused at the workspace's or the process's stream cap (HUBTASK_STREAM_PER_*).
+	registry.AddWarningSource(streams.Warnings)
+	// The volumes this process writes, before they fill: on a Compose host the database's volume
+	// usually shares their filesystem, and nothing else warns there.
+	mediaPath := ""
+	if cfg.Storage.Kind != envport.StorageS3 {
+		mediaPath = cfg.Storage.LocalPath
+	}
+	registry.AddWarningSource(healthadapter.NewDiskSpace(
+		healthadapter.Volume{Name: "media", Path: mediaPath},
+		healthadapter.Volume{Name: "backups", Path: cfg.Backup.LocalRoot},
+	).Warnings)
+	// A connection role row level security does not bind - superuser, BYPASSRLS, the tables'
+	// owner, or a backfill's policy left behind - opens every workspace to every query.
+	registry.AddWarningSource(postgres.RoleIsolation{UnitOfWork: unitOfWork}.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
@@ -1509,6 +1708,12 @@ func run() error {
 		return err
 	}
 	servingSettings := postgres.FromFile(cfg.InstanceFile, instanceFileMode == instancefile.ModeEnforce)
+	// The installation's business calendars, which a workspace without a calendar of the same key
+	// falls back to; a malformed one refuses the start rather than leaving a clock on no calendar.
+	installationCalendars, err := readInstallationCalendars(cfg.InstanceFile)
+	if err != nil {
+		return err
+	}
 
 	instanceWriter := adminservice.InstanceWriter{
 		Settings: servingSettings, Operators: operators,
@@ -1607,6 +1812,37 @@ func run() error {
 	accessTokenWriter.StepUp = stepUpVerifier
 	workspaceWriter.StepUp = stepUpVerifier
 	identityProviderWriter.StepUp = stepUpVerifier
+
+	// The SCIM door a directory provisions through (UC-ID-28), and the LDAP synchronisation that
+	// acts through the same service as its service account (UC-ID-31): the group acts are the
+	// catalogue's own, wired as they are there.
+	directory := identity.Directory{
+		Accounts: accounts, Names: accounts, Links: postgres.NewDirectoryRepository(), Groups: groups,
+		Sessions: sessions, Owners: grants, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains, Text: forms,
+		Limit: quotaGuard,
+		CreateGroup: identity.CreateGroup{
+			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		},
+		UpdateGroup: identity.UpdateGroup{
+			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
+			Owners: grants, StepUp: stepUpVerifier, Platform: platformEvents,
+			Notices: customRoles,
+		},
+		DeleteGroup: identity.DeleteGroup{
+			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
+			StepUp: stepUpVerifier, Platform: platformEvents,
+			Notices: customRoles,
+		},
+	}
+	ldapDirectories := identity.LdapDirectories{
+		Store: postgres.NewLdapDirectoryRepository(), Reader: ldapadapter.Directory{Guard: outboundGuard},
+		Encryptor: encryptor, Directory: directory, StepUp: stepUpVerifier,
+		Jobs: jobs, Entitlements: postgres.NewPlanRepository(),
+	}
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
 	instanceTargetWriter.StepUp = stepUpVerifier
@@ -1652,9 +1888,17 @@ func run() error {
 	// the resolver for what a rule names, and the streak's own path to the author. One value,
 	// because the job a deletion seeds runs the same check the route serves.
 	ruleCheck := automationservice.CheckRules{
-		Rules:      postgres.NewAutomationRuleRepository(cursors),
-		References: postgres.NewAutomationReferenceRepository(),
-		Catalogue:  ruleCatalogue, Conditions: celexpression.New(),
+		Rules:       postgres.NewAutomationRuleRepository(cursors),
+		References:  postgres.NewAutomationReferenceRepository(),
+		CustomRoles: postgres.NewCustomRoleRepository(),
+		// The trigger's calendar as the run reads it, so a calendar gone is a finding.
+		Calendars: servicedeskservice.RuleCalendars{
+			Calendars: servicedeskservice.WithInstallation{
+				Calendars: postgres.NewServiceDeskRepository().Calendars(), Installation: installationCalendars,
+			},
+			HubCalendars: postgres.NewServiceDeskRepository().HubCalendars(),
+		},
+		Catalogue: ruleCatalogue, Conditions: celexpression.New(),
 		Authorizer: authorizer, Audit: auditSink,
 		Owners: notification.RecordRuleDisabled{
 			Notifications: notifications, Accounts: accounts,
@@ -1698,6 +1942,8 @@ func run() error {
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		Platform: platformEvents,
 		Instance: postgres.NewInstanceSettingRepository(),
+		// The owner's invitation is mailed on exactly the condition every invitation is.
+		MailsOwner: cfg.Mail.Configured(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
@@ -1713,6 +1959,14 @@ func run() error {
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 		Owners: grants,
+		// A case by address erases a requester without an account (accepted.md B).
+		Addresses: postgres.RequesterRepository{IDs: ids},
+		// And the intake's "From:" line on what was filed for them (third answers 2).
+		IntakeLines: privacyservice.StripIntakeLines{
+			Lines: postgres.RequesterRepository{IDs: ids}, Entries: ruleCatalogue,
+			// A page's line too, from its draft and versions, its live document rebuilt (sixth answers 11).
+			Pages: postgres.IntakePageRepository{}, Documents: postgres.NewRealtimeRepository(),
+		},
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
 	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
@@ -1729,6 +1983,345 @@ func run() error {
 		// An enforcing file that names subscriptions decides them, and the API's writes are refused;
 		// one that names none leaves them to the API and the screen.
 		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),
+	}
+	// The settings catalogue's module switches (UC-INS-21): read by the gate that refuses an
+	// operation of a module that is off, and by the two use cases that list and switch them.
+	modules := settingservice.Modules{
+		Settings: postgres.SettingRepository{}, Containers: containers, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		// A switch of the goals at the workspace resynchronises its devices (offline-sync.md §8).
+		Epochs: postgres.NewEpochRepository(),
+		Hold:   postgres.NewConfigRepository(),
+	}
+	// The configuration document (F-6): read and written through the registry it is part of, so
+	// every block it changes goes through the use case every other door reaches.
+	configCatalogue := &deferredCatalogue{}
+	configDesk := configservice.Desk{
+		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Samples: postgres.SampleEntryRepository{}, SampleMarks: postgres.SampleObjectRepository{},
+		TemplatePages: postgres.TemplatePageRepository{}, Drafts: postgres.ConfigDraftRepository{},
+		Settings:   postgres.SettingRepository{},
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		// A Hubtask template's names in the applying person's language (user-experience.md §4).
+		Words: renderer,
+	}
+	// The first start keeps the configuration as it left it as a version (configuration.md §5).
+	starterKept := starter
+	starterKept.Baseline = configservice.StarterTemplates{Desk: configDesk}
+	// The workspace's type registry (UC-FLW-01), shared by its four use cases.
+	entryTypeRegistry := workflowservice.Registry{
+		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Hubs: containers, Visibility: authorizer,
+	}
+	// The workflows' designer, publish and scheme (UC-FLW-02, UC-FLW-04 check 5, UC-FLW-05).
+	workflowDesk := workflowservice.Desk{
+		Workflows: workflows, Containers: containers, Items: items,
+		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Roles: customRoles.Store, Groups: groups, Visibility: authorizer,
+	}
+	linkTypeRegistry := work.LinkTypeRegistry{
+		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Changes: changes, HLC: hybrid,
+	}
+	linking := work.Linking{
+		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
+		References: entryLinks, Views: savedViews, Pages: postgres.NewPageRepository(), Boards: postgres.NewWhiteboardRepository(),
+		Cis: postgres.NewCmdbRepository(), Goals: postgres.NewGoalRepository(), Groups: postgres.NewSnapshotRepository(),
+		Authorizer: authorizer, Reader: authorizer,
+		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
+	}
+	// The knowledge module's pages (M3): a hub's space, judged at the hub.
+	// A verified page's review clock (UC-DOC-12 check 4): a durable timer, its firing told to the
+	// page's owner by the timer pass below.
+	reviewClocks := calendarservice.Clocks{
+		Timers: postgres.NewTimerRepository(), Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// A personal space is a private hub made through CreateContainer in the registry (UC-DOC-07),
+	// so it is made, announced and owned as any hub is.
+	personalHubs := &deferredCatalogue{}
+	pageSpace := knowledgeservice.Space{
+		Pages: postgres.NewPageRepository(), Containers: containers, Entries: entryLinks,
+		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Reviews: reviewClocks, Changes: changes, HLC: hybrid,
+		PersonalHubs: privateHubMaker{catalogue: personalHubs}, Words: renderer,
+		// A page's public link, where the workspace allows it (UC-DOC-08).
+		Public: knowledgeservice.PublicLinking{
+			Links:    postgres.NewPagePublicLinkRepository(security.NewPageLinkHasher(cfg.SecretKey)),
+			Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
+			Accounts: accounts, Modules: modules,
+		},
+		// A page published to a service's portal (UC-DOC-13).
+		Articles: postgres.NewPageArticleRepository(),
+		Variants: postgres.PageLanguageVariantRepository{},
+		// A page's pictures and files (UC-DOC-14).
+		Media: mediaObjects,
+		// A space's drafts until they are published (UC-DOC-15).
+		Drafting: knowledgeservice.Drafting{Drafts: postgres.NewPageDraftRepository(), Settings: postgres.SettingRepository{}},
+	}
+	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
+	boardStudio := whiteboardservice.Studio{
+		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
+		Changes: changes, HLC: hybrid,
+		// The people a comment names who read the board are told (UC-CNV-09).
+		People: authorizer,
+		Mentions: notification.RecordWhiteboardMention{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, IDs: ids, Signals: metrics,
+		},
+	}
+	// The service desk's calendars and SLA policies (M5); the clocks run on the durable timers.
+	// Every approval, SLA record and rating written reaches the change log through its store, so
+	// that a device reads them while the server is away (offline-sync.md §3.1).
+	serviceDeskStore := postgres.NewServiceDeskRepository()
+	deskAnnouncer := servicedeskservice.Announcer{Changes: changes, HLC: hybrid, Items: items}
+	slaRecords := deskAnnouncer.Records(serviceDeskStore.Records())
+	deskApprovals := deskAnnouncer.Approvals(serviceDeskStore.Approvals())
+	serviceDesk := servicedeskservice.Desk{
+		Calendars: serviceDeskStore.Calendars(), Offered: installationCalendars, Policies: serviceDeskStore.Policies(),
+		Records: slaRecords, Replies: serviceDeskStore.Replies(),
+		OLAs: serviceDeskStore.Records(), Groups: servicedeskservice.HeldGroups{Groups: groups},
+		Ratings:       deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
+		Organisations: serviceDeskStore.Organisations(),
+		HubCalendars:  serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms, Visibility: authorizer, Domains: domains,
+		Rules: automationservice.RulesNaming{Rules: postgres.NewAutomationRuleRepository(cursors)},
+	}
+	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
+	// registry, on the PORTAL door.
+	portalEntries := &deferredCatalogue{}
+	publicFormLinks := postgres.NewPublicFormRepository(security.NewPublicFormHasher(cfg.SecretKey))
+	requestPortal := servicedeskservice.Portal{
+		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
+		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk, Accounts: accounts,
+		Logos: postgres.DeskLogoRepository{}, Links: entryLinks, Permits: authorizer, Forms: publicFormLinks,
+	}
+	// A collection's public form (UC-SVC-13): requests raised without signing in, filed as the
+	// link's maker; the proof of work is signed under its own purpose label.
+	publicForms := servicedeskservice.PublicForms{
+		Portal:   requestPortal,
+		Links:    publicFormLinks,
+		Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
+		Accounts: accounts, Modules: modules, Permits: authorizer,
+		Requesters: postgres.RequesterRepository{IDs: ids},
+		Signer:     security.NewPublicFormChallengeSigner(cfg.SecretKey),
+		Spent:      postgres.PublicFormChallengeRepository{},
+		History:    postgres.RequesterRepository{IDs: ids},
+	}
+	// The satisfaction question by mail for a requester without an account (UC-SVC-07 check 6):
+	// links mailed on resolution, answered without signing in.
+	satisfactionLinks := postgres.NewSatisfactionLinkRepository(security.NewSatisfactionLinkHasher(cfg.SecretKey))
+	// Approvals (UC-SVC-08 to 10): a step waiting for people's yes; the decision takes the step
+	// through TakeStep in the registry. A level's people are told by mail and reminded by its
+	// durable timers, which the timer pass below hands to ApprovalElapsed.
+	approvalSteps := &deferredCatalogue{}
+	approvalMail := notification.RecordApproval{
+		Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+		Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+	}
+	// Beside the mail, a person who linked a chat account is posted a card there (UC-SVC-09 check 6).
+	chatLinks := postgres.ChatLinkRepository{}
+	approvalNotice := servicedeskservice.Notifiers{approvalMail, chatbotservice.ApprovalCards{Links: chatLinks, Jobs: jobs}}
+	stepApprovals := servicedeskservice.Approvals{
+		Store: deskApprovals, Items: items, Containers: containers, Groups: groups,
+		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk, Timers: reviewClocks, Notify: approvalNotice,
+	}
+	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
+	// entries; an accepted move goes through UpdateWorkItem in the registry.
+	planMoves := &deferredCatalogue{}
+	planningStore := postgres.NewPlanningRepository()
+	planner := planningservice.Planner{
+		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Releases: planningStore.Releases(), Settings: postgres.SettingRepository{}, Items: items, Containers: containers,
+		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks, Workflows: workflows,
+		Calendars: servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+		Templates: configservice.TakenTemplates{Store: postgres.NewConfigRepository()},
+		Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Changes: changes, HLC: hybrid,
+		Exceptions: notification.RecordPlanException{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, IDs: ids, Signals: metrics,
+		},
+	}
+	// The time module (M7): a person's records, timer and weeks, judged by who approves time where
+	// the entries lie.
+	keeper := timeservice.Keeper{
+		Store: postgres.NewTimeRepository(), Resources: postgres.NewTimeResourceRepository(),
+		Roles:     authorizer,
+		Calendars: servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+		Items:     items, Containers: containers, References: entryLinks,
+		Plans: planningStore, Estimates: planningStore.Sprints(), Authorizer: authorizer, Reader: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Changes: changes, HLC: hybrid,
+		// The installation and the plan decide the time policy above the workspace's row.
+		Settings: postgres.SettingRepository{},
+	}
+	// The goals and insight module (M8): every number it shows is POST /items:aggregate's or a
+	// saved view's summary, run as the reader.
+	goalSummaries := work.AggregateItems{
+		Query: work.QueryItems{
+			Gate:  entryGate,
+			Items: items, Containers: containers, Fields: customFields,
+			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		},
+		Aggregates: items, Collections: containers, Reader: authorizer,
+		Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper, Modules: modules},
+		Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
+	}
+	steward := goalservice.Steward{
+		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers,
+		Summaries: goalSummaries.Descriptor().Handler,
+		ViewSummaries: work.AggregateView{
+			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
+			Aggregate: goalSummaries,
+		}.Descriptor().Handler,
+		Budgets:    timeservice.ReadBudget{Keeper: keeper}.Descriptor().Handler,
+		Schedules:  planningservice.ReadPlanSchedule{Planner: planner}.Descriptor().Handler,
+		Authorizer: authorizer, Reader: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs, Changes: changes, HLC: hybrid,
+		// A dashboard shared with groups reaches their members only.
+		Groups: postgres.NewSnapshotRepository(),
+		// A portfolio roadmap's public link (UC-GOL-03 check 15), a page link's way.
+		Public: goalservice.RoadmapLinking{
+			Links:    postgres.NewPortfolioPublicLinkRepository(security.NewRoadmapLinkHasher(cfg.SecretKey)),
+			Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
+			Accounts: accounts, Modules: modules,
+		},
+	}
+	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
+	// goes through the inventory's reconciliation.
+	inventory := cmdbservice.Inventory{
+		Store: postgres.NewCmdbRepository(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+		Assurance: postgres.NewCmdbAssuranceRepository(),
+	}
+	// An entry's affected CIs read the entries and who may see them (UC-AST-09).
+	affecting := cmdbservice.Affecting{Inventory: inventory, Pointers: cmdbservice.Pointers{Entries: entryLinks, Reader: authorizer}}
+	// Its connectors (research itsm-cmdb-ai §6.3): every pull through the guarded client and the
+	// inventory's reconciliation, a breaker per connector; an alert's entry through the registry.
+	alertEntries := &deferredCatalogue{}
+	// Whoever can fix a connection that stopped, told once it does (a connector switched off, a
+	// calendar push refused for good).
+	connectionNotices := notification.ConnectionNotices{
+		Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
+		Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+	}
+	connectors := cmdbservice.Connectors{
+		Inventory: inventory, Store: postgres.NewCmdbConnectorRepository(),
+		Pullers: connectoradapter.Pullers{
+			Client: outboundClient.WithTracer(tracing.Tracer("connector")),
+			Breakers: &connectoradapter.BreakerPool{New: func(string) connectoradapter.Breaker {
+				return resilience.NewBreaker(resilience.BreakerConfig{
+					Dependency: "connector",
+					OnStateChange: func(dependency string, state resilience.BreakerState) {
+						metrics.CircuitBreakerState(context.Background(), dependency, state.Level())
+					},
+				})
+			}},
+		},
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Jobs: jobs, Entries: alertEntries,
+		SwitchedOff: connectionNotices,
+	}
+	// The code on an entry (UC-INT-13): a forge's hooks, their secrets derived from the
+	// installation key, an entry's key resolved as the mail intake resolves it.
+	codeForge := forgeservice.Forge{
+		Store: postgres.NewCodeForgeRepository(), Containers: containers, Keys: mailIntake, Entries: entryLinks,
+		Secrets: security.NewCodeHookSecrets(cfg.SecretKey), Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
+		Changes: changes, HLC: hybrid, SwitchedOff: connectionNotices,
+	}
+	// An entry's files in a store (UC-INT-14): kept by address, never fetched.
+	entryFiles := filelinkservice.Files{
+		Store: postgres.NewFileLinkRepository(), Entries: entryLinks, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+	}
+	// A calendar feed written into its owner's calendar at Microsoft 365 or Google (UC-INT-16):
+	// the mailboxes' apps with a consent for the calendar's events alone, Graph and the Calendar
+	// API through the guarded client, the feed read as its owner by the .ics route's own reader.
+	calendarPushes := calendarpushservice.Pushes{
+		Store: postgres.NewCalendarPushRepository(), Feeds: calendarFeeds,
+		Rows: pushedFeedRows{read: work.ReadCalendarFeed{
+			Feeds: calendarFeeds, Accounts: accounts,
+			Export: work.ExportView{
+				Views: savedViews, Containers: containers, Permits: authorizer,
+				Query: work.QueryItems{
+					Gate:  entryGate,
+					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			UnitOfWork: unitOfWork,
+		}},
+		Calendar: calendarpushadapter.Calendar{Client: outboundClient}, Authorizer: mailboxadapter.OAuth{Client: outboundClient},
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Apps: calendarPushApps(cfg.Mail.OAuth),
+		RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/profile/calendars",
+		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Stopped: connectionNotices,
+	}
+	// A hub's chat bot: a Matrix bot reads its room through the guarded client every minute
+	// (UC-INT-18), a Slack, Teams or Mattermost app posts to its intake (UC-INT-19); either runs the
+	// entry use cases as whoever seated it, through the catalogue set below.
+	botEntries := &deferredCatalogue{}
+	// What another product's dashboard and search box show (UC-INT-20): the searches of the
+	// registry run as the reader, through the catalogue set below.
+	glanceSearches := &deferredCatalogue{}
+	glance := glanceservice.Glance{
+		Invoker: glanceSearches, Addresses: workspaceAddress(cfg), Containers: containers, UnitOfWork: unitOfWork,
+	}
+	chatBots := chatbotservice.Bots{
+		Store: postgres.NewChatBotRepository(), Links: chatLinks, Entropy: clockadapter.CryptoRandom{}, Containers: containers, Entries: entryLinks,
+		Room: chatbotadapter.Matrix{Client: outboundClient}, Invoker: botEntries, Texts: renderer,
+		Platforms: map[integrationmodel.DeliveryFormat]chatbotport.Platform{
+			integrationmodel.FormatSlack: chatbotadapter.Slack{Client: outboundClient},
+			integrationmodel.FormatTeams: chatbotadapter.NewTeams(outboundClient), integrationmodel.FormatMattermost: chatbotadapter.Mattermost{Client: outboundClient},
+		},
+		Addresses: workspaceAddress(cfg), Encryptor: encryptor, Authorizer: authorizer, Jobs: jobs,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// A person's own file store for *Link a file* (UC-INT-17): a Nextcloud by its login flow, needing
+	// no app; Microsoft by the mailboxes' app with a consent to read files alone.
+	fileStores := filestoreservice.Connections{
+		Store: postgres.NewFileStoreConnectionRepository(), Files: filestoreadapter.Store{Client: outboundClient},
+		Authorizer: mailboxadapter.OAuth{Client: outboundClient}, Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
+		Apps: fileStoreApps(cfg.Mail.OAuth), RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/profile/files",
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// The agents' desk; Sources is ReadAiSource's own use case, run as the registering person.
+	agentDesk := agentservice.Desk{
+		Store: agentStore, Catalogue: agentCatalogue, Authorizer: authorizer,
+		Sources: integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor().Handler,
+		Audit:   auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Queue: jobs, Changes: changes, HLC: hybrid, Settings: postgres.SettingRepository{},
+		// An act run with its owner told tells them, once an hour (NOTIFY).
+		Notices: notification.RecordAgentNotice{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, IDs: ids, Signals: metrics,
+		},
+	}
+	createContainer := work.CreateContainer{
+		Containers:  containers,
+		Authorizer:  authorizer,
+		OwnHubs:     authorizer,
+		PrivateHubs: signInPolicyResolver,
+		Grants:      grants,
+		Events:      outbox,
+		Changes:     changes,
+		Audit:       auditSink,
+		UnitOfWork:  unitOfWork,
+		Clock:       clockadapter.System{},
+		IDs:         ids,
+		HLC:         hybrid,
+		Text:        forms,
+		Structure:   structures,
+		Buckets:     buckets,
+		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+		Renderer:    renderer,
 	}
 	// A change of a workspace's address (multi-tenancy.md §3.1): the lockout read through the
 	// session writer, the proof by password or provider only, an owner's cooldown from the last change.
@@ -1762,7 +2355,410 @@ func run() error {
 	// address's lockout rule, proof, audience and notices.
 	mainAddress := adminservice.MainAddress{OwnDomains: ownDomains, Change: changeAddress, Authorizer: authorizer}
 	useCases, err := usecase.NewRegistry(
-		entitlementGate.Wrap(observer.Registry()),
+		// Every act of a registered agent passes its governance first (UC-AGT-02).
+		agentservice.Gate{Desk: agentDesk}.Wrap(
+			settingservice.ModuleGate{Modules: modules, Items: items, Objects: moduleObjects()}.Wrap(entitlementGate.Wrap(observer.Registry()))),
+		agentservice.RegisterAgentModel{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentModels{Desk: agentDesk}.Descriptor(),
+		agentservice.ChangeAgentModel{Desk: agentDesk}.Descriptor(),
+		agentservice.RegisterAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgents{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ChangeAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ApproveAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.ActivateAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.SuspendAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.RetireAgent{Desk: agentDesk}.Descriptor(),
+		agentservice.SetAgentHalt{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgentPolicy{Desk: agentDesk}.Descriptor(),
+		agentservice.SetAgentPolicy{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgentHalt{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentRequests{Desk: agentDesk}.Descriptor(),
+		agentservice.DecideAgentRequest{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentActions{Desk: agentDesk}.Descriptor(),
+		agentservice.ReadAgentMetering{Desk: agentDesk}.Descriptor(),
+		agentservice.AddAgentCase{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentCases{Desk: agentDesk}.Descriptor(),
+		agentservice.RemoveAgentCase{Desk: agentDesk}.Descriptor(),
+		agentservice.RecordAgentEvaluation{Desk: agentDesk}.Descriptor(),
+		agentservice.RunAgentEvaluation{Desk: agentDesk, Labels: suggestionservice.CaseLabels{Produce: produceSuggestion}}.Descriptor(),
+		agentservice.ListAgentEvaluations{Desk: agentDesk}.Descriptor(),
+		agentservice.ListValueProvenance{Desk: agentDesk}.Descriptor(),
+		agentservice.StartAgentJob{Desk: agentDesk}.Descriptor(),
+		agentservice.ListAgentJobs{Desk: agentDesk}.Descriptor(),
+		knowledgeservice.CreatePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.CopyPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.PublishPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DiscardPageDraft{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadSpaceDrafts{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetSpaceDrafts{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageLabels{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetPageLabels{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListSpaceLabels{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UpdatePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.MovePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.TrashPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RestorePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListTrashedPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.VerifyPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageVersions{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPageVersion{Space: pageSpace}.Descriptor(),
+		knowledgeservice.NamePageVersion{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RestorePageVersion{Space: pageSpace}.Descriptor(),
+		knowledgeservice.AddPageComment{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageComments{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ChangePageComment{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DeletePageComment{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SearchPages{Space: pageSpace, Searcher: pageSpace.Pages}.Descriptor(),
+		knowledgeservice.ListPageBacklinks{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ExportPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RestrictPage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPageAccess{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SharePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnsharePage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.CreatePagePublicLink{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DeletePagePublicLink{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPublicLinksPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetPublicLinksPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.PublishPageToPortal{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnpublishPageFromPortal{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPageLanguageVariants{Space: pageSpace}.Descriptor(),
+		knowledgeservice.LinkPageLanguageVariant{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnlinkPageLanguageVariant{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SuggestArticles{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadArticle{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RateArticle{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListSharedPages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPersonalSpace{Space: pageSpace}.Descriptor(),
+		knowledgeservice.OpenDailyNote{Space: pageSpace}.Descriptor(),
+		knowledgeservice.AttachPageMedia{Space: pageSpace}.Descriptor(),
+		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ReadWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboards{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.UpdateWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.TrashWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.RestoreWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ExportWhiteboard{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboardVersions{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ReadWhiteboardVersion{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.NameWhiteboardVersion{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.AddWhiteboardComment{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboardComments{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ChangeWhiteboardComment{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.DeleteWhiteboardComment{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.ListWhiteboardBacklinks{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.AttachWhiteboardMedia{Studio: boardStudio}.Descriptor(),
+		servicedeskservice.ListBusinessCalendars{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineBusinessCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteBusinessCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListHubCalendars{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineHubCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteHubCalendar{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineSlaPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.CopySlaPolicyHere{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
+		servicedeskservice.ReadEntryRequester{
+			Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts, Assets: postgres.NewCmdbRepository(), Modules: modules,
+			Requesters: postgres.RequesterRepository{IDs: ids},
+		}.Descriptor(),
+		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListReplyTemplates{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineReplyTemplate{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteReplyTemplate{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.RenderReplyTemplate{
+			Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts,
+		}.Descriptor(),
+		servicedeskservice.ListRequestCatalogue{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.SetDeskLogo{Desk: serviceDesk, Logos: postgres.DeskLogoRepository{}, Objects: mediaObjects}.Descriptor(),
+		servicedeskservice.GetDeskLogo{Desk: serviceDesk, Logos: postgres.DeskLogoRepository{}}.Descriptor(),
+		servicedeskservice.RemoveDeskLogo{Desk: serviceDesk, Logos: postgres.DeskLogoRepository{}, Objects: mediaObjects}.Descriptor(),
+		servicedeskservice.RaiseRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.ReadPublicFormsPolicy{Forms: publicForms}.Descriptor(),
+		servicedeskservice.SetPublicFormsPolicy{Forms: publicForms}.Descriptor(),
+		servicedeskservice.CreatePublicForm{Forms: publicForms}.Descriptor(),
+		servicedeskservice.ReadPublicForm{Forms: publicForms}.Descriptor(),
+		servicedeskservice.DeletePublicForm{Forms: publicForms}.Descriptor(),
+		servicedeskservice.ListMyRequests{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.ListRequesterOrganisations{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DefineRequesterOrganisation{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.DeleteRequesterOrganisation{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ReadMyRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.CommentOnMyRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.RateMyRequest{Portal: requestPortal}.Descriptor(),
+		servicedeskservice.DecideApproval{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.ListMyApprovals{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.ReadEntryApprovals{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.SetApprovalDelegation{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.ReadApprovalDelegation{Approvals: stepApprovals}.Descriptor(),
+		servicedeskservice.EndApprovalDelegation{Approvals: stepApprovals}.Descriptor(),
+		planningservice.ReadPlanSchedule{Planner: planner}.Descriptor(),
+		planningservice.ApplyPlanSchedule{Planner: planner}.Descriptor(),
+		planningservice.SetDependencyTiming{Planner: planner}.Descriptor(),
+		planningservice.SetEntryScheduling{Planner: planner}.Descriptor(),
+		planningservice.TakeBaseline{Planner: planner}.Descriptor(),
+		planningservice.ListBaselines{Planner: planner}.Descriptor(),
+		planningservice.CompareBaseline{Planner: planner}.Descriptor(),
+		planningservice.DeleteBaseline{Planner: planner}.Descriptor(),
+		planningservice.ReadPlanTolerance{Planner: planner}.Descriptor(),
+		planningservice.SetPlanTolerance{Planner: planner}.Descriptor(),
+		planningservice.ReadWorkspaceTolerance{Planner: planner}.Descriptor(),
+		planningservice.SetWorkspaceTolerance{Planner: planner}.Descriptor(),
+		planningservice.ImportPlan{Planner: planner}.Descriptor(),
+		planningservice.CreateRelease{Planner: planner}.Descriptor(),
+		planningservice.UpdateRelease{Planner: planner}.Descriptor(),
+		planningservice.ListReleases{Planner: planner}.Descriptor(),
+		planningservice.ReadRelease{Planner: planner}.Descriptor(),
+		planningservice.DeleteRelease{Planner: planner}.Descriptor(),
+		planningservice.AddReleaseEntries{Planner: planner}.Descriptor(),
+		planningservice.RemoveReleaseEntries{Planner: planner}.Descriptor(),
+		planningservice.PublishRelease{Planner: planner}.Descriptor(),
+		planningservice.CreateSprint{Planner: planner}.Descriptor(),
+		planningservice.UpdateSprint{Planner: planner}.Descriptor(),
+		planningservice.ListSprints{Planner: planner}.Descriptor(),
+		planningservice.ReadSprint{Planner: planner}.Descriptor(),
+		planningservice.DeleteSprint{Planner: planner}.Descriptor(),
+		planningservice.AddSprintEntries{Planner: planner}.Descriptor(),
+		planningservice.RemoveSprintEntries{Planner: planner}.Descriptor(),
+		planningservice.StartSprint{Planner: planner}.Descriptor(),
+		planningservice.CloseSprint{Planner: planner}.Descriptor(),
+		planningservice.ReadSprintBacklog{Planner: planner}.Descriptor(),
+		planningservice.ReadVelocity{Planner: planner}.Descriptor(),
+		planningservice.ListMyRunningSprints{Planner: planner}.Descriptor(),
+		planningservice.SetEntryEstimate{Planner: planner}.Descriptor(),
+		planningservice.ClearEntryEstimate{Planner: planner}.Descriptor(),
+		timeservice.LogTime{Keeper: keeper}.Descriptor(),
+		timeservice.UpdateTimeRecord{Keeper: keeper}.Descriptor(),
+		timeservice.DeleteTimeRecord{Keeper: keeper}.Descriptor(),
+		timeservice.CorrectTimeRecord{Keeper: keeper}.Descriptor(),
+		timeservice.ListTimeRecords{Keeper: keeper}.Descriptor(),
+		timeservice.StartTimer{Keeper: keeper}.Descriptor(),
+		timeservice.StopTimer{Keeper: keeper}.Descriptor(),
+		timeservice.DiscardTimer{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimer{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.CopyTimesheetWeek{Keeper: keeper}.Descriptor(),
+		timeservice.SubmitTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.WithdrawTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.ApproveTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.RejectTimesheet{Keeper: keeper}.Descriptor(),
+		timeservice.ListTimesheets{Keeper: keeper}.Descriptor(),
+		timeservice.ListWorkTypes{Keeper: keeper}.Descriptor(),
+		timeservice.DefineWorkType{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimePolicy{Keeper: keeper}.Descriptor(),
+		timeservice.SetTimePolicy{Keeper: keeper}.Descriptor(),
+		timeservice.ReadTimeReport{Keeper: keeper}.Descriptor(),
+		timeservice.ReadEstimatesVsActuals{Keeper: keeper}.Descriptor(),
+		timeservice.ExportTimeRecords{Keeper: keeper}.Descriptor(),
+		timeservice.ListCapacities{Keeper: keeper}.Descriptor(),
+		timeservice.SetCapacity{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveCapacity{Keeper: keeper}.Descriptor(),
+		timeservice.ListAbsences{Keeper: keeper}.Descriptor(),
+		timeservice.RecordAbsence{Keeper: keeper}.Descriptor(),
+		timeservice.UpdateAbsence{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveAbsence{Keeper: keeper}.Descriptor(),
+		timeservice.ReadWorkload{Keeper: keeper}.Descriptor(),
+		timeservice.ListCostRates{Keeper: keeper}.Descriptor(),
+		timeservice.SetCostRate{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveCostRate{Keeper: keeper}.Descriptor(),
+		timeservice.ListBillingRates{Keeper: keeper}.Descriptor(),
+		timeservice.SetBillingRate{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveBillingRate{Keeper: keeper}.Descriptor(),
+		timeservice.ReadBudget{Keeper: keeper}.Descriptor(),
+		timeservice.SetBudget{Keeper: keeper}.Descriptor(),
+		timeservice.RemoveBudget{Keeper: keeper}.Descriptor(),
+		goalservice.ListGoalPeriods{Steward: steward}.Descriptor(),
+		goalservice.DefineGoalPeriod{Steward: steward}.Descriptor(),
+		goalservice.CloseGoalPeriod{Steward: steward}.Descriptor(),
+		goalservice.ListGoals{Steward: steward}.Descriptor(),
+		goalservice.ReadGoal{Steward: steward}.Descriptor(),
+		goalservice.CreateGoal{Steward: steward}.Descriptor(),
+		goalservice.UpdateGoal{Steward: steward}.Descriptor(),
+		goalservice.DeleteGoal{Steward: steward}.Descriptor(),
+		goalservice.LinkGoalEntries{Steward: steward}.Descriptor(),
+		goalservice.UnlinkGoalEntry{Steward: steward}.Descriptor(),
+		goalservice.CheckInGoal{Steward: steward}.Descriptor(),
+		goalservice.ListGoalCheckIns{Steward: steward}.Descriptor(),
+		goalservice.ListEntryGoals{Steward: steward}.Descriptor(),
+		goalservice.ListPortfolios{Steward: steward}.Descriptor(),
+		goalservice.ReadPortfolio{Steward: steward}.Descriptor(),
+		goalservice.ReadPortfolioRoadmap{Steward: steward}.Descriptor(),
+		goalservice.ReadPortfolioPublicLink{Steward: steward}.Descriptor(),
+		goalservice.CreatePortfolioPublicLink{Steward: steward}.Descriptor(),
+		goalservice.DeletePortfolioPublicLink{Steward: steward}.Descriptor(),
+		goalservice.ReadPublicRoadmapsPolicy{Steward: steward}.Descriptor(),
+		goalservice.SetPublicRoadmapsPolicy{Steward: steward}.Descriptor(),
+		goalservice.CreatePortfolio{Steward: steward}.Descriptor(),
+		goalservice.UpdatePortfolio{Steward: steward}.Descriptor(),
+		goalservice.DeletePortfolio{Steward: steward}.Descriptor(),
+		goalservice.ReportPortfolioStatus{Steward: steward}.Descriptor(),
+		goalservice.ListPortfolioUpdates{Steward: steward}.Descriptor(),
+		goalservice.ListDashboards{Steward: steward}.Descriptor(),
+		goalservice.ReadDashboard{Steward: steward}.Descriptor(),
+		goalservice.CreateDashboard{Steward: steward}.Descriptor(),
+		goalservice.UpdateDashboard{Steward: steward}.Descriptor(),
+		goalservice.DeleteDashboard{Steward: steward}.Descriptor(),
+		goalservice.ReadDashboardFigures{Steward: steward}.Descriptor(),
+		goalservice.ReadDashboardDigest{Steward: steward}.Descriptor(),
+		goalservice.SetDashboardDigest{Steward: steward}.Descriptor(),
+		goalservice.DeleteDashboardDigest{Steward: steward}.Descriptor(),
+		cmdbservice.ListCiClasses{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiClass{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiRelationTypes{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiRelationType{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiSources{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiSource{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.CreateCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.UpdateCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.SetCiCompliance{Inventory: inventory}.Descriptor(),
+		cmdbservice.RelateCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.UnrelateCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReconcileCis{Inventory: inventory}.Descriptor(),
+		cmdbservice.ImportCiFile{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiRuns{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiRun{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiHolds{Inventory: inventory}.Descriptor(),
+		cmdbservice.DismissCiHold{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiDuplicates{Inventory: inventory}.Descriptor(),
+		cmdbservice.ResolveCiDuplicate{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCmdbHealth{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListEntryCis{Affecting: affecting}.Descriptor(),
+		cmdbservice.AffectEntryCi{Affecting: affecting}.Descriptor(),
+		cmdbservice.UnaffectEntryCi{Affecting: affecting}.Descriptor(),
+		cmdbservice.ListCiCampaigns{Inventory: inventory}.Descriptor(),
+		cmdbservice.StartCiCampaign{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiCampaign{Inventory: inventory}.Descriptor(),
+		cmdbservice.AttestCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.CloseCiCampaign{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiGroups{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineCiGroup{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiGroupMembers{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadServiceMap{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiAssets{Inventory: inventory}.Descriptor(),
+		cmdbservice.ReadCiAsset{Inventory: inventory}.Descriptor(),
+		cmdbservice.RegisterCiAsset{Inventory: inventory}.Descriptor(),
+		cmdbservice.MoveCiAsset{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListSoftwareAliases{Inventory: inventory}.Descriptor(),
+		cmdbservice.DefineSoftwareAlias{Inventory: inventory}.Descriptor(),
+		cmdbservice.RemoveSoftwareAlias{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListSoftwareProducts{Inventory: inventory}.Descriptor(),
+		forgeservice.ListCodeHooks{Forge: codeForge}.Descriptor(),
+		forgeservice.CreateCodeHook{Forge: codeForge}.Descriptor(),
+		forgeservice.UpdateCodeHook{Forge: codeForge}.Descriptor(),
+		forgeservice.RotateCodeHookSecret{Forge: codeForge}.Descriptor(),
+		forgeservice.ListEntryCodeLinks{Forge: codeForge}.Descriptor(),
+		filelinkservice.ListEntryFileLinks{Files: entryFiles}.Descriptor(),
+		filelinkservice.LinkEntryFile{Files: entryFiles}.Descriptor(),
+		filelinkservice.UnlinkEntryFile{Files: entryFiles}.Descriptor(),
+		calendarpushservice.ListCalendarPushes{Pushes: calendarPushes}.Descriptor(),
+		calendarpushservice.AuthorizeCalendarPush{Pushes: calendarPushes}.Descriptor(),
+		calendarpushservice.CompleteCalendarPushAuthorization{Pushes: calendarPushes}.Descriptor(),
+		calendarpushservice.DisconnectCalendarPush{Pushes: calendarPushes}.Descriptor(),
+		filestoreservice.ListFileStoreConnections{Connections: fileStores}.Descriptor(),
+		glanceservice.ListMyOpenEntries{Glance: glance}.Descriptor(),
+		glanceservice.SearchEverywhere{Glance: glance}.Descriptor(),
+		chatbotservice.ListChatBots{Bots: chatBots}.Descriptor(),
+		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),
+		chatbotservice.UpdateChatBot{Bots: chatBots}.Descriptor(),
+		chatbotservice.DeleteChatBot{Bots: chatBots}.Descriptor(),
+		chatbotservice.LinkChatAccount{Bots: chatBots}.Descriptor(),
+		chatbotservice.UnlinkChatAccount{Bots: chatBots}.Descriptor(),
+		filestoreservice.ConnectFileStore{Connections: fileStores}.Descriptor(),
+		filestoreservice.CompleteFileStoreConnection{Connections: fileStores}.Descriptor(),
+		filestoreservice.DisconnectFileStore{Connections: fileStores}.Descriptor(),
+		filestoreservice.BrowseFileStore{Connections: fileStores}.Descriptor(),
+		filestoreservice.ShareFileStoreItem{Connections: fileStores}.Descriptor(),
+		cmdbservice.ListCiConnectors{Connectors: connectors}.Descriptor(),
+		cmdbservice.DefineCiConnector{Connectors: connectors}.Descriptor(),
+		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),
+		cmdbservice.RunCiConnector{Connectors: connectors}.Descriptor(),
+		cmdbservice.ListCiAlerts{Connectors: connectors}.Descriptor(),
+		cmdbservice.ListCiBacklinks{Inventory: inventory, Pointers: cmdbservice.Pointers{
+			Texts: pageSpace.Pages, Boards: boardStudio.Boards, Entries: entryLinks, Reader: authorizer,
+		}}.Descriptor(),
+		work.ListLinkTypes{Registry: linkTypeRegistry}.Descriptor(),
+		work.CreateLinkType{Registry: linkTypeRegistry}.Descriptor(),
+		work.ChangeLinkType{Registry: linkTypeRegistry}.Descriptor(),
+		work.DeleteLinkType{Registry: linkTypeRegistry}.Descriptor(),
+		work.LinkEntries{Linking: linking}.Descriptor(),
+		work.UnlinkEntries{Linking: linking}.Descriptor(),
+		work.ListEntryLinks{Linking: linking}.Descriptor(),
+		work.ListLinksAmong{Linking: linking}.Descriptor(),
+		work.ResolveReferences{Linking: linking}.Descriptor(),
+		settingservice.ListModules{Modules: modules}.Descriptor(),
+		settingservice.ListContainerModules{Modules: modules}.Descriptor(),
+		settingservice.SetModule{Modules: modules}.Descriptor(),
+		settingservice.PreviewModuleReach{
+			Modules: modules, People: postgres.NewMembershipRepository(),
+			Rules: postgres.NewAutomationRuleRepository(cursors), Actions: ruleCatalogue,
+		}.Descriptor(),
+		settingservice.ReadSettingsCatalogue{}.Descriptor(),
+		configservice.ReadConfigSchema{Desk: configDesk}.Descriptor(),
+		configservice.ExportConfig{Desk: configDesk}.Descriptor(),
+		configservice.ExplainConfig{Desk: configDesk}.Descriptor(),
+		configservice.CheckConfig{Desk: configDesk}.Descriptor(),
+		configservice.ValidateConfig{Desk: configDesk}.Descriptor(),
+		configservice.PlanConfig{Desk: configDesk}.Descriptor(),
+		configservice.ProposeConfig{Desk: configDesk}.Descriptor(),
+		configservice.ApplyConfig{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigVersions{Desk: configDesk}.Descriptor(),
+		configservice.ReadConfigVersion{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigProposals{Desk: configDesk}.Descriptor(),
+		configservice.DecideConfigProposal{Desk: configDesk}.Descriptor(),
+		configservice.SetConfigPolicy{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigTemplates{Desk: configDesk}.Descriptor(),
+		configservice.PublishConfigTemplate{Desk: configDesk}.Descriptor(),
+		configservice.PlanConfigTemplate{Desk: configDesk}.Descriptor(),
+		configservice.ReadConfigSandbox{Desk: configDesk}.Descriptor(),
+		configservice.WriteConfigSandbox{Desk: configDesk}.Descriptor(),
+		configservice.ListSampleEntries{Desk: configDesk}.Descriptor(),
+		configservice.AddSampleEntry{Desk: configDesk}.Descriptor(),
+		configservice.RemoveSampleEntries{Desk: configDesk}.Descriptor(),
+		configservice.ListWorkspaceSamples{Desk: configDesk}.Descriptor(),
+		configservice.MarkWorkspaceSample{Desk: configDesk}.Descriptor(),
+		configservice.RemoveWorkspaceSamples{Desk: configDesk}.Descriptor(),
+		configservice.ListHubTemplatePages{Desk: configDesk}.Descriptor(),
+		configservice.AddHubTemplatePage{Desk: configDesk}.Descriptor(),
+		configservice.ListConfigDrafts{Desk: configDesk}.Descriptor(),
+		configservice.SaveConfigDraft{Desk: configDesk}.Descriptor(),
+		configservice.DiscardConfigDraft{Desk: configDesk}.Descriptor(),
+		workflowservice.ListEntryTypes{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.DeleteEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.CopyEntryTypeHere{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.SetEntryTypeForm{Registry: entryTypeRegistry, Desk: workflowservice.FormDesk{
+			Fields: customFields, Compiler: celexpression.New(),
+		}}.Descriptor(),
+		work.EvaluateEntryForm{
+			Items: items, Containers: containers, Gate: entryGate, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		workflowservice.ListWorkflows{Desk: workflowDesk}.Descriptor(),
+		workflowservice.CreateWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.CopyWorkflowHere{Desk: workflowDesk}.Descriptor(),
+		workflowservice.SaveWorkflowDraft{Desk: workflowDesk}.Descriptor(),
+		workflowservice.PreviewWorkflowPublish{Desk: workflowDesk}.Descriptor(),
+		workflowservice.PublishWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.DeleteWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.PreviewWorkflowScheme{Desk: workflowDesk}.Descriptor(),
+		workflowservice.SetWorkflowScheme{Desk: workflowDesk}.Descriptor(),
+		workflowservice.TryWorkflowStep{Desk: workflowDesk}.Descriptor(),
+		work.TakeStep{Completion: completion, Rules: stepRules, Approvals: stepApprovals}.Descriptor(),
+		work.ListEntrySteps{Completion: completion}.Descriptor(),
+		work.SetItemEntryType{
+			Gate:  entryGate,
+			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
+			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, HLC: hybrid, Forms: entryGate.Forms, Recurrences: recurrences,
+			Workflow: workflowGate, Activity: journal,
+			Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+		}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
@@ -1772,6 +2768,8 @@ func run() error {
 			Accounts: accounts, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
 			Notifier: jobs, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
+			HandOver: handOverLinks(cfg, signInStore, unitOfWork),
+			Jobs:     postgres.NewInvitationJobRepository(), StepUp: stepUpVerifier,
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
@@ -1779,9 +2777,23 @@ func run() error {
 			Factor:   sessionWriter,
 			Password: sessionWriter,
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
-			Access: postgres.NewMembershipRepository(),
+			Access:        postgres.NewMembershipRepository(),
+			Portals:       postgres.NewMembershipRepository(),
+			Undeliverable: postgres.NewMailUndeliverableRepository(),
 		}.Descriptor(),
-		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.ClearOwnMailUndeliverable{
+			Marks: postgres.NewMailUndeliverableRepository(), Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.ReadOwnSettings{Accounts: accounts, UnitOfWork: unitOfWork, Resolver: signInPolicyResolver}.Descriptor(),
+		identity.GetAccount{Members: authorizer, Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.ResolveAccounts{Members: authorizer, Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.ReadInvitationDeliveries{
+			Jobs: postgres.NewInvitationJobRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		identity.ReadSignInDetails{
+			Details: postgres.NewAccountRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		identity.CreateManagedAccount{
 			Managed: postgres.NewAccountRepository(), Authorizer: authorizer,
 			Grant: identity.GrantMembership{
@@ -1798,6 +2810,14 @@ func run() error {
 			Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
 			StepUp:    identity.StepUpVerifier{Writer: sessionWriter},
 			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.ResetSecondFactor{
+			Accounts: accounts, Enrollments: mfaStore, Recovery: mfaStore, Keys: sessionWriter.Keys,
+			Sessions: sessions, Pending: postgres.NewAccountRepository(),
+			Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			StepUp:  identity.StepUpVerifier{Writer: sessionWriter},
+			Notices: wayInNotices, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.RequestAddress{
@@ -1854,8 +2874,20 @@ func run() error {
 			StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
 			Platform: platformEvents,
 		}.Descriptor(),
-		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
-		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.ListRoles{Roles: customRoles}.Descriptor(),
+		identity.CreateRole{Roles: customRoles}.Descriptor(),
+		identity.ChangeRole{Roles: customRoles}.Descriptor(),
+		identity.DeleteRole{Roles: customRoles}.Descriptor(),
+		identity.GrantRole{Roles: customRoles, Grants: identity.GrantMembership{
+			Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
+		}}.Descriptor(),
+		identity.RevokeRoleGrant{Roles: customRoles}.Descriptor(),
+		identity.ExplainAccess{
+			Roles: customRoles, Containers: containers, Items: items, Entries: authorizer, Agents: agentStore,
+			Administration: postgres.NewMembershipRepository(), Accounts: accounts, Members: authorizer,
+		}.Descriptor(),
+		identity.ListGroups{Members: authorizer, Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetGroup{Members: authorizer, Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
@@ -1864,11 +2896,13 @@ func run() error {
 			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
+			Notices: customRoles,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
+			Notices: customRoles,
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
@@ -1882,6 +2916,15 @@ func run() error {
 		}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
+		identity.StartViewAs{
+			Accounts: accounts, Sessions: postgres.NewSessionRepository(), Held: postgres.NewMembershipRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.GetViewAs{}.Descriptor(),
+		identity.EndViewAs{
+			Sessions: postgres.NewSessionRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.ElevateSession{
 			Writer: sessionWriter, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors), UnitOfWork: unitOfWork,
@@ -1914,7 +2957,14 @@ func run() error {
 		identity.RevokeOtherSessions{Writer: sessionWriter}.Descriptor(),
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
-		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
+		identity.RedeemInvitation{
+			Writer: sessionWriter, Passwords: &passwordWriter,
+			// The provisioned owner's untouched defaults, in the language the card was read in.
+			Seed: adminservice.LocaliseSeed{
+				Tenants: provisioning.Tenants, Containers: containers, Buckets: buckets, Labels: labels,
+				Events: outbox, Changes: changes, Renderer: renderer, Text: forms, IDs: ids, HLC: hybrid,
+			},
+		}.Descriptor(),
 		identity.SetUpInstallation{
 			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
@@ -1943,6 +2993,10 @@ func run() error {
 		identity.ReadWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.UpdateWorkspace{Writer: workspaceWriter}.Descriptor(),
 		identity.ConfigureIdentityProvider{Writer: identityProviderWriter}.Descriptor(),
+		identity.ShowLdapDirectory{Directories: ldapDirectories}.Descriptor(),
+		identity.ConfigureLdapDirectory{Directories: ldapDirectories}.Descriptor(),
+		identity.RemoveLdapDirectory{Directories: ldapDirectories}.Descriptor(),
+		identity.SyncLdapDirectory{Directories: ldapDirectories}.Descriptor(),
 		identity.ListIdentityProviders{Writer: identityProviderWriter}.Descriptor(),
 		identity.CountAccountsWithoutProvider{
 			Writer: identityProviderWriter, External: postgres.NewExternalAccountRepository(),
@@ -2064,6 +3118,15 @@ func run() error {
 			Flows:   postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 			Address: workspaceAddress(cfg), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		// And a mailbox's, a calendar push's or a file store's provider return, the same way.
+		identity.LocateConnectorReturn{
+			Awaited: map[string]identity.AwaitedReturns{
+				identity.ConnectorMailbox:      postgres.NewMailboxAuthorizationRepository(),
+				identity.ConnectorCalendarPush: postgres.NewCalendarPushRepository(),
+				identity.ConnectorFileStore:    postgres.NewFileStoreConnectionRepository(),
+			},
+			Address: workspaceAddress(cfg), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
 		identity.StartProviderConnect{
@@ -2095,6 +3158,9 @@ func run() error {
 		integrationservice.ListWebhookDeliveries{Writer: webhookWriter}.Descriptor(),
 		integrationservice.ReplayWebhookDelivery{Writer: webhookWriter, Jobs: jobs}.Descriptor(),
 		integrationservice.SendWebhook{Writer: webhookWriter, Jobs: jobs, Events: outbox}.Descriptor(),
+		notification.NotifyAccount{Desk: noticeDesk}.Descriptor(),
+		notification.NotifyGroup{Desk: noticeDesk}.Descriptor(),
+		notification.NotifyRole{Desk: noticeDesk}.Descriptor(),
 		integrationservice.RotateWebhookSecret{Writer: webhookWriter}.Descriptor(),
 		automationservice.CreateRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.GetRule{Writer: ruleWriter}.Descriptor(),
@@ -2104,8 +3170,9 @@ func run() error {
 		automationservice.DisableRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.DeleteRule{Writer: ruleWriter}.Descriptor(),
 		automationservice.TriggerRuleManually{
-			Rules: postgres.NewAutomationRuleRepository(cursors),
-			Jobs:  jobs, Authorizer: authorizer, Audit: auditSink,
+			Rules:   postgres.NewAutomationRuleRepository(cursors),
+			Entries: items, Containers: containers,
+			Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		automationservice.RotateInboundTrigger{
@@ -2124,7 +3191,7 @@ func run() error {
 		automationservice.TestRule{
 			Rules:     postgres.NewAutomationRuleRepository(cursors),
 			Catalogue: ruleCatalogue, Conditions: celexpression.New(),
-			Entries: items, Containers: containers, Labels: itemLabels, Members: itemMembers,
+			Entries: items, Containers: containers, Labels: itemLabels, Members: itemMembers, Links: entryLinks,
 			Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
@@ -2168,7 +3235,7 @@ func run() error {
 			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
-			Events: outbox, Policies: lifecycleStore, Reach: authorizer,
+			Events: outbox, Policies: lifecycleStore, Reach: authorizer, Members: authorizer,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
 			Rendering: cloudEventRendering{source: cfg.BaseURL},
 			// The pull half renders through the very function the push half delivers, so that one
@@ -2176,26 +3243,9 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Lag: cfg.Queue.TriggerPollLag,
 		}.Descriptor(),
-		work.CreateContainer{
-			Containers:  containers,
-			Authorizer:  authorizer,
-			OwnHubs:     authorizer,
-			PrivateHubs: signInPolicyResolver,
-			Grants:      grants,
-			Events:      outbox,
-			Changes:     changes,
-			Audit:       auditSink,
-			UnitOfWork:  unitOfWork,
-			Clock:       clockadapter.System{},
-			IDs:         ids,
-			HLC:         hybrid,
-			Text:        forms,
-			Structure:   structures,
-			Buckets:     buckets,
-			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
-			Renderer:    renderer,
-		}.Descriptor(),
+		createContainer.Descriptor(),
 		work.CreateWorkItem{
+			Workflow:     workflowGate,
 			Gate:         entryGate,
 			Items:        items,
 			Quota:        quotaGuard,
@@ -2218,6 +3268,7 @@ func run() error {
 			Members:      itemMemberWriter,
 			Covers:       coverWriter,
 			CustomFields: setCustomField,
+			EntryTypes:   entryTypes,
 			Text:         forms,
 			Structure:    structures,
 			Flow:         flowGate,
@@ -2262,10 +3313,23 @@ func run() error {
 			Epochs: postgres.NewEpochRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, HLC: hybrid, Text: forms,
 		}.Descriptor(),
+		work.PreviewWorkspaceStructure{
+			Set: work.SetWorkspaceStructure{
+				Structure: structures, Authorizer: authorizer, UnitOfWork: unitOfWork, Text: forms,
+			},
+			Shapes: items, Reader: authorizer,
+		}.Descriptor(),
 		work.SavePreset{Desk: presetDesk}.Descriptor(),
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),
 		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),
-		work.CloseStarter{Starter: starter}.Descriptor(),
+		work.CloseStarter{Starter: starterKept}.Descriptor(),
+		work.ApplyStarter{
+			Starter: starterKept, Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
+			Samples: configservice.StarterTemplates{Desk: configDesk},
+		}.Descriptor(),
+		work.CreateHubFromTemplate{
+			Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
+		}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -2293,7 +3357,7 @@ func run() error {
 		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
-		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures, EntryTypes: entryTypes, Workflows: workflows}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
@@ -2335,17 +3399,19 @@ func run() error {
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
-			Structure: structures, Figures: figures, Milestones: milestones,
+			Structure: structures, Figures: figures, HubFigures: hubFigures, Milestones: milestones,
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
 		// may see rather than refused outright (ReadContainers.Execute).
 		work.ListContainers{
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
+			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, HubFigures: hubFigures,
+			Milestones: milestones,
 		}.Descriptor(),
 		work.ListPresets{
-			Profiles: profiles, Presets: presets, Installation: installationPresets, UnitOfWork: unitOfWork,
+			Profiles: profiles, Presets: presets, Installation: installationPresets, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.ListJumbleDestinations{
 			Collections: containers, Authorizer: authorizer, Reader: authorizer,
@@ -2375,15 +3441,38 @@ func run() error {
 		}.Descriptor(),
 		work.QueryItems{
 			Gate:  entryGate,
-			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers,
+			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers, Fields: customFields,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.AggregateItems{
+			Query: work.QueryItems{
+				Gate:  entryGate,
+				Items: items, Containers: containers, Fields: customFields,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			Aggregates: items, Collections: containers, Reader: authorizer,
+			Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper, Modules: modules},
+			Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
+		}.Descriptor(),
+		work.AggregateView{
+			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
+			Aggregate: work.AggregateItems{
+				Query: work.QueryItems{
+					Gate:  entryGate,
+					Items: items, Containers: containers, Fields: customFields,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				Aggregates: items, Collections: containers, Reader: authorizer,
+				Shared: postgres.NewMembershipRepository(), Workflows: workflows, Time: timeservice.TimeReach{Keeper: keeper, Modules: modules},
+				Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
+			},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three
 		// shapes: about a hub the client named, about how far the caller reaches into a collection,
 		// and about each row of an unanchored page (SearchItems.reach).
 		work.SearchItems{
-			Gate:  entryGate,
-			Items: items, Containers: containers,
+			Gate:     entryGate,
+			Searcher: items, Containers: containers, Fields: customFields,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			// The semantic half. Optional four times over - the extension, the provider,
@@ -2402,7 +3491,7 @@ func run() error {
 		}.Descriptor(),
 		work.ListActivity{
 			History: history, Items: items, Containers: containers,
-			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Authorizer: authorizer, UnitOfWork: unitOfWork, Sight: fieldSight,
 		}.Descriptor(),
 		work.ListComments{
 			Comments: commentWriter.Comments, Items: items, Containers: containers,
@@ -2422,6 +3511,10 @@ func run() error {
 		duplicate.Descriptor(),
 		work.ReorderWorkItem{Placement: placement}.Descriptor(),
 		work.ArchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
+		work.MergeWorkItems{
+			Link: work.LinkEntries{Linking: linking}, Archive: work.ArchiveWorkItem{Lifecycle: itemLifecycle},
+		}.Descriptor(),
+		work.SplitWorkItem{Duplicate: duplicate, Link: work.LinkEntries{Linking: linking}}.Descriptor(),
 		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.TrashWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.RestoreWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
@@ -2429,6 +3522,7 @@ func run() error {
 			Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork,
 			Policies: lifecycleStore, TombstoneWindow: cfg.Retention.TombstoneWindow,
 			Holds: legalHolds.Holds, Contributors: lifecycleStore, Restrictions: privacyStore,
+			PageReaders: postgres.NewPageRepository(),
 		}.Descriptor(),
 		lifecycle.PurgeWorkItem{
 			Items: items, Containers: containers, Purger: purger,
@@ -2436,6 +3530,7 @@ func run() error {
 		}.Descriptor(),
 		lifecycle.EmptyTrash{
 			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Documents: lifecycle.DocumentSweep{Trash: postgres.DocumentTrash{}, Changes: changes, HLC: hybrid},
 		}.Descriptor(),
 		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),
@@ -2501,7 +3596,7 @@ func run() error {
 		// serves is refused by name at the request.
 		importservice.ImportEntries{
 			Runs: importRuns, Objects: mediaObjects, Containers: containers, Authorizer: authorizer,
-			Jobs: jobs, Kinds: importKinds, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Jobs: jobs, Kinds: importKinds, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		importservice.GetImport{Runs: importRuns, Authorizer: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		lifecycle.RetainItem{
@@ -2521,6 +3616,7 @@ func run() error {
 		mediaservice.ConfirmMediaUpload{
 			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Config: cfg,
+			Scanner: mediaScanner, Jobs: jobs,
 		}.Descriptor(),
 		work.SetCover{Cover: coverWriter}.Descriptor(),
 		work.ClearCover{Cover: coverWriter}.Descriptor(),
@@ -2548,6 +3644,7 @@ func run() error {
 			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
 			Visibility: authorizer, Restrictions: accounts, Events: outbox, Activity: journal,
+			Workflow: workflowGate,
 		}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
@@ -2555,17 +3652,15 @@ func run() error {
 		}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
 
-		work.DefineCustomField{
-			Fields: customFields, Containers: containers, Profiles: profiles,
-			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, Text: forms,
-		}.Descriptor(),
+		fieldDefiner.Descriptor(),
+		work.CopyCustomFieldHere{Define: fieldDefiner}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.UpdateCustomField{Writer: customFieldWriter}.Descriptor(),
 		work.DeleteCustomField{Writer: customFieldWriter}.Descriptor(),
+		work.PreviewCustomFieldReach{Writer: customFieldWriter, Counts: customFields}.Descriptor(),
 		work.CreateSavedView{
 			Views: savedViews, Containers: containers, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -2583,7 +3678,7 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			Query: work.QueryItems{
 				Gate:  entryGate,
-				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2592,7 +3687,7 @@ func run() error {
 		work.ExportItems{
 			Query: work.QueryItems{
 				Gate:  entryGate,
-				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2610,6 +3705,7 @@ func run() error {
 		mediaservice.GetMedia{
 			Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
 			Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Pages: knowledgeservice.PageMediaReach{Space: pageSpace},
 		}.Descriptor(),
 		mediaservice.DeleteMedia{
 			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,
@@ -2645,12 +3741,23 @@ func run() error {
 		// The level above the workspaces (ADR-0070). One API, and `hubctl admin`, the instance
 		// dashboard and the file an operator checks into a repository are three clients of it.
 		adminservice.ReadInstanceSettings{Writer: instanceWriter}.Descriptor(),
+		adminservice.PlanInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.WriteInstanceSettings{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListOperators{Writer: instanceWriter}.Descriptor(),
 		adminservice.ReadInstanceOverview{
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
+		// The workspaces A-18 counts, by name, read on the request's own deadline.
+		adminservice.ListWorkspacesNearQuota{Writer: instanceWriter, Census: quotaservice.Census{
+			Tenants: postgres.NewAdminTenantRepository(),
+			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListDeadLetters{
+			Writer: instanceWriter, DeadLetters: postgres.NewDeadLetterRepository(), Cursors: cursors,
+		}.Descriptor(),
+		adminservice.RequeueDeadLetter{Writer: instanceWriter, DeadLetters: postgres.NewDeadLetterRepository()}.Descriptor(),
 		adminservice.ListPlatformSubscriptions{Writer: platformWriter}.Descriptor(),
 		adminservice.CreatePlatformSubscription{Writer: platformWriter}.Descriptor(),
 		adminservice.ReadPlatformSubscription{Writer: platformWriter}.Descriptor(),
@@ -2811,7 +3918,16 @@ func run() error {
 	// goes through the same registry a REST call or an MCP tool call goes through, with the same
 	// input check, the same permission check and the same metric.
 	bulkCatalogue.catalogue = useCases
+	configCatalogue.catalogue = useCases
 	ruleCatalogue.catalogue = useCases
+	alertEntries.catalogue = useCases
+	botEntries.catalogue = useCases
+	glanceSearches.catalogue = useCases
+	agentCatalogue.catalogue = useCases
+	portalEntries.catalogue = useCases
+	approvalSteps.catalogue = useCases
+	personalHubs.catalogue = useCases
+	planMoves.catalogue = useCases
 	suggestionCatalogue.catalogue = useCases
 
 	var api *http.Server
@@ -2825,25 +3941,82 @@ func run() error {
 		// stream, which is neither what MCP nor what an automation rule could do with them. On an
 		// object-storage installation they are never reached - the token this server would have to
 		// have minted is one it never mints there.
-		controller.MediaContent = mediaservice.MediaContent{
-			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
-			UnitOfWork: unitOfWork, Config: cfg,
+		// The owner's way out without a target (UC-BAK-07 check 7): the export's archive, streamed.
+		controller.WorkspaceArchive = &rest.WorkspaceArchiveDoor{Concurrent: cfg.Backup.ConcurrentDownloads, Downloads: adminservice.DownloadWorkspaceArchive{
+			Roles: authorizer, StepUp: stepUpVerifier, Downloads: postgres.NewAdminTenantRepository(),
+			Quota: quotaGuard, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Archive: adminservice.TenantExportArchivist{
+				Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+				Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
+				Deriver:  crypto.NewPassphrase(clockadapter.CryptoRandom{}),
+				Snapshot: unitOfWork, Clock: clockadapter.System{},
+				SchemaVersion: schemaVersion(), ProductVersion: version,
+			},
+		}}
+		controller.Media = &rest.MediaDoor{
+			Content: mediaservice.MediaContent{
+				Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
+				UnitOfWork: unitOfWork, Config: cfg,
+			},
+			Tokens: mediaTokens, Clock: clockadapter.System{},
 		}
-		controller.MediaTokens = mediaTokens
-		controller.Clock = clockadapter.System{}
+		samlMetadata, err := samladapter.Metadata(samlMetadataURL, samlACSURL)
+		if err != nil {
+			return err
+		}
+		controller.SAML = &rest.SAMLDoor{
+			Answers: identity.ReceiveSAMLAnswer{
+				Session: sessionWriter,
+				Answers: postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+			},
+			CallbackURL: oidcRedirectURL, Metadata: samlMetadata,
+		}
 		// The address a calendar client is handed and an export's links: the workspace's main
 		// row, never the request's Host, so that one caller cannot decide what the next person's
 		// client stores (UC-INS-19 check 9).
 		controller.Links = identity.WorkspaceLinks{Address: workspaceAddress(cfg), UnitOfWork: unitOfWork}
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
-		controller.CalendarFeeds = work.ReadCalendarFeed{
-			Feeds: calendarFeeds, Accounts: postgres.NewAccountRepository(),
+		// A page's public link: not a catalogue entry, for the feed's reason.
+		controller.Feeds = &rest.FeedDoor{
+			Links: controller.Links, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace},
+			Pictures: controller.Media.Content,
+		}
+		// A portfolio roadmap's public link, the page link's way (UC-GOL-03 check 15).
+		controller.Feeds.Roadmaps = goalservice.ReadPublicRoadmap{Steward: steward}
+		// A collection's public form, the page link's way (UC-SVC-13).
+		controller.Feeds.Forms = rest.PublicFormService{
+			Opener:    servicedeskservice.OpenPublicForm{Forms: publicForms},
+			Submitter: servicedeskservice.SubmitPublicForm{Forms: publicForms},
+		}
+		// A resolution mail's satisfaction link, the same way (UC-SVC-07 check 6).
+		controller.Feeds.Satisfaction = servicedeskservice.AnswerSatisfactionLink{
+			Links: satisfactionLinks, Items: items, Ratings: serviceDesk.Ratings, Audit: auditSink,
+			IDs: ids, Clock: clockadapter.System{}, UnitOfWork: unitOfWork,
+		}
+		controller.Feeds.Calendar = work.ReadCalendarFeed{
+			Feeds: calendarFeeds, Accounts: accounts,
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{
 					Gate:  entryGate,
-					Items: items, ItemLabels: itemLabels, Containers: containers,
+					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			},
+			UnitOfWork: unitOfWork,
+		}
+		// A data feed (UC-INT-15): the same read, a data feed's token alone.
+		controller.Feeds.Data = work.ReadCalendarFeed{
+			Kind:  integrationmodel.DataKind,
+			Feeds: calendarFeeds, Accounts: accounts,
+			Export: work.ExportView{
+				Views: savedViews, Containers: containers, Permits: authorizer,
+				Query: work.QueryItems{
+					Gate:  entryGate,
+					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
 				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2855,13 +4028,14 @@ func run() error {
 		// answers a credential nobody in this system holds, it can do exactly one thing - start
 		// that one rule's run - and every question it asks is asked inwards of the controller
 		// (automation.md §1.1).
-		controller.InboundRuns = automationservice.StartInboundRun{
+		controller.Intake = &rest.IntakeDoor{}
+		controller.Intake.InboundRuns = automationservice.StartInboundRun{
 			Entitlements: postgres.NewPlanRepository(),
 			Inbound:      automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}
 		// The jumble's public door: a delivery on the tenant's address becomes an entry.
-		controller.JumbleIntake = intake.WebhookIntake{
+		controller.Intake.JumbleIntake = intake.WebhookIntake{
 			Deliveries: jumbleservice.IntakeJumbleEntry{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
 				Events: outbox, UnitOfWork: unitOfWork,
@@ -2870,13 +4044,21 @@ func run() error {
 		}
 		// The mail door beside it: the message is parsed here, its files go through the
 		// media pipeline's server-side end, and what lands is an EMAIL entry.
-		controller.MailIntake = intake.MailIntake{
+		controller.Intake.CodeIntake = intake.CodeIntake{Deliveries: codeForge}
+		// The chat bots' intake (UC-INT-19): Slack, Teams and Mattermost post to a bot.
+		controller.Intake.ChatIntake = chatBots
+		controller.Intake.CmdbAlerts = intake.AlertIntake{Deliveries: connectors}
+		controller.Intake.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
+		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the
+		// catalogue's own, wired as they are there.
+		controller.Scim = &rest.ScimDoor{Directory: directory, Links: controller.Links}
+		controller.Intake.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
 				Media: mediaservice.IngestMedia{
 					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
 					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
-					Text: forms,
+					Text: forms, Scanner: mediaScanner,
 				},
 				Events: outbox, UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{}, IDs: ids,
@@ -2885,7 +4067,7 @@ func run() error {
 		// The operator's inbound service's door (ADR-0094): it posts each message with the
 		// installation's key, and the intake files it where it is meant to go - as the admitted
 		// sender, through the catalogue, or into the jumble with the reason.
-		controller.AddressedMail = intake.AddressedMailIntake{
+		controller.Intake.AddressedMail = intake.AddressedMailIntake{
 			Key:        cfg.Mail.InboundKey.Reveal(),
 			Deliveries: receiveMail,
 		}
@@ -2894,8 +4076,10 @@ func run() error {
 		// call. The listener is the wake-up; without it the stream still works, at its idle
 		// poll interval.
 		changeStream := syncservice.StreamChanges{
-			Changes: changes, Containers: containers, Authorizer: authorizer,
+			Changes: changes, Containers: containers, Authorizer: authorizer, Fields: fieldSight,
 			UnitOfWork: unitOfWork, Cursors: streamCursors,
+			// A group's grant of a custom role reaches its members' devices only.
+			Groups: postgres.NewSnapshotRepository(),
 			// The workspace's synchronisation epoch: a restore advances it, and a cursor
 			// minted before is refused.
 			Epochs: postgres.NewEpochRepository(),
@@ -2903,13 +4087,37 @@ func run() error {
 			// The maximum offline window, which is also the minimum tombstone period: beyond
 			// it the log no longer holds everything that happened (offline-sync.md §7).
 			Window: cfg.Retention.TombstoneWindow,
-			Batch:  cfg.Queue.OutboxBatch,
+			// The goals reach a device only while the module is on at the workspace.
+			Modules: modules,
+			Batch:   cfg.Queue.OutboxBatch,
 		}
 		controller.Stream = &rest.StreamController{
 			Stream:   changeStream,
 			Registry: streams,
 			Wakeups:  changeListener,
 			Signals:  metrics,
+		}
+		// Live documents (F-8, offline-sync.md §13). Each kind names where its documents sit; a
+		// kind not registered answers not found.
+		controller.Realtime = &rest.RealtimeController{
+			Handler: realtimeadapter.Handler{
+				Documents: realtimeservice.Documents{
+					Store: postgres.NewRealtimeRepository(), Kinds: map[realtimedomain.Kind]realtimeservice.Locator{
+						knowledgedomain.DocumentKind:  knowledgeservice.Locator{Space: pageSpace},
+						whiteboarddomain.DocumentKind: whiteboardservice.Locator{Studio: boardStudio},
+						domainwork.PresenceKind:       work.PresenceLocator{Items: items, Containers: containers},
+					},
+					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+				},
+				Wakeups:         changeListener,
+				DocumentWakeups: changeListener,
+				Relay:           liveRelay,
+				// A workspace's live documents write within one budget on this process, so one
+				// script cannot saturate the shared database's writes for every tenant.
+				Workspaces: realtimeadapter.NewBudget(realtimeadapter.DefaultWorkspaceBytes),
+				Signals:    metrics,
+			},
+			Registry: streams,
 		}
 		// The pull is the same reader served in pages: the same records, the same order,
 		// the same cursor, which is what makes the stream an accelerator over it.
@@ -2922,6 +4130,10 @@ func run() error {
 				Snapshot: postgres.NewSnapshotRepository(),
 				// A container's structure in force rides on its record, as on every read of it.
 				Structure: structures,
+				// The time policy rides as it is in force, under the installation and the plan.
+				Settings: postgres.SettingRepository{},
+				// A kind the walk skipped is counted (A-39).
+				Signals: metrics,
 			},
 			Signals: metrics,
 			// The push applies a device's queue through the catalogue as the pushing person:
@@ -2948,8 +4160,8 @@ func run() error {
 			// streams because it is a connection held open like one.
 			Registry: streams, StreamSignals: metrics,
 		}
-		controller.HealthReport = meta.GetHealthReport{Health: registry, Authorizer: authorizer}
-		controller.Capabilities = meta.GetCapabilities{
+		controller.Meta = &rest.MetaDoor{HealthReport: meta.GetHealthReport{Health: registry, Authorizer: authorizer}}
+		controller.Meta.Capabilities = meta.GetCapabilities{
 			Profiles:  profiles,
 			Languages: postgres.NewTextLanguageRepository(),
 			Locales:   renderer,
@@ -2995,6 +4207,7 @@ func run() error {
 			// What the caller's plan leaves out, read as the registry's gate reads it.
 			ActionEntitlements: catalogue.ActionEntitlements(),
 			Entitlements:       entitlementGate,
+			Modules:            modules,
 			AccountLinks:       accountLinks,
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
@@ -3019,7 +4232,7 @@ func run() error {
 					Views: savedViews, Containers: containers, Permits: authorizer,
 					Query: work.QueryItems{
 						Gate:  entryGate,
-						Items: items, ItemLabels: itemLabels, Containers: containers,
+						Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 						Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 					},
 					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -3079,6 +4292,10 @@ func run() error {
 			// `admin:tenants` loses it when the register does not name its holder, so a token
 			// minted last month by somebody since removed stops reaching the control plane.
 			Operators: postgres.NewOperatorRepository(),
+			// A running view ends once its viewer may no longer start it (UC-ID-29 check 3).
+			ViewRights: identity.ViewAsRights{
+				Held: postgres.NewMembershipRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+			},
 		}
 		// In multi mode a host that names another workspace than the credential is refused
 		// (multi-tenancy.md §3); single mode reads no host.
@@ -3089,7 +4306,7 @@ func run() error {
 
 		// Alexa's endpoint (ADR-0093): Amazon's signature checked, the linked account's token
 		// authenticated as every other bearer is, the sentence done through the catalogue.
-		controller.Alexa = voicepresentation.Alexa{
+		controller.Intake.Alexa = voicepresentation.Alexa{
 			Verifier: &alexa.Verifier{Client: outboundClient},
 			Authenticate: func(ctx context.Context, token, locale string) (appshared.ActorContext, error) {
 				return authenticate.Execute(ctx, identity.AuthenticateTokenCommand{
@@ -3112,6 +4329,9 @@ func run() error {
 		// an installation on one machine says its rate limits are the whole of its admission
 		// control.
 		var admit rest.Shedder
+		// The second stage, behind authentication: one workspace's deferrable calls hold at most a
+		// quarter of the threshold, so its flood cannot shed everybody else's.
+		var admitTenant rest.TenantShedder
 		if cfg.LoadShed.Inflight > 0 {
 			shedder := resilience.NewLoadShedder(resilience.LoadShedderConfig{
 				Limit:      cfg.LoadShed.Inflight,
@@ -3127,12 +4347,16 @@ func run() error {
 				}
 				return shedder.Admit(class)
 			}
+			admitTenant = shedder.AdmitTenant
 		}
 
 		// The web interface, when this installation serves one (ADR-0028). It is built from the
 		// bundle embedded at link time, so it is the same version as the API by construction -
 		// there is no second artefact that could be a release behind.
 		var ui http.Handler
+		// The bundle's build, on every answer: during a rolling update a client and a pod can be of
+		// two releases, and an unknown route is then a retry, not a 404 (api-guidelines.md §8).
+		var build string
 		if cfg.UI.Enabled {
 			files, fsErr := webui.FS()
 			if fsErr != nil {
@@ -3145,11 +4369,17 @@ func run() error {
 			if originErr != nil {
 				return fmt.Errorf("web interface: %w", originErr)
 			}
-			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders, mediaOrigin)
+			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders, mediaOrigin, cfg.UI.FrameAncestors...)
 			if uiErr != nil {
 				return fmt.Errorf("web interface: %w", uiErr)
 			}
-			ui = handler
+			// The previous release's content-hashed assets, where the image carries them
+			// (deployment.md §5): a tab still on that release asks this pod for its chunks.
+			if info, statErr := os.Stat(previousUIAssets); statErr == nil && info.IsDir() {
+				handler = handler.WithPrevious(os.DirFS(previousUIAssets))
+			}
+			ui = handler.FramingSources(cfg.UI.FrameSources)
+			build = webui.Build(files)
 			if webui.IsPlaceholder(files) {
 				// Worth saying once at startup rather than leaving somebody to discover it in a
 				// browser: this binary was built without a frontend build, so "/" answers the
@@ -3175,7 +4405,7 @@ func run() error {
 		// that cannot read the `503` cannot act on its `Retry-After` either.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
-			Handler: rest.Observed{
+			Handler: proxyTrust.Wrap(rest.Observed{
 				Router: rest.Fallback{
 					API:      apiRoutes,
 					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
@@ -3185,7 +4415,7 @@ func run() error {
 						Hosts: postgres.NewOwnDomainRepository(), UnitOfWork: unitOfWork,
 						BaseURL: cfg.BaseURL, InstallationHost: installationHost, Tenancy: cfg.Tenancy,
 					},
-					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Shedding{
+					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.BuildMarked{Build: build, Routes: apiRoutes, Next: rest.Shedding{
 						Routes: apiRoutes, Admit: admit, Signals: metrics,
 						Next: rest.Bounded{
 							MaxBodyBytes: cfg.Request.MaxBodyBytes,
@@ -3219,30 +4449,50 @@ func run() error {
 										Level: "feed",
 										Bucket: rest.FeedBucket(
 											cfg.RateLimit.TokenPerMinute, cfg.RateLimit.Burst),
-										Next: rest.Localised{
-											Locale: cfg.Locale,
-											// The catalogues present decide what a header lands
-											// on; the renderer is the matcher.
-											Negotiator: renderer,
-											Next: rest.Authenticated{
-												Routes:        apiRoutes,
-												Authenticator: authenticate,
-												Locale:        cfg.Locale,
-												Next: rest.Limited{
-													// The workspace's own per-token ceiling,
-													// engaging only where one is configured.
-													Limiter: limiter, Signals: metrics,
-													Level:  "token",
-													Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
-													Next: rest.Limited{
-														Limiter: limiter, Signals: metrics,
-														Level: "tenant",
-														Bucket: rest.TenantBucket(
-															cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
-														Next: rest.Idempotent{
-															Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-															Routes: apiRoutes,
-															Next:   apiRoutes,
+										// A public form's submissions, per client address
+										// (UC-SVC-13): the sign-in's budget, beside the proof of
+										// work each one carries.
+										Next: rest.Limited{
+											Limiter: limiter, Signals: metrics,
+											Level: "public_form",
+											Bucket: rest.PublicFormBucket(
+												cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
+											// And per network origin, so an address rotated
+											// inside one /64 buys no fresh budget.
+											Next: rest.Limited{
+												Limiter: limiter, Signals: metrics,
+												Level: "public_network",
+												Bucket: rest.PublicFormNetworkBucket(
+													cfg.RateLimit.AuthPerMinute, cfg.RateLimit.Burst),
+												Next: rest.Localised{
+													Locale: cfg.Locale,
+													// The catalogues present decide what a header lands
+													// on; the renderer is the matcher.
+													Negotiator: renderer,
+													Next: rest.Authenticated{
+														Routes:        apiRoutes,
+														Authenticator: authenticate,
+														Locale:        cfg.Locale,
+														Next: rest.Limited{
+															// The workspace's own per-token ceiling,
+															// engaging only where one is configured.
+															Limiter: limiter, Signals: metrics,
+															Level:  "token",
+															Bucket: rest.OverrideBucket(cfg.RateLimit.Burst),
+															Next: rest.Limited{
+																Limiter: limiter, Signals: metrics,
+																Level: "tenant",
+																Bucket: rest.TenantBucket(
+																	cfg.RateLimit.TenantPerMinute, cfg.RateLimit.TenantDepth()),
+																Next: rest.TenantShedding{
+																	Routes: apiRoutes, Admit: admitTenant, Signals: metrics,
+																	Next: rest.Idempotent{
+																		Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+																		Routes: apiRoutes,
+																		Next:   apiRoutes,
+																	},
+																},
+															},
 														},
 													},
 												},
@@ -3251,12 +4501,12 @@ func run() error {
 									},
 								},
 							},
-						}}},
+						}}}},
 				},
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),
 				Role:    string(envport.RoleAPI),
-			},
+			}),
 			ReadHeaderTimeout: 5 * time.Second,
 			IdleTimeout:       60 * time.Second,
 		}
@@ -3281,7 +4531,8 @@ func run() error {
 	notify := notification.RecordNotifications{
 		Notifications: notifications, Preferences: notificationPreferences, Accounts: accounts,
 		Items: items, ItemMembers: itemMembers, Jobs: jobs,
-		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer,
+		Clock: clockadapter.System{}, IDs: ids, Signals: metrics, Reach: authorizer, Requesters: authorizer,
+		Links: entryLinks,
 	}
 
 	// The automation engine. The subscriber turns one event into one job per matching rule;
@@ -3295,6 +4546,7 @@ func run() error {
 		Jumble:     postgres.NewJumbleRepository(cursors),
 		Clock:      clockadapter.System{},
 		Reach:      authorizer,
+		Readers:    authorizer,
 	}
 
 	// The relative-date producer. A second subscriber rather than a branch inside the first,
@@ -3304,6 +4556,11 @@ func run() error {
 		Rules: automationRuns, Occurrences: postgres.NewAutomationRuleRepository(cursors),
 		Entries: items, Containers: containers, Jobs: jobs,
 		Clock: clockadapter.System{}, IDs: ids,
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Calendars: servicedeskservice.RuleCalendars{
+			Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+			HubCalendars: serviceDeskStore.HubCalendars(),
+		},
 	}
 
 	// The optional bus (ADR-0042). Everything about it is conditional on a URL having been
@@ -3357,6 +4614,32 @@ func run() error {
 		// an installation without a bus ends up with exactly the subscriber list it had before.
 		Subscribers: append([]eventbusport.Subscriber{
 			notify, webhookFanOut, matchRules, relativeDates,
+			// The SLA clocks (UC-SVC-02): armed, paused, met and stopped by what happens to the
+			// entry, in the dispatcher's transaction; never on a replay.
+			servicedeskservice.SLAClocks{
+				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+				Policies:     serviceDeskStore.Policies(),
+				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers,
+				Records: slaRecords, Items: items, IDs: ids,
+				Timers:     calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
+				Requesters: postgres.RequesterRepository{IDs: ids},
+				Accounts:   accounts, Organisations: serviceDeskStore.Organisations(),
+			},
+			// The teams' promises beside the requester's (UC-SVC-02 checks 10 to 12).
+			servicedeskservice.OLAClocks{
+				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+				Policies:     serviceDeskStore.Policies(),
+				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers,
+				Records: serviceDeskStore.Records(), Groups: servicedeskservice.HeldGroups{Groups: groups},
+				Items: items, IDs: ids,
+				Timers: calendarservice.Clocks{Timers: postgres.NewTimerRepository(), Jobs: jobs, IDs: ids},
+			},
+			// A public reply mailed to the requesters an entry was filed for by mail (UC-SVC-12):
+			// one job per comment, the mail sent outside the dispatcher's transaction.
+			servicedeskservice.RequesterReplies{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs, Links: entryLinks},
+			// The satisfaction question of a resolved entry filed for requesters by mail
+			// (UC-SVC-07 check 6): one job per completion.
+			servicedeskservice.SatisfactionQuestions{Requesters: postgres.RequesterRepository{IDs: ids}, Jobs: jobs},
 			// The check a deletion seeds (ADR-0060): one job per workspace, never the check itself
 			// inside the dispatcher's transaction.
 			automationservice.CheckOnDeletion{Jobs: jobs},
@@ -3471,6 +4754,8 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// No mail server: suppressed at once, not retried into the dead letters.
+			WithoutMail: !cfg.Mail.Configured(),
 			// The subjects that are not an entry: the rule that was switched off,
 			// the subscription that stopped being called.
 			Rules:         postgres.NewAutomationRuleRepository(cursors),
@@ -3479,6 +4764,21 @@ func run() error {
 			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The role somebody was given, and the hub or collection it is on.
 			Grants: grants, Places: containers,
+			// The page whose review fell due.
+			Pages: postgres.NewPageRepository(),
+			// The agent its owner is told of.
+			Agents: agentStore,
+			// The connected mailbox its administrators are told has refused for an hour.
+			Mailboxes: mailboxAddresses{postgres.NewMailboxRepository()},
+			// The SAML provider whose certificates end, and when.
+			SAMLProviders: samlProviderEnds{postgres.NewIdentityProviderRepository()},
+			// The calendar push, connector or forge hook that stopped, by the name it is known by.
+			Connections: connectionNames{pushes: postgres.NewCalendarPushRepository(), connectors: postgres.NewCmdbConnectorRepository(), hooks: postgres.NewCodeForgeRepository()},
+			Boards:      postgres.NewWhiteboardRepository(),
+			// The approval a message is about, and through it the entry.
+			Approvals: serviceDeskStore.Approvals(),
+			// The baseline a plan slipped from, and through it the plan's place.
+			Baselines: postgres.NewPlanningRepository().Baselines(),
 			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
 			// comment (ADR-0094).
 			Replies: mailservice.Replies{Writer: mailWriter},
@@ -3486,6 +4786,8 @@ func run() error {
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{},
+			// An address refused for good is not tried again until its person clears it.
+			Undeliverable: postgres.NewMailUndeliverableRepository(),
 			// Every link leads to the workspace's main address (ADR-0095 §2).
 			Addresses: workspaceAddress(cfg),
 			Signals:   metrics,
@@ -3560,6 +4862,7 @@ func run() error {
 	// Data subject requests: the export that is a Hubtask archive rather than a second format.
 	privacyExporter := privacyservice.Exporter{
 		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts, Kudos: privacyStore,
+		IntakeLines: postgres.RequesterRepository{IDs: ids}, Mail: postgres.RequesterRepository{IDs: ids},
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,
@@ -3596,7 +4899,9 @@ func run() error {
 		Journal: postgres.NewDeletionJournalRepository(postgres.DefaultJournalBatch),
 		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
-		Safety: backupPerformer, UnitOfWork: unitOfWork,
+		// An archive downloaded with a passphrase opens with the key it derives (§4).
+		Deriver: crypto.NewPassphrase(clockadapter.CryptoRandom{}),
+		Safety:  backupPerformer, UnitOfWork: unitOfWork,
 		// The legal holds a replace reads in the transaction that empties the workspace (§8.2).
 		Holds: postgres.NewLifecycleRepository(),
 		// The synchronisation epoch a restore advances (backup-restore.md §8.3), so that every
@@ -3604,6 +4909,21 @@ func run() error {
 		Epochs: postgres.NewEpochRepository(),
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
+		// The archive carries no timers (§8.4): what a restore wrote gets its clocks back.
+		Clocks: []backupservice.ClockRearmer{
+			servicedeskservice.RestoredClocks{
+				Records: serviceDeskStore.Records(), Approvals: serviceDeskStore.Approvals(),
+				Policies:     serviceDeskStore.Policies(),
+				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers, Items: items,
+				Timers: calendarservice.Clocks{
+					Timers: postgres.NewTimerRepository(), Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+				},
+			},
+			knowledgeservice.RestoredReviews{
+				Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
+			},
+		},
 	}
 	// The trial restore (backup-restore.md §5): the run that wrote a FULL archive reads it back
 	// through the applier, in the same job. The applier's own safety copy keeps the performer as it was
@@ -3629,6 +4949,28 @@ func run() error {
 			Deliveries: postgres.NewWebhookDeliveryRepository(),
 			// The mail intake's log, thirty days (ADR-0094).
 			MailReceipts: postgres.NewMailIntakeRepository(),
+			// A live document's compacted history, thirty days (offline-sync.md §13).
+			DocumentHistory: postgres.NewRealtimeRepository(),
+			// The agents' ledger thirteen months, their held acts and jobs ninety days (accepted.md B).
+			AgentLedger: postgres.AgentLedgerExpiry{}, AgentRequests: postgres.AgentRequestExpiry{},
+			AgentJobs: postgres.AgentJobExpiry{},
+			// Ended timers thirty days, connector runs ninety (data-retention.md §3).
+			Timers: postgres.EndedTimerExpiry{}, ConnectorRuns: postgres.ConnectorRunExpiry{},
+			// Requesters without an account, 24 months after their last contact (accepted.md B).
+			Requesters: postgres.RequesterRepository{IDs: ids},
+			// Their intake's "From:" line goes with them (third answers 2).
+			RequesterLines: privacyservice.StripIntakeLines{
+				Lines: postgres.RequesterRepository{IDs: ids}, Entries: ruleCatalogue,
+				Pages: postgres.IntakePageRepository{}, Documents: postgres.NewRealtimeRepository(),
+			},
+			// Pages and boards trashed on their own, after the trash's period, page versions
+			// thinned after ninety days (accepted.md B), and a board's history only under the
+			// workspace's own rule (WHITEBOARD_HISTORY).
+			Documents: lifecycle.DocumentSweep{
+				Trash: postgres.DocumentTrash{}, Versions: postgres.PageVersionThinning{},
+				Whiteboards: postgres.WhiteboardHistoryAging{}, Rules: postgres.NewRetentionRuleRepository(),
+				Changes: changes, HLC: hybrid,
+			},
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
@@ -3732,6 +5074,8 @@ func run() error {
 			Max:      24 * time.Hour,
 		}.Delay,
 		Signals: metrics,
+		// A chat room's sentence, from the catalogue in the subscription's language (UC-INT-12).
+		Texts: renderer,
 	}
 	// The installation's deliveries to a purchase platform (UC-INS-14): the same signature, client
 	// and ladder, and no switching off.
@@ -3778,6 +5122,7 @@ func run() error {
 			Containers:   containers,
 			Labels:       itemLabels,
 			Members:      itemMembers,
+			Links:        entryLinks,
 			Jumble:       postgres.NewJumbleRepository(cursors),
 			Guard:        runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:      metrics,
@@ -3795,6 +5140,10 @@ func run() error {
 		},
 		Rules: postgres.NewAutomationRuleRepository(cursors),
 	}
+	stepRules.Rules = automationRuns
+	stepRules.Containers = containers
+	stepRules.Entitlements = postgres.NewPlanRepository()
+	stepRules.Engine = automationRun.Engine
 
 	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
 	// without a tenant, seeded below when a worker starts.
@@ -3817,16 +5166,57 @@ func run() error {
 		Runner: importservice.Runner{
 			Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,
 			Containers: containers, Buckets: buckets, Labels: labels, Items: items,
-			Applier: backupApplier, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Applier: backupApplier, Forms: entryGate.Forms, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
+			Statuses: work.StatusSettler{
+				Workflow: workflowGate,
+				Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+			},
 		},
 		Progress: jobs,
 	}
+	// Durable timers on business calendars (domain-model.md §3.7): every purpose has its handler
+	// in Elapsed.
+	timerFiring := worker.TimerFiring{
+		Firing: calendarservice.FireTimers{
+			Timers: postgres.NewTimerRepository(), Clock: clockadapter.System{},
+			BatchSize:  calendarservice.DefaultTimerBatch,
+			Savepoints: unitOfWork, Signals: metrics,
+			Elapsed: map[calendardomain.Purpose]calendarservice.TimerElapsed{
+				calendardomain.PurposeSLA: servicedeskservice.SLAElapsed{
+					Records: slaRecords, Items: items, Events: outbox, IDs: ids,
+				},
+				calendardomain.PurposeOLA: servicedeskservice.OLAElapsed{
+					Records: serviceDeskStore.Records(), Items: items, Events: outbox, IDs: ids,
+				},
+				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{
+					Store: deskApprovals, Notify: approvalNotice,
+				},
+				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
+					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
+					Notify: notification.RecordPageReview{
+						Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+						Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+					},
+				},
+			},
+		},
+		Queue: jobs, Clock: clockadapter.System{},
+		Continuation: cfg.Queue.OutboxMinInterval,
+		MinimumWait:  cfg.Queue.OutboxMinInterval,
+	}
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire: reminderFiring,
+		queueport.KindTimerFire:    timerFiring,
+		// A new CALCULATED field written on the entries defined before it, a page per job.
+		queueport.KindFieldFill: worker.FieldFilling{Filling: work.FillCalculatedFields{
+			Walk: items, Setter: setCustomField, Jobs: jobs,
+		}},
 		// A connected mailbox read into the intake, a minute at a time (ADR-0094).
 		queueport.KindMailboxPoll: mailservice.PollMailbox{
 			Boxes: mailBoxes, Receive: receiveMail,
+			// The workspace's administrators told once a mailbox has refused for an hour.
+			Failing: connectionNotices,
 			Parse: func(raw []byte, _ string) (jumbleservice.ReceivedMail, error) {
 				return intake.Parsed(raw, nil, intake.MailLimits{})
 			},
@@ -3835,8 +5225,18 @@ func run() error {
 		queueport.KindOutboxDispatch:        dispatcher,
 		queueport.KindRetentionSweep:        retention,
 		queueport.KindMediaReconcile:        mediaReconciliation,
-		queueport.KindInvitationEmail:       invitationMessage,
-		queueport.KindPasswordResetEmail:    passwordResetMessage,
+		queueport.KindMediaScan: worker.MediaScan{Scan: mediaservice.ScanHeldMedia{
+			Objects: mediaObjects, Store: mediaStore, Scanner: mediaScanner, UnitOfWork: unitOfWork,
+		}},
+		queueport.KindFigureRecount: worker.FigureRecount{
+			Recount: work.RecountFigures{
+				Kept: keptFigures, Figures: figures.Figures, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, Signals: metrics,
+			},
+			Interval: 10 * time.Minute, Continuation: cfg.Queue.OutboxMinInterval,
+		},
+		queueport.KindInvitationEmail:    invitationMessage,
+		queueport.KindPasswordResetEmail: passwordResetMessage,
 		queueport.KindPasswordResetRequest: worker.PasswordResetRequest{
 			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
 		},
@@ -3878,14 +5278,24 @@ func run() error {
 		queueport.KindEmergencyAccessEmail: notificationDelivery,
 		// And under the role's own kind, for the same reason (queue.KindRoleGrantedEmail).
 		queueport.KindRoleGrantedEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:   webhookDelivery,
-		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindOwnDomainCheck:   worker.OwnDomainCheck{Check: ownDomainCheck},
-		queueport.KindPlatformDeliver:  platformDelivery,
-		queueport.KindAutomationRun:    automationRun,
-		queueport.KindAutomationHTTP:   outboundCall,
-		queueport.KindBackupRun:        backupRun,
-		queueport.KindBackupVerify:     worker.BackupVerify{Performer: backupPerformer},
+		// And under a page review's (queue.KindPageReviewEmail).
+		queueport.KindPageReviewEmail: notificationDelivery,
+		// And under an agent's notice (queue.KindAgentNoticeEmail).
+		queueport.KindAgentNoticeEmail: notificationDelivery,
+		// And under a whiteboard mention's (queue.KindWhiteboardMentionEmail).
+		queueport.KindWhiteboardMentionEmail: notificationDelivery,
+		// And under an approval's (queue.KindApprovalEmail).
+		queueport.KindApprovalEmail: notificationDelivery,
+		// And under a plan exception's (queue.KindPlanExceptionEmail).
+		queueport.KindPlanExceptionEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:     webhookDelivery,
+		queueport.KindPlatformSweep:      worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindOwnDomainCheck:     worker.OwnDomainCheck{Check: ownDomainCheck},
+		queueport.KindPlatformDeliver:    platformDelivery,
+		queueport.KindAutomationRun:      automationRun,
+		queueport.KindAutomationHTTP:     outboundCall,
+		queueport.KindBackupRun:          backupRun,
+		queueport.KindBackupVerify:       worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},
@@ -3902,6 +5312,42 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
+		queueport.KindCmdbConnectorPull: worker.CmdbConnectorPull{Connectors: connectors},
+		// A workspace's LDAP synchronisation, rescheduling itself (UC-ID-31).
+		queueport.KindLdapSync: identity.LdapSyncJob{Directories: ldapDirectories},
+		// A shipped agent's job, acting through the gate on its own account (G11).
+		queueport.KindAgentJob: worker.AgentJob{Runner: agentservice.Runner{
+			Desk: agentDesk, Proposer: suggestionservice.AgentProposals{Produce: produceSuggestion},
+		}},
+		// An approved held act's check after its perform window: one interrupted is recorded FAILED.
+		queueport.KindAgentRequestCheck: worker.AgentRequestCheck{Check: agentservice.RequestCheck{Desk: agentDesk}},
+		// A dashboard's digest by mail, computed as its subscriber (UC-GOL-04).
+		queueport.KindDashboardDigest: worker.DashboardDigest{Digests: goalservice.DashboardDigests{
+			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,
+			Addresses: workspaceAddress(cfg), Mail: mailSender, Renderer: renderer, Decimals: renderer,
+			Background: backgroundWork, FallbackLocale: cfg.Locale.DefaultLocale,
+		}},
+		// A public reply mailed to an entry's requesters by mail (UC-SVC-12).
+		queueport.KindRequesterReply: worker.RequesterReply{Replies: servicedeskservice.SendRequesterReply{
+			Comments: postgres.NewCommentRepository(cursors), Items: items,
+			Requesters: postgres.RequesterRepository{IDs: ids}, Links: entryLinks, Keys: mailIntake, Accounts: accounts,
+			Replies: mailservice.Replies{Writer: mailWriter}, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			FallbackLocale: cfg.Locale.DefaultLocale, Mail: mailSender, Renderer: renderer, Background: backgroundWork,
+		}},
+		// A resolved entry's satisfaction question mailed to its requesters by mail (UC-SVC-07).
+		queueport.KindRequesterSatisfaction: worker.SatisfactionQuestion{Questions: servicedeskservice.SendSatisfactionQuestion{
+			Items: items, Requesters: postgres.RequesterRepository{IDs: ids}, Keys: mailIntake, Links: satisfactionLinks,
+			Address: workspaceAddress(cfg), Replies: mailservice.Replies{Writer: mailWriter},
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
+			Entropy: clockadapter.CryptoRandom{}, Clock: clockadapter.System{}, Mail: mailSender, Renderer: renderer,
+			Background: backgroundWork,
+		}},
+		// A calendar push's run every quarter hour (UC-INT-16).
+		queueport.KindCalendarPush: worker.CalendarPush{Pushes: calendarPushes},
+		// A chat bot's read of its room every minute (UC-INT-18).
+		queueport.KindChatBot: worker.ChatBot{Bots: chatBots},
+		// An approval's card to a linked chat account (UC-SVC-09 check 6).
+		queueport.KindChatApprovalCard:     worker.ChatApprovalCard{Bots: chatBots},
 		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
 		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
 		queueport.KindImport:               importJob,
@@ -3962,6 +5408,7 @@ func run() error {
 					automationservice.CallResealer{
 						Calls: postgres.NewCallSealingRepository(), Encryptor: encryptor,
 					},
+					cmdbservice.ConnectorResealer{Connectors: postgres.NewCmdbConnectorRepository(), Encryptor: encryptor},
 				},
 				Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 			},
@@ -3999,6 +5446,16 @@ func run() error {
 			},
 			Queue: jobs, Clock: clockadapter.System{},
 		},
+		// The workspace's administrators told 30, 7 and 1 days before a SAML provider's
+		// certificates end (identity.md §26.1).
+		queueport.KindSAMLCertificateWatch: worker.SAMLCertificateWatch{
+			Watch: identity.WatchSAMLCertificates{
+				Watches:    postgres.NewIdentityProviderRepository(),
+				Tell:       connectionNotices,
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			Queue: jobs, Clock: clockadapter.System{},
+		},
 	}
 	// The bus's handler joins the map only when a bus is configured. Registering it always would
 	// give an installation with no bus a kind whose backlog gauge exists and whose jobs never
@@ -4007,8 +5464,12 @@ func run() error {
 		handlers[queueport.KindBusPublish] = busPublication
 	}
 	kinds := make([]queueport.Kind, 0, len(handlers))
-	for kind := range handlers {
+	var dutyKinds []queueport.Kind
+	for kind, handler := range handlers {
 		kinds = append(kinds, kind)
+		if _, duty := handler.(queueport.Perpetual); duty {
+			dutyKinds = append(dutyKinds, kind)
+		}
 	}
 
 	if cfg.HasRole(envport.RoleAPI) {
@@ -4017,7 +5478,7 @@ func run() error {
 		background = append(background, start(ctx, "api.change_listener", changeListener.Run))
 	}
 
-	if cfg.HasRole(envport.RoleWorker) {
+	if cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleAutomation) {
 		// The dispatcher's wake-up, and only where jobs are run: an API process holding a LISTEN
 		// for a queue it does not drain would be a connection occupied for notifications nobody
 		// in it is waiting for - the mirror of the change listener above.
@@ -4042,11 +5503,14 @@ func run() error {
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
 			Batch:        cfg.Queue.BatchSize,
+			Concurrency:  jobConcurrency(ctx, cfg),
 			PollInterval: cfg.Queue.PollInterval,
 			JobTimeout:   cfg.Queue.JobTimeout,
-			Lease:        cfg.Queue.Lease(),
-			NextAttempt:  backoff.Delay,
-			Observe:      observer.Job,
+			// A backup, restore, export or import: the long budget, its lease kept alive.
+			LongJobTimeout: cfg.Queue.LongJobTimeout,
+			Lease:          cfg.Queue.Lease(),
+			NextAttempt:    backoff.Delay,
+			Observe:        observer.Job,
 			// The poll interval stays what it was. This shortens the wait when the notification
 			// arrives and changes nothing when it does not (ADR-0007).
 			Woken: jobListener.Woken(),
@@ -4055,7 +5519,31 @@ func run() error {
 			// No job against a schema this build is ahead of; readiness gives the same answer.
 			SchemaBehind: schemaBehind,
 		}
+		runner.Only, runner.Except = claimedKinds(cfg)
 		background = append(background, start(ctx, "worker.runner", runner.Run))
+	}
+
+	if cfg.HasRole(envport.RoleWorker) {
+
+		// The connected IMAP mailboxes held open (IDLE), each shard of the workspaces by one worker,
+		// so mail reaches the desk in seconds; the minute's read above stays whatever happens here.
+		// Each shard this worker leads holds one connection of the background pool for its lock.
+		shards := max(cfg.Mail.WatchShards, 1)
+		seats := worker.NewMailboxWatchSeats(cmp.Or(cfg.Mail.WatchShardsPerWorker, shards))
+		for shard := range shards {
+			mailboxWatch := worker.MailboxWatch{
+				Holds: mailservice.WatchMailbox{
+					Boxes: mailBoxes, Watcher: mailboxadapter.IMAP{Guard: outboundGuard}, Keys: jobs,
+				},
+				Leadership:   postgres.NewLeader(backgroundPool, postgres.MailboxWatchShardLock(shard)),
+				Signals:      metrics,
+				SchemaBehind: schemaBehind,
+				Limit:        cfg.Mail.WatchLimit,
+				Shard:        queueport.Shard{Index: shard, Count: shards},
+				Seats:        seats,
+			}
+			background = append(background, start(ctx, "worker.mailbox_watch", mailboxWatch.Run))
+		}
 
 		// Seeded by every worker that starts; the dedupe key keeps it one job. A failure costs a
 		// pass, not the start: the next worker to start seeds it again.
@@ -4083,13 +5571,32 @@ func run() error {
 				return onBackground
 			}(),
 			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
+			// Alert A-18's numbers: every workspace's standing, read on the leader's own clock
+			// rather than on whichever workspace created last.
+			Quotas: quotaservice.Census{
+				Tenants: postgres.NewAdminTenantRepository(),
+				Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+				UnitOfWork: backgroundWork, Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+			},
+			QuotaSignals: metrics,
 			// Alert A-21's number: the dead letters waiting for a purchase platform (UC-INS-14).
 			PlatformDeliveries: postgres.NewPlatformDeliveryRepository(),
 			Queue:              jobs,
 			Backlog:            jobs,
+			// Alert A-23's number: the workspaces whose uploads wait for a scan (UC-MED-01).
+			Unsettled: jobs,
+			// Alert A-25's number: a snapshot or a session pinning vacuum.
+			Transactions: jobs, Horizon: jobs,
+			Indexes: jobs,
+			// Alert A-29's numbers, across workspaces through the door of migration 0365.
+			MailApps: postgres.NewMailboxRepository(),
+			// The SAML providers' certificate ends, across workspaces through the door of 0369.
+			SAMLProviders: postgres.NewIdentityProviderRepository(),
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
+			// A dead duty back to work, hourly with a doubling wait (queue.Perpetual).
+			DeadDuties: jobs, DutyKinds: dutyKinds,
 			// The use counts' 13 months, inside workspaces and in the installation's ledger
 			// (multi-tenancy.md §4.3).
 			Usage: postgres.NewUsageRepository(cursors),
@@ -4103,7 +5610,7 @@ func run() error {
 			SchemaBehind: schemaBehind,
 			// The leader's one duty beyond measurement, and the reading behind alert A-12.
 			InstanceBackups: backupPass,
-			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
+			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Cadence: backupRuns, Work: backgroundWork},
 			// The partition duty `0001_init` wrote down: next month's partition of `audit_log`
 			// exists before the first entry of it does, and carries its own policy and its own
 			// revokes (audit.md §3).
@@ -4124,8 +5631,6 @@ func run() error {
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
 
-	// TODO(0.1.0): start the automation loop for the automation role.
-
 	// The third door, applied (ADR-0070 §5). It goes through `WriteInstanceSettings` exactly as the
 	// dashboard and `hubctl` do — "drei Türen, eine API" meant literally — so a value a file may
 	// set is a value the API accepts, and one set of refusals covers all three.
@@ -4135,7 +5640,6 @@ func run() error {
 	// asked for.
 	if err := applyInstanceFile(ctx, applyingInstanceFile{
 		path: cfg.InstanceFile, mode: instanceFileMode,
-		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
 		plans:      planWriter,
@@ -4219,20 +5723,23 @@ func run() error {
 	// seconds buys: an ingress still holding the endpoint, and two requests answered with 502
 	// during a rollout that was otherwise clean (docs/archive/evidence/RT-8-2026-08-21.md).
 	registry.MarkClosing()
+	slog.Info("shutdown: deregistered, still serving while the load balancer lets go",
+		slog.Int("seconds", cfg.ShutdownDeregisterSeconds))
 
-	// The streams are asked to end at the same moment, and before the deregistration wait rather
-	// than after it. A stream has no natural end, so Shutdown would otherwise sit out the whole
-	// grace period on connections that are working exactly as designed - and the clients get the
-	// length of that wait to notice, reconnect elsewhere and resume from their cursors
-	// (observability-reliability.md §9).
-	streams.CloseAll()
-
-	time.Sleep(time.Duration(cfg.ShutdownDeregisterSeconds) * time.Second)
+	// The streams are asked to end during the deregistration wait rather than after it, in waves
+	// spread over it. A stream has no natural end, so Shutdown would otherwise sit out the whole
+	// grace period on connections that are working exactly as designed; in waves, so the clients
+	// reconnect elsewhere and resume from their cursors without all arriving at once (deployment.md §5).
+	deregister := time.Duration(cfg.ShutdownDeregisterSeconds) * time.Second
+	deregistered := time.Now().Add(deregister)
+	streams.CloseInWaves(deregister)
+	time.Sleep(time.Until(deregistered))
 
 	grace := time.Duration(cfg.ShutdownGraceSeconds) * time.Second
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), grace)
 	defer cancel()
 
+	slog.Info("shutdown: draining requests", slog.Int("grace_seconds", cfg.ShutdownGraceSeconds))
 	var shutdownErr error
 	if api != nil {
 		if err := api.Shutdown(shutdownCtx); err != nil {
@@ -4243,6 +5750,7 @@ func run() error {
 		shutdownErr = errors.Join(shutdownErr, err)
 	}
 
+	slog.Info("shutdown: waiting for the background loops")
 	// The background loops stopped claiming when the context ended; what they had already claimed
 	// runs to its own deadline. Waiting for it here is what makes terminationGracePeriodSeconds
 	// mean something for jobs rather than only for requests.
@@ -4256,6 +5764,28 @@ func run() error {
 
 	slog.Info("stopped")
 	return shutdownErr
+}
+
+// closeWithin runs a close and waits for it no longer than the deadline, saying which stage gave
+// up. It reports whether the close finished. A close that never returns is left behind: the
+// process is on its way out, and an exit is what releases what it holds.
+func closeWithin(stage string, deadline time.Duration, closer func()) bool {
+	slog.Info("shutdown: closing", slog.String("stage", stage))
+	done := make(chan struct{}, 1)
+	concurrency.Go(context.Background(), "shutdown."+stage, func(context.Context) {
+		defer func() { done <- struct{}{} }()
+		closer()
+	})
+	timer := time.NewTimer(deadline)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		slog.Warn("shutdown: a close did not finish in time; exiting without it",
+			slog.String("stage", stage), slog.Duration("deadline", deadline))
+		return false
+	}
 }
 
 // start runs a loop and hands back the channel that closes when it has finished. concurrency.Go
@@ -4275,8 +5805,6 @@ func start(ctx context.Context, name string, loop func(context.Context)) <-chan 
 	return done
 }
 
-// runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
-// requests.
 // teachTheRule hands the sign-in rule to the session writer and to the two copies of it that open
 // sessions themselves. Assigned rather than passed, because the two read each other: the password
 // writer holds a copy of the session writer for the hasher and the trail.
@@ -4295,10 +5823,6 @@ func teachTheRule(
 	oidc.Session.Rule = rule
 }
 
-// requirePasswordDoors refuses a set of session writers in which one holds a rule that cannot say
-// whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
-// password through at every door it guards and offers it as a step-up proof, silently - which is what
-// a test that wires no rule wants, and what a server must never do.
 // passkeyInstallationOf reads the installation's public address for the relying party a workspace's
 // passkeys belong to (identity.md §23.3). An address that does not parse, or none, binds nothing.
 func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallation {
@@ -4311,6 +5835,10 @@ func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallat
 	}
 }
 
+// requirePasswordDoors refuses a set of session writers in which one holds a rule that cannot say
+// whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
+// password through at every door it guards and offers it as a step-up proof, silently - which is what
+// a test that wires no rule wants, and what a server must never do.
 func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
 	names := make([]string, 0, len(writers))
 	for name := range writers {
@@ -4333,13 +5861,98 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 	return held.Writer
 }
 
+// runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
+// requests.
 func runsBackgroundWork(cfg envport.Config) bool {
-	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler)
+	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
+		cfg.HasRole(envport.RoleAutomation)
 }
 
-// primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
-// so a process serving the API uses that budget for everything it does - being cut off early is
-// the safer mistake on a shared pool.
+// connectionNames names a stopped calendar push by its address at the provider and a switched-off
+// connector by its key, a switched-off forge hook by its name and hub.
+type connectionNames struct {
+	pushes     postgres.CalendarPushRepository
+	connectors postgres.CmdbConnectorRepository
+	hooks      postgres.CodeForgeRepository
+}
+
+func (c connectionNames) CodeHook(ctx context.Context, id shared.ID) (string, shared.ID, error) {
+	hook, err := c.hooks.FindHook(ctx, id)
+	return hook.Name, hook.HubID, err
+}
+
+func (c connectionNames) CalendarPushName(ctx context.Context, id shared.ID) (string, error) {
+	push, _, err := c.pushes.Find(ctx, id)
+	return push.Address, err
+}
+
+func (c connectionNames) ConnectorName(ctx context.Context, id shared.ID) (string, error) {
+	connector, err := c.connectors.FindConnector(ctx, id, false)
+	return connector.Key, err
+}
+
+// samlProviderEnds names a SAML provider and the end of its last certificate for the warning.
+type samlProviderEnds struct {
+	providers postgres.IdentityProviderRepository
+}
+
+func (s samlProviderEnds) SAMLProviderEnd(ctx context.Context, id shared.ID) (string, time.Time, error) {
+	configured, err := s.providers.Find(ctx, id)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	end, _ := identitymodel.SAMLCertificatesEnd(configured.SAMLCertificate)
+	return configured.DisplayName, end, nil
+}
+
+// mailboxAddresses names a connected mailbox by its address for the notice that it turned failing.
+type mailboxAddresses struct{ boxes postgres.MailboxRepository }
+
+func (m mailboxAddresses) MailboxAddress(ctx context.Context, id shared.ID) (string, error) {
+	box, _, err := m.boxes.Find(ctx, id)
+	return box.Address, err
+}
+
+// moduleObjects finds the hub of a page, a board, a configuration item or a goal, so that an operation naming only one is
+// judged where its hub narrowed the module (UC-INS-21 check 3).
+func moduleObjects() map[string]settingservice.GateObject {
+	pages, boards := postgres.NewPageRepository(), postgres.NewWhiteboardRepository()
+	page := func(ctx context.Context, id shared.ID) (shared.ID, error) {
+		found, err := pages.Find(ctx, id)
+		return found.HubID, err
+	}
+	return map[string]settingservice.GateObject{
+		"page_id": page, "source_page_id": page,
+		"whiteboard_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
+			found, err := boards.Find(ctx, id)
+			return found.HubID, err
+		},
+		"ci_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
+			found, err := postgres.NewCmdbRepository().FindCI(ctx, id, false)
+			return found.HubID, err
+		},
+		// A workspace's goal has no hub, and is judged at the workspace.
+		"goal_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
+			found, err := postgres.NewGoalRepository().Goal(ctx, id)
+			return found.HubID, err
+		},
+	}
+}
+
+// claimedKinds is the role's bulkhead (deployment.md §2.2): the automation role alone claims the
+// rule jobs, a worker alone every other kind, and a process holding both claims everything.
+func claimedKinds(cfg envport.Config) (only, except []queueport.Kind) {
+	worker, automation := cfg.HasRole(envport.RoleWorker), cfg.HasRole(envport.RoleAutomation)
+	switch {
+	case worker && automation:
+		return nil, nil
+	case automation:
+		return queueport.AutomationKinds(), nil
+	default:
+		return nil, queueport.AutomationKinds()
+	}
+}
+
 // buildObjectStore composes the configured store. For S3 that is the whole
 // vocabulary: the adapter, a breaker the health probe reads, and a bulkhead so the storage pool
 // is this size and not the process (ADR-0016).
@@ -4402,6 +6015,14 @@ func invitationLinks(
 	if cfg.Mail.Configured() {
 		return identity.InvitationLinks{}
 	}
+	return handOverLinks(cfg, store, unitOfWork)
+}
+
+// handOverLinks mints an invitation's link to hand over by hand, whether or not mail is sent: a
+// renewal by link (*Copy invitation link*) asks for it where mail is configured too.
+func handOverLinks(
+	cfg envport.Config, store identity.RedemptionTokenStore, unitOfWork persistenceport.UnitOfWork,
+) identity.InvitationLinks {
 	return identity.InvitationLinks{
 		Minter: identity.MintRedemptionToken{
 			Accounts: store, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -4448,6 +6069,9 @@ func buildMailSender(
 	return mailadapter.NewResilientSender(mailadapter.NewSMTP(cfg.Mail), breaker, bulkhead)
 }
 
+// primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
+// so a process serving the API uses that budget for everything it does - being cut off early is
+// the safer mistake on a shared pool.
 func primaryRole(cfg envport.Config) envport.Role {
 	if cfg.HasRole(envport.RoleAPI) {
 		return envport.RoleAPI
@@ -4546,7 +6170,7 @@ type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {
 	return a.codec.Encode(security.StreamPosition{
 		Seq: position.Seq, IssuedAt: position.IssuedAt, Epoch: position.Epoch,
-		Kind: position.Kind, After: position.After,
+		Kind: position.Kind, After: position.After, Skipped: position.Skipped, Retry: position.Retry,
 	})
 }
 
@@ -4557,7 +6181,7 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 	}
 	return syncservice.Position{
 		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Epoch: decoded.Epoch,
-		Kind: decoded.Kind, After: decoded.After,
+		Kind: decoded.Kind, After: decoded.After, Skipped: decoded.Skipped, Retry: decoded.Retry,
 	}, nil
 }
 
@@ -4667,6 +6291,20 @@ func (r cloudEventRendering) Render(envelope event.Envelope) map[string]any {
 // wiring. The use case declares a narrow port (`work.Catalogue`) and knows nothing about how the
 // thing behind it came to exist.
 type deferredCatalogue struct{ catalogue *usecase.Registry }
+
+// privateHubMaker makes a person's private hub through CreateContainer in the registry.
+type privateHubMaker struct{ catalogue *deferredCatalogue }
+
+func (m privateHubMaker) MakePrivateHub(ctx context.Context, actor appshared.ActorContext, name string) (shared.ID, error) {
+	out, err := m.catalogue.Invoke(ctx, work.CreateContainerName, actor, usecase.Input{
+		"type": string(domainwork.ContainerHub), "name": name, "private": true,
+	})
+	if err != nil {
+		return "", err
+	}
+	id, _ := out["id"].(string)
+	return shared.ParseID(id)
+}
 
 func (d *deferredCatalogue) Invoke(
 	ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input,
@@ -4817,8 +6455,21 @@ func (a auditPartitionsInBackground) Ensure(ctx context.Context, month time.Time
 }
 
 type backupRunsInBackground struct {
-	Runs backuprepo.Runs
+	Runs    backuprepo.Runs
+	Cadence interface {
+		CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error)
+	}
 	Work persistenceport.UnitOfWork
+}
+
+func (b backupRunsInBackground) CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error) {
+	var cadences map[shared.ID]time.Duration
+	err := b.Work.WithinReadOnly(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		var err error
+		cadences, err = b.Cadence.CadencePerTarget(ctx)
+		return err
+	})
+	return cadences, err
 }
 
 func (b backupRunsInBackground) LastSuccessPerTarget(
@@ -4838,10 +6489,9 @@ func (b backupRunsInBackground) LastSuccessPerTarget(
 type applyingInstanceFile struct {
 	path string
 	mode instancefile.Mode
-	// settings is the plain repository, used to ask whether the level is already there. `seed`
-	// turns on that question and nothing else.
-	settings identityrepository.InstanceSettings
-	write    adminservice.WriteInstanceSettings
+	// write is the level's writer over the plain repository; `seed` asks it first whether the level
+	// is already there.
+	write adminservice.WriteInstanceSettings
 	// ai offers the models the file names, through the operator's writer without its
 	// authorisation: the file is the operator's own configuration.
 	ai adminservice.InstanceAiWriter
@@ -5006,6 +6656,88 @@ func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFi
 	return nil
 }
 
+// warnUploadsHeldWithoutScanner logs the uploads held for a scan on an installation that names no
+// scanner: they can be attached and never downloaded until a scanner is named again (RB-A23).
+func warnUploadsHeldWithoutScanner(ctx context.Context, read healthadapter.BacklogReader) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	counted, err := read(ctx)
+	if err != nil || counted.HeldUploadWorkspaces == 0 {
+		return
+	}
+	slog.WarnContext(ctx, "uploads are held for a scan and no scanner is named; they stay undownloadable until one is",
+		slog.String("error_code", healthadapter.UploadsHeldUnscannedCode),
+		slog.Int64("workspaces", counted.HeldUploadWorkspaces),
+		slog.Int64("oldest_minutes", int64(counted.HeldUploadOldestSeconds/60)))
+}
+
+// uploadScanner builds the scanner the instance file's `upload_scanner` names, the environment
+// overriding it; none is a nil scanner. The guard is the installation's, opened to private networks
+// because a daemon beside the server is the normal deployment and no person can repoint it.
+func uploadScanner(cfg envport.Config) (storageport.Scanner, error) {
+	address, timeout := cfg.Media.ScannerAddress, cfg.Media.ScannerTimeout
+	if address == "" && cfg.InstanceFile != "" {
+		document, found, err := instancefile.Read(cfg.InstanceFile)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			named, err := instancefile.UploadScanner(document, cfg.InstanceFile)
+			if err != nil {
+				return nil, err
+			}
+			address = named.Address
+			if named.Timeout > 0 {
+				timeout = named.Timeout
+			}
+		}
+	}
+	if address == "" {
+		return nil, nil
+	}
+	// The named host passes the egress allowlist (security.md §4): left off it, every upload would
+	// be held for a refusal that reads as the scanner not answering.
+	host := ""
+	if !strings.HasPrefix(address, "unix:") {
+		if named, _, err := net.SplitHostPort(address); err == nil {
+			host = named
+		}
+	}
+	return clamd.Scanner{
+		Address: address, Timeout: timeout, ConnectTimeout: cfg.Outbound.ConnectTimeout,
+		Guard: httpclient.NewGuard(cfg.Outbound).ForOperatorService(host), StreamMaxBytes: cfg.Media.ScannerStreamMaxBytes,
+	}, nil
+}
+
+// scannableUploadLimit caps uploads to what the scanner accepts: above it every accepted file would
+// be refused by the daemon for its size, so it is refused at the upload, where the person sees the
+// limit, instead of after it.
+func scannableUploadLimit(cfg envport.Config, scanning bool) int64 {
+	limit, stream := cfg.Request.MaxUploadBytes, cfg.Media.ScannerStreamMaxBytes
+	if !scanning || stream <= 0 || limit <= stream {
+		return limit
+	}
+	slog.Warn("uploads are capped to the scanner's stream limit",
+		slog.Int64("max_upload_bytes", limit), slog.Int64("scanner_stream_max_bytes", stream))
+	return stream
+}
+
+// readInstallationCalendars reads the instance file's `business_calendars`; no file is none.
+func readInstallationCalendars(path string) (map[string]servicedeskdomain.Calendar, error) {
+	if path == "" {
+		return nil, nil
+	}
+	document, found, err := instancefile.Read(path)
+	if err != nil || !found {
+		return nil, err
+	}
+	entries, err := instancefile.BusinessCalendars(document, path)
+	if err != nil {
+		return nil, err
+	}
+	return servicedeskservice.InstallationCalendars(entries, textadapter.Forms{})
+}
+
 // fileNamesPlatformSubscriptions reports whether the instance file names the subscriptions. An
 // unreadable file answers no here; reading it at the start is what refuses it.
 func fileNamesPlatformSubscriptions(path string) bool {
@@ -5022,35 +6754,19 @@ func fileNamesPlatformSubscriptions(path string) bool {
 
 // applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
 func applyLevel(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
-	if applying.mode == instancefile.ModeSeed {
-		var already bool
-		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),
-			func(ctx context.Context) error {
-				level, err := applying.settings.Read(ctx)
-				if err != nil {
-					return err
-				}
-				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
-					!level.Localisation.IsZero() || !level.Quotas.IsZero() || !level.Ai.IsZero()
-				return nil
-			}); err != nil {
-			return err
-		}
-		if already {
-			slog.Info("the instance level is already set; the file seeded it once",
-				"source", applying.path)
-			return nil
-		}
-	}
-
 	// Through the use case, with the system actor: the file is a client of the API and meets every
 	// refusal the other two doors meet.
 	level, err := adminservice.InstanceLevelOf(document)
 	if err != nil {
 		return err
 	}
-	if _, err := applying.write.ExecuteAsFile(ctx, level, applying.path); err != nil {
+	written, err := applying.write.ApplyFile(ctx, level, applying.mode == instancefile.ModeSeed, applying.path)
+	if err != nil {
 		return err
+	}
+	if !written {
+		slog.Info("the instance level is already set; the file seeded it once", "source", applying.path)
+		return nil
 	}
 	slog.Info("the instance level was written from the file",
 		"source", applying.path, "mode", string(applying.mode))
@@ -5067,6 +6783,32 @@ func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayIn
 	return notification.RecordWayInChanged{Jobs: jobs}
 }
 
+// calendarPushApps are the mailboxes' installation apps, offered to a calendar push.
+func calendarPushApps(configured map[string]envport.OAuthApp) map[string]calendarpushservice.App {
+	apps := make(map[string]calendarpushservice.App, len(configured))
+	for provider, app := range configured {
+		apps[provider] = calendarpushservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
+	}
+	return apps
+}
+
+// fileStoreApps are the mailboxes' installation apps, offered to a file store connection.
+func fileStoreApps(configured map[string]envport.OAuthApp) map[string]filestoreservice.App {
+	apps := make(map[string]filestoreservice.App, len(configured))
+	for provider, app := range configured {
+		apps[provider] = filestoreservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
+	}
+	return apps
+}
+
+// pushedFeedRows reads a pushed feed as the .ics route reads it.
+type pushedFeedRows struct{ read work.ReadCalendarFeed }
+
+func (p pushedFeedRows) ExecuteFeed(ctx context.Context, tenantID, feedID shared.ID) (calendarpushservice.FeedRows, error) {
+	exported, err := p.read.ExecuteFeed(ctx, tenantID, feedID)
+	return calendarpushservice.FeedRows{Items: exported.Items, TimeZone: exported.TimeZone}, err
+}
+
 // mailOAuthApps hands the installation's mailbox OAuth apps to the mail service.
 func mailOAuthApps(configured map[string]envport.OAuthApp) map[string]mailservice.App {
 	apps := make(map[string]mailservice.App, len(configured))
@@ -5074,4 +6816,21 @@ func mailOAuthApps(configured map[string]envport.OAuthApp) map[string]mailservic
 		apps[provider] = mailservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
 	}
 	return apps
+}
+
+// heldBackgroundConns is what the background pool keeps beside the jobs: the job listener, the
+// scheduler's and the mailbox watch's leader locks.
+const heldBackgroundConns = 3
+
+// jobConcurrency is HUBTASK_QUEUE_CONCURRENCY within what the background pool can serve: a job
+// waiting for a connection holds its slot and its lease for nothing, so a pool too small for
+// the setting runs fewer jobs at once rather than refusing to start.
+func jobConcurrency(ctx context.Context, cfg envport.Config) int {
+	fits := max(1, cfg.Database.MaxConns-heldBackgroundConns)
+	if cfg.Queue.Concurrency <= fits {
+		return cfg.Queue.Concurrency
+	}
+	slog.WarnContext(ctx, "fewer jobs run at once than configured: the database pool is smaller",
+		slog.Int("configured", cfg.Queue.Concurrency), slog.Int("running", fits))
+	return fits
 }

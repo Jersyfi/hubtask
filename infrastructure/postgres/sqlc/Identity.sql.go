@@ -95,6 +95,41 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 	return items, nil
 }
 
+const accountExternalIDs = `-- name: AccountExternalIDs :many
+
+SELECT id, external_id::text AS external_id FROM account
+WHERE id = ANY($1::uuid[]) AND external_id IS NOT NULL AND deleted_at IS NULL
+`
+
+type AccountExternalIDsRow struct {
+	ID         pgtype.UUID
+	ExternalID string
+}
+
+// ============================= Directory ==============================
+// What a directory provisions over SCIM (UC-ID-28): the identifier it knows a person or a group
+// by, and the people it switches off and on. The workspace's own rules - who may, the last owner,
+// the people limit - are the application's; these statements only write what it decided.
+func (q *Queries) AccountExternalIDs(ctx context.Context, ids []pgtype.UUID) ([]AccountExternalIDsRow, error) {
+	rows, err := q.db.Query(ctx, accountExternalIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccountExternalIDsRow{}
+	for rows.Next() {
+		var i AccountExternalIDsRow
+		if err := rows.Scan(&i.ID, &i.ExternalID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const accountsOfKind = `-- name: AccountsOfKind :many
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
@@ -228,6 +263,28 @@ func (q *Queries) AdministratorsAlongPath(ctx context.Context, arg Administrator
 	return items, nil
 }
 
+const countDirectoryAccounts = `-- name: CountDirectoryAccounts :one
+SELECT count(*) FROM account WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+`
+
+func (q *Queries) CountDirectoryAccounts(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countDirectoryAccounts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countDirectoryGroups = `-- name: CountDirectoryGroups :one
+SELECT count(*) FROM account_group
+`
+
+func (q *Queries) CountDirectoryGroups(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countDirectoryGroups)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countPeople = `-- name: CountPeople :one
 SELECT count(*) FROM account
 WHERE kind = 'USER' AND status <> 'ANONYMIZED' AND deleted_at IS NULL
@@ -240,6 +297,42 @@ func (q *Queries) CountPeople(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const countPeopleReaching = `-- name: CountPeopleReaching :one
+WITH grants AS (
+  SELECT m.account_id, m.group_id, m.scope_type, m.scope_id FROM membership m
+  UNION ALL
+  SELECT g.account_id, g.group_id, g.scope_type, g.scope_id FROM custom_role_grant g
+), reaching AS (
+  SELECT g.account_id, g.group_id FROM grants g
+  WHERE $1::uuid IS NULL
+     OR (g.scope_type = 'TENANT' AND EXISTS (
+           SELECT 1 FROM container h WHERE h.id = $1::uuid AND NOT h.private))
+     OR (g.scope_type = 'HUB' AND g.scope_id = $1::uuid)
+     OR (g.scope_type = 'COLLECTION' AND g.scope_id IN (
+           SELECT c.id FROM container c WHERE c.parent_id = $1::uuid))
+     OR (g.scope_type = 'ITEM' AND g.scope_id IN (
+           SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+           WHERE c.parent_id = $1::uuid))
+)
+SELECT count(*)::int AS people
+FROM account a
+WHERE a.deleted_at IS NULL AND a.status <> 'DISABLED'
+  AND (a.id IN (SELECT r.account_id FROM reaching r WHERE r.account_id IS NOT NULL)
+    OR a.id IN (SELECT gm.account_id FROM account_group_member gm
+                JOIN reaching r ON r.group_id = gm.group_id))
+`
+
+// How many people hold a role - built-in or the workspace's own, directly or through a group - in
+// the tenant, or within one hub when hub_id is named: at the hub, at a collection of it, at an
+// entry there, or at the workspace unless the hub is private. A disabled or deleted account is
+// not counted. What a module switched off there leaves without it (configuration.md §2).
+func (q *Queries) CountPeopleReaching(ctx context.Context, hubID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countPeopleReaching, hubID)
+	var people int32
+	err := row.Scan(&people)
+	return people, err
 }
 
 const deleteGroup = `-- name: DeleteGroup :execrows
@@ -443,7 +536,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 const findAccount = `-- name: FindAccount :one
 
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at, avatar_media_id
+  celebrations, onboarding_completed_at, avatar_media_id, products_seen
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -462,6 +555,7 @@ type FindAccountRow struct {
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
 	AvatarMediaID         pgtype.UUID
+	ProductsSeen          []string
 }
 
 // ============================== Accounts ==============================
@@ -485,6 +579,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.Celebrations,
 		&i.OnboardingCompletedAt,
 		&i.AvatarMediaID,
+		&i.ProductsSeen,
 	)
 	return i, err
 }
@@ -576,6 +671,18 @@ func (q *Queries) FindAccountBySignInName(ctx context.Context, signInName *strin
 	return i, err
 }
 
+const findAccountIDByExternalID = `-- name: FindAccountIDByExternalID :one
+SELECT id FROM account
+WHERE external_id = $1 AND kind = 'USER' AND deleted_at IS NULL
+`
+
+func (q *Queries) FindAccountIDByExternalID(ctx context.Context, externalID *string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findAccountIDByExternalID, externalID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const findGroup = `-- name: FindGroup :one
 
 SELECT id, tenant_id, name, description, version FROM account_group WHERE id = $1
@@ -602,6 +709,29 @@ func (q *Queries) FindGroup(ctx context.Context, id pgtype.UUID) (FindGroupRow, 
 		&i.Version,
 	)
 	return i, err
+}
+
+const findGroupIDByExternalID = `-- name: FindGroupIDByExternalID :one
+SELECT id FROM account_group WHERE external_id = $1
+`
+
+func (q *Queries) FindGroupIDByExternalID(ctx context.Context, externalID *string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findGroupIDByExternalID, externalID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const findGroupIDByName = `-- name: FindGroupIDByName :one
+SELECT id FROM account_group WHERE lower(name) = lower($1)
+`
+
+// Compared as the uniqueness index compares (account_group_name_uq).
+func (q *Queries) FindGroupIDByName(ctx context.Context, name string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findGroupIDByName, name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const findMembership = `-- name: FindMembership :one
@@ -675,6 +805,36 @@ func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams
 	return result.RowsAffected(), nil
 }
 
+const groupExternalIDs = `-- name: GroupExternalIDs :many
+SELECT id, external_id::text AS external_id FROM account_group
+WHERE id = ANY($1::uuid[]) AND external_id IS NOT NULL
+`
+
+type GroupExternalIDsRow struct {
+	ID         pgtype.UUID
+	ExternalID string
+}
+
+func (q *Queries) GroupExternalIDs(ctx context.Context, ids []pgtype.UUID) ([]GroupExternalIDsRow, error) {
+	rows, err := q.db.Query(ctx, groupExternalIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GroupExternalIDsRow{}
+	for rows.Next() {
+		var i GroupExternalIDsRow
+		if err := rows.Scan(&i.ID, &i.ExternalID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const groupHoldsRoleUnderHub = `-- name: GroupHoldsRoleUnderHub :one
 SELECT EXISTS (
   SELECT 1 FROM membership m
@@ -739,16 +899,25 @@ func (q *Queries) HasManagedAccounts(ctx context.Context) (bool, error) {
 }
 
 const holdsAnyMembership = `-- name: HoldsAnyMembership :one
-SELECT EXISTS (
+SELECT (EXISTS (
   SELECT 1 FROM membership m
   WHERE m.account_id = $1::uuid
      OR m.group_id IN (
        SELECT group_id FROM account_group_member WHERE account_id = $1::uuid
      )
-) AS held
+) OR EXISTS (
+  SELECT 1 FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'READ' = ANY(r.permissions)
+    AND (c.account_id = $1::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = $1::uuid))
+))::boolean AS held
 `
 
-// Whether the account holds a role anywhere in the tenant, directly or through a group.
+// Whether the account holds a role anywhere in the tenant, directly or through a group: a
+// built-in one, or one of the workspace's own that carries READ. A role carrying REQUEST without
+// READ is a requester's, whose place is the portal (UC-SVC-05), so it is not counted here.
 func (q *Queries) HoldsAnyMembership(ctx context.Context, accountID pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsAnyMembership, accountID)
 	var held bool
@@ -1082,6 +1251,56 @@ func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembership
 	return items, nil
 }
 
+const listRequesterPortals = `-- name: ListRequesterPortals :many
+WITH grants AS (
+  SELECT c.scope_type, c.scope_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'REQUEST' = ANY(r.permissions)
+    AND (c.account_id = $1::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = $1::uuid))
+)
+SELECT k.id, k.name
+FROM container k
+WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
+  AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
+       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB')
+       OR (EXISTS (SELECT 1 FROM grants WHERE scope_type = 'TENANT')
+           AND EXISTS (SELECT 1 FROM container h WHERE h.id = k.parent_id AND NOT h.private)))
+ORDER BY k.name COLLATE hubtask_name, k.id
+LIMIT 50
+`
+
+type ListRequesterPortalsRow struct {
+	ID   pgtype.UUID
+	Name string
+}
+
+// The collections where the account is a requester through a role of the workspace's own that
+// carries REQUEST, held directly or through a group, at the collection, at its hub, or at the
+// workspace - which reaches every collection outside a private hub, as a workspace grant does
+// (ADR-0073 §1): the portals a requester is sent to. Live collections only, by name; at most 50.
+func (q *Queries) ListRequesterPortals(ctx context.Context, accountID pgtype.UUID) ([]ListRequesterPortalsRow, error) {
+	rows, err := q.db.Query(ctx, listRequesterPortals, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRequesterPortalsRow{}
+	for rows.Next() {
+		var i ListRequesterPortalsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockGroup = `-- name: LockGroup :one
 SELECT id FROM account_group WHERE id = $1 FOR UPDATE
 `
@@ -1236,6 +1455,69 @@ func (q *Queries) MembershipsOfGroup(ctx context.Context, groupID pgtype.UUID) (
 	return items, nil
 }
 
+const pageDirectoryAccounts = `-- name: PageDirectoryAccounts :many
+SELECT id FROM account
+WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+ORDER BY created_at, id
+OFFSET $1 LIMIT $2
+`
+
+type PageDirectoryAccountsParams struct {
+	RowOffset int32
+	RowLimit  int32
+}
+
+// SCIM pages by position (RFC 7644 §3.4.2.4); (created_at, id) keeps the order stable.
+func (q *Queries) PageDirectoryAccounts(ctx context.Context, arg PageDirectoryAccountsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageDirectoryAccounts, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pageDirectoryGroups = `-- name: PageDirectoryGroups :many
+SELECT id FROM account_group ORDER BY created_at, id
+OFFSET $1 LIMIT $2
+`
+
+type PageDirectoryGroupsParams struct {
+	RowOffset int32
+	RowLimit  int32
+}
+
+func (q *Queries) PageDirectoryGroups(ctx context.Context, arg PageDirectoryGroupsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageDirectoryGroups, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const removeGroupMember = `-- name: RemoveGroupMember :exec
 DELETE FROM account_group_member
 WHERE group_id = $1 AND account_id = $2
@@ -1345,6 +1627,67 @@ func (q *Queries) RevokeMembership(ctx context.Context, id pgtype.UUID) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const roleHoldersAlongPath = `-- name: RoleHoldersAlongPath :many
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    AND m.role::text = $1::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role::text = $1::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT c.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE c.account_id IS NOT NULL
+    AND r.key = $1::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY($2::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  JOIN account_group_member g ON g.group_id = c.group_id
+  WHERE c.group_id IS NOT NULL
+    AND r.key = $1::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY($2::uuid[]))
+) AS holders
+`
+
+type RoleHoldersAlongPathParams struct {
+	Role     string
+	ScopeIds []pgtype.UUID
+}
+
+// Who holds one role anywhere on this path, for a rule's NOTIFY_ROLE step (UC-AUT-09): a
+// built-in role by the membership's enum, a custom one by its key, each directly or through a
+// group. Candidates only - whether the role counts where the entry is (a private hub on the path)
+// is the authoriser's answer, asked of each one after.
+func (q *Queries) RoleHoldersAlongPath(ctx context.Context, arg RoleHoldersAlongPathParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, roleHoldersAlongPath, arg.Role, arg.ScopeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rolesHeldAnywhere = `-- name: RolesHeldAnywhere :many
 SELECT DISTINCT m.role
 FROM membership m
@@ -1401,6 +1744,114 @@ func (q *Queries) SetAccountAvatar(ctx context.Context, arg SetAccountAvatarPara
 	return result.RowsAffected(), nil
 }
 
+const setAccountDirectoryStatus = `-- name: SetAccountDirectoryStatus :execrows
+UPDATE account SET status = $1, updated_at = $2, version = version + 1
+WHERE id = $3 AND kind = 'USER' AND deleted_at IS NULL
+  AND status IN ('ACTIVE', 'INVITED', 'DISABLED')
+`
+
+type SetAccountDirectoryStatusParams struct {
+	Status AccountStatus
+	Now    pgtype.Timestamptz
+	ID     pgtype.UUID
+}
+
+// Only between the states a directory may move a person between. A restricted account (Art. 18)
+// or an anonymised one is never touched here: switching it on again would lift a restriction
+// nobody asked to lift (data-protection.md §4).
+func (q *Queries) SetAccountDirectoryStatus(ctx context.Context, arg SetAccountDirectoryStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAccountDirectoryStatus, arg.Status, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setAccountExternalID = `-- name: SetAccountExternalID :execrows
+UPDATE account SET external_id = $1, updated_at = $2
+WHERE id = $3 AND kind = 'USER' AND deleted_at IS NULL
+`
+
+type SetAccountExternalIDParams struct {
+	ExternalID *string
+	Now        pgtype.Timestamptz
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetAccountExternalID(ctx context.Context, arg SetAccountExternalIDParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAccountExternalID, arg.ExternalID, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setGroupExternalID = `-- name: SetGroupExternalID :execrows
+UPDATE account_group SET external_id = $1 WHERE id = $2
+`
+
+type SetGroupExternalIDParams struct {
+	ExternalID *string
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetGroupExternalID(ctx context.Context, arg SetGroupExternalIDParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setGroupExternalID, arg.ExternalID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const sharedItemsAcross = `-- name: SharedItemsAcross :many
+SELECT wi.id, wi.collection_id
+FROM membership m
+JOIN work_item wi ON wi.id = m.scope_id
+WHERE m.scope_type = 'ITEM'
+  AND (
+    m.account_id = $1
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = $1
+    )
+  )
+GROUP BY wi.id, wi.collection_id
+ORDER BY wi.id
+LIMIT $2
+`
+
+type SharedItemsAcrossParams struct {
+	AccountID pgtype.UUID
+	RowLimit  int32
+}
+
+type SharedItemsAcrossRow struct {
+	ID           pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+// Every entry the account holds an ITEM membership on, directly or through a group, with its
+// collection: what a workspace summary counts where the collection itself is not read. Bounded
+// by the caller's limit, which asks one row past its bound to know it was reached.
+func (q *Queries) SharedItemsAcross(ctx context.Context, arg SharedItemsAcrossParams) ([]SharedItemsAcrossRow, error) {
+	rows, err := q.db.Query(ctx, sharedItemsAcross, arg.AccountID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SharedItemsAcrossRow{}
+	for rows.Next() {
+		var i SharedItemsAcrossRow
+		if err := rows.Scan(&i.ID, &i.CollectionID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sharedItemsInCollection = `-- name: SharedItemsInCollection :many
 SELECT m.scope_id
 FROM membership m
@@ -1450,6 +1901,45 @@ func (q *Queries) SharedItemsInCollection(ctx context.Context, arg SharedItemsIn
 	return items, nil
 }
 
+const signInDetails = `-- name: SignInDetails :many
+SELECT a.id, a.email,
+  EXISTS (SELECT 1 FROM account_mfa m
+          WHERE m.account_id = a.id AND m.confirmed_at IS NOT NULL)::boolean AS authenticator_app
+FROM account a
+WHERE a.id = ANY($1::uuid[])
+  AND a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+ORDER BY a.id
+`
+
+type SignInDetailsRow struct {
+	ID               pgtype.UUID
+	Email            *string
+	AuthenticatorApp bool
+}
+
+// The people list's address and authenticator app per person (POST /accounts:sign-in-details).
+// People only, and not an erased one: a service account has neither, an erased one has nothing
+// left to show. Row level security bounds it to the transaction's tenant.
+func (q *Queries) SignInDetails(ctx context.Context, accountIds []pgtype.UUID) ([]SignInDetailsRow, error) {
+	rows, err := q.db.Query(ctx, signInDetails, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SignInDetailsRow{}
+	for rows.Next() {
+		var i SignInDetailsRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.AuthenticatorApp); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const spendAccountPending = `-- name: SpendAccountPending :execrows
 UPDATE auth_pending SET consumed_at = $1
 WHERE account_id = $2 AND consumed_at IS NULL
@@ -1491,8 +1981,9 @@ UPDATE account SET
   week_start = $3,
   celebrations = $4,
   onboarding_completed_at = $5,
-  updated_at = $6
-WHERE id = $7 AND deleted_at IS NULL
+  products_seen = $6::text[],
+  updated_at = $7
+WHERE id = $8 AND deleted_at IS NULL
 `
 
 type UpdateAccountPreferencesParams struct {
@@ -1501,6 +1992,7 @@ type UpdateAccountPreferencesParams struct {
 	WeekStart             *string
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
+	ProductsSeen          []string
 	UpdatedAt             pgtype.Timestamptz
 	ID                    pgtype.UUID
 }
@@ -1514,6 +2006,7 @@ func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccoun
 		arg.WeekStart,
 		arg.Celebrations,
 		arg.OnboardingCompletedAt,
+		arg.ProductsSeen,
 		arg.UpdatedAt,
 		arg.ID,
 	)

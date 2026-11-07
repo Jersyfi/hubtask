@@ -66,11 +66,16 @@ export interface LegalLinks {
   readonly terms_version?: string;
   /** Present with `terms_url`: who set the terms, which is whom to ask about them. */
   readonly terms_set_by?: 'INSTALLATION' | 'WORKSPACE';
+  /** Where a person asks for help (`https` or `mailto:`) and what they read; Help shows them. */
+  readonly support_url?: string;
+  readonly docs_url?: string;
 }
 
 /** What `GET /auth/sign-in-rules` answers. Deliberately the least a sign-in screen needs. */
 export interface SignInRules {
   readonly workspace_host: string;
+  /** The workspace the host answers, by its name; absent where none does. */
+  readonly workspace_name?: string;
   readonly methods: readonly string[];
   readonly providers: readonly ProviderSummary[];
   readonly password: PasswordRules;

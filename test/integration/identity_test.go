@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,6 +149,7 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 	updated, err := account.WithPreferences(identity.Preferences{
 		Locale: "de-AT", TimeZone: "Europe/Vienna", WeekStart: "MONDAY",
 		Celebrations: "false", OnboardingCompletedAt: "2026-09-17T08:00:00Z",
+		ProductsSeen: []string{"SERVICE_DESK", "TIME"},
 	})
 	if err != nil {
 		t.Fatalf("applying: %v", err)
@@ -175,6 +177,9 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 	if read.OnboardingCompletedAt == nil || !read.OnboardingCompletedAt.Equal(time.Date(2026, 9, 17, 8, 0, 0, 0, time.UTC)) {
 		t.Errorf("onboarding completed at read back %v", read.OnboardingCompletedAt)
 	}
+	if strings.Join(read.ProductsSeen, ",") != "SERVICE_DESK,TIME" {
+		t.Errorf("products seen read back %v", read.ProductsSeen)
+	}
 
 	// Cleared: both columns back to NULL, which is the default and "the tour has not been taken".
 	cleared, err := read.WithPreferences(identity.Preferences{Locale: "de-AT", TimeZone: "Europe/Vienna", WeekStart: "MONDAY"})
@@ -191,8 +196,8 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("clearing the moments: %v", err)
 	}
-	if read.Celebrations != nil || read.OnboardingCompletedAt != nil {
-		t.Errorf("after clearing, read back celebrations %v and completed at %v", read.Celebrations, read.OnboardingCompletedAt)
+	if read.Celebrations != nil || read.OnboardingCompletedAt != nil || len(read.ProductsSeen) != 0 {
+		t.Errorf("after clearing, read back celebrations %v, completed at %v, products seen %v", read.Celebrations, read.OnboardingCompletedAt, read.ProductsSeen)
 	}
 }
 

@@ -105,7 +105,8 @@ func identifiersOf(schedules []domain.Schedule) string {
 
 func (h DeleteBackupTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteBackupTargetName,
+		Name:       DeleteBackupTargetName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Removes a backup target and its sealed credential from the workspace's " +
 			"configuration. Nothing at the target is touched: the archives stay where they are, " +
 			"and an operator who wants them gone removes them there. A target a schedule still " +

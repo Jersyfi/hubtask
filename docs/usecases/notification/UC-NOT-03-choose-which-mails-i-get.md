@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-06, P-12, P-13]
 state: built
 tasks: [C-09, F3-02, F3-17]
-checked_by: [core/domain/model/notification/Preference_test.go, test/integration/notification_test.go, apps/webapp/src/lib/data/preferences.test.ts]
+checked_by: [core/domain/model/notification/Preference_test.go, test/integration/notification_test.go, apps/webapp/src/lib/data/preferences.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/identity/NotificationPreferences_test.go]
 ---
 
 # Choose which mails I get

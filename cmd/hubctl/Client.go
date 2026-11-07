@@ -277,6 +277,42 @@ func (c *Client) OpenSnapshot(ctx context.Context, body any) (httpclient.StreamR
 	}
 }
 
+// OpenDownload posts for a file too large to hold - the workspace's archive - and hands the open
+// response back; the caller copies the body and closes it. A refusal before the first byte is
+// answered as its problem document, and a 429 is not waited out: the download's window is a day,
+// not a rate limit.
+func (c *Client) OpenDownload(ctx context.Context, path string, header map[string][]string, body []byte) (httpclient.StreamResponse, error) {
+	request := port.Request{
+		Method:      http.MethodPost,
+		URL:         c.base + path,
+		TargetClass: "hubtask-api",
+		Header: map[string][]string{
+			"Accept":     {"application/zip, application/problem+json"},
+			"User-Agent": {"hubctl/" + version},
+		},
+		Body: body,
+	}
+	if body != nil {
+		request.Header["Content-Type"] = []string{"application/json"}
+	}
+	for name, values := range header {
+		request.Header[name] = values
+	}
+	c.identify(request.Header)
+	response, err := c.transport.Stream(ctx, request)
+	if err != nil {
+		return httpclient.StreamResponse{}, c.transportError(err)
+	}
+	if response.Status >= http.StatusBadRequest {
+		document, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+		_ = response.Body.Close()
+		return httpclient.StreamResponse{}, c.problem(port.Response{
+			Status: response.Status, Header: response.Header, Body: document,
+		})
+	}
+	return response, nil
+}
+
 // Upload puts staged bytes where requestMediaUpload said to put them.
 //
 // The target is called as given: it is a capability URL - a presigned object-storage address, or

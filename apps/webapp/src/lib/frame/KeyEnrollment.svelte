@@ -8,7 +8,9 @@
   // setup does (`TotpEnrollment.svelte`).
 
   import { canCopy } from '@hubtask/design-system/components';
-  import { Banner, Button, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from './FailureNote.svelte';
+  import { Button, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
 
   import type { OwedChange } from '../data/mfa.svelte.ts';
   import { passkeys } from '../data/passkeys.svelte.ts';
@@ -94,9 +96,9 @@
     <Stack gap="150">
       <p class="quiet">{t('app.mfa.key_setup_hint')}</p>
       {#if passkeys.failure}
-        <Banner tone="danger" title={passkeys.failure.message}>
+        <FailureNote problem={passkeys.failure}>
           {#if passkeys.failure.reference}{passkeys.failure.reference}{/if}
-        </Banner>
+        </FailureNote>
       {/if}
       <Input
         label={t('app.passkeys.name_label')}

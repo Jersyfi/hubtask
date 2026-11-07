@@ -547,9 +547,13 @@ func containerOutput(container domain.Container) usecase.Output {
 		"version":    container.Version,
 		// Always present, so a client reads a hub's privacy off every response (ADR-0073 §1).
 		"private": container.Private,
-		// A collection's short name, always present and null on a hub (ADR-0094): the word a mail
-		// subject, a plus address and a ticket key use for it.
+		// The container's short name and stable key (ADR-0094, migration 0293): the word a mail
+		// subject, a plus address and a ticket key use for a collection, and the configuration
+		// document's name for a hub or a collection.
 		"handle": stringOrNil(container.Handle),
+		// The word its entries' keys start with (migration 0363); null where they read with the
+		// handle.
+		"key_prefix": stringOrNil(container.KeyPrefix),
 	}
 	if !container.ParentID.IsZero() {
 		out["parent_id"] = container.ParentID.String()
@@ -610,7 +614,8 @@ func stringOrNil(value string) any {
 // at once (arc42 §4).
 func (h CreateContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateContainerName,
+		Name:       CreateContainerName,
+		Permission: service.PermissionStructure,
 		Summary: "Creates a hub or a collection. A hub is a top level workspace and takes no " +
 			"parent; a collection takes the identifier of the hub it belongs to. The name has to " +
 			"be unique among the containers at the same level.",
@@ -645,7 +650,7 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 					string(domain.PresetList), string(domain.PresetTasks),
 					string(domain.PresetProject), string(domain.PresetFlow),
 				},
-				Description: "The preset the container starts from; its eight settings are copied. " +
+				Description: "The preset the container starts from; its settings are copied. " +
 					"A collection given its hub's preset, or none, follows its hub instead. A hub " +
 					"given none starts from the workspace's default preset where one is set.",
 			},

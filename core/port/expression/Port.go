@@ -55,6 +55,9 @@ const (
 	Boolean Result = "boolean"
 	// Text is a template: it renders a value into a parameter (automation.md §1.3).
 	Text Result = "text"
+	// Number is a formula: a calculated field's value, an int or a double CEL produced, read as one
+	// number so that the typed value column (`num`) holds it whatever the formula's arithmetic.
+	Number Result = "number"
 )
 
 // Program is a compiled expression, ready to be evaluated as often as necessary.
@@ -100,6 +103,9 @@ const (
 	KindString Kind = "string"
 	KindInt    Kind = "int"
 	KindBool   Kind = "bool"
+	// KindStrings is a list of strings an expression tests with `in`: the roles and permissions
+	// an actor holds (`'reviewer' in actor.roles`).
+	KindStrings Kind = "strings"
 )
 
 // Variable is one name an expression may use.
@@ -110,6 +116,11 @@ type Variable struct {
 	// display text, like a use case's summary - it never reaches an end user's screen as prose the
 	// backend wrote (ADR-0011).
 	Description string
+	// Fields types a map: the names an expression may select from it with a dot, each with its
+	// own kind (a map's own Fields typing it in turn). Empty leaves the map open - a rule's `item`
+	// keeps compiling when a field is added. A form's environment types the entry per type
+	// (domain-model.md §2, "Forms"), so `entry.custom_fields.severty` is refused when it is written.
+	Fields []Variable
 }
 
 // Activation is the values an evaluation reads, resolved when the expression asks for them.
@@ -133,6 +144,8 @@ type Value struct {
 	Bool bool
 	// Text is the answer a template gives.
 	Text string
+	// Number is the answer a formula gives; zero for any other result.
+	Number float64
 }
 
 // Position is where in the text a refusal is about, as a compiler reports it.
@@ -212,6 +225,8 @@ const (
 	CodeNotBoolean = "expression.not_boolean"
 	// CodeNotString is a template that does not produce text.
 	CodeNotString = "expression.not_string"
+	// CodeNotNumber is a formula that does not produce a number.
+	CodeNotNumber = "expression.not_number"
 	// CodeTooExpensive is an evaluation that exceeded the cost limit.
 	CodeTooExpensive = "expression.too_expensive"
 	// CodeTimedOut is an evaluation that exceeded the timeout.

@@ -26,9 +26,14 @@ const streamCursorInfo = "hubtask/stream-cursor/v1"
 // being walked and the key it resumes after. A cursor minted before the epoch existed has one
 // field fewer in either shape and reads as epoch zero, which is the epoch every workspace starts
 // at - so a device holding one is not sent through a resynchronisation for the field's sake.
+//
+// A cursor naming kinds a walk skipped (offline-sync.md §3.1) carries two more after those five:
+// the skipped kinds and the order of a walk that retries them, each a comma-separated list, the
+// walk's two fields empty on a delta position.
 const (
 	streamCursorParts       = 3
 	walkCursorParts         = 5
+	skippedCursorParts      = 7
 	legacyStreamCursorParts = 2
 	legacyWalkCursorParts   = 4
 )
@@ -57,6 +62,10 @@ type StreamPosition struct {
 	// moment is: a client that could edit them could skip a kind and believe itself complete.
 	Kind  string
 	After string
+	// Skipped and Retry are the kinds a walk skipped and the order of a walk that retries them,
+	// comma-separated; signed for Kind's reason.
+	Skipped string
+	Retry   string
 }
 
 // StreamCursorCodec turns a position in the change log into an opaque cursor and back.
@@ -89,8 +98,12 @@ func (c StreamCursorCodec) Encode(position StreamPosition) string {
 		strconv.FormatInt(position.IssuedAt.Unix(), 10) +
 		streamCursorFieldSeparator +
 		strconv.FormatInt(position.Epoch, 10)
-	if position.Kind != "" {
+	lists := position.Skipped != "" || position.Retry != ""
+	if position.Kind != "" || lists {
 		text += streamCursorFieldSeparator + position.Kind + streamCursorFieldSeparator + position.After
+	}
+	if lists {
+		text += streamCursorFieldSeparator + position.Skipped + streamCursorFieldSeparator + position.Retry
 	}
 	payload := []byte(text)
 
@@ -118,11 +131,16 @@ func (c StreamCursorCodec) Decode(cursor string) (StreamPosition, error) {
 	}
 
 	fields := strings.Split(string(payload), streamCursorFieldSeparator)
-	var walk []string
+	var walk, lists []string
 	switch len(fields) {
 	case streamCursorParts:
 	case walkCursorParts:
 		walk = fields[3:]
+	case skippedCursorParts:
+		walk, lists = fields[3:5], fields[5:]
+		if (lists[0] == "" && lists[1] == "") || (walk[0] == "" && (walk[1] != "" || lists[1] != "")) {
+			return StreamPosition{}, errStreamCursorInvalid
+		}
 	case legacyStreamCursorParts:
 		fields = append(fields, "0")
 	case legacyWalkCursorParts:
@@ -143,6 +161,10 @@ func (c StreamCursorCodec) Decode(cursor string) (StreamPosition, error) {
 		return StreamPosition{}, errStreamCursorInvalid
 	}
 	position := StreamPosition{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC(), Epoch: epoch}
+	if lists != nil {
+		position.Kind, position.After, position.Skipped, position.Retry = walk[0], walk[1], lists[0], lists[1]
+		return position, nil
+	}
 	if walk != nil {
 		if walk[0] == "" {
 			return StreamPosition{}, errStreamCursorInvalid

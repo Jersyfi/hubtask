@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { escapeHandler, focusReturn, rovingIndex, typeAheadIndex } from '../src/focus.ts';
+import { clearanceUnder, escapeHandler, focusReturn, rovingIndex, typeAheadIndex } from '../src/focus.ts';
 import { LayerRegister } from '../src/layers.ts';
 
 test('the arrows walk the list and wrap at both ends', () => {
@@ -105,4 +105,15 @@ test('focus goes back to the trigger, unless the trigger is gone', () => {
   assert.equal(focusReturn({ isConnected: false, focus: () => (focused += 1) }), false);
   assert.equal(focusReturn(null), false);
   assert.equal(focused, 1);
+});
+
+// --- the save bar's clearance --------------------------------------------------------------------
+
+test('a field the save bar covers is moved up by what it covers; nothing that is clear or too tall to clear', () => {
+  // The bar's top at 850 in a page whose content starts at 49 under the app bar.
+  assert.equal(clearanceUnder({ top: 800, bottom: 880 }, 850, 49), 30);
+  assert.equal(clearanceUnder({ top: 700, bottom: 760 }, 850, 49), 0);
+  // A region taking focus because it was pressed - `main`, taller than the room above the bar -
+  // cannot be cleared, and moving it would move what the pointer is pressing.
+  assert.equal(clearanceUnder({ top: 49, bottom: 930 }, 850, 49), 0);
 });

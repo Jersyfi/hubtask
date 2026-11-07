@@ -26,12 +26,6 @@ func mediaGroup() group {
 				summary: "upload a file: stage it, put the bytes, confirm",
 				run:     mediaUpload,
 			},
-			{
-				name:    "attach",
-				usage:   "<item-id> --media <id>",
-				summary: "attach an uploaded file to an entry",
-				run:     mediaAttach,
-			},
 		},
 	}
 }
@@ -106,42 +100,6 @@ func mediaUpload(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(confirmed, mediaTable([]openapi.MediaObject{confirmed}))
-}
-
-func mediaAttach(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "media attach <item-id> --media <id>"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "media", "attach", "<item-id> --media <id>")
-	media := flags.String("media", "", "the media object to attach; `hubctl media upload` prints its identifier")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-	if *media == "" {
-		return usagef("say what to attach: --media <id>")
-	}
-	object, err := cli.parseID("--media", *media)
-	if err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var attachments openapi.ItemAttachments
-	target := itemsPath + "/" + item.String() + "/attachments/" + object.String()
-	if err := client.Put(ctx, target, nil, &attachments); err != nil {
-		return err
-	}
-
-	rows := make([][]string, 0, len(attachments.MediaIds))
-	for _, attached := range attachments.MediaIds {
-		rows = append(rows, []string{attachments.ItemId.String(), attached.String()})
-	}
-	return cli.Emit(attachments, Table{Columns: []string{"item", "media"}, Rows: rows})
 }
 
 func mediaTable(objects []openapi.MediaObject) Table {

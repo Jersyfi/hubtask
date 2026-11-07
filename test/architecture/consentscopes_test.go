@@ -10,7 +10,8 @@ import (
 	usecases "github.com/Jersyfi/hubtask/core/application/catalogue"
 )
 
-// Every scope a person can be asked to allow has a sentence.
+// Every scope a person can be asked to allow has a sentence, the per-section apply scopes among
+// them (UC-AGT-06 check 3).
 //
 // The consent screen shows a scope this build has no wording for as its identifier — which is the
 // honest fallback, and a bad thing to rely on: `items:write` is not a decision anybody can make.

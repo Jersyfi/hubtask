@@ -39,11 +39,19 @@ graph LR
 ```
 
 A rule holds at most 20 conditions (all must hold) and at most 50 actions; branches nest at most 3
-deep. The scope is the workspace (`TENANT`), a `HUB` or a `COLLECTION`.
+deep. The scope is the workspace (`TENANT`), a `HUB` or a `COLLECTION` - or a person (`PERSON`, the
+id their account): a person's own rule acts as them alone (`run_as` = the id, held by a CHECK,
+migration 0319), starts on an `EVENT` only, fires on an entry only when its owner may `READ` it at
+that moment (`MatchRules.Readers`), and is managed and seen by its owner alone, signed in as
+themselves, without the `AUTOMATION` permission - anybody else is answered not found. It is not a
+section of the configuration document, and an erasure takes it with the person (UC-AUT-01 checks
+10 and 11). The web app keeps them under *Your settings → Rules* (`/profile/rules`), which a member
+reaches without the administration, and as the *Mine* tab of the administration's rules; the
+editor's *Only for me* scope fixes the scope, `run_as` and an event trigger together.
 
 ### 1.1 Triggers
 
-**All six kinds feed one engine.** A trigger decides *when* a run starts and what makes it one
+**All seven kinds feed one engine.** A trigger decides *when* a run starts and what makes it one
 occasion; everything else is §2's. The run records the kind that started it on its own row, as a
 rule can be edited into another kind.
 
@@ -51,10 +59,18 @@ rule can be edited into another kind.
 |---|---|---|---|
 | `EVENT` | Any domain event; field filters through `changed_fields` | The outbox dispatcher, through the matching subscriber | The event |
 | `SCHEDULE` | RRULE with a time zone ("Mondays at 08:00") | The tenant's poller, when the stored `next_run_at` has come | The occurrence's instant |
-| `RELATIVE_DATE` | "24 h before the due date", anchored on `DUE_DATE` or `CREATED_AT` | The same poller, when a stored occurrence has come | The occurrence row |
+| `RELATIVE_DATE` | "24 h before the due date", anchored on `DUE_DATE`, `CREATED_AT`, `COMPLETED_AT` ("5 days after it was done"; a reopened entry owes nothing) or `FIELD` with `anchor_field`, a `DATE` or `DATE_TIME` custom field's key ("30 days before the notice date"; a day counts from its start in UTC, an empty field owes nothing); with `calendar`, a business calendar's key, the offset is whole working days of it at the anchor's clock time ("5 business days after it was done") | The same poller, when a stored occurrence has come | The occurrence row |
 | `MANUAL` | A button, an API call or an MCP tool | `POST /automation/rules/{id}:trigger` | The run, so two presses are two runs |
 | `INBOUND_WEBHOOK` | A token-protected URL per rule; the body is `payload` in CEL | `POST /automation/inbound/{token}` | The delivery, so two posts are two runs |
 | `JUMBLE_ENTRY` | A new arrival in the jumble, the basis for automatic conversion | An arrival in the jumble | The entry |
+| `STEP_TAKEN` | One step of one workflow, by the workflow's key and the step's (UC-FLW-04) | The step itself, inside its transaction | The step's `item.updated` |
+
+`STEP_TAKEN` is the one kind that runs **synchronously**: the step hands its announcement to the
+engine inside its own transaction, so what the actions change on the entry commits with the step
+or not at all. The engine is otherwise the same - the run log, the throttle, `run_as` and the depth
+bound; a rule on a step that takes another step nests one deeper each time. A failing action ends
+the run as its `on_error` says and the run is recorded with the step; only an error of the engine
+itself refuses the step. A `RETRY` rule is not retried, since no job carries the run.
 
 The idempotency key (§2.0) names the occasion as the table gives it, never an absent event — else a
 second manual press would find the first's answer and do nothing.
@@ -82,6 +98,16 @@ a rule in place of a person — kept in step with its anchor by a subscriber; a 
 nothing**, nor does an entry in the trash or gone. The `SCHEDULE` poller serves it too.
 
 **A rule takes effect for what happens after it is switched on**; nothing walks earlier entries.
+
+**A day is a calendar day in the workspace's time zone.** The offset's weeks and days move the
+anchor by calendar days at its local clock time, so `-P1D` before 09:00 on the morning after a
+clock change is 09:00 the day before; only its hours, minutes and seconds are lengths of time
+(`-PT24H` is exactly 24 hours). A workspace without a loadable zone counts in UTC.
+
+**A business calendar counts working days.** A trigger naming one is read on the entry's hub's own
+version of the key, else the workspace's or the installation's, as an SLA policy's calendar is; a
+rule whose calendar no longer exists owes nothing, because plain days would come earlier than the
+rule promises.
 
 #### `MANUAL`
 
@@ -118,6 +144,10 @@ never learns of it (ADR-0001).
 * **The variable list is a contract**, declared to the compiler: an expression naming anything else
   fails at the write. The values are dynamic documents, so `has(item.cover)` answers for a missing
   field.
+* **`item` carries its sets beside the entry**: `item.labels` and `item.members` as identifiers,
+  and `item.links` as the entry's links from both ends - each `{type, outward, other_id}`, the
+  type's key, whether the entry is the link's source, and the far end's identifier, never a title
+  (F-3, UC-PLN-01): `item.links.exists(l, l.type == 'depends_on' && l.outward)`.
 * **Compiling is separate from evaluating**: a mistake is answered at the write, with line and
   column. A condition must produce a boolean, a template text; where CEL cannot decide the type
   statically, the value is checked.
@@ -146,8 +176,17 @@ use case's refusals, the collection's structure among them: writing a value or a
 entry's collection hides fails the step with `capability_not_supported`
 ([domain-model.md](./domain-model.md) §2), and the run records it.
 
-A planned kind not yet served is refused as §2.2 says; notification actions are not built
-([UC-AUT-09](../usecases/automation/UC-AUT-09-have-a-rule-tell-people.md)).
+A planned kind not yet served is refused as §2.2 says.
+
+**The notification steps** ([UC-AUT-09](../usecases/automation/UC-AUT-09-have-a-rule-tell-people.md)).
+`NOTIFY_ACCOUNT`, `NOTIFY_GROUP` and `NOTIFY_ROLE` tell an account, each member of a group, or
+every holder of a built-in or custom role along the entry's path (directly or through a group,
+where the authoriser says the role counts) that something happened to the entry the run is about.
+Each recipient is asked the read question on the entry; one who may not read it, or whose
+processing is restricted, is not told. The message is a notification record of category `SLA`,
+decided by the recipient's preference and sent by the delivery job: a title and a link, never a
+note or an attachment. An unknown recipient is refused at the save; one step tells at most 500
+people and is refused whole beyond that.
 
 **The flow kinds.**
 
@@ -394,7 +433,7 @@ A rule that cannot run is not stored: stored and ignored is worse than refused.
 | An action kind the catalogue does not serve | `automation.action_unknown`, or `automation.action_not_available_yet` for a planned kind (§1.3) |
 | A parameter the action's use case does not declare | Refused, as the call itself would refuse it |
 | A **required** parameter the rule does not carry | Accepted: the run supplies the rest and the registry validates the whole input then. The check names one the run cannot supply either (§2.3) |
-| A **trigger** of any of the six kinds | Accepted with the fields its kind needs and no others (`automation.trigger_field_not_for_kind`) |
+| A **trigger** of any of the seven kinds | Accepted with the fields its kind needs and no others (`automation.trigger_field_not_for_kind`) |
 | A `SCHEDULE` whose **recurrence** this installation cannot expand | Refused, the field named. An *exhausted* recurrence is stored with no next moment |
 | An **address** on a rule whose trigger is not `INBOUND_WEBHOOK` | Refused by name |
 
@@ -486,7 +525,8 @@ order with a stable cursor, deduplicable through `event_id`.
 * **Authorisation is the event's, not the endpoint's.** A poll needs `automation:manage` (as a
   webhook subscription does) *and* the event type's own read scope
   (`core/domain/event/ReadScope.go`); an event of a private hub is answered only to a caller who
-  reaches the hub.
+  reaches the hub. The poller is a member of the workspace (`access.Request.AnyMember`): a portal
+  requester, who holds both scopes in a session, is refused.
 * **A poll reads a moment behind the present.** `occurred_at` is stamped by the writing transaction,
   not its commit, so an earlier transaction can commit a row behind an answered cursor; rows younger
   than `HUBTASK_TRIGGER_POLL_LAG` are withheld from page and cursor until the next poll. Webhooks are
@@ -510,6 +550,178 @@ The **n8n community node** (`packages/n8n-nodes-hubtask`) and the **Zapier app**
 (`packages/zapier-app`) are generated from the contract — one operation per use case, one trigger
 per event type — and a test per package proves them complete
 ([ADR-0058](../adr/ADR-0058-connector-packages.md)).
+
+### 3.4 Chat rooms
+
+A subscription's `format` says what its target receives
+([UC-INT-12](../usecases/integration/UC-INT-12-tell-our-chat-room-what-happens.md)): `CLOUDEVENTS`
+(the default, §3.1) or a chat room's sentence - `MATRIX`, `SLACK`, `MATTERMOST`, `TEAMS`. A chat
+room is the same subscription: its types, filter, scope, retries, dead letter, switching off and the
+plan's bounds are §3.1's, and only the body and the credential differ. The format names a wire
+protocol, as an import format does (engineering-guidelines.md §2, item 17).
+
+* **The sentence** is the catalogue's `chat.<entity>_<verb>` in the subscription's `locale` (absent
+  is the source language; `chat.event_other` for a type without one), the entry's title where the
+  event carries it, and a link to the entry under the installation's base address - never a note,
+  a comment's body or any other field a person wrote ([data-protection.md](./data-protection.md)
+  §9's rule for mail). Matrix receives an `m.notice` with an HTML body; Slack its `text`; Mattermost
+  Markdown with the title escaped; Teams an Adaptive Card whose link is an action.
+* **Matrix**: `target_url` is the homeserver, `room` a room identifier (`!opaque:server`; an alias
+  is refused), and `credential` the sending account's access token, sealed in the secret's place
+  and never answered. A delivery is `PUT /_matrix/client/v3/rooms/{room}/send/m.room.message/
+  hubtask-{event id}`, so a retry of one event is one notice.
+* **Slack, Mattermost, Teams**: `target_url` is given as the room's incoming webhook address. It
+  admits whoever holds it, so it is sealed in the secret's place and the stored, listed and audited
+  target is its origin alone; a delivery whose opened address left that origin sends nothing and
+  ends `webhooks.target_mismatch`.
+* **Not signed, not rotated, not moved**: a chat room carries no `X-Hubtask-Signature`, its creation
+  answers an empty `secret`, a rotation is refused (`webhooks.chat_not_signed`) and so is a new
+  target (`webhooks.target_fixed_for_chat`) - another room is another subscription. The format is
+  fixed at creation. The trail records the format and the Matrix room, never the credential.
+* Link unfurls and commands from a room are not built (UC-INT-12, *Where it ends*).
+
+### 3.5 Code from a forge
+
+A hub's forge hooks ([UC-INT-13](../usecases/integration/UC-INT-13-see-the-code-that-names-an-entry.md))
+take GitHub's, GitLab's, Forgejo's and Gitea's webhooks at `POST /code-intake/{tenantId}/{hookId}`
+and keep each commit, branch and pull request on the hub's entries whose key it names. The kind
+names a wire protocol (engineering-guidelines.md §2, item 17); nothing calls the forge.
+
+* **Trust**: GitHub signs the body with the hook's secret (`X-Hub-Signature-256: sha256=…`),
+  Forgejo and Gitea likewise without the prefix (`X-Forgejo-Signature`, `X-Gitea-Signature`),
+  GitLab sends the secret itself (`X-Gitlab-Token`). The secret is derived, never stored:
+  HMAC-SHA-256 under the installation key's own purpose label over the workspace, the hook and the
+  hook's salt; drawing a new secret draws a new salt (security.md §5). A delivery is remembered
+  three days by the forge's delivery identifier (`code_delivery_seen`) and one repeated is refused.
+  Every refusal is one `404`, `forge.hook_not_found`.
+* **Who writes**: a delivery writes as the person who last defined the hook, only while they hold
+  WRITE_ITEMS on the hub, and only on the hub's own live entries; a key is read as the mail intake
+  reads one (`HANDLE-42`, standing alone before its number ends, at most ten a signal). A delivery
+  that proves the secret while that person may no longer write there switches the hook off - it is
+  still answered `404` - and the workspace's and the hub's administrators are told once by e-mail
+  (`INTEGRATION`, subject `notification.code_hook_id`, migration 0353), linking the hub's
+  *Settings → Code*; switching it on again makes it act as whoever does. An authorisation that
+  could not be answered is no refusal: the hook stays on and the forge is answered `5xx`, so it
+  delivers again.
+* **Order**: a link follows the forge's own moment; an older signal is ignored and a merged pull
+  request stays merged. A push names its branch (closed when deleted) and its commits; a pull
+  request (GitLab's merge request) its title, branch and description.
+* **Offline**: a link is the change log's `code_link`, filed under its entry's collection.
+* **Retention**: a hook is switched off, never removed; its links go with their entry.
+
+### 3.6 A calendar feed pushed into a calendar
+
+A person's calendar feed is written into their own calendar at Microsoft 365 (Graph,
+`/me/events`) or Google (Calendar API, the primary calendar)
+([UC-INT-16](../usecases/integration/UC-INT-16-write-my-calendar-feed-into-my-calendar.md)).
+
+* **Consent**: the mailboxes' installation apps (`HUBTASK_MAIL_OAUTH_*`) with PKCE and a scope for
+  the calendar's events alone (`Calendars.ReadWrite`, `calendar.events`); the provider sends the
+  browser back to `/profile/calendars`, which the operator registers as a second redirect URI.
+  The refresh token is sealed under the push's own purpose label; a rotated one is sealed again.
+* **Run**: one detached `calendar.push` job per push, every quarter hour. It reads the feed as its
+  owner now - the `.ics` route's own reader - and compares each entry's digest with what it wrote
+  (`calendar_push_event`): new entries are created, changed ones patched, gone ones deleted.
+  Events are free, without a reminder, a timed entry half an hour long.
+* **Refusals**: a grant the provider no longer takes or a feed gone stops the push (`FAILED`, its
+  code kept); anything else is tried again at the next run.
+* **Retention**: disconnecting removes the push and what it wrote is forgotten here; the events
+  stay in the calendar. Not archived: the grant opens on one installation only.
+
+### 3.7 A person's own file store
+
+A person connects their own Nextcloud or Microsoft's OneDrive and SharePoint, and *Link a file*
+offers its folders
+([UC-INT-17](../usecases/integration/UC-INT-17-pick-a-file-from-my-own-file-store.md)).
+
+* **Consent**: a Nextcloud by its login flow v2 (`/index.php/login/v2`), needing no app: the person
+  grants an app password named *Hubtask* on the Nextcloud's page, which `:complete` polls once per
+  try; the poll and login addresses must stay on the Nextcloud's origin. Microsoft by the
+  mailboxes' installation app with PKCE and `Files.Read.All`, `Sites.Read.All`; the browser comes
+  back to `/profile/files`, a third redirect URI. The grant is sealed under the connection's own
+  purpose label.
+* **Reach**: every call goes through the guarded client; a Nextcloud on a private network is
+  refused until the operator releases the guard (`HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS`), the same
+  decision a backup target on a NAS needs.
+* **Folders**: a Nextcloud by WebDAV `PROPFIND` (depth 1) under `/remote.php/dav/files/<login>/`, a
+  file's address `/index.php/f/<fileid>`; Microsoft by Graph - `/me/drive`, `/me/followedSites`, a
+  site's `/drives`, a folder's `/children` - each folder at most 500 items, names only.
+* **Share**: a Nextcloud's OCS share API, a public link with read permission alone, made in the
+  person's name when they ask for it on *Link a file*.
+* **Retention**: disconnecting removes the connection and gives a Nextcloud's app password back;
+  the links stay. Not archived: the grant opens on one installation only.
+
+### 3.8 A Matrix bot in a hub's room
+
+A hub's Matrix account answers links to the hub's entries and makes `!task` messages entries
+([UC-INT-18](../usecases/integration/UC-INT-18-answer-and-capture-from-a-matrix-room.md)).
+
+* **Seating**: an administrator of the hub gives the homeserver, the room's identifier and the
+  account's access token; `/account/whoami` names the account, `/join/{room}` seats it. The token
+  is sealed under the bot's own purpose label.
+* **Read**: one detached `chat.bot` job per bot, every minute: `/sync` with `timeout=0` and a filter
+  to the room's `m.room.message` events, at most fifty per read, from the position the last read
+  kept (`since`); the first read keeps the position alone, so history is never answered.
+* **Answers**: a link `<workspace>/items/<id>` to one of the hub's entries is answered with an
+  `m.notice` of its status, title and link, read through `GetWorkItem` as whoever seated the bot;
+  `!task <title>` runs `CreateWorkItem` in the bot's collection the same way, through the import
+  door. A notice's transaction is the message's event identifier, so a read retried answers once.
+* **Refusals**: a token the homeserver no longer takes stops the bot with its code kept; a
+  homeserver out of reach is read again at the next minute. Not archived: the token opens on one
+  installation only.
+
+### 3.9 A Slack, Teams or Mattermost bot in a hub's channel
+
+The same bot on the platforms that post to it: a `ChatBot` with `platform` SLACK, TEAMS or
+MATTERMOST answers links to the hub's entries and makes commands entries
+([UC-INT-19](../usecases/integration/UC-INT-19-answer-and-capture-from-slack-teams-and-mattermost.md)).
+Nothing is read on a schedule: the platform posts to the bot's intake,
+`POST /chat-intake/{tenantId}/{botId}`, and is answered there.
+
+* **Each platform's own consent.** The installation registers no app of its own on any platform.
+  The administrator of the Slack workspace, the Entra tenant or the Mattermost server registers one
+  app per bot in their own platform, consents to it there and hands its credentials to the hub's
+  administrator, who seats the bot with them; the bot's row then shows the intake address the app
+  is pointed at.
+  * *Slack*: an app created in the workspace (api.slack.com/apps) with the bot scopes `links:read`,
+    `links:write` and `commands`; *Event Subscriptions* on, its request URL the intake, the bot
+    event `link_shared`, the workspace's address (the installation's host) under *App unfurl
+    domains*; a slash command (`/task`) with the intake as its request URL; installed to the
+    workspace and invited to the channel. The hub's administrator gives the *Bot User OAuth Token*
+    (`xoxb-…`) and the *Signing Secret*; `auth.test` names the bot user.
+  * *Teams*: an Azure Bot of the *single tenant* type in the organisation's Entra tenant, its
+    messaging endpoint the intake and the Microsoft Teams channel on; a client secret on its
+    application; a Teams app package (manifest) with the bot in the `team` and `groupChat` scopes
+    and a messaging extension whose `messageHandlers` name the installation's host under
+    `link`/`domains`, uploaded by the Teams administrator and added to the team. The hub's
+    administrator gives the application's identifier, the tenant's and the secret; a token drawn
+    from the tenant proves them together.
+  * *Mattermost*: a slash command (`/task`, method POST) and an outgoing webhook on the bot's
+    channel without trigger words, both with the intake as their callback URL; a system
+    administrator allows `EnableOutgoingWebhooks` and `EnableCommands`. The hub's administrator
+    gives the token Mattermost shows for each - the command's to capture, the webhook's to unfurl.
+* **Proof.** Slack's `X-Slack-Signature` is the HMAC-SHA256 of `v0:<timestamp>:<body>` under the
+  signing secret, its `X-Slack-Request-Timestamp` at most five minutes off the arrival. A Teams
+  activity carries the Bot Framework's token: RS256 by a key the Bot Framework publishes (read
+  through the guarded client, again for an unknown key at most every five minutes), issuer
+  `https://api.botframework.com`, audience the bot's application, its moments within five minutes,
+  naming the activity's service address - which must be one of the Bot Framework's hosts, so a
+  reply never goes elsewhere. Mattermost's token in the body is compared in constant time, each
+  door with its own. Every refusal is the intake's one `404`.
+* **Answers.** Only a delivery from the bot's own channel (a Teams thread's conversation before
+  `;messageid=`) is answered; any other is acknowledged and not answered. A link
+  `<workspace>/items/<id>` to one of the hub's entries is answered with a card of its status, title
+  and link through `GetWorkItem` as whoever seated the bot - Slack's through `chat.unfurl` with the
+  bot token, Teams' `composeExtension/queryLink` and Mattermost's outgoing webhook in the response.
+  A command - Slack's and Mattermost's slash command, `task <title>` said to the Teams bot - runs
+  `CreateWorkItem` in the bot's collection the same way, answered in the response (Teams: as a
+  reply through the Bot Connector with a token drawn from the bot's tenant). Titles are escaped so
+  they neither link nor call a channel. An answer is due within eight seconds, inside what Slack
+  and Teams wait for.
+* **Refusals.** An answer the platform does not take - a revoked token, a refused secret - is kept
+  on the bot as its failure and the delivery still acknowledged; the next answer that goes through
+  clears it. The credentials are sealed together under the bot's purpose label, never answered,
+  and not archived.
 
 ---
 
@@ -542,12 +754,17 @@ secret is sealed (`mailbox.secret:<id>`) and opened only by that job and *Check 
 Google and Microsoft as presets) is started by `AuthorizeMailbox`, which stores a
 `mailbox_authorization` - the state as its hash, the verifier and an own app's client secret
 sealed, ten minutes, the administrator who asked - and answers the provider's URL. The provider
-sends the browser to `/administration/mail/oauth`; the page hands state and code to
+sends the browser to `/administration/mail/oauth` - in multi-tenant operation on the installation's
+host, from where the page forwards the return to the workspace's host ([identity.md](./identity.md)
+§10.1, `POST /auth/connector:locate`) - and there the page hands state and code to
 `CompleteMailboxAuthorization`, which takes the row (once), trades the code at the token endpoint
 through the guarded client, signs in to IMAP with SASL XOAUTH2 and only then stores the mailbox
 with the refresh token sealed. Each read draws an access token first; a rotated refresh token is
 sealed in place, a withdrawn grant is the mailbox's failure (`mail.oauth_revoked`). The
-installation's own apps come from `HUBTASK_MAIL_OAUTH_{GOOGLE,MICROSOFT}_CLIENT_ID`/`_SECRET`.
+installation's own apps come from `HUBTASK_MAIL_OAUTH_{GOOGLE,MICROSOFT}_CLIENT_ID`/`_SECRET`. A
+mailbox failing for an hour is told to its workspace's administrators once; when most mailboxes on
+one of the installation's apps fail together - its secret ran out - the operator is alerted (A-29,
+`hubtask_mail_app_mailboxes{,_failing}`, counted across workspaces by `installation_mail_apps()`).
 
 **The parser is transport-independent**: bytes in; sender, subject, text, attachments, Message-ID
 and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
@@ -555,8 +772,12 @@ and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
 ### 5.1 Names and the routing order
 
 Every collection has a *handle* (`einkauf`, letters and digits, unique in the workspace over
-trashed collections too, kept on a rename) and every entry a number in its collection; together
-they are the *ticket key* `EINKAUF-42`. On the operator's domain a workspace has a *name*
+trashed collections too, kept on a rename) and every entry a number in its collection. A
+collection made since migration 0363 also has a *key prefix* (`EIN`, a letter and up to four
+letters or digits, derived from the name, changeable or clearable, unique in the workspace and
+never another collection's handle); the *ticket key* is the prefix and the number (`EIN-42`), or
+the handle in capitals and the number (`EINKAUF-42`) where there is no prefix, and either form
+names the entry in rule 1 (user-experience.md §5.6). An address always carries the handle. On the operator's domain a workspace has a *name*
 (`familie`, unique on the installation): `familie@`, `familie+tag@` and `tag.familie@` all reach
 it. The first rule that matches decides:
 
@@ -588,3 +809,86 @@ redelivery a no-op and is the log *Administration → E-mail* shows; it is kept 
 (`MAIL_RECEIPT`, [data-retention.md](./data-retention.md) §3). A notification about an entry
 carries the entry's ticket key on the intake's address as `Reply-To`
 (`familie+web-42@in.example.app`), so a reply is routed by rule 1.
+
+## 6. Connectors of the inventory
+
+A connector is a program a hub's configuration items are pulled from, or a monitoring program that
+posts alerts to it (UC-AST-07, UC-AST-08; the model in [domain-model.md](./domain-model.md) §3.10;
+why: research itsm-cmdb-ai §6.3). It writes as one of the workspace's sources of kind `CONNECTOR`
+and through the one reconciliation, so nothing a connector fetches reaches a CI any other way.
+
+### 6.1 Pulling
+
+| Kind | Calls | Pages and cursor |
+|---|---|---|
+| `GLPI` | the high-level API (v2): `POST /api.php/token` with an OAuth client (`client_id` setting, the secret as credential), `GET /api.php/v2/Assets/Computer` | by offset, changed since the newest `date_mod` the last walk saw |
+| `NETBOX` | `GET /api/dcim/devices/`, then `GET /api/virtualization/virtual-machines/`, with `Authorization: Token`; a record's site `contains` it, a virtual machine is `hosted_on` its cluster (a `virtualization_cluster`) and on its device. The setting `dialect` `nautobot` reads Nautobot: `depth=2` and `sort` instead of `ordering`, a `location` in place of the site, `primary_ip4` or `primary_ip6` | by offset, each walk changed since its own newest `last_updated`; the devices' walk, then the machines' |
+| `INTUNE` | a token from the `authority` setting's `/{tenant}/oauth2/v2.0/token` (client credentials), `GET /v1.0/deviceManagement/managedDevices`, then - unless the setting `detected_apps` is `off` - `GET /v1.0/deviceManagement/detectedApps` and each app's `/managedDevices`: an app and version is one `software` `installed_on` each device it was detected on | the next page's link; every device and app on every walk, ten apps a page, an app with more devices than a page continued from its next link |
+| `ENTRA` | the same token, `GET /v1.0/devices/delta` | the next page's link, then the delta link: a later walk fetches only what changed; a removed device is left alone |
+| `HETZNER` | `GET /v1/servers` with the project's token as bearer | by page; every server on every walk |
+| `OPENSTACK` | `POST /v3/auth/tokens` with an application credential (`application_credential_id` setting), the public compute endpoint of the catalogue (`region` setting narrows it), `GET /servers/detail` | by marker; every server on every walk |
+
+Every address is the connector's configuration, never the source code's (PG-6): its https base
+address, the `authority` of Intune and Entra, and the further hosts it allows - an OpenStack
+compute endpoint's, typically. A call to any other host is refused (`connector.host_not_allowed`).
+Every call leaves through the guarded client (rule 6) with a deadline of 30 seconds (rule 7) inside
+a circuit breaker per connector; 401 and 403 are `connector.unauthorised`, 429 is
+`connector.rate_limited` with the source's `Retry-After`, everything else
+`connector.unreachable` - the run keeps the code, never the source's words (rule 10).
+
+A run is up to 50 pages, each reconciled and committed in a transaction of its own, so that no call
+holds one open; a failure keeps the cursor of the last page written. A run whose caller's deadline
+(the request's, or the job's) leaves less than twice its longest page so far, and at least two
+seconds, stops after the page it is on and keeps that cursor too: cut off by the deadline instead,
+it would keep its pages but not where they ended, and the next run would walk them again. A scheduled connector is one
+job per connector (`cmdb.connector_pull`, deduplicated by the connector), seeded by the definition
+and rescheduling itself to the connector's next moment; it runs with the rights of the person who
+last defined the connector, as an automation with the item scopes only, and switches itself off
+after ten failed runs in a row - which the workspace's and the hub's administrators are told once
+by e-mail (`INTEGRATION`, subject `notification.cmdb_connector_id`, migration 0349), in the run's
+transaction. A calendar push its provider refuses for good (UC-INT-16) is told to its owner the
+same way (`notification.calendar_push_id`). A run that fails or fetches nothing fires the hub's one alert about
+that connector's runs (key `hubtask.connector_run`, its title the failure's message code or
+`connector.run_empty`), in the run's transaction; a run that fetches resolves it, and a dry run
+leaves it alone (research itsm-cmdb-ai C8). It names no CI and opens no entry: a pull has no
+collection. The credential is sealed under the purpose `cmdb.connector:<id>`
+and re-sealed by the connectors' own resealer in a key rotation (store `cmdb_connector`,
+security.md §8.1).
+
+### 6.2 Alert intake
+
+`POST /cmdb/alert-intake/{tenantId}/{connectorId}` carries no bearer of a person. Its credential is
+the secret Hubtask drew for the intake, presented as `Authorization: Bearer <secret>` - what an
+Alertmanager `webhook_config` sends with `http_config.authorization` - or used to sign the body:
+`X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256
+over the timestamp, a dot and the body. A signature older or newer than five minutes is refused and
+the digests of the last ten minutes' signatures are kept to refuse a replay (`cmdb_intake_seen`);
+every refusal is the same `404`.
+
+| Kind | Format read | Key | Hosts |
+|---|---|---|---|
+| `ALERTMANAGER` | the webhook's `alerts[]`, `status` firing or resolved, `annotations.summary` as title | `fingerprint`, else `alertname/instance` | labels `instance`, `host`, `hostname`, `nodename` |
+| `ZABBIX` | a webhook media type posting `event_id`, `status` (`PROBLEM`/`1` fires, `RESOLVED`/`OK`/`0` resolves), `severity`, `title`, `host`, `host_name`, `host_ip` | `event_id`, else `trigger_id` | `host`, `host_name`, `host_ip` |
+| `CHECKMK` | a notification posting `host`, `service`, `state`, `notification_type`, `output`, `address` | `host/service`, or `host` | `host`, `address` |
+
+At most 200 alerts per delivery: the first 200 of a larger one are taken and the rest answered as
+`truncated`, never the delivery refused whole (a sender does not resend after a `4xx`); an
+Alertmanager webhook sets `max_alerts: 200`. An alert is bound to the one CI of the hub a host names by host
+name, address or name; with the intake's collection, a firing alert opens an entry there through
+`CreateWorkItem` - the registry, as the intake's person - its notes pointing at the CI, and its
+resolution completes it (`CompleteWorkItem`), a reopening reopens it (`ReopenWorkItem`).
+
+### 6.3 A GLPI Agent's inventory
+
+A connector of kind `GLPI_AGENT` is an intake a GLPI Agent posts its native inventory to, for
+machines no pull reaches: `POST /cmdb/inventory-intake/{tenantId}/{connectorId}` is the agent's
+server address. The body is JSON, or zlib- or gzip-compressed JSON recognised by its first bytes
+and inflated to at most 16 MiB. A `contact` is answered `{"status":"ok","expiration":24,"tasks":
+{"inventory":…}}`; an `inventory` of a `Computer` is one payload of the reconciliation as the
+intake's source - the machine by its SMBIOS UUID (the agent's device id when there is none), a
+laptop or a server by its chassis or system, otherwise a workstation, with serial, manufacturer,
+model, operating system and the first non-virtual address and MAC; each distinct program as
+`software` `installed_on` it. The secret is drawn as an alert intake's and presented as a bearer
+token, as the password of basic authentication (the agent sends it only when challenged, so a post
+with no credential at all is answered `401` with a basic challenge whatever the address) or as a
+signature. Every other refusal is the alert intake's one `404`; the run is the connector's last.

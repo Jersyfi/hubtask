@@ -101,7 +101,7 @@ func TestAttachingPutsTheMediaUnderTheEntry(t *testing.T) {
 		`{"item_id":"`+itemID+`","media_ids":["`+mediaID+`"]}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"media", "attach", itemID, "--media", mediaID)
+		"media", "attach", itemID, mediaID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -128,7 +128,7 @@ func TestAttachingNeedsTheMedia(t *testing.T) {
 	if code != exitUsage {
 		t.Fatalf("exit %d, want %d", code, exitUsage)
 	}
-	if !strings.Contains(errOut, "--media") {
+	if !strings.Contains(errOut, "<mediaId>") {
 		t.Errorf("the message %q does not name what is missing", errOut)
 	}
 }

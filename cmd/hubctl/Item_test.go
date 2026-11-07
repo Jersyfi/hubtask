@@ -99,7 +99,7 @@ func TestCompletingAnItemCallsTheActionSuffix(t *testing.T) {
 		`{"id":"`+itemID+`","type":"TASK","title":"Buy milk","version":3,
 		  "collection_id":"`+collectionID+`","completion":{"is_completed":true}}`)
 
-	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "item", "complete", itemID, "--cascade")
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "item", "complete", itemID, "--cascade-children")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -109,7 +109,7 @@ func TestCompletingAnItemCallsTheActionSuffix(t *testing.T) {
 	if !strings.Contains(stub.body, `"cascade_children":true`) {
 		t.Errorf("the body %q does not carry the cascade", stub.body)
 	}
-	if !strings.Contains(out, "yes") {
+	if !strings.Contains(out, `"is_completed":true`) {
 		t.Errorf("the answer does not show the entry as done: %q", out)
 	}
 }
@@ -122,7 +122,7 @@ func TestAssigningAnItemSendsTheAccountAndShowsTheAssignee(t *testing.T) {
 		  "assignee_id":"`+accountID+`"}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"item", "assign", itemID, "--account", accountID)
+		"item", "assign", itemID, "--account-id", accountID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

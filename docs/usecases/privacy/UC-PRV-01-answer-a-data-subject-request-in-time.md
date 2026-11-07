@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-12]
 state: built
 tasks: [E-10, E-12, H-13, F4-20, PH-02, CP-03]
-checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs, docs/evidence/PH-08-D4-2026-10-13.md, presentation/rest/PrivacyController_test.go]
+checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/ErasureAddress_test.go, core/application/service/privacy/IntakeLines_test.go, test/integration/requester_test.go, test/integration/intake_page_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs, docs/evidence/PH-08-D4-2026-10-13.md, presentation/rest/PrivacyController_test.go, core/application/service/privacy/Erasure_test.go, test/integration/erasure_integrations_test.go]
 ---
 
 # Record a data subject request and answer it in time
@@ -57,6 +57,17 @@ so it does not depend on somebody opening the screen.
     *owed soon* read the extended one; the extension writes `dsr.extended` with the
     reason and no note text. An installation-wide case is extended by the operator and every
     workspace it touches records it.
+11. A case naming only an address erases the requester record, the mail receipts and the intake of
+    that address, and the intake's first line *From: name <address>* on the entries and comments
+    filed for them; a hold on the workspace keeps it all.
+12. A full deletion of a person whom switched-on connectors, code hooks or agents not retired act
+    as is refused with `privacy.erasure_blocked_by_integration`. Switched-off connectors and code
+    hooks and retired agents move to another owner of the workspace and stay off, and the
+    `dsr.erased` entry says how many moved and to whom.
+13. The intake's first line *From: name <address>* is also removed from a page that carries it -
+    from its body, its draft and every version that opens with it, the rest of each text kept -
+    and the page's live document is rebuilt from the stripped body, on the case and on `REQUESTER`
+    expiry alike; a hold on the workspace keeps it all (decision: the owner's sixth answers 11).
 
 ## Where it ends
 

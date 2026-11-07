@@ -6,10 +6,10 @@
  *
  * **It starts on the first sign-in of an account whose `onboarding_completed_at` is null**, once
  * the account has arrived; the help menu restarts it by clearing the field. **Skipping writes the
- * field**: a tour that came back on every sign-in would teach people to skip. The seventh step
- * does not write it - it leads to the creation dialog, and the field is written when the entry is
- * completed, which is the first celebration (design-system.md §7); until then this tab remembers that the
- * tour was walked so it does not start again on the next screen.
+ * field**, and so does **walking it to its end**: a tour that came back on every sign-in would
+ * teach people to skip. The last step leads to the creation dialog; the first completion after it
+ * is still the first celebration (design-system.md §7), which this tab remembers as `led` rather
+ * than reading it from the field.
  *
  * Each step is a route and an element: the tour navigates, waits for the element to be drawn,
  * and points at it. An element that never arrives is not pointed at nothing - the step is passed
@@ -19,8 +19,11 @@
 import { actor } from './data/account.svelte.ts';
 import { engine } from './data/engine.ts';
 import { holdsHere } from './data/capability.svelte.ts';
+import { manifest } from './data/capabilities.svelte.ts';
+import { products } from './navigation.ts';
 import { preferences } from './data/preferences.svelte.ts';
-import { TOUR_SESSION_KEY, stepsFor, type Step } from './tour.ts';
+import { viewport } from './frame/viewport.svelte.ts';
+import { hubsInTourOrder, STARTER_HUB_SESSION_KEY, TOUR_SESSION_KEY, stepsFor, type Step } from './tour.ts';
 
 /** How long a route may take to draw the element a step points at. */
 const ARRIVAL_ATTEMPTS = 40;
@@ -69,16 +72,42 @@ class TourStore {
   shouldStart(): boolean {
     const account = actor.account;
     if (!account || account.onboarding_completed_at) return false;
-    return session()?.getItem(TOUR_SESSION_KEY) !== 'walked';
+    const walked = session()?.getItem(TOUR_SESSION_KEY);
+    return walked !== 'walked' && walked !== 'led';
   }
 
-  /** Starts at the first step, reading what the workspace holds from the copy. */
-  async start(): Promise<void> {
+  /** Whether the tour led to the creation dialog in this tab and no entry was completed since. */
+  get awaitsFirstCompletion(): boolean {
+    return session()?.getItem(TOUR_SESSION_KEY) === 'led';
+  }
+
+  /**
+   * The step this tab was at when the page was loaded anew - a newer release is loaded at the
+   * next navigation (api-guidelines.md §8), and the tour's own moves are navigations - or
+   * nothing where it was at none.
+   */
+  resumesAt(): number | undefined {
+    const at = /^at:(\d+)$/.exec(session()?.getItem(TOUR_SESSION_KEY) ?? '')?.[1];
+    return at === undefined ? undefined : Number(at);
+  }
+
+  /** Starts at the first step, or at `at`, reading what the workspace holds from the copy. */
+  async start(at = 0): Promise<void> {
     const workspace = await this.#workspace();
     // The jumble's step only for somebody the jumble is drawn for: a step pointing at a screen
     // that answers "nothing here" would be a tour of a refusal.
-    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true });
-    await this.#go(0, 1);
+    const frame = viewport.isCompact ? 'phone' : viewport.isBelowExpanded ? 'drawer' : 'pinned';
+    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.id, frame });
+    await this.#go(Math.min(at, this.#steps.length - 1), 1);
+  }
+
+  /** The starter made `hubId`: the tour in this tab walks it first. */
+  starterMade(hubId: string): void {
+    try {
+      session()?.setItem(STARTER_HUB_SESSION_KEY, hubId);
+    } catch {
+      // A tab that cannot remember it walks the first hub listed, as before the starter.
+    }
   }
 
   /** The help menu: the field cleared, so the tour is the account's again, and started. */
@@ -123,13 +152,14 @@ class TourStore {
   }
 
   /**
-   * The seventh step's verb: the mark goes, the control it pointed at is pressed - the creation
-   * dialog opens, or the hub's - and the field waits for the completion.
+   * The last step's verb: the mark goes, the control it pointed at is pressed - the creation
+   * dialog opens, or the hub's - and the field is written; the first moment waits for the completion.
    */
   async #lead(): Promise<void> {
     const control = this.#target;
     this.#close();
-    session()?.setItem(TOUR_SESSION_KEY, 'walked');
+    session()?.setItem(TOUR_SESSION_KEY, 'led');
+    void this.#write();
     control?.focus();
     // The seventh points at a control where a collection exists; where none does it points at
     // the tree, and the person makes the hub themselves.
@@ -168,13 +198,15 @@ class TourStore {
       if (walk !== this.#walk) return;
       if (element) {
         this.#target = element;
+        session()?.setItem(TOUR_SESSION_KEY, `at:${at}`);
         return;
       }
       at += direction;
     }
-    // Nothing left to point at in that direction: the tour ends as walked, the field untouched.
+    // Nothing left to point at in that direction: the tour ends as walked.
     this.#close();
     session()?.setItem(TOUR_SESSION_KEY, 'walked');
+    await this.#write();
   }
 
   /**
@@ -185,12 +217,13 @@ class TourStore {
    */
   async #workspace(): Promise<{ collectionId?: string; itemId?: string }> {
     try {
-      // A collection is listed under its hub, so the hubs come first and the first hub with one wins.
+      // A collection is listed under its hub, so the hubs come first and the first hub with one
+      // wins - the starter's before the workspace's default, which every workspace holds.
       const hubs = await engine.refresh<{ data?: readonly Document[] }>({ path: '/containers?type=HUB&page_size=200' });
+      const listed = (hubs.status === 'ready' ? (hubs.data.data ?? []) : []).flatMap((hub) => (typeof hub.id === 'string' ? [hub.id] : []));
       let collection: Document | undefined;
-      for (const hub of hubs.status === 'ready' ? (hubs.data.data ?? []) : []) {
-        if (typeof hub.id !== 'string') continue;
-        const collections = await engine.refresh<{ data?: readonly Document[] }>({ path: `/containers?parent_id=${hub.id}&page_size=1` });
+      for (const hub of hubsInTourOrder(listed, session()?.getItem(STARTER_HUB_SESSION_KEY) ?? undefined)) {
+        const collections = await engine.refresh<{ data?: readonly Document[] }>({ path: `/containers?parent_id=${hub}&page_size=1` });
         collection = collections.status === 'ready' ? collections.data.data?.[0] : undefined;
         if (collection) break;
       }
@@ -205,7 +238,7 @@ class TourStore {
 }
 
 /** The element a step points at, once the route has drawn it - or nothing after the attempts. */
-async function arrival(selector: string): Promise<HTMLElement | null> {
+export async function arrival(selector: string): Promise<HTMLElement | null> {
   for (let attempt = 0; attempt < ARRIVAL_ATTEMPTS; attempt += 1) {
     const element = document.querySelector<HTMLElement>(selector);
     if (element && element.getClientRects().length > 0) return element;

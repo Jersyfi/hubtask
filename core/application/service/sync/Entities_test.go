@@ -58,7 +58,7 @@ func beyondEntry(t *testing.T, clocks map[string]shared.HLC) (PushChanges, *read
 	return f.push, catalogue
 }
 
-func pushOne(t *testing.T, push PushChanges, m Mutation) Result {
+func pushFamily(t *testing.T, push PushChanges, m Mutation) Result {
 	t.Helper()
 	response, err := push.Push(t.Context(), pusher(), PushRequest{DeviceID: device, Mutations: []Mutation{m}})
 	if err != nil {
@@ -102,7 +102,7 @@ func TestEachKindIsAppliedThroughTheRoutesUseCase(t *testing.T) {
 			if c.kind != domain.TemplateApply {
 				m.EntityID = entityE
 			}
-			result := pushOne(t, push, m)
+			result := pushFamily(t, push, m)
 			if result.Result != domain.Applied {
 				t.Fatalf("answered %+v", result)
 			}
@@ -153,7 +153,7 @@ func TestAPatchOfEachFamilyIsDecidedFieldByField(t *testing.T) {
 				c.loses: {Value: "x", HLC: early.String()},
 			}}
 			c.itemOrParent(&m)
-			result := pushOne(t, push, m)
+			result := pushFamily(t, push, m)
 			if result.Result != domain.Merged || result.ServerState["id"] != entityE.String() {
 				t.Fatalf("answered %+v", result)
 			}
@@ -190,7 +190,7 @@ func TestAFieldTheServerDecidesIsRefusedAndTheRepeatAnswersTheSame(t *testing.T)
 		"fire_at": {Value: "2026-10-28T09:00:00Z", HLC: "1757937600000:00001:dev-a"},
 	}}
 	for range 2 {
-		result := pushOne(t, push, m)
+		result := pushFamily(t, push, m)
 		if result.Result != domain.Rejected || result.Error.MessageCode != "sync.field_not_mergeable" || result.EntityID != entityE {
 			t.Fatalf("answered %+v", result)
 		}
@@ -205,7 +205,7 @@ func TestARepeatedCreationIsAppliedOnce(t *testing.T) {
 	push, catalogue := beyondEntry(t, nil)
 	m := Mutation{OpID: opC, Kind: domain.LabelCreate, EntityID: entityE, HLC: "1757937600000:00001:dev-a",
 		Payload: map[string]any{"collection_id": collectionA.String(), "name": "Urgent"}}
-	first, second := pushOne(t, push, m), pushOne(t, push, m)
+	first, second := pushFamily(t, push, m), pushFamily(t, push, m)
 	if first.Result != domain.Applied || second.Result != domain.Applied || second.EntityID != entityE {
 		t.Fatalf("answered %+v then %+v", first, second)
 	}
@@ -223,7 +223,7 @@ func TestASeriesIsCreatedOnceAndMergedAfterwards(t *testing.T) {
 
 	push, catalogue := beyondEntry(t, nil)
 	catalogue.errs["GetRecurrence"] = shared.ErrNotFound.WithDetail("recurrence.not_found")
-	if result := pushOne(t, push, creation); result.Result != domain.Applied {
+	if result := pushFamily(t, push, creation); result.Result != domain.Applied {
 		t.Fatalf("answered %+v", result)
 	}
 	set := catalogue.calls[len(catalogue.calls)-1]
@@ -235,7 +235,7 @@ func TestASeriesIsCreatedOnceAndMergedAfterwards(t *testing.T) {
 	push, catalogue = beyondEntry(t, map[string]shared.HLC{"time_zone": later})
 	catalogue.outputs["GetRecurrence"] = usecase.Output{"id": "01936f2a-7c1e-7000-8000-000000000d09",
 		"rrule": "FREQ=DAILY", "time_zone": "UTC", "mode": "SCHEDULED", "horizon_days": 30, "ends_at": nil, "max_count": nil}
-	result := pushOne(t, push, creation)
+	result := pushFamily(t, push, creation)
 	if result.Result != domain.Merged || result.EntityID != "01936f2a-7c1e-7000-8000-000000000d09" {
 		t.Fatalf("answered %+v", result)
 	}
@@ -254,11 +254,11 @@ func TestASeriesIsCreatedOnceAndMergedAfterwards(t *testing.T) {
 func TestAPatchWithoutItsObjectIsRefusedByName(t *testing.T) {
 	push, _ := beyondEntry(t, nil)
 	field := map[string]FieldChange{"name": {Value: "x", HLC: "1757937600000:00001:dev-a"}}
-	if got := pushOne(t, push, Mutation{OpID: opA, Kind: domain.ContainerPatch, Fields: field}); got.Error == nil ||
+	if got := pushFamily(t, push, Mutation{OpID: opA, Kind: domain.ContainerPatch, Fields: field}); got.Error == nil ||
 		got.Error.MessageCode != "sync.entity_required" {
 		t.Errorf("a patch without its object answered %+v", got)
 	}
-	if got := pushOne(t, push, Mutation{OpID: opB, Kind: domain.LabelPatch, EntityID: entityE, Fields: field}); got.Error == nil ||
+	if got := pushFamily(t, push, Mutation{OpID: opB, Kind: domain.LabelPatch, EntityID: entityE, Fields: field}); got.Error == nil ||
 		got.Error.MessageCode != "sync.container_required" {
 		t.Errorf("a label's patch without its collection answered %+v", got)
 	}

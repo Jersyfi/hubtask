@@ -30,6 +30,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
 
   /** The request, read once. `undefined` means there is no request in this address at all. */
@@ -155,9 +156,7 @@
     {#if failure}
       <!-- The server's own words: a redirect URI the app did not register, a challenge that is
            not S256, a scope this installation does not declare. -->
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     {#if appAsks}

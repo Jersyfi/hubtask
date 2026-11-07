@@ -9,17 +9,40 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// TrashKind says which of the two aggregates a trash entry describes.
+// TrashKind says which aggregate a trash entry describes, and so which `:restore` brings it back.
 //
 // The trash is the one view in this system that mixes them. Everywhere else a hub and a task are
 // answered by different endpoints because a caller knows which it asked for; here a person asks
-// "what did I delete" and the answer is whatever they deleted, in the order they deleted it.
+// "what did I delete" and the answer is whatever they deleted, in the order they deleted it - a
+// page or a whiteboard as readily as an entry (user-experience.md §5.9, the one trash).
 type TrashKind string
 
 const (
-	TrashContainerKind TrashKind = "CONTAINER"
-	TrashItemKind      TrashKind = "ITEM"
+	TrashContainerKind  TrashKind = "CONTAINER"
+	TrashItemKind       TrashKind = "ITEM"
+	TrashPageKind       TrashKind = "PAGE"
+	TrashWhiteboardKind TrashKind = "WHITEBOARD"
 )
+
+// TrashKinds is every kind the trash lists, in the contract's order.
+var TrashKinds = []TrashKind{TrashContainerKind, TrashItemKind, TrashPageKind, TrashWhiteboardKind}
+
+// ParseTrashKind answers the kind a filter names; empty is no filter. Anything else is refused,
+// so a misspelt filter is a 400 rather than an empty trash.
+func ParseTrashKind(raw string) (TrashKind, error) {
+	if raw == "" {
+		return "", nil
+	}
+	for _, kind := range TrashKinds {
+		if string(kind) == raw {
+			return kind, nil
+		}
+	}
+	return "", shared.ErrValidation.
+		WithDetail("trash.kind_unknown").
+		WithParams(map[string]string{"kind": raw}).
+		WithFields(shared.FieldError{Path: "/kind", Code: "trash.kind_unknown"})
+}
 
 // TrashEntry is one deletion, as the trash lists it.
 //

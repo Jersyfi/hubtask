@@ -22,13 +22,23 @@ type CapabilityReader interface {
 	Execute(context.Context, appshared.ActorContext) (usecase.Capabilities, error)
 }
 
+// MetaDoor serves /meta/capabilities and /meta/health, delegated to it by the contract
+// (`x-hubtask-rest: delegated`). Typed fields rather than calls through the catalogue, although
+// both use cases are registered in it: the health report's wire format distinguishes "no latency
+// measured" from "zero milliseconds" with a pointer, which `usecase.Output`'s map would lose on
+// the one route whose readers - a status page, an operator, a support thread - need it.
+type MetaDoor struct {
+	Capabilities CapabilityReader
+	HealthReport HealthReportReader
+}
+
 // GetCapabilities answers the manifest a client configures itself from (api-guidelines.md §1).
 //
 // Public by the contract (`security: []`), and answered for an anonymous caller from the
 // system-defined profiles alone. A caller that did present a credential sees its tenant's
 // overrides where it has any - the same endpoint, a different answer, decided by the scope the
 // use case opens rather than by a branch here.
-func (c *RestController) GetCapabilities(w http.ResponseWriter, r *http.Request) {
+func (c *MetaDoor) GetCapabilities(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	if c.Capabilities == nil {
@@ -329,6 +339,16 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		notIncluded = &left
 	}
 
+	// The modules on at the caller's workspace: absent for an anonymous caller (UC-INS-21).
+	var modulesOn *[]openapi.Module
+	if source.ModulesOn != nil {
+		on := make([]openapi.Module, 0, len(source.ModulesOn))
+		for _, key := range source.ModulesOn {
+			on = append(on, openapi.Module(key))
+		}
+		modulesOn = &on
+	}
+
 	// The provider's account link: absent wherever the use case answered none.
 	var accountLink *string
 	if source.AccountLink != "" {
@@ -336,7 +356,10 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		accountLink = &link
 	}
 
+	frameSources := append([]string{}, source.FrameSources...)
+
 	return openapi.Capabilities{
+		FrameSources:           &frameSources,
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
 		TenancyMode:            &tenancy,
@@ -364,6 +387,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		WorkspacePermissions:   workspacePermissions,
 		PrivateHubOffered:      source.PrivateHubOffered,
 		NotIncluded:            notIncluded,
+		ModulesOn:              modulesOn,
 		AccountLink:            accountLink,
 		Deprecations:           deprecationManifest(),
 	}
@@ -403,7 +427,7 @@ func writeJSON(w http.ResponseWriter, r *http.Request, status int, body any) {
 	}
 }
 
-// legalLinksResponse maps the four links, or nothing at all.
+// legalLinksResponse maps the four links and the help links, or nothing at all.
 //
 // Nil where the installation set none, and each field absent where that one is unset: a private
 // installation owes nobody an imprint, and a footer given four links pointing nowhere is worse than
@@ -417,6 +441,8 @@ func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
 		identity.LinkTerms:         &answer.TermsUrl,
 		identity.LinkAccessibility: &answer.AccessibilityUrl,
 		identity.LinkTermsVersion:  &answer.TermsVersion,
+		identity.LinkSupport:       &answer.SupportUrl,
+		identity.LinkDocs:          &answer.DocsUrl,
 	} {
 		value := links.Of(name)
 		if value == "" {

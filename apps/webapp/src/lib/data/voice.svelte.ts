@@ -6,7 +6,7 @@
  * anything, and the Alexa interaction model to paste into Amazon's console.
  */
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const SETTINGS = '/voice/settings';
 
@@ -48,7 +48,7 @@ export async function readVoiceSettings(): Promise<VoiceSettings | undefined> {
 
 export async function saveVoiceSettings(settings: VoiceSettings): Promise<VoiceSettings> {
   const { installation_skill: _ignored, ...body } = settings;
-  return engine.mutate<VoiceSettings>('PUT', SETTINGS, body, { idempotencyKey: crypto.randomUUID() });
+  return engine.mutate<VoiceSettings>('PUT', SETTINGS, body, { idempotencyKey: INTENT });
 }
 
 export async function tryVoiceSentence(sentence: string, locale: string): Promise<VoiceInterpretation> {

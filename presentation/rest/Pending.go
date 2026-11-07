@@ -71,6 +71,18 @@ func (pending) GetAccount(w http.ResponseWriter, r *http.Request, _ openapi.Acco
 	notAvailable(w, r)
 }
 
+func (pending) ResolveAccounts(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadInvitationDeliveries(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadSignInDetails(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }
@@ -161,6 +173,7 @@ func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { no
 
 // The instance layer of ADR-0070.
 func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) PlanInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request, _ openapi.WriteInstanceSettingsParams) {
 	notAvailable(w, r)
 }
@@ -854,6 +867,18 @@ func (pending) UnassignWorkItem(w http.ResponseWriter, r *http.Request, _ openap
 	notAvailable(w, r)
 }
 
+func (pending) NotifyAccount(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) NotifyGroup(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) NotifyRole(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 func (pending) AutoAssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AutoAssignWorkItemParams) {
 	notAvailable(w, r)
 }
@@ -988,6 +1013,10 @@ func (pending) UploadMediaContent(w http.ResponseWriter, r *http.Request, _ open
 }
 
 func (pending) DownloadMediaContent(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.DownloadMediaContentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request, _ openapi.DownloadWorkspaceArchiveParams) {
 	notAvailable(w, r)
 }
 
@@ -1139,6 +1168,9 @@ func (pending) DeleteReminder(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// AggregateItems is overridden by RestController, for the reason given at CreateContainer.
+func (pending) AggregateItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // QueryItems is overridden by RestController, for the reason given at CreateContainer.
 func (pending) QueryItems(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
@@ -1209,6 +1241,14 @@ func (pending) SyncPush(w http.ResponseWriter, r *http.Request) { notAvailable(w
 
 func (pending) SyncSnapshot(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) OpenRealtimeDocument(w http.ResponseWriter, r *http.Request, _ string, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ProbeRealtime(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.StreamChangesParams) {
 	notAvailable(w, r)
 }
@@ -1226,6 +1266,10 @@ func (pending) RevokeCalendarFeed(w http.ResponseWriter, r *http.Request, _ open
 }
 
 func (pending) GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) AggregateView(w http.ResponseWriter, r *http.Request, _ openapi.ViewId) {
 	notAvailable(w, r)
 }
 
@@ -1291,6 +1335,10 @@ func (pending) ListIdentityProviderPresets(w http.ResponseWriter, r *http.Reques
 
 // The installation at a glance, and its own record (ADR-0070 §5).
 func (pending) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWorkspacesNearQuota(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
@@ -1478,6 +1526,13 @@ func (pending) IssueStartPassword(
 	notAvailable(w, r)
 }
 
+// ResetSecondFactor is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ResetSecondFactor(
+	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.ResetSecondFactorParams,
+) {
+	notAvailable(w, r)
+}
+
 // RequestAddress is overridden by RestController, for the reason given at CreateContainer.
 func (pending) RequestAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
@@ -1621,6 +1676,9 @@ func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, 
 // LocateOidcFlow is overridden by RestController, for the reason given at CreateContainer.
 func (pending) LocateOidcFlow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// LocateConnectorReturn is overridden by RestController, for the reason given at CreateContainer.
+func (pending) LocateConnectorReturn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // IssueDeviceListEntry and CheckDeviceList are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) IssueDeviceListEntry(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
@@ -1686,12 +1744,1535 @@ func (pending) WithdrawInstallationPreset(
 
 func (pending) CloseStarter(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) ApplyStarter(w http.ResponseWriter, r *http.Request, _ openapi.ApplyStarterParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateHubFromTemplate(w http.ResponseWriter, r *http.Request, _ openapi.CreateHubFromTemplateParams) {
+	notAvailable(w, r)
+}
+
 // AI where its subject is (UC-AI-04 checks 7 and 9).
 func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
 func (pending) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListModules(w http.ResponseWriter, r *http.Request, _ openapi.ListModulesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetModule(w http.ResponseWriter, r *http.Request, _ openapi.Module) {
+	notAvailable(w, r)
+}
+
+func (pending) ListContainerModules(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadOwnSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CopyPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+
+func (pending) PublishPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.PublishPageParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DiscardPageDraft(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadSpaceDrafts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) SetSpaceDrafts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageLabels(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) SetPageLabels(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSpaceLabels(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadEntryRequester(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) MergeWorkItems(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) SplitWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SplitWorkItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateEntryType(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangeEntryType(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangeEntryTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteEntryType(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) CopyEntryTypeHere(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) SetEntryTypeForm(w http.ResponseWriter, r *http.Request, _ string, _ openapi.SetEntryTypeFormParams) {
+	notAvailable(w, r)
+}
+
+func (pending) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) CopyCustomFieldHere(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId) {
+	notAvailable(w, r)
+}
+
+func (pending) PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId) {
+	notAvailable(w, r)
+}
+
+func (pending) SetItemEntryType(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetItemEntryTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListLinkTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateLinkType(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangeLinkType(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangeLinkTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteLinkType(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) ListEntryLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkEntries(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListLinksAmong(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ResolveReferences(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListWorkflows(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) CreateWorkflow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SaveWorkflowDraft(w http.ResponseWriter, r *http.Request, _ string, _ openapi.SaveWorkflowDraftParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteWorkflow(w http.ResponseWriter, r *http.Request, _ string)   { notAvailable(w, r) }
+func (pending) CopyWorkflowHere(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) PublishWorkflow(w http.ResponseWriter, r *http.Request, _ string, _ openapi.PublishWorkflowParams) {
+	notAvailable(w, r)
+}
+func (pending) TryWorkflowStep(w http.ResponseWriter, r *http.Request, _ string, _ string) {
+	notAvailable(w, r)
+}
+func (pending) SetWorkflowScheme(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ListEntrySteps(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) TakeStep(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TakeStepParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListRoles(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateRole(w http.ResponseWriter, r *http.Request, _ openapi.CreateRoleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeRole(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangeRoleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteRole(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) GrantRole(w http.ResponseWriter, r *http.Request, _ openapi.GrantRoleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RevokeRoleGrant(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ExplainAccess(w http.ResponseWriter, r *http.Request, _ openapi.ExplainAccessParams) {
+	notAvailable(w, r)
+}
+
+// The configuration document (F-6).
+func (pending) ReadConfigSchema(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
+func (pending) ReadConfigSandbox(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) WriteConfigSandbox(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ExportConfig(w http.ResponseWriter, r *http.Request, _ openapi.ExportConfigParams) {
+	notAvailable(w, r)
+}
+func (pending) ExplainConfig(w http.ResponseWriter, r *http.Request, _ openapi.ExplainConfigParams) {
+	notAvailable(w, r)
+}
+func (pending) CheckConfig(w http.ResponseWriter, r *http.Request, _ openapi.CheckConfigParams) {
+	notAvailable(w, r)
+}
+func (pending) ValidateConfig(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) PlanConfig(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) ProposeConfig(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) ApplyConfig(w http.ResponseWriter, r *http.Request, _ openapi.ApplyConfigParams) {
+	notAvailable(w, r)
+}
+func (pending) ListConfigVersions(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigVersionsParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadConfigVersion(w http.ResponseWriter, r *http.Request, _ int) { notAvailable(w, r) }
+func (pending) ListConfigProposals(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigProposalsParams) {
+	notAvailable(w, r)
+}
+func (pending) DecideConfigProposal(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DecideConfigProposalParams) {
+	notAvailable(w, r)
+}
+func (pending) SetConfigPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ListConfigTemplates(w http.ResponseWriter, r *http.Request, _ openapi.ListConfigTemplatesParams) {
+	notAvailable(w, r)
+}
+func (pending) PublishConfigTemplate(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) PlanConfigTemplate(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) PreviewWorkspaceStructure(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) PreviewModuleReach(w http.ResponseWriter, r *http.Request, _ openapi.Module, _ openapi.PreviewModuleReachParams) {
+	notAvailable(w, r)
+}
+
+// The knowledge module's pages.
+
+func (pending) AddPageComment(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangePageComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangePageCommentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePage(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePageComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ExportPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageBacklinks(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageComments(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageVersions(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.ListPageVersionsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPages(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListPagesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListTrashedPages(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) MovePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.MovePageParams) {
+	notAvailable(w, r)
+}
+
+func (pending) NamePageVersion(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ int) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPageVersion(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ int) {
+	notAvailable(w, r)
+}
+
+func (pending) RestorePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) RestorePageVersion(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ int, _ openapi.RestorePageVersionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SearchPages(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) TrashPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdatePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.UpdatePageParams) {
+	notAvailable(w, r)
+}
+
+func (pending) VerifyPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+// The whiteboard module's boards.
+
+func (pending) CreateWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ExportWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) AttachWhiteboardMedia(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWhiteboardBacklinks(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWhiteboardComments(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) AddWhiteboardComment(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeWhiteboardComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangeWhiteboardCommentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteWhiteboardComment(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWhiteboardVersions(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.ListWhiteboardVersionsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadWhiteboardVersion(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ int) {
+	notAvailable(w, r)
+}
+
+func (pending) NameWhiteboardVersion(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ int) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWhiteboards(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListWhiteboardsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) RestoreWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) TrashWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.UpdateWhiteboardParams) {
+	notAvailable(w, r)
+}
+
+// The assets and configuration module.
+
+func (pending) CreateCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiClass(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineCiClassParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiRelationType(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineCiRelationTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiSource(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineCiSourceParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiConnectors(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiConnector(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineCiConnectorParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetCiConnectorCredential(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RunCiConnector(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiAlerts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiAlertsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeliverCiAlerts(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCiAlertsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeliverCiInventory(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCiInventoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DismissCiHold(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ImportCiFile(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiClasses(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiDuplicates(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiDuplicatesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiHolds(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiHoldsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiRelationTypes(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiRuns(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiRunsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiSources(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCisParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiBacklinks(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiImpact(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReadCiImpactParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiRun(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCmdbHealth(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReconcileCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RelateCis(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) SetCiCompliance(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.SetCiComplianceParams) {
+	notAvailable(w, r)
+}
+
+func (pending) UnrelateCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateCiParams) {
+	notAvailable(w, r)
+}
+
+// The service desk's calendars, SLA policies and an entry's SLA (M5), answered by the generated
+// mapping.
+func (pending) ListBusinessCalendars(w http.ResponseWriter, r *http.Request, _ openapi.ListBusinessCalendarsParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineBusinessCalendar(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineBusinessCalendarParams) {
+	notAvailable(w, r)
+}
+func (pending) ListHubCalendars(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) DeleteHubCalendar(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineHubCalendar(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineHubCalendarParams) {
+	notAvailable(w, r)
+}
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) ReadEntrySla(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) ListSlaPolicies(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) DeleteSlaPolicy(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) CopySlaPolicyHere(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineSlaPolicyParams) {
+	notAvailable(w, r)
+}
+
+//nolint:revive // var-naming: the contract's operationId
+func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
+	notAvailable(w, r)
+}
+func (pending) GetDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) SetDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListRequestCatalogue(w http.ResponseWriter, r *http.Request, _ openapi.ListRequestCatalogueParams) {
+	notAvailable(w, r)
+}
+func (pending) ListMyRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListMyRequestsParams) {
+	notAvailable(w, r)
+}
+func (pending) RaiseRequest(w http.ResponseWriter, r *http.Request, _ openapi.RaiseRequestParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ListMyOpenEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListMyOpenEntriesParams) {
+	notAvailable(w, r)
+}
+func (pending) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) CommentOnMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentOnMyRequestParams) {
+	notAvailable(w, r)
+}
+
+// The service desk's canned replies (UC-SVC-06), answered by the generated mapping.
+func (pending) ListReplyTemplates(w http.ResponseWriter, r *http.Request)         { notAvailable(w, r) }
+func (pending) ListRequesterOrganisations(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) DeleteRequesterOrganisation(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineRequesterOrganisation(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineRequesterOrganisationParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteReplyTemplate(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) DefineReplyTemplate(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineReplyTemplateParams) {
+	notAvailable(w, r)
+}
+func (pending) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ string) {
+	notAvailable(w, r)
+}
+func (pending) RateMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ListMyApprovals(w http.ResponseWriter, r *http.Request, _ openapi.ListMyApprovalsParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadApprovalDelegation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SetApprovalDelegation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) EndApprovalDelegation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) DecideApproval(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) ReadEntryApprovals(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ReadPlanSchedule(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadPlanScheduleParams) {
+	notAvailable(w, r)
+}
+func (pending) ApplyPlanSchedule(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) ListBaselines(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) TakeBaseline(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) CompareBaseline(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) DeleteBaseline(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) SetDependencyTiming(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) SetEntryScheduling(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ListSprints(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId, _ openapi.ListSprintsParams) {
+	notAvailable(w, r)
+}
+func (pending) CreateSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+func (pending) ReadSprintBacklog(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+func (pending) ReadVelocity(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+func (pending) ListMyRunningSprints(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ReadSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId, _ openapi.ReadSprintParams) {
+	notAvailable(w, r)
+}
+func (pending) UpdateSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId, _ openapi.UpdateSprintParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) StartSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) CloseSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) AddSprintEntries(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) RemoveSprintEntries(w http.ResponseWriter, r *http.Request, _ openapi.SprintId) {
+	notAvailable(w, r)
+}
+func (pending) SetEntryEstimate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ClearEntryEstimate(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+func (pending) ListTimeRecords(w http.ResponseWriter, r *http.Request, _ openapi.ListTimeRecordsParams) {
+	notAvailable(w, r)
+}
+func (pending) LogTime(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) UpdateTimeRecord(w http.ResponseWriter, r *http.Request, _ openapi.TimeRecordId, _ openapi.UpdateTimeRecordParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteTimeRecord(w http.ResponseWriter, r *http.Request, _ openapi.TimeRecordId, _ openapi.DeleteTimeRecordParams) {
+	notAvailable(w, r)
+}
+func (pending) CorrectTimeRecord(w http.ResponseWriter, r *http.Request, _ openapi.TimeRecordId) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimeReport(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ExportTimeRecords(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) DiscardTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) StartTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) StopTimer(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ListTimesheets(w http.ResponseWriter, r *http.Request, _ openapi.ListTimesheetsParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet, _ openapi.ReadTimesheetParams) {
+	notAvailable(w, r)
+}
+func (pending) CopyTimesheetWeek(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) SubmitTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) WithdrawTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) ApproveTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) RejectTimesheet(w http.ResponseWriter, r *http.Request, _ openapi.WeekOfTimesheet) {
+	notAvailable(w, r)
+}
+func (pending) ListWorkTypes(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) DefineWorkType(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ReadTimePolicy(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) SetTimePolicy(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ReadEstimatesVsActuals(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) ReadWorkload(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadWorkloadParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadBudget(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) SetBudget(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) RemoveBudget(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.RemoveBudgetParams) {
+	notAvailable(w, r)
+}
+func (pending) ListCapacities(w http.ResponseWriter, r *http.Request, _ openapi.ListCapacitiesParams) {
+	notAvailable(w, r)
+}
+func (pending) SetCapacity(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+func (pending) RemoveCapacity(w http.ResponseWriter, r *http.Request, _ string, _ openapi.RemoveCapacityParams) {
+	notAvailable(w, r)
+}
+func (pending) ListAbsences(w http.ResponseWriter, r *http.Request, _ openapi.ListAbsencesParams) {
+	notAvailable(w, r)
+}
+func (pending) RecordAbsence(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) UpdateAbsence(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdateAbsenceParams) {
+	notAvailable(w, r)
+}
+func (pending) RemoveAbsence(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RemoveAbsenceParams) {
+	notAvailable(w, r)
+}
+func (pending) ListCostRates(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) SetCostRate(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ChangeCostRate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangeCostRateParams) {
+	notAvailable(w, r)
+}
+func (pending) RemoveCostRate(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RemoveCostRateParams) {
+	notAvailable(w, r)
+}
+func (pending) ListBillingRates(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) SetBillingRate(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) ChangeBillingRate(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi_types.UUID, _ openapi.ChangeBillingRateParams) {
+	notAvailable(w, r)
+}
+func (pending) RemoveBillingRate(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi_types.UUID, _ openapi.RemoveBillingRateParams) {
+	notAvailable(w, r)
+}
+
+// The goals and insight operations (M8).
+func (pending) ListGoalPeriods(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineGoalPeriod(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeGoalPeriod(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ChangeGoalPeriodParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseGoalPeriod(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.CloseGoalPeriodParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListGoals(w http.ResponseWriter, r *http.Request, _ openapi.ListGoalsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateGoal(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId, _ openapi.UpdateGoalParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId, _ openapi.DeleteGoalParams) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkGoalEntries(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkGoalEntry(w http.ResponseWriter, r *http.Request, _ openapi.GoalId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) CheckInGoal(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListGoalCheckIns(w http.ResponseWriter, r *http.Request, _ openapi.GoalId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryGoals(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPortfolios(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPortfolio(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePortfolio(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdatePortfolio(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId, _ openapi.UpdatePortfolioParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePortfolio(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId, _ openapi.DeletePortfolioParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReportPortfolioStatus(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPortfolioUpdates(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListDashboards(w http.ResponseWriter, r *http.Request, _ openapi.ListDashboardsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadDashboard(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateDashboard(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateDashboard(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId, _ openapi.UpdateDashboardParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteDashboard(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId, _ openapi.DeleteDashboardParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) SetDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentModels(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RegisterAgentModel(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeAgentModel(w http.ResponseWriter, r *http.Request, _ openapi.AgentModelId, _ openapi.ChangeAgentModelParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgents(w http.ResponseWriter, r *http.Request, _ openapi.ListAgentsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RegisterAgent(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAgentHalt(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetAgentHalt(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAgentMetering(w http.ResponseWriter, r *http.Request, _ openapi.ReadAgentMeteringParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId, _ openapi.ChangeAgentParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ApproveAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ActivateAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) SuspendAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RetireAgent(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentActions(w http.ResponseWriter, r *http.Request, _ openapi.AgentId, _ openapi.ListAgentActionsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentCases(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) AddAgentCase(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveAgentCase(w http.ResponseWriter, r *http.Request, _ openapi.AgentId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentEvaluations(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentJobs(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) StartAgentJob(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RecordAgentEvaluation(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) RunAgentEvaluation(w http.ResponseWriter, r *http.Request, _ openapi.AgentId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAgentRequests(w http.ResponseWriter, r *http.Request, _ openapi.ListAgentRequestsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DecideAgentRequest(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListValueProvenance(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListScimSchemas(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListScimUsers(w http.ResponseWriter, r *http.Request, _ openapi.ListScimUsersParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateScimUser(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplaceScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) PatchScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteScimUser(w http.ResponseWriter, r *http.Request, _ openapi.ScimUserId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListScimGroups(w http.ResponseWriter, r *http.Request, _ openapi.ListScimGroupsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateScimGroup(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId, _ openapi.GetScimGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
+	notAvailable(w, r)
+}
+
+func (pending) PatchScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteScimGroup(w http.ResponseWriter, r *http.Request, _ openapi.ScimGroupId) {
+	notAvailable(w, r)
+}
+
+func (pending) GetViewAs(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
+func (pending) StartViewAs(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) EndViewAs(w http.ResponseWriter, r *http.Request)       { notAvailable(w, r) }
+func (pending) ReadAgentPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SetAgentPolicy(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+
+func (pending) RestrictPage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPageAccess(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) SharePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnsharePage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSharedPages(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ReadPersonalSpace(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) OpenDailyNote(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreatePagePublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePagePublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetPublicPage(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) GetPublicPageMedia(w http.ResponseWriter, r *http.Request, _ string, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPortfolioPublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePortfolioPublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePortfolioPublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetPublicRoadmap(w http.ResponseWriter, r *http.Request, _ string, _ openapi.GetPublicRoadmapParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicFormsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPublicFormsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetPublicForm(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) SubmitPublicForm(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) PublishPageToPortal(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnpublishPageFromPortal(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPageLanguageVariants(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) SuggestArticles(w http.ResponseWriter, r *http.Request, _ openapi.SuggestArticlesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.ReadArticleParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RateArticle(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) AttachPageMedia(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+
+func (pending) AffectEntryCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AttestCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.CloseCiCampaignParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineCiGroup(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DefineCiGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DefineSoftwareAlias(w http.ResponseWriter, r *http.Request, _ openapi.DefineSoftwareAliasParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiAssets(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiAssetsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiCampaigns(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiCampaignsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiGroupMembers(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCiGroups(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryCis(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSoftwareAliases(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSoftwareProducts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) MoveCiAsset(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MoveCiAssetParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiAsset(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadServiceMap(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ReadServiceMapParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RegisterCiAsset(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RegisterCiAssetParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveSoftwareAlias(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) StartCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UnaffectEntryCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) ListReleases(w http.ResponseWriter, r *http.Request, _ openapi.HubId, _ openapi.ListReleasesParams) {
+	notAvailable(w, r)
+}
+func (pending) CreateRelease(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+func (pending) ReadRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) UpdateRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId, _ openapi.UpdateReleaseParams) {
+	notAvailable(w, r)
+}
+func (pending) DeleteRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) PublishRelease(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) AddReleaseEntries(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) RemoveReleaseEntries(w http.ResponseWriter, r *http.Request, _ openapi.ReleaseId) {
+	notAvailable(w, r)
+}
+func (pending) ReadPlanTolerance(w http.ResponseWriter, r *http.Request, _ openapi.PlanId, _ openapi.ReadPlanToleranceParams) {
+	notAvailable(w, r)
+}
+func (pending) SetPlanTolerance(w http.ResponseWriter, r *http.Request, _ openapi.PlanId) {
+	notAvailable(w, r)
+}
+func (pending) ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId, _ openapi.ReadPortfolioRoadmapParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) ImportPlan(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCodeHooks(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateCodeHook(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateCodeHook(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateCodeHookSecret(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryCodeLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeliverCode(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID, _ openapi.DeliverCodeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeliverChat(w http.ResponseWriter, r *http.Request, _, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEntryFileLinks(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkEntryFile(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkEntryFile(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) GetDataFeedService(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken) {
+	notAvailable(w, r)
+}
+
+func (pending) GetDataFeedMetadata(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken) {
+	notAvailable(w, r)
+}
+
+func (pending) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, _ openapi.DataFeedToken, _ openapi.GetDataFeedEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListCalendarPushes(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) AuthorizeCalendarPush(w http.ResponseWriter, r *http.Request, _ openapi.AuthorizeCalendarPushParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteCalendarPushAuthorization(w http.ResponseWriter, r *http.Request, _ openapi.CompleteCalendarPushAuthorizationParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisconnectCalendarPush(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListFileStoreConnections(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConnectFileStore(w http.ResponseWriter, r *http.Request, _ openapi.ConnectFileStoreParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteFileStoreConnection(w http.ResponseWriter, r *http.Request, _ openapi.CompleteFileStoreConnectionParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DisconnectFileStore(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) BrowseFileStore(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.BrowseFileStoreParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ShareFileStoreItem(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ShareFileStoreItemParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListChatBots(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateChatBot(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateChatBot(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteChatBot(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) LinkChatAccount(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UnlinkChatAccount(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) GetSamlMetadata(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ShowLdapDirectory(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.ConfigureLdapDirectoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.RemoveLdapDirectoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SyncLdapDirectory(w http.ResponseWriter, r *http.Request, _ openapi.SyncLdapDirectoryParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListSampleEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AddSampleEntry(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveSampleEntries(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) MarkWorkspaceSample(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ListConfigDrafts(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SaveConfigDraft(w http.ResponseWriter, r *http.Request, _, _ string, _ openapi.SaveConfigDraftParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DiscardConfigDraft(w http.ResponseWriter, r *http.Request, _, _ string) {
+	notAvailable(w, r)
+}
+
+func (pending) ListHubTemplatePages(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AddHubTemplatePage(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ListDeadLetters(w http.ResponseWriter, r *http.Request, _ openapi.ListDeadLettersParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RequeueDeadLetter(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ClearOwnMailUndeliverable(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 

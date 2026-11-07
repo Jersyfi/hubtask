@@ -125,7 +125,8 @@ func (h ReindexSearch) Execute(
 // Descriptor registers the reindex in all three channels.
 func (h ReindexSearch) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReindexSearchName,
+		Name:       ReindexSearchName,
+		Permission: service.PermissionStructure,
 		Summary: "Brings the workspace's search documents current with the text search " +
 			"configurations its PostgreSQL has: counts the entries indexed under a configuration " +
 			"since replaced or gained, queues the job that rewrites exactly those in batches, and " +

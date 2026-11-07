@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -119,6 +120,8 @@ type RunRule struct {
 	// `item.members`. Optional, as in condition.Values.
 	Labels  condition.Sets
 	Members condition.Sets
+	// Links answers `item.links` (UC-PLN-01 check 8). Optional, as in condition.Values.
+	Links condition.Links
 	// Jumble is the read `payload` costs on a JUMBLE_ENTRY run: the entry, rendered as data for
 	// the conditions. Optional; without it the name resolves to an empty document.
 	Jumble condition.JumbleEntries
@@ -578,7 +581,7 @@ func (h RunRule) values(envelope event.Envelope, cmd Command, now time.Time) con
 	values := condition.Values{
 		Envelope: envelope, Now: now,
 		Subject: cmd.SubjectID, Payload: cmd.Payload,
-		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members,
+		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members, Links: h.Links,
 		Jumble: h.Jumble,
 	}
 	if cmd.Trigger == domain.TriggerJumbleEntry {
@@ -932,6 +935,9 @@ var notAFailure = map[string]bool{
 	// sending a webhook on a plan without webhooks rests that action, and must not switch itself
 	// off by a streak of failures the plan caused.
 	entitlement.NotIncludedCode: true,
+	// And an action whose module is switched off where it acts (UC-INS-21): switched on again, the
+	// rule must still be on.
+	module.OffCode: true,
 }
 
 // rulesRest answers whether the workspace's plan leaves the rules out, in the transaction the

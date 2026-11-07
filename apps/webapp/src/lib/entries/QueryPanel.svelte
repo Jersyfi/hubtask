@@ -20,7 +20,7 @@
   // catalogue has never heard of still renders, as `humanise` makes of it, because the grammar can
   // grow without this client.
 
-  import { QueryBuilder, Select, type QueryCondition } from '@hubtask/design-system/components';
+  import { Input, QueryBuilder, Select, type QueryCondition } from '@hubtask/design-system/components';
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import type { ItemsQuery } from '../data/items.svelte.ts';
@@ -30,6 +30,7 @@
   import type { FilterField } from '../data/query.ts';
   import {
     conditionsOf,
+    fieldNamed,
     filterOf,
     filterableFields,
     offeredByProfile,
@@ -41,6 +42,8 @@
     takesValue,
   } from '../data/query.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { readLine, writeLine } from '../data/queryline.ts';
+  import { entryTypes, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   interface Props {
     /** Which layout the reader chose, because the grouping belongs to the board. */
@@ -89,6 +92,9 @@
     sortDir = $bindable('ASC'),
   }: Props = $props();
 
+  /** The query field of an entry's type (`view.FieldEntryType`). */
+  const ENTRY_TYPE = 'entry_type';
+
   let conditions = $state<QueryCondition[]>([]);
   let groupField = $state('bucket_id');
   /**
@@ -97,8 +103,20 @@
    */
   let kept = $state<FilterNode | undefined>(undefined);
 
+  // The entry type is a value only where the workspace shows types (UC-FLW-01 check 8); there its
+  // keys are the workspace's, so the values come from `/entry-types`, named as the list names them.
+  const showsTypes = $derived(typesShown(manifest.value));
+  $effect(() => {
+    if (!showsTypes) return;
+    return untrack(() => entryTypes.open());
+  });
+  const typeValues = $derived(
+    typeOrder(entryTypes.all).map((type) => ({ value: type.key, label: type.name ?? t('app.entry_types.level', { level: type.level }) })),
+  );
+  const shown = <T extends { field: string }>(each: readonly T[]) => (showsTypes ? each : each.filter((field) => field.field !== ENTRY_TYPE));
+
   const fields = $derived(
-    offeredByProfile(filterableFields(manifest.value, custom), carried).map((field) => ({
+    shown(offeredByProfile(filterableFields(manifest.value, custom), carried)).map((field) => ({
       // The field's own name, drawn as the installation reports it. There is no code for it and
       // there cannot be: the set grows with the installation, so a catalogue entry per field would
       // be a catalogue that is wrong on the one that has another (the same reasoning the entry
@@ -114,12 +132,13 @@
           label: t(`app.query.op.${op}`),
           takesValue: takesValue(op),
           hint: takesList(op) ? t('app.query.list_hint') : t('app.query.placeholder_hint'),
+          takesList: takesList(op),
         })),
-      values: field.values?.map((value) => ({ value, label: value })),
+      values: field.field === ENTRY_TYPE && typeValues.length > 0 ? typeValues : field.values?.map((value) => ({ value, label: value })),
     })),
   );
 
-  const groups = $derived(offeredByProfile(groupableFields(manifest.value), carried));
+  const groups = $derived(shown(offeredByProfile(groupableFields(manifest.value, custom), carried)));
 
   /**
    * The document, rebuilt from the controls.
@@ -129,13 +148,42 @@
    */
   function publish() {
     const built = filterOf(manifest.value, conditions, custom);
+    const filter = kept && built ? { op: 'AND' as const, nodes: [kept, built] } : (kept ?? built);
+    const sort = sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir, custom);
     onquery({
-      filter: kept && built ? { op: 'AND', nodes: [kept, built] } : (kept ?? built),
-      sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir),
-      group: layout === 'KANBAN' ? groupOf(manifest.value, groupField) : undefined,
+      filter,
+      sort,
+      group: layout === 'KANBAN' ? groupOf(manifest.value, groupField, custom) : undefined,
     });
+    // The text mode shows what the controls ask, so the two never disagree (UC-WRK-17 check 12).
+    line = writeLine(filter, sort ?? []) ?? '';
+    lineError = undefined;
     // The filter's count is its conditions; the order says itself on the *Sort* button.
     oncount?.(conditions.length + (kept ? 1 : 0));
+  }
+
+  /** The query as one line, written from the controls and read back into them. */
+  let line = $state('');
+  let lineError = $state<string | undefined>(undefined);
+
+  /**
+   * Reads the typed line into the controls: conditions where they can draw it, kept whole where
+   * they cannot (an `OR`, a `NOT`), and its first order term; a line that cannot be read says the
+   * character it stops at and changes nothing.
+   */
+  function takeLine() {
+    const read = readLine(line, (field) => fieldNamed(manifest.value, field, custom)?.kind);
+    if (!read.ok) {
+      lineError = t('app.query.line_malformed', { at: read.at });
+      return;
+    }
+    const drawn = conditionsOf(read.filter);
+    const sendable = drawn?.every((each) => isSendable(manifest.value, each, custom)) ? drawn : undefined;
+    conditions = sendable ?? [];
+    kept = sendable ? undefined : read.filter;
+    sortField = read.sort[0]?.field ?? '';
+    sortDir = read.sort[0]?.dir ?? 'ASC';
+    publish();
   }
 
   function clear() {
@@ -169,6 +217,7 @@
   // board opened at its own address drew empty columns until a reload.
   $effect(() => {
     void manifest.value;
+    void custom;
     void layout;
     void sortField;
     void sortDir;
@@ -188,6 +237,18 @@
     removeLabel={t('app.query.remove')}
     emptyLabel={t('app.query.none_filterable')}
     onchange={publish}
+  />
+
+  <Input
+    label={t('app.query.line')}
+    size="sm"
+    bind:value={line}
+    hint={t('app.query.line_hint')}
+    error={lineError}
+    spellcheck={false}
+    autocomplete="off"
+    onchange={takeLine}
+    onkeydown={(event: KeyboardEvent) => { if (event.key === 'Enter') takeLine(); }}
   />
 
   <div class="ordering">

@@ -445,6 +445,47 @@ func (q *Queries) EntriesHiddenBelow(ctx context.Context, ids []pgtype.UUID) ([]
 	return items, nil
 }
 
+const entryIDsAfter = `-- name: EntryIDsAfter :many
+SELECT wi.id
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR wi.collection_id = $1::uuid
+       OR wi.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = $1::uuid))
+  AND wi.id > $2::uuid
+ORDER BY wi.id
+LIMIT $3::int
+`
+
+type EntryIDsAfterParams struct {
+	CollectionID pgtype.UUID
+	After        pgtype.UUID
+	PageSize     int32
+}
+
+// One page of the live entries of a collection, of a hub's collections, or of the whole workspace
+// for neither, in
+// identifier order after a cursor: the walk that fills a new CALCULATED field on the entries
+// defined before it (domain-model.md §3.5). Another tenant's rows are absent (row level security).
+func (q *Queries) EntryIDsAfter(ctx context.Context, arg EntryIDsAfterParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, entryIDsAfter, arg.CollectionID, arg.After, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findContainer = `-- name: FindContainer :one
 
 SELECT
@@ -456,7 +497,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -488,6 +529,7 @@ type FindContainerRow struct {
 	Version              int32
 	Private              bool
 	Handle               *string
+	KeyPrefix            *string
 }
 
 // The tenant is never a parameter here: it comes from the transaction's own context through
@@ -544,6 +586,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.Version,
 		&i.Private,
 		&i.Handle,
+		&i.KeyPrefix,
 	)
 	return i, err
 }
@@ -603,18 +646,21 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
-  -- (data-retention.md §6, migration 0038). Read here rather than assembled by a second query,
-  -- because §6's point is that the object itself says what is coming.
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  -- (data-retention.md §6). Read here rather than assembled by a second query, because §6's
+  -- point is that the object itself says what is coming; read from the side table (F-10, 0234),
+  -- which the trigger keeps equal to the columns every writer still writes.
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.id = $1
 `
 
@@ -661,6 +707,8 @@ type FindWorkItemRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
+	Status                *string
 }
 
 // Trashed and archived items are returned rather than filtered out, for the reason FindContainer
@@ -711,6 +759,8 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Number,
+		&i.EntryType,
+		&i.Status,
 	)
 	return i, err
 }
@@ -728,15 +778,17 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = $1::text
 `
 
@@ -783,6 +835,8 @@ type FindWorkItemByCalendarUIDRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
+	Status                *string
 }
 
 // The entry a calendar client's UID names. The same columns as FindWorkItem,
@@ -835,6 +889,8 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Number,
+		&i.EntryType,
+		&i.Status,
 	)
 	return i, err
 }
@@ -852,15 +908,17 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.id = ANY($1::uuid[])
 `
 
@@ -907,6 +965,8 @@ type FindWorkItemsRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
+	Status                *string
 }
 
 // FindWorkItem for many entries in one statement: the retention sweep reads a page's entries at
@@ -965,6 +1025,8 @@ func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindW
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Number,
+			&i.EntryType,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -1075,7 +1137,7 @@ INSERT INTO container (
                        'completion_policy', $12::text)
   END
 )
-RETURNING handle
+RETURNING handle, key_prefix
 `
 
 type InsertContainerParams struct {
@@ -1094,14 +1156,20 @@ type InsertContainerParams struct {
 	Structure        []byte
 }
 
+type InsertContainerRow struct {
+	Handle    *string
+	KeyPrefix *string
+}
+
 // The name arrives in Unicode normal form C - the constructor brings it there, behind the
 // Normalizer port, and the description with it (i18n-l10n.md §5): "Übersicht" typed with
 // a combining diaeresis and the same word composed are one name to a person, and the unique
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
 // two cannot disagree.
-// The handle the store gave a collection (migration 0204), so the create answers it.
-func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (*string, error) {
+// The handle and the key prefix the store gave a collection (migrations 0204, 0363), so the create
+// answers them.
+func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (InsertContainerRow, error) {
 	row := q.db.QueryRow(ctx, insertContainer,
 		arg.ID,
 		arg.Type,
@@ -1117,9 +1185,9 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.CompletionPolicy,
 		arg.Structure,
 	)
-	var handle *string
-	err := row.Scan(&handle)
-	return handle, err
+	var i InsertContainerRow
+	err := row.Scan(&i.Handle, &i.KeyPrefix)
+	return i, err
 }
 
 const insertPrivateHubAccess = `-- name: InsertPrivateHubAccess :exec
@@ -1156,14 +1224,18 @@ const insertWorkItem = `-- name: InsertWorkItem :one
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
-  updated_at, version
+  updated_at, version, entry_type, status
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   normalize($7::text, NFC), $8,
   $9, $10, $11,
   $12, $13, $14,
-  $15, $16, $16, 1
+  $15, $16, $16, 1,
+  -- The entry's type, null for its level's system type (migration 0216).
+  $17::text,
+  -- Its status in the workflow in force where it is created, null where none runs (0223).
+  $18::text
 )
 RETURNING number
 `
@@ -1185,6 +1257,8 @@ type InsertWorkItemParams struct {
 	CalendarUid     *string
 	CreatedBy       pgtype.UUID
 	CreatedAt       pgtype.Timestamptz
+	EntryType       *string
+	Status          *string
 }
 
 // The title arrives in Unicode normal form C: the constructor brings it there, behind the
@@ -1220,6 +1294,8 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.CalendarUid,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.EntryType,
+		arg.Status,
 	)
 	var number *int64
 	err := row.Scan(&number)
@@ -1232,7 +1308,7 @@ INSERT INTO work_item (
   bucket_id, order_key, assignee_id,
   start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
-  content_language, archived_at, created_by, created_at, updated_at, version
+  content_language, archived_at, entry_type, status, created_by, created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
@@ -1244,7 +1320,8 @@ INSERT INTO work_item (
   $17, $18, $19,
   $20::jsonb, $21::jsonb,
   $22, $23, $24,
-  $25, $25, 1
+  $25, $26,
+  $27, $27, 1
 )
 `
 
@@ -1272,6 +1349,8 @@ type InsertWorkItemCopyParams struct {
 	CustomFieldRefs []byte
 	ContentLanguage *string
 	ArchivedAt      pgtype.Timestamptz
+	EntryType       *string
+	Status          *string
 	CreatedBy       pgtype.UUID
 	CreatedAt       pgtype.Timestamptz
 }
@@ -1289,6 +1368,10 @@ type InsertWorkItemCopyParams struct {
 // and would be a false record on an entry that person never touched, the deletion stamps, and the
 // trash batch. The archive stamp is here, because an entry that was put away below the copied one
 // stays put away in the copy rather than being silently brought back.
+//
+// The workspace's entry type and the status travel: the use case has already settled the status in
+// the destination's workflow (DuplicateWorkItem.openStatus), and a copy without them would come
+// back its level's system type, standing nowhere on a board by status.
 //
 // The custom field document and its definition references arrive together and already resolved
 // against the destination: which definition a value belongs to is decided where the losses are
@@ -1333,6 +1416,8 @@ func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopy
 		arg.CustomFieldRefs,
 		arg.ContentLanguage,
 		arg.ArchivedAt,
+		arg.EntryType,
+		arg.Status,
 		arg.CreatedBy,
 		arg.CreatedAt,
 	)
@@ -1363,10 +1448,25 @@ func (q *Queries) LastContainerOrderKey(ctx context.Context, parentID pgtype.UUI
 }
 
 const lastWorkItemOrderKey = `-- name: LastWorkItemOrderKey :one
-SELECT order_key
-FROM work_item
-WHERE collection_id = $1::uuid
-  AND parent_id IS NOT DISTINCT FROM $2::uuid
+SELECT order_key FROM (
+  (SELECT wi.order_key
+     FROM work_item wi
+    WHERE wi.collection_id = $1::uuid
+      AND (wi.parent_id = $2::uuid
+           OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NULL
+    ORDER BY wi.order_key COLLATE "C" DESC, wi.id DESC
+    LIMIT 1)
+  UNION ALL
+  (SELECT wi.order_key
+     FROM work_item wi
+    WHERE wi.collection_id = $1::uuid
+      AND (wi.parent_id = $2::uuid
+           OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NOT NULL
+    ORDER BY wi.order_key COLLATE "C" DESC
+    LIMIT 1)
+) siblings
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1
 `
@@ -1384,6 +1484,12 @@ type LastWorkItemOrderKeyParams struct {
 //
 // COLLATE "C" for the reason migration 0007 gives: a rank key is a fractional index that rests on
 // byte order, and under a linguistic collation "Zz" would sort above "a0".
+//
+// The parent is spelled `= OR IS NULL` rather than IS NOT DISTINCT FROM, which no index answers:
+// the planner folds the absent parent into `parent_id IS NULL`, and the live siblings are read
+// backwards from wi_level_order_idx's end, the trashed ones from wi_trash_idx. Spelled as one
+// comparison, every create read its whole level - tens of milliseconds at tens of thousands of
+// entries (observability-reliability.md §13.2).
 func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrderKeyParams) (string, error) {
 	row := q.db.QueryRow(ctx, lastWorkItemOrderKey, arg.CollectionID, arg.ParentID)
 	var order_key string
@@ -1400,26 +1506,27 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, hub.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle,
+  c.private, c.handle, c.key_prefix,
   hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
 FROM container c
 JOIN container hub ON hub.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
 WHERE c.type = 'COLLECTION'
   AND c.deleted_at IS NULL AND hub.deleted_at IS NULL
-  AND c.archived_at IS NULL AND hub.archived_at IS NULL
-  AND ($1::boolean OR NOT hub.private)
+  AND ($1::boolean OR (c.archived_at IS NULL AND hub.archived_at IS NULL))
+  AND ($2::boolean OR NOT hub.private)
   AND (
-    $2::text IS NULL
+    $3::text IS NULL
     OR (hub.order_key COLLATE "C", hub.id, c.order_key COLLATE "C", c.id)
-       > ($2::text COLLATE "C", $3::uuid,
-          $4::text COLLATE "C", $5::uuid)
+       > ($3::text COLLATE "C", $4::uuid,
+          $5::text COLLATE "C", $6::uuid)
   )
 ORDER BY hub.order_key COLLATE "C", hub.id, c.order_key COLLATE "C", c.id
-LIMIT $6
+LIMIT $7
 `
 
 type ListCollectionsInOrderParams struct {
+	IncludeArchived   bool
 	IncludePrivate    bool
 	CursorHubOrderKey *string
 	CursorHubID       pgtype.UUID
@@ -1452,15 +1559,17 @@ type ListCollectionsInOrderRow struct {
 	Version              int32
 	Private              bool
 	Handle               *string
+	KeyPrefix            *string
 	HubName              string
 	HubOrderKey          string
 	HubPrivate           bool
 }
 
 // Every collection a conversion could land in, across the hubs, in the order a person reads the
-// tree: the hubs' manual order, then each hub's collections in theirs. Trashed and archived ones are
-// never here, and neither is a collection under an archived hub - it is archived too (I-C3), and a
-// create there is refused. A private hub's collections only when the caller asks for them: the
+// tree: the hubs' manual order, then each hub's collections in theirs. Trashed ones are never here,
+// archived ones only when asked (a workspace summary over archived entries), and neither is a
+// collection under an archived hub otherwise - it is archived too (I-C3), and a create there is
+// refused. A private hub's collections only when the caller asks for them: the
 // shared set a model chooses from leaves them out, a person's own picker keeps them and has them
 // narrowed to what that person may create in.
 //
@@ -1469,6 +1578,7 @@ type ListCollectionsInOrderRow struct {
 // layer's to decide.
 func (q *Queries) ListCollectionsInOrder(ctx context.Context, arg ListCollectionsInOrderParams) ([]ListCollectionsInOrderRow, error) {
 	rows, err := q.db.Query(ctx, listCollectionsInOrder,
+		arg.IncludeArchived,
 		arg.IncludePrivate,
 		arg.CursorHubOrderKey,
 		arg.CursorHubID,
@@ -1507,6 +1617,7 @@ func (q *Queries) ListCollectionsInOrder(ctx context.Context, arg ListCollection
 			&i.Version,
 			&i.Private,
 			&i.Handle,
+			&i.KeyPrefix,
 			&i.HubName,
 			&i.HubOrderKey,
 			&i.HubPrivate,
@@ -1531,7 +1642,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -1582,6 +1693,7 @@ type ListContainersRow struct {
 	Version              int32
 	Private              bool
 	Handle               *string
+	KeyPrefix            *string
 }
 
 // One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -1651,6 +1763,117 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.Version,
 			&i.Private,
 			&i.Handle,
+			&i.KeyPrefix,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHubCollections = `-- name: ListHubCollections :many
+WITH ranked AS (
+  SELECT c.id,
+         row_number() OVER (PARTITION BY c.parent_id ORDER BY c.order_key COLLATE "C", c.id) AS place
+    FROM container c
+   WHERE c.parent_id = ANY ($2::uuid[])
+     AND c.type = 'COLLECTION' AND c.deleted_at IS NULL AND c.archived_at IS NULL
+)
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private, c.handle, c.key_prefix
+FROM ranked r
+JOIN container c ON c.id = r.id
+LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE r.place <= $1::int
+ORDER BY c.parent_id, c.order_key COLLATE "C", c.id
+`
+
+type ListHubCollectionsParams struct {
+	PerHub int32
+	HubIds []pgtype.UUID
+}
+
+type ListHubCollectionsRow struct {
+	ID                   pgtype.UUID
+	TenantID             pgtype.UUID
+	Type                 ContainerType
+	ParentID             pgtype.UUID
+	Name                 string
+	Description          *string
+	Icon                 *string
+	ColorToken           *string
+	OrderKey             string
+	CompletionPolicy     string
+	Structure            string
+	AutoAssignStrategy   *string
+	AutoAssignCandidates []byte
+	AutoAssignEnabled    *bool
+	ArchivedAt           pgtype.Timestamptz
+	ParentArchivedAt     pgtype.Timestamptz
+	DeletedAt            pgtype.Timestamptz
+	TrashBatchID         pgtype.UUID
+	CreatedBy            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Version              int32
+	Private              bool
+	Handle               *string
+	KeyPrefix            *string
+}
+
+// The collections a hub's figure counts (UC-WRK-29), for a page of hubs in one statement: neither
+// trashed nor archived - what the tree shows under each - and at most `per_hub` of each, in its
+// manual order, so that a hub of very many collections costs one bounded read and the caller can
+// tell from one more row that it holds more than it counts. The same columns as ListContainers,
+// because each one's structure is resolved from them.
+func (q *Queries) ListHubCollections(ctx context.Context, arg ListHubCollectionsParams) ([]ListHubCollectionsRow, error) {
+	rows, err := q.db.Query(ctx, listHubCollections, arg.PerHub, arg.HubIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHubCollectionsRow{}
+	for rows.Next() {
+		var i ListHubCollectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Type,
+			&i.ParentID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.ColorToken,
+			&i.OrderKey,
+			&i.CompletionPolicy,
+			&i.Structure,
+			&i.AutoAssignStrategy,
+			&i.AutoAssignCandidates,
+			&i.AutoAssignEnabled,
+			&i.ArchivedAt,
+			&i.ParentArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.Private,
+			&i.Handle,
+			&i.KeyPrefix,
 		); err != nil {
 			return nil, err
 		}
@@ -1783,17 +2006,22 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.collection_id = $1::uuid
-  AND wi.parent_id IS NOT DISTINCT FROM $2::uuid
+  -- ` + "`" + `= OR IS NULL` + "`" + ` rather than IS NOT DISTINCT FROM, as LastWorkItemOrderKey: the page is then
+  -- read in order from the index instead of sorting the whole level for fifty rows.
+  AND (wi.parent_id = $2::uuid
+       OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
   AND wi.deleted_at IS NULL
   AND ($3::boolean OR wi.archived_at IS NULL)
   -- The entries the caller may see, when that is fewer than the level: null is no restriction at
@@ -1864,6 +2092,8 @@ type ListWorkItemsRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
+	Status                *string
 }
 
 // One level of one collection, in its manual order: the items directly in the collection when no
@@ -1937,6 +2167,8 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Number,
+			&i.EntryType,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -2042,23 +2274,30 @@ func (q *Queries) NextDueAnnouncement(ctx context.Context, leadSeconds float64) 
 }
 
 const orderKeyNeighbours = `-- name: OrderKeyNeighbours :one
-WITH level AS (
-  SELECT id, order_key
-  FROM work_item
-  WHERE collection_id = $1::uuid
-    AND parent_id IS NOT DISTINCT FROM $2::uuid
-    AND deleted_at IS NULL
-    AND id IS DISTINCT FROM $3::uuid
-), anchor AS (
-  SELECT order_key FROM level WHERE id = $4::uuid
+WITH anchor AS (
+  SELECT wi.order_key
+  FROM work_item wi
+  WHERE wi.id = $4::uuid
+    AND wi.collection_id = $1::uuid
+    AND (wi.parent_id = $2::uuid
+         OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+    AND wi.deleted_at IS NULL
+    AND wi.id IS DISTINCT FROM $3::uuid
 )
 SELECT
   coalesce((SELECT order_key FROM anchor), '')::text AS next_key,
   coalesce((
-    SELECT max(order_key COLLATE "C")
-    FROM level
-    WHERE (SELECT order_key FROM anchor) IS NULL
-       OR order_key COLLATE "C" < (SELECT order_key FROM anchor) COLLATE "C"
+    SELECT wi.order_key
+    FROM work_item wi
+    WHERE wi.collection_id = $1::uuid
+      AND (wi.parent_id = $2::uuid
+           OR ($2::uuid IS NULL AND wi.parent_id IS NULL))
+      AND wi.deleted_at IS NULL
+      AND wi.id IS DISTINCT FROM $3::uuid
+      AND wi.order_key COLLATE "C"
+          < coalesce((SELECT order_key FROM anchor), chr(1114111)) COLLATE "C"
+    ORDER BY wi.order_key COLLATE "C" DESC, wi.id DESC
+    LIMIT 1
   ), '')::text AS previous_key
 `
 
@@ -2091,6 +2330,9 @@ type OrderKeyNeighboursRow struct {
 // "Exclude nothing" has to be expressible, because a create has no row to leave out: the parameter is
 // nullable and the comparison is IS DISTINCT FROM. With `<>` a NULL there is a predicate that is NULL
 // for every row, which empties this list and reports an anchor that is present as missing.
+// The greatest rank below is the first row read backwards from wi_level_order_idx, bounded by the
+// anchor - or by a bound above every rank, chr(1114111), when there is none - rather than a max over
+// the whole level; the parent is spelled as LastWorkItemOrderKey spells it, for the same reason.
 func (q *Queries) OrderKeyNeighbours(ctx context.Context, arg OrderKeyNeighboursParams) (OrderKeyNeighboursRow, error) {
 	row := q.db.QueryRow(ctx, orderKeyNeighbours,
 		arg.CollectionID,
@@ -2327,9 +2569,12 @@ UPDATE container SET
   description = $2,
   icon        = $3,
   color_token = $4,
-  updated_at  = $5,
+  -- A collection's key prefix; one another collection holds is refused by 0363's trigger as a
+  -- unique violation on container_key_prefix_uq.
+  key_prefix  = $5,
+  updated_at  = $6,
   version     = version + 1
-WHERE id = $6::uuid AND version = $7
+WHERE id = $7::uuid AND version = $8
 `
 
 type SetContainerAttributesParams struct {
@@ -2337,6 +2582,7 @@ type SetContainerAttributesParams struct {
 	Description     *string
 	Icon            *string
 	ColorToken      *string
+	KeyPrefix       *string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -2363,6 +2609,7 @@ func (q *Queries) SetContainerAttributes(ctx context.Context, arg SetContainerAt
 		arg.Description,
 		arg.Icon,
 		arg.ColorToken,
+		arg.KeyPrefix,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
@@ -2626,15 +2873,19 @@ UPDATE work_item SET
   is_completed = $1,
   completed_at = $2,
   completed_by = $3,
-  updated_at   = $4,
+  -- The status moves with the completion it decides in a workflow collection (UC-FLW-03 check 4), and stays
+  -- what it was - null in every other collection - where a completion writes no step.
+  status       = $4::text,
+  updated_at   = $5,
   version      = version + 1
-WHERE id = $5::uuid AND version = $6
+WHERE id = $6::uuid AND version = $7
 `
 
 type SetWorkItemCompletionParams struct {
 	IsCompleted     bool
 	CompletedAt     pgtype.Timestamptz
 	CompletedBy     pgtype.UUID
+	Status          *string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -2656,6 +2907,7 @@ func (q *Queries) SetWorkItemCompletion(ctx context.Context, arg SetWorkItemComp
 		arg.IsCompleted,
 		arg.CompletedAt,
 		arg.CompletedBy,
+		arg.Status,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
@@ -2923,15 +3175,17 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
-  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
-  wi.retention_blocked_by,
+  rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
+  rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type, wi.status
 FROM work_item wi
+LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id
 WHERE wi.path LIKE $1::text || '%'
   AND wi.id <> $2::uuid
   AND wi.deleted_at IS NULL
@@ -2988,6 +3242,8 @@ type SubtreeOfWorkItemRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
+	Status                *string
 }
 
 // Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
@@ -3063,6 +3319,8 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Number,
+			&i.EntryType,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}

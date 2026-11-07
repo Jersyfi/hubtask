@@ -219,3 +219,29 @@ func mintToken(t *testing.T, tenantID shared.ID) FeedToken {
 	}
 	return token
 }
+
+// A feed's token opens one kind: a calendar by default and for a feed minted before kinds, the
+// view's rows only for a data feed (UC-INT-15 check 4).
+func TestAFeedOpensItsOwnKindAlone(t *testing.T) {
+	calendar := mintFeed(t)
+	if calendar.Kind != CalendarKind || !calendar.Opens(CalendarKind) || calendar.Opens(DataKind) {
+		t.Errorf("a calendar feed opens %+v", calendar)
+	}
+	data, err := NewCalendarFeed(NewCalendarFeedInput{
+		ID: feedID, TenantID: tenant, AccountID: owner, ViewID: view, Kind: DataKind, Now: at(t, nowText),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !data.Opens(DataKind) || data.Opens(CalendarKind) {
+		t.Errorf("a data feed opens %+v", data)
+	}
+	if !(CalendarFeed{}).Opens(CalendarKind) || (CalendarFeed{}).Opens(DataKind) {
+		t.Error("a feed of no kind is not a calendar")
+	}
+	if _, err := NewCalendarFeed(NewCalendarFeedInput{
+		ID: feedID, TenantID: tenant, AccountID: owner, ViewID: view, Kind: "SPREADSHEET", Now: at(t, nowText),
+	}); err == nil {
+		t.Error("an unknown kind was minted")
+	}
+}

@@ -292,3 +292,21 @@ SELECT count(*) FROM job
 WHERE tenant_id = current_tenant_id()
   AND kind = 'tenant.export'
   AND state IN ('PENDING', 'RUNNING');
+
+-- name: ClaimTenantArchiveDownload :execrows
+-- Takes the download window for the transaction's own tenant: one row where no download fell after
+-- `window_start`, none where one did. One statement, so two requests at once cannot both pass.
+-- updated_at stays: this is no change to the workspace a delta backup should carry.
+UPDATE tenant
+SET archive_downloaded_at = sqlc.arg('now')
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND (archive_downloaded_at IS NULL OR archive_downloaded_at <= sqlc.arg('window_start'));
+
+-- name: TenantArchiveDownloadedAt :one
+SELECT archive_downloaded_at FROM tenant WHERE id = current_tenant_id() AND deleted_at IS NULL;
+
+-- name: ReleaseTenantArchiveDownload :execrows
+-- Gives a failed download's window back: only the claim it made, never a later one.
+UPDATE tenant
+SET archive_downloaded_at = NULL
+WHERE id = current_tenant_id() AND archive_downloaded_at = sqlc.arg('claimed');

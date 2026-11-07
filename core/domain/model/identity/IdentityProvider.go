@@ -116,6 +116,10 @@ type IdentityProvider struct {
 	// workspace's own row, and only under a mode that creates accounts.
 	NewcomerRole    Role
 	NewcomerGroupID shared.ID
+	// SAMLSSOURL and SAMLCertificate are a SAML provider's single sign-on address and the PEM its
+	// assertions are signed with (identity.md §26); empty for every other kind.
+	SAMLSSOURL      string
+	SAMLCertificate string
 }
 
 // GivesNewcomers reports whether somebody this provider creates an account for gets anything with
@@ -235,6 +239,9 @@ type NewIdentityProviderInput struct {
 	// NewcomerRole and NewcomerGroupID are what a newcomer gets; empty is nothing.
 	NewcomerRole    string
 	NewcomerGroupID shared.ID
+	// SAMLSSOURL and SAMLCertificate are required for KindSAML and refused for every other kind.
+	SAMLSSOURL      string
+	SAMLCertificate string
 }
 
 // NewIdentityProvider validates a configuration and normalises what has a normal form.
@@ -243,7 +250,16 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		return IdentityProvider{}, shared.ErrInternal.WithDetail("identity_provider.incomplete")
 	}
 
-	issuer, err := normalisedIssuer(in.Issuer)
+	// A SAML provider's issuer is its entity ID, a name compared exactly rather than an https
+	// address discovery fetches, so which kind this is decides how the issuer is read.
+	saml := strings.EqualFold(strings.TrimSpace(in.Kind), string(KindSAML))
+	var issuer string
+	var err error
+	if saml {
+		issuer, err = samlEntityID(in.Issuer)
+	} else {
+		issuer, err = normalisedIssuer(in.Issuer)
+	}
 	if err != nil {
 		return IdentityProvider{}, err
 	}
@@ -255,6 +271,11 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 	}
 
 	kind, preset, err := resolvedKind(in.Kind, issuer)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
+	ssoURL, certificate, err := samlFields(in, kind)
 	if err != nil {
 		return IdentityProvider{}, err
 	}
@@ -321,6 +342,7 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		AllowedEmailDomains: domains, AllowedDirectories: directories, Enabled: in.Enabled,
 		CreatedAt: in.Now.UTC(), Version: 1,
 		NewcomerRole: newcomerRole, NewcomerGroupID: in.NewcomerGroupID,
+		SAMLSSOURL: ssoURL, SAMLCertificate: certificate,
 	}, nil
 }
 
@@ -906,6 +928,11 @@ type OidcFlow struct {
 	// Connect makes a flow bound to a session a connection of a provider to the session's account
 	// (ADR-0078 §1) rather than a step-up. Never without a session.
 	Connect bool
+	// SAMLResponse is a SAML provider's answer the assertion consumer service kept, and
+	// SAMLHandoffHash the hash of the code it handed the callback (identity.md §26). Empty until
+	// the answer came, and for every flow of an OpenID Connect provider.
+	SAMLResponse    string
+	SAMLHandoffHash []byte
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.

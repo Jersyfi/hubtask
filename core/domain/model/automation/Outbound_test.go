@@ -40,6 +40,7 @@ func TestAValidHTTPRequestIsReadWhole(t *testing.T) {
 }
 
 // Each refusal names the field it is about, so an editor can point at the line.
+// UC-INT-05 check 1.
 func TestAnHTTPRequestIsRefusedByField(t *testing.T) {
 	cases := []struct {
 		name   string

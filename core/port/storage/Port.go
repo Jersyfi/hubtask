@@ -21,6 +21,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -127,3 +128,27 @@ type Object struct {
 	// ContentType is the type as stored, which is the sniffed one.
 	ContentType string
 }
+
+// Verdict is what a scan found. Signature is the scanner's name for what it found - the scanner's
+// vocabulary, never user content - and empty on a clean file.
+type Verdict struct {
+	Malicious bool
+	Signature string
+}
+
+// Scanner checks the bytes of an upload for malicious content before anybody downloads them
+// (security.md §4, T-11). Optional: an installation without one wires none, and every confirmed
+// upload is READY at once - the no-op is the absence of a scanner, never a scanner that says yes.
+//
+// An unreachable or failing scanner is ErrUnavailable with a `dependency.` detail, and that is the
+// case the caller holds the file for rather than refusing or passing it: a file nobody vouched
+// for is never served, and a scanner that is down never stops an upload.
+type Scanner interface {
+	// Scan reads the content to its end, or until the scanner has its answer.
+	Scan(ctx context.Context, content io.Reader) (Verdict, error)
+}
+
+// ErrNoVerdictForFile is the cause under ErrUnavailable when the scanner was reached and answered
+// an error for this file: the file stays held, but a scan pass goes on to the files behind it
+// rather than reading the scanner as down for all of them.
+var ErrNoVerdictForFile = errors.New("the scanner answered an error for this file")

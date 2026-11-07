@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -126,5 +127,57 @@ func TestAProcessWithNoListeningConnectionSaysSo(t *testing.T) {
 	l.setConnected(true)
 	if !l.Connected() {
 		t.Error("a connected listener reports itself disconnected")
+	}
+}
+
+// A credential's doorbell names the workspace and, where one, the account (migration 0339); a
+// payload of another shape is ignored.
+func TestACredentialNotificationReachesItsHandler(t *testing.T) {
+	l := listener()
+	type heard struct{ tenant, account shared.ID }
+	var got []heard
+	l.OnCredential(func(tenantID, accountID shared.ID) { got = append(got, heard{tenantID, accountID}) })
+
+	account := shared.ID("01936f2a-7c1e-7000-8000-0000000000b1")
+	l.credential(workspaceA.String() + "/" + account.String())
+	l.credential(workspaceB.String())
+	l.credential("not-an-id/also-not")
+	l.credential(workspaceA.String() + "/" + account.String() + "/extra")
+
+	want := []heard{{workspaceA, account}, {workspaceB, ""}}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("heard %v, want %v", got, want)
+	}
+}
+
+// A burst of commits wakes a workspace's streams once at the start and once at the end of the
+// window, not once per commit: each stream reads the log twice, not two thousand times.
+func TestABurstOfChangesWakesOnceAtEachEndOfTheWindow(t *testing.T) {
+	l := listener()
+	l.coalesce = 50 * time.Millisecond
+	in, stop := l.Subscribe(workspaceA)
+	defer stop()
+
+	l.wake(workspaceA)
+	if !woken(t, in) {
+		t.Fatal("the first change did not wake the stream at once")
+	}
+	for range 2000 {
+		l.wake(workspaceA)
+	}
+	if woken(t, in) {
+		t.Fatal("a change inside the window woke the stream at once")
+	}
+	time.Sleep(80 * time.Millisecond)
+	if !woken(t, in) {
+		t.Fatal("the changes inside the window were never announced")
+	}
+	time.Sleep(80 * time.Millisecond)
+	if woken(t, in) {
+		t.Fatal("a quiet window woke the stream again")
+	}
+	l.wake(workspaceA)
+	if !woken(t, in) {
+		t.Fatal("a change after the window did not wake at once")
 	}
 }

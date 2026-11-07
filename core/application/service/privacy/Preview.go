@@ -40,6 +40,8 @@ type PreviewCommand struct {
 type Preview struct {
 	Mode domain.ErasureMode
 	Kept []domain.Kept
+	// Lines say, kind by kind, what the erasure would do; none for a case by address.
+	Lines []domain.Line
 }
 
 // Execute works the preview out.
@@ -93,14 +95,17 @@ func (h PreviewErasure) Execute(
 			preview.Mode = domain.DefaultErasureMode
 		}
 		if request.SubjectAccountID.IsZero() {
-			// Nobody here: an erasure would remove nothing, and a hold could keep nothing.
-			return nil
+			// A case by address: the question eraseAddress asks, so the dialog names the hold that
+			// would keep what the address sent. Without an address nothing is erased or kept.
+			kept, err := h.Eraser.addressKept(ctx, request)
+			preview.Kept = kept
+			return err
 		}
 		plan, err := h.Eraser.decide(ctx, request.SubjectAccountID, preview.Mode)
 		if err != nil {
 			return err
 		}
-		preview.Kept = plan.Kept
+		preview.Kept, preview.Lines = plan.Kept, plan.Lines
 		return nil
 	})
 	if err != nil {
@@ -112,10 +117,12 @@ func (h PreviewErasure) Execute(
 // Descriptor registers the preview in all three channels.
 func (h PreviewErasure) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: PreviewErasureName,
+		Name:       PreviewErasureName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Before an erasure is started, what the legal holds in force would keep of it: a " +
 			"hold wins over an erasure as far as it reaches, so what it covers is kept and the case " +
-			"closes as partly completed. Per hold, how many of the person's comments, assignments, " +
+			"closes as partly completed. One line per kind of data the erasure handles - what goes, what " +
+			"stays without the person's name, what a hold keeps - counted where the rows are read. Per hold, how many of the person's comments, assignments, " +
 			"entries and intake it would keep, and whether it keeps the account itself - which only " +
 			"a hold on the person or on the whole workspace does. Answered for the mode named, else " +
 			"the case's own, else ANONYMIZE.",
@@ -151,5 +158,20 @@ func (h PreviewErasure) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return usecase.Output{"mode": string(preview.Mode), "kept": keptOutput(preview.Kept)}, nil
+	return usecase.Output{
+		"mode": string(preview.Mode), "kept": keptOutput(preview.Kept), "lines": linesOutput(preview.Lines),
+	}, nil
+}
+
+// linesOutput is what the erasure does, kind by kind; a count only where the preview reads it.
+func linesOutput(lines []domain.Line) []map[string]any {
+	out := make([]map[string]any, 0, len(lines))
+	for _, line := range lines {
+		row := map[string]any{"kind": string(line.Kind), "fate": string(line.Fate), "count": nil}
+		if line.Count != nil {
+			row["count"] = *line.Count
+		}
+		out = append(out, row)
+	}
+	return out
 }

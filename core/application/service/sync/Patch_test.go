@@ -246,6 +246,7 @@ func TestTheDueTrioTravelsTogether(t *testing.T) {
 	}
 }
 
+// UC-SYN-02 check 9.
 func TestAPatchIsJudgedByItsFieldNames(t *testing.T) {
 	cases := map[string]struct {
 		fields map[string]FieldChange
@@ -321,5 +322,36 @@ func TestAnAmountMergesAsAScalarBesideTheTitle(t *testing.T) {
 	}
 	if _, present := updates[0].in["title"]; present {
 		t.Errorf("the title the server wrote later was applied: %+v", updates[0].in)
+	}
+}
+
+// UC-FLW-03 check 5: a device's queued move is a step the server takes or refuses; a refusal
+// comes back to the device with the reason, and the device adopts the server's status.
+func TestAQueuedMoveIsAStepTheServerDecides(t *testing.T) {
+	f := patching(t, map[string]shared.HLC{})
+	f.catalogue.outputs["TakeStep"] = usecase.Output{"id": itemX.String(), "version": 5, "status": "done"}
+	mine := reading(0, "dev-a")
+	response, err := f.push.Push(t.Context(), pusher(), patchOf(map[string]FieldChange{
+		"status": {Value: "done", HLC: mine.String()},
+	}, nil))
+	if err != nil {
+		t.Fatalf("pushing: %v", err)
+	}
+	calls := f.calls("TakeStep")
+	if len(calls) != 1 || calls[0].in["to_status"] != "done" || response.Results[0].Result == domain.Rejected {
+		t.Fatalf("the move is a step: %+v %+v", calls, response.Results[0])
+	}
+
+	f = patching(t, map[string]shared.HLC{})
+	f.catalogue.errs["TakeStep"] = shared.ErrForbidden.WithDetail("workflows.step_not_allowed")
+	response, err = f.push.Push(t.Context(), pusher(), patchOf(map[string]FieldChange{
+		"status": {Value: "done", HLC: mine.String()},
+	}, nil))
+	if err != nil {
+		t.Fatalf("pushing: %v", err)
+	}
+	result := response.Results[0]
+	if result.Result != domain.Rejected || result.Error == nil || result.Error.MessageCode != "workflows.step_not_allowed" {
+		t.Fatalf("the refusal comes back with its reason: %+v", result)
 	}
 }

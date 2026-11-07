@@ -479,4 +479,11 @@ const (
 	// CodeArchiveKeyUnexpected is a key offered for an archive that has none - a caller confusing
 	// two archives, which is worth stopping because the next thing they do is trust the result.
 	CodeArchiveKeyUnexpected = "backup.archive_key_unexpected"
+	// CodeArchivePassphraseRequired is an archive encrypted to a passphrase, restored without one.
+	CodeArchivePassphraseRequired = "backup.archive_passphrase_required"
+	// CodeArchivePassphraseWrong is a passphrase that does not open the archive encrypted to one.
+	CodeArchivePassphraseWrong = "backup.archive_passphrase_wrong"
+	// CodeArchivePassphraseUnused is a passphrase given for a chain no archive of which is
+	// encrypted to one: refused rather than ignored, as a passphrase on a target is.
+	CodeArchivePassphraseUnused = "backup.archive_passphrase_unused"
 )

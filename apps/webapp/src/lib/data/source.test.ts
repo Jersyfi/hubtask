@@ -9,6 +9,12 @@ import { chipCodes } from './source.ts';
 const member = { operates: false };
 const operator = { operates: true };
 
+test('at a hub, its own value is set here and the workspace\'s is a level above', () => {
+  assert.equal(chipCodes({ source: 'HUB', lock: null }, { operates: false, atHub: true })?.label, 'app.source.label_hub');
+  assert.equal(chipCodes({ source: 'WORKSPACE', lock: null }, { operates: false, atHub: true })?.label, 'app.source.label_workspace_above');
+  assert.equal(chipCodes({ source: 'WORKSPACE', lock: null }, member)?.label, 'app.source.label_workspace');
+});
+
 test('each source has its own words', () => {
   for (const [source, level] of [
     ['WORKSPACE', 'workspace'],

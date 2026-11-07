@@ -9,6 +9,89 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
 ## 1. Ground rules
 
 1. **Nothing exists only in the UI.** Every use case is reachable through the API (coverage test against `usecase.Registry`).
+   **The doors are generated** (F-7): an operation marked `x-hubtask-rest: generated` is answered by
+   the mapping `tools/doors` writes into `presentation/rest/Doors.gen.go` - the request body
+   decoded into its generated type first, its members, the path's and the query's parameters
+   handed to the use case by the contract's names (the operationId is the use case's), `If-Match`
+   as `expected_version` (or as the text `x-hubtask-rest-if-match` names), `X-Hubtask-Step-Up` as
+   `step_up_token`, the output passed through the generated answer type, its integer `version`
+   (or the member `x-hubtask-rest-etag` names) as the ETag; `x-hubtask-rest-path` renames a path
+   parameter's input, `x-hubtask-rest-body` hands the whole body on as one input (a form),
+   `x-hubtask-rest-location` fills a created resource's `Location`; an explicit `null` member
+   reaches the use case as present and null, as MCP's arguments carry it, or as the empty text
+   where `x-hubtask-rest-null: empty` says the use case reads that as *clear*. A path parameter
+   renamed to `""` only places the resource. `x-hubtask-rest-query` renames a query parameter's
+   input (`size` read as `limit`); `x-hubtask-rest-use-case` sends a door to another use case than
+   its operationId (creating and replacing an identity provider are one use case, told apart by an
+   identifier); `x-hubtask-rest-shown-once` names the member that shows a secret once - an answer
+   carrying it is marked `Cache-Control: no-store` and `X-Hubtask-Shown-Once` for the idempotency
+   record (T-18); `x-hubtask-rest-list: data` draws a list under `data` without a page row by row;
+   `x-hubtask-rest-request` names what the request itself carries that the use case reads (`host`,
+   `tenant_header`, `user_agent`, `remote_addr` - a sign-in's workspace and a session's record),
+   and a successful answer the contract declares without content is written without a body;
+   `x-hubtask-rest-alternate: { when, answer }` answers the contract's other successful status,
+   drawn by the named mapper, when the output's boolean member `when` is true (a sign-in's
+   session, or the second step it still owes); an operation that declares `204` beside its answer
+   answers it for an empty output, and a `Location` may name a nested part's member
+   (`{account.id}`). A body's read-only members are dropped - a client that saves what it read
+   sends them back - and every other member must be an input the use case declares, a test holds
+   it; `x-hubtask-rest-flatten: { member: { inner: input } }` hands a nested member's members on as
+   the flat inputs MCP also reads.
+   The use case's input therefore uses
+   the contract's names; a test holds each mapping's query, version and proof to the descriptor's
+   declared input. An answer drawn by one of the adapter's shared mappers (an entry, by
+   `workItemResponse`) names it with `x-hubtask-rest-answer`; for a bare-array or paged answer
+   the named mapper draws one row, and `x-hubtask-rest-list: whole` has it draw the whole answer
+   instead (a page with members beside its rows, a list spelled otherwise). `x-hubtask-rest-null-as: { member: value }` passes an explicit
+   null member as that value, or leaves it out where the value is null (a bucket's null limit is
+   the number 0); `x-hubtask-rest-null-to: { member: input }` turns an explicit null member into
+   the boolean input it names (a workspace's `default_preset: null` is `clear_default_preset`, an
+   absent one leaves it). `x-hubtask-rest-words: [member]` hands a boolean on as its word (`true`, `false`) to a use case that
+   reads a cleared third state; `x-hubtask-rest-utc: [name]` hands an instant on in UTC where the
+   use case keeps the text it was sent; a shown-once member may be a list (recovery codes); an
+   answer mapper may be the controller's own (`c.calendarFeedSecretResponse`), where it composes
+   an address from the installation's base URL. `x-hubtask-rest-etag` may name a nested part's member (`item.version`, a moved or copied
+   entry's), or an output's member the answer does not show where the contract declares the
+   `ETag` header (a workspace structure's version). `x-hubtask-rest-expand: { word: input }` turns the
+   `expand` parameter's words - or a body's `expand` member's, a query sent as a document - into
+   the boolean inputs they name and refuses any other word by name (`items.expand_not_supported`).
+   A flattened member may name a deeper one by its dotted path (`scope.container_id`), and a
+   nested integer reaches the use case as an integer, as a top-level one does. An operation whose connection an adapter holds rather than one use case
+   answers - the change stream, a live document, the sync protocol's pull, push and snapshot - is
+   marked `x-hubtask-rest: delegated` with `x-hubtask-rest-to: <field>`: the generated door hands
+   the request to the controller's field, or answers the pending 404 where it is not wired. So is
+   a door no catalogue entry answers because it speaks a format or a credential of its own, each
+   held by a door type with the generated interface's methods: SCIM's resources and errors
+   (`ScimDoor`), SAML's posted form and metadata (`SAMLDoor`), a media object's bytes
+   (`MediaDoor`), the documents a token alone opens - a calendar feed, a data feed's OData, a
+   public page (`FeedDoor`) -, the self-description and the health report (`MetaDoor`), and the
+   doors a sender outside holds the credential of - inbound runs, the jumble, the forges, the
+   CMDB, the receiving domain, the voice assistant (`IntakeDoor`).
+   `x-hubtask-rest-drop: [member]` accepts and drops a body member the contract
+   declares and the use case does not, as its hand-written door did, until the owner decides it. `x-hubtask-rest-form: <method>` hands a form-encoded body the
+   contract declares to the controller's own method before the JSON body is decoded (RFC 6749's
+   token request, answered in that standard's shape), and `x-hubtask-rest-status` names the
+   generated door's answer where the contract declares the form's beside it.
+   `x-hubtask-rest-writer: { by: <method>, members: [member] }` writes the output as a file in
+   the media type asked for - by `Accept`, or by the body's members it names (`format`,
+   `time_zone`), which stay out of the input - and is chosen before the use case runs, so a
+   format or a zone it cannot write is refused before anything is read or audited (the exports);
+   a bulk's writer renders each refusal inside it with the request's own id.
+   `x-hubtask-rest-drop` may name a nested member by its dotted path. `x-hubtask-rest-cache:
+   no-store` marks an answer made of the caller's words - a read sent as a `POST` - not to be
+   stored. `x-hubtask-cli` names
+   the `hubctl` command the same tool writes into `cmd/hubctl/Doors.gen.go`
+   (`x-hubtask-cli-columns` the columns of a list, `data` or a plain array; `x-hubtask-cli-rows`
+   the member that holds a page's rows where it is not `data`, as the suggestions' `items`); a
+   boolean parameter is a switch, a missing or malformed identifier and a word the command does not
+   take are refused before the call, an answer of no body says what was done on standard error, a
+   dry run says that nothing changed, and a page names its `--cursor`, a feed's last one too. A
+   flag a generated command renamed to the contract's member name keeps its former name as an
+   unadvertised alias (`cmd/hubctl/FlagAliases.go`, the list of them; one whose meaning changed,
+   none); a use of it names today's flag on standard error and changes nothing else. A hand-written command
+   of the same name is kept, and every hand-written command names why it does more than its
+   operation - a prompt, a file, a followed job, a shown-once warning, a table a person reads
+   better - in `cmd/hubctl/HandWritten_test.go`, whose test fails for one that does not.
 2. **One major path:** `/api/v1`. Additive changes (new fields, new endpoints, new enum values in *responses*) are compatible and need no new version.
 3. **Clients must be tolerant:** ignore unknown fields. This is documented in the contract.
 4. **Self-describing:** `GET /api/v1/meta/capabilities` answers the vocabulary (item types, capability profiles, field types, enum values, limits, locales, query fields, automation, event types); frontends and agents configure themselves from it rather than hard-coding. An optional surface is announced under `features`; a client that does not find its flag renders what it had before and calls no route of that surface.
@@ -49,6 +132,15 @@ they drift apart ([ADR-0004](../adr/ADR-0004-api-first-openapi.md)).
 * The intake doors (`/jumble/inbound/{token}`, `/jumble/mail/{token}`, `/automation/inbound/{token}`)
   authenticate a tenant or a rule, never a person, are capped, and answer every reason not to serve
   with the same `404`.
+* The configuration document is `/config` (its export, the hash as `ETag`) with the actions
+  `:validate`, `:plan`, `:propose` and `:apply`; an apply names the plan's `plan_hash` and is refused
+  `409 config.version_conflict` when the configuration moved since, through any door; a plan that
+  says `step_up` (it changes the sign-in rule) is applied with `X-Hubtask-Step-Up`. Every refusal
+  of a plan is a message code with the key path (`types.incident.level`), never prose. The same use
+  cases are MCP tools by the registry's names (`plan_config`, `apply_config`, …) and `hubctl config`.
+  A hub's own document is the same doors with `hub_id` (a query parameter on the reads, a body
+  field on the actions); the sandbox is `/config/sandbox` (`GET` with its promotion's plan, `POST`
+  to change, `reset` or `discard` it), promoted by `:plan` and `:apply` with `from_sandbox`.
 * `/mcp` (streamable HTTP, [ai-first.md](./ai-first.md)) and `/caldav/` (WebDAV, §7) are outside the
   OpenAPI document.
 
@@ -89,11 +181,20 @@ One endpoint serves list, board, and timeline: `POST /api/v1/items:query`.
 |---|---|
 | Scope | Required: exactly one of `container_id` and `item_id` — an unanchored query would scan the tenant — and the permission is checked against it once for the whole result. `include_descendants: false` narrows it to one level |
 | Operators | `AND`, `OR`, `NOT` (exactly one node); `EQ`, `NEQ`, `IN`, `NOT_IN`, `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, `IS_NULL`, `CONTAINS`, `CONTAINS_ANY`, `CONTAINS_ALL`, `STARTS_WITH`, `MATCHES` (full text) |
-| Placeholders | `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` with an optional signed ISO 8601 offset (`@today+P3D`). Resolved server-side in the actor's time zone; an end is the last instant of its period; the week starts at the actor's `week_start` (the account's, else the locale's; [i18n-l10n.md](./i18n-l10n.md) §4) |
+| Placeholders | `@me`, `@now`, `@today`, `@end_of_day`, `@start_of_week`, `@end_of_week`, `@start_of_month`, `@end_of_month`, each but `@me` with an optional signed ISO 8601 offset (`@today+P3D`). Resolved server-side in the actor's time zone; an end is the last instant of its period; a month or year offset that lands past a shorter month's end is clamped to its last day (`@today+P1M` on 31 January is 28 February); the week starts at the actor's `week_start` (the account's, else the locale's; [i18n-l10n.md](./i18n-l10n.md) §4) |
 | Nesting | Maximum depth 5, maximum 50 nodes |
 | Cost | An estimate over the parsed tree, capped at 50: a plain comparison costs 1, a prefix 2, a text scan (`CONTAINS`/`MATCHES`) 5, a list 1 plus one per twenty values, a `NOT` doubles its subtree. Past the cap → `422 query.filter_too_expensive` naming the estimate and the ceiling, refused before it runs ([multi-tenancy.md](./multi-tenancy.md) §4) |
 | Fields | Only the fields `/meta/capabilities` lists under `query_fields`. An unknown field, or one no use case writes yet, is refused by name as `422 query.field_unknown` |
-| Custom fields | `custom_fields.<key>` is recognised by its shape, the key bound as a parameter, and not listed in `query_fields`; `/custom-fields` says which keys exist, and a client offers those defined for the collection on screen. A key nothing defines matches nothing |
+| Custom fields | `custom_fields.<key>` is recognised by its shape, the key bound as a parameter, and not listed in `query_fields`; `/custom-fields` says which keys exist, and a client offers those defined for the collection on screen. A key nothing defines matches nothing. The equalities, `IN`, `CONTAINS`, `IS_NULL`, `CONTAINS_ANY` and `CONTAINS_ALL` (a field holding several values: any or every element) and `STARTS_WITH` (a field holding one text, case-insensitive) read the document; `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, a sort and a grouping read the typed value (numbers, amounts and durations as numbers, dates as days `YYYY-MM-DD`, text by its first 256 characters). The use case reads the kinds of the definitions under the key in the query's scope first: a range over people, references or formatted text, a sort by a set, a person, a reference or formatted text, a grouping by a set or formatted text, `CONTAINS_ANY` or `CONTAINS_ALL` over a field holding one value, `STARTS_WITH` over anything but one text, and any of these over a key whose kinds disagree in the scope are refused (`query.operator_unsupported`, `query.field_not_sortable`, `query.field_not_groupable`) |
+| Entry type | `entry_type` is the key of the entry's type, its level's system key (`task`, `work_package`, `activity`) when it has none of its own; `EQ`, `NEQ`, `IN`, `NOT_IN` and a grouping, no sort. `/entry-types` says which keys exist |
+| Blocked | `blocked` is whether an open entry holds the entry up - over a link whose type waits - the source of a `blocks` link to it, the target of a `depends_on` link from it, or the other end of a workspace's own type as its `waits` says; `EQ` and `NEQ` with a boolean, no sort or grouping, cost 2 |
+| Blocking | `blocking` is the other direction: whether the entry holds up an open one over a link whose type waits; `EQ` and `NEQ` with a boolean, no sort or grouping, cost 2 |
+| Linked to | `linked_to` is whether a link of any type joins the entry to one of the given entries, from either end; `EQ` and `IN` with identifiers, no sort or grouping, cost 2 |
+| SLA due | `sla_due` is the moment the entry's next running SLA goal runs out, absent when none runs (UC-SVC-03); `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, `IS_NULL` and a sort - a queue sorts by it ascending, nulls last, so the entry about to breach comes first; no grouping, cost 2 |
+| SLA standing | `sla_standing` is the worst standing of the entry's SLA goals: `MET`, `PAUSED`, `RUNNING`, `AT_RISK` (running past its warning) or `BREACHED`, absent when no policy measures the entry; `EQ`, `NEQ`, `IN`, `NOT_IN`, `IS_NULL`, no sort or grouping, cost 2 |
+| Satisfaction | `satisfaction` is the requester's score of the resolved entry from 1 to 5, absent while none was given (UC-SVC-07); `EQ`, `NEQ`, `IN`, `LT`, `LTE`, `GT`, `GTE`, `BETWEEN`, `IS_NULL`, no sort or grouping, cost 2. As an aggregation's measure, `AVG` over a queue's view is that queue's satisfaction |
+| Group queue | `group_queue_of` is whether the entry's collection has an auto-assign policy naming, as a `GROUP` candidate, a group the account belongs to (user-experience.md §3.3); `EQ` with `@me` or the asker's own identifier - anybody else's is refused as `422 query.group_queue_not_yours`, since the answer would say whose groups they are -, no sort or grouping, cost 2 |
+| Status | `status` is the key of the entry's status in the workflow its collection runs for its type, absent where none runs; `EQ`, `NEQ`, `IN`, `NOT_IN`, `IS_NULL` and a grouping, no sort - a workflow collection's board is grouped by it. `/workflows` says which keys exist |
 | `group_by` | Groups, each with its own cursor, so board columns page independently; a group is continued by asking for it (its key as a filter, its cursor as the cursor). A cursor together with `group_by` is refused |
 | `expand` | `labels` is served; any other relation is refused as `items.expand_not_supported` |
 | Timeline | `sort=[start_at]`, filter `BETWEEN` on `start_at`/`due_at` |
@@ -103,15 +204,76 @@ One endpoint serves list, board, and timeline: `POST /api/v1/items:query`.
 query catalogue at the write. The server does not interpret `layout`, so a new view in a client
 needs no backend change.
 
+`POST /items:aggregate` takes the same scope and filter, with the same limits, cost estimate and
+permission, and an `aggregate` instead of a sort, page or grouping: `function` (`COUNT`, `SUM`,
+`AVG`, `MIN`, `MAX`, and the continuous percentiles `P50`, `P85`, `P95` - one constant fraction each
+in the statement, never a parameter), `field` (a `custom_fields.<key>` holding a number, money or a duration, or a
+built-in quantity in whole minutes - `lead_time`, `created_at` to `completed_at`, and
+`scheduled_span`, `start_at` to `due_at`, none where a stamp is missing; and from the status history
+migration 0257 writes, `cycle_time`, the first entry into a status of the `IN_PROGRESS` category to
+`completed_at`, `wip_age`, that entry to now for an open entry, and `time_in_status`, the latest
+entry into the current status to now for an open entry - the use case binds the started statuses of
+the workspace's workflows and the moment from its clock, and an entry without history holds none;
+refused for `COUNT`,
+`query.field_not_aggregatable` for anything else), `group_by` (a field a query may group by) and
+`bucket` (`field`, a timestamp or a custom date, `period`: `day`, `week`, `month`, cut in the
+actor's time zone, and for a week `week_start`: `monday`, the default, or `sunday`). Its scope may
+instead be `workspace: true`: the use case asks a read of every live collection (archived ones too
+with `include_archived`) at its own path, at most 2000 (`query.workspace_too_large`), and binds the
+readable ones as one array, so the narrowing is inside the statement; an entry shared with the
+actor alone in a collection they do not read is asked at its own path and bound as a second array,
+at most 5000. `source: links` counts links instead of entries: a link whose two ends the scope and
+filter both keep (the target is held to the same predicates inside the statement, so an end the
+reader cannot see is never counted), `COUNT` only (`query.aggregate_links_count_only`), its
+`group_by` and `bucket` reading the source end, and `group_by: link_type` its own grouping.
+`source: time` sums the time records on the kept entries: the caller's own, and other people's on
+the entries of a collection where the time module says the caller approves time (UC-TIM-04; the
+collections are decided in the application layer and bound as an array); its one measure is
+`minutes` (`query.aggregate_time_minutes_only`), it groups by `work_type`, `billable` or `person`
+besides an entry field and buckets by the record's `day` besides an entry timestamp. Where the
+workspace shows other people's time only as sums, `person` is `time.aggregated_only` and a group
+of fewer than three people, the caller alone aside, is left out by a `HAVING` the statement
+carries. Time on no entry is not in any scope. `source: pages` counts the pages of a hub's space,
+or of every space the caller may read pages in for `scope_workspace` (the knowledge module's
+question, `PageReach`, bound as an array); a collection or an entry holds no space
+(`query.aggregate_pages_hub_scope`) and the entries' filter is refused
+(`query.aggregate_pages_unfiltered`); a `COUNT` only (`query.aggregate_pages_count_only`), grouped
+by `owner`, `template` or `verification` and bucketed by `created_at` or `updated_at`; a page
+behind a restriction is counted only for a caller it admits (`page_admits`, bound). Another
+source is `query.aggregate_source_unknown` - records are entries. A saved view may store `aggregate` (and then `scope_workspace: true`
+instead of an anchor); `POST /views/{viewId}:aggregate` runs it under the caller's authorisation,
+and a view without one is refused (`views.aggregate_missing`); a workspace-scoped summary view has
+no rows, and its `:export` is refused (`views.summary_not_exportable`). It answers at most 5000 rows of
+`group`, `period`, `count` and `value` (a decimal string, so money keeps its digits), in the
+group's order and then the period's, and `truncated`. A field hidden from the reader is refused as
+in a filter. The function and the period are closed vocabulary like the operators; the time zone
+and the limit are parameters (§3.1).
+
 `POST /search` takes the same filter grammar, limits and cost estimate; it has no `group_by`,
 `expand` or `count`. Its `words` are optional when a filter is given; without words the order is
 `due_at ASC NULLS LAST, id ASC`; neither words nor a filter is refused (`search.words_required`).
 `/meta/capabilities` announces this as `features.search_filter: true`, so a client that also talks
 to an older server tells rather than probes.
 
+**The query as a line.** `POST /items:query` and `POST /items:export` (and the MCP tool and
+`hubctl` beside them) take `q` instead of `filter` and `sort`: `status = open AND
+custom_fields.priority >= 3 ORDER BY due_at DESC`. The comparisons are `=`, `!=`, `<`, `<=`, `>`,
+`>=`, `~` (CONTAINS), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`,
+`CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH`, `MATCHES`; `NOT` binds tighter
+than `AND`, `AND` than `OR`, brackets group; the keywords are case-insensitive and reserved. A text
+is quoted with `'` or `"` and a backslash takes the next character; a bare word is read by the
+field's kind (a number, `true`/`false`, else a text) and a placeholder (`@me`, `@today+P3D`) stays
+one. The line is only another spelling: `core/domain/model/view.ParseLine` turns it into the filter
+document and the sort list, which then go through the same field catalogue, operators, bounds and
+price as the tree, so the line adds no rule and no SQL. It is at most 4000 bytes and ten brackets
+deep; one that cannot be read is `query.line_malformed` with the character (`at`, from 1) where it
+stops, and a line beside `filter` or `sort` is `query.line_with_filter`. `FormatLine` writes a tree
+back as a line that reads to the same tree.
+
 ### 3.1 How a query becomes SQL
 
-The filter, sort and grouping of `items:query` and `/search` are the one place where SQL text is
+The filter, sort and grouping of `items:query` and `/search`, and the aggregation of
+`items:aggregate`, are the one place where SQL text is
 assembled at run time. The boundary is **no byte that arrived in a request ever becomes SQL text**
 ([ADR-0026](../adr/ADR-0026-query-dsl-sql-construction.md), security.md T-06):
 
@@ -144,8 +306,10 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
   export (§5).
 * Where a read answers only what the caller may see (`/search` without a container), a page can
   be shorter than the size asked for. A client reads on until `has_more` is false.
-* A total is given only with `count: "exact"`, as `total`, because it costs a second pass.
-  `count: "estimated"` is refused as `query.count_not_supported` rather than answered with a null
+* A total is given only with `count: "exact"`, as `total`, because it costs a second pass. That
+  pass is bounded to two seconds: a count that takes longer is left out (`total` and each group's
+  `count` null) and the rows are answered, so a collection too large to count in time degrades its
+  numbers instead of failing its read. `count: "estimated"` is refused as `query.count_not_supported` rather than answered with a null
   total.
 
 ---
@@ -154,7 +318,7 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
 
 | Mechanism | Implementation |
 |---|---|
-| **Idempotency** | The `Idempotency-Key` header (a UUID; anything else is `422 idempotency.key_malformed`) on `POST`s; the answer is stored per tenant, key and route and replayed identically for at least 24 h — mandatory for automation and agents. `PUT` and `DELETE` repeat harmlessly, and `PATCH` is guarded by `If-Match`. Not stored, the key released for the repeat: a `5xx` (no decision the server stands behind) and `403 auth.step_up_required` (not attempted; the retry with the proof is the same intent). Stored with its status and **no body**: an answer that carries a credential shown once - a session's tokens, a token, a secret, recovery codes, a start password, an invitation's link - so no record keeps it in clear; a repeat runs nothing twice and answers the status alone, and a client that lost the first answer asks for a new credential (`rest.ShownOnceRoutes`, held to this contract by a test). Provisioning a workspace keeps its body, the owner's redemption token with it: its repeat answers the same workspace (`rest.ShownOnceKept`). A public route (`security: []`) called without a bearer accepts the key and keeps no record: there is no workspace to keep it in, and a record kept by the key alone would hand a stranger's answer to whoever learns the key - a repeat is the route's own to answer (a single-use token is spent once, an inbound delivery is a new arrival) |
+| **Idempotency** | The `Idempotency-Key` header (a UUID; anything else is `422 idempotency.key_malformed`) on `POST`s; the answer is stored per tenant, key and route and replayed identically for at least 24 h — mandatory for automation and agents. `PUT` and `DELETE` repeat harmlessly, and `PATCH` is guarded by `If-Match`. Not stored, the key released for the repeat: a `5xx` (no decision the server stands behind) and `403 auth.step_up_required` (not attempted; the retry with the proof is the same intent). Stored with its status and **no body**: an answer that carries a credential shown once - a session's tokens, a token, a secret, recovery codes, a start password, an invitation's link - so no record keeps it in clear; a repeat runs nothing twice and answers the status alone, and a client that lost the first answer asks for a new credential (`rest.ShownOnceRoutes`, held to this contract by a test). Provisioning a workspace keeps its body, the owner's redemption token with it where one is answered: its repeat answers the same workspace (`rest.ShownOnceKept`). A public route (`security: []`) called without a bearer accepts the key and keeps no record: there is no workspace to keep it in, and a record kept by the key alone would hand a stranger's answer to whoever learns the key - a repeat is the route's own to answer (a single-use token is spent once, an inbound delivery is a new arrival) |
 | **Optimistic locking** | `ETag` on `GET`, `If-Match` on `PATCH`/`PUT`. A stale `If-Match` answers `409 version_conflict` with the current version — **not** `412`, and the same code answers a conflict found without a precondition, since the recovery is the same: re-read and reapply ([ADR-0025](../adr/ADR-0025-precondition-failures.md)). A `412` could only ever be added beside it |
 | **Partial updates** | `PATCH` with JSON Merge Patch (RFC 7396); `null` deletes a field explicitly |
 | **Bulk** | `POST /items:bulk` with at most 500 operations; a result per operation (`207`-like in the body, HTTP 200); `atomic: true` enforces all-or-nothing |
@@ -179,9 +343,13 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
   "params": { "item_type": "ACTIVITY", "capability": "COVER" },
   "field_errors": [ { "path": "/cover", "code": "not_allowed" } ],
   "request_id": "01J9…",
-  "docs": "https://docs.hubtask.dev/errors/capability_not_supported"
+  "docs": "https://hubtask.eu/errors/capability_not_supported/"
 }
 ```
+
+* `type` is the problem type's identifier and stays as published; `docs` is the website's page for
+  the code (`apps/website`, `/errors/<code>/`), one per wire code, held to them by
+  `test/architecture/errorpages_test.go`.
 
 * `code` is stable and machine-readable (part of the contract, SemVer-relevant).
 * `detail_code` plus `params` let the client localise without server-side prose
@@ -211,6 +379,7 @@ Token shapes, lifetimes and storage are in [identity.md](./identity.md) §14 and
 | Service account token | Automation, AI agents | Its own actor type in the audit |
 | OAuth 2 authorization code + PKCE | Third-party apps (the Zapier marketplace) | PKCE is required; consent only to scopes the catalogue names |
 | Signed feed token (`hbt_cal_`) | ICS calendar | Read-only on one view, revocable |
+| The same feed token, of the data kind | An OData v4 feed (`/odata/{token}`) for Power BI and Excel (UC-INT-15) | Read-only on one view's rows, revocable; one token opens one kind. Its JSON follows OData v4 - `value`, `@odata.nextLink`, PascalCase properties - rather than §1.6, as the calendar follows RFC 5545 |
 | Personal access token as an HTTP Basic password | CalDAV clients (`/caldav/`) | The one place Basic is taken, since a calendar client can send nothing else; the user name is discarded. Outside the OpenAPI document because WebDAV's methods are not the contract's. No `MKCALENDAR`: a calendar exists because a calendar feed does |
 
 **Scopes.** `catalogue.Scopes()` is the source, derived from the use case descriptors, so a scope no
@@ -246,13 +415,27 @@ operation checks cannot exist; `GET /meta/capabilities` and the contract list th
 | Error codes | Stable; removing one is a breaking change |
 | Deprecation | The `Deprecation` (RFC 9745) and `Sunset` (RFC 8594) headers plus an entry in `/meta/capabilities` and the changelog |
 
-**How a request field is deprecated:** in `openapi.yaml`, `deprecated: true` with
-`x-deprecated-since` (the day), `x-removed-in` (the major), `x-replaced-by` (an `operationId` or
-header, not prose) and, once a day is set, `x-sunset`. `make generate` reads them into the REST
-adapter's table (`tools/deprecations`); the manifest lists `deprecations`, and only a request that
-sends such a field is answered with `Deprecation` (and `Sunset` where a day is set). The generator
-fails on a mark missing its day, version or replacement, and on a mark nothing can announce: only a
-top-level property of a schema a JSON request body references can be deprecated.
+**How a request field, a query parameter or an operation is deprecated:** in `openapi.yaml`,
+`deprecated: true` with `x-deprecated-since` (the day), `x-removed-in` (the major),
+`x-replaced-by` (an `operationId` or header, not prose) and, once a day is set, `x-sunset`.
+`make generate` reads them into the REST adapter's table (`tools/deprecations`); the manifest lists
+`deprecations`, each with `in` (`body`, `query` or `operation`), and only a request that sends such
+a field, names such a parameter or asks such an operation is answered with `Deprecation` (and
+`Sunset` where a day is set). The generator fails on a mark missing its day, version or
+replacement, and on a mark nothing can announce: only an operation, a query parameter written in
+the operation itself and a top-level property of a schema a JSON request body references can be
+deprecated.
+
+**Two releases at once.** During a rolling update a client of one release can reach a server of
+the other. Every answer names the server's build in `X-Hubtask-Build` - the bundle's entry script,
+which the binary and the bundle share by construction (ADR-0028). A first-party client sends its
+own as `X-Hubtask-Client-Build`; a route the server does not know, asked by a client of another
+build, is answered `503` with `Retry-After: 1` and `route.build_mismatch` rather than `404`
+(`rest.BuildMarked`). Nothing ran, so the sync engine's transport retries it for every method, a
+bounded number of times. The webapp loads the newer release with one full page load at the next
+navigation once the API has named one other build on several answers in a row, at most once per
+build and tab. A client without the header, and a server of a release before this one, keep the
+plain `404`.
 
 Breaking changes are: removing or renaming a field, changing a type, adding a required field,
 removing an enum value from *requests*, changing semantics, changing a default, removing an error

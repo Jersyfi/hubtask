@@ -95,6 +95,41 @@ SELECT DISTINCT account_id FROM (
     AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
 ) AS holders;
 
+-- name: RoleHoldersAlongPath :many
+-- Who holds one role anywhere on this path, for a rule's NOTIFY_ROLE step (UC-AUT-09): a
+-- built-in role by the membership's enum, a custom one by its key, each directly or through a
+-- group. Candidates only - whether the role counts where the entry is (a private hub on the path)
+-- is the authoriser's answer, asked of each one after.
+SELECT DISTINCT account_id FROM (
+  SELECT m.account_id
+  FROM membership m
+  WHERE m.account_id IS NOT NULL
+    AND m.role::text = sqlc.arg('role')::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM membership m
+  JOIN account_group_member g ON g.group_id = m.group_id
+  WHERE m.group_id IS NOT NULL
+    AND m.role::text = sqlc.arg('role')::text
+    AND (m.scope_type = 'TENANT' OR m.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT c.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE c.account_id IS NOT NULL
+    AND r.key = sqlc.arg('role')::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+  UNION
+  SELECT g.account_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  JOIN account_group_member g ON g.group_id = c.group_id
+  WHERE c.group_id IS NOT NULL
+    AND r.key = sqlc.arg('role')::text
+    AND (c.scope_type = 'TENANT' OR c.scope_id = ANY(sqlc.arg('scope_ids')::uuid[]))
+) AS holders;
+
 -- name: HubsOf :many
 -- The hub each named container or entry sits under, for the authoriser (domain-model.md §3.2).
 --
@@ -117,14 +152,75 @@ JOIN container h ON h.id = col.parent_id
 WHERE w.id = ANY(sqlc.arg('ids')::uuid[]);
 
 -- name: HoldsAnyMembership :one
--- Whether the account holds a role anywhere in the tenant, directly or through a group.
-SELECT EXISTS (
+-- Whether the account holds a role anywhere in the tenant, directly or through a group: a
+-- built-in one, or one of the workspace's own that carries READ. A role carrying REQUEST without
+-- READ is a requester's, whose place is the portal (UC-SVC-05), so it is not counted here.
+SELECT (EXISTS (
   SELECT 1 FROM membership m
   WHERE m.account_id = sqlc.arg('account_id')::uuid
      OR m.group_id IN (
        SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid
      )
-) AS held;
+) OR EXISTS (
+  SELECT 1 FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'READ' = ANY(r.permissions)
+    AND (c.account_id = sqlc.arg('account_id')::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid))
+))::boolean AS held;
+
+-- name: ListRequesterPortals :many
+-- The collections where the account is a requester through a role of the workspace's own that
+-- carries REQUEST, held directly or through a group, at the collection, at its hub, or at the
+-- workspace - which reaches every collection outside a private hub, as a workspace grant does
+-- (ADR-0073 §1): the portals a requester is sent to. Live collections only, by name; at most 50.
+WITH grants AS (
+  SELECT c.scope_type, c.scope_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'REQUEST' = ANY(r.permissions)
+    AND (c.account_id = sqlc.arg('account_id')::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid))
+)
+SELECT k.id, k.name
+FROM container k
+WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
+  AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
+       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB')
+       OR (EXISTS (SELECT 1 FROM grants WHERE scope_type = 'TENANT')
+           AND EXISTS (SELECT 1 FROM container h WHERE h.id = k.parent_id AND NOT h.private)))
+ORDER BY k.name COLLATE hubtask_name, k.id
+LIMIT 50;
+
+-- name: CountPeopleReaching :one
+-- How many people hold a role - built-in or the workspace's own, directly or through a group - in
+-- the tenant, or within one hub when hub_id is named: at the hub, at a collection of it, at an
+-- entry there, or at the workspace unless the hub is private. A disabled or deleted account is
+-- not counted. What a module switched off there leaves without it (configuration.md §2).
+WITH grants AS (
+  SELECT m.account_id, m.group_id, m.scope_type, m.scope_id FROM membership m
+  UNION ALL
+  SELECT g.account_id, g.group_id, g.scope_type, g.scope_id FROM custom_role_grant g
+), reaching AS (
+  SELECT g.account_id, g.group_id FROM grants g
+  WHERE sqlc.narg('hub_id')::uuid IS NULL
+     OR (g.scope_type = 'TENANT' AND EXISTS (
+           SELECT 1 FROM container h WHERE h.id = sqlc.narg('hub_id')::uuid AND NOT h.private))
+     OR (g.scope_type = 'HUB' AND g.scope_id = sqlc.narg('hub_id')::uuid)
+     OR (g.scope_type = 'COLLECTION' AND g.scope_id IN (
+           SELECT c.id FROM container c WHERE c.parent_id = sqlc.narg('hub_id')::uuid))
+     OR (g.scope_type = 'ITEM' AND g.scope_id IN (
+           SELECT w.id FROM work_item w JOIN container c ON c.id = w.collection_id
+           WHERE c.parent_id = sqlc.narg('hub_id')::uuid))
+)
+SELECT count(*)::int AS people
+FROM account a
+WHERE a.deleted_at IS NULL AND a.status <> 'DISABLED'
+  AND (a.id IN (SELECT r.account_id FROM reaching r WHERE r.account_id IS NOT NULL)
+    OR a.id IN (SELECT gm.account_id FROM account_group_member gm
+                JOIN reaching r ON r.group_id = gm.group_id));
 
 -- name: RolesHeldAnywhere :many
 -- Every role the account holds anywhere in the tenant, directly or through a group, each once:
@@ -193,6 +289,24 @@ WHERE m.scope_type = 'ITEM'
     )
   );
 
+-- name: SharedItemsAcross :many
+-- Every entry the account holds an ITEM membership on, directly or through a group, with its
+-- collection: what a workspace summary counts where the collection itself is not read. Bounded
+-- by the caller's limit, which asks one row past its bound to know it was reached.
+SELECT wi.id, wi.collection_id
+FROM membership m
+JOIN work_item wi ON wi.id = m.scope_id
+WHERE m.scope_type = 'ITEM'
+  AND (
+    m.account_id = sqlc.arg('account_id')
+    OR m.group_id IN (
+      SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')
+    )
+  )
+GROUP BY wi.id, wi.collection_id
+ORDER BY wi.id
+LIMIT sqlc.arg('row_limit');
+
 -- ============================== Accounts ==============================
 -- The tenant is never a parameter in this file: row level security bounds every statement to the
 -- tenant of the running transaction, which is what makes an account of another tenant not found
@@ -200,7 +314,7 @@ WHERE m.scope_type = 'ITEM'
 
 -- name: FindAccount :one
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at, avatar_media_id
+  celebrations, onboarding_completed_at, avatar_media_id, products_seen
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -292,6 +406,7 @@ UPDATE account SET
   week_start = sqlc.narg('week_start'),
   celebrations = sqlc.narg('celebrations'),
   onboarding_completed_at = sqlc.narg('onboarding_completed_at'),
+  products_seen = sqlc.arg('products_seen')::text[],
   updated_at = sqlc.arg('updated_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -352,6 +467,62 @@ WHERE group_id = sqlc.arg('group_id') AND account_id = sqlc.arg('account_id');
 
 -- name: GroupMembers :many
 SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id');
+
+-- ============================= Directory ==============================
+-- What a directory provisions over SCIM (UC-ID-28): the identifier it knows a person or a group
+-- by, and the people it switches off and on. The workspace's own rules - who may, the last owner,
+-- the people limit - are the application's; these statements only write what it decided.
+
+-- name: AccountExternalIDs :many
+SELECT id, external_id::text AS external_id FROM account
+WHERE id = ANY(sqlc.arg('ids')::uuid[]) AND external_id IS NOT NULL AND deleted_at IS NULL;
+
+-- name: FindAccountIDByExternalID :one
+SELECT id FROM account
+WHERE external_id = sqlc.arg('external_id') AND kind = 'USER' AND deleted_at IS NULL;
+
+-- name: SetAccountExternalID :execrows
+UPDATE account SET external_id = sqlc.narg('external_id'), updated_at = sqlc.arg('now')
+WHERE id = sqlc.arg('id') AND kind = 'USER' AND deleted_at IS NULL;
+
+-- name: SetAccountDirectoryStatus :execrows
+-- Only between the states a directory may move a person between. A restricted account (Art. 18)
+-- or an anonymised one is never touched here: switching it on again would lift a restriction
+-- nobody asked to lift (data-protection.md §4).
+UPDATE account SET status = sqlc.arg('status'), updated_at = sqlc.arg('now'), version = version + 1
+WHERE id = sqlc.arg('id') AND kind = 'USER' AND deleted_at IS NULL
+  AND status IN ('ACTIVE', 'INVITED', 'DISABLED');
+
+-- name: PageDirectoryAccounts :many
+-- SCIM pages by position (RFC 7644 §3.4.2.4); (created_at, id) keeps the order stable.
+SELECT id FROM account
+WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+ORDER BY created_at, id
+OFFSET sqlc.arg('row_offset') LIMIT sqlc.arg('row_limit');
+
+-- name: CountDirectoryAccounts :one
+SELECT count(*) FROM account WHERE kind = 'USER' AND deleted_at IS NULL AND status <> 'ANONYMIZED';
+
+-- name: GroupExternalIDs :many
+SELECT id, external_id::text AS external_id FROM account_group
+WHERE id = ANY(sqlc.arg('ids')::uuid[]) AND external_id IS NOT NULL;
+
+-- name: FindGroupIDByExternalID :one
+SELECT id FROM account_group WHERE external_id = sqlc.arg('external_id');
+
+-- name: FindGroupIDByName :one
+-- Compared as the uniqueness index compares (account_group_name_uq).
+SELECT id FROM account_group WHERE lower(name) = lower(sqlc.arg('name'));
+
+-- name: SetGroupExternalID :execrows
+UPDATE account_group SET external_id = sqlc.narg('external_id') WHERE id = sqlc.arg('id');
+
+-- name: PageDirectoryGroups :many
+SELECT id FROM account_group ORDER BY created_at, id
+OFFSET sqlc.arg('row_offset') LIMIT sqlc.arg('row_limit');
+
+-- name: CountDirectoryGroups :one
+SELECT count(*) FROM account_group;
 
 -- ============================ Memberships =============================
 
@@ -437,6 +608,18 @@ WHERE a.id = ANY(sqlc.arg('account_ids')::uuid[])
       JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
       WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
         AND r.subject_account_id = a.id));
+
+-- name: SignInDetails :many
+-- The people list's address and authenticator app per person (POST /accounts:sign-in-details).
+-- People only, and not an erased one: a service account has neither, an erased one has nothing
+-- left to show. Row level security bounds it to the transaction's tenant.
+SELECT a.id, a.email,
+  EXISTS (SELECT 1 FROM account_mfa m
+          WHERE m.account_id = a.id AND m.confirmed_at IS NOT NULL)::boolean AS authenticator_app
+FROM account a
+WHERE a.id = ANY(sqlc.arg('account_ids')::uuid[])
+  AND a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+ORDER BY a.id;
 
 -- ========================== Personal access tokens ==========================
 -- The tenant is never a parameter here either: row level security bounds every statement to the

@@ -32,5 +32,8 @@ the address field, which the connection test does.
 **Licence.** Apache-2.0 — the `LICENSE` file beside this README, copied into `dist/` with the
 manifest, and the header every file carries, like the whole repository ([ADR-0080](../../docs/adr/ADR-0080-hubtask-is-apache-2-0.md)).
 
-**Not published.** The marketplace is an account, a client registration and a review the owner
-runs; until then the package is `private`.
+**Publishing.** The *Release* workflow's `integrations` job pushes `dist/` with the Zapier CLI at
+the platform's pinned version when the repository holds the `ZAPIER_DEPLOY_KEY` secret of the
+owner's Zapier account. The app is private to that account until the owner submits it for the
+public directory, a review Zapier runs. The workspace's own manifest stays `private`: only `dist/`
+is the app.

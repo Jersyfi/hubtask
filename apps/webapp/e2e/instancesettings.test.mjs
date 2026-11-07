@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The installation's defaults, walked as an operator meets them (UC-INS-09 checks 1 to 4, 7): every
+// The installation's defaults, walked as an operator meets them (UC-INS-09 checks 1-4, 7): every
 // key in words with the control of its kind, the lock worded by kind and absent for a language, a
 // value that was undecided saved as its kind, a refusal at its row, and no control while a file
 // enforces the level.
@@ -280,6 +280,7 @@ test('chromium: a level a file enforces is shown with its path and no control', 
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, close } = await open(browser, {
+    // UC-INS-02 check 2: while a file enforces the level, the screen names it and offers no control.
     level: { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' },
   });
   t.after(close);

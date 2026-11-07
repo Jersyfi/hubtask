@@ -5,6 +5,7 @@ package work_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -372,4 +373,131 @@ func sameValue(got, want any) bool {
 		}
 	}
 	return true
+}
+
+func TestAFieldHiddenFromReadersIsRestrictedForWritingAsWell(t *testing.T) {
+	built, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, Key: "cost", Kind: work.CustomFieldMoney, Currency: "EUR",
+		ReadRestricted: true, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if err != nil {
+		t.Fatalf("defining a hidden field: %v", err)
+	}
+	if !built.Restricted || !built.ReadRestricted {
+		t.Fatalf("restricted/read = %v/%v, want both", built.Restricted, built.ReadRestricted)
+	}
+
+	yes, no := true, false
+	cases := []struct {
+		name           string
+		attributes     work.CustomFieldAttributes
+		restricted     bool
+		readRestricted bool
+	}{
+		{"lifting the restriction lifts the hiding", work.CustomFieldAttributes{Restricted: &no}, false, false},
+		{"lifting only the hiding keeps the writing restricted", work.CustomFieldAttributes{ReadRestricted: &no}, true, false},
+		{"hiding again restricts", work.CustomFieldAttributes{Restricted: &no, ReadRestricted: &yes}, true, true},
+	}
+	for _, c := range cases {
+		updated, _, err := built.Updated(c.attributes, text.Composing{}, fieldNow)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if updated.Restricted != c.restricted || updated.ReadRestricted != c.readRestricted {
+			t.Errorf("%s: restricted/read = %v/%v, want %v/%v",
+				c.name, updated.Restricted, updated.ReadRestricted, c.restricted, c.readRestricted)
+		}
+	}
+
+	_, err = work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, Key: "total", Kind: work.CustomFieldCalculated, Formula: "1",
+		ReadRestricted: true, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a hidden calculated field: %v, want a validation error", err)
+	}
+}
+
+// A hub's own field (UC-WRK-12 check 9): never at a collection and a hub at once, and a copy of a
+// shared one carries everything of it, a new identity and the source's identifier.
+func TestAFieldBelongsToOneScopeAndAHubCopiesOnlyAShared(t *testing.T) {
+	hub := shared.MustParseID("0192f000-0000-7000-8000-0000000000f4")
+	copyID := shared.MustParseID("0192f000-0000-7000-8000-0000000000f5")
+	later := fieldNow.Add(time.Hour)
+
+	_, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, CollectionID: fieldColl, HubID: hub,
+		Key: "priority", Kind: work.CustomFieldText, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != "fields.scope_ambiguous" {
+		t.Fatalf("a collection and a hub together gave %v", err)
+	}
+
+	workspaceField := definition(t, work.CustomFieldSelect, "high", "low")
+	workspaceField.CollectionID = ""
+	copied, err := workspaceField.CopyAt(copyID, hub, later)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if copied.ID != copyID || copied.HubID != hub || copied.CopiedFrom != workspaceField.ID || !copied.CollectionID.IsZero() {
+		t.Errorf("the copy is %+v", copied)
+	}
+	if copied.Key != workspaceField.Key || copied.Kind != workspaceField.Kind || len(copied.Options) != 2 || copied.Version != 1 ||
+		!copied.CreatedAt.Equal(later) {
+		t.Errorf("the copy lost the source's shape: %+v", copied)
+	}
+	if copied.IsTenantWide() || copied.ScopeID() != hub || copied.Nearness() != 1 {
+		t.Errorf("the copy's scope reads %v, %v, %d", copied.IsTenantWide(), copied.ScopeID(), copied.Nearness())
+	}
+	copied.Options[0] = "changed"
+	if workspaceField.Options[0] != "high" {
+		t.Error("the copy shares its options with the source")
+	}
+
+	for name, source := range map[string]work.CustomFieldDefinition{
+		"a collection's": definition(t, work.CustomFieldText), "a hub's": copied,
+	} {
+		if _, err := source.CopyAt(copyID, hub, later); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("copying %s field gave %v", name, err)
+		}
+	}
+}
+
+func TestAFieldIsNamedFreelyAndItsKeyStays(t *testing.T) {
+	named, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, CollectionID: fieldColl, Key: "first_response", Name: "  First response ",
+		Kind: work.CustomFieldDuration, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if err != nil || named.Name != "First response" {
+		t.Fatalf("the name is %q (%v)", named.Name, err)
+	}
+
+	cases := []struct {
+		name, raw, code string
+	}{
+		{"too long", strings.Repeat("a", 101), "fields.name_too_long"},
+		{"a control character", "First\nresponse", "fields.name_malformed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+				ID: fieldID, TenantID: fieldTenant, Key: "x", Name: tc.raw, Kind: work.CustomFieldText,
+				AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+			})
+			if detail := shared.AsError(err).DetailCode; detail != tc.code {
+				t.Fatalf("detail %q, want %s", detail, tc.code)
+			}
+		})
+	}
+
+	renamed := "Response time"
+	updated, changes, err := named.Updated(work.CustomFieldAttributes{Name: &renamed}, text.Composing{}, fieldNow.Add(time.Hour))
+	if err != nil || updated.Name != renamed || updated.Key != "first_response" || len(changes) != 1 || changes[0].Field != work.FieldName {
+		t.Fatalf("renamed to %q with %v (%v)", updated.Name, changes, err)
+	}
+	blank := " "
+	cleared, changes, err := updated.Updated(work.CustomFieldAttributes{Name: &blank}, text.Composing{}, fieldNow.Add(2*time.Hour))
+	if err != nil || cleared.Name != "" || len(changes) != 1 {
+		t.Fatalf("a blank name leaves %q with %v (%v)", cleared.Name, changes, err)
+	}
 }

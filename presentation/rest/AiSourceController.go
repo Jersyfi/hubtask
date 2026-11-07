@@ -4,141 +4,15 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // Which AI answers a workspace (ADR-0072 §2, §3), over REST.
-
-const (
-	readAiSourceUseCase   = "ReadAiSource"
-	chooseAiSourceUseCase = "ChooseAiSource"
-	setOwnAiBudgetUseCase = "SetOwnAiBudget"
-
-	setAiPersonOptOutUseCase     = "SetAiPersonOptOut"
-	setAiArrivalProposalsUseCase = "SetAiArrivalProposals"
-)
-
-// ReadAiSource answers GET /ai-source.
-func (c *RestController) ReadAiSource(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), readAiSourceUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
-}
-
-// ChooseAiSource answers PUT /ai-source.
-func (c *RestController) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.AiSourceChoice
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{"source": string(body.Source)}
-	if body.OfferedModelId != nil {
-		in["offered_model_id"] = body.OfferedModelId.String()
-	}
-	if body.Sources != nil {
-		in["sources"] = string(*body.Sources)
-	}
-	out, err := c.UseCases.Invoke(r.Context(), chooseAiSourceUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
-}
-
-// SetOwnAiBudget answers PUT /ai-budget: the workspace's own budget for its own model, and the two
-// AI standings after it. A null leaves the field out of the input, which is "no budget".
-func (c *RestController) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.OwnAiBudget
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{}
-	if body.OwnTokensPerDay != nil {
-		in["own_tokens_per_day"] = *body.OwnTokensPerDay
-	}
-	out, err := c.UseCases.Invoke(r.Context(), setOwnAiBudgetUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, quotaStandingsResponse(out))
-}
-
-// SetAiPersonOptOut answers PUT /ai-person-opt-out.
-func (c *RestController) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.AiPersonOptOutChoice
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{"person_opt_out": string(body.PersonOptOut)}
-	if body.Basis != nil {
-		in["basis"] = string(*body.Basis)
-	}
-	if body.Contact != nil {
-		in["contact"] = *body.Contact
-	}
-	out, err := c.UseCases.Invoke(r.Context(), setAiPersonOptOutUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
-}
-
-// SetAiArrivalProposals answers PUT /ai-arrival-proposals.
-func (c *RestController) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.AiArrivalProposalsChoice
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), setAiArrivalProposalsUseCase, actorOf(r),
-		usecase.Input{"prepare": body.Prepare})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
-}
 
 // aiSourceResponse maps the use case's answer. An offered model carries what the use case gives
 // it - name, processor, jurisdiction - and this mapper has no field for anything more.
@@ -201,6 +75,7 @@ func aiSourceResponse(out usecase.Output) openapi.AiSource {
 		answer.PersonOptOutSince = &since
 	}
 	answer.PrepareOnArrival = out["prepare_on_arrival"] == true
+	answer.OwnConfigured = out["own_configured"] == true
 	if count, held := out["keeping_out_count"].(int); held {
 		answer.KeepingOutCount = count
 	}

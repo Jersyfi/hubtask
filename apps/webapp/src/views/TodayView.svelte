@@ -27,8 +27,9 @@
 
   import { untrack } from 'svelte';
 
-  import type { WorkItem } from '@hubtask/sync-engine';
-  import { Button, EmptyState, ErrorState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
@@ -41,7 +42,8 @@
   import { entryMenu } from '../lib/entries/entryMenu.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { holds, holdsHere, hubCreationHere, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { portalStart } from '../lib/portal/portal.ts';
+  import { holds, holdsHere, hubCreationHere, mayDo, reachesAdministrationArea, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
@@ -53,16 +55,34 @@
   import { today } from '../lib/data/today.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { formatRelative, formatToday } from '../lib/i18n/datetime.ts';
+  import { formatPlainDay, formatRelative, formatToday } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { bandsOf, greetingOf, isListFigure, isProjectFigure } from '../lib/today.ts';
+  import { bandsOf, deskAnswerQuery, greetingOf, heldActRows, isListFigure, isProjectFigure, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf } from '../lib/today.ts';
+  import { entrySlaPath } from '../lib/data/desk.svelte.ts';
+  import { watchPageReviews, type ReviewRow } from '../lib/data/reviews.svelte.ts';
+  import { burndownLine, burndownTop, sprintDays } from '../lib/data/sprints.ts';
+  /** How far the burndown's lines stand from the chart's top and bottom edge, in its own units. */
+  const SPARK_INSET = 6;
+  import { sprintPath } from '../lib/data/sprints.svelte.ts';
+  import SlaRemaining from '../lib/servicedesk/SlaRemaining.svelte';
+  import { agents, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
+  import { approvals, myApprovalsPath } from '../lib/data/approvals.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
+  import { TIMER, elapsedMinutes, minutesText, weekPath, weekStartOf } from '../lib/data/time.svelte.ts';
+  import { todayIn } from '../lib/i18n/zone.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { moreInHubtask } from '../lib/product/home.ts';
+  import { products } from '../lib/navigation.ts';
+  import { tryTemplateOf } from '../lib/product/templates.ts';
+  import { config } from '../lib/data/config.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { mayCaptureHere } from '../lib/capture/places.svelte.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import StarterDialog from '../lib/workspace/StarterDialog.svelte';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import EntryPlace from '../lib/workspace/EntryPlace.svelte';
 
   interface Props {
@@ -70,6 +90,11 @@
   }
 
   const { onnavigate }: Props = $props();
+  // A requester with one portal and nothing else starts in it (UC-SVC-05).
+  $effect(() => {
+    const start = portalStart(actor.hasNoAccess, actor.portals);
+    if (start) untrack(() => onnavigate?.(start));
+  });
 
   let isCreatingHub = $state(false);
   // The empty workspace's one action: a shared hub with STRUCTURE on the workspace, a private one
@@ -270,14 +295,249 @@
    * A workspace with nothing in it yet for this reader: no entry on them, no list, no project,
    * nothing opened, nothing waiting. Instead of empty cards, the first steps (concept round 2, §1).
    */
-  const isNewWorkspace = $derived(
+  const looksNew = $derived(
     !isLoading && !failure && !(hasJumble && isJumbleLoading) && isMineEmpty && lists.length === 0 && projects.length === 0 && recents.rows.length === 0 && (!hasJumble || waiting.length === 0),
   );
+  /**
+   * Whether a hub holds an entry the reader can see, asked only while the page looks new: nothing
+   * on the reader is no sign of a new workspace - an owner of a busy one holds nothing themselves,
+   * and *First steps* there would tell them to create the hub that exists. One entry a hub.
+   */
+  let hubUse = $state<Record<string, boolean>>({});
+  $effect(() => {
+    if (!looksNew) return;
+    const ids = hubIds ? hubIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<ItemQueryResult>(
+        { path: '/items:query', body: { scope: { container_id: id, include_descendants: true }, page: { size: 1 } } },
+        (next) => {
+          if (next.status === 'ready') hubUse = { ...hubUse, [id]: next.data.data.length > 0 };
+          // A hub that cannot be read is not counted as used: the steps stay a newcomer's.
+          if (next.status === 'failed') hubUse = { ...hubUse, [id]: false };
+        },
+      ));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const isWorkspaceUsed = $derived(containers.hubs.some((hub) => hubUse[hub.id] === true));
+  const isUseSettled = $derived(containers.hubs.every((hub) => hubUse[hub.id] !== undefined));
+  const isNewWorkspace = $derived(looksNew && isUseSettled && !isWorkspaceUsed);
+  /** *In use here*: the hubs and the products of a workspace that holds work the reader has none of. */
+  const inUse = $derived(looksNew && isWorkspaceUsed);
+  const inUseProducts = $derived(products({ modulesOn: manifest.value?.modules_on }));
   const mayInvite = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  /** Today's *Choose what you use Hubtask for* opens the starter's dialog again (§3.3). */
+  let isChoosing = $state(false);
+
+  /**
+   * *More in Hubtask* (user-experience.md §3.3): the products that are off, for whoever may switch
+   * one on. *Try it* opens the product's home, which offers the switch and says what it does.
+   * Dismissed for good on this device - a convenience kept in the browser, so a private window or
+   * blocked storage shows it again rather than failing.
+   */
+  const MORE_KEY = 'hubtask.today.more';
+  let isMoreDismissed = $state(false);
+  $effect(() => {
+    try {
+      isMoreDismissed = localStorage.getItem(MORE_KEY) === 'dismissed';
+    } catch {
+      isMoreDismissed = false;
+    }
+  });
+  function dismissMore() {
+    isMoreDismissed = true;
+    try {
+      localStorage.setItem(MORE_KEY, 'dismissed');
+    } catch {
+      // Storage refused: dismissed for this visit only.
+    }
+  }
+  const moreProducts = $derived(isMoreDismissed ? [] : moreInHubtask({ modulesOn: manifest.value?.modules_on, mayShape: holdsHere('STRUCTURE') === true }));
+  // *Try it* takes the product's template through the hub dialog (user-experience.md §3.3): a hub
+  // made from it opens on the template's plan, which switches the product on. A product no
+  // template starts, or a reader who may make no hub, goes to its home and its switch.
+  let catalogue = $state<readonly ConfigTemplate[]>([]);
+  $effect(() => {
+    if (moreProducts.length === 0 || (creation !== 'shared' && creation !== 'private')) return;
+    return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
+      if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
+    }));
+  });
+  let tryingWith = $state<string | undefined>(undefined);
+  function tryProduct(product: { readonly module: string; readonly path: string }): void {
+    const template = creation === 'shared' || creation === 'private' ? tryTemplateOf(catalogue, product.module) : undefined;
+    if (!template) {
+      onnavigate?.(product.path);
+      return;
+    }
+    tryingWith = template.key;
+    isCreatingHub = true;
+  }
   const hasCompany = $derived(people.along({}).filter((membership) => membership.scope_type === 'TENANT').length > 1);
 
+  /**
+   * The products' bands (user-experience.md §3.3, UC-WRK-34 check 8), each read only where its
+   * module is on - a read of a module that is off is refused, and a refusal is not a day.
+   */
+  const productBands = $derived(productBandsOf(manifest.value?.modules_on));
+  let waitingApprovals = $state<ApprovalList['data'] | undefined>(undefined);
+  $effect(() => {
+    if (!productBands.includes('approvals')) {
+      waitingApprovals = undefined;
+      return;
+    }
+    return untrack(() => engine.subscribe<ApprovalList>({ path: myApprovalsPath }, (next) => {
+      if (next.status === 'ready') waitingApprovals = next.data.data.filter((approval) => approval.state === 'PENDING');
+    }));
+  });
+  async function approve(approval: ApprovalList['data'][number]) {
+    try {
+      await approvals.decide(approval, 'APPROVE', '');
+      toast.show({ text: t('app.approvals.approved_announced'), tone: 'success' });
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+  /**
+   * The agents' acts held for the reader's yes (§3.3), where agents are on: `GET /agent-requests`
+   * answers only those the reader may decide; the agents' names come from their own list.
+   */
+  let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
+  let agentList = $state<AgentList['data']>([]);
+  $effect(() => {
+    if (!productBands.includes('agent_acts')) {
+      heldActs = undefined;
+      return;
+    }
+    return untrack(() => {
+      const stops = [
+        engine.subscribe<AgentRequestList>({ path: requestsPath('PENDING') }, (next) => { if (next.status === 'ready') heldActs = next.data.data; }),
+        engine.subscribe<AgentList>({ path: agentsPath }, (next) => { if (next.status === 'ready') agentList = next.data.data; }),
+      ];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const heldRows = $derived(heldActRows(heldActs, agentList, actor.account?.id, reachesAdministrationArea() === true));
+  async function decideAct(id: string, approve: boolean) {
+    const request = heldActs?.find((each) => each.id === id);
+    if (!request) return;
+    try {
+      await agents.decide(request as AgentRequest, approve);
+      toast.show({ text: t(approve ? 'app.agents.request_approved' : 'app.agents.request_declined'), tone: 'success' });
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+  /** The pages waiting for the reader's review (§3.3), where pages are on at their hub. */
+  let reviews = $state<ReviewRow[]>([]);
+  $effect(() => {
+    const ids = productBands.includes('reviews') && hubIds ? hubIds.split(' ') : [];
+    const viewer = actor.account?.id;
+    if (ids.length === 0) {
+      reviews = [];
+      return;
+    }
+    return untrack(() => watchPageReviews(ids, viewer, (rows) => (reviews = rows)));
+  });
+  const waitingCount = $derived((waitingApprovals?.length ?? 0) + heldRows.length + reviews.length);
+
+  /**
+   * *Needs your answer* (§3.3): the desk entries on the reader with an SLA target running, the one
+   * about to breach first on top across the hubs.
+   */
+  const DESK_SHOWN = 5;
+  let deskAt = $state<Record<string, WorkItem[]>>({});
+  $effect(() => {
+    const ids = productBands.includes('desk') && hubIds ? hubIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((hubId) => engine.subscribe<ItemQueryResult>({ path: '/items:query', body: deskAnswerQuery(hubId, DESK_SHOWN) }, (next) => {
+        if (next.status === 'ready') deskAt = { ...deskAt, [hubId]: next.data.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const deskCandidates = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').flatMap((id) => deskAt[id] ?? []) : []);
+  // Each hub answers its own nearest first; rows from more than one hub are merged by their due
+  // moments, read from each entry's SLA (the rows shown read the same path again).
+  const deskMerged = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').filter((id) => (deskAt[id]?.length ?? 0) > 0).length > 1 : false);
+  const deskCandidateIds = $derived(deskMerged ? deskCandidates.map((entry) => entry.id).join(' ') : '');
+  let deskDue = $state<Record<string, number | undefined>>({});
+  $effect(() => {
+    const ids = deskCandidateIds ? deskCandidateIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<EntrySlaList>({ path: entrySlaPath(id) }, (next) => {
+        if (next.status === 'ready') deskDue = { ...deskDue, [id]: runningDue(next.data.data) };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const deskRows = $derived((deskMerged ? nearestFirst(deskCandidates, deskDue) : deskCandidates).slice(0, DESK_SHOWN));
+  // The rows' time left is read against this moment; it moves on while the page stays open.
+  let deskNow = $state(new Date());
+  $effect(() => {
+    if (deskRows.length === 0) return;
+    const every = setInterval(() => (deskNow = new Date()), 60_000);
+    return () => clearInterval(every);
+  });
+
+  /** *Sprint* (§3.3): the running sprints the reader holds entries in, each with its burndown. */
+  const SPRINTS_SHOWN = 2;
+  let mySprints = $state<MySprintList['data']>([]);
+  $effect(() => {
+    if (!productBands.includes('sprint')) {
+      mySprints = [];
+      return;
+    }
+    return untrack(() => engine.subscribe<MySprintList>({ path: '/sprints' }, (next) => {
+      if (next.status === 'ready') mySprints = next.data.data;
+    }));
+  });
+  let sprintDetails = $state<Record<string, SprintDetail>>({});
+  const sprintIds = $derived(mySprints.slice(0, SPRINTS_SHOWN).map((each) => each.sprint.id).join(' '));
+  $effect(() => {
+    const ids = sprintIds ? sprintIds.split(' ') : [];
+    const at = zone;
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<SprintDetail>({ path: sprintPath(id, at) }, (next) => {
+        if (next.status === 'ready') sprintDetails = { ...sprintDetails, [id]: next.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const day = $derived(todayIn(zone));
+  let week = $state<TimesheetWeek | undefined>(undefined);
+  let timer = $state<TimeTimer | undefined>(undefined);
+  $effect(() => {
+    if (!productBands.includes('time')) {
+      week = undefined;
+      timer = undefined;
+      return;
+    }
+    const path = weekPath(weekStartOf(day) ?? day);
+    return untrack(() => {
+      const stops = [
+        engine.subscribe<TimesheetWeek>({ path }, (next) => { if (next.status === 'ready') week = next.data; }),
+        engine.subscribe<TimeTimer>({ path: TIMER }, (next) => { if (next.status === 'ready') timer = next.data; }),
+      ];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  // A running timer counts on while the page is open; nothing ticks while none runs.
+  let tick = $state(Date.now());
+  $effect(() => {
+    if (!timer?.running) return;
+    tick = Date.now();
+    const every = setInterval(() => (tick = Date.now()), 30_000);
+    return () => clearInterval(every);
+  });
+  const timeToday = $derived.by(() => {
+    const at = timeTodayOf(week, day, timer);
+    return at?.running && timer?.started_at ? { ...at, running: { ...at.running, minutes: elapsedMinutes(timer.started_at, tick) } } : at;
+  });
+  const hasProductBands = $derived(deskRows.length > 0 || waitingCount > 0 || timeToday !== undefined || mySprints.length > 0);
+
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
-  const hasSide = $derived(lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0);
+  const hasSide = $derived(inUse || hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
 
   const moment = $derived(celebration.current);
 
@@ -327,7 +587,16 @@
     {#snippet aside()}<span class="date">{dayLine}</span>{/snippet}
   </PageHeader>
 
-  {#if actor.hasNoAccess}
+  {#if actor.hasNoAccess && actor.portals.length > 0}
+    <!-- A requester holding nothing but portals: where they ask, not a notice about access. -->
+    <EmptyState kind="unused" title={t('app.workspace.portals_title')} description={t('app.workspace.portals_detail')} icon="inbox">
+      {#snippet action()}
+        {#each actor.portals as portal (portal.collection_id)}
+          <Button tone="primary" icon="inbox" onclick={() => onnavigate?.(`/portal/${portal.collection_id}`)}>{portal.name}</Button>
+        {/each}
+      {/snippet}
+    </EmptyState>
+  {:else if actor.hasNoAccess}
     <!-- Nobody gave this person anything yet: said in a sentence rather than an empty workspace
          without explanation (UC-ID-08 check 2), and without *Create hub*, which the server refuses
          to an account holding no role anywhere - a private hub of one's own included. -->
@@ -337,7 +606,7 @@
     <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
       {#snippet action()}
         {#if createLabel}
-          <Button icon="plus" onclick={() => (isCreatingHub = true)}>{createLabel}</Button>
+          <Button icon="plus" onclick={() => { tryingWith = undefined; isCreatingHub = true; }}>{createLabel}</Button>
         {/if}
       {/snippet}
     </EmptyState>
@@ -368,18 +637,19 @@
             <p class="failure" role="alert">{writeFailure.message}</p>
           {/if}
           {#if failure}
-            <ErrorState
-              title={failure.message}
-              reference={failure.reference}
-              referenceLabel={t('app.reference')}
-              retryLabel={t('app.retry')}
-              onRetry={() => today.open()()}
-            />
-          {:else if isLoading}
+            <FailureState problem={failure} onRetry={() => today.open()()} />
+          {:else if isLoading || (looksNew && !isUseSettled)}
             <div aria-busy="true"><Skeleton lines={3} /></div>
           {:else if isNewWorkspace}
             <!-- The first steps, each ticked where it is already done, each with its act. -->
             <ul class="steps">
+              {#if workspace.workspace?.starter_skipped === true}
+                <!-- The first start was skipped and nothing made since: the same dialog, once more (§3.3). -->
+                <li data-step-choose>
+                  <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_choose')}</span>
+                  <Button size="sm" tone="secondary" onclick={() => (isChoosing = true)}>{t('app.today.step_choose_act')}</Button>
+                </li>
+              {/if}
               <li data-done=""><span class="step-mark" aria-hidden="true"><Icon name="check" size="sm" /></span><span class="step-word">{t('app.today.step_hub')}</span></li>
               <li>
                 <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_capture')}</span>
@@ -425,6 +695,121 @@
            was opened last. -->
       {#if hasSide}
       <div class="side">
+        <!-- The products' bands first, where the products meet the reader's day (check 8). -->
+        {#if deskRows.length > 0}
+          <section class="panel" aria-labelledby="today-desk" data-band="desk">
+            <Stack gap="100">
+              <h2 class="head" id="today-desk">{t('app.today.desk')}</h2>
+              <ul class="inbox">
+                {#each deskRows as entry (entry.id)}
+                  <li class="arrival" data-desk-entry={entry.id}>
+                    <span class="channel" aria-hidden="true"><Icon name="inbox" size="sm" /></span>
+                    <a class="subject" href={`/items/${entry.id}`}>{entry.title}</a>
+                    <span class="from">{#key entry.id}<SlaRemaining itemId={entry.id} now={deskNow} />{/key}</span>
+                  </li>
+                {/each}
+              </ul>
+              <p class="more"><a href="/desk">{t('app.today.desk_all')} →</a></p>
+            </Stack>
+          </section>
+        {/if}
+        {#if waitingCount > 0}
+          <section class="panel" aria-labelledby="today-approvals" data-band="approvals">
+            <Stack gap="100">
+              <div class="head-row">
+                <h2 class="head" id="today-approvals">{t('app.today.approvals')}</h2>
+                <span class="head-count">{t('app.today.approvals_count', { count: waitingCount })}</span>
+              </div>
+              <ul class="inbox">
+                {#each (waitingApprovals ?? []).slice(0, 3) as approval (approval.id)}
+                  {@const title = `${approval.item_number ? `#${approval.item_number} ` : ''}${approval.item_title ?? ''}`}
+                  <li class="arrival">
+                    <span class="channel" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
+                    <a class="subject" href={`/items/${approval.item_id}`}>{title}</a>
+                    <span class="from">{[approval.step, formatRelative(approval.requested_at, messages.locale)].join(' · ')}</span>
+                    {#if approval.may_decide}
+                      <span class="acts">
+                        <Button size="sm" tone="secondary" onclick={() => void approve(approval)}>{t('app.approvals.approve')}</Button>
+                      </span>
+                    {/if}
+                  </li>
+                {/each}
+                {#each heldRows.slice(0, 3) as act (act.id)}
+                  <li class="arrival" data-held-act={act.id}>
+                    <span class="channel" aria-hidden="true"><Icon name="zap" size="sm" /></span>
+                    {#if act.path}
+                      <a class="subject" href={act.path}>{t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}</a>
+                    {:else}
+                      <span class="subject">{t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}</span>
+                    {/if}
+                    <span class="from">{formatRelative(act.at, messages.locale)}</span>
+                    <span class="acts">
+                      {#if act.mayApproveHere}
+                        <Button size="sm" tone="secondary" onclick={() => void decideAct(act.id, true)}>{t('app.agents.approve_act')}</Button>
+                      {/if}
+                      <Button size="sm" tone="subtle" onclick={() => void decideAct(act.id, false)}>{t('app.agents.decline_act')}</Button>
+                    </span>
+                  </li>
+                {/each}
+                {#each reviews.slice(0, 3) as review (review.id)}
+                  <li class="arrival" data-review={review.id}>
+                    <span class="channel" aria-hidden="true"><Icon name="file-text" size="sm" /></span>
+                    <a class="subject" href={`/pages/${review.id}`}>{t('app.today.review_page', { title: review.title })}</a>
+                    <span class="from">{formatRelative(review.updated_at, messages.locale)}</span>
+                  </li>
+                {/each}
+              </ul>
+              {#if waitingCount > 0}<p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>{/if}
+            </Stack>
+          </section>
+        {/if}
+        {#if timeToday}
+          <section class="panel" aria-labelledby="today-time" data-band="time">
+            <Stack gap="100">
+              <h2 class="head" id="today-time">{t('app.today.time')}</h2>
+              <p class="figures"><b>{minutesText(timeToday.today)}</b> {t('app.today.time_against', { week: minutesText(timeToday.week) })}</p>
+              {#if timeToday.running}
+                <p class="running"><span class="running-mark" aria-hidden="true"><Icon name="clock" size="sm" /></span><span>{t('app.time.timer_running', { minutes: minutesText(timeToday.running.minutes) })}</span>{#if timeToday.running.entryId}<span aria-hidden="true">·</span><a href={`/items/${timeToday.running.entryId}`}>{timeToday.running.entryTitle ? t('app.time.timer_on', { title: timeToday.running.entryTitle }) : t('app.time.timer_open')}</a>{/if}</p>
+              {/if}
+              <p class="more"><a href="/time">{t('app.today.time_open')} →</a></p>
+            </Stack>
+          </section>
+        {/if}
+        {#if mySprints.length > 0}
+          <section class="panel" aria-labelledby="today-sprint" data-band="sprint">
+            <Stack gap="100">
+              <h2 class="head" id="today-sprint">{t('app.today.sprint')}</h2>
+              <ul class="sprints">
+                {#each mySprints.slice(0, SPRINTS_SHOWN) as mine (mine.sprint.id)}
+                  {@const detail = sprintDetails[mine.sprint.id]}
+                  {@const unit = t(`app.sprints.unit_${mine.sprint.unit}`)}
+                  {@const last = detail?.burndown.at(-1)}
+                  <li class="sprint" data-sprint={mine.sprint.id}>
+                    <a class="subject" href={`/collections/${mine.sprint.collection_id}/sprints`}>{mine.sprint.name}</a>
+                    <span class="from">{[t('app.today.sprint_left', { count: sprintDaysLeft(mine.sprint.end_on, day) }), t('app.today.sprint_mine', { count: mine.my_entries })].join(' · ')}</span>
+                    {#if detail && detail.burndown.length > 0}
+                      {@const days = sprintDays(detail.sprint)}
+                      {@const top = burndownTop(detail.sprint, detail.burndown)}
+                      <!-- The work left over the sprint's days, on axes that say both: the top
+                           value and nothing at the left, the first and last day below. -->
+                      <div class="burndown" data-burndown>
+                        <span class="y-top" aria-hidden="true">{top}</span>
+                        <svg class="spark" viewBox="0 0 400 100" preserveAspectRatio="none" role="img" aria-label={t('app.sprints.burndown_label', { remaining: String(last?.remaining ?? 0), unit })}>
+                          <polyline class="axis" points="0,0 0,100 400,100" />
+                          <polyline class="ideal" points={burndownLine(detail.burndown, 'ideal', days, top, 400, 100, SPARK_INSET)} />
+                          <polyline class="remaining" points={burndownLine(detail.burndown, 'remaining', days, top, 400, 100, SPARK_INSET)} />
+                        </svg>
+                        <span class="y-zero" aria-hidden="true">0</span>
+                        <span class="x-days" aria-hidden="true"><span>{formatPlainDay(detail.sprint.start_on, messages.locale)}</span><span>{formatPlainDay(detail.sprint.end_on, messages.locale)}</span></span>
+                      </div>
+                      {#if last}<span class="from">{t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit })}</span>{/if}
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </Stack>
+          </section>
+        {/if}
         <!-- A list is one tile with its figure, never its entries one by one (check 2). -->
         {#if lists.length > 0}
           <section class="panel" aria-labelledby="today-lists">
@@ -510,6 +895,35 @@
           </section>
         {/if}
 
+        <!-- A workspace in use where nothing is on the reader yet: the way into what exists. -->
+        {#if inUse}
+          <section class="panel" aria-labelledby="today-in-use" data-band="in-use">
+            <Stack gap="100">
+              <h2 class="head" id="today-in-use">{t('app.today.in_use')}</h2>
+              <ul class="offers">
+                {#each containers.hubs.filter((hub) => hubUse[hub.id]).slice(0, 5) as hub (hub.id)}
+                  <li>
+                    <span class="offer-mark" aria-hidden="true"><ContainerMark look={hub} size="md" /></span>
+                    <span class="offer-words">
+                      <a class="offer-name" href={`/hubs/${hub.id}`}>{hub.name}</a>
+                      <span class="offer-what">{t('app.today.in_use_collections', { count: containers.collectionsOf(hub.id).length })}</span>
+                    </span>
+                  </li>
+                {/each}
+                {#each inUseProducts as product (product.id)}
+                  <li>
+                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                    <span class="offer-words">
+                      <a class="offer-name" href={product.path}>{t(product.code)}</a>
+                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                    </span>
+                  </li>
+                {/each}
+              </ul>
+            </Stack>
+          </section>
+        {/if}
+
         <!-- What this device opened last (check 5), as tiles: its mark and colour, its place and
              when - so the eye finds it again. Kept here and sent nowhere; not drawn while empty. -->
         {#if recents.rows.length > 0}
@@ -534,6 +948,29 @@
             </Stack>
           </section>
         {/if}
+
+        {#if moreProducts.length > 0}
+          <section class="panel" aria-labelledby="today-more" data-more>
+            <Stack gap="100">
+              <div class="head-row">
+                <h2 class="head" id="today-more">{t('app.today.more')}</h2>
+                <IconButton icon="x" size="sm" label={t('app.today.more_dismiss')} onclick={dismissMore} />
+              </div>
+              <ul class="offers">
+                {#each moreProducts as product (product.id)}
+                  <li>
+                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                    <span class="offer-words">
+                      <span class="offer-name">{t(product.code)}</span>
+                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                    </span>
+                    <Button size="sm" tone="secondary" onclick={() => tryProduct(product)}>{t('app.today.more_try')}</Button>
+                  </li>
+                {/each}
+              </ul>
+            </Stack>
+          </section>
+        {/if}
       </div>
       {/if}
     </div>
@@ -542,10 +979,17 @@
 
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
-<StarterDialog onstarted={(id) => onnavigate?.(`/hubs/${id}`)} />
-<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
+<StarterDialog bind:isChoosing onstarted={(path) => onnavigate?.(path)} />
+<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={tryingWith}
+  oncreated={(id, landing) => { tryingWith = undefined; onnavigate?.(landing ?? `/hubs/${id}`); }} />
 
 <style>
+  .offers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .offers li { display: flex; align-items: center; gap: var(--sp-150); min-width: 0; }
+  .offer-mark { display: inline-grid; place-items: center; inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); background: var(--accent-primary-subtle); color: var(--text-brand); flex: none; }
+  .offer-words { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .offer-name { font-weight: var(--fw-medium); }
+  .offer-what { color: var(--text-secondary); font-size: var(--fs-075); }
   /* One column on a phone; from `expanded` the concept's two - what is on the reader the wider,
      because it is the reason they are here, the rest stacked beside it. */
   .panels {
@@ -605,6 +1049,30 @@
   .subject:hover { text-decoration: underline; }
   .from { grid-area: from; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .acts { grid-area: acts; display: inline-flex; align-items: center; gap: var(--sp-050); }
+  /* A running sprint: its name, the days left and the reader's share, and its burndown below. */
+  /* A title beside its hub and collection keeps room for a few words more than the row's own least
+     width: where the place does not fit beside that, it goes under the title (the row wraps). */
+  [data-entry-row] :global(.content) { min-inline-size: min(100%, 28ch); }
+  .sprints { display: grid; gap: var(--sp-200); margin: 0; padding: 0; list-style: none; }
+  .sprint { display: grid; gap: var(--sp-050); }
+  .sprint .subject, .sprint .from { grid-area: auto; }
+  .burndown {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'top chart' 'zero chart' '. days';
+    column-gap: var(--sp-050);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
+  }
+  .y-top { grid-area: top; align-self: start; text-align: end; }
+  .y-zero { grid-area: zero; align-self: end; text-align: end; }
+  .x-days { grid-area: days; display: flex; justify-content: space-between; gap: var(--sp-100); }
+  .spark { grid-area: chart; inline-size: 100%; block-size: var(--sp-600); overflow: hidden; }
+  .spark polyline { fill: none; stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
+  .spark .axis { stroke: var(--border-subtle); stroke-width: var(--bw-hairline); }
+  .spark .remaining { stroke: var(--accent-primary); }
+  .spark .ideal { stroke: var(--border-strong); }
 
   /* What was opened last, as tiles two to a row: the mark, the title, the place and when. */
   .recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22ch), 1fr)); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
@@ -665,6 +1133,12 @@
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-100); }
 
   .more { margin: 0; font-size: var(--fs-075); }
+
+  /* *Time today*: the day's figure large, the week beside it, the running timer under it. */
+  .figures { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .figures b { color: var(--text-primary); font-size: var(--fs-300); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
+  .running { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-primary); font-size: var(--fs-100); }
+  .running-mark { display: inline-flex; color: var(--text-success); }
 
   a { color: var(--text-brand); }
 

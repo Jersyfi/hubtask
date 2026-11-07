@@ -23,6 +23,38 @@ import type { Capabilities, NotificationPreference } from '@hubtask/sync-engine'
 /** The three the contract's enum declares, plus the empty choice that clears the preference. */
 export const WEEK_STARTS = ['MONDAY', 'SUNDAY', 'SATURDAY'] as const;
 
+/** A setting in force for the person, as `/accounts/me/settings` answers it. */
+export interface InForce {
+  readonly value?: string;
+  readonly source: string;
+}
+
+/**
+ * What one of a person's settings is in force at and where it comes from (model.md §4): the
+ * server's resolution by the catalogue key, or nothing before it arrives - never a guess of the
+ * chain account → workspace → installation of the client's own.
+ */
+export function inForce(
+  rows: readonly { readonly setting: string; readonly value?: unknown; readonly source: string }[] | undefined,
+  key: string,
+): InForce | undefined {
+  const row = rows?.find((each) => each.setting === key);
+  if (!row) return undefined;
+  return typeof row.value === 'string' && row.value !== '' ? { value: row.value, source: row.source } : { source: row.source };
+}
+
+/**
+ * The language in force: where the person chose none, the language the browser asks for goes
+ * before the workspace's (i18n-l10n.md §2), and the catalogue has no level for a request - so a
+ * language spoken other than the resolved one is the browser's, named `REQUEST`.
+ */
+export function languageInForce(held: InForce | undefined, spoken: string): InForce | undefined {
+  const base = (tag: string | undefined) => tag?.split('-')[0];
+  // The catalogue speaks `de` for a workspace set to `de-AT`: one language, not the browser's.
+  if (!held || held.source === 'PERSON' || spoken === '' || base(held.value) === base(spoken)) return held;
+  return { value: spoken, source: 'REQUEST' };
+}
+
 /**
  * What a `PATCH` sends for a field somebody cleared: **the empty string**.
  *
@@ -42,6 +74,15 @@ export function clearedOr(value: string): string {
  * day of the week could never un-choose it. The empty value is what `clearedOr`
  * sends, and what the server clears on.
  */
+/**
+ * The words of the choice that leaves a setting to the workspace, naming the workspace's value
+ * where it is known (user-experience.md §8.8), so leaving it says what it means. `named` is the
+ * caller's message for "use the workspace's: {value}"; `plain` stands where the value is unknown.
+ */
+export function workspaceChoiceLabel(plain: string, named: (value: string) => string, value: string | undefined): string {
+  return value ? named(value) : plain;
+}
+
 export function withWorkspaceChoice(
   options: readonly { value: string; label: string }[],
   label: string,

@@ -197,12 +197,17 @@ func column(field view.Field, prefix string) (string, bool) {
 	switch field.Name {
 	case view.FieldType:
 		return prefix + `type`, true
+	case view.FieldEntryType:
+		// The stored key, or the level's system key when there is none (work.SystemEntryTypeKey).
+		return `coalesce(` + prefix + `entry_type, lower(` + prefix + `type::text))`, true
 	case view.FieldParentID:
 		return prefix + `parent_id`, true
 	case view.FieldCollection:
 		return prefix + `collection_id`, true
 	case view.FieldBucketID:
 		return prefix + `bucket_id`, true
+	case view.FieldStatus:
+		return prefix + `status`, true
 	case view.FieldIsCompleted:
 		return prefix + `is_completed`, true
 	case view.FieldTitle:
@@ -229,9 +234,47 @@ func column(field view.Field, prefix string) (string, bool) {
 		return prefix + `archived_at`, true
 	case view.FieldAssigneeID:
 		return prefix + `assignee_id`, true
+	case view.FieldSLADue:
+		// Questions about the entry's SLA records, so only inside the query where wi is in scope;
+		// a grouped query's outer select orders by the alias its inner one carries (sortAlias).
+		if prefix == itemPrefix {
+			return slaDue, true
+		}
+	case view.FieldSLAStanding:
+		if prefix == itemPrefix {
+			return slaStanding, true
+		}
+	case view.FieldSatisfaction:
+		if prefix == itemPrefix {
+			return satisfactionScore, true
+		}
 	}
 	return "", false
 }
+
+// slaDue is the earliest due moment of the entry's goals that still run (entry_sla_due_idx).
+const slaDue = `(SELECT min(es.due_at) FROM entry_sla es WHERE es.tenant_id = wi.tenant_id ` +
+	`AND es.item_id = wi.id AND es.standing = 'RUNNING')`
+
+// slaStanding is the worst standing of the entry's goals, in view.SlaStandings' order; null when
+// it has none, because max over no rows is null and so is the array's element at null.
+const slaStanding = `(SELECT (ARRAY['MET', 'PAUSED', 'RUNNING', 'AT_RISK', 'BREACHED'])` +
+	`[max(CASE WHEN es.standing = 'BREACHED' THEN 5 ` +
+	`WHEN es.standing = 'RUNNING' AND es.at_risk_at IS NOT NULL THEN 4 ` +
+	`WHEN es.standing = 'RUNNING' THEN 3 WHEN es.standing = 'PAUSED' THEN 2 ELSE 1 END)] ` +
+	`FROM entry_sla es WHERE es.tenant_id = wi.tenant_id AND es.item_id = wi.id)`
+
+// satisfactionScore is the requester's score of the entry, one row at most
+// (satisfaction_rating_item_uq).
+const satisfactionScore = `(SELECT sr.score::bigint FROM satisfaction_rating sr WHERE sr.tenant_id = wi.tenant_id ` +
+	`AND sr.item_id = wi.id)`
+
+// Derived reports a sort field whose value is not a column of the row, so the adapter reads the
+// cursor's key of it beside the page (DerivedKey).
+func Derived(field view.Field) bool { return field.Name == view.FieldSLADue }
+
+// DerivedKey renders a derived sort field's value the way Key renders a column's.
+func DerivedKey(moment *time.Time) string { return optionalTimeKey(moment) }
 
 // enumCast is the database type behind an enum field. One field has one today, and the switch is
 // what keeps the next one from silently borrowing this one's type.
@@ -278,6 +321,12 @@ const (
 // byte for byte, and a boundary that encodes as one thing and decodes as another is a page that
 // skips rows rather than an error anybody sees.
 func Key(term view.SortTerm, item work.WorkItem) string {
+	if _, custom := view.CustomField(term.Field.Name); custom {
+		if key, present := customKeyOf(term.Field, item, true); present {
+			return keyValue + key
+		}
+		return keyNull
+	}
 	switch term.Field.Name {
 	case view.FieldOrderKey:
 		return keyValue + item.OrderKey
@@ -336,13 +385,22 @@ func timeKey(moment time.Time) string {
 // boundaryValue writes the far side of the keyset comparison: the cursor's key for this term, typed
 // as its column is.
 func (b *builder) boundaryValue(term view.SortTerm, key string) {
+	_, custom := view.CustomField(term.Field.Name)
 	if key == keyNull {
+		if custom {
+			b.write(`NULL`, customCast(term.Field.Custom))
+			return
+		}
 		b.write(`NULL`, nullCast(term.Field))
 		return
 	}
 	raw, ok := strings.CutPrefix(key, keyValue)
 	if !ok {
 		b.fail(errCursorInvalid)
+		return
+	}
+	if custom {
+		b.customBoundary(term.Field, raw)
 		return
 	}
 

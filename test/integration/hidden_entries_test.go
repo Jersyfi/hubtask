@@ -451,7 +451,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		t.Fatalf("a refused write changed what is stored:\nbefore %s\nafter  %s", before, refused)
 	}
 
-	// Widen: everything is back where it was, and writable.
+	// UC-WRK-24 check 5: widened again, everything is back where it was, and writable.
 	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
 		"container_id": collection, "preset": "PROJECT",
 	}); err != nil {

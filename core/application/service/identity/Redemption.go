@@ -99,6 +99,15 @@ type RedeemInvitationCommand struct {
 	TermsVersion string
 	// Host is the host the request arrived at: a key is asked for only at the relying party's.
 	Host string
+	// Locale is the language the invitation card was read in, empty for none sent.
+	Locale string
+}
+
+// SeedLocaliser names the defaults provisioning seeded for an owner in the owner's language,
+// inside the redemption's transaction (admin.LocaliseSeed): until the redemption nobody knows what
+// that language is, and the workspace's own is only the operator's guess (user-experience.md §4).
+type SeedLocaliser interface {
+	LocaliseSeed(ctx context.Context, owner domain.Account, locale string, now time.Time) error
 }
 
 // RedeemInvitation closes the invitation loop: the token from the mail, a password under
@@ -117,6 +126,8 @@ type RedeemInvitation struct {
 	// where the product's own default is what a password is judged against - which is exactly what
 	// this route enforced before there was a rule to resolve.
 	Passwords *PasswordWriter
+	// Seed renames what provisioning seeded for this person into their language. Nil keeps it.
+	Seed SeedLocaliser
 }
 
 // Execute redeems. Unknown, expired and already-redeemed are one indistinguishable refusal:
@@ -221,6 +232,12 @@ func (h RedeemInvitation) Execute(
 
 		account = found.Account
 		account.Status = domain.AccountActive
+
+		if h.Seed != nil && cmd.Locale != "" {
+			if err := h.Seed.LocaliseSeed(ctx, account, cmd.Locale, now); err != nil {
+				return err
+			}
+		}
 
 		if err := w.Audit.Append(ctx, audit.Entry{
 			TenantID:   token.TenantID(),
@@ -334,7 +351,9 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 			"dies on redemption, so a second redemption is refused; an expired or unknown token " +
 			"is the same indistinguishable refusal.",
 		SideEffects: "Sets the first password, activates the account, kills the token, opens a " +
-			"session or mints the pending credential of the ENROLL step, and writes audit entries.",
+			"session or mints the pending credential of the ENROLL step, writes audit entries, " +
+			"and for the owner a workspace was made for renames its untouched defaults into the " +
+			"language sent.",
 		Input: []usecase.Field{
 			{
 				Name: "token", Kind: usecase.KindString, Required: true,
@@ -367,6 +386,11 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 				Name: "terms_version", Kind: usecase.KindString,
 				Description: "Their version as shown, where they carry one.",
 			},
+			{
+				Name: "locale", Kind: usecase.KindString,
+				Description: "The language the invitation card was read in. The owner a workspace " +
+					"was made for finds its untouched defaults named in it.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: InvitationRedeemedAction, TargetType: accountTarget,
@@ -391,6 +415,7 @@ func (h RedeemInvitation) invoke(
 		Host:         in.String("host"),
 		TermsURL:     in.String("terms_url"),
 		TermsVersion: in.String("terms_version"),
+		Locale:       in.String("locale"),
 	})
 	if err != nil {
 		return nil, err

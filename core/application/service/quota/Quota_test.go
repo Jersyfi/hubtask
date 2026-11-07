@@ -62,6 +62,7 @@ func TestTheResolutionLaysOverridesOverTheModesColumn(t *testing.T) {
 }
 
 // The capacity refusal: 422-shaped, naming the quota and the ceiling.
+// UC-INS-10 check 3: the refusal names the quota and its ceiling.
 func TestTheCapacityRefusalNamesTheQuotaAndTheCeiling(t *testing.T) {
 	err := Exceeded(Items, 100, 100)
 
@@ -125,7 +126,7 @@ func (s *storeFake) SetOverrides(
 }
 
 type usageFake struct {
-	items, media, webhooks, runs, exports int64
+	items, media, webhooks, runs, exports, mailboxes int64
 	// people is the people count, and locks how often the people lock was taken.
 	people int64
 	locks  int
@@ -137,11 +138,25 @@ type usageFake struct {
 	meteredCalls  int
 	meteredMetric string
 	meteredSince  time.Time
+	// kept is what the database keeps per metric; counted is how often the rows were counted.
+	kept    map[string]int64
+	counted int
 }
 
-func (u *usageFake) Items(context.Context) (int64, error)                 { return u.items, nil }
-func (u *usageFake) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
+func (u *usageFake) Items(context.Context) (int64, error) {
+	u.counted++
+	return u.items, nil
+}
+func (u *usageFake) MediaBytes(context.Context) (int64, error) {
+	u.counted++
+	return u.media, nil
+}
+func (u *usageFake) Kept(_ context.Context, metric string) (int64, bool, error) {
+	value, ok := u.kept[metric]
+	return value, ok, nil
+}
 func (u *usageFake) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageFake) Mailboxes(context.Context) (int64, error)             { return u.mailboxes, nil }
 func (u *usageFake) LiveExports(context.Context) (int64, error)           { return u.exports, nil }
 func (u *usageFake) Accounts(context.Context) (int64, error)              { return u.people, nil }
 func (u *usageFake) InvitationOpen(context.Context, string) (bool, error) { return u.open, nil }
@@ -190,6 +205,7 @@ func guardWith(store *storeFake, usage *usageFake, signals *signalsFake) Guard {
 
 // The guard refuses at the wall, reports the approach ratio, and an unlimited quota neither
 // counts nor refuses.
+// UC-INS-10 check 3: the next creation at the limit is refused, naming the limit.
 func TestTheGuardRefusesAtTheWallAndReportsTheApproach(t *testing.T) {
 	store := &storeFake{overrides: repository.Overrides{Items: ceiling(10)}}
 	usage := &usageFake{items: 9}
@@ -221,6 +237,44 @@ func TestTheGuardRefusesAtTheWallAndReportsTheApproach(t *testing.T) {
 	}
 }
 
+// The kept count answers a create that has room, so a limited workspace with a million entries is
+// not counted on every create; at the wall the rows are counted, so a deletion the kept count
+// missed never refuses a workspace that has room. Nothing kept: the rows are counted.
+func TestTheKeptCountAnswersBelowTheWallAndTheRowsAtIt(t *testing.T) {
+	store := &storeFake{overrides: repository.Overrides{Items: ceiling(1_000_000), MediaBytes: ceiling(100)}}
+	usage := &usageFake{items: 500_000, kept: map[string]int64{Items: 500_000, MediaBytes: 40}}
+	guard := guardWith(store, usage, &signalsFake{})
+
+	if err := guard.Items(t.Context(), "t1", 1); err != nil {
+		t.Fatalf("a create with room was refused: %v", err)
+	}
+	if err := guard.MediaBytes(t.Context(), "t1", 10); err != nil {
+		t.Fatalf("an upload with room was refused: %v", err)
+	}
+	if usage.counted != 0 {
+		t.Errorf("the rows were counted %d times though the kept count left room", usage.counted)
+	}
+
+	// The kept count says full, the rows say otherwise: the rows decide.
+	usage.kept[Items] = 1_000_000
+	if err := guard.Items(t.Context(), "t1", 1); err != nil {
+		t.Errorf("a stale kept count refused a workspace with room: %v", err)
+	}
+	usage.items = 1_000_000
+	if err := guard.Items(t.Context(), "t1", 1); err == nil {
+		t.Error("a full workspace was admitted")
+	}
+	if usage.counted != 2 {
+		t.Errorf("the rows were counted %d times at the wall, want 2", usage.counted)
+	}
+
+	usage.kept, usage.counted = nil, 0
+	usage.items = 999_999
+	if err := guard.Items(t.Context(), "t1", 1); err != nil || usage.counted != 1 {
+		t.Errorf("nothing kept: %v after %d counts, want admitted after one", err, usage.counted)
+	}
+}
+
 func TestEveryCapacityQuotaSharesTheOneShape(t *testing.T) {
 	store := &storeFake{overrides: repository.Overrides{
 		MediaBytes: ceiling(100), WebhookTargets: ceiling(1), ExportJobs: ceiling(1),
@@ -239,6 +293,25 @@ func TestEveryCapacityQuotaSharesTheOneShape(t *testing.T) {
 	}
 	if err := guard.ExportJobs(t.Context(), "t1"); err == nil {
 		t.Error("a second export fit under a ceiling of one")
+	}
+}
+
+func TestMailboxesAreAQuotaOfFiveByDefaultInBothModes(t *testing.T) {
+	for _, mode := range []env.TenancyMode{env.TenancyMulti, env.TenancySingle} {
+		if got := Defaults(mode).Mailboxes; got != 5 {
+			t.Errorf("%s: %d mailboxes by default, want 5", mode, got)
+		}
+	}
+	usage := &usageFake{mailboxes: 5}
+	guard := guardWith(&storeFake{}, usage, &signalsFake{})
+	err := guard.Mailboxes(t.Context(), "t1")
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "capacity.mailboxes" {
+		t.Errorf("a sixth mailbox under the default answered %v", err)
+	}
+	raised := guardWith(&storeFake{overrides: repository.Overrides{Mailboxes: ceiling(8)}}, usage, &signalsFake{})
+	if err := raised.Mailboxes(t.Context(), "t1"); err != nil {
+		t.Errorf("a sixth mailbox under a ceiling of eight was refused: %v", err)
 	}
 }
 

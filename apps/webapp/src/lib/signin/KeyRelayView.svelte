@@ -12,6 +12,7 @@
 
   import { ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential } from '../data/passkeys.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
   import SignInCard from './SignInCard.svelte';
   import { answerUrl, declinedUrl, readRelay } from './keyRelay.ts';
 
@@ -51,7 +52,7 @@
   {#if relay === undefined}
     <Banner tone="warning">{t('app.step_up.relay_nothing')}</Banner>
   {:else}
-    {#if failed}<Banner tone="danger">{t('app.sign_in.key_failed')}</Banner>{/if}
+    {#if failed}<FailureNote problem={t('app.sign_in.key_failed')} />{/if}
     <Stack gap="100">
       <Button tone="primary" icon="key" isFull isBusy={isAsking} busyLabel={t('app.sign_in.key_waiting')} onclick={() => void ask()}>
         {t('app.step_up.with_key')}

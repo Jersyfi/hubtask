@@ -59,14 +59,16 @@ func TestTheDefaultsAreOnePerKindTheEngineSweeps(t *testing.T) {
 		lifecycle.KindTrash, lifecycle.KindNotification, lifecycle.KindOutboxEvent,
 		lifecycle.KindJumbleEntry, lifecycle.KindSession, lifecycle.KindAiSuggestion,
 		lifecycle.KindDevice, lifecycle.KindSyncLog, lifecycle.KindIdempotencyKey,
-		lifecycle.KindWebhookDelivery, lifecycle.KindMailReceipt,
+		lifecycle.KindWebhookDelivery, lifecycle.KindMailReceipt, lifecycle.KindDocumentHistory,
+		lifecycle.KindAgentLedger, lifecycle.KindAgentRequest, lifecycle.KindAgentJob,
+		lifecycle.KindPageVersion, lifecycle.KindRequester, lifecycle.KindTimer, lifecycle.KindConnectorRun,
 	} {
 		if !seen[swept] {
 			t.Errorf("%s is swept and has no default period", swept)
 		}
 	}
-	if len(seen) != 11 {
-		t.Errorf("%d kinds have defaults, want the eleven the engine sweeps", len(seen))
+	if len(seen) != 19 {
+		t.Errorf("%d kinds have defaults, want the nineteen the engine sweeps", len(seen))
 	}
 }
 
@@ -163,5 +165,12 @@ func TestARowIsRemovableAfterTheLaterOfThePeriodAndTheWindow(t *testing.T) {
 				t.Errorf("a moment after %v the row is still inside the offline window", got)
 			}
 		})
+	}
+}
+
+// UC-JUM-11 check 5: the mail intake's log is kept thirty days unless a rule says otherwise.
+func TestTheMailLogIsKeptThirtyDays(t *testing.T) {
+	if got := defaultFor(t, lifecycle.KindMailReceipt).RetainDays; got != 30 {
+		t.Errorf("the mail log is kept %d days, want 30", got)
 	}
 }

@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -270,7 +271,8 @@ func verifyRequest(actor appshared.ActorContext) access.Request {
 // Descriptor registers the check in all three channels.
 func (h VerifyAuditChain) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: VerifyAuditChainName,
+		Permission: service.PermissionAuditRead,
+		Name:       VerifyAuditChainName,
 		Summary: "Checks that the audit trail of a period has not been rewritten: every entry " +
 			"against its own hash, every entry against the one before it, and the sequence " +
 			"numbers against their own arithmetic. Answers where the first break is and which " +

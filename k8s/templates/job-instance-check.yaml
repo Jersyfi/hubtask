@@ -1,0 +1,60 @@
+{{/*
+The instance file checked before the rollout (deployment.md §6.1).
+
+A typo in the file refuses the start of every new pod. Checked in a hook first, the upgrade stops
+with the refusal in this job's log while the running pods keep serving. Pre-upgrade only: on a
+first install nothing is serving that a refused start would take down, and the secrets this job
+reads may not exist yet. The file, the environment variables and the volumes are the pods' own,
+so a key the file names by variable or a secret file it reads is checked where it will be read.
+*/}}
+{{- if and .Values.instanceCheck.enabled (or .Values.instanceFile.configMap .Values.instanceFile.secret) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "hubtask.fullname" . }}-instance-check
+  labels: {{- include "hubtask.labels" (dict "root" . "role" "instance-check") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    # Before the migration: a file that would refuse the start stops the upgrade before the schema
+    # moves.
+    "helm.sh/hook-weight": "-6"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: {{- include "hubtask.labels" (dict "root" . "role" "instance-check") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      # No Kubernetes identity: the check reads files and its environment, and nothing else.
+      automountServiceAccountToken: false
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: instance-check
+          image: {{ include "hubtask.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/hubtask", "instance", "check", "/etc/hubtask/instance/{{ .Values.instanceFile.key }}"]
+          env: {{- include "hubtask.env" (dict "root" . "role" "api") | nindent 12 }}
+          resources: {{- toYaml .Values.instanceCheck.resources | nindent 12 }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: instance-file
+              mountPath: /etc/hubtask/instance
+              readOnly: true
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- if .Values.instanceFile.configMap }}
+        - name: instance-file
+          configMap:
+            name: {{ .Values.instanceFile.configMap }}
+        {{- else }}
+        - name: instance-file
+          secret:
+            secretName: {{ .Values.instanceFile.secret }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

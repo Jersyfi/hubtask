@@ -87,7 +87,8 @@ func TestApplyingDirectlyIsSaidRatherThanAssumed(t *testing.T) {
 	}
 }
 
-// A workspace with no provider is refused before anything is queued, whichever action asked.
+// A workspace with no provider is refused before anything is queued, whichever action asked: no
+// call to a model is made (UC-AI-01 check 3).
 func TestEveryActionIsRefusedWithoutAProvider(t *testing.T) {
 	a := newAsker(false)
 

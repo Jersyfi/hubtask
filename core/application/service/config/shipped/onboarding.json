@@ -1,0 +1,209 @@
+{
+  "key": "onboarding",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "staff_change_kind": {
+        "name": "Kind",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Onboarding",
+          "Offboarding"
+        ]
+      },
+      "staff_change_on": {
+        "name": "Effective on",
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "staff_change_manager": {
+        "name": "Manager",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "staff_change_equipment": {
+        "name": "Equipment",
+        "kind": "MULTI_SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Laptop",
+          "Phone",
+          "Badge",
+          "Accounts",
+          "Desk"
+        ]
+      }
+    },
+    "types": {
+      "staff_change": {
+        "level": "TASK",
+        "name": "Joiner or leaver",
+        "icon": "user",
+        "color_token": "teal",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "person",
+              "name": "Person"
+            },
+            {
+              "key": "plan",
+              "name": "Plan"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "person",
+              "required": true
+            },
+            {
+              "key": "custom_fields.staff_change_kind",
+              "section": "person",
+              "required": true
+            },
+            {
+              "key": "custom_fields.staff_change_on",
+              "section": "person",
+              "required": true
+            },
+            {
+              "key": "custom_fields.staff_change_manager",
+              "section": "person"
+            },
+            {
+              "key": "custom_fields.staff_change_equipment",
+              "section": "plan"
+            },
+            {
+              "key": "notes",
+              "section": "plan"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "staff_change": {
+        "name": "Joiner or leaver",
+        "shape": {
+          "initial": "planned",
+          "statuses": [
+            {
+              "key": "planned",
+              "name": "Planned",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "preparing",
+              "name": "Preparing",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "under_way",
+              "name": "Under way",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "completed",
+              "name": "Completed",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "prepare",
+              "name": "Prepare",
+              "from": [
+                "planned"
+              ],
+              "to": "preparing"
+            },
+            {
+              "key": "begin",
+              "name": "First or last day",
+              "from": [
+                "preparing"
+              ],
+              "to": "under_way"
+            },
+            {
+              "key": "complete",
+              "name": "Complete",
+              "from": [
+                "under_way"
+              ],
+              "to": "completed"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "completed"
+              ],
+              "to": "under_way"
+            }
+          ]
+        }
+      }
+    },
+    "rules": {
+      "day_is_near": {
+        "name": "Remind a week before the first or last day",
+        "enabled": true,
+        "trigger": {
+          "kind": "RELATIVE_DATE",
+          "anchor": "FIELD",
+          "anchor_field": "staff_change_on",
+          "offset": "-P7D"
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type == 'staff_change' && !item.is_completed"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "The first or last day is a week away: is everything prepared?",
+              "internal": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "staff_change": {
+        "workflow": "staff_change"
+      }
+    }
+  }
+}

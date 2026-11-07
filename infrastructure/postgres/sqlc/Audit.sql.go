@@ -191,12 +191,13 @@ WHERE tenant_id = current_tenant_id()
   AND ($6::text IS NULL OR target_type = $6::text)
   AND ($7::uuid IS NULL OR target_id = $7::uuid)
   AND ($8::text IS NULL OR outcome = $8::text)
+  AND ($9::text IS NULL OR context->>'RequestID' = $9::text)
   AND (
-    $9::timestamptz IS NULL
-    OR (occurred_at, id) < ($9::timestamptz, $10::uuid)
+    $10::timestamptz IS NULL
+    OR (occurred_at, id) < ($10::timestamptz, $11::uuid)
   )
 ORDER BY occurred_at DESC, id DESC
-LIMIT $11
+LIMIT $12
 `
 
 type ListAuditEntriesParams struct {
@@ -208,6 +209,7 @@ type ListAuditEntriesParams struct {
 	TargetType       *string
 	TargetID         pgtype.UUID
 	Outcome          *string
+	RequestID        *string
 	CursorOccurredAt pgtype.Timestamptz
 	CursorID         pgtype.UUID
 	PageSize         int32
@@ -243,6 +245,7 @@ func (q *Queries) ListAuditEntries(ctx context.Context, arg ListAuditEntriesPara
 		arg.TargetType,
 		arg.TargetID,
 		arg.Outcome,
+		arg.RequestID,
 		arg.CursorOccurredAt,
 		arg.CursorID,
 		arg.PageSize,

@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -30,6 +31,10 @@ const (
 // RenewInvitationCommand names the invited account.
 type RenewInvitationCommand struct {
 	AccountID shared.ID
+	// ByLink hands the invitation over by link also where mail is sent (*Copy invitation link*).
+	ByLink bool
+	// StepUpToken is the fresh proof a link handed over instead of a mail demands.
+	StepUpToken string
 }
 
 // RenewInvitation gives an invitation not yet accepted a new way to arrive: the mail again, or -
@@ -53,6 +58,18 @@ type RenewInvitation struct {
 	Links InvitationLinks
 	// People holds the renewal to the people limit: a link that ran out had freed its place.
 	People PeopleLimit
+	// HandOver mints a link where mail is sent, for a renewal asked by link; Jobs cancels the
+	// mail still queued so its token never replaces the link (identity.md §12, "Never both");
+	// StepUp judges the fresh proof it demands. Unwired, a renewal by link where mail is sent is
+	// refused.
+	HandOver InvitationLinks
+	Jobs     repository.InvitationJobs
+	StepUp   stepup.Verifier
+}
+
+// linkInsteadOfMail is a renewal by link where this installation sends mail.
+func (h RenewInvitation) linkInsteadOfMail(cmd RenewInvitationCommand) bool {
+	return cmd.ByLink && !h.Links.handsOver()
 }
 
 // Execute renews and answers the account, with the new link where it is handed over by hand.
@@ -71,10 +88,22 @@ func (h RenewInvitation) Execute(
 	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return Invitation{}, err
 	}
-	if err := needsAPerson(actor, h.Links); err != nil {
+	links := h.Links
+	instead := h.linkInsteadOfMail(cmd)
+	if instead {
+		if !h.HandOver.handsOver() || h.Jobs == nil {
+			return Invitation{}, shared.ErrInternal.WithDetail("accounts.invitation_link_unavailable")
+		}
+		// The link is answered to the caller rather than mailed to the person.
+		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+			return Invitation{}, err
+		}
+		links = h.HandOver
+	}
+	if err := needsAPerson(actor, links); err != nil {
 		return Invitation{}, err
 	}
-	if h.Links.handsOver() {
+	if links.handsOver() {
 		if err := h.holdTheLink(ctx, actor, request); err != nil {
 			return Invitation{}, err
 		}
@@ -99,12 +128,18 @@ func (h RenewInvitation) Execute(
 				return err
 			}
 		}
-		link, err := deliver(ctx, h.Links, h.Notifier, actor.TenantID, invited.ID, actor)
+		if instead {
+			// Before the token: a delivery under way rolls back at its next write, its token with it.
+			if _, err := h.Jobs.CancelOpen(ctx, invited.ID, h.Clock.Now()); err != nil {
+				return err
+			}
+		}
+		link, err := deliver(ctx, links, h.Notifier, actor.TenantID, invited.ID, actor)
 		if err != nil {
 			return err
 		}
 		renewed = Invitation{Account: invited, Link: link}
-		return h.recordAudit(ctx, invited, actor)
+		return h.recordAudit(ctx, invited, actor, deliveryOf(links))
 	})
 	if err != nil {
 		return Invitation{}, err
@@ -145,7 +180,7 @@ func notInvited() error {
 }
 
 func (h RenewInvitation) recordAudit(
-	ctx context.Context, invited domain.Account, actor appshared.ActorContext,
+	ctx context.Context, invited domain.Account, actor appshared.ActorContext, delivery string,
 ) error {
 	return h.Audit.Append(ctx, audit.Entry{
 		TenantID:   actor.TenantID,
@@ -162,7 +197,7 @@ func (h RenewInvitation) recordAudit(
 		// How it went out, never the link: the trail outlives the credential and is read by people
 		// who must not be able to accept somebody else's invitation (rule 10).
 		Changes: audit.Changes(
-			audit.Change{Field: "delivery", Classification: audit.Open, To: deliveryOf(h.Links)},
+			audit.Change{Field: "delivery", Classification: audit.Open, To: delivery},
 		),
 	})
 }
@@ -170,19 +205,31 @@ func (h RenewInvitation) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h RenewInvitation) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RenewInvitationName,
+		Name:       RenewInvitationName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Renews an invitation that has not been accepted yet: the invitation mail is sent " +
-			"again, or - where this installation sends no mail - a new invitation link is answered " +
-			"once. The earlier link stops working.",
-		SideEffects: "Queues the invitation message again or replaces the invitation's token, and " +
-			"writes an audit entry.",
+			"again, or - where this installation sends no mail, or delivery LINK is asked - a new " +
+			"invitation link is answered once. The earlier link stops working. A link instead of " +
+			"a mail cancels the queued mail and needs a fresh proof.",
+		SideEffects: "Queues the invitation message again or replaces the invitation's token (and " +
+			"then cancels a queued invitation mail), and writes an audit entry.",
 		TokenScope: membersWrite,
 		Input: []usecase.Field{
 			{
 				Name: "account_id", Kind: usecase.KindID, Required: true,
 				Description: "The invited account. It must not have accepted its invitation yet.",
 			},
+			{
+				Name: "delivery", Kind: usecase.KindString,
+				Description: "LINK answers a new invitation link to hand over, also where this " +
+					"installation sends mail. Omitted, it goes out the installation's own way.",
+			},
+			{
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof a link instead of a mail demands.",
+			},
 		},
+		StepUp: "handing an invitation over by link where mail is sent",
 		Audit: usecase.AuditDeclaration{
 			Action: InvitationRenewedAction, TargetType: accountTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -198,7 +245,15 @@ func (h RenewInvitation) invoke(
 	if err != nil {
 		return nil, err
 	}
-	renewed, err := h.Execute(ctx, actor, RenewInvitationCommand{AccountID: accountID})
+	delivery := in.String("delivery")
+	if delivery != "" && delivery != DeliveryLink {
+		return nil, shared.ErrValidation.WithDetail("accounts.delivery_unknown").
+			WithParams(map[string]string{"delivery": delivery}).
+			WithFields(shared.FieldError{Path: "/delivery", Code: "accounts.delivery_unknown"})
+	}
+	renewed, err := h.Execute(ctx, actor, RenewInvitationCommand{
+		AccountID: accountID, ByLink: delivery == DeliveryLink, StepUpToken: in.String("step_up_token"),
+	})
 	if err != nil {
 		return nil, err
 	}

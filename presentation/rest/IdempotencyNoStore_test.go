@@ -110,3 +110,36 @@ func TestAShownOnceRouteKeepsNoBody(t *testing.T) {
 		})
 	}
 }
+
+// Provisioning keeps its body although the generated door marks the owner's redemption token as
+// shown once: a platform repeats the call because it lost the answer, and the replay is how it
+// learns which workspace it made (UC-INS-06 check 3, ShownOnceKept). An empty replay would send it
+// to provision again under a new key - a second workspace.
+func TestAKeptRouteKeepsItsBodyWhateverTheDoorMarks(t *testing.T) {
+	template := http.MethodPost + " " + APIBasePath + "/admin/tenants"
+	if ShownOnceKept[template] == "" {
+		t.Fatalf("%s is not in ShownOnceKept", template)
+	}
+	answer := `{"id":"018f0000-0000-7000-8000-000000000001","owner_redemption_token":"x"}`
+	routes := NewMux()
+	routes.HandleFunc(template, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(ShownOnceHeader, "owner_redemption_token")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(answer))
+	})
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/admin/tenants", strings.NewReader(`{}`))
+	r.Header.Set(IdempotencyKeyHeader, idempotencyKey)
+	r = r.WithContext(appshared.ContextWithActor(r.Context(),
+		appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenantID}))
+	g := &guard{}
+	response := httptest.NewRecorder()
+	Idempotent{Guard: g, Routes: routes, Next: routes}.ServeHTTP(response, r)
+
+	if response.Header().Get(ShownOnceHeader) != "" {
+		t.Error("the internal mark reached the client")
+	}
+	if string(g.gotBody) != answer {
+		t.Errorf("the record keeps %q, want the answer for the replay", g.gotBody)
+	}
+}

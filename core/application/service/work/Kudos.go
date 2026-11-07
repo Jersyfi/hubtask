@@ -204,7 +204,8 @@ func kudosInput() []usecase.Field {
 // Descriptor is the catalogue entry.
 func (h ReadKudos) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadKudosName,
+		Permission: service.PermissionRead,
+		Name:       ReadKudosName,
 		Summary: "Reads what the caller may know of an entry's kudos: whether they gave kudos to its " +
 			"completion, and - only to the person they were given to - who gave theirs. Nobody " +
 			"learns who acknowledged somebody else, and nothing counts kudos per person.",
@@ -224,7 +225,8 @@ func (h ReadKudos) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h GiveKudos) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GiveKudosName,
+		Permission: service.PermissionRead,
+		Name:       GiveKudosName,
 		Summary: "Acknowledges an entry's completion to the person who completed it. Idempotent. " +
 			"Refused on an open entry and on the caller's own completion. Needs only the right to " +
 			"read the entry.",
@@ -246,8 +248,9 @@ func (h GiveKudos) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h TakeBackKudos) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name:    TakeBackKudosName,
-		Summary: "Takes back the caller's kudos on an entry's current completion. Idempotent.",
+		Permission: service.PermissionRead,
+		Name:       TakeBackKudosName,
+		Summary:    "Takes back the caller's kudos on an entry's current completion. Idempotent.",
 		SideEffects: "Removes the caller's kudos. The audit trail records only a refusal. The entry, " +
 			"its version and its history are untouched; nothing is announced.",
 		TokenScope: itemsWrite,

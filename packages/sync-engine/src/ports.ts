@@ -52,6 +52,11 @@ export interface RequestOptions {
    * the same action is a second thing to document, translate and support for no behavioural gain.
    */
   readonly ifMatch?: string;
+  /**
+   * The media type a `document` asks for, where one operation answers several files - the time
+   * export's CSV or spreadsheet. Absent, the default list stands; the other calls ignore it.
+   */
+  readonly accept?: string;
   /** Lets a caller abandon the call for its own reasons, on top of the deadline. */
   readonly signal?: AbortSignal;
 }
@@ -191,6 +196,22 @@ export interface Transport {
    * `Export-Truncated` means is the application's business, not the transport's.
    */
   document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument>;
+  /**
+   * `document`, with the bytes written into `sink` as they arrive rather than held: a whole
+   * workspace does not fit in a tab's memory. The sink is touched only once the server answered
+   * `2xx`, so a refusal - a step-up asked for, a renewal - leaves it for the repeat; a body that
+   * breaks off aborts it. Closing it after the last byte is the transport's.
+   */
+  documentTo(path: string, body: unknown, sink: WritableStream<Uint8Array>, options: RequestOptions): Promise<TransportDocumentHead>;
+}
+
+/** What the answer said about a document whose bytes went into a sink. */
+export interface TransportDocumentHead {
+  readonly contentType?: string;
+  /** From `Content-Disposition`, where the server named one. */
+  readonly fileName?: string;
+  /** Lower-cased header names to values, for the few a caller has to read. */
+  readonly headers: ReadonlyMap<string, string>;
 }
 
 /** Bytes, what they are, what they should be called, and what the answer said about them. */

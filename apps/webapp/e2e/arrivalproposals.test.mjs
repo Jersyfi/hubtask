@@ -71,7 +71,7 @@ test('chromium: proposals on arrival are off until an administrator switches the
   t.after(close);
 
   await page.goto(`${served.origin}/administration/ai?tab=consent`);
-  const toggle = page.getByRole('switch', { name: 'Prepare proposals for new jumble entries' });
+  const toggle = page.getByRole('switch', { name: 'Prepare proposals for new inbox entries' });
   await toggle.waitFor({ timeout: 15_000 });
   assert.equal(await toggle.isChecked(), false, 'on before anybody switched it');
   await evidence(page, 'arrival-0-switch-1280.png');
@@ -79,7 +79,7 @@ test('chromium: proposals on arrival are off until an administrator switches the
   await toggle.click();
   await waitFor(() => sent.length === 1);
   assert.deepEqual(sent[0], { prepare: true });
-  await page.getByText('New jumble entries get a proposal.').waitFor({ state: 'attached', timeout: 10_000 });
+  await page.getByText('New inbox entries get a proposal.').waitFor({ state: 'attached', timeout: 10_000 });
 
   await toggle.click();
   await waitFor(() => sent.length === 2);
@@ -95,7 +95,7 @@ test('chromium: with AI off the switch is not there at all', async (t) => {
   await page.goto(`${served.origin}/administration/ai?tab=consent`);
   await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
-  assert.equal(await page.getByRole('switch', { name: 'Prepare proposals for new jumble entries' }).count(), 0);
+  assert.equal(await page.getByRole('switch', { name: 'Prepare proposals for new inbox entries' }).count(), 0);
 });
 
 // The card of an arrival the workspace prepares a proposal for.
@@ -171,7 +171,7 @@ for (const width of [1280, 768, 375]) {
         `${DESTINATIONS[0].hub_name} · ${DESTINATIONS[0].name}`,
       );
       // Nothing counts it: no figure beside the jumble anywhere it is named.
-      for (const link of await page.getByRole('link', { name: /Jumble/ }).all()) {
+      for (const link of await page.getByRole('link', { name: /Inbox/ }).all()) {
         assert.doesNotMatch((await link.textContent()) ?? '', /\d/, 'the jumble is counted');
       }
       await evidence(page, `arrival-2-proposed-${width}.png`);

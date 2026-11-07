@@ -14,7 +14,7 @@
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
 /** The five areas, in the order the screen draws them - the contract's own properties. */
-export const AREAS = ['sign_in', 'legal', 'localisation', 'quotas', 'ai'] as const;
+export const AREAS = ['sign_in', 'legal', 'localisation', 'quotas', 'ai', 'module'] as const;
 export type Area = (typeof AREAS)[number];
 
 /** One key of one area, as the screen draws it. */
@@ -33,6 +33,23 @@ export function rowsOf(settings: InstanceSettings | undefined): Row[] {
       // The domain's order where the server says it; a JSON object's own order is not one.
       .sort((a, b) => (a.setting.position ?? 0) - (b.setting.position ?? 0)),
   );
+}
+
+/**
+ * The installation's level as *View as file* and the *Configuration file* screen show it
+ * (configuration/ui.md A10): each key with its value, the installation as its source where it
+ * decided one, and its lock. Without the AI area on an installation of one workspace, as its
+ * settings screen draws none.
+ */
+export function installationFile(settings: InstanceSettings, isSingleWorkspace: boolean): { key: string; value: unknown; source: string; lockedBy: string | undefined }[] {
+  return rowsOf(settings)
+    .filter((row) => !(row.area === 'ai' && isSingleWorkspace))
+    .map((row) => ({
+      key: `${row.area}.${row.key}`,
+      value: row.setting.value,
+      source: row.setting.set ? 'INSTANCE' : 'DEFAULT',
+      lockedBy: row.setting.locked ? 'INSTANCE' : undefined,
+    }));
 }
 
 /** The code of a key's name in words. */
@@ -134,7 +151,7 @@ export function changesBetween(draft: InstanceSettings, read: InstanceSettings):
 export const fieldOf = (area: Area, key: string): string => `/${area}/${key}`;
 
 /** The areas a plan decides, in the screen's order: the installation's, without localisation. */
-export const PLAN_AREAS = ['sign_in', 'legal', 'quotas', 'ai'] as const satisfies readonly Area[];
+export const PLAN_AREAS = ['sign_in', 'legal', 'quotas', 'ai', 'module'] as const satisfies readonly Area[];
 
 /** A plan's document in the installation level's shape: the areas it shares with it. */
 export type PlanAreas = Partial<Record<Area, Record<string, InstanceSetting>>>;

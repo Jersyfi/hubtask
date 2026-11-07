@@ -16,13 +16,16 @@
 
 import type { LayoutStore } from './layoutmemory.ts';
 
-/** What can stand beside a title, in the order the columns are drawn. */
-export type ListField = 'amount' | 'column' | 'due' | 'people' | 'labels' | 'progress';
-export const LIST_FIELDS: readonly ListField[] = ['amount', 'column', 'due', 'people', 'labels', 'progress'];
+/**
+ * What can stand beside a title, in the order the columns are drawn. The key first: it is what a
+ * person quotes, drawn as everywhere else (`ticket.ts`, user-experience.md §5.6).
+ */
+export type ListField = 'key' | 'type' | 'amount' | 'column' | 'due' | 'people' | 'labels' | 'progress';
+export const LIST_FIELDS: readonly ListField[] = ['key', 'type', 'amount', 'column', 'due', 'people', 'labels', 'progress'];
 
 /** How the top level is grouped: nothing, or by one value each entry has. */
-export type ListGrouping = 'none' | 'category' | 'column' | 'assignee' | 'due';
-export const LIST_GROUPINGS: readonly ListGrouping[] = ['none', 'category', 'column', 'assignee', 'due'];
+export type ListGrouping = 'none' | 'type' | 'category' | 'column' | 'assignee' | 'due';
+export const LIST_GROUPINGS: readonly ListGrouping[] = ['none', 'type', 'category', 'column', 'assignee', 'due'];
 
 /** Where a done entry goes: where it stands, gathered at the end, or out of sight. */
 export type DonePlacement = 'inline' | 'bottom' | 'hidden';
@@ -45,12 +48,18 @@ export interface ListOffer {
   readonly carriesDue: boolean;
   readonly carriesPeople: boolean;
   readonly carriesLabels: boolean;
+  /** The workspace shows entry types (the workflows module is on, UC-FLW-01 check 8). */
+  readonly showsTypes?: boolean;
 }
 
 /** The fields the collection offers, in column order. */
 export function offeredFields(offer: ListOffer): readonly ListField[] {
   return LIST_FIELDS.filter((field) => {
     switch (field) {
+      case 'key':
+        return !offer.isSimple;
+      case 'type':
+        return offer.showsTypes === true;
       case 'amount':
         return offer.offersAmount;
       case 'column':
@@ -73,6 +82,8 @@ export function offeredGroupings(offer: ListOffer): readonly ListGrouping[] {
     switch (grouping) {
       case 'none':
         return true;
+      case 'type':
+        return offer.showsTypes === true;
       case 'category':
         return offer.carriesLabels;
       case 'column':
@@ -99,8 +110,11 @@ export function defaultArrangement(offer: ListOffer): ListArrangement {
       done: 'bottom',
     };
   }
+  // The key where entries run through a workflow - a desk's queue, a team's tickets - which is
+  // where they are quoted; a plain project list stays as quiet as it was.
+  const shownKey = offer.showsTypes === true;
   return {
-    fields: offered.filter((field) => field === 'due' || field === 'people' || field === 'labels' || field === 'progress'),
+    fields: offered.filter((field) => (field === 'key' && shownKey) || field === 'due' || field === 'people' || field === 'labels' || field === 'progress'),
     grouping: 'none',
     done: 'inline',
   };

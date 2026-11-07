@@ -18,7 +18,7 @@ import (
 func TestTheOverridesNameEveryConfigurableRow(t *testing.T) {
 	want := []string{
 		"APIRequestsPerMinute", "Accounts", "AiArrivalProposalsPerDay", "AiOwnTokensPerDay", "AiTokensPerDay", "AutomationRunsPerHour",
-		"ExportJobs", "Items", "MediaBytes", "WebhookTargets",
+		"ExportJobs", "Items", "Mailboxes", "MediaBytes", "WebhookTargets",
 	}
 
 	shape := reflect.TypeOf(quota.Overrides{})

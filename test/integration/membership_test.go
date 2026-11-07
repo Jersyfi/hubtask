@@ -9,6 +9,7 @@ import (
 	"context"
 	"testing"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -217,6 +218,47 @@ func TestSharedEntriesOfAnotherTenantAreInvisible(t *testing.T) {
 	// secret, and neither must help.
 	if shares := sharedItemsIn(ctx, t, tenantB, authorA, collection); len(shares) != 0 {
 		t.Errorf("tenant B read %d of tenant A's shares: %+v", len(shares), shares)
+	}
+}
+
+// SharedAcross answers the shares of the whole tenant with their collections, and never another
+// tenant's (gate SG-3): what a workspace summary counts beside the collections it reads.
+func TestTheSharesAcrossTheWorkspaceAreOneTenants(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+
+	item := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return insertErr(itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Shared", "a0")))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	shareItem(ctx, t, tenantA, authorA, item)
+
+	across := func(tenant shared.ID) []identityrepo.SharedEntry {
+		var entries []identityrepo.SharedEntry
+		if err := read(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			entries, err = postgres.NewMembershipRepository().SharedAcross(ctx, authorA, 5000)
+			return err
+		}); err != nil {
+			t.Fatalf("reading the shares: %v", err)
+		}
+		return entries
+	}
+	found := false
+	for _, entry := range across(tenantA) {
+		if entry.ItemID == item {
+			found = entry.CollectionID == collection
+		}
+	}
+	if !found {
+		t.Error("the share is not answered with its collection")
+	}
+	for _, entry := range across(tenantB) {
+		if entry.ItemID == item {
+			t.Error("tenant B read tenant A's share")
+		}
 	}
 }
 

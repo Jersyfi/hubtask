@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/mail"
@@ -101,10 +102,11 @@ func (MailboxRepository) Insert(ctx context.Context, box domain.Mailbox, sealed 
 		params.OauthTokenUrl, params.OauthScopes = &client.TokenURL, client.Scopes
 		params.OauthClientID, params.OauthInstallation = &client.ClientID, client.Installation
 	}
-	if box.Protocol == domain.ProtocolIMAP {
+	switch box.Protocol {
+	case domain.ProtocolIMAP:
 		port := int32(box.Port) //nolint:gosec // validated to 1-65535 by NewMailbox
 		params.Host, params.Port = &box.Host, &port
-	} else {
+	case domain.ProtocolJMAP:
 		params.SessionUrl = &box.SessionURL
 	}
 	err = queries.InsertMailbox(ctx, params)
@@ -288,6 +290,20 @@ func (MailboxAuthorizationRepository) Take(ctx context.Context, stateHash []byte
 	return pending, crypto.Sealed{KeyID: row.VerifierKeyID, Ciphertext: row.VerifierEnc}, clientSecret, nil
 }
 
+// Live reports whether a provider's return is still awaited in the transaction's workspace,
+// spending nothing.
+func (MailboxAuthorizationRepository) Live(ctx context.Context, stateHash []byte, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	live, err := queries.MailboxAuthorizationIsLive(ctx, sqlc.MailboxAuthorizationIsLiveParams{StateHash: stateHash, Now: timestampOf(now)})
+	if err != nil {
+		return false, mailQueryFailed("reading a mailbox authorization", err)
+	}
+	return live, nil
+}
+
 func (MailboxAuthorizationRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -298,4 +314,24 @@ func (MailboxAuthorizationRepository) DeleteExpired(ctx context.Context, now tim
 		return 0, mailQueryFailed("forgetting expired mailbox authorizations", err)
 	}
 	return int(rows), nil
+}
+
+// InstallationApps answers how the installation's own mail apps fare across every workspace
+// (alert A-29), through the door that counts and names no mailbox (migration 0351).
+func (MailboxRepository) InstallationApps(ctx context.Context) ([]domain.AppHealth, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.InstallationMailApps(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the installation's mail apps: %w", err))
+	}
+	counts := make([]domain.PresetCount, 0, len(rows))
+	for _, row := range rows {
+		counts = append(counts, domain.PresetCount{Provider: row.Provider, Connected: row.Connected, Failing: row.Failing})
+	}
+	return domain.InstallationApps(counts), nil
 }

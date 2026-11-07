@@ -16,6 +16,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -50,13 +51,16 @@ const (
 	// inside it: whoever holds the workspace's intake address can make things arrive, and the day's
 	// arrivals are what this counts (security.md T-27).
 	AiArrivalProposalsPerDay = "ai_arrival_proposals_per_day"
+	// Mailboxes is how many mailboxes a workspace connects (UC-JUM-11). Past it a new one is
+	// refused; the ones connected keep being read.
+	Mailboxes = "mailboxes"
 )
 
 // Names is the vocabulary in the contract's order.
 func Names() []string {
 	return []string{
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
-		AiTokensPerDay, AiOwnTokensPerDay, AiArrivalProposalsPerDay, Accounts,
+		AiTokensPerDay, AiOwnTokensPerDay, AiArrivalProposalsPerDay, Accounts, Mailboxes,
 	}
 }
 
@@ -97,6 +101,7 @@ type Limits struct {
 	AiOwnTokensPerDay     int64
 	// AiArrivalProposalsPerDay is a number of arrivals, not of tokens.
 	AiArrivalProposalsPerDay int64
+	Mailboxes                int64
 }
 
 // Defaults answers §4's two columns. Single mode's defaults stay effectively unlimited - the
@@ -120,6 +125,7 @@ func Defaults(mode env.TenancyMode) Limits {
 			// A busy workspace's day of arrivals, and a wall a flood of deliveries to the intake
 			// address reaches long before the token budget would.
 			AiArrivalProposalsPerDay: DefaultArrivalProposalsPerDay,
+			Mailboxes:                DefaultMailboxes,
 		}
 	}
 	return Limits{
@@ -136,11 +142,16 @@ func Defaults(mode env.TenancyMode) Limits {
 		// Not unlimited here, unlike the tokens: the tokens are a self-hoster's own to spend, but
 		// what arrives is not theirs to choose - anybody holding the intake address decides it.
 		AiArrivalProposalsPerDay: DefaultArrivalProposalsPerDay,
+		Mailboxes:                DefaultMailboxes,
 	}
 }
 
 // DefaultArrivalProposalsPerDay is both modes' default for the proposals prepared on arrival.
 const DefaultArrivalProposalsPerDay = 200
+
+// DefaultMailboxes is both modes' default: a household's and a team's mailbox, and a shared
+// support address beside them.
+const DefaultMailboxes = 5
 
 // The levels a limit resolves through and the words a standing says it with: which level set the
 // value in force, and which locked it.
@@ -185,12 +196,6 @@ func ReadLevels(ctx context.Context, store repository.Store) (Levels, error) {
 	return levels, nil
 }
 
-// planApplies reports whether the plan's value for a quota is read: never under the installation's
-// lock, which binds the plan as it binds every workspace.
-func (l Levels) planApplies(name string) bool {
-	return !l.InstanceLocks[name] && valueOf(l.Plan.Overrides, name) != nil
-}
-
 // SourceOf answers which level set the value in force.
 func (l Levels) SourceOf(name string) string {
 	switch {
@@ -201,42 +206,31 @@ func (l Levels) SourceOf(name string) string {
 		return SourceException
 	case name == AiOwnTokensPerDay:
 		return SourceDefault
-	case l.planApplies(name):
-		return SourcePlan
-	case valueOf(l.Instance, name) != nil:
-		return SourceInstance
-	default:
-		return SourceDefault
 	}
+	return string(l.resolve(name).Source)
 }
 
 // LockOf answers which level locked a quota, or "" - the installation's lock first, which binds the
 // plan's. The operator's exception still decides under either: a lock says what a workspace may not
 // ask for, not what the operator may not grant.
 func (l Levels) LockOf(name string) string {
-	switch {
-	case name == AiOwnTokensPerDay:
-		return ""
-	case l.InstanceLocks[name]:
-		return LockInstance
-	case l.Plan.Locks[name]:
-		return LockPlan
-	default:
+	if name == AiOwnTokensPerDay {
 		return ""
 	}
+	return string(l.resolve(name).LockedBy)
 }
 
 // Resolve answers the limits in force: the mode's table, the installation's defaults, the plan's
-// where the installation does not lock them, and the operator's exception as the last word. The own
-// model's budget is the workspace's alone: no product default, installation or plan reaches it.
+// where the installation does not lock them (both through the settings catalogue,
+// QuotaSettings.go), and the operator's exception as the last word. The own model's budget is the
+// workspace's alone: no product default, installation or plan reaches it.
 func Resolve(levels Levels, mode env.TenancyMode) Limits {
 	limits := Defaults(mode)
 	for _, name := range OperatorNames() {
-		if value := valueOf(levels.Instance, name); value != nil {
-			limits.set(name, *value)
-		}
-		if levels.planApplies(name) {
-			limits.set(name, *valueOf(levels.Plan.Overrides, name))
+		if resolution := levels.resolve(name); resolution.Source != setting.LevelDefault {
+			if value, held := resolution.Effective.(int64); held {
+				limits.set(name, value)
+			}
 		}
 		if value := valueOf(levels.Exception, name); value != nil {
 			limits.set(name, *value)
@@ -271,6 +265,8 @@ func valueOf(overrides repository.Overrides, name string) *int64 {
 		return overrides.AiOwnTokensPerDay
 	case AiArrivalProposalsPerDay:
 		return overrides.AiArrivalProposalsPerDay
+	case Mailboxes:
+		return overrides.Mailboxes
 	default:
 		return nil
 	}
@@ -299,6 +295,8 @@ func (l *Limits) set(name string, value int64) {
 		l.AiOwnTokensPerDay = value
 	case AiArrivalProposalsPerDay:
 		l.AiArrivalProposalsPerDay = value
+	case Mailboxes:
+		l.Mailboxes = value
 	}
 }
 
@@ -325,6 +323,8 @@ func (l Limits) Of(quota string) int64 {
 		return l.AiOwnTokensPerDay
 	case AiArrivalProposalsPerDay:
 		return l.AiArrivalProposalsPerDay
+	case Mailboxes:
+		return l.Mailboxes
 	default:
 		return Unlimited
 	}

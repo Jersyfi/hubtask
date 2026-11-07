@@ -128,6 +128,7 @@ func Standings(
 		AiTokensPerDay:           overrides.AiTokensPerDay != nil,
 		AiOwnTokensPerDay:        overrides.AiOwnTokensPerDay != nil,
 		AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay != nil,
+		Mailboxes:                overrides.Mailboxes != nil,
 	}
 	counters := map[string]func(context.Context) (int64, error){
 		Items:          usage.Items,
@@ -135,6 +136,7 @@ func Standings(
 		WebhookTargets: usage.WebhookTargets,
 		ExportJobs:     usage.LiveExports,
 		Accounts:       usage.Accounts,
+		Mailboxes:      usage.Mailboxes,
 		AutomationRunsPerHour: func(ctx context.Context) (int64, error) {
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
 		},
@@ -202,7 +204,8 @@ func StandingOutputs(standings []Standing) []usecase.Output {
 // Descriptor is the catalogue entry.
 func (h ReadQuotas) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReadQuotasName,
+		Name:       ReadQuotasName,
+		Permission: service.PermissionStructure,
 		Summary: "Answers every quota limit as it applies to this workspace: the resolved ceiling " +
 			"(0 means unlimited), the live count where one exists, and the approach ratio.",
 		TokenScope: quotasRead,

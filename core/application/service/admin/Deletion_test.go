@@ -152,6 +152,7 @@ func TestASuspendedWorkspaceMayRequestDeletion(t *testing.T) {
 	}
 }
 
+// UC-INS-08 check 4: a deletion without the typed name is refused and writes nothing.
 func TestTheTypedNameGuardsTheDeletion(t *testing.T) {
 	f := newDeletionFixture(domain.TenantActive)
 	cmd := deletionCommand()

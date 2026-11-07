@@ -26,6 +26,9 @@ const (
 	CodeReasonTooLong           = "privacy.reason_too_long"
 	CodeRejectionReasonRequired = "privacy.rejection_reason_required"
 	CodeErasureModeRequired     = "privacy.erasure_mode_required"
+	// CodeIntakeLinesRemain: lines naming the address kept arriving while the erasure removed them;
+	// the case stays open and the next attempt removes the rest.
+	CodeIntakeLinesRemain       = "privacy.intake_lines_remain"
 	CodeExportTargetRequired    = "privacy.export_target_required"
 	CodeTransitionRefused       = "privacy.transition_refused"
 	CodeRequestNotFound         = "privacy.request_not_found"
@@ -42,6 +45,10 @@ const (
 	// and a rule that acts as somebody must not start acting as nobody. The operator re-points or
 	// removes the rules, and the case is carried out afterwards.
 	CodeErasureBlockedByRule = "privacy.erasure_blocked_by_rule"
+	// CodeErasureBlockedByIntegration is the same refusal for the integrations that act as the
+	// person - an inventory connector, a forge hook, an active agent: deleted, the account would
+	// leave each failing every run with nobody told. They are handed over or switched off first.
+	CodeErasureBlockedByIntegration = "privacy.erasure_blocked_by_integration"
 	// CodeRestrictionKeptByErasure is lifting the restriction of an account a legal hold keeps
 	// from an erasure: the restriction stands until the rest of the erasure has run.
 	CodeRestrictionKeptByErasure = "privacy.restriction_kept_by_erasure"

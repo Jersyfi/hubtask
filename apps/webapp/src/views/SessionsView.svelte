@@ -15,7 +15,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import { Button, EmptyState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
@@ -114,7 +115,9 @@
     failure = undefined;
     try {
       await sessions.end(id);
-      if (isCurrent) await session.signOut();
+      // This session is over at the server, so nothing can be sent under it any more: what is
+      // waiting is kept for this account's next sign-in rather than discarded unasked.
+      if (isCurrent) await session.signOut({ keepUnsent: true });
       else announcer.say(t('app.sessions.ended_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
@@ -150,15 +153,11 @@
       {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
         <div aria-busy="true"><Skeleton lines={2} /></div>
       {:else if held.status === 'failed'}
-        <ErrorState
-          title={renderProblem(held.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => sessions.open()}
-        />
+        <FailureState problem={renderProblem(held.error, messages)} onRetry={() => sessions.open()} />
       {:else if shown.length === 0}
-        <p class="quiet">{t('app.sessions.none')}</p>
+        <EmptyState kind="unused" title={t('app.sessions.none')} />
       {:else}
-        <Table
+        <Table isStacked
           label={t('app.sessions.title')}
           isLabelHidden
           {columns}

@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-11]
 state: built
 tasks: [E-09, E-12, F4-19]
-checked_by: [core/application/service/audit/Export_test.go, core/application/service/audit/Archive_test.go, test/integration/audit_read_test.go, presentation/rest/AuditController_test.go, cmd/hubctl/Audit_test.go]
+checked_by: [core/application/service/audit/Export_test.go, core/application/service/audit/Archive_test.go, test/integration/audit_read_test.go, presentation/rest/AuditController_test.go, cmd/hubctl/Audit_test.go, apps/webapp/e2e/audittrail.test.mjs]
 ---
 
 # Hand a period of the trail to somebody outside

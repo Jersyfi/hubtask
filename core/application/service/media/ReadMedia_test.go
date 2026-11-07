@@ -16,6 +16,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	work "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
@@ -77,15 +78,17 @@ func (c *containers) Neighbours(context.Context, shared.ID, shared.ID, shared.ID
 
 // reader is the many-paths permission answer, recorded so a test can say how often it was asked.
 type reader struct {
-	allow bool
-	asked [][][]identity.Scope
-	err   error
+	allow    bool
+	asked    [][][]identity.Scope
+	requests []access.Request
+	err      error
 }
 
 func (r *reader) Permitted(
-	_ context.Context, _ appshared.ActorContext, _ access.Request, paths [][]identity.Scope,
+	_ context.Context, _ appshared.ActorContext, request access.Request, paths [][]identity.Scope,
 ) ([]bool, error) {
 	r.asked = append(r.asked, paths)
+	r.requests = append(r.requests, request)
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -569,5 +572,92 @@ func TestListingAnEntryThatIsNotThereIsReportedMissing(t *testing.T) {
 	_, err := handler.Execute(t.Context(), actor(mediaRead), AttachmentsQuery{ItemID: strangerA})
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("error %v, want not found", err)
+	}
+}
+
+// UC-CNV-08 check 3: a picture placed on a board is read by whoever may read the board's hub,
+// asked along the hub's path; somebody who may not is told it does not exist.
+func TestAPictureOnABoardIsReadByTheBoardsReaders(t *testing.T) {
+	for _, allow := range []bool{true, false} {
+		handler, records, permission, _ := readingHarness()
+		records.stored[mintedID] = ready(strangerA)
+		records.boards = map[shared.ID][]shared.ID{mintedID: {hubID}}
+		permission.allow = allow
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if allow && err != nil {
+			t.Fatalf("a reader of the board was refused: %v", err)
+		}
+		if !allow && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody outside the hub got %v, want not found", err)
+		}
+		want := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
+		if len(permission.asked) != 1 || !samePath(permission.asked[0][0], want) {
+			t.Fatalf("asked %v, want the hub's path", permission.asked)
+		}
+	}
+}
+
+// UC-SVC-05 check 9: a desk's logo is read by whoever may raise a request at its collection - the
+// portal's question, REQUEST or READ along the collection's path; anybody else is told it does
+// not exist.
+func TestADesksLogoIsReadByTheDesksRequesters(t *testing.T) {
+	for _, allow := range []bool{true, false} {
+		handler, records, permission, _ := readingHarness()
+		logo := ready(strangerA)
+		logo.Usage = domain.UsageDeskLogo
+		records.stored[mintedID] = logo
+		records.desks = map[shared.ID][]shared.ID{mintedID: {collectionID}}
+		permission.allow = allow
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if allow && err != nil {
+			t.Fatalf("a requester of the desk was refused: %v", err)
+		}
+		if !allow && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody outside the desk got %v, want not found", err)
+		}
+		want := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID), identity.CollectionScope(collectionID)}
+		if len(permission.asked) != 1 || !samePath(permission.asked[0][0], want) {
+			t.Fatalf("asked %v, want the collection's path", permission.asked)
+		}
+		if asked := permission.requests[0]; asked.Permission != service.PermissionRequest || asked.Alternative != service.PermissionRead {
+			t.Fatalf("asked %s or %s, want REQUEST or READ", asked.Permission, asked.Alternative)
+		}
+	}
+}
+
+// pageReader answers as the knowledge module would, and remembers what it was asked.
+type pageReader struct {
+	reads bool
+	asked [][]shared.ID
+}
+
+func (p *pageReader) ReadsAny(_ context.Context, _ appshared.ActorContext, pages []shared.ID) (bool, error) {
+	p.asked = append(p.asked, pages)
+	return p.reads, nil
+}
+
+// UC-DOC-14 check 3: a picture a page holds is read by whoever the knowledge module says reads
+// the page; somebody it does not is told the picture does not exist.
+func TestAPicturePageHoldsIsReadByThePagesReaders(t *testing.T) {
+	page := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000d301")
+	for _, reads := range []bool{true, false} {
+		handler, records, _, _ := readingHarness()
+		pages := &pageReader{reads: reads}
+		handler.Pages = pages
+		records.stored[mintedID] = ready(strangerA)
+		records.pagesHolding = map[shared.ID][]shared.ID{mintedID: {page}}
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if reads && err != nil {
+			t.Fatalf("a reader of the page was refused: %v", err)
+		}
+		if !reads && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody who does not read the page got %v, want not found", err)
+		}
+		if len(pages.asked) != 1 || len(pages.asked[0]) != 1 || pages.asked[0][0] != page {
+			t.Fatalf("asked %v, want the page", pages.asked)
+		}
 	}
 }

@@ -8,10 +8,12 @@ import (
 	"testing"
 	"time"
 
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/voice"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -32,24 +34,35 @@ type call struct {
 type catalogue struct {
 	calls []call
 	open  []usecase.Output
+	// form is the entry type's form, as CreateWorkItem's gate reads it for the act's door.
+	form work.Form
+	// more are collections beside Einkauf and Büro; queried holds the item queries asked.
+	more    []usecase.Output
+	queried []usecase.Input
 }
 
-func (c *catalogue) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+func (c *catalogue) Invoke(_ context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	c.calls = append(c.calls, call{name: name, in: in})
 	switch name {
+	case createWorkItemName:
+		channel := workservice.FormChannelOf(actor)
+		if c.form.Channel(channel).Closed {
+			return nil, shared.ErrForbidden.WithDetail("forms.channel_closed")
+		}
 	case listContainersName:
 		if in.String("type") == "HUB" {
 			return usecase.Output{"data": []usecase.Output{{"id": hub, "name": "Haushalt"}}}, nil
 		}
-		return usecase.Output{"data": []usecase.Output{
+		return usecase.Output{"data": append([]usecase.Output{
 			{"id": einkauf, "name": "Einkauf"}, {"id": buero, "name": "Büro"},
-		}}, nil
+		}, c.more...)}, nil
 	case listLabelsName:
 		if in.String("collection_id") == einkauf {
 			return usecase.Output{"data": []usecase.Output{{"id": metro, "name": "Metro"}}}, nil
 		}
 		return usecase.Output{"data": []usecase.Output{}}, nil
 	case queryItemsName:
+		c.queried = append(c.queried, in)
 		return usecase.Output{"data": c.open}, nil
 	}
 	return usecase.Output{"id": "01936f2a-7c1e-7000-8000-00000000b0ff"}, nil
@@ -89,6 +102,7 @@ func assistant(settings domain.Settings) (Assistant, *catalogue) {
 
 var person = appshared.ActorContext{Kind: appshared.ActorUser, TenantID: "t1", AccountID: "a1"}
 
+// UC-WRK-35 check 4: every thing named goes, with its amount, on the list named.
 func TestThingsGoOnTheListNamed(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true})
 	answer, err := a.Add(context.Background(), person, "zwei Liter Milch und Eier auf die Einkaufsliste", "", domain.German)
@@ -105,6 +119,7 @@ func TestThingsGoOnTheListNamed(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 2 and check 4: a category is understood by its name and takes the thing.
 func TestACategoryFilesTheThingUnderIt(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true})
 	if _, err := a.Add(context.Background(), person, "Reis", "Metro-Liste", domain.German); err != nil {
@@ -117,6 +132,7 @@ func TestACategoryFilesTheThingUnderIt(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 4: without a named list the default list takes it.
 func TestWithoutAPlaceTheDefaultListTakesIt(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true, DefaultCollectionID: einkauf})
 	answer, _ := a.Add(context.Background(), person, "Butter für Oma", "", domain.German)
@@ -131,6 +147,7 @@ func TestWithoutAPlaceTheDefaultListTakesIt(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 4: an unknown list is said back.
 func TestAnUnknownListIsSaidBack(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true, DefaultCollectionID: einkauf})
 	answer, _ := a.Add(context.Background(), person, "Butter", "Baumarkt", domain.German)
@@ -139,6 +156,7 @@ func TestAnUnknownListIsSaidBack(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 2: a name the administrator added for a list names it.
 func TestAnAliasNamesAPlace(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true, Aliases: []domain.Alias{{Phrase: "Kühlschrank", CollectionID: einkauf}}})
 	if _, err := a.Add(context.Background(), person, "Butter auf den Kühlschrank", "", domain.German); err != nil {
@@ -149,6 +167,7 @@ func TestAnAliasNamesAPlace(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 5: a list is read and its entry ticked off.
 func TestAListIsReadAndAThingTickedOff(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true, DefaultCollectionID: einkauf})
 	calls.open = []usecase.Output{{"id": "i1", "title": "Butter"}, {"id": "i2", "title": "Milch"}}
@@ -167,6 +186,7 @@ func TestAListIsReadAndAThingTickedOff(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 3: trying a sentence adds nothing.
 func TestTheInterpretationDoesNothing(t *testing.T) {
 	a, calls := assistant(domain.Settings{Enabled: true})
 	meant, err := a.Interpret(context.Background(), person, "Reis auf die Metro-Liste", domain.German)
@@ -235,5 +255,64 @@ func TestTheGuideNamesThePersonsOwnLists(t *testing.T) {
 	helper, _ := assistant(domain.Settings{Enabled: true})
 	if places := helper.Places(context.Background(), person); len(places) == 0 {
 		t.Error("the person's places were not read")
+	}
+}
+
+// A type whose form closes the voice door takes nothing said to an assistant, while the app's
+// door stays open (configuration/model.md §2 Channel).
+// UC-WRK-35 check 8: a form closed to voice refuses the assistant and leaves the app open.
+func TestATypeClosedToVoiceIsRefusedThroughTheAssistant(t *testing.T) {
+	a, calls := assistant(domain.Settings{Enabled: true})
+	calls.form = work.Form{Channels: []work.FormChannelRule{{Channel: work.ChannelVoice, Closed: true}}}
+	answer, err := a.Add(context.Background(), person, "Milch auf die Einkaufsliste", "", domain.German)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer.Code != "voice.not_allowed" {
+		t.Fatalf("answer = %q, want voice.not_allowed", answer.Code)
+	}
+	if calls.form.Channel(workservice.FormChannelOf(person)).Closed {
+		t.Fatal("the app's own door is closed too")
+	}
+}
+
+// UC-WRK-35 check 4: several lists the words could mean are asked back, and nothing is added.
+func TestSeveralMatchingListsAreAskedBack(t *testing.T) {
+	a, calls := assistant(domain.Settings{Enabled: true, DefaultCollectionID: einkauf})
+	calls.more = []usecase.Output{{"id": "01936f2a-7c1e-7000-8000-00000000b005", "name": "Einrichtung"}}
+	answer, err := a.Add(context.Background(), person, "Lampe", "Ein", domain.German)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer.Code != "voice.which_list" || !answer.Open || len(calls.named(createWorkItemName)) != 0 {
+		t.Errorf("answered %+v, created %d", answer, len(calls.named(createWorkItemName)))
+	}
+}
+
+// UC-WRK-35 check 5: "what is due today" reads the person's open entries due by the end of today.
+func TestTheDayIsReadFromThePersonsOwnDueEntries(t *testing.T) {
+	a, calls := assistant(domain.Settings{Enabled: true})
+	calls.open = []usecase.Output{{"id": "i1", "title": "Zahnarzt"}, {"id": "i2", "title": "Steuer"}}
+	day, err := a.Today(context.Background(), person, domain.German)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if day.Code != "voice.today" || day.Params["things"] != "Zahnarzt und Steuer" || day.Params["count"] != "2" {
+		t.Errorf("the day read %+v", day)
+	}
+	filter, _ := calls.queried[0]["filter"].(map[string]any)
+	nodes, _ := filter["nodes"].([]any)
+	asked := map[string]any{}
+	for _, node := range nodes {
+		each, _ := node.(map[string]any)
+		asked[each["field"].(string)] = each["value"]
+	}
+	if asked["assignee_id"] != "@me" || asked["is_completed"] != false || asked["due_at"] != "@today+P1D" {
+		t.Errorf("the day asked %+v", asked)
+	}
+
+	calls.open = nil
+	if none, _ := a.Today(context.Background(), person, domain.German); none.Code != "voice.today_none" {
+		t.Errorf("an empty day read %+v", none)
 	}
 }

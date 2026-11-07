@@ -103,6 +103,978 @@ class Client:
             return None
         return json.loads(payload)
 
+    def read_plan_schedule(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "PlanSchedule":
+        """A plan as the scheduler places it"""
+        return self._call("GET", "/plans/{planId}/schedule", {"planId": plan_id}, query, {}, None, "none", None, "json")
+
+    def apply_plan_schedule(self, plan_id: str, body: dict[str, Any]) -> "PlanMoves":
+        """Apply the moves a person accepted"""
+        return self._call("POST", "/plans/{planId}/schedule:apply", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def import_plan(self, collection_id: str, body: dict[str, Any]) -> "PlanImport":
+        """Bring a plan in from a project file"""
+        return self._call("POST", "/collections/{collectionId}/plan:import", {"collectionId": collection_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_workspace_tolerance(self) -> "WorkspaceTolerance":
+        """The time tolerance the workspace decides"""
+        return self._call("GET", "/plans:tolerance", {}, None, {}, None, "none", None, "json")
+
+    def set_workspace_tolerance(self, body: dict[str, Any]) -> "WorkspaceTolerance":
+        """Set the time tolerance every plan inherits"""
+        return self._call("PUT", "/plans:tolerance", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_plan_tolerance(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "PlanTolerance":
+        """A plan's time tolerance and its standing"""
+        return self._call("GET", "/plans/{planId}/tolerance", {"planId": plan_id}, query, {}, None, "none", None, "json")
+
+    def set_plan_tolerance(self, plan_id: str, body: dict[str, Any]) -> "PlanTolerance":
+        """Set a plan's time tolerance"""
+        return self._call("PUT", "/plans/{planId}/tolerance", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_baselines(self, plan_id: str) -> "PlanBaselineList":
+        """A plan's baselines"""
+        return self._call("GET", "/plans/{planId}/baselines", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def take_baseline(self, plan_id: str, body: dict[str, Any]) -> "PlanBaseline":
+        """Keep the plan as it is agreed now"""
+        return self._call("POST", "/plans/{planId}/baselines", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def compare_baseline(self, baseline_id: str) -> "BaselineComparison":
+        """A baseline beside today's plan"""
+        return self._call("GET", "/baselines/{baselineId}", {"baselineId": baseline_id}, None, {}, None, "none", None, "json")
+
+    def delete_baseline(self, baseline_id: str) -> None:
+        """Delete a baseline"""
+        return self._call("DELETE", "/baselines/{baselineId}", {"baselineId": baseline_id}, None, {}, None, "none", None, "void")
+
+    def set_dependency_timing(self, link_id: str, body: dict[str, Any]) -> "EntryLink":
+        """How a dependency's waiting entry hangs on the other"""
+        return self._call("PUT", "/links/{linkId}/timing", {"linkId": link_id}, None, {}, body, "json", "application/json", "json")
+
+    def set_entry_scheduling(self, item_id: str, body: dict[str, Any]) -> "EntryScheduling":
+        """Whether the scheduler may move an entry, and whether it is a milestone"""
+        return self._call("PUT", "/items/{itemId}/scheduling", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_releases(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ReleaseList":
+        """A hub's releases"""
+        return self._call("GET", "/hubs/{hubId}/releases", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_release(self, hub_id: str, body: dict[str, Any]) -> "Release":
+        """Plan a release"""
+        return self._call("POST", "/hubs/{hubId}/releases", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_release(self, release_id: str) -> "ReleaseDetail":
+        """A release with its entries"""
+        return self._call("GET", "/releases/{releaseId}", {"releaseId": release_id}, None, {}, None, "none", None, "json")
+
+    def update_release(self, release_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Release":
+        """Change a release"""
+        return self._call("PATCH", "/releases/{releaseId}", {"releaseId": release_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_release(self, release_id: str) -> None:
+        """Delete a planned release"""
+        return self._call("DELETE", "/releases/{releaseId}", {"releaseId": release_id}, None, {}, None, "none", None, "void")
+
+    def publish_release(self, release_id: str, body: dict[str, Any]) -> "Release":
+        """Release it"""
+        return self._call("POST", "/releases/{releaseId}:publish", {"releaseId": release_id}, None, {}, body, "json", "application/json", "json")
+
+    def add_release_entries(self, release_id: str, body: dict[str, Any]) -> "Release":
+        """Put entries into a release"""
+        return self._call("POST", "/releases/{releaseId}/entries", {"releaseId": release_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_release_entries(self, release_id: str, body: dict[str, Any]) -> "Release":
+        """Take entries out of a release"""
+        return self._call("POST", "/releases/{releaseId}/entries:remove", {"releaseId": release_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_sprints(self, collection_id: str, *, query: dict[str, Any] | None = None) -> "SprintList":
+        """A collection's sprints"""
+        return self._call("GET", "/collections/{collectionId}/sprints", {"collectionId": collection_id}, query, {}, None, "none", None, "json")
+
+    def create_sprint(self, collection_id: str, body: dict[str, Any]) -> "Sprint":
+        """Plan a sprint"""
+        return self._call("POST", "/collections/{collectionId}/sprints", {"collectionId": collection_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_sprint_backlog(self, collection_id: str) -> "SprintBacklog":
+        """The backlog to plan a sprint from"""
+        return self._call("GET", "/collections/{collectionId}/sprint-backlog", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def read_velocity(self, collection_id: str) -> "Velocity":
+        """How much a team gets done"""
+        return self._call("GET", "/collections/{collectionId}/velocity", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def list_my_running_sprints(self) -> "MySprintList":
+        """The running sprints I am in"""
+        return self._call("GET", "/sprints", {}, None, {}, None, "none", None, "json")
+
+    def read_sprint(self, sprint_id: str, *, query: dict[str, Any] | None = None) -> "SprintDetail":
+        """A sprint with its entries and burndown"""
+        return self._call("GET", "/sprints/{sprintId}", {"sprintId": sprint_id}, query, {}, None, "none", None, "json")
+
+    def update_sprint(self, sprint_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Sprint":
+        """Change a sprint"""
+        return self._call("PATCH", "/sprints/{sprintId}", {"sprintId": sprint_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_sprint(self, sprint_id: str) -> None:
+        """Delete a planned sprint"""
+        return self._call("DELETE", "/sprints/{sprintId}", {"sprintId": sprint_id}, None, {}, None, "none", None, "void")
+
+    def start_sprint(self, sprint_id: str) -> "Sprint":
+        """Start a sprint"""
+        return self._call("POST", "/sprints/{sprintId}:start", {"sprintId": sprint_id}, None, {}, None, "none", None, "json")
+
+    def close_sprint(self, sprint_id: str, body: dict[str, Any]) -> "SprintClosure":
+        """Close a sprint"""
+        return self._call("POST", "/sprints/{sprintId}:close", {"sprintId": sprint_id}, None, {}, body, "json", "application/json", "json")
+
+    def add_sprint_entries(self, sprint_id: str, body: dict[str, Any]) -> "Sprint":
+        """Put entries into a sprint"""
+        return self._call("POST", "/sprints/{sprintId}/entries", {"sprintId": sprint_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_sprint_entries(self, sprint_id: str, body: dict[str, Any]) -> "Sprint":
+        """Take entries out of a sprint"""
+        return self._call("POST", "/sprints/{sprintId}/entries:remove", {"sprintId": sprint_id}, None, {}, body, "json", "application/json", "json")
+
+    def set_entry_estimate(self, item_id: str, body: dict[str, Any]) -> "EntryEstimate":
+        """Say how big an entry is"""
+        return self._call("PUT", "/items/{itemId}/estimate", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def clear_entry_estimate(self, item_id: str) -> None:
+        """Remove an entry's estimate"""
+        return self._call("DELETE", "/items/{itemId}/estimate", {"itemId": item_id}, None, {}, None, "none", None, "void")
+
+    def list_goal_periods(self) -> "GoalPeriodList":
+        """The goal periods"""
+        return self._call("GET", "/goal-periods", {}, None, {}, None, "none", None, "json")
+
+    def define_goal_period(self, body: "GoalPeriodWrite") -> "GoalPeriod":
+        """Create a goal period"""
+        return self._call("POST", "/goal-periods", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_goal_period(self, period_id: str, body: "GoalPeriodWrite", *, if_match: str | None = None) -> "GoalPeriod":
+        """Change an open goal period"""
+        return self._call("PATCH", "/goal-periods/{periodId}", {"periodId": period_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def close_goal_period(self, period_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "GoalPeriod":
+        """Close a goal period and grade its goals"""
+        return self._call("POST", "/goal-periods/{periodId}:close", {"periodId": period_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_goals(self, *, query: dict[str, Any] | None = None) -> "GoalList":
+        """The goals the caller may read"""
+        return self._call("GET", "/goals", {}, query, {}, None, "none", None, "json")
+
+    def create_goal(self, body: "GoalCreate") -> "Goal":
+        """Set a goal"""
+        return self._call("POST", "/goals", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_goal(self, goal_id: str) -> "Goal":
+        """A goal"""
+        return self._call("GET", "/goals/{goalId}", {"goalId": goal_id}, None, {}, None, "none", None, "json")
+
+    def update_goal(self, goal_id: str, body: "GoalWrite", *, if_match: str | None = None) -> "Goal":
+        """Replace a goal"""
+        return self._call("PUT", "/goals/{goalId}", {"goalId": goal_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_goal(self, goal_id: str, *, if_match: str | None = None) -> None:
+        """Delete a goal"""
+        return self._call("DELETE", "/goals/{goalId}", {"goalId": goal_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def link_goal_entries(self, goal_id: str, body: dict[str, Any]) -> "Goal":
+        """Link entries to a goal"""
+        return self._call("POST", "/goals/{goalId}/entries", {"goalId": goal_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_goal_entry(self, goal_id: str, entry_id: str) -> "Goal":
+        """Unlink an entry from a goal"""
+        return self._call("DELETE", "/goals/{goalId}/entries/{entryId}", {"goalId": goal_id, "entryId": entry_id}, None, {}, None, "none", None, "json")
+
+    def list_goal_check_ins(self, goal_id: str) -> "GoalCheckInList":
+        """A goal's check-ins"""
+        return self._call("GET", "/goals/{goalId}/check-ins", {"goalId": goal_id}, None, {}, None, "none", None, "json")
+
+    def check_in_goal(self, goal_id: str, body: dict[str, Any]) -> "Goal":
+        """Check in on a goal"""
+        return self._call("POST", "/goals/{goalId}/check-ins", {"goalId": goal_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_entry_goals(self, item_id: str) -> "GoalList":
+        """The goals an entry serves"""
+        return self._call("GET", "/items/{itemId}/goals", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def list_portfolios(self) -> "PortfolioList":
+        """The portfolios"""
+        return self._call("GET", "/portfolios", {}, None, {}, None, "none", None, "json")
+
+    def create_portfolio(self, body: "PortfolioWrite") -> "Portfolio":
+        """Create a portfolio"""
+        return self._call("POST", "/portfolios", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_portfolio(self, portfolio_id: str) -> "Portfolio":
+        """A portfolio as a table"""
+        return self._call("GET", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def update_portfolio(self, portfolio_id: str, body: "PortfolioWrite", *, if_match: str | None = None) -> "Portfolio":
+        """Replace a portfolio"""
+        return self._call("PUT", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_portfolio(self, portfolio_id: str, *, if_match: str | None = None) -> None:
+        """Delete a portfolio"""
+        return self._call("DELETE", "/portfolios/{portfolioId}", {"portfolioId": portfolio_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def read_portfolio_roadmap(self, portfolio_id: str, *, query: dict[str, Any] | None = None) -> "PortfolioRoadmap":
+        """A portfolio as a roadmap across teams"""
+        return self._call("GET", "/portfolios/{portfolioId}/roadmap", {"portfolioId": portfolio_id}, query, {}, None, "none", None, "json")
+
+    def read_portfolio_public_link(self, portfolio_id: str) -> "PortfolioPublicLinkState":
+        """Whether a portfolio's roadmap has a public link"""
+        return self._call("GET", "/portfolios/{portfolioId}/public-link", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def create_portfolio_public_link(self, portfolio_id: str) -> "PortfolioPublicLinkMinted":
+        """Make a portfolio roadmap's public link"""
+        return self._call("POST", "/portfolios/{portfolioId}/public-link", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def delete_portfolio_public_link(self, portfolio_id: str) -> None:
+        """Take a portfolio roadmap's public link away"""
+        return self._call("DELETE", "/portfolios/{portfolioId}/public-link", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "void")
+
+    def read_public_roadmaps_policy(self) -> "PublicLinksPolicy":
+        """Whether roadmaps may be opened by a public link"""
+        return self._call("GET", "/portfolios:public-links", {}, None, {}, None, "none", None, "json")
+
+    def set_public_roadmaps_policy(self, body: dict[str, Any]) -> "PublicLinksPolicy":
+        """Allow public links to roadmaps, or not"""
+        return self._call("PUT", "/portfolios:public-links", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_portfolio_updates(self, portfolio_id: str) -> "PortfolioUpdateList":
+        """A portfolio's status updates"""
+        return self._call("GET", "/portfolios/{portfolioId}/updates", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def report_portfolio_status(self, portfolio_id: str, body: dict[str, Any]) -> "PortfolioUpdate":
+        """Write a status update"""
+        return self._call("POST", "/portfolios/{portfolioId}/updates", {"portfolioId": portfolio_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_dashboards(self, *, query: dict[str, Any] | None = None) -> "DashboardList":
+        """The dashboards the caller sees"""
+        return self._call("GET", "/dashboards", {}, query, {}, None, "none", None, "json")
+
+    def create_dashboard(self, body: "DashboardCreate") -> "Dashboard":
+        """Create a dashboard"""
+        return self._call("POST", "/dashboards", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_dashboard(self, dashboard_id: str) -> "Dashboard":
+        """A dashboard"""
+        return self._call("GET", "/dashboards/{dashboardId}", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
+
+    def update_dashboard(self, dashboard_id: str, body: "DashboardWrite", *, if_match: str | None = None) -> "Dashboard":
+        """Replace a dashboard"""
+        return self._call("PUT", "/dashboards/{dashboardId}", {"dashboardId": dashboard_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_dashboard(self, dashboard_id: str, *, if_match: str | None = None) -> None:
+        """Delete a dashboard"""
+        return self._call("DELETE", "/dashboards/{dashboardId}", {"dashboardId": dashboard_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def read_dashboard_figures(self, dashboard_id: str) -> "DashboardFigures":
+        """A dashboard's numbers, for the caller"""
+        return self._call("GET", "/dashboards/{dashboardId}/figures", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
+
+    def read_dashboard_digest(self, dashboard_id: str) -> "DashboardDigest":
+        """The caller's digest of a dashboard"""
+        return self._call("GET", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
+
+    def set_dashboard_digest(self, dashboard_id: str, body: "DashboardDigestWrite") -> "DashboardDigest":
+        """Send the caller a dashboard by mail"""
+        return self._call("PUT", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_dashboard_digest(self, dashboard_id: str) -> None:
+        """End the caller's digest of a dashboard"""
+        return self._call("DELETE", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "void")
+
+    def list_agent_models(self) -> "AgentModelList":
+        """The models registered for the workspace's agents"""
+        return self._call("GET", "/agent-models", {}, None, {}, None, "none", None, "json")
+
+    def register_agent_model(self, body: "AgentModelCreate") -> "AgentModel":
+        """Register a model for agents"""
+        return self._call("POST", "/agent-models", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_agent_model(self, model_id: str, body: "AgentModelChange", *, if_match: str | None = None) -> "AgentModel":
+        """Change or retire a registered model"""
+        return self._call("PATCH", "/agent-models/{modelId}", {"modelId": model_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_agents(self, *, query: dict[str, Any] | None = None) -> "AgentList":
+        """The workspace's agents"""
+        return self._call("GET", "/agents", {}, query, {}, None, "none", None, "json")
+
+    def register_agent(self, body: "AgentWrite") -> "Agent":
+        """Register an agent"""
+        return self._call("POST", "/agents", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_agent_halt(self) -> "AgentHalt":
+        """Whether the workspace's agents are halted"""
+        return self._call("GET", "/agents:halt", {}, None, {}, None, "none", None, "json")
+
+    def set_agent_halt(self, body: dict[str, Any]) -> "AgentHalt":
+        """Halt or release every agent of the workspace"""
+        return self._call("PUT", "/agents:halt", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_agent_policy(self) -> "WorkspaceAgentPolicy":
+        """Whether MCP takes registered agents only"""
+        return self._call("GET", "/agents:policy", {}, None, {}, None, "none", None, "json")
+
+    def set_agent_policy(self, body: dict[str, Any]) -> "WorkspaceAgentPolicy":
+        """Take registered agents only on MCP, or not"""
+        return self._call("PUT", "/agents:policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_agent_metering(self, *, query: dict[str, Any] | None = None) -> "AgentMeteringList":
+        """What the workspace's agents did and spent per day"""
+        return self._call("GET", "/agents:metering", {}, query, {}, None, "none", None, "json")
+
+    def read_agent(self, agent_id: str) -> "Agent":
+        """One agent and what it spent"""
+        return self._call("GET", "/agents/{agentId}", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def change_agent(self, agent_id: str, body: "AgentWrite", *, if_match: str | None = None) -> "Agent":
+        """Change an agent"""
+        return self._call("PATCH", "/agents/{agentId}", {"agentId": agent_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def approve_agent(self, agent_id: str) -> "Agent":
+        """Approve an agent for its model as it now stands"""
+        return self._call("POST", "/agents/{agentId}:approve", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def activate_agent(self, agent_id: str) -> "Agent":
+        """Put an approved agent live"""
+        return self._call("POST", "/agents/{agentId}:activate", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def suspend_agent(self, agent_id: str) -> "Agent":
+        """Stop an agent at once"""
+        return self._call("POST", "/agents/{agentId}:suspend", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def retire_agent(self, agent_id: str) -> "Agent":
+        """Retire an agent for good"""
+        return self._call("POST", "/agents/{agentId}:retire", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def list_agent_actions(self, agent_id: str, *, query: dict[str, Any] | None = None) -> "AgentActionList":
+        """An agent's ledger"""
+        return self._call("GET", "/agents/{agentId}/actions", {"agentId": agent_id}, query, {}, None, "none", None, "json")
+
+    def list_agent_jobs(self, agent_id: str) -> "AgentJobList":
+        """A shipped agent's jobs"""
+        return self._call("GET", "/agents/{agentId}/jobs", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def start_agent_job(self, agent_id: str, body: dict[str, Any]) -> "AgentJob":
+        """Start a shipped agent's job on one target"""
+        return self._call("POST", "/agents/{agentId}/jobs", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_agent_cases(self, agent_id: str) -> "AgentCaseList":
+        """An agent's evaluation set"""
+        return self._call("GET", "/agents/{agentId}/cases", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def add_agent_case(self, agent_id: str, body: "AgentCaseCreate") -> "AgentCase":
+        """Add a golden case to an agent's evaluation set"""
+        return self._call("POST", "/agents/{agentId}/cases", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_agent_case(self, agent_id: str, case_id: str) -> None:
+        """Take a case out of an agent's evaluation set"""
+        return self._call("DELETE", "/agents/{agentId}/cases/{caseId}", {"agentId": agent_id, "caseId": case_id}, None, {}, None, "none", None, "void")
+
+    def list_agent_evaluations(self, agent_id: str) -> "AgentRunList":
+        """An agent's evaluation runs"""
+        return self._call("GET", "/agents/{agentId}/evaluations", {"agentId": agent_id}, None, {}, None, "none", None, "json")
+
+    def record_agent_evaluation(self, agent_id: str, body: dict[str, Any]) -> "AgentRun":
+        """Record an evaluation run of an agent"""
+        return self._call("POST", "/agents/{agentId}/evaluations", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
+    def run_agent_evaluation(self, agent_id: str, body: dict[str, Any]) -> "AgentRun":
+        """Have a shipped agent answer its own evaluation set"""
+        return self._call("POST", "/agents/{agentId}/evaluations:run", {"agentId": agent_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_agent_requests(self, *, query: dict[str, Any] | None = None) -> "AgentRequestList":
+        """The acts agents attempted that wait for a person"""
+        return self._call("GET", "/agent-requests", {}, query, {}, None, "none", None, "json")
+
+    def decide_agent_request(self, request_id: str, body: dict[str, Any]) -> "AgentRequest":
+        """Approve or decline an act an agent attempted"""
+        return self._call("POST", "/agent-requests/{requestId}:decide", {"requestId": request_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_value_provenance(self, item_id: str) -> "ValueProvenanceList":
+        """Where an entry's AI-originated values came from"""
+        return self._call("GET", "/items/{itemId}/provenance", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def list_time_records(self, *, query: dict[str, Any] | None = None) -> "TimeRecordList":
+        """Time records of a range of days"""
+        return self._call("GET", "/time-records", {}, query, {}, None, "none", None, "json")
+
+    def log_time(self, body: "TimeRecordFields") -> "TimeRecord":
+        """Record time spent"""
+        return self._call("POST", "/time-records", {}, None, {}, body, "json", "application/json", "json")
+
+    def update_time_record(self, record_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "TimeRecord":
+        """Change a record of one's own"""
+        return self._call("PATCH", "/time-records/{recordId}", {"recordId": record_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_time_record(self, record_id: str, *, if_match: str | None = None) -> None:
+        """Remove a record of one's own"""
+        return self._call("DELETE", "/time-records/{recordId}", {"recordId": record_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def correct_time_record(self, record_id: str, body: dict[str, Any]) -> "TimeRecord":
+        """Correct an approved record"""
+        return self._call("POST", "/time-records/{recordId}:correct", {"recordId": record_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_time_report(self, body: dict[str, Any]) -> "TimeReport":
+        """Sum time by up to two dimensions"""
+        return self._call("POST", "/time-records:report", {}, None, {}, body, "json", "application/json", "json")
+
+    def export_time_records(self, body: dict[str, Any]) -> "TimeExport":
+        """Hand time records to accounting"""
+        return self._call("POST", "/time-records:export", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_timer(self) -> "TimeTimer":
+        """The caller's running timer"""
+        return self._call("GET", "/timer", {}, None, {}, None, "none", None, "json")
+
+    def discard_timer(self) -> None:
+        """Stop the timer without recording it"""
+        return self._call("DELETE", "/timer", {}, None, {}, None, "none", None, "void")
+
+    def start_timer(self, body: dict[str, Any]) -> "TimeTimer":
+        """Start the caller's timer"""
+        return self._call("POST", "/timer:start", {}, None, {}, body, "json", "application/json", "json")
+
+    def stop_timer(self, body: dict[str, Any]) -> "TimeRecord":
+        """Stop the timer into a record"""
+        return self._call("POST", "/timer:stop", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_timesheets(self, *, query: dict[str, Any] | None = None) -> "TimesheetList":
+        """Weeks to decide, or one's own"""
+        return self._call("GET", "/timesheets", {}, query, {}, None, "none", None, "json")
+
+    def read_timesheet(self, week: str, *, query: dict[str, Any] | None = None) -> "TimesheetWeek":
+        """A week from Monday"""
+        return self._call("GET", "/timesheets/{week}", {"week": week}, query, {}, None, "none", None, "json")
+
+    def copy_timesheet_week(self, week: str) -> dict[str, Any]:
+        """Copy last week into this one"""
+        return self._call("POST", "/timesheets/{week}:copy-previous", {"week": week}, None, {}, None, "none", None, "json")
+
+    def submit_timesheet(self, week: str) -> "Timesheet":
+        """Hand one's week in"""
+        return self._call("POST", "/timesheets/{week}:submit", {"week": week}, None, {}, None, "none", None, "json")
+
+    def withdraw_timesheet(self, week: str) -> "Timesheet":
+        """Take one's week back"""
+        return self._call("POST", "/timesheets/{week}:withdraw", {"week": week}, None, {}, None, "none", None, "json")
+
+    def approve_timesheet(self, week: str, body: dict[str, Any]) -> "Timesheet":
+        """Approve another person's week"""
+        return self._call("POST", "/timesheets/{week}:approve", {"week": week}, None, {}, body, "json", "application/json", "json")
+
+    def reject_timesheet(self, week: str, body: dict[str, Any]) -> "Timesheet":
+        """Send another person's week back"""
+        return self._call("POST", "/timesheets/{week}:reject", {"week": week}, None, {}, body, "json", "application/json", "json")
+
+    def list_work_types(self) -> "WorkTypeList":
+        """The workspace's kinds of work"""
+        return self._call("GET", "/time-work-types", {}, None, {}, None, "none", None, "json")
+
+    def define_work_type(self, key: str, body: dict[str, Any]) -> "WorkType":
+        """Write a kind of work"""
+        return self._call("PUT", "/time-work-types/{key}", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def read_time_policy(self) -> "TimePolicy":
+        """The workspace's time policy"""
+        return self._call("GET", "/time-policy", {}, None, {}, None, "none", None, "json")
+
+    def set_time_policy(self, body: dict[str, Any]) -> "TimePolicy":
+        """Lock a period and choose what a lead sees"""
+        return self._call("PUT", "/time-policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_estimates_vs_actuals(self, plan_id: str) -> "EstimatesVsActuals":
+        """Estimates against the time recorded"""
+        return self._call("GET", "/plans/{planId}/actuals", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def read_workload(self, plan_id: str, *, query: dict[str, Any] | None = None) -> "Workload":
+        """Who has room in a plan"""
+        return self._call("GET", "/plans/{planId}/workload", {"planId": plan_id}, query, {}, None, "none", None, "json")
+
+    def read_budget(self, plan_id: str) -> "BudgetBurn":
+        """A plan's budget and its burn"""
+        return self._call("GET", "/plans/{planId}/budget", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def set_budget(self, plan_id: str, body: dict[str, Any]) -> "BudgetBurn":
+        """Set a plan's budget"""
+        return self._call("PUT", "/plans/{planId}/budget", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_budget(self, plan_id: str, *, if_match: str | None = None) -> None:
+        """Remove a plan's budget"""
+        return self._call("DELETE", "/plans/{planId}/budget", {"planId": plan_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_billing_rates(self, plan_id: str) -> "BillingRateList":
+        """A plan's billing rates"""
+        return self._call("GET", "/plans/{planId}/billing-rates", {"planId": plan_id}, None, {}, None, "none", None, "json")
+
+    def set_billing_rate(self, plan_id: str, body: dict[str, Any]) -> "BillingRate":
+        """Add a billing rate to a plan"""
+        return self._call("POST", "/plans/{planId}/billing-rates", {"planId": plan_id}, None, {}, body, "json", "application/json", "json")
+
+    def change_billing_rate(self, plan_id: str, rate_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "BillingRate":
+        """Change a billing rate"""
+        return self._call("PATCH", "/plans/{planId}/billing-rates/{rateId}", {"planId": plan_id, "rateId": rate_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_billing_rate(self, plan_id: str, rate_id: str, *, if_match: str | None = None) -> None:
+        """Remove a billing rate"""
+        return self._call("DELETE", "/plans/{planId}/billing-rates/{rateId}", {"planId": plan_id, "rateId": rate_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_capacities(self, *, query: dict[str, Any] | None = None) -> "CapacityList":
+        """A person's capacities"""
+        return self._call("GET", "/time-capacities", {}, query, {}, None, "none", None, "json")
+
+    def set_capacity(self, from_: str, body: dict[str, Any]) -> "Capacity":
+        """Set a person's capacity from a day on"""
+        return self._call("PUT", "/time-capacities/{from}", {"from": from_}, None, {}, body, "json", "application/json", "json")
+
+    def remove_capacity(self, from_: str, *, query: dict[str, Any] | None = None) -> None:
+        """Remove a person's capacity from a day"""
+        return self._call("DELETE", "/time-capacities/{from}", {"from": from_}, query, {}, None, "none", None, "void")
+
+    def list_absences(self, *, query: dict[str, Any] | None = None) -> "AbsenceList":
+        """The shared calendar of absences"""
+        return self._call("GET", "/time-absences", {}, query, {}, None, "none", None, "json")
+
+    def record_absence(self, body: dict[str, Any]) -> "Absence":
+        """Record an absence once"""
+        return self._call("POST", "/time-absences", {}, None, {}, body, "json", "application/json", "json")
+
+    def update_absence(self, absence_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Absence":
+        """Change an absence"""
+        return self._call("PATCH", "/time-absences/{absenceId}", {"absenceId": absence_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_absence(self, absence_id: str, *, if_match: str | None = None) -> None:
+        """Remove an absence"""
+        return self._call("DELETE", "/time-absences/{absenceId}", {"absenceId": absence_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_cost_rates(self) -> "CostRateList":
+        """The hourly cost rates"""
+        return self._call("GET", "/cost-rates", {}, None, {}, None, "none", None, "json")
+
+    def set_cost_rate(self, body: dict[str, Any]) -> "CostRate":
+        """Add an hourly cost rate"""
+        return self._call("POST", "/cost-rates", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_cost_rate(self, rate_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "CostRate":
+        """Change an hourly cost rate"""
+        return self._call("PATCH", "/cost-rates/{rateId}", {"rateId": rate_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_cost_rate(self, rate_id: str, *, if_match: str | None = None) -> None:
+        """Remove an hourly cost rate"""
+        return self._call("DELETE", "/cost-rates/{rateId}", {"rateId": rate_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def list_business_calendars(self, *, query: dict[str, Any] | None = None) -> "BusinessCalendarList":
+        """The workspace's business calendars"""
+        return self._call("GET", "/business-calendars", {}, query, {}, None, "none", None, "json")
+
+    def define_business_calendar(self, calendar_key: str, body: "BusinessCalendarDefine", *, if_match: str | None = None) -> "BusinessCalendar":
+        """Add or replace a business calendar"""
+        return self._call("PUT", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_business_calendar(self, calendar_key: str) -> None:
+        """Delete an unused business calendar"""
+        return self._call("DELETE", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {}, None, "none", None, "void")
+
+    def list_hub_calendars(self, hub_id: str) -> "BusinessCalendarList":
+        """A hub's own business calendars"""
+        return self._call("GET", "/hubs/{hubId}/business-calendars", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def define_hub_calendar(self, hub_id: str, calendar_key: str, body: "BusinessCalendarDefine", *, if_match: str | None = None) -> "BusinessCalendar":
+        """Keep a hub's own version of a business calendar"""
+        return self._call("PUT", "/hubs/{hubId}/business-calendars/{calendarKey}", {"hubId": hub_id, "calendarKey": calendar_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_hub_calendar(self, hub_id: str, calendar_key: str) -> None:
+        """Delete a hub's own business calendar"""
+        return self._call("DELETE", "/hubs/{hubId}/business-calendars/{calendarKey}", {"hubId": hub_id, "calendarKey": calendar_key}, None, {}, None, "none", None, "void")
+
+    def list_sla_policies(self) -> "SlaPolicyList":
+        """The workspace's SLA policies"""
+        return self._call("GET", "/sla-policies", {}, None, {}, None, "none", None, "json")
+
+    def define_sla_policy(self, policy_key: str, body: "SlaPolicyDefine", *, if_match: str | None = None) -> "SlaPolicy":
+        """Add or replace an SLA policy"""
+        return self._call("PUT", "/sla-policies/{policyKey}", {"policyKey": policy_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_sla_policy(self, policy_key: str) -> None:
+        """Delete an SLA policy"""
+        return self._call("DELETE", "/sla-policies/{policyKey}", {"policyKey": policy_key}, None, {}, None, "none", None, "void")
+
+    def copy_sla_policy_here(self, policy_key: str, body: "SlaPolicyCopy") -> "SlaPolicy":
+        """Make a copy of a shared SLA policy at a hub"""
+        return self._call("POST", "/sla-policies/{policyKey}:copy-here", {"policyKey": policy_key}, None, {}, body, "json", "application/json", "json")
+
+    def report_sla(self, *, query: dict[str, Any] | None = None) -> "SlaReport":
+        """How the SLA goals of a period stood"""
+        return self._call("GET", "/sla-report", {}, query, {}, None, "none", None, "json")
+
+    def read_entry_requester(self, item_id: str) -> "EntryRequester":
+        """Who raised the entry, and their organisation"""
+        return self._call("GET", "/items/{itemId}/requester", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def read_entry_sla(self, item_id: str) -> "EntrySlaList":
+        """How an entry's SLA goals stand"""
+        return self._call("GET", "/items/{itemId}/sla", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def list_requester_organisations(self) -> "RequesterOrganisationList":
+        """The portal's organisations"""
+        return self._call("GET", "/requester-organisations", {}, None, {}, None, "none", None, "json")
+
+    def define_requester_organisation(self, organisation_key: str, body: "RequesterOrganisationDefine", *, if_match: str | None = None) -> "RequesterOrganisation":
+        """Add or replace an organisation"""
+        return self._call("PUT", "/requester-organisations/{organisationKey}", {"organisationKey": organisation_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_requester_organisation(self, organisation_key: str) -> None:
+        """Delete an organisation"""
+        return self._call("DELETE", "/requester-organisations/{organisationKey}", {"organisationKey": organisation_key}, None, {}, None, "none", None, "void")
+
+    def list_reply_templates(self) -> "ReplyTemplateList":
+        """The workspace's canned replies"""
+        return self._call("GET", "/reply-templates", {}, None, {}, None, "none", None, "json")
+
+    def define_reply_template(self, template_key: str, body: "ReplyTemplateDefine", *, if_match: str | None = None) -> "ReplyTemplate":
+        """Add or replace a canned reply"""
+        return self._call("PUT", "/reply-templates/{templateKey}", {"templateKey": template_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_reply_template(self, template_key: str) -> None:
+        """Delete a canned reply"""
+        return self._call("DELETE", "/reply-templates/{templateKey}", {"templateKey": template_key}, None, {}, None, "none", None, "void")
+
+    def render_reply_template(self, item_id: str, template_key: str) -> "RenderedReply":
+        """A canned reply filled for an entry"""
+        return self._call("GET", "/items/{itemId}/reply-templates/{templateKey}", {"itemId": item_id, "templateKey": template_key}, None, {}, None, "none", None, "json")
+
+    def list_my_approvals(self, *, query: dict[str, Any] | None = None) -> "ApprovalList":
+        """The approvals waiting for me"""
+        return self._call("GET", "/approvals", {}, query, {}, None, "none", None, "json")
+
+    def decide_approval(self, approval_id: str, body: dict[str, Any]) -> "Approval":
+        """Approve or decline"""
+        return self._call("POST", "/approvals/{approvalId}:decide", {"approvalId": approval_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_entry_approvals(self, item_id: str) -> "ApprovalList":
+        """An entry's approvals and their trail"""
+        return self._call("GET", "/items/{itemId}/approvals", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def read_approval_delegation(self) -> dict[str, Any]:
+        """Who decides my approvals while I am away"""
+        return self._call("GET", "/approval-delegation", {}, None, {}, None, "none", None, "json")
+
+    def set_approval_delegation(self, body: dict[str, Any]) -> "ApprovalDelegation":
+        """Hand my approvals to somebody while I am away"""
+        return self._call("PUT", "/approval-delegation", {}, None, {}, body, "json", "application/json", "json")
+
+    def end_approval_delegation(self) -> None:
+        """Decide my approvals myself again"""
+        return self._call("DELETE", "/approval-delegation", {}, None, {}, None, "none", None, "void")
+
+    def list_request_catalogue(self, *, query: dict[str, Any] | None = None) -> "RequestCatalogue":
+        """The kinds of request a service offers"""
+        return self._call("GET", "/request-catalogue", {}, query, {}, None, "none", None, "json")
+
+    def suggest_articles(self, *, query: dict[str, Any] | None = None) -> "ArticleSuggestionList":
+        """The articles a service's portal offers for what a requester types"""
+        return self._call("GET", "/articles", {}, query, {}, None, "none", None, "json")
+
+    def read_article(self, page_id: str, *, query: dict[str, Any] | None = None) -> "Article":
+        """Open an article of a service's portal"""
+        return self._call("GET", "/articles/{pageId}", {"pageId": page_id}, query, {}, None, "none", None, "json")
+
+    def rate_article(self, page_id: str, body: dict[str, Any]) -> "ArticleRating":
+        """Say whether an article helped"""
+        return self._call("POST", "/articles/{pageId}:rate", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_my_requests(self, *, query: dict[str, Any] | None = None) -> "PortalRequestPage":
+        """The requests I raised"""
+        return self._call("GET", "/requests", {}, query, {}, None, "none", None, "json")
+
+    def raise_request(self, body: dict[str, Any], *, idempotency_key: str | None = None) -> "PortalRequest":
+        """Raise a request"""
+        return self._call("POST", "/requests", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def read_my_request(self, item_id: str) -> "PortalRequestDetail":
+        """One request I raised"""
+        return self._call("GET", "/requests/{itemId}", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def rate_my_request(self, item_id: str, body: dict[str, Any]) -> "RequestSatisfaction":
+        """Say how satisfied I was with a request I raised"""
+        return self._call("PUT", "/requests/{itemId}/satisfaction", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def comment_on_my_request(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "Comment":
+        """Answer on a request I raised"""
+        return self._call("POST", "/requests/{itemId}/comments", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def list_ci_classes(self) -> "CiClassList":
+        """The configuration item classes"""
+        return self._call("GET", "/cmdb/classes", {}, None, {}, None, "none", None, "json")
+
+    def define_ci_class(self, class_key: str, body: "CiClassDefine", *, if_match: str | None = None) -> "CiClass":
+        """Add or change a class of the workspace's own"""
+        return self._call("PUT", "/cmdb/classes/{classKey}", {"classKey": class_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_ci_relation_types(self) -> "CiRelationTypeList":
+        """The relation types between configuration items"""
+        return self._call("GET", "/cmdb/relation-types", {}, None, {}, None, "none", None, "json")
+
+    def define_ci_relation_type(self, type_key: str, body: "CiRelationTypeDefine", *, if_match: str | None = None) -> "CiRelationType":
+        """Add or change a relation type of the workspace's own"""
+        return self._call("PUT", "/cmdb/relation-types/{typeKey}", {"typeKey": type_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_ci_sources(self) -> "CiSourceList":
+        """The sources configuration items come from"""
+        return self._call("GET", "/cmdb/sources", {}, None, {}, None, "none", None, "json")
+
+    def define_ci_source(self, source_key: str, body: "CiSourceDefine", *, if_match: str | None = None) -> "CiSource":
+        """Add or change a source"""
+        return self._call("PUT", "/cmdb/sources/{sourceKey}", {"sourceKey": source_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_cis(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ConfigurationItemList":
+        """A hub's configuration items"""
+        return self._call("GET", "/hubs/{hubId}/cis", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_ci(self, hub_id: str, body: "ConfigurationItemCreate") -> "ConfigurationItem":
+        """Make a configuration item by hand"""
+        return self._call("POST", "/hubs/{hubId}/cis", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def reconcile_cis(self, hub_id: str, body: "CiPayload") -> "CiRun":
+        """Reconcile a source's payload"""
+        return self._call("POST", "/hubs/{hubId}/cis:reconcile", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def import_ci_file(self, hub_id: str, body: "CiFileImport") -> "CiRun":
+        """Import a file of configuration items"""
+        return self._call("POST", "/hubs/{hubId}/cis:import", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_runs(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiRunList":
+        """A hub's reconciliation runs"""
+        return self._call("GET", "/hubs/{hubId}/ci-runs", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def read_ci_run(self, run_id: str) -> "CiRun":
+        """One reconciliation run with its decisions"""
+        return self._call("GET", "/ci-runs/{runId}", {"runId": run_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_holds(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiHoldList":
+        """Items held for review"""
+        return self._call("GET", "/hubs/{hubId}/ci-holds", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def dismiss_ci_hold(self, hold_id: str) -> "CiHoldDismissed":
+        """Close a held item"""
+        return self._call("POST", "/ci-holds/{holdId}:dismiss", {"holdId": hold_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_duplicates(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiDuplicateList":
+        """Open duplicates"""
+        return self._call("GET", "/hubs/{hubId}/ci-duplicates", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def resolve_ci_duplicate(self, duplicate_id: str, body: "CiDuplicateResolve") -> "CiDuplicateResolved":
+        """Merge a duplicate or call it distinct"""
+        return self._call("POST", "/ci-duplicates/{duplicateId}:resolve", {"duplicateId": duplicate_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_connectors(self, hub_id: str) -> "CiConnectorList":
+        """A hub's connectors"""
+        return self._call("GET", "/hubs/{hubId}/cmdb-connectors", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def define_ci_connector(self, hub_id: str, connector_key: str, body: "CiConnectorDefine", *, if_match: str | None = None) -> "CiConnector":
+        """Add or change a connector"""
+        return self._call("PUT", "/hubs/{hubId}/cmdb-connectors/{connectorKey}", {"hubId": hub_id, "connectorKey": connector_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_ci_connector_credential(self, connector_id: str, body: "CiConnectorCredential") -> "CiConnector":
+        """Set a connector's credential"""
+        return self._call("PUT", "/cmdb-connectors/{connectorId}/credential", {"connectorId": connector_id}, None, {}, body, "json", "application/json", "json")
+
+    def run_ci_connector(self, connector_id: str, body: "CiConnectorRunRequest") -> "CiConnectorRun":
+        """Pull a connector's source now"""
+        return self._call("POST", "/cmdb-connectors/{connectorId}:run", {"connectorId": connector_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_alerts(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiAlertList":
+        """A hub's alerts"""
+        return self._call("GET", "/hubs/{hubId}/ci-alerts", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def deliver_ci_alerts(self, tenant_id: str, connector_id: str, body: dict[str, Any], *, x_hubtask_signature: str | None = None, x_hubtask_timestamp: str | None = None) -> "CiAlertReceipt":
+        """Post alerts to an intake"""
+        return self._call("POST", "/cmdb/alert-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")
+
+    def list_code_hooks(self, hub_id: str) -> "CodeHookList":
+        """A hub's forge hooks"""
+        return self._call("GET", "/hubs/{hubId}/code-hooks", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def create_code_hook(self, hub_id: str, body: "CodeHookCreate") -> "CodeHookMinted":
+        """Add a forge hook"""
+        return self._call("POST", "/hubs/{hubId}/code-hooks", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_chat_bots(self, hub_id: str) -> "ChatBotList":
+        """A hub's chat bots"""
+        return self._call("GET", "/hubs/{hubId}/chat-bots", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def create_chat_bot(self, hub_id: str, body: "ChatBotCreate") -> "ChatBot":
+        """Seat a chat bot in a room for the hub"""
+        return self._call("POST", "/hubs/{hubId}/chat-bots", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def update_chat_bot(self, bot_id: str, body: "ChatBotUpdate") -> "ChatBot":
+        """Change a chat bot"""
+        return self._call("PATCH", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_chat_bot(self, bot_id: str) -> None:
+        """Remove a chat bot"""
+        return self._call("DELETE", "/chat-bots/{botId}", {"botId": bot_id}, None, {}, None, "none", None, "void")
+
+    def link_chat_account(self, bot_id: str) -> "ChatLinkCode":
+        """Link the caller's chat account to a chat bot"""
+        return self._call("POST", "/chat-bots/{botId}/link", {"botId": bot_id}, None, {}, None, "none", None, "json")
+
+    def unlink_chat_account(self, bot_id: str) -> None:
+        """Unlink the caller's chat account from a chat bot"""
+        return self._call("DELETE", "/chat-bots/{botId}/link", {"botId": bot_id}, None, {}, None, "none", None, "void")
+
+    def update_code_hook(self, hook_id: str, body: "CodeHookUpdate") -> "CodeHook":
+        """Rename a forge hook or switch it on or off"""
+        return self._call("PATCH", "/code-hooks/{hookId}", {"hookId": hook_id}, None, {}, body, "json", "application/json", "json")
+
+    def rotate_code_hook_secret(self, hook_id: str) -> "CodeHookMinted":
+        """Give a forge hook a new secret"""
+        return self._call("POST", "/code-hooks/{hookId}/secret", {"hookId": hook_id}, None, {}, None, "none", None, "json")
+
+    def list_entry_code_links(self, item_id: str) -> "CodeLinkList":
+        """An entry's commits, branches and pull requests"""
+        return self._call("GET", "/items/{itemId}/code-links", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def list_entry_file_links(self, item_id: str) -> "FileLinkList":
+        """An entry's files in a store"""
+        return self._call("GET", "/items/{itemId}/file-links", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def link_entry_file(self, item_id: str, body: "FileLinkCreate") -> "FileLink":
+        """Link a file in a store on an entry"""
+        return self._call("POST", "/items/{itemId}/file-links", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_entry_file(self, link_id: str) -> None:
+        """Take a file link off its entry"""
+        return self._call("DELETE", "/file-links/{linkId}", {"linkId": link_id}, None, {}, None, "none", None, "void")
+
+    def deliver_chat(self, tenant_id: str, bot_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        """A chat platform posts what was said to its bot"""
+        return self._call("POST", "/chat-intake/{tenantId}/{botId}", {"tenantId": tenant_id, "botId": bot_id}, None, {}, body, "json", "application/json", "json")
+
+    def deliver_code(self, tenant_id: str, hook_id: str, body: dict[str, Any], *, x_git_hub_event: str | None = None, x_gitlab_event: str | None = None, x_forgejo_event: str | None = None, x_gitea_event: str | None = None, x_hub_signature_256: str | None = None, x_forgejo_signature: str | None = None, x_gitea_signature: str | None = None, x_gitlab_token: str | None = None, x_git_hub_delivery: str | None = None, x_gitlab_event_uuid: str | None = None, x_forgejo_delivery: str | None = None, x_gitea_delivery: str | None = None) -> "CodeDeliveryReceipt":
+        """A forge posts its pushes and pull requests"""
+        return self._call("POST", "/code-intake/{tenantId}/{hookId}", {"tenantId": tenant_id, "hookId": hook_id}, None, {"X-GitHub-Event": x_git_hub_event, "X-Gitlab-Event": x_gitlab_event, "X-Forgejo-Event": x_forgejo_event, "X-Gitea-Event": x_gitea_event, "X-Hub-Signature-256": x_hub_signature_256, "X-Forgejo-Signature": x_forgejo_signature, "X-Gitea-Signature": x_gitea_signature, "X-Gitlab-Token": x_gitlab_token, "X-GitHub-Delivery": x_git_hub_delivery, "X-Gitlab-Event-UUID": x_gitlab_event_uuid, "X-Forgejo-Delivery": x_forgejo_delivery, "X-Gitea-Delivery": x_gitea_delivery}, body, "json", "application/json", "json")
+
+    def deliver_ci_inventory(self, tenant_id: str, connector_id: str, body: dict[str, Any], *, x_hubtask_signature: str | None = None, x_hubtask_timestamp: str | None = None) -> "CiInventoryReceipt":
+        """Post a GLPI Agent's inventory"""
+        return self._call("POST", "/cmdb/inventory-intake/{tenantId}/{connectorId}", {"tenantId": tenant_id, "connectorId": connector_id}, None, {"X-Hubtask-Signature": x_hubtask_signature, "X-Hubtask-Timestamp": x_hubtask_timestamp}, body, "json", "application/json", "json")
+
+    def read_cmdb_health(self, hub_id: str) -> "CmdbHealth":
+        """A hub's inventory judged"""
+        return self._call("GET", "/hubs/{hubId}/cmdb-health", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def read_ci(self, ci_id: str) -> "ConfigurationItem":
+        """Read a configuration item"""
+        return self._call("GET", "/cis/{ciId}", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def update_ci(self, ci_id: str, body: "ConfigurationItemUpdate", *, if_match: str | None = None) -> "ConfigurationItem":
+        """Change a configuration item by hand"""
+        return self._call("PATCH", "/cis/{ciId}", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_ci_compliance(self, ci_id: str, body: "CiCompliance", *, if_match: str | None = None) -> "ConfigurationItem":
+        """Set a configuration item's lifecycle and compliance fields"""
+        return self._call("PUT", "/cis/{ciId}/compliance", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def read_ci_impact(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "CiImpact":
+        """What a configuration item's failure reaches"""
+        return self._call("GET", "/cis/{ciId}/impact", {"ciId": ci_id}, query, {}, None, "none", None, "json")
+
+    def list_ci_backlinks(self, ci_id: str) -> "CiBacklinkList":
+        """What points at a configuration item"""
+        return self._call("GET", "/cis/{ciId}/backlinks", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def list_entry_cis(self, item_id: str) -> "EntryCis":
+        """The configuration items an entry names as affected"""
+        return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def affect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
+        """Name a configuration item as affected by an entry"""
+        return self._call("PUT", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def unaffect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
+        """Remove a configuration item from an entry's affected ones"""
+        return self._call("DELETE", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def list_ci_campaigns(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiCampaignList":
+        """A hub's certification campaigns"""
+        return self._call("GET", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def start_ci_campaign(self, hub_id: str, body: "CiCampaignStart") -> "CiCampaign":
+        """Ask the owners of a hub's CIs to attest them"""
+        return self._call("POST", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_ci_campaign(self, campaign_id: str) -> "CiCampaignDetail":
+        """A certification campaign with every CI asked"""
+        return self._call("GET", "/ci-campaigns/{campaignId}", {"campaignId": campaign_id}, None, {}, None, "none", None, "json")
+
+    def close_ci_campaign(self, campaign_id: str, *, if_match: str | None = None) -> "CiCampaign":
+        """Stop a campaign taking answers"""
+        return self._call("POST", "/ci-campaigns/{campaignId}:close", {"campaignId": campaign_id}, None, {"If-Match": if_match}, None, "none", None, "json")
+
+    def attest_ci(self, campaign_id: str, ci_id: str, body: "CiAttest") -> "CiAttestation":
+        """Answer a campaign's question about a configuration item"""
+        return self._call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", {"campaignId": campaign_id, "ciId": ci_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_ci_groups(self, hub_id: str) -> "CiGroupList":
+        """A hub's CI groups"""
+        return self._call("GET", "/hubs/{hubId}/ci-groups", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def define_ci_group(self, hub_id: str, group_key: str, body: "CiGroupDefine", *, if_match: str | None = None) -> "CiGroup":
+        """Define or change a CI group by its key"""
+        return self._call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_ci_group_members(self, group_id: str) -> "CiGroupMembers":
+        """The configuration items a group holds now"""
+        return self._call("GET", "/ci-groups/{groupId}/members", {"groupId": group_id}, None, {}, None, "none", None, "json")
+
+    def read_service_map(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ServiceMap":
+        """A hub's service map"""
+        return self._call("GET", "/hubs/{hubId}/service-map", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def list_ci_assets(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiAssetList":
+        """A hub's asset register"""
+        return self._call("GET", "/hubs/{hubId}/assets", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def read_ci_asset(self, ci_id: str) -> "CiAsset":
+        """A configuration item's asset record"""
+        return self._call("GET", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
+    def register_ci_asset(self, ci_id: str, body: "CiAssetRegister", *, if_match: str | None = None) -> "CiAsset":
+        """Write a configuration item's asset record"""
+        return self._call("PUT", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def move_ci_asset(self, ci_id: str, body: "CiAssetMove", *, if_match: str | None = None) -> "CiAsset":
+        """Move an asset through its life"""
+        return self._call("POST", "/cis/{ciId}/asset:move", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_software_aliases(self) -> "SoftwareAliasList":
+        """The workspace's software aliases"""
+        return self._call("GET", "/software-aliases", {}, None, {}, None, "none", None, "json")
+
+    def define_software_alias(self, body: "SoftwareAliasDefine", *, if_match: str | None = None) -> "SoftwareAlias":
+        """Count what installations report as one product"""
+        return self._call("POST", "/software-aliases", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_software_alias(self, alias_id: str) -> "SoftwareAliasRemoved":
+        """Remove a software alias"""
+        return self._call("DELETE", "/software-aliases/{aliasId}", {"aliasId": alias_id}, None, {}, None, "none", None, "json")
+
+    def list_software_products(self, hub_id: str) -> "SoftwareProductList":
+        """A hub's software, normalised"""
+        return self._call("GET", "/hubs/{hubId}/software", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def relate_cis(self, body: "CiRelate") -> "CiRelation":
+        """Join two configuration items"""
+        return self._call("POST", "/ci-relations", {}, None, {}, body, "json", "application/json", "json")
+
+    def unrelate_cis(self, relation_id: str) -> "CiRelationRemoved":
+        """Remove a relation"""
+        return self._call("DELETE", "/ci-relations/{relationId}", {"relationId": relation_id}, None, {}, None, "none", None, "json")
+
     def list_templates(self, *, query: dict[str, Any] | None = None) -> "TemplatePage":
         """GET /templates"""
         return self._call("GET", "/templates", {}, query, {}, None, "none", None, "json")
@@ -148,12 +1120,16 @@ class Client:
         return self._call("PATCH", "/views/{viewId}", {"viewId": view_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
 
     def delete_saved_view(self, view_id: str, *, if_match: str | None = None) -> None:
-        """DELETE /views/{viewId}"""
+        """Delete a view; a calendar feed over it serves nothing from then on"""
         return self._call("DELETE", "/views/{viewId}", {"viewId": view_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def share_saved_view(self, view_id: str, body: "SavedViewShare", *, idempotency_key: str | None = None, if_match: str | None = None) -> "SavedView":
         """POST /views/{viewId}:share"""
         return self._call("POST", "/views/{viewId}:share", {"viewId": view_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
+
+    def aggregate_view(self, view_id: str) -> "ItemAggregateResult":
+        """The summary a saved view stores"""
+        return self._call("POST", "/views/{viewId}:aggregate", {"viewId": view_id}, None, {}, None, "none", None, "json")
 
     def export_view(self, view_id: str, body: "ViewExport", *, idempotency_key: str | None = None) -> bytes:
         """POST /views/{viewId}:export"""
@@ -295,9 +1271,9 @@ class Client:
         """Dry-run a rule against a sample event"""
         return self._call("POST", "/automation/rules:test", {}, None, {}, body, "json", "application/json", "json")
 
-    def trigger_rule_manually(self, rule_id: str, *, idempotency_key: str | None = None) -> "RuleRunAccepted":
+    def trigger_rule_manually(self, rule_id: str, body: "RuleTriggerPress", *, idempotency_key: str | None = None) -> "RuleRunAccepted":
         """Run a rule now"""
-        return self._call("POST", "/automation/rules/{ruleId}:trigger", {"ruleId": rule_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/automation/rules/{ruleId}:trigger", {"ruleId": rule_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def rotate_inbound_trigger(self, rule_id: str, *, idempotency_key: str | None = None) -> "InboundTriggerToken":
         """Mint the address an inbound-webhook rule answers on"""
@@ -384,12 +1360,64 @@ class Client:
         return self._call("POST", "/integrations/calendar-feeds", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def revoke_calendar_feed(self, feed_id: str) -> None:
-        """DELETE /integrations/calendar-feeds/{feedId}"""
+        """Revoke a calendar feed, which answers nothing from then on"""
         return self._call("DELETE", "/integrations/calendar-feeds/{feedId}", {"feedId": feed_id}, None, {}, None, "none", None, "void")
+
+    def list_calendar_pushes(self) -> "CalendarPushList":
+        """The caller's calendar pushes"""
+        return self._call("GET", "/integrations/calendar-pushes", {}, None, {}, None, "none", None, "json")
+
+    def authorize_calendar_push(self, body: "CalendarPushAuthorizationRequest", *, idempotency_key: str | None = None) -> "CalendarPushAuthorization":
+        """Start writing a calendar feed into the caller's calendar"""
+        return self._call("POST", "/integrations/calendar-pushes:authorize", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def complete_calendar_push_authorization(self, body: "CalendarPushAuthorizationAnswer", *, idempotency_key: str | None = None) -> "CalendarPush":
+        """Finish connecting a calendar push with the provider's answer"""
+        return self._call("POST", "/integrations/calendar-pushes:complete", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def disconnect_calendar_push(self, push_id: str) -> None:
+        """Disconnect a calendar push"""
+        return self._call("DELETE", "/integrations/calendar-pushes/{pushId}", {"pushId": push_id}, None, {}, None, "none", None, "void")
+
+    def list_file_store_connections(self) -> "FileStoreConnectionList":
+        """The caller's file store connections"""
+        return self._call("GET", "/integrations/file-stores", {}, None, {}, None, "none", None, "json")
+
+    def connect_file_store(self, body: "FileStoreConnectionRequest", *, idempotency_key: str | None = None) -> "FileStoreConnectionStart":
+        """Start connecting the caller's file store"""
+        return self._call("POST", "/integrations/file-stores:connect", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def complete_file_store_connection(self, body: "FileStoreConnectionAnswer", *, idempotency_key: str | None = None) -> "FileStoreConnection":
+        """Finish connecting a file store"""
+        return self._call("POST", "/integrations/file-stores:complete", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def disconnect_file_store(self, connection_id: str) -> None:
+        """Disconnect a file store"""
+        return self._call("DELETE", "/integrations/file-stores/{connectionId}", {"connectionId": connection_id}, None, {}, None, "none", None, "void")
+
+    def browse_file_store(self, connection_id: str, *, query: dict[str, Any] | None = None) -> "FileStoreFolder":
+        """A folder of the caller's file store"""
+        return self._call("GET", "/integrations/file-stores/{connectionId}/items", {"connectionId": connection_id}, query, {}, None, "none", None, "json")
+
+    def share_file_store_item(self, connection_id: str, body: "FileStoreShareRequest", *, idempotency_key: str | None = None) -> "FileStoreShare":
+        """Make a read-only share link in the caller's Nextcloud"""
+        return self._call("POST", "/integrations/file-stores/{connectionId}/items:share", {"connectionId": connection_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def get_calendar_feed_document(self, token: str) -> bytes:
         """GET /calendar/{token}.ics"""
         return self._call("GET", "/calendar/{token}.ics", {"token": token}, None, {}, None, "none", None, "raw")
+
+    def get_data_feed_service(self, token: str) -> "DataFeedService":
+        """A data feed's OData service document"""
+        return self._call("GET", "/odata/{token}", {"token": token}, None, {}, None, "none", None, "json")
+
+    def get_data_feed_metadata(self, token: str) -> bytes:
+        """A data feed's OData metadata"""
+        return self._call("GET", "/odata/{token}/$metadata", {"token": token}, None, {}, None, "none", None, "raw")
+
+    def get_data_feed_entries(self, token: str, *, query: dict[str, Any] | None = None) -> "DataFeedEntries":
+        """A data feed's rows"""
+        return self._call("GET", "/odata/{token}/Entries", {"token": token}, query, {}, None, "none", None, "json")
 
     def get_capabilities(self) -> "Capabilities":
         """Self-description of the installation"""
@@ -454,6 +1482,10 @@ class Client:
     def start_backup(self, body: "BackupStart") -> "JobRef":
         """Start a backup immediately"""
         return self._call("POST", "/backups", {}, None, {}, body, "json", "application/json", "json")
+
+    def download_workspace_archive(self, body: "WorkspaceArchiveDownload", *, step_up: str | None = None) -> bytes:
+        """Download the whole workspace as one archive"""
+        return self._call("POST", "/backups:download-workspace", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "raw")
 
     def get_backup_run(self, backup_id: str) -> "BackupRun":
         """What one backup run did"""
@@ -555,9 +1587,9 @@ class Client:
         """Invite a person into this workspace"""
         return self._call("POST", "/accounts:invite", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def renew_invitation(self, account_id: str, *, idempotency_key: str | None = None) -> "InvitedAccount":
+    def renew_invitation(self, account_id: str, body: "InvitationRenewal", *, idempotency_key: str | None = None, step_up: str | None = None) -> "InvitedAccount":
         """Give an invitation not yet accepted a new link"""
-        return self._call("POST", "/accounts/{accountId}:renew-invitation", {"accountId": account_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/accounts/{accountId}:renew-invitation", {"accountId": account_id}, None, {"Idempotency-Key": idempotency_key, "X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def create_managed_account(self, body: "ManagedAccountCreate", *, step_up: str | None = None) -> "ManagedAccountCreated":
         """Give somebody an account without a mail address"""
@@ -571,6 +1603,14 @@ class Client:
         """Change what the caller is called"""
         return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
 
+    def clear_own_mail_undeliverable(self) -> None:
+        """Try mail to the caller's address again"""
+        return self._call("POST", "/accounts/me:clear-undeliverable", {}, None, {}, None, "none", None, "void")
+
+    def read_own_settings(self) -> "OwnSettings":
+        """The caller's own settings and where each comes from"""
+        return self._call("GET", "/accounts/me/settings", {}, None, {}, None, "none", None, "json")
+
     def set_own_avatar(self, body: "AvatarInput") -> "Account":
         """Show a picture of one's own beside one's name"""
         return self._call("PUT", "/accounts/me/avatar", {}, None, {}, body, "json", "application/json", "json")
@@ -579,6 +1619,18 @@ class Client:
         """Go back to the initials"""
         return self._call("DELETE", "/accounts/me/avatar", {}, None, {}, None, "none", None, "json")
 
+    def resolve_accounts(self, body: dict[str, Any]) -> dict[str, Any]:
+        """The names behind many account identifiers at once"""
+        return self._call("POST", "/accounts:resolve", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_invitation_deliveries(self, body: dict[str, Any]) -> dict[str, Any]:
+        """How the last mail to each of many accounts went"""
+        return self._call("POST", "/accounts:invitation-deliveries", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_sign_in_details(self, body: dict[str, Any]) -> dict[str, Any]:
+        """The address and the second factor of each of many people"""
+        return self._call("POST", "/accounts:sign-in-details", {}, None, {}, body, "json", "application/json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")
@@ -586,6 +1638,10 @@ class Client:
     def issue_start_password(self, account_id: str, *, step_up: str | None = None) -> "StartPasswordIssued":
         """Give a managed account a new start password"""
         return self._call("POST", "/accounts/{accountId}:issue-start-password", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def reset_second_factor(self, account_id: str, *, step_up: str | None = None) -> None:
+        """Reset a person's second factor"""
+        return self._call("POST", "/accounts/{accountId}:reset-second-factor", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
     def request_address(self, account_id: str, body: "AddressRequest") -> "AddressRequested":
         """Give a managed account a mail address"""
@@ -687,6 +1743,18 @@ class Client:
         """Raise this session to the control plane for an hour"""
         return self._call("POST", "/auth/sessions:elevate", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
+    def get_view_as(self) -> "ViewAs":
+        """Whether this session shows the app as another person"""
+        return self._call("GET", "/auth/sessions:view-as", {}, None, {}, None, "none", None, "json")
+
+    def start_view_as(self, body: "ViewAsStart") -> "ViewAs":
+        """Show the app as another person, read only"""
+        return self._call("POST", "/auth/sessions:view-as", {}, None, {}, body, "json", "application/json", "json")
+
+    def end_view_as(self) -> None:
+        """End the view as another person"""
+        return self._call("DELETE", "/auth/sessions:view-as", {}, None, {}, None, "none", None, "void")
+
     def get_sign_in_rules(self) -> "SignInRules":
         """What a sign-in screen may know before anybody has signed in"""
         return self._call("GET", "/auth/sign-in-rules", {}, None, {}, None, "none", None, "json")
@@ -763,6 +1831,14 @@ class Client:
         """Finish the sign-in with the code the provider issued"""
         return self._call("POST", "/auth/oidc:callback", {}, None, {}, body, "json", "application/json", "json")
 
+    def receive_saml_response(self, body: bytes) -> None:
+        """Receive a SAML provider's answer"""
+        return self._call("POST", "/auth/saml:acs", {}, None, {}, body, "raw", "application/x-www-form-urlencoded", "void")
+
+    def get_saml_metadata(self) -> bytes:
+        """This installation's SAML service provider metadata"""
+        return self._call("GET", "/auth/saml:metadata", {}, None, {}, None, "none", None, "raw")
+
     def check_device_list(self, body: "DeviceListCheck") -> "DeviceListChecked":
         """Which entries of the device's list still open a workspace"""
         return self._call("POST", "/auth/device-list:check", {}, None, {}, body, "json", "application/json", "json")
@@ -770,6 +1846,10 @@ class Client:
     def locate_oidc_flow(self, body: "OidcLocate") -> "OidcLocated":
         """Where a provider's return belongs"""
         return self._call("POST", "/auth/oidc:locate", {}, None, {}, body, "json", "application/json", "json")
+
+    def locate_connector_return(self, body: "ConnectorLocate") -> "ConnectorLocated":
+        """Where a connector's return belongs"""
+        return self._call("POST", "/auth/connector:locate", {}, None, {}, body, "json", "application/json", "json")
 
     def list_tenants(self) -> dict[str, Any]:
         """The installation's workspaces"""
@@ -851,6 +1931,10 @@ class Client:
         """Replace the installation's level"""
         return self._call("PUT", "/admin/settings", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def plan_instance_settings(self, body: "InstanceSettings") -> "InstanceSettingsPlan":
+        """Plan a change of the installation's level"""
+        return self._call("POST", "/admin/settings:plan", {}, None, {}, body, "json", "application/json", "json")
+
     def list_plans(self) -> dict[str, Any]:
         """The installation's plans"""
         return self._call("GET", "/admin/plans", {}, None, {}, None, "none", None, "json")
@@ -919,6 +2003,10 @@ class Client:
         """How big this installation is and how its workspaces stand"""
         return self._call("GET", "/admin/overview", {}, None, {}, None, "none", None, "json")
 
+    def list_workspaces_near_quota(self) -> dict[str, Any]:
+        """The workspaces near a quota"""
+        return self._call("GET", "/admin/quotas", {}, None, {}, None, "none", None, "json")
+
     def list_instance_journal(self, *, query: dict[str, Any] | None = None) -> "InstanceJournalPage":
         """The installation's own record"""
         return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
@@ -958,6 +2046,14 @@ class Client:
     def redeliver_platform_subscription(self, subscription_id: str) -> dict[str, Any]:
         """Send the subscription's dead letters again"""
         return self._call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
+
+    def list_dead_letters(self, *, query: dict[str, Any] | None = None) -> "DeadLetterPage":
+        """The jobs that ran out of attempts"""
+        return self._call("GET", "/admin/dead-letters", {}, query, {}, None, "none", None, "json")
+
+    def requeue_dead_letter(self, job_id: str) -> "DeadLetter":
+        """Run a dead letter again"""
+        return self._call("POST", "/admin/dead-letters/{jobId}:requeue", {"jobId": job_id}, None, {}, None, "none", None, "json")
 
     def read_usage(self, *, query: dict[str, Any] | None = None) -> "UsagePage":
         """The use per workspace, metric and day, for billing"""
@@ -1167,7 +2263,7 @@ class Client:
         """Ask AI to summarise this entry's discussion"""
         return self._call("POST", "/items/{itemId}:summarize-thread", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
-    def ai_summarize_container(self, container_id: str, body: "AiAsk") -> "JobRef":
+    def ai_summarize_container(self, container_id: str, body: "AiSummaryAsk") -> "JobRef":
         """Ask AI how a collection stands"""
         return self._call("POST", "/containers/{containerId}:summarize", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
 
@@ -1264,7 +2360,7 @@ class Client:
         return self._call("GET", "/oauth/grants", {}, None, {}, None, "none", None, "json")
 
     def revoke_oauth_grant(self, grant_id: str) -> None:
-        """Withdraw what an app was allowed"""
+        """Withdraw what an app was allowed; every session it leashed refuses on its next request"""
         return self._call("DELETE", "/oauth/grants/{grantId}", {"grantId": grant_id}, None, {}, None, "none", None, "void")
 
     def list_data_subject_requests(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -1323,6 +2419,34 @@ class Client:
         """Take a role away"""
         return self._call("DELETE", "/memberships/{membershipId}", {"membershipId": membership_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def list_roles(self) -> "RoleCatalogue":
+        """The permission catalogue and the roles"""
+        return self._call("GET", "/roles", {}, None, {}, None, "none", None, "json")
+
+    def create_role(self, body: "CustomRoleCreate", *, idempotency_key: str | None = None) -> "CustomRole":
+        """Define a role of the workspace's own"""
+        return self._call("POST", "/roles", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def change_role(self, key: str, body: "CustomRoleChange", *, if_match: str | None = None) -> "CustomRole":
+        """Change a role of the workspace's own"""
+        return self._call("PATCH", "/roles/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_role(self, key: str) -> None:
+        """Delete a role of the workspace's own"""
+        return self._call("DELETE", "/roles/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def grant_role(self, body: "CustomRoleGrantCreate", *, idempotency_key: str | None = None) -> "CustomRoleGrant":
+        """Give a role of the workspace's own at a place"""
+        return self._call("POST", "/role-grants", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def revoke_role_grant(self, grant_id: str) -> None:
+        """Take a role of the workspace's own away"""
+        return self._call("DELETE", "/role-grants/{grantId}", {"grantId": grant_id}, None, {}, None, "none", None, "void")
+
+    def explain_access(self, *, query: dict[str, Any] | None = None) -> "AccessExplanation":
+        """What a person holds at a place, and why"""
+        return self._call("GET", "/access/explain", {}, query, {}, None, "none", None, "json")
+
     def list_groups(self, *, query: dict[str, Any] | None = None) -> "GroupPage":
         """The workspace's groups"""
         return self._call("GET", "/groups", {}, query, {}, None, "none", None, "json")
@@ -1343,13 +2467,325 @@ class Client:
         """Delete a group"""
         return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def get_scim_service_provider_config(self) -> "ScimResource":
+        """What this SCIM service supports"""
+        return self._call("GET", "/scim/v2/ServiceProviderConfig", {}, None, {}, None, "none", None, "json")
+
+    def list_scim_resource_types(self) -> "ScimListResponse":
+        """The SCIM resource types served"""
+        return self._call("GET", "/scim/v2/ResourceTypes", {}, None, {}, None, "none", None, "json")
+
+    def list_scim_schemas(self) -> "ScimListResponse":
+        """The SCIM schemas served"""
+        return self._call("GET", "/scim/v2/Schemas", {}, None, {}, None, "none", None, "json")
+
+    def list_scim_users(self, *, query: dict[str, Any] | None = None) -> "ScimListResponse":
+        """The people a directory provisions"""
+        return self._call("GET", "/scim/v2/Users", {}, query, {}, None, "none", None, "json")
+
+    def create_scim_user(self, body: "ScimUser") -> "ScimUser":
+        """Provision a person"""
+        return self._call("POST", "/scim/v2/Users", {}, None, {}, body, "json", "application/scim+json", "json")
+
+    def get_scim_user(self, scim_user_id: str) -> "ScimUser":
+        """A provisioned person"""
+        return self._call("GET", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, None, "none", None, "json")
+
+    def replace_scim_user(self, scim_user_id: str, body: "ScimUser") -> "ScimUser":
+        """Replace a provisioned person"""
+        return self._call("PUT", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def patch_scim_user(self, scim_user_id: str, body: "ScimPatch") -> "ScimUser":
+        """Change a provisioned person"""
+        return self._call("PATCH", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def delete_scim_user(self, scim_user_id: str) -> None:
+        """Deprovision a person"""
+        return self._call("DELETE", "/scim/v2/Users/{scimUserId}", {"scimUserId": scim_user_id}, None, {}, None, "none", None, "void")
+
+    def list_scim_groups(self, *, query: dict[str, Any] | None = None) -> "ScimListResponse":
+        """The groups a directory provisions"""
+        return self._call("GET", "/scim/v2/Groups", {}, query, {}, None, "none", None, "json")
+
+    def create_scim_group(self, body: "ScimGroup") -> "ScimGroup":
+        """Provision a group"""
+        return self._call("POST", "/scim/v2/Groups", {}, None, {}, body, "json", "application/scim+json", "json")
+
+    def get_scim_group(self, scim_group_id: str, *, query: dict[str, Any] | None = None) -> "ScimGroup":
+        """A provisioned group"""
+        return self._call("GET", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, query, {}, None, "none", None, "json")
+
+    def replace_scim_group(self, scim_group_id: str, body: "ScimGroup") -> "ScimGroup":
+        """Replace a provisioned group"""
+        return self._call("PUT", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def patch_scim_group(self, scim_group_id: str, body: "ScimPatch") -> "ScimGroup":
+        """Change a provisioned group"""
+        return self._call("PATCH", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, body, "json", "application/scim+json", "json")
+
+    def delete_scim_group(self, scim_group_id: str) -> None:
+        """Remove a provisioned group"""
+        return self._call("DELETE", "/scim/v2/Groups/{scimGroupId}", {"scimGroupId": scim_group_id}, None, {}, None, "none", None, "void")
+
+    def show_ldap_directory(self) -> "LdapDirectory":
+        """The workspace's LDAP directory and how its last synchronisation went"""
+        return self._call("GET", "/directory/ldap", {}, None, {}, None, "none", None, "json")
+
+    def configure_ldap_directory(self, body: "LdapDirectoryConfiguration", *, step_up: str | None = None) -> "LdapDirectory":
+        """Set the LDAP directory the workspace synchronises its people from"""
+        return self._call("PUT", "/directory/ldap", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def remove_ldap_directory(self, *, step_up: str | None = None) -> None:
+        """Stop synchronising from the LDAP directory"""
+        return self._call("DELETE", "/directory/ldap", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
+    def sync_ldap_directory(self, body: "LdapSyncRequest", *, step_up: str | None = None) -> "LdapSyncRun":
+        """Synchronise from the LDAP directory now, or show what a run would do"""
+        return self._call("POST", "/directory/ldap:sync", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def close_starter(self) -> None:
         """Answers the first start's question for good"""
         return self._call("POST", "/tenant/starter:close", {}, None, {}, None, "none", None, "void")
 
+    def apply_starter(self, body: "StarterSet", *, idempotency_key: str | None = None) -> "Container":
+        """Answers the first start's question with its starter set"""
+        return self._call("POST", "/tenant/starter:apply", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def list_workspace_samples(self) -> "WorkspaceSampleList":
+        """The workspace's sample content"""
+        return self._call("GET", "/tenant/samples", {}, None, {}, None, "none", None, "json")
+
+    def mark_workspace_sample(self, body: dict[str, Any]) -> "WorkspaceSample":
+        """Mark an object as sample content"""
+        return self._call("POST", "/tenant/samples", {}, None, {}, body, "json", "application/json", "json")
+
+    def remove_workspace_samples(self) -> dict[str, Any]:
+        """Remove the workspace's sample content"""
+        return self._call("POST", "/tenant/samples:remove", {}, None, {}, None, "none", None, "json")
+
     def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def preview_workspace_structure(self, body: "WorkspaceStructureChange") -> "StructurePreview":
+        """What a change of the workspace's structure would stop showing"""
+        return self._call("POST", "/tenant/structure:preview", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_entry_types(self) -> "EntryTypeList":
+        """The workspace's entry types"""
+        return self._call("GET", "/entry-types", {}, None, {}, None, "none", None, "json")
+
+    def create_entry_type(self, body: "EntryTypeCreate") -> "EntryType":
+        """Add an entry type"""
+        return self._call("POST", "/entry-types", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_entry_type(self, key: str, body: "EntryTypeChange", *, if_match: str | None = None) -> "EntryType":
+        """Change an entry type"""
+        return self._call("PATCH", "/entry-types/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_entry_type(self, key: str) -> None:
+        """Delete an unused entry type"""
+        return self._call("DELETE", "/entry-types/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def copy_entry_type_here(self, key: str, body: "EntryTypeCopy") -> "EntryType":
+        """Make a copy of a shared entry type at a hub"""
+        return self._call("POST", "/entry-types/{key}:copy-here", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def set_entry_type_form(self, key: str, body: "EntryForm", *, if_match: str | None = None) -> "EntryType":
+        """Set an entry type's form"""
+        return self._call("PUT", "/entry-types/{key}/form", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def evaluate_entry_form(self, key: str, body: "EntryFormDraft") -> "EntryFormState":
+        """Answer a type's form for a draft"""
+        return self._call("POST", "/entry-types/{key}/form:evaluate", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def list_workflows(self) -> "WorkflowList":
+        """List the workflows and the scheme"""
+        return self._call("GET", "/workflows", {}, None, {}, None, "none", None, "json")
+
+    def create_workflow(self, body: "WorkflowCreate") -> "Workflow":
+        """Add a workflow"""
+        return self._call("POST", "/workflows", {}, None, {}, body, "json", "application/json", "json")
+
+    def save_workflow_draft(self, key: str, body: "WorkflowDraft", *, if_match: str | None = None) -> "Workflow":
+        """Save a draft, rename, or discard the draft"""
+        return self._call("PATCH", "/workflows/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_workflow(self, key: str) -> None:
+        """Delete an unused workflow"""
+        return self._call("DELETE", "/workflows/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def copy_workflow_here(self, workflow_key: str, body: "WorkflowCopy") -> "Workflow":
+        """Make a copy of a shared workflow at a hub"""
+        return self._call("POST", "/workflows/{workflowKey}:copy-here", {"workflowKey": workflow_key}, None, {}, body, "json", "application/json", "json")
+
+    def preview_workflow_publish(self, key: str, body: "WorkflowPublishPreview") -> "WorkflowPreview":
+        """Show what publishing the draft would do"""
+        return self._call("POST", "/workflows/{key}:preview-publish", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def publish_workflow(self, key: str, body: "WorkflowPublish", *, if_match: str | None = None) -> "Workflow":
+        """Publish the draft"""
+        return self._call("POST", "/workflows/{key}:publish", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def try_workflow_step(self, key: str, step: str, body: dict[str, Any]) -> "StepVerdict":
+        """Try a step against an entry"""
+        return self._call("POST", "/workflows/{key}/steps/{step}:try", {"key": key, "step": step}, None, {}, body, "json", "application/json", "json")
+
+    def set_workflow_scheme(self, body: "WorkflowSchemeChange") -> "WorkflowSchemeResult":
+        """Use a workflow in a hub or collection"""
+        return self._call("PUT", "/workflow-scheme", {}, None, {}, body, "json", "application/json", "json")
+
+    def preview_workflow_scheme(self, body: "WorkflowSchemeChange") -> "WorkflowPreview":
+        """Show what using a workflow would do"""
+        return self._call("POST", "/workflow-scheme:preview", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_entry_steps(self, item_id: str) -> "EntrySteps":
+        """The entry's status and the steps the person may take"""
+        return self._call("GET", "/items/{itemId}/steps", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def take_step(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
+        """Move an entry on by one step"""
+        return self._call("POST", "/items/{itemId}:step", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_item_entry_type(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
+        """Change an entry's type"""
+        return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_link_types(self) -> "LinkTypeList":
+        """The workspace's link types"""
+        return self._call("GET", "/link-types", {}, None, {}, None, "none", None, "json")
+
+    def create_link_type(self, body: "LinkTypeCreate") -> "LinkType":
+        """Add a link type"""
+        return self._call("POST", "/link-types", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_link_type(self, key: str, body: "LinkTypeChange", *, if_match: str | None = None) -> "LinkType":
+        """Change a link type"""
+        return self._call("PATCH", "/link-types/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_link_type(self, key: str) -> None:
+        """Delete an unused link type"""
+        return self._call("DELETE", "/link-types/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def list_entry_links(self, item_id: str) -> "EntryLinks":
+        """An entry's links and backlinks"""
+        return self._call("GET", "/items/{itemId}/links", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def link_entries(self, item_id: str, body: "EntryLinkCreate") -> "EntryLink":
+        """Link the entry to another"""
+        return self._call("POST", "/items/{itemId}/links", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_entries(self, link_id: str) -> None:
+        """Remove a link"""
+        return self._call("DELETE", "/links/{linkId}", {"linkId": link_id}, None, {}, None, "none", None, "void")
+
+    def list_links_among(self, body: dict[str, Any]) -> "EntryLinkList":
+        """The links between the entries a view shows"""
+        return self._call("POST", "/links:query", {}, None, {}, body, "json", "application/json", "json")
+
+    def resolve_references(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Resolve references for the caller"""
+        return self._call("POST", "/references:resolve", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_settings_catalogue(self) -> "SettingsCatalogue":
+        """Every setting the product declares"""
+        return self._call("GET", "/settings/catalogue", {}, None, {}, None, "none", None, "json")
+
+    def read_config_schema(self) -> "ConfigSchema":
+        """The configuration document's JSON Schema"""
+        return self._call("GET", "/meta/config-schema", {}, None, {}, None, "none", None, "json")
+
+    def export_config(self, *, query: dict[str, Any] | None = None) -> "ConfigExport":
+        """The configuration document in force"""
+        return self._call("GET", "/config", {}, query, {}, None, "none", None, "json")
+
+    def explain_config(self, *, query: dict[str, Any] | None = None) -> "ConfigExplanation":
+        """Explain one key of the configuration"""
+        return self._call("GET", "/config/explain", {}, query, {}, None, "none", None, "json")
+
+    def check_config(self, *, query: dict[str, Any] | None = None) -> "ConfigCheck":
+        """Check the configuration in force"""
+        return self._call("GET", "/config/check", {}, query, {}, None, "none", None, "json")
+
+    def validate_config(self, body: "ConfigDocumentRequest") -> "ConfigValidation":
+        """Check a configuration document"""
+        return self._call("POST", "/config:validate", {}, None, {}, body, "json", "application/json", "json")
+
+    def plan_config(self, body: "ConfigPlanRequest") -> "ConfigPlan":
+        """Plan a configuration change or a rollback"""
+        return self._call("POST", "/config:plan", {}, None, {}, body, "json", "application/json", "json")
+
+    def propose_config(self, body: "ConfigApplyRequest") -> "ConfigApplyResult":
+        """Propose a planned change for a person to decide"""
+        return self._call("POST", "/config:propose", {}, None, {}, body, "json", "application/json", "json")
+
+    def apply_config(self, body: "ConfigApplyRequest", *, if_match: str | None = None, step_up: str | None = None, idempotency_key: str | None = None) -> "ConfigApplyResult":
+        """Apply a planned configuration change"""
+        return self._call("POST", "/config:apply", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up, "Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def list_config_versions(self, *, query: dict[str, Any] | None = None) -> "ConfigVersionList":
+        """The configuration's versions"""
+        return self._call("GET", "/config/versions", {}, query, {}, None, "none", None, "json")
+
+    def read_config_version(self, version: str) -> "ConfigVersion":
+        """One configuration version with its document"""
+        return self._call("GET", "/config/versions/{version}", {"version": version}, None, {}, None, "none", None, "json")
+
+    def list_config_proposals(self, *, query: dict[str, Any] | None = None) -> "ConfigProposalList":
+        """The proposed configuration changes"""
+        return self._call("GET", "/config/proposals", {}, query, {}, None, "none", None, "json")
+
+    def decide_config_proposal(self, proposal_id: str, body: "ConfigDecision", *, step_up: str | None = None) -> "ConfigApplyResult":
+        """Apply or decline a proposed change"""
+        return self._call("POST", "/config/proposals/{proposalId}:decide", {"proposalId": proposal_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def set_config_policy(self, body: "ConfigPolicy") -> "ConfigPolicy":
+        """Set what an agent's apply does"""
+        return self._call("PUT", "/config/policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_config_templates(self, *, query: dict[str, Any] | None = None) -> "ConfigTemplateList":
+        """The workspace's templates"""
+        return self._call("GET", "/config/templates", {}, query, {}, None, "none", None, "json")
+
+    def publish_config_template(self, body: "ConfigTemplatePublish") -> "ConfigTemplate":
+        """Publish a template's next version"""
+        return self._call("POST", "/config/templates", {}, None, {}, body, "json", "application/json", "json")
+
+    def plan_config_template(self, key: str, body: "ConfigTemplatePlanRequest") -> "ConfigTemplatePlan":
+        """Plan taking or upgrading a template"""
+        return self._call("POST", "/config/templates/{key}:plan", {"key": key}, None, {}, body, "json", "application/json", "json")
+
+    def list_config_drafts(self) -> "ConfigDraftList":
+        """The drafts saved beside the configuration in force"""
+        return self._call("GET", "/config/drafts", {}, None, {}, None, "none", None, "json")
+
+    def save_config_draft(self, section: str, key: str, body: dict[str, Any], *, if_match: str | None = None) -> "ConfigDraft":
+        """Save a block's draft"""
+        return self._call("PUT", "/config/drafts/{section}/{key}", {"section": section, "key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def discard_config_draft(self, section: str, key: str) -> None:
+        """Throw a block's draft away"""
+        return self._call("DELETE", "/config/drafts/{section}/{key}", {"section": section, "key": key}, None, {}, None, "none", None, "void")
+
+    def read_config_sandbox(self) -> "ConfigSandbox":
+        """The configuration sandbox and what promoting it would do"""
+        return self._call("GET", "/config/sandbox", {}, None, {}, None, "none", None, "json")
+
+    def write_config_sandbox(self, body: "ConfigSandboxRequest") -> "ConfigSandbox":
+        """Change, copy afresh or discard the sandbox"""
+        return self._call("POST", "/config/sandbox", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_modules(self, *, query: dict[str, Any] | None = None) -> "ModuleList":
+        """The modules of the suite at the workspace or one hub"""
+        return self._call("GET", "/tenant/modules", {}, query, {}, None, "none", None, "json")
+
+    def set_module(self, module: str, body: "ModuleSwitch") -> "ModuleList":
+        """Switch a module on or off"""
+        return self._call("PUT", "/tenant/modules/{module}", {"module": module}, None, {}, body, "json", "application/json", "json")
+
+    def preview_module_reach(self, module: str, *, query: dict[str, Any] | None = None) -> "ModuleReach":
+        """How many people switching a module off would leave without it"""
+        return self._call("GET", "/tenant/modules/{module}/reach", {"module": module}, query, {}, None, "none", None, "json")
 
     def list_presets(self) -> dict[str, Any]:
         """The presets a hub or collection can start from"""
@@ -1375,6 +2811,10 @@ class Client:
         """POST /containers"""
         return self._call("POST", "/containers", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def create_hub_from_template(self, body: "HubFromTemplate", *, idempotency_key: str | None = None) -> "Container":
+        """Creates a hub from a template of the catalogue"""
+        return self._call("POST", "/containers:from-template", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def get_container(self, container_id: str) -> "Container":
         """GET /containers/{containerId}"""
         return self._call("GET", "/containers/{containerId}", {"containerId": container_id}, None, {}, None, "none", None, "json")
@@ -1390,6 +2830,22 @@ class Client:
     def update_container_policies(self, container_id: str, body: "ContainerPolicies", *, if_match: str | None = None) -> "Container":
         """PUT /containers/{containerId}/policies"""
         return self._call("PUT", "/containers/{containerId}/policies", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_container_modules(self, container_id: str) -> "ModulesOn":
+        """The modules on where a hub or a collection is"""
+        return self._call("GET", "/containers/{containerId}/modules", {"containerId": container_id}, None, {}, None, "none", None, "json")
+
+    def get_desk_logo(self, container_id: str) -> "DeskLogo":
+        """The logo a service's portal shows"""
+        return self._call("GET", "/containers/{containerId}/desk-logo", {"containerId": container_id}, None, {}, None, "none", None, "json")
+
+    def set_desk_logo(self, container_id: str, body: "DeskLogoInput") -> "DeskLogo":
+        """Show a logo of the service's own on its portal"""
+        return self._call("PUT", "/containers/{containerId}/desk-logo", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_desk_logo(self, container_id: str) -> "DeskLogo":
+        """Go back to the icon and the colour"""
+        return self._call("DELETE", "/containers/{containerId}/desk-logo", {"containerId": container_id}, None, {}, None, "none", None, "json")
 
     def set_container_structure(self, container_id: str, body: "StructureChange", *, if_match: str | None = None) -> "Container":
         """PATCH /containers/{containerId}/structure"""
@@ -1411,17 +2867,17 @@ class Client:
         """POST /containers/{containerId}:reorder"""
         return self._call("POST", "/containers/{containerId}:reorder", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
 
-    def restore_container(self, container_id: str, *, idempotency_key: str | None = None) -> "Container":
+    def restore_container(self, container_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:restore"""
-        return self._call("POST", "/containers/{containerId}:restore", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/containers/{containerId}:restore", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def archive_container(self, container_id: str, *, idempotency_key: str | None = None) -> "Container":
+    def archive_container(self, container_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:archive"""
-        return self._call("POST", "/containers/{containerId}:archive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/containers/{containerId}:archive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def unarchive_container(self, container_id: str, *, idempotency_key: str | None = None) -> "Container":
+    def unarchive_container(self, container_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:unarchive"""
-        return self._call("POST", "/containers/{containerId}:unarchive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/containers/{containerId}:unarchive", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
     def list_work_items(self, *, query: dict[str, Any] | None = None) -> "WorkItemPage":
         """GET /items"""
@@ -1447,6 +2903,10 @@ class Client:
         """The generic query - the basis for list, kanban, and timeline"""
         return self._call("POST", "/items:query", {}, None, {}, body, "json", "application/json", "json")
 
+    def aggregate_items(self, body: "ItemAggregateQuery") -> "ItemAggregateResult":
+        """A summary of what a query keeps"""
+        return self._call("POST", "/items:aggregate", {}, None, {}, body, "json", "application/json", "json")
+
     def export_items(self, body: "ItemExport", *, idempotency_key: str | None = None) -> bytes:
         """The result of a query, as a file"""
         return self._call("POST", "/items:export", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "raw")
@@ -1454,6 +2914,14 @@ class Client:
     def search_items(self, body: "ItemSearchQuery") -> "ItemSearchPage":
         """Full-text search over the entries a caller may see"""
         return self._call("POST", "/search", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_my_open_entries(self, *, query: dict[str, Any] | None = None) -> "GlancePage":
+        """My open entries, for another product's dashboard"""
+        return self._call("GET", "/glance/open-entries", {}, query, {}, None, "none", None, "json")
+
+    def search_everywhere(self, body: dict[str, Any]) -> "GlancePage":
+        """One search across entries and pages, for another product's search box"""
+        return self._call("POST", "/glance:search", {}, None, {}, body, "json", "application/json", "json")
 
     def reindex_search(self) -> "SearchReindex":
         """Bring the workspace's search documents current"""
@@ -1479,25 +2947,37 @@ class Client:
         """POST /items/{itemId}:auto-assign"""
         return self._call("POST", "/items/{itemId}:auto-assign", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
+    def notify_account(self, item_id: str, body: "NotifyAccount") -> "NotificationsQueued":
+        """Tell one account about an entry"""
+        return self._call("POST", "/items/{itemId}:notify-account", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def notify_group(self, item_id: str, body: "NotifyGroup") -> "NotificationsQueued":
+        """Tell every member of a group about an entry"""
+        return self._call("POST", "/items/{itemId}:notify-group", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def notify_role(self, item_id: str, body: "NotifyRole") -> "NotificationsQueued":
+        """Tell the holders of a role along the entry's path"""
+        return self._call("POST", "/items/{itemId}:notify-role", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
     def purge_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> None:
         """POST /items/{itemId}:purge"""
         return self._call("POST", "/items/{itemId}:purge", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "void")
 
-    def restore_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> "WorkItem":
+    def restore_work_item(self, item_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:restore"""
-        return self._call("POST", "/items/{itemId}:restore", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/items/{itemId}:restore", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def archive_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> "WorkItem":
+    def archive_work_item(self, item_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:archive"""
-        return self._call("POST", "/items/{itemId}:archive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/items/{itemId}:archive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def unarchive_work_item(self, item_id: str, *, idempotency_key: str | None = None) -> "WorkItem":
+    def unarchive_work_item(self, item_id: str, *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:unarchive"""
-        return self._call("POST", "/items/{itemId}:unarchive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/items/{itemId}:unarchive", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, None, "none", None, "json")
 
-    def reorder_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "WorkItem":
+    def reorder_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None, if_match: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:reorder"""
-        return self._call("POST", "/items/{itemId}:reorder", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+        return self._call("POST", "/items/{itemId}:reorder", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
 
     def move_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "MoveResult":
         """POST /items/{itemId}:move"""
@@ -1506,6 +2986,14 @@ class Client:
     def duplicate_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "DuplicateResult":
         """POST /items/{itemId}:duplicate"""
         return self._call("POST", "/items/{itemId}:duplicate", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def merge_work_items(self, item_id: str, body: dict[str, Any]) -> "MergeResult":
+        """Merge the entry into another"""
+        return self._call("POST", "/items/{itemId}:merge", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
+
+    def split_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "DuplicateResult":
+        """Split a part of the entry off into an entry of its own"""
+        return self._call("POST", "/items/{itemId}:split", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def bulk_update_work_items(self, body: dict[str, Any], *, idempotency_key: str | None = None) -> dict[str, Any]:
         """POST /items:bulk"""
@@ -1615,6 +3103,14 @@ class Client:
         """DELETE /custom-fields/{fieldId}"""
         return self._call("DELETE", "/custom-fields/{fieldId}", {"fieldId": field_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
+    def copy_custom_field_here(self, field_id: str, body: "CustomFieldCopy") -> "CustomFieldDefinition":
+        """Make a copy of a shared custom field at a hub"""
+        return self._call("POST", "/custom-fields/{fieldId}:copy-here", {"fieldId": field_id}, None, {}, body, "json", "application/json", "json")
+
+    def preview_custom_field_reach(self, field_id: str) -> "CustomFieldReach":
+        """What removing or hiding a field would stop showing"""
+        return self._call("GET", "/custom-fields/{fieldId}/reach", {"fieldId": field_id}, None, {}, None, "none", None, "json")
+
     def set_custom_field(self, item_id: str, key: str, body: "CustomFieldValue", *, if_match: str | None = None) -> "WorkItem":
         """PUT /items/{itemId}/custom-fields/{key}"""
         return self._call("PUT", "/items/{itemId}/custom-fields/{key}", {"itemId": item_id, "key": key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
@@ -1644,7 +3140,7 @@ class Client:
         return self._call("PUT", "/items/{itemId}/recurrence", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def remove_recurrence(self, item_id: str, *, if_match: str | None = None) -> None:
-        """DELETE /items/{itemId}/recurrence"""
+        """Remove an entry's series; the occurrences it produced stay"""
         return self._call("DELETE", "/items/{itemId}/recurrence", {"itemId": item_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def skip_occurrence(self, item_id: str, *, idempotency_key: str | None = None) -> "Recurrence":
@@ -1706,3 +3202,319 @@ class Client:
     def stream_changes(self, *, last_event_id: str | None = None) -> bytes:
         """The change stream, as server-sent events"""
         return self._call("GET", "/stream", {}, None, {"Last-Event-ID": last_event_id}, None, "none", None, "raw")
+
+    def probe_realtime(self) -> None:
+        """Check that a WebSocket reaches the server"""
+        return self._call("GET", "/realtime/probe", {}, None, {}, None, "none", None, "void")
+
+    def open_realtime_document(self, kind: str, document_id: str) -> None:
+        """A live document, as a WebSocket"""
+        return self._call("GET", "/realtime/documents/{kind}/{documentId}", {"kind": kind, "documentId": document_id}, None, {}, None, "none", None, "void")
+
+    def list_space_labels(self, hub_id: str) -> "PageLabelCounts":
+        """The labels of a hub's pages"""
+        return self._call("GET", "/hubs/{hubId}/page-labels", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def list_pages(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "PageList":
+        """A hub's pages"""
+        return self._call("GET", "/hubs/{hubId}/pages", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_page(self, hub_id: str, body: "PageCreate") -> "Page":
+        """Write a new page"""
+        return self._call("POST", "/hubs/{hubId}/pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_space_drafts(self, hub_id: str) -> "PageSpaceDrafts":
+        """Whether a space keeps drafts"""
+        return self._call("GET", "/hubs/{hubId}/page-drafts", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def set_space_drafts(self, hub_id: str, body: dict[str, Any]) -> "PageSpaceDrafts":
+        """Switch a space to drafts or back"""
+        return self._call("PUT", "/hubs/{hubId}/page-drafts", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_sample_entries(self, hub_id: str) -> "SampleEntryList":
+        """The hub's sample entries"""
+        return self._call("GET", "/hubs/{hubId}/sample-entries", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def add_sample_entry(self, hub_id: str, body: dict[str, Any]) -> "SampleEntry":
+        """Add a sample entry"""
+        return self._call("POST", "/hubs/{hubId}/sample-entries", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_hub_template_pages(self, hub_id: str) -> "HubTemplatePageList":
+        """The pages a template brought to the hub"""
+        return self._call("GET", "/hubs/{hubId}/template-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def add_hub_template_page(self, hub_id: str, body: dict[str, Any]) -> "HubTemplatePage":
+        """Add a template's page"""
+        return self._call("POST", "/hubs/{hubId}/template-pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_sample_entries(self, hub_id: str) -> dict[str, Any]:
+        """Remove the hub's sample entries"""
+        return self._call("POST", "/hubs/{hubId}/sample-entries:remove", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def list_trashed_pages(self, hub_id: str) -> "PageList":
+        """A hub's trashed pages (deprecated)"""
+        return self._call("GET", "/hubs/{hubId}/trashed-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def read_page(self, page_id: str) -> "PageRead":
+        """Read a page"""
+        return self._call("GET", "/pages/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def update_page(self, page_id: str, body: "PageChange", *, if_match: str | None = None) -> "Page":
+        """Change a page"""
+        return self._call("PATCH", "/pages/{pageId}", {"pageId": page_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def trash_page(self, page_id: str) -> "PageTrashed":
+        """Put a page in the trash"""
+        return self._call("DELETE", "/pages/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def move_page(self, page_id: str, body: "PageMove", *, if_match: str | None = None) -> "Page":
+        """Move a page"""
+        return self._call("POST", "/pages/{pageId}:move", {"pageId": page_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def copy_page(self, page_id: str, body: dict[str, Any]) -> "Page":
+        """Copy a page"""
+        return self._call("POST", "/pages/{pageId}:copy", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def restore_page(self, page_id: str) -> "Page":
+        """Bring a page back from the trash"""
+        return self._call("POST", "/pages/{pageId}:restore", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def verify_page(self, page_id: str, body: "PageVerify") -> "Page":
+        """Mark a page as checked"""
+        return self._call("POST", "/pages/{pageId}:verify", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_page_versions(self, page_id: str, *, query: dict[str, Any] | None = None) -> "PageVersionList":
+        """A page's history"""
+        return self._call("GET", "/pages/{pageId}/versions", {"pageId": page_id}, query, {}, None, "none", None, "json")
+
+    def read_page_version(self, page_id: str, seq: str) -> "PageVersionRead":
+        """Read one version of a page"""
+        return self._call("GET", "/pages/{pageId}/versions/{seq}", {"pageId": page_id, "seq": seq}, None, {}, None, "none", None, "json")
+
+    def name_page_version(self, page_id: str, seq: str, body: "PageVersionName") -> "PageVersionNamed":
+        """Name a version"""
+        return self._call("PATCH", "/pages/{pageId}/versions/{seq}", {"pageId": page_id, "seq": seq}, None, {}, body, "json", "application/merge-patch+json", "json")
+
+    def restore_page_version(self, page_id: str, seq: str, *, if_match: str | None = None) -> "Page":
+        """Bring an older version back"""
+        return self._call("POST", "/pages/{pageId}/versions/{seq}:restore", {"pageId": page_id, "seq": seq}, None, {"If-Match": if_match}, None, "none", None, "json")
+
+    def list_page_comments(self, page_id: str) -> "PageCommentList":
+        """A page's comments"""
+        return self._call("GET", "/pages/{pageId}/comments", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def add_page_comment(self, page_id: str, body: "PageCommentCreate") -> "PageComment":
+        """Comment on a page"""
+        return self._call("POST", "/pages/{pageId}/comments", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def change_page_comment(self, comment_id: str, body: "PageCommentChange", *, if_match: str | None = None) -> "PageComment":
+        """Change a page comment"""
+        return self._call("PATCH", "/page-comments/{commentId}", {"commentId": comment_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_page_comment(self, comment_id: str) -> None:
+        """Take a page comment back"""
+        return self._call("DELETE", "/page-comments/{commentId}", {"commentId": comment_id}, None, {}, None, "none", None, "void")
+
+    def list_page_backlinks(self, page_id: str) -> "PageBacklinkList":
+        """What links to a page"""
+        return self._call("GET", "/pages/{pageId}/backlinks", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def list_page_labels(self, page_id: str) -> "PageLabels":
+        """A page's labels"""
+        return self._call("GET", "/pages/{pageId}/labels", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def set_page_labels(self, page_id: str, body: dict[str, Any]) -> "PageLabels":
+        """Set a page's labels"""
+        return self._call("POST", "/pages/{pageId}:label", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def export_page(self, page_id: str, body: "PageExportRequest") -> "PageExport":
+        """Export a page as Markdown"""
+        return self._call("POST", "/pages/{pageId}:export", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def search_pages(self, body: "PageSearch") -> "PageHitList":
+        """Find pages by their words"""
+        return self._call("POST", "/pages:search", {}, None, {}, body, "json", "application/json", "json")
+
+    def restrict_page(self, page_id: str, body: "PageRestrict") -> "Page":
+        """Restrict who reads a page"""
+        return self._call("POST", "/pages/{pageId}:restrict", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_page_access(self, page_id: str) -> "PageAccess":
+        """Who reads a page beyond its hub"""
+        return self._call("GET", "/pages/{pageId}/access", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def share_page(self, page_id: str, body: "PageShareCreate") -> "PageShare":
+        """Share a page with one person, read-only"""
+        return self._call("POST", "/pages/{pageId}/shares", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def unshare_page(self, page_id: str, account_id: str) -> None:
+        """Take a page's share away"""
+        return self._call("DELETE", "/pages/{pageId}/shares/{accountId}", {"pageId": page_id, "accountId": account_id}, None, {}, None, "none", None, "void")
+
+    def publish_page(self, page_id: str, *, if_match: str | None = None) -> "Page":
+        """Publish what waits on a page"""
+        return self._call("POST", "/pages/{pageId}:publish", {"pageId": page_id}, None, {"If-Match": if_match}, None, "none", None, "json")
+
+    def discard_page_draft(self, page_id: str) -> None:
+        """Throw a page's draft away"""
+        return self._call("DELETE", "/pages/{pageId}/draft", {"pageId": page_id}, None, {}, None, "none", None, "void")
+
+    def create_page_public_link(self, page_id: str) -> "PagePublicLinkMinted":
+        """Make a page's public link"""
+        return self._call("POST", "/pages/{pageId}/public-link", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def delete_page_public_link(self, page_id: str) -> None:
+        """Take a page's public link away"""
+        return self._call("DELETE", "/pages/{pageId}/public-link", {"pageId": page_id}, None, {}, None, "none", None, "void")
+
+    def attach_page_media(self, page_id: str, body: "PageMediaAttachment") -> "PageMediaAttachment":
+        """Attach an uploaded picture or file to a page"""
+        return self._call("POST", "/pages/{pageId}/media", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def publish_page_to_portal(self, page_id: str, body: dict[str, Any]) -> "PageArticle":
+        """Publish a page to a service's portal"""
+        return self._call("POST", "/pages/{pageId}/articles", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def unpublish_page_from_portal(self, page_id: str, collection_id: str) -> None:
+        """Take a page back from a service's portal"""
+        return self._call("DELETE", "/pages/{pageId}/articles/{collectionId}", {"pageId": page_id, "collectionId": collection_id}, None, {}, None, "none", None, "void")
+
+    def list_page_language_variants(self, page_id: str) -> "PageLanguageVariants":
+        """The languages a page is written in for a service's portal"""
+        return self._call("GET", "/pages/{pageId}/language-variants", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def link_page_language_variant(self, page_id: str, body: "PageLanguageLink") -> "PageLanguageVariant":
+        """Make a page the variant of another in one language"""
+        return self._call("PUT", "/pages/{pageId}/language-source", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def unlink_page_language_variant(self, page_id: str) -> None:
+        """Make a language variant a page of its own again"""
+        return self._call("DELETE", "/pages/{pageId}/language-source", {"pageId": page_id}, None, {}, None, "none", None, "void")
+
+    def read_public_links_policy(self) -> "PublicLinksPolicy":
+        """Whether pages may be opened by a public link"""
+        return self._call("GET", "/pages:public-links", {}, None, {}, None, "none", None, "json")
+
+    def set_public_links_policy(self, body: dict[str, Any]) -> "PublicLinksPolicy":
+        """Allow public links to pages, or not"""
+        return self._call("PUT", "/pages:public-links", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_public_form(self, collection_id: str) -> "PublicForm":
+        """A collection's public form"""
+        return self._call("GET", "/collections/{collectionId}/public-form", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def create_public_form(self, collection_id: str) -> "PublicFormMinted":
+        """Make a collection's public form"""
+        return self._call("POST", "/collections/{collectionId}/public-form", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
+
+    def delete_public_form(self, collection_id: str) -> None:
+        """Take a collection's public form away"""
+        return self._call("DELETE", "/collections/{collectionId}/public-form", {"collectionId": collection_id}, None, {}, None, "none", None, "void")
+
+    def read_public_forms_policy(self) -> "PublicLinksPolicy":
+        """Whether collections may take requests through a public form"""
+        return self._call("GET", "/public-forms:policy", {}, None, {}, None, "none", None, "json")
+
+    def set_public_forms_policy(self, body: dict[str, Any]) -> "PublicLinksPolicy":
+        """Allow public forms, or not"""
+        return self._call("PUT", "/public-forms:policy", {}, None, {}, body, "json", "application/json", "json")
+
+    def get_public_form(self, token: str) -> "PublicFormView":
+        """A public form opened by its link"""
+        return self._call("GET", "/public/forms/{token}", {"token": token}, None, {}, None, "none", None, "json")
+
+    def submit_public_form(self, token: str, body: "PublicFormSubmission") -> None:
+        """Send a request through a public form"""
+        return self._call("POST", "/public/forms/{token}", {"token": token}, None, {}, body, "json", "application/json", "void")
+
+    def answer_satisfaction_link(self, token: str, body: "SatisfactionLinkAnswer") -> None:
+        """Say how satisfied you were, by the link of a resolution mail"""
+        return self._call("POST", "/public/satisfaction/{token}", {"token": token}, None, {}, body, "json", "application/json", "void")
+
+    def get_public_roadmap(self, token: str, *, query: dict[str, Any] | None = None) -> "PortfolioRoadmap":
+        """A portfolio's roadmap opened by its public link"""
+        return self._call("GET", "/public/roadmaps/{token}", {"token": token}, query, {}, None, "none", None, "json")
+
+    def get_public_page(self, token: str) -> bytes:
+        """A page opened by its public link"""
+        return self._call("GET", "/public/pages/{token}", {"token": token}, None, {}, None, "none", None, "raw")
+
+    def get_public_page_media(self, token: str, media_id: str) -> bytes:
+        """A picture of a page opened by its public link"""
+        return self._call("GET", "/public/pages/{token}/media/{mediaId}", {"token": token, "mediaId": media_id}, None, {}, None, "none", None, "raw")
+
+    def list_shared_pages(self) -> "SharedPageList":
+        """The pages shared with me"""
+        return self._call("GET", "/pages:shared", {}, None, {}, None, "none", None, "json")
+
+    def read_personal_space(self) -> "PersonalSpace":
+        """My own notes' space"""
+        return self._call("GET", "/pages:personal", {}, None, {}, None, "none", None, "json")
+
+    def open_daily_note(self, body: "DailyNoteOpen") -> "Page":
+        """Open my note of a day"""
+        return self._call("POST", "/pages:today", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_whiteboards(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "WhiteboardList":
+        """A hub's whiteboards"""
+        return self._call("GET", "/hubs/{hubId}/whiteboards", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_whiteboard(self, hub_id: str, body: "WhiteboardCreate") -> "WhiteboardRead":
+        """Make a new whiteboard"""
+        return self._call("POST", "/hubs/{hubId}/whiteboards", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_whiteboard(self, whiteboard_id: str) -> "WhiteboardRead":
+        """Read a whiteboard"""
+        return self._call("GET", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def update_whiteboard(self, whiteboard_id: str, body: "WhiteboardChange", *, if_match: str | None = None) -> "WhiteboardRead":
+        """Rename a whiteboard or save its objects"""
+        return self._call("PATCH", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def trash_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
+        """Put a whiteboard in the trash"""
+        return self._call("DELETE", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def restore_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
+        """Bring a whiteboard back from the trash"""
+        return self._call("POST", "/whiteboards/{whiteboardId}:restore", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def export_whiteboard(self, whiteboard_id: str, body: "WhiteboardExportRequest") -> "WhiteboardExport":
+        """Export a whiteboard"""
+        return self._call("POST", "/whiteboards/{whiteboardId}:export", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_whiteboard_backlinks(self, whiteboard_id: str) -> "WhiteboardBacklinkList":
+        """What points at a whiteboard"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/backlinks", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def list_whiteboard_comments(self, whiteboard_id: str) -> "WhiteboardCommentList":
+        """A whiteboard's comments"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/comments", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def add_whiteboard_comment(self, whiteboard_id: str, body: "WhiteboardCommentCreate") -> "WhiteboardComment":
+        """Comment on a whiteboard"""
+        return self._call("POST", "/whiteboards/{whiteboardId}/comments", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def change_whiteboard_comment(self, comment_id: str, body: "WhiteboardCommentChange", *, if_match: str | None = None) -> "WhiteboardComment":
+        """Change a whiteboard comment"""
+        return self._call("PATCH", "/whiteboard-comments/{commentId}", {"commentId": comment_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_whiteboard_comment(self, comment_id: str) -> None:
+        """Take a whiteboard comment back"""
+        return self._call("DELETE", "/whiteboard-comments/{commentId}", {"commentId": comment_id}, None, {}, None, "none", None, "void")
+
+    def attach_whiteboard_media(self, whiteboard_id: str, body: "WhiteboardMediaPlacement") -> "WhiteboardMediaPlacement":
+        """Place an uploaded file on a whiteboard"""
+        return self._call("POST", "/whiteboards/{whiteboardId}/media", {"whiteboardId": whiteboard_id}, None, {}, body, "json", "application/json", "json")
+
+    def list_whiteboard_versions(self, whiteboard_id: str, *, query: dict[str, Any] | None = None) -> "WhiteboardVersionList":
+        """A whiteboard's history"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/versions", {"whiteboardId": whiteboard_id}, query, {}, None, "none", None, "json")
+
+    def read_whiteboard_version(self, whiteboard_id: str, seq: str) -> "WhiteboardVersionRead":
+        """Read one version of a whiteboard"""
+        return self._call("GET", "/whiteboards/{whiteboardId}/versions/{seq}", {"whiteboardId": whiteboard_id, "seq": seq}, None, {}, None, "none", None, "json")
+
+    def name_whiteboard_version(self, whiteboard_id: str, seq: str, body: "PageVersionName") -> "PageVersionNamed":
+        """Name a version of a whiteboard"""
+        return self._call("PATCH", "/whiteboards/{whiteboardId}/versions/{seq}", {"whiteboardId": whiteboard_id, "seq": seq}, None, {}, body, "json", "application/merge-patch+json", "json")

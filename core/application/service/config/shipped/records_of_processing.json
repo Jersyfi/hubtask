@@ -1,0 +1,187 @@
+{
+  "key": "records_of_processing",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "ropa_purpose": {
+        "name": "Purpose",
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "ropa_legal_basis": {
+        "name": "Legal basis",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Consent",
+          "Contract",
+          "Legal obligation",
+          "Vital interests",
+          "Public task",
+          "Legitimate interests"
+        ]
+      },
+      "ropa_owner": {
+        "name": "Owner",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "ropa_subjects": {
+        "name": "Data subjects",
+        "kind": "MULTI_SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Customers",
+          "Employees",
+          "Applicants",
+          "Suppliers",
+          "Website visitors"
+        ]
+      },
+      "ropa_data_categories": {
+        "name": "Data categories",
+        "kind": "MULTI_SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Contact data",
+          "Contract data",
+          "Payment data",
+          "Employee data",
+          "Usage data",
+          "Special categories"
+        ]
+      },
+      "ropa_recipients": {
+        "name": "Recipients",
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "ropa_third_country": {
+        "name": "Transfer to a third country",
+        "kind": "BOOL",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "ropa_retention": {
+        "name": "Retention",
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "ropa_measures": {
+        "name": "Technical and organisational measures",
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "ropa_review_on": {
+        "name": "Review on",
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "processing_activity": {
+        "level": "TASK",
+        "name": "Processing activity",
+        "icon": "file-text",
+        "color_token": "slate",
+        "record": true,
+        "completable": false,
+        "schedulable": false,
+        "workflow": false,
+        "form": {
+          "sections": [
+            {
+              "key": "activity",
+              "name": "Activity"
+            },
+            {
+              "key": "data",
+              "name": "Data"
+            },
+            {
+              "key": "safeguards",
+              "name": "Safeguards"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "activity",
+              "required": true
+            },
+            {
+              "key": "custom_fields.ropa_purpose",
+              "section": "activity",
+              "required": true
+            },
+            {
+              "key": "custom_fields.ropa_legal_basis",
+              "section": "activity",
+              "required": true
+            },
+            {
+              "key": "custom_fields.ropa_owner",
+              "section": "activity"
+            },
+            {
+              "key": "custom_fields.ropa_subjects",
+              "section": "data"
+            },
+            {
+              "key": "custom_fields.ropa_data_categories",
+              "section": "data"
+            },
+            {
+              "key": "custom_fields.ropa_recipients",
+              "section": "data"
+            },
+            {
+              "key": "custom_fields.ropa_third_country",
+              "section": "data"
+            },
+            {
+              "key": "custom_fields.ropa_retention",
+              "section": "safeguards"
+            },
+            {
+              "key": "custom_fields.ropa_measures",
+              "section": "safeguards"
+            },
+            {
+              "key": "custom_fields.ropa_review_on",
+              "section": "safeguards"
+            },
+            {
+              "key": "notes",
+              "section": "safeguards"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

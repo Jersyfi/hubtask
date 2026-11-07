@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6]
 serves: [P-02, P-04, P-07]
 state: built
 tasks: [SI-07, SI-08, SI-16]
-checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go]
+checked_by: [core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/SignInStep_test.go, core/domain/model/identity/Session_test.go]
 ---
 
 # Require a new password from everyone after a breach

@@ -717,3 +717,21 @@ func TestAPresetAnswersItsPersonalDirectories(t *testing.T) {
 		t.Errorf("Google answered %v, it has no personal directory", google)
 	}
 }
+
+// A SAML provider's answer says when its certificates end, so the sign-in settings can warn before
+// nobody can sign in through it; a provider of another kind answers null.
+func TestASAMLProviderAnswersWhenItsCertificatesEnd(t *testing.T) {
+	at := time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC)
+	until := at.AddDate(0, 0, 20).Truncate(time.Second)
+	saml := domain.IdentityProvider{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000901"), Kind: domain.KindSAML,
+		SAMLSSOURL: "https://idp.example/sso", SAMLCertificate: samlTestCertificateUntil(t, at, until),
+	}
+	if got := ProviderOutput(saml)["saml_certificate_expires_at"]; got != until {
+		t.Errorf("saml_certificate_expires_at = %v, want %v", got, until)
+	}
+	other := domain.IdentityProvider{ID: shared.ID("01936f2a-7c1e-7000-8000-000000000902"), Kind: domain.KindGeneric}
+	if got, held := ProviderOutput(other)["saml_certificate_expires_at"]; !held || got != nil {
+		t.Errorf("a generic provider answered saml_certificate_expires_at = %v (held %t), want null", got, held)
+	}
+}

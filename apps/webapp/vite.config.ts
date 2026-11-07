@@ -85,7 +85,8 @@ export default defineConfig(({ mode }) => ({
     // asked for, and rewriting the `Host` header to the proxy's target - which `changeOrigin: true`
     // does - throws that away before the API ever sees it. With it off, opening
     // `http://<slug>.localhost:5173` reaches that workspace, and the bare `localhost` reaches none,
-    // which is exactly what the server answers in production.
-    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: false } },
+    // which is exactly what the server answers in production. `ws` forwards the realtime socket
+    // (`lib/data/engine.ts`), without which pages and whiteboards never leave "Connecting…".
+    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: false, ws: true } },
   },
 }));

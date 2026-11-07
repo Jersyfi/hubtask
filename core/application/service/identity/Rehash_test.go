@@ -86,7 +86,8 @@ func TestARefusedSignInRehashesNothing(t *testing.T) {
 			found := f.accounts.byEmail["bert@example.org"]
 			found.Account.Status = domain.AccountDisabled
 			f.accounts.byEmail["bert@example.org"] = found
-			return rehashPassword, found.Account.Verify()
+			// Answered as a wrong password (UC-ID-01 check 4).
+			return rehashPassword, domain.ErrSignInFailed()
 		},
 	} {
 		fixture, _ := oldCostFixture()

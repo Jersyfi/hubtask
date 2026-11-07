@@ -8,6 +8,7 @@ package mailbox
 
 import (
 	"context"
+	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -41,6 +42,14 @@ type Session interface {
 	Done(ctx context.Context, ref string) error
 	// Close signs out.
 	Close() error
+}
+
+// Watcher holds a mailbox open and answers when mail arrives in its folder (IMAP IDLE, RFC 2177),
+// so a read can start at once instead of on the next poll. It answers false when hold passed and
+// nothing came; a server that cannot hold a mailbox open is `mail.mailbox_idle_unsupported`, and
+// the other refusals are the Reader's.
+type Watcher interface {
+	Watch(ctx context.Context, connection Connection, hold time.Duration) (bool, error)
 }
 
 // Token is what an OAuth provider hands out for a mailbox: an access token for one read, a refresh

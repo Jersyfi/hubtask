@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -25,7 +24,6 @@ import (
 
 const (
 	rulesPath = "/automation/rules"
-	runsPath  = "/automation/runs"
 )
 
 func ruleGroup() group {
@@ -40,38 +38,10 @@ func ruleGroup() group {
 				run:     ruleAdd,
 			},
 			{
-				name:    "ls",
-				usage:   "[--enabled|--disabled] [--cursor <c>] [--size <n>]",
-				summary: "the workspace's rules, newest first",
-				run:     ruleList,
-			},
-			{name: "show", usage: "<id>", summary: "one rule, as it stands", run: ruleShow},
-			{name: "enable", usage: "<id>", summary: "switch it on", run: ruleEnable},
-			{name: "disable", usage: "<id>", summary: "switch it off", run: ruleDisable},
-			{
 				name:    "test",
 				usage:   "<id> --event <type> [--subject <id>] [--payload <json>]",
 				summary: "the dry run: what it would do, without doing any of it",
 				run:     ruleTest,
-			},
-			{
-				name:    "trigger",
-				usage:   "<id>",
-				summary: "run it now, as the person asking",
-				run:     ruleTrigger,
-			},
-			{
-				name:    "runs",
-				usage:   "[--rule <id>] [--status <s>] [--cursor <c>] [--size <n>]",
-				summary: "what the rules have done, newest first",
-				run:     ruleRuns,
-			},
-			{name: "run", usage: "show <id>", summary: "one run, with every step", run: ruleRun},
-			{
-				name:    "replay",
-				usage:   "<run id>",
-				summary: "run the same occasion again, as a new run that says what it repeats",
-				run:     ruleReplay,
 			},
 			{
 				name:    "rotate-token",
@@ -160,90 +130,6 @@ func ruleAdd(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(written, ruleTable([]openapi.AutomationRule{written}))
 }
 
-func ruleList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "rule", "ls", "[--enabled|--disabled] [--cursor <c>] [--size <n>]")
-	enabled := flags.Bool("enabled", false, "only the rules that are switched on")
-	disabled := flags.Bool("disabled", false, "only the rules that are not")
-	cursor := flags.String("cursor", "", "continue the previous page")
-	size := flags.Int("size", 0, "how many at most")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *enabled && *disabled {
-		return usagef("rule ls takes --enabled or --disabled, not both")
-	}
-
-	query := url.Values{}
-	switch {
-	case *enabled:
-		query.Set("enabled", "true")
-	case *disabled:
-		query.Set("enabled", "false")
-	}
-	if *size > 0 {
-		query.Set("size", strconv.Itoa(*size))
-	}
-	if *cursor != "" {
-		query.Set("cursor", *cursor)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var page openapi.AutomationRulePage
-	if err := client.Get(ctx, rulesPath, query, &page); err != nil {
-		return err
-	}
-	if err := cli.Emit(page, ruleTable(page.Data)); err != nil {
-		return err
-	}
-	cli.reportMore(page.Page)
-	return nil
-}
-
-func ruleShow(ctx context.Context, cli *CLI, args []string) error {
-	ruleID, err := cli.onlyID(args, "rule show <id>")
-	if err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var rule openapi.AutomationRule
-	if err := client.Get(ctx, rulesPath+"/"+ruleID.String(), nil, &rule); err != nil {
-		return err
-	}
-	return cli.Emit(rule, ruleTable([]openapi.AutomationRule{rule}))
-}
-
-func ruleEnable(ctx context.Context, cli *CLI, args []string) error {
-	return ruleSwitch(ctx, cli, args, "enable")
-}
-
-func ruleDisable(ctx context.Context, cli *CLI, args []string) error {
-	return ruleSwitch(ctx, cli, args, "disable")
-}
-
-// ruleSwitch is both halves of the switch, because they are one call with a different verb - and
-// the verb is the point: the trail says which of the two somebody did.
-func ruleSwitch(ctx context.Context, cli *CLI, args []string, verb string) error {
-	ruleID, err := cli.onlyID(args, "rule "+verb+" <id>")
-	if err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var rule openapi.AutomationRule
-	if err := client.Post(ctx, rulesPath+"/"+ruleID.String()+":"+verb, nil, &rule); err != nil {
-		return err
-	}
-	return cli.Emit(rule, ruleTable([]openapi.AutomationRule{rule}))
-}
-
 // ruleTest is the dry run: what the rule would do, with nothing done.
 //
 // The sample event is named rather than inferred from the rule. A rule's conditions read the event
@@ -296,122 +182,6 @@ func ruleTest(ctx context.Context, cli *CLI, args []string) error {
 		printf(cli.Err, "nothing was done: a dry run answers what would happen\n")
 	}
 	return cli.Emit(result, testTable(result))
-}
-
-func ruleTrigger(ctx context.Context, cli *CLI, args []string) error {
-	ruleID, err := cli.onlyID(args, "rule trigger <id>")
-	if err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var accepted openapi.RuleRunAccepted
-	if err := client.Post(ctx, rulesPath+"/"+ruleID.String()+":trigger", nil, &accepted); err != nil {
-		return err
-	}
-	if !cli.JSON {
-		// The run is queued rather than finished, and the identifier is the one it will carry:
-		// reading it back before a worker claims it answers not found, which is not an error.
-		printf(cli.Err, "queued; read it back with `hubctl rule run show %s`\n", accepted.RunId.String())
-	}
-	return cli.Emit(accepted, Table{
-		Columns: []string{"run", "rule"},
-		Rows:    [][]string{{accepted.RunId.String(), accepted.RuleId.String()}},
-	})
-}
-
-func ruleRuns(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "rule", "runs",
-		"[--rule <id>] [--status <s>] [--cursor <c>] [--size <n>]")
-	rule := flags.String("rule", "", "one rule's runs")
-	status := flags.String("status", "", "SUCCEEDED, FAILED, RUNNING, WAITING, SKIPPED or ABORTED_LOOP")
-	cursor := flags.String("cursor", "", "continue the previous page")
-	size := flags.Int("size", 0, "how many at most")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *rule != "" {
-		parsed, err := cli.parseID("--rule", *rule)
-		if err != nil {
-			return err
-		}
-		query.Set("rule_id", parsed.String())
-	}
-	if *status != "" {
-		query.Set("status", *status)
-	}
-	if *size > 0 {
-		query.Set("size", strconv.Itoa(*size))
-	}
-	if *cursor != "" {
-		query.Set("cursor", *cursor)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var page openapi.RuleRunPage
-	if err := client.Get(ctx, runsPath, query, &page); err != nil {
-		return err
-	}
-	if err := cli.Emit(page, ruleRunTable(page.Data)); err != nil {
-		return err
-	}
-	cli.reportMore(page.Page)
-	return nil
-}
-
-// ruleRun is `rule run show <id>`: the sub-verb exists so that "run" reads as the noun it is.
-func ruleRun(ctx context.Context, cli *CLI, args []string) error {
-	if len(args) == 0 || args[0] != "show" {
-		return usagef("hubctl rule run show <id>")
-	}
-	runID, err := cli.onlyID(args[1:], "rule run show <id>")
-	if err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var run openapi.RuleRun
-	if err := client.Get(ctx, runsPath+"/"+runID.String(), nil, &run); err != nil {
-		return err
-	}
-	if err := cli.Emit(run, ruleRunTable([]openapi.RuleRun{run})); err != nil {
-		return err
-	}
-	if !cli.JSON {
-		// The steps under the run rather than instead of it: "FAILED" answers "did it work", and
-		// the step that failed answers "why".
-		cli.emitTable(stepTable(run))
-	}
-	return nil
-}
-
-func ruleReplay(ctx context.Context, cli *CLI, args []string) error {
-	runID, err := cli.onlyID(args, "rule replay <run id>")
-	if err != nil {
-		return err
-	}
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var accepted openapi.RuleRunAccepted
-	if err := client.Post(ctx, runsPath+"/"+runID.String()+":replay", nil, &accepted); err != nil {
-		return err
-	}
-	return cli.Emit(accepted, Table{
-		Columns: []string{"run", "rule"},
-		Rows:    [][]string{{accepted.RunId.String(), accepted.RuleId.String()}},
-	})
 }
 
 // ruleRotateToken mints the address an inbound rule listens on, and says the one thing that has to
@@ -492,39 +262,6 @@ func switchState(enabled bool) string {
 		return "on"
 	}
 	return "off"
-}
-
-func ruleRunTable(runs []openapi.RuleRun) Table {
-	rows := make([][]string, 0, len(runs))
-	for _, run := range runs {
-		rows = append(rows, []string{
-			run.Id.String(),
-			run.RuleId.String(),
-			string(run.Trigger),
-			string(run.Status),
-			shortTime(&run.StartedAt),
-			text(run.ErrorCode),
-		})
-	}
-	return Table{
-		Columns: []string{"id", "rule", "trigger", "status", "started", "error"},
-		Rows:    rows,
-	}
-}
-
-// stepTable is what a run actually did, step by step. Printed under the run rather than instead of
-// it: "FAILED" is the answer to "did it work", and the step that failed is the answer to "why".
-func stepTable(run openapi.RuleRun) Table {
-	rows := make([][]string, 0, len(run.ActionResults))
-	for index, result := range run.ActionResults {
-		rows = append(rows, []string{
-			strconv.Itoa(index + 1),
-			result.Kind,
-			string(result.Status),
-			text(result.ErrorCode),
-		})
-	}
-	return Table{Columns: []string{"#", "action", "status", "error"}, Rows: rows}
 }
 
 func testTable(result openapi.RuleTestResult) Table {

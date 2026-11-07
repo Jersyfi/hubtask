@@ -70,6 +70,7 @@ async function signedIn(browser, answer) {
   return { context, sent };
 }
 
+// UC-INS-04 check 2: the hour shows as a countdown.
 test('chromium: a refresh and a reload keep the hour, and ask for nothing again', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

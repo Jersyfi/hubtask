@@ -86,6 +86,15 @@ fresh snapshot over the copy, once per device and reason: the next catch-up walk
 the held cursor and then reads the snapshot whole, an open stream reconnects to do it now, and
 offline the request waits in the store. When one is due is the application's to say (§4.2).
 
+**A bound** (`bound: ReplicaBound`, the browser's alone, offline-sync.md §1) stops an initial
+synchronisation once more records than `records` that `counts` accepts have arrived, empties the
+copy (the queue kept) and walks again with the containers `containers()` names as scopes, held in
+the store; past the bound again it keeps the first half, and a copy of one container is held whole.
+The stream's records outside the held containers are not written to the copy and still invalidate.
+`heldContainers` says what is held, `renarrow()` asks `containers()` again and takes the copy afresh
+where the answer changed. The engine still learns no product: which records count and which
+containers are wanted are the application's.
+
 ## Writing
 
 `mutate` writes directly while the queue is empty and the server answers. Otherwise — and when a
@@ -120,7 +129,9 @@ browser, whose store is not encrypted — `capture` is refused with `sync.needs_
 * **`Transport.stream`** reads `GET /stream` from the response body; `engine.listen` keeps one
   connection per tab. `connectTimeoutMs` bounds the wait for the headers, `idleTimeoutMs` the
   silence between chunks. `401` ends the session through the one hook, the two cursor refusals
-  recover as above, and a `503` waits exactly the `Retry-After` the server named.
+  recover as above, and a `503` waits the `Retry-After` the server named; a stream refused at the server's cap
+  (`sync.stream_unavailable`) waits at least that, growing and spread with each refusal, and
+  `onConnection` says `'refused'` so the client can say "live updates paused".
 * **`Transport.transfer`** is the middle step of the three-step upload (arc42 §8.4): the bytes go
   to a presigned URL with no bearer and `credentials: 'omit'`, under a deadline sized by the bytes,
   with progress reported as they leave. `engine.transfer` invalidates only what the caller names.

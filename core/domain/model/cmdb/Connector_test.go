@@ -1,0 +1,293 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package cmdb
+
+import (
+	"testing"
+	"time"
+)
+
+func connectorSource() Source { return Source{Key: "glpi", Kind: SourceConnector, Rank: 50} }
+
+// UC-AST-07 check 1.
+func TestAConnectorIsCheckedAgainstItsKind(t *testing.T) {
+	base := ConnectorInput{ID: id("01"), HubID: id("02"), Key: "glpi", Kind: ConnectorGLPI, Source: connectorSource(),
+		BaseURL: "https://glpi.example.org/", Settings: map[string]string{"client_id": "c"}, Enabled: true, Now: now}
+	cases := []struct {
+		name string
+		edit func(*ConnectorInput)
+		code string
+	}{
+		{"fine", func(*ConnectorInput) {}, ""},
+		{"an unknown kind", func(in *ConnectorInput) { in.Kind = "SNMP" }, "cmdb.connector_kind_unknown"},
+		{"a malformed key", func(in *ConnectorInput) { in.Key = "GLPI" }, "cmdb.connector_key_malformed"},
+		{"a source that is a file", func(in *ConnectorInput) { in.Source.Kind = SourceFile }, "cmdb.connector_source_not_connector"},
+		{"no address to pull from", func(in *ConnectorInput) { in.BaseURL = "" }, "cmdb.connector_base_url_required"},
+		{"a plain-text address", func(in *ConnectorInput) { in.BaseURL = "http://glpi.example.org" }, "cmdb.connector_base_url_invalid"},
+		{"an address with a credential", func(in *ConnectorInput) { in.BaseURL = "https://u:p@glpi.example.org" }, "cmdb.connector_base_url_invalid"},
+		{"a missing setting", func(in *ConnectorInput) { in.Settings = nil }, "cmdb.connector_setting_required"},
+		{"a period too short", func(in *ConnectorInput) { in.Every = 5 }, "cmdb.connector_every_invalid"},
+		{"a host with a path", func(in *ConnectorInput) { in.AllowedHosts = []string{"a.example/x"} }, "cmdb.connector_host_invalid"},
+		{"a pull with an incident collection", func(in *ConnectorInput) { in.Collection = id("09") }, "cmdb.connector_collection_push_only"},
+	}
+	for _, c := range cases {
+		in := base
+		in.Settings = map[string]string{"client_id": "c"}
+		c.edit(&in)
+		_, err := NewConnector(in, nil)
+		if got := code(err); got != c.code {
+			t.Errorf("%s: got %q, want %q", c.name, got, c.code)
+		}
+	}
+}
+
+// UC-AST-07 check 4.
+func TestAConnectorReachesOnlyItsOwnHosts(t *testing.T) {
+	c, err := NewConnector(ConnectorInput{Key: "intune", Kind: ConnectorIntune, Source: connectorSource(), BaseURL: "https://graph.example",
+		Settings:     map[string]string{"tenant": "t", "client_id": "c", "authority": "https://login.example/"},
+		AllowedHosts: []string{"Extra.Example.org"}, Now: now}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Settings["authority"] != "https://login.example" {
+		t.Fatalf("the authority is kept without its trailing slash, got %q", c.Settings["authority"])
+	}
+	want := []string{"extra.example.org", "graph.example", "login.example"}
+	if got := c.Hosts(); len(got) != 3 || got[0] != want[0] || got[1] != want[1] || got[2] != want[2] {
+		t.Fatalf("hosts %v, want %v", got, want)
+	}
+}
+
+func TestAnAlertIntakeIsNeverScheduledAndNeedsNoAddress(t *testing.T) {
+	in := ConnectorInput{Key: "am", Kind: ConnectorAlertmanager, Source: connectorSource(), BaseURL: "https://x.example", Now: now}
+	c, err := NewConnector(in, nil)
+	if err != nil || c.BaseURL != "" || c.NextRunAt != nil {
+		t.Fatalf("an intake keeps no address and no schedule: %+v %v", c, err)
+	}
+	in.Every = 60
+	if _, err := NewConnector(in, nil); code(err) != "cmdb.connector_push_not_scheduled" {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestAGLPIAgentIntakeIsPostedInventoryAndOpensNoEntries(t *testing.T) {
+	in := ConnectorInput{Key: "agents", Kind: ConnectorGLPIAgent, Source: connectorSource(), Now: now}
+	c, err := NewConnector(in, nil)
+	if err != nil || !c.Spec().Push || !c.Spec().Inventory || c.NextRunAt != nil {
+		t.Fatalf("an inventory intake: %+v %v", c, err)
+	}
+	in.Collection = id("05")
+	if _, err := NewConnector(in, nil); code(err) != "cmdb.connector_collection_push_only" {
+		t.Fatalf("an inventory intake opens no entries: %v", err)
+	}
+}
+
+// UC-AST-07 checks 5 and 6: a failure keeps the cursor and honours the wait; ten in a row switch
+// it off.
+func TestAScheduledConnectorRunsEveryPeriodAndStopsAfterFailures(t *testing.T) {
+	c, err := NewConnector(ConnectorInput{Key: "hz", Kind: ConnectorHetzner, Source: connectorSource(), BaseURL: "https://hz.example",
+		Every: 60, Enabled: true, Now: now}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Due(now) || c.Due(now.Add(-time.Minute)) {
+		t.Fatal("a new scheduled connector is owed at once")
+	}
+	c = c.Ran(now, id("05"), ConnectorOK, "", "cursor-1", nil)
+	if c.Cursor != "cursor-1" || !c.NextRunAt.Equal(now.Add(time.Hour)) || c.Due(now.Add(59*time.Minute)) {
+		t.Fatalf("after a run: %+v", c)
+	}
+	retry := now.Add(10 * time.Minute)
+	failed := c.Ran(now, "", ConnectorFailed, "connector.rate_limited", "ignored", &retry)
+	if failed.Cursor != "cursor-1" || !failed.NextRunAt.Equal(retry) || failed.LastRun != id("05") {
+		t.Fatalf("a failure keeps the cursor and honours the retry: %+v", failed)
+	}
+	for range MaxConnectorFailures - 1 {
+		failed = failed.Ran(now, "", ConnectorFailed, "connector.unreachable", "", nil)
+	}
+	if failed.Enabled || failed.NextRunAt != nil {
+		t.Fatalf("switched off after %d failures: %+v", MaxConnectorFailures, failed)
+	}
+}
+
+// UC-AST-08 check 3.
+func TestAnAlertOpensRepeatsResolvesAndReopens(t *testing.T) {
+	fire := AlertSignal{Key: "k", Status: AlertFiring, Title: "disk full", Severity: "critical"}
+	a, change := Receive(Alert{}, fire, now)
+	if change != AlertOpened || a.Count != 1 || a.Status != AlertFiring {
+		t.Fatalf("opened: %v %+v", change, a)
+	}
+	a.ID = id("07")
+	if a, change = Receive(a, fire, now.Add(time.Minute)); change != AlertRepeated || a.Count != 2 {
+		t.Fatalf("repeated: %v %+v", change, a)
+	}
+	if a, change = Receive(a, AlertSignal{Key: "k", Status: AlertResolved}, now.Add(2*time.Minute)); change != AlertClosed || a.ResolvedAt == nil {
+		t.Fatalf("resolved: %v %+v", change, a)
+	}
+	if a, change = Receive(a, fire, now.Add(3*time.Minute)); change != AlertReopened || a.ResolvedAt != nil || a.Count != 3 {
+		t.Fatalf("reopened: %v %+v", change, a)
+	}
+	if _, change = Receive(Alert{}, AlertSignal{Key: "x", Status: AlertResolved}, now); change != AlertUnchanged {
+		t.Fatal("a resolution of a problem never seen records nothing")
+	}
+}
+
+func TestAnAlertsHostsAreLookedUpByNameAddressAndShortName(t *testing.T) {
+	s, err := CheckSignal(AlertSignal{Key: "k", Status: AlertFiring, Hosts: []string{"Web01.example.org:9100", " "}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := AlertLookups(s)
+	if len(l) != 2 || l[0]["hostname"] != "web01.example.org" || l[1]["hostname"] != "web01" {
+		t.Fatalf("lookups %v", l)
+	}
+	if _, err := CheckSignal(AlertSignal{Status: AlertFiring}); code(err) != "cmdb.alert_key_invalid" {
+		t.Fatalf("a signal without a key: %v", err)
+	}
+}
+
+func TestAFailedOrEmptyRunFiresTheRunAlertAndAFetchingOneResolvesIt(t *testing.T) {
+	cases := []struct {
+		outcome  ConnectorOutcome
+		code     string
+		status   AlertStatus
+		severity string
+		title    string
+		ok       bool
+	}{
+		{ConnectorFailed, "connector.unauthorised", AlertFiring, "FAILED", "connector.unauthorised", true},
+		{ConnectorEmpty, "", AlertFiring, "EMPTY", RunEmptyCode, true},
+		{ConnectorOK, "", AlertResolved, "", "", true},
+		{ConnectorNeverRan, "", "", "", "", false},
+	}
+	for _, c := range cases {
+		t.Run(string(c.outcome), func(t *testing.T) {
+			sig, ok := RunAlert(c.outcome, c.code)
+			if ok != c.ok || sig.Status != c.status || sig.Severity != c.severity || sig.Title != c.title {
+				t.Fatalf("%+v %v", sig, ok)
+			}
+			if ok && sig.Key != RunAlertKey {
+				t.Fatalf("one run alert per connector: %q", sig.Key)
+			}
+		})
+	}
+	opened, change := Receive(Alert{}, mustRunAlert(t, ConnectorFailed, "connector.unreachable"), now)
+	if change != AlertOpened {
+		t.Fatal(change)
+	}
+	opened.ID = id("09")
+	again, change := Receive(opened, mustRunAlert(t, ConnectorEmpty, ""), now.Add(time.Hour))
+	if change != AlertRepeated || again.Count != 2 || again.Title != RunEmptyCode {
+		t.Fatalf("a second bad run counts the same alert: %+v %v", again, change)
+	}
+	if done, change := Receive(again, mustRunAlert(t, ConnectorOK, ""), now.Add(2*time.Hour)); change != AlertClosed || done.Status != AlertResolved {
+		t.Fatalf("a run that fetched resolves it: %v", change)
+	}
+}
+
+func mustRunAlert(t *testing.T, o ConnectorOutcome, code string) AlertSignal {
+	t.Helper()
+	s, ok := RunAlert(o, code)
+	if !ok {
+		t.Fatal(o)
+	}
+	return s
+}
+
+func TestAZeroByteAMonitoringProgramSendsIsDroppedNotStored(t *testing.T) {
+	s, err := CheckSignal(AlertSignal{Key: "fp\x001", Status: AlertFiring, Severity: "crit\x00ical",
+		Title: "disk\x00 full", Hosts: []string{"web01\x00", "\x00"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Key != "fp1" || s.Severity != "CRITICAL" || s.Title != "disk full" || len(s.Hosts) != 1 || s.Hosts[0] != "web01" {
+		t.Fatalf("no text column stores a zero byte: %+v", s)
+	}
+	if _, err := CheckSignal(AlertSignal{Key: "\x00", Status: AlertFiring}); code(err) != "cmdb.alert_key_invalid" {
+		t.Fatalf("a key of zero bytes only is none: %v", err)
+	}
+}
+
+func TestAnIPv6HostNamesItsCIByTheWholeAddress(t *testing.T) {
+	cases := []struct{ host, want string }{
+		{"2001:db8::5", "2001:db8::5"},
+		{"[2001:db8::5]:9100", "2001:db8::5"},
+		{"[2001:DB8::5]", "2001:db8::5"},
+		{"10.0.0.5:9100", "10.0.0.5"},
+		{"web01:9100", "web01"},
+	}
+	for _, c := range cases {
+		s, err := CheckSignal(AlertSignal{Key: "k", Status: AlertFiring, Hosts: []string{c.host}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if l := AlertLookups(s); len(l) != 1 || l[0]["ip_address"] != c.want {
+			t.Errorf("%s: lookups %v, want %q", c.host, l, c.want)
+		}
+	}
+}
+
+func TestASettingWithAZeroByteIsRefused(t *testing.T) {
+	_, err := NewConnector(ConnectorInput{Key: "glpi", Kind: ConnectorGLPI, Source: connectorSource(),
+		BaseURL: "https://glpi.example.org", Settings: map[string]string{"client_id": "c\x00"}, Now: now}, nil)
+	if code(err) != "cmdb.connector_setting_invalid" {
+		t.Fatalf("a setting no column stores: %v", err)
+	}
+}
+
+func TestAConnectorPointedAtAnotherSourceStartsFromTheBeginning(t *testing.T) {
+	in := ConnectorInput{Key: "nb", Kind: ConnectorNetBox, Source: connectorSource(), BaseURL: "https://nb-a.example",
+		Every: 60, Enabled: true, Now: now}
+	c, err := NewConnector(in, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = c.Ran(now, id("05"), ConnectorOK, "", "2026-10-29T12:00:00Z", nil)
+	in.Every = 120
+	same, err := NewConnector(in, &c)
+	if err != nil || same.Cursor != c.Cursor {
+		t.Fatalf("a new period reads on from the cursor: %q %v", same.Cursor, err)
+	}
+	in.BaseURL = "https://nb-b.example"
+	moved, err := NewConnector(in, &c)
+	if err != nil || moved.Cursor != "" {
+		t.Fatalf("another source's changes are not read from this one's cursor: %q %v", moved.Cursor, err)
+	}
+	g, err := NewConnector(ConnectorInput{Key: "os", Kind: ConnectorOpenStack, Source: connectorSource(), BaseURL: "https://os.example",
+		Settings: map[string]string{"application_credential_id": "a", "region": "one"}, Now: now}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g = g.Ran(now, id("05"), ConnectorOK, "", "c1", nil)
+	other, err := NewConnector(ConnectorInput{Key: "os", Kind: ConnectorOpenStack, Source: connectorSource(), BaseURL: "https://os.example",
+		Settings: map[string]string{"application_credential_id": "a", "region": "two"}, Now: now}, &g)
+	if err != nil || other.Cursor != "" {
+		t.Fatalf("another region is another source: %q %v", other.Cursor, err)
+	}
+}
+
+// A firing the program sends again after the alert resolved - a retry crossing the resolution -
+// carries the start of the episode that resolved and reopens nothing; a new episode starts later.
+func TestAStaleFiringAfterTheResolutionReopensNothing(t *testing.T) {
+	started := now.Add(-time.Hour)
+	fire := AlertSignal{Key: "k", Status: AlertFiring, At: &started}
+	a, _ := Receive(Alert{}, fire, now)
+	a.ID = id("08")
+	if a.StartedAt == nil || !a.StartedAt.Equal(started) {
+		t.Fatalf("the episode's start is kept: %+v", a.StartedAt)
+	}
+	a, _ = Receive(a, AlertSignal{Key: "k", Status: AlertResolved, At: &started}, now.Add(time.Minute))
+	if stale, change := Receive(a, fire, now.Add(2*time.Minute)); change != AlertUnchanged || stale.Status != AlertResolved {
+		t.Fatalf("a stale firing: %v %+v", change, stale)
+	}
+	again := now.Add(90 * time.Second)
+	reopened, change := Receive(a, AlertSignal{Key: "k", Status: AlertFiring, At: &again}, now.Add(3*time.Minute))
+	if change != AlertReopened || !reopened.StartedAt.Equal(again) {
+		t.Fatalf("a new episode: %v %+v", change, reopened)
+	}
+	// A late resolution of the episode before resolves nothing of the new one.
+	if kept, change := Receive(reopened, AlertSignal{Key: "k", Status: AlertResolved, At: &started}, now.Add(4*time.Minute)); change != AlertUnchanged || kept.Status != AlertFiring {
+		t.Fatalf("a stale resolution: %v %+v", change, kept)
+	}
+}

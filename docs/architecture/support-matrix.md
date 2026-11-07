@@ -131,3 +131,51 @@ else. A failure in one engine fails the job.
 | Windows | WebView2, the Evergreen runtime | `supported` | `ci.yml:shell`, the Windows leg: the walk through the runner's msedgedriver |
 | Linux (AppImage, `.deb`) | WebKitGTK 4.1 | `supported` | `ci.yml:shell`, the Linux leg: the walk through WebKitWebDriver under Xvfb |
 | Android | Android System WebView | `supported` | `ci.yml:shell`, the Android leg: the walk through the runner's chromedriver on an API 35 emulator (x86_64) |
+
+## 8. Host size
+
+What is measured, and only that:
+
+| Reading | `app` (all four roles in one process) | `db` | Where and how |
+|---|---|---|---|
+| Idle, a fresh installation, no workspace set up, 10 minutes after start | about 150 MiB resident, 2.5 s of CPU in 10.5 minutes | about 89 MiB (`docker stats`) | 2026-11-01, commit `15253e187`: the server built for macOS arm64 and run as a bare binary on the owner's workstation, against `pgvector/pgvector:pg16` in Docker, migrated to 0375; resident memory by `ps`, sampled every minute |
+
+Not measured yet: the Compose stack's own containers (the Linux image, not a macOS binary), and any
+installation under load. Until run F1 of the load plan ([test/load/PLAN.md](../../test/load/PLAN.md))
+has measured them, no minimum or recommended host size is stated here; the idle figures above are a
+floor, not a size to buy. `compose.yaml` carries a commented `mem_limit` and `GOMEMLIMIT` pair, the
+example of [deployment.md](./deployment.md) §2, to be set once F1 gives the recommendation.
+
+---
+
+## 9. Sizes: what is bounded and what was measured
+
+Two figures per size, never one for the other: the **ceiling** the code enforces (a write past it
+is refused with a message code, nothing is cut short), and the **largest size a run measured**
+with its result. A size no run reached is written *not measured*. The measured rows are the
+owner's workstation (Apple M4 Max, 14 cores, 36 GB), not named hardware
+([observability-reliability.md](./observability-reliability.md) §13.2), so they say what was
+proven to work, not what to promise a customer.
+
+| What | Ceiling (where) | Largest measured | Result |
+|---|---|---|---|
+| Entries per workspace | none (a plan or the operator may set one, [multi-tenancy.md](./multi-tenancy.md) §4) | 1 222 737 in one workspace, 10⁷ in the installation (second round, 2026-11-05) | every read path P95 under 200 ms with eight callers; the count over the hub (P95 119 ms) and the web app's board (47 ms) no longer keep pace at 400 a second |
+| A device's first synchronisation | the snapshot's 512 MiB budget, then the paged walk ([offline-sync.md](./offline-sync.md) §3.1) | 1 225 170 records, 1.2 GB, 2 451 pages | 42 s, page P95 17 ms |
+| Configuration items per hub | 20 000 (`MaxCIsPerHub`) | 20 000 (run C1, 2026-11-05) | no server error; health P95 248 ms and the service map 390 ms, over SLO-2; 796 MiB resident, over the run's 768 MiB `GOMEMLIMIT` - a known finding ([final-runs-leftovers.md](../backlog/suite/final-runs-leftovers.md), "Needs a finding issue") |
+| A connector's run | 50 pages (`MaxPagesPerRun`), 2 000 items a delivery (`MaxPayloadItems`), 50 connectors a hub | not measured (S6 built, run at scale *not measured*) | its trial found and fixed duplicate CIs; the interval between two pages fell from 1 133 to 227 ms |
+| A campaign's CIs | 5 000 (`MaxCampaignCIs`) | not measured | - |
+| Objects on a whiteboard | 5 000 (`MaxElements`), 1 000 boards a hub (`MaxBoardsPerHub`) | 5 000 objects (`whiteboardframes.test.mjs`, Chromium) | opens under 3 s and keeps its frames while panned and zoomed |
+| Pages per hub | 5 000 (`MaxPagesPerHub`), 12 levels deep, 1 MiB a page | not measured | - |
+| A live document | 1 MiB an update, 16 MiB a snapshot | 30 writers on one document for two minutes (S5) | every document equal at the end, no edit unsent, no connection closed |
+| Custom fields per entry | 100 (`MaxCustomFieldsPerItem`) | not measured | - |
+| A bulk operation | 500 operations a request | 500 (`TestABulkOfFiveHundredAppliesEveryOperationButTheInvalidOne`) | every valid operation applied, the invalid one refused |
+| An export or an aggregation | 5 000 rows (`MaxExportRows`, `MaxAggregateRows`); a spreadsheet 100 000 rows, 1 000 columns | not measured | - |
+| A plan's schedule, a sprint, a baseline | 2 000 entries a schedule, 1 000 a sprint, 10 000 a baseline | not measured | - |
+| A directory synchronisation (LDAP) | 50 000 entries (`MaxLdapEntries`) | not measured | - |
+| People per workspace | none (a plan may set one) | not measured beyond the demo's | - |
+| Live connections | 512 a workspace, 1 024 a process ([multi-tenancy.md](./multi-tenancy.md) §4) | 64 change streams while 10 writes a second land (S4) | none refused, none late or missing; delivery P95 302 ms |
+
+**How a row changes.** A ceiling changes with its constant and the document that promises it
+([domain-model.md](./domain-model.md)); a measured cell only with a run written up under
+`docs/evidence/`, which the row then names. Raising a ceiling past its largest measured size
+needs that run first.

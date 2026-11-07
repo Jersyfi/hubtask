@@ -69,6 +69,9 @@ type Provenance struct {
 	// ProducedAt is when the provider answered, which is not when the record was written: a
 	// queued suggestion can be minutes older than its row.
 	ProducedAt time.Time
+	// AgentID is the registered agent that asked, empty where a person or a rule did; an accepted
+	// value's mark names it (ai-first.md AI-2).
+	AgentID shared.ID
 }
 
 // Source is where a proposal came from.

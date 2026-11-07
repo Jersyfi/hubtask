@@ -27,9 +27,9 @@ GitHub-specific; the pipeline may.
 | `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
-| `release.yml` | Tag `v*` | The installed apps built without a secret (`apps`: Windows, Linux, Android); after the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, the apps signed with the project's keys, one checksum file, GitHub release ([deployment.md](./deployment.md) §7, [versioning-release.md](./versioning-release.md) §9) |
+| `release.yml` | Tag `v*` | The installed apps built without a secret (`apps`: Windows, Linux, Android); after the `production` environment's approval: the gates again, image, SBOM, signature, provenance, the CSAF advisories and the release record, each signed, chart, the apps signed with the project's keys, one checksum file, GitHub release; then the n8n node to npm and the Zapier app, each only when the owner's account secret (`NPM_TOKEN`, `ZAPIER_DEPLOY_KEY`) is set (UC-INT-11) ([deployment.md](./deployment.md) §7, [security.md](./security.md) §14.2, [versioning-release.md](./versioning-release.md) §3, §9) |
 | `deploy.yml` | Push to `main`, manual dispatch | Builds, signs and verifies the per-commit image and runs `helm upgrade` into `integration` ([deployment.md](./deployment.md) §3) |
-| `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/` or the lockfile; manual dispatch | Builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
+| `website.yml` | Push to `main` touching `apps/website/`, `packages/design-system/`, `security/advisories/` or the lockfile; manual dispatch | Writes the CSAF advisories into the site (`make csaf`), builds `apps/website/dist` and mirrors it to the webspace (§10). A failure files an issue |
 | `workbench.yml` | Push to `main` touching `packages/design-system/`; manual dispatch | Publishes the component workbench to `workbench.hubtask.eu` (§10) |
 | `scorecard.yml` | Schedule | **Planned, not built.** The OpenSSF supply chain scorecard. The file does not exist; the row stays as the plan |
 
@@ -56,6 +56,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `api-compat` | `make gate-api-compat`: `api/openapi.yaml` against the newest `v*` tag through the pinned `oasdiff` (below) |
 | `compose` | `make gate-compose`: builds the image from this commit and starts the self-hosting stack until `/readyz` answers |
 | `e2e` | `make gate-e2e`: the `hubctl` session against the Compose stack (`scripts/hubctl-e2e.sh`), including `hubctl sync-conformance` |
+| `upgrade` | `make gate-upgrade`: the newest release's image, compose file and `hubctl` write; this build's migrator runs while that release serves; the old client reads and writes on the new schema, this build's reads it, and the release goes back on the new schema and writes again (`scripts/upgrade-session.sh`) |
 | `engine-session` | `make gate-engine-conformance`: the first-party sync engine against its own Compose stack, answering [offline-sync.md](./offline-sync.md) §9's eight client requirements by number |
 | `selftest` | `make gate-selftest`: one deliberate violation per configured rule, each expected to turn the build red |
 | `integration` | PostgreSQL 16 (`pgvector/pgvector:pg16`), `make migrate`, `make gate-integration` (object storage from `test/s3test`, one pinned SeaweedFS — [ADR-0067](../adr/ADR-0067-s3-test-fixture.md)), then **`make gate-contract`**: responses, events, closed sets, the router and the SDK examples against the contract |
@@ -302,7 +303,7 @@ permissions:
 * No `pull_request_target`; contributions from forks run without secrets.
 * Publishing only through the GitHub **environment** `production`, which has an approval rule.
 * `cosign` keyless through the workflow's OIDC token — no private key in the repository.
-  `id-token: write` only in the jobs that sign (`release.yml`, `deploy.yml`).
+  `id-token: write` only in the jobs that sign (`release.yml`, `deploy.yml`) and the npm provenance of `release.yml`'s `integrations` job.
 * Branch protection on `main`: **`CI required` as the only required status check** (§3.2), and
   a branch need not be up to date with `main` (§3.5); conversations resolved before a merge; no
   force push, no deletion. No approving review is required (the owner's word to merge is the

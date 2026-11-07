@@ -79,6 +79,8 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
   const dialog = page.getByRole('dialog', { name: 'Create hub' });
   await dialog.waitFor({ timeout: 5_000 });
 
+  // Folded below what the hub starts from (UX-4).
+  await dialog.getByRole('button', { name: 'Description, colour and symbol' }).click();
   // Rule 3: every colour has a name in words, and "none" comes first.
   const colours = dialog.getByRole('group', { name: 'Colour' }).getByRole('radio');
   assert.deepEqual(await colours.evaluateAll((radios) => radios.map((radio) => radio.getAttribute('aria-label'))), ['No colour', ...LABEL_COLOURS]);
@@ -160,7 +162,7 @@ test('chromium: 1280 px — Today and search say where each entry lives, in the 
   assert.deepEqual(await tokens(invoices.first()), ['violet'], 'a collection without a colour draws one');
 
   await page.goto(`${served.origin}/search`);
-  await page.getByRole('searchbox', { name: 'Search the entries you can see' }).or(page.getByRole('textbox', { name: 'Search the entries you can see' })).first().fill('offer');
+  await page.getByRole('searchbox', { name: 'Search everything you can see' }).or(page.getByRole('textbox', { name: 'Search everything you can see' })).first().fill('offer');
   const hit = page.locator('.place', { hasText: LOOK_COLLECTION.name }).first();
   await hit.waitFor({ timeout: 10_000 });
   assert.equal(await hit.locator('[data-token]').getAttribute('data-token'), 'amber');

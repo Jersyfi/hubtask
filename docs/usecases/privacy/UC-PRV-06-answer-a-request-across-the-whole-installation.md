@@ -7,7 +7,7 @@ deployments: [D4, D5, D6, D7]
 serves: [P-01, P-08, P-11]
 state: built
 tasks: [E-10, CP-02]
-checked_by: [core/application/service/privacy/Export_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_installation_export_test.go]
+checked_by: [core/application/service/privacy/Export_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_installation_export_test.go, core/application/service/privacy/Requests_test.go, core/domain/model/privacy/Request_test.go, apps/webapp/e2e/privacy.test.mjs]
 ---
 
 # Answer a request across every workspace of the installation

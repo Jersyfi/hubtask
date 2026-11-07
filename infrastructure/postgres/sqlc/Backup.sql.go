@@ -11,6 +11,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const backupCadencePerTarget = `-- name: BackupCadencePerTarget :many
+SELECT s.target_id, min(extract(epoch FROM s.next_run_at - r.last_start))::bigint AS cadence_seconds
+FROM backup_schedule s
+JOIN LATERAL (
+  SELECT max(b.started_at) AS last_start FROM backup_run b
+  WHERE b.schedule_id = s.id AND b.trigger = 'SCHEDULE'
+) r ON true
+WHERE s.enabled AND s.next_run_at IS NOT NULL AND r.last_start IS NOT NULL AND s.next_run_at > r.last_start
+GROUP BY s.target_id
+`
+
+type BackupCadencePerTargetRow struct {
+	TargetID       pgtype.UUID
+	CadenceSeconds int64
+}
+
+// How often each target is owed a backup: per enabled schedule, the gap between its last scheduled
+// run and the moment it is next owed - the rule's own period, read off what the scheduler stored
+// rather than by expanding the rule again - and per target the shortest. A schedule that has not
+// run yet owes no cadence; A-12 then holds its target to a day.
+func (q *Queries) BackupCadencePerTarget(ctx context.Context) ([]BackupCadencePerTargetRow, error) {
+	rows, err := q.db.Query(ctx, backupCadencePerTarget)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BackupCadencePerTargetRow{}
+	for rows.Next() {
+		var i BackupCadencePerTargetRow
+		if err := rows.Scan(&i.TargetID, &i.CadenceSeconds); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const backupTargetCredentialsNotUnder = `-- name: BackupTargetCredentialsNotUnder :many
 SELECT id, credential_enc, credential_key_id
 FROM backup_target
@@ -599,6 +639,25 @@ func (q *Queries) InsertBackupTarget(ctx context.Context, arg InsertBackupTarget
 		arg.CreatedBy,
 	)
 	return err
+}
+
+const installationBackupGaps = `-- name: InstallationBackupGaps :one
+SELECT without_target::bigint AS without_target, without_recent::bigint AS without_recent
+FROM installation_backup_gaps($1::integer)
+`
+
+type InstallationBackupGapsRow struct {
+	WithoutTarget int64
+	WithoutRecent int64
+}
+
+// The health report's backup warning, across workspaces through the door (0375): how many active
+// workspaces have no enabled target, and how many no successful backup in the given days. Numbers.
+func (q *Queries) InstallationBackupGaps(ctx context.Context, staleDays int32) (InstallationBackupGapsRow, error) {
+	row := q.db.QueryRow(ctx, installationBackupGaps, staleDays)
+	var i InstallationBackupGapsRow
+	err := row.Scan(&i.WithoutTarget, &i.WithoutRecent)
+	return i, err
 }
 
 const lastSuccessfulBackupPerTarget = `-- name: LastSuccessfulBackupPerTarget :many

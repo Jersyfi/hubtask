@@ -181,6 +181,8 @@ func TestAnExpressionOfTheWrongShapeIsRefusedAtCompileTime(t *testing.T) {
 		{`'a' + 'b'`, port.Boolean, port.CodeNotBoolean},
 		{`1 == 1`, port.Text, port.CodeNotString},
 		{`size(item.labels)`, port.Text, port.CodeNotString},
+		{`'a' + 'b'`, port.Number, port.CodeNotNumber},
+		{`1 == 1`, port.Number, port.CodeNotNumber},
 	}
 	for _, tc := range cases {
 		t.Run(tc.expr+" as "+string(tc.want), func(t *testing.T) {
@@ -634,4 +636,110 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(digits)
+}
+
+// A formula is the third shape: a calculated field's value, an int or a double read as one number,
+// refused at compile time when its type is known and wrong and at evaluation when it is dynamic.
+func TestAFormulaProducesANumber(t *testing.T) {
+	rows := map[string]any{"item": map[string]any{
+		"hours": 2.5, "rate": int64(80), "title": "Pay the invoice",
+	}}
+	cases := map[string]float64{
+		`2 + 3`:                          5,
+		`1.5 * 2.0`:                      3,
+		`size(item.title)`:               15,
+		`item.hours * double(item.rate)`: 200,
+		`7u`:                             7,
+	}
+	for text, want := range cases {
+		t.Run(text, func(t *testing.T) {
+			out, err := compileFor(t, text, port.Number).
+				Evaluate(context.Background(), newValues(rows))
+			if err != nil {
+				t.Fatalf("evaluating: %v", err)
+			}
+			if out.Number != want {
+				t.Errorf("computed %v, want %v", out.Number, want)
+			}
+		})
+	}
+
+	t.Run("a formula on a dynamic field that is text is refused", func(t *testing.T) {
+		_, err := compileFor(t, `item.title`, port.Number).
+			Evaluate(context.Background(), newValues(rows))
+		if code := detailOf(t, err); code != port.CodeNotNumber {
+			t.Errorf("code %q, want %q", code, port.CodeNotNumber)
+		}
+	})
+
+	t.Run("a condition on a dynamic field that is a number is refused", func(t *testing.T) {
+		_, err := compileFor(t, `item.hours`, port.Boolean).
+			Evaluate(context.Background(), newValues(rows))
+		if code := detailOf(t, err); code != port.CodeNotBoolean {
+			t.Errorf("code %q, want %q", code, port.CodeNotBoolean)
+		}
+	})
+}
+
+// A typed map refuses a field it does not declare, at any depth, and leaves an open map open.
+func TestCompileRefusesAnUndeclaredFieldOfATypedMap(t *testing.T) {
+	env := port.Environment{Variables: []port.Variable{
+		{Name: "entry", Kind: port.KindMap, Fields: []port.Variable{
+			{Name: "title", Kind: port.KindString},
+			{Name: "custom_fields", Kind: port.KindMap, Fields: []port.Variable{{Name: "severity", Kind: port.KindString}}},
+			{Name: "extra", Kind: port.KindMap},
+		}},
+		{Name: "channel", Kind: port.KindString},
+	}}
+	cases := []struct {
+		text  string
+		known bool
+	}{
+		{`entry.title == "x"`, true},
+		{`entry.custom_fields.severity == "high"`, true},
+		{`entry.extra.anything == 1`, true},
+		{`channel == "APP" && has(entry.custom_fields.severity)`, true},
+		{`entry.titel == "x"`, false},
+		{`entry.custom_fields.severty == "high"`, false},
+	}
+	for _, c := range cases {
+		_, err := expression.New().Compile(c.text, env, port.Boolean)
+		if c.known && err != nil {
+			t.Errorf("%s: refused: %v", c.text, err)
+		}
+		if !c.known && (err == nil || !strings.Contains(err.Error(), port.CodeUnknownName)) {
+			t.Errorf("%s: want %s, got %v", c.text, port.CodeUnknownName, err)
+		}
+	}
+}
+
+// A list of strings is a kind of its own (port.KindStrings): a top-level one is typed, and one a
+// map carries - a form's `actor.roles` - answers `in` over the Go slice the activation hands over.
+func TestAListOfStringsAnswersIn(t *testing.T) {
+	environment := port.Environment{Variables: []port.Variable{
+		{Name: "held", Kind: port.KindStrings},
+		{Name: "actor", Kind: port.KindMap, Fields: []port.Variable{{Name: "roles", Kind: port.KindStrings}}},
+	}}
+	rows := map[string]any{
+		"held":  []string{"finance"},
+		"actor": map[string]any{"roles": []string{"MEMBER", "finance"}},
+	}
+	for text, want := range map[string]bool{
+		`'finance' in held`:        true,
+		`'finance' in actor.roles`: true,
+		`'auditor' in actor.roles`: false,
+		`size(actor.roles) == 2`:   true,
+	} {
+		program, err := expression.New().Compile(text, environment, port.Boolean)
+		if err != nil {
+			t.Fatalf("compiling %q: %v", text, err)
+		}
+		out, err := program.Evaluate(context.Background(), newValues(rows))
+		if err != nil || out.Bool != want {
+			t.Fatalf("%q answered %v, %v; want %v", text, out.Bool, err, want)
+		}
+	}
+	if _, err := expression.New().Compile(`held == 'finance'`, environment, port.Boolean); err == nil {
+		t.Fatal("a list compared with a string compiled")
+	}
 }

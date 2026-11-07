@@ -24,6 +24,13 @@ export const action: Story = {
   args: { mode: 'action' },
 };
 
+export const more: Story = {
+  name: 'More opens the rest',
+  about:
+    'The phone’s fifth slot (user-experience.md §2.6): *More* opens the drawer whose first band is the products. A button that opens a dialog, as quiet as a place, and `aria-current` while the reader is on a place only the drawer lists.',
+  args: { mode: 'more' },
+};
+
 export const keyboard: Story = {
   name: 'It gives way to the keyboard',
   about:

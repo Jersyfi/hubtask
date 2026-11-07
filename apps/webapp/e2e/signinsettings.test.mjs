@@ -82,10 +82,11 @@ async function originOf(page, label) {
 }
 
 /** A control by its label; a pattern for a required field, whose name carries its marker. */
-/** Opens a tab of the sign-in screen as a reader does: by its name. */
+/** Opens a section of the sign-in screen as a reader does: by its name in the shell's list. */
 async function toTab(page, name) {
-  await page.getByRole('tab', { name, exact: true }).click();
-  await page.getByRole('tab', { name, exact: true, selected: true }).waitFor();
+  const sections = page.locator('[data-settings-sections]');
+  await sections.getByRole('link', { name, exact: true }).click();
+  await sections.locator('a[aria-current="page"]', { hasText: name }).waitFor();
 }
 
 const control = (page, label) => (label instanceof RegExp ? page.getByLabel(label) : page.getByLabel(label, { exact: true }));
@@ -320,8 +321,8 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
   assert.deepEqual(
-    await page.getByRole('tab').allTextContents(),
-    ['Passwords', 'Sessions', 'Ways and providers'],
+    (await page.locator('[data-settings-sections] a').allTextContents()).map((each) => each.trim()),
+    ['Passwords', 'Sessions', 'Ways and providers', 'Directory'],
   );
   // No legal link on the sign-in screen: they are their own page, with their own breadcrumb.
   assert.equal(await page.getByLabel('Imprint', { exact: true }).count(), 0);
@@ -347,7 +348,7 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
 
   await page.goto(`${served.origin}/administration/legal`);
   await page.getByLabel('Imprint', { exact: true }).waitFor();
-  assert.equal(await page.getByRole('tab').count(), 0);
+  assert.equal(await page.locator('[data-settings-sections]').count(), 0);
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).count(), 0);
   const trail = await page.getByRole('navigation', { name: 'Where you are in the administration' }).innerText();
   assert.match(trail, /Legal links/, trail);
@@ -729,7 +730,10 @@ test('chromium: the providers\' configuration has no switch of its own, and its 
 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.waitForURL(/\/administration\/sign-in\?tab=ways$/);
-  assert.equal(await page.getByRole('tab', { name: 'Ways and providers', selected: true }).count(), 1);
+  // The tabs are drawn once the rules are read, a moment after the address lands.
+  const openSection = page.locator('[data-settings-sections] a[aria-current="page"]');
+  await openSection.filter({ hasText: 'Ways and providers' }).waitFor();
+  assert.equal(await openSection.count(), 1);
   const providers = page.locator('section[aria-labelledby="providers"]');
   await providers.getByText('Contoso Entra ID').first().waitFor();
   await providers.getByRole('button', { name: 'Change' }).first().click();
@@ -1007,4 +1011,35 @@ test('chromium: the rules and the ways are saved against the version they were r
   const row = list.getByRole('listitem').filter({ hasText: 'Passkeys' });
   await row.getByText('Somebody else changed the workspace.').waitFor();
   assert.equal(preconditions.length, 3);
+});
+
+test('chromium: the help links are set on the legal page, apart from the footer\'s, and saved with it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  let patched;
+  const shown = policy();
+  shown.legal.support_url = rule('https://host.example/help', 'https://host.example/help', { source: 'INSTANCE', above: 'INSTANCE' });
+  shown.legal.docs_url = rule('', '');
+  const { page, close } = await open(browser, (route, path) => {
+    if (path !== '/tenant') return undefined;
+    if (route.request().method() === 'PATCH') {
+      patched = route.request().postDataJSON();
+      return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: shown } });
+    }
+    return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: shown } });
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/legal`);
+  const section = page.locator('[data-help-links]');
+  await section.getByRole('heading', { name: 'Where people get help' }).waitFor({ timeout: 15_000 });
+  const support = section.getByLabel('Support contact', { exact: true });
+  // The installation's is said beside the field, not filled into it.
+  assert.equal(await support.inputValue(), '');
+  await support.fill('mailto:help@acme.example');
+  const saved = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith('/tenant'));
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await saved;
+  assert.equal(patched.sign_in_policy.support_url, 'mailto:help@acme.example');
+  assert.equal('docs_url' in patched.sign_in_policy, false, 'an untouched link was sent');
 });

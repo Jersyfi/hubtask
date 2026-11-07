@@ -179,6 +179,7 @@ func TestEveryForbiddenPlacementIsRefusedWithItsOwnReason(t *testing.T) {
 // The depth budget is the guard the permitted children cannot be: they say what may sit directly
 // under a type, this says how far the subtree may reach. A profile widened to accept its own type
 // passes the first check and is caught here - which is the day the check earns its keep.
+// UC-WRK-03 check 2.
 func TestTheDepthBudgetCatchesWhatThePermittedChildrenCannot(t *testing.T) {
 	selfNesting := []work.CapabilityProfile{
 		{

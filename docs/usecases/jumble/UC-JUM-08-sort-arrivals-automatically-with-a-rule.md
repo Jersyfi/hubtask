@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11]
 state: built
 tasks: [G-10, G-07, F8-04]
-checked_by: [test/integration/automation_trigger_test.go, core/application/service/automation/RunRule_test.go]
+checked_by: [test/integration/automation_trigger_test.go, core/application/service/automation/RunRule_test.go, core/application/service/jumble/Settlements_test.go]
 ---
 
 # Sort arrivals automatically with a rule

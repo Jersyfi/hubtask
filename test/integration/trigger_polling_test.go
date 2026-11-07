@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	integrationservice "github.com/Jersyfi/hubtask/core/application/service/integration"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -59,6 +60,10 @@ func pollingServiceOn(
 	t.Helper()
 
 	return integrationservice.PollTriggerEvents{
+		Members: access.Service{
+			Memberships: postgres.NewMembershipRepository(), UnitOfWork: uow,
+			Audit: postgres.NewAuditSink(clockadapter.NewUUIDv7(clockadapter.System{})), Clock: clockadapter.System{},
+		},
 		Events:     postgres.NewOutbox(jobQueue(t)),
 		Policies:   postgres.NewLifecycleRepository(),
 		Cursors:    triggerCursors(),
@@ -76,9 +81,15 @@ func (cloudEvents) Render(envelope event.Envelope) map[string]any {
 	return eventbus.ToCloudEvent(envelope, "https://hubtask.test")
 }
 
+// poller is the member who polls: Anna, administrator of tenant A, or Bert, owner of tenant B
+// (seedMemberships).
 func poller(tenant shared.ID, scopes ...string) appshared.ActorContext {
+	account := authorA
+	if tenant == tenantB {
+		account = authorB
+	}
 	return appshared.ActorContext{
-		TenantID: tenant, AccountID: authorA, AccountName: "Anna",
+		TenantID: tenant, AccountID: account, AccountName: "Anna",
 		Kind: shared.ActorUser, Scopes: scopes,
 	}
 }
@@ -180,7 +191,7 @@ func walk(
 // lag has passed, the same cursor must yield all twelve, once each, in the order they were stamped.
 func TestInterleavedWritersNeitherRepeatNorSkip(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 
 	// Six rather than a dozen: every writer holds a connection for the length of its hold, and the
 	// poller is on the same pool. What the test needs is that commit order and stamp order differ,
@@ -288,7 +299,7 @@ func TestInterleavedWritersNeitherRepeatNorSkip(t *testing.T) {
 // needs is that moment on either side of the rows.
 func TestTheHorizonCoversAWriteThatLandsBehindTheCursor(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	actor := poller(tenantA, pollingScopes()...)
@@ -401,7 +412,7 @@ func stampOf(t *testing.T, stamped []time.Time, written []shared.ID, id string) 
 // last one stopped.
 func TestACursorSurvivesTheProcessThatIssuedIt(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 
 	handler := pollingService(ctx, t, 0)
 	actor := poller(tenantA, pollingScopes()...)
@@ -444,7 +455,7 @@ func TestACursorSurvivesTheProcessThatIssuedIt(t *testing.T) {
 // The far end of the window, against the tenant's real policy row.
 func TestACursorOlderThanTheStoredRetentionIsRefused(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 	writeOutboxPolicy(ctx, t, tenantA, 7)
 
 	handler := pollingService(ctx, t, 0)
@@ -465,7 +476,7 @@ func TestACursorOlderThanTheStoredRetentionIsRefused(t *testing.T) {
 // the code's (ADR-0020).
 func TestTheWindowIsTheTenantsOwn(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 	writeOutboxPolicy(ctx, t, tenantB, 30)
 
 	handler := pollingService(ctx, t, 0)
@@ -491,7 +502,7 @@ func TestTheWindowIsTheTenantsOwn(t *testing.T) {
 // transaction's tenant, so tenant B's poller cannot be fed tenant A's stream whatever it asks for.
 func TestAPollCannotReachAnotherTenantsEvents(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	mine := appended(ctx, t, uow, tenantA, time.Now().UTC().Add(-time.Hour))
@@ -522,7 +533,7 @@ func TestAPollCannotReachAnotherTenantsEvents(t *testing.T) {
 // (migration 0033). The index is partial on the same predicate, so this also proves the two agree.
 func TestAReplayedEventIsNotAnswered(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
 	at := time.Now().UTC().Add(-time.Hour)
@@ -563,7 +574,7 @@ func TestAReplayedEventIsNotAnswered(t *testing.T) {
 // is touched at all.
 func TestPollingWithTheWrongScopeIsRefused(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	seedMemberships(ctx, t)
 
 	handler := pollingService(ctx, t, 0)
 
@@ -600,5 +611,54 @@ func writeOutboxPolicy(ctx context.Context, t *testing.T, tenant shared.ID, days
 	if stored.RetainDays != days {
 		t.Fatalf("the tenant keeps events for %d days, want %d - Ensure left an older row alone",
 			stored.RetainDays, days)
+	}
+}
+
+// The events carry the workspace's own work, notes included: a person holding only REQUEST at a
+// collection - the portal's requester - polls none of them, refused as READ and recorded, while
+// the member beside them is answered.
+func TestARequesterPollsNoEvents(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+
+	requester, role, hub, desk, grant := freshID(t), freshID(t), freshID(t), freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Hanna')`, []any{requester.String(), tenantA.String()}},
+		{`INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
+		  VALUES ($1, $2, $3, 'Client', ARRAY['REQUEST'], now(), now())`,
+			[]any{role.String(), tenantA.String(), "client_" + role.String()[30:]}},
+		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		  VALUES ($1, $2, 'HUB', $3, 'a0', $4)`, []any{hub.String(), tenantA.String(), freshName(t), authorA.String()}},
+		{`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+		  VALUES ($1, $2, 'COLLECTION', $3, 'Desk', 'a0', $4)`,
+			[]any{desk.String(), tenantA.String(), hub.String(), authorA.String()}},
+		{`INSERT INTO custom_role_grant (id, tenant_id, account_id, scope_type, scope_id, role_id, created_at)
+		  VALUES ($1, $2, $3, 'COLLECTION', $4, $5, now())`,
+			[]any{grant.String(), tenantA.String(), requester.String(), desk.String(), role.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v\n%s", err, statement.sql)
+		}
+	}
+
+	handler := pollingService(ctx, t, 0)
+	asRequester := poller(tenantA, pollingScopes()...)
+	asRequester.AccountID = requester
+	_, err := handler.Execute(ctx, asRequester,
+		integrationservice.PollTriggerEventsCommand{EventType: string(event.ContainerCreated)})
+	if !errors.Is(err, shared.ErrForbidden) || shared.AsError(err).DetailCode != "access.not_permitted" {
+		t.Fatalf("the requester's poll = %v, want access.not_permitted", err)
+	}
+	if n := countIn(ctx, t, `SELECT count(*) FROM audit_log WHERE actor_id = $1 AND action = 'triggers.polled'
+		AND outcome = 'DENIED'`, requester.String()); n != 1 {
+		t.Errorf("%d refusals of the requester recorded, want one", n)
+	}
+	if _, err := handler.Execute(ctx, poller(tenantA, pollingScopes()...),
+		integrationservice.PollTriggerEventsCommand{EventType: string(event.ContainerCreated)}); err != nil {
+		t.Errorf("the member's poll: %v", err)
 	}
 }

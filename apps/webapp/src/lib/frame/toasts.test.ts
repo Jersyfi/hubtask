@@ -103,3 +103,20 @@ test('a duration property is read in either unit', () => {
   assert.equal(millisecondsOf(` ${unit(2, 's')} `), 2000);
   assert.equal(millisecondsOf(''), undefined);
 });
+
+// user-experience.md §5.9: a deletion held back behind *Undo* is carried out when its message
+// leaves - run out or closed - and never when *Undo* was pressed or the account signed out.
+test('what a message holds back is done when it leaves, unless it was undone', () => {
+  const stack = model();
+  const done: string[] = [];
+  stack.show({ text: 'Baseline deleted', undo: () => {}, onleave: () => done.push('expired') }, 0);
+  stack.show({ text: 'Another deleted', undo: () => {}, onleave: () => done.push('closed') }, 0);
+  const undone = stack.show({ text: 'Third deleted', undo: () => {}, onleave: () => done.push('undone') }, 0);
+  const signedOut = stack.show({ text: 'Fourth deleted', undo: () => {}, onleave: () => done.push('signed out') }, 0);
+  stack.dismiss(undone, true);
+  stack.dismiss(stack.entries.find((entry) => entry.text === 'Another deleted')?.id ?? 0);
+  stack.hold(signedOut);
+  stack.expire(OFFERING);
+  stack.clear();
+  assert.deepEqual(done, ['closed', 'expired']);
+});

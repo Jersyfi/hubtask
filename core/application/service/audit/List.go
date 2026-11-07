@@ -188,7 +188,8 @@ func PageSize(requested int) int {
 // Descriptor registers the read in all three channels.
 func (h ListAuditEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListAuditEntriesName,
+		Name:       ListAuditEntriesName,
+		Permission: service.PermissionRead,
 		Summary: "Reads the evidence trail: who did what, when, from where, and whether it " +
 			"worked - newest first. Never the content of anything. An owner, an administrator " +
 			"or an auditor reads the whole workspace's trail; everybody else reads their own " +
@@ -234,6 +235,10 @@ func (h ListAuditEntries) Descriptor() usecase.Descriptor {
 				Description: "Whether the attempt succeeded, was refused, or failed: SUCCESS, DENIED or FAILED.",
 			},
 			{
+				Name: "request_id", Kind: usecase.KindString,
+				Description: "The entries of one request: the reference an error answer carries as `request_id`.",
+			},
+			{
 				Name: "cursor", Kind: usecase.KindString,
 				Description: "The opaque cursor of the previous page. Omitted starts at the newest entry.",
 			},
@@ -259,6 +264,7 @@ func (h ListAuditEntries) invoke(
 		ActionAlso: port.Aliases(in.String("action")),
 		TargetType: in.String("target_type"),
 		Outcome:    port.Outcome(in.String("outcome")),
+		RequestID:  in.String("request_id"),
 		Page:       repository.Page{Cursor: in.String("cursor"), Size: in.Int("size")},
 	}
 	if raw := in.String("from"); raw != "" {

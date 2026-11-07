@@ -1,0 +1,488 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package work
+
+import (
+	"context"
+	"errors"
+	"slices"
+	"testing"
+	"time"
+
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
+)
+
+// workflowStore is an in-memory Workflows: rows and scheme, and the moves asked of it.
+type workflowStore struct {
+	rows    []domain.Workflow
+	schemes []domain.WorkflowScheme
+	groups  []domain.StatusGroup
+	moves   []domain.StatusMove
+}
+
+func (s *workflowStore) List(context.Context) ([]domain.Workflow, error) { return s.rows, nil }
+func (s *workflowStore) Insert(_ context.Context, w domain.Workflow) error {
+	s.rows = append(s.rows, w)
+	return nil
+}
+
+func (s *workflowStore) Update(_ context.Context, w domain.Workflow, _ int) error {
+	for i := range s.rows {
+		if s.rows[i].Key == w.Key {
+			s.rows[i] = w
+		}
+	}
+	return nil
+}
+func (s *workflowStore) Delete(context.Context, string) error { return nil }
+func (s *workflowStore) Schemes(context.Context) ([]domain.WorkflowScheme, error) {
+	return s.schemes, nil
+}
+
+func (s *workflowStore) SetScheme(_ context.Context, scheme domain.WorkflowScheme, _ time.Time) error {
+	s.schemes = append(s.schemes, scheme)
+	return nil
+}
+func (s *workflowStore) RemoveScheme(context.Context, shared.ID, string) error { return nil }
+func (s *workflowStore) StatusGroups(context.Context, []shared.ID) ([]domain.StatusGroup, error) {
+	return s.groups, nil
+}
+
+func (s *workflowStore) MoveStatuses(_ context.Context, move domain.StatusMove, _ time.Time) ([]repository.MovedEntry, error) {
+	s.moves = append(s.moves, move)
+	return []repository.MovedEntry{{ID: taskID, Version: 2}}, nil
+}
+
+// roleOf answers one role for everybody.
+type roleOf struct {
+	role        identity.Role
+	custom      []string
+	permissions []service.Permission
+}
+
+func (r roleOf) RoleAlong(context.Context, appshared.ActorContext, []identity.Scope) (identity.Role, bool, error) {
+	return r.role, r.role != "", nil
+}
+
+func (r roleOf) HeldAlong(context.Context, appshared.ActorContext, []identity.Scope) (access.Held, error) {
+	roles := append([]string{}, r.custom...)
+	var sources []access.Source
+	if r.role != "" {
+		roles = append(roles, string(r.role))
+		sources = append(sources, access.Source{Role: string(r.role)})
+	}
+	return access.Held{Roles: roles, Permissions: r.permissions, Sources: sources}, nil
+}
+
+func reviewWorkflow() domain.Workflow {
+	return domain.Workflow{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000004f1"), TenantID: tenantID,
+		Key: "review", Name: "Review", Version: 1,
+		Published: domain.WorkflowShape{
+			Statuses: []domain.WorkflowStatus{
+				{Key: "todo", Name: "To do", Category: domain.CategoryTodo},
+				{Key: "review", Name: "In review", Category: domain.CategoryInProgress},
+				{Key: "done", Name: "Done", Category: domain.CategoryDone},
+				{Key: "rejected", Name: "Rejected", Category: domain.CategoryDone},
+			},
+			Initial: "todo",
+			Steps: []domain.WorkflowStep{
+				{Key: "submit", From: []string{"todo"}, To: "review"},
+				{Key: "accept", From: []string{"review"}, To: "done", Requires: []string{"custom_fields.resolution"}},
+				{Key: "back", From: []string{"review"}, To: "todo"},
+				{Key: "reject", To: "rejected", Who: domain.StepWho{Roles: []string{"OWNER"}}},
+				{Key: "reopen", From: []string{"done", "rejected"}, To: "todo"},
+			},
+		},
+	}
+}
+
+func workflowHarness(t *testing.T) (*completionHarness, *workflowStore) {
+	t.Helper()
+	h := newCompletionHarness(domain.CompletionManual)
+	store := &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}
+	h.writer.Workflow = WorkflowGate{Workflows: store, Compiler: &answers{of: map[string]bool{}}, Roles: roleOf{role: identity.RoleMember}}
+	task := h.items.stored[taskID]
+	task.Status = "review"
+	h.items.stored[taskID] = task
+	return h, store
+}
+
+func refusedWith(t *testing.T, err error, code string) *shared.Error {
+	t.Helper()
+	var coded *shared.Error
+	if !errors.As(err, &coded) || coded.DetailCode != code {
+		t.Fatalf("answered %v, want %s", err, code)
+	}
+	return coded
+}
+
+// UC-FLW-03 check 1: the entry offers exactly the steps the person may take from its status.
+func TestTheEntryOffersOnlyTheStepsThePersonMayTake(t *testing.T) {
+	h, _ := workflowHarness(t)
+	steps, err := ListEntrySteps{Completion: h.writer}.Execute(t.Context(), actorFixture(), taskID)
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if !steps.InForce || steps.Status != "review" {
+		t.Fatalf("the hub's workflow runs for the entry: %+v", steps)
+	}
+	var keys []string
+	for _, verdict := range steps.Offered {
+		keys = append(keys, verdict.Step.Key)
+	}
+	if len(keys) != 2 || keys[0] != "accept" || keys[1] != "back" {
+		t.Fatalf("offered %v: reject is the owner's only", keys)
+	}
+}
+
+// UC-FLW-03 checks 3 and 6, D-02: a step that needs a field is refused naming it; given it, the
+// step is taken into done, which completes the entry, with the step in its history.
+func TestTakingAStepIntoDoneCompletesTheEntry(t *testing.T) {
+	h, _ := workflowHarness(t)
+	take := TakeStep{Completion: h.writer}
+	_, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "accept"})
+	refusal := refusedWith(t, err, "workflows.step_refused")
+	if len(refusal.Fields) != 1 || refusal.Fields[0].Params["key"] != "custom_fields.resolution" {
+		t.Fatalf("the refusal names the field: %+v", refusal.Fields)
+	}
+
+	task := h.items.stored[taskID]
+	task.CustomFields = map[string]any{"resolution": "fixed"}
+	h.items.stored[taskID] = task
+	item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "accept"})
+	if err != nil {
+		t.Fatalf("the step was refused: %v", err)
+	}
+	if item.Status != "done" || !item.Completion.IsCompleted {
+		t.Fatalf("into done completes: %+v", item)
+	}
+	var verbs []activity.Verb
+	for _, entry := range h.history.entries {
+		verbs = append(verbs, entry.Verb)
+	}
+	if len(verbs) != 2 || verbs[0] != activity.ItemCompleted || verbs[1] != activity.ItemStepTaken {
+		t.Fatalf("the history records the completion and the step: %v", verbs)
+	}
+	step := h.history.entries[1].ChangeSet
+	if status, _ := step["status"].(map[string]any); status["from"] != "review" || status["to"] != "done" {
+		t.Fatalf("the history says from which status: %v", step)
+	}
+}
+
+// UC-FLW-02 check 6: entering a done-category status completes the entry and leaving it reopens
+// it, each in the history with who did it.
+func TestEnteringAndLeavingDoneCompletesAndReopens(t *testing.T) {
+	h, _ := workflowHarness(t)
+	task := h.items.stored[taskID]
+	task.CustomFields = map[string]any{"resolution": "fixed"}
+	h.items.stored[taskID] = task
+	take := TakeStep{Completion: h.writer}
+	if item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "accept"}); err != nil || !item.Completion.IsCompleted {
+		t.Fatalf("into done: %+v %v", item, err)
+	}
+	item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "reopen"})
+	if err != nil || item.Status != "todo" || item.Completion.IsCompleted {
+		t.Fatalf("out of done: %+v %v", item, err)
+	}
+	seen := map[activity.Verb]shared.ID{}
+	for _, entry := range h.history.entries {
+		seen[entry.Verb] = entry.Actor.ID
+	}
+	if seen[activity.ItemCompleted] != accountID || seen[activity.ItemReopened] != accountID {
+		t.Errorf("the history names who completed and reopened it: %v", seen)
+	}
+}
+
+// UC-FLW-03 check 2: a step the person may not take, or that does not leave the status, is
+// refused whatever door asks.
+func TestAStepNotOfferedIsRefused(t *testing.T) {
+	h, _ := workflowHarness(t)
+	take := TakeStep{Completion: h.writer}
+	_, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "reject"})
+	refusedWith(t, err, "workflows.step_not_allowed")
+	_, err = take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "submit"})
+	refusedWith(t, err, "workflows.step_not_offered")
+
+	item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, ToStatus: "todo"})
+	if err != nil || item.Status != "todo" || item.Completion.IsCompleted {
+		t.Fatalf("a drop on a column takes the step there: %+v %v", item, err)
+	}
+}
+
+// UC-FLW-03 check 4: completing on any door takes a step into done the person may take, or is
+// refused with the reason.
+func TestCompletingInAWorkflowCollectionTakesAStep(t *testing.T) {
+	h, _ := workflowHarness(t)
+	_, err := CompleteWorkItem{Completion: h.writer}.Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: taskID})
+	refusedWith(t, err, "workflows.step_refused")
+
+	task := h.items.stored[taskID]
+	task.CustomFields = map[string]any{"resolution": "fixed"}
+	h.items.stored[taskID] = task
+	item, err := CompleteWorkItem{Completion: h.writer}.Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: taskID})
+	if err != nil || item.Status != "done" || !item.Completion.IsCompleted {
+		t.Fatalf("completing took accept: %+v %v", item, err)
+	}
+	item, err = ReopenWorkItem{Completion: h.writer}.Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: taskID})
+	if err != nil || item.Status != "todo" || item.Completion.IsCompleted {
+		t.Fatalf("reopening took reopen: %+v %v", item, err)
+	}
+	_, err = CompleteWorkItem{Completion: h.writer}.Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: taskID})
+	refusedWith(t, err, "workflows.no_step_to_done")
+}
+
+// UC-FLW-04 checks 1 and 2: a step limited by a person field, and a check with the team's words.
+func TestAStepsWhoAndChecks(t *testing.T) {
+	h, store := workflowHarness(t)
+	compiler := &answers{of: map[string]bool{"entry.custom_fields.amount > 0": false}}
+	h.writer.Workflow.Compiler = compiler
+	shape := store.rows[0].Published
+	shape.Steps[2].Who = domain.StepWho{PersonFields: []string{"assignee"}}
+	shape.Steps[2].Checks = []domain.StepCheck{{Key: "amount", Holds: "entry.custom_fields.amount > 0", Message: "An amount above zero"}}
+	store.rows[0].Published = shape
+
+	take := TakeStep{Completion: h.writer}
+	_, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"})
+	refusedWith(t, err, "workflows.step_not_allowed")
+
+	task := h.items.stored[taskID]
+	task.AssigneeID = actorFixture().AccountID
+	h.items.stored[taskID] = task
+	_, err = take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"})
+	refusal := refusedWith(t, err, "workflows.step_refused")
+	if refusal.Fields[0].Params["message"] != "An amount above zero" {
+		t.Fatalf("the refusal shows the team's words: %+v", refusal.Fields)
+	}
+	compiler.of["entry.custom_fields.amount > 0"] = true
+	if _, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"}); err != nil {
+		t.Fatalf("the step holds: %v", err)
+	}
+}
+
+// UC-FLW-02: a new entry in a workflow collection starts in the initial status.
+func TestTheInitialStatusOfANewEntry(t *testing.T) {
+	h, _ := workflowHarness(t)
+	collection := h.containers.stored[collectionID]
+	status, err := h.writer.Workflow.initialStatus(t.Context(), collection, domain.WorkItem{Type: domain.ItemTask})
+	if err != nil || status != "todo" {
+		t.Fatalf("starts in todo: %q %v", status, err)
+	}
+	h.writer.Workflow.Workflows = &workflowStore{}
+	if status, _ := h.writer.Workflow.initialStatus(t.Context(), collection, domain.WorkItem{Type: domain.ItemTask}); status != "" {
+		t.Fatalf("no workflow, no status: %q", status)
+	}
+}
+
+// UC-FLW-05 checks 3, 4 and 6: the mover moves each group and writes a workflow change into each
+// moved entry's history, taking no step.
+func TestTheMoverRecordsAWorkflowChange(t *testing.T) {
+	h, store := workflowHarness(t)
+	mover := StatusMover{Workflows: store, Activity: h.writer.Activity, Changes: h.changes, HLC: &hlcSource{}}
+	moved, err := mover.Move(t.Context(), actorFixture(), []domain.StatusMove{
+		{CollectionID: collectionID, EntryType: "task", From: "waiting", To: "review", Count: 1},
+	}, now)
+	if err != nil || moved != 1 {
+		t.Fatalf("moved %d: %v", moved, err)
+	}
+	if len(h.history.entries) != 1 || h.history.entries[0].Verb != activity.ItemWorkflowChanged {
+		t.Fatalf("history: %+v", h.history.entries)
+	}
+}
+
+// An entry moved into another collection lands where that collection's workflow stands: a status
+// it knows is kept, a foreign one enters it, and where no workflow runs for the type the status
+// goes - no step is taken (F-4).
+func TestAMovedEntrySettlesInTheDestinationsWorkflow(t *testing.T) {
+	store := &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, EntryType: "task", WorkflowKey: "review"}},
+		groups: []domain.StatusGroup{
+			{CollectionID: collectionID, EntryType: "task", Status: "review", Count: 3},
+			{CollectionID: collectionID, EntryType: "task", Status: "waiting", Count: 2},
+			{CollectionID: collectionID, EntryType: "task", Status: "", Count: 1},
+			{CollectionID: collectionID, EntryType: "task", Status: "closed", Completed: true, Count: 1},
+			{CollectionID: collectionID, EntryType: "bug", Status: "triage", Count: 4},
+		},
+	}
+	gate := WorkflowGate{Workflows: store}
+	moves, err := gate.Settle(context.Background(), domain.Container{ID: collectionID, ParentID: hubID})
+	if err != nil {
+		t.Fatalf("settle: %v", err)
+	}
+	want := map[string]string{"task/waiting": "todo", "task/": "todo", "task/closed": "done", "bug/triage": ""}
+	if len(moves) != len(want) {
+		t.Fatalf("moves = %+v, want %d", moves, len(want))
+	}
+	for _, move := range moves {
+		if to, ok := want[move.EntryType+"/"+move.From]; !ok || to != move.To {
+			t.Errorf("%s from %q went to %q", move.EntryType, move.From, move.To)
+		}
+	}
+}
+
+// stepRulesProbe is a StepRules that changes the entry as an action would, or refuses.
+type stepRulesProbe struct {
+	items    *items
+	refuse   error
+	workflow string
+	step     string
+	event    event.Envelope
+}
+
+func (p *stepRulesProbe) StepTaken(
+	_ context.Context, _ appshared.ActorContext, item domain.WorkItem,
+	workflow, step string, announced event.Envelope,
+) error {
+	p.workflow, p.step, p.event = workflow, step, announced
+	if p.refuse != nil {
+		return p.refuse
+	}
+	changed := p.items.stored[item.ID]
+	changed.Title = "changed by the step's rule"
+	p.items.stored[item.ID] = changed
+	return nil
+}
+
+// UC-FLW-04 check 4: a step runs its STEP_TAKEN rules inside its own change - given the workflow,
+// the step and the step's announcement, answered with what they changed, and refused with them.
+func TestAStepRunsItsRulesInItsOwnChange(t *testing.T) {
+	h, _ := workflowHarness(t)
+	probe := &stepRulesProbe{items: h.items}
+	take := TakeStep{Completion: h.writer, Rules: probe}
+	item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"})
+	if err != nil {
+		t.Fatalf("the step was refused: %v", err)
+	}
+	if probe.workflow != "review" || probe.step != "back" || probe.event.Type != event.ItemUpdated {
+		t.Fatalf("the rules were asked about %s %q on %s", probe.workflow, probe.step, probe.event.Type)
+	}
+	if item.Title != "changed by the step's rule" || item.Status != "todo" {
+		t.Fatalf("the step answers the entry as its rules left it: %+v", item)
+	}
+
+	probe.refuse = shared.ErrForbidden.WithDetail("automation.action_forbidden")
+	task := h.items.stored[taskID]
+	task.Status = "review"
+	h.items.stored[taskID] = task
+	if _, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "back"}); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a rule that cannot run refuses the step with it: %v", err)
+	}
+}
+
+// UC-FLW-04 check 1 with custom roles (UC-ID-26): a step limited to a custom role is offered to
+// its holder, and a step permission from the catalogue opens a step whatever its who names.
+func TestAStepIsOpenedByACustomRoleAndByAStepPermission(t *testing.T) {
+	h, _ := workflowHarness(t)
+	workflow := reviewWorkflow()
+	workflow.Published.Steps[3].Who = domain.StepWho{Roles: []string{"OWNER", "change_manager"}}
+	h.writer.Workflow.Workflows = &workflowStore{
+		rows:    []domain.Workflow{workflow},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}
+	offered := func(roles roleOf) []string {
+		h.writer.Workflow.Roles = roles
+		steps, err := ListEntrySteps{Completion: h.writer}.Execute(t.Context(), actorFixture(), taskID)
+		if err != nil {
+			t.Fatalf("listing: %v", err)
+		}
+		var keys []string
+		for _, verdict := range steps.Offered {
+			keys = append(keys, verdict.Step.Key)
+		}
+		return keys
+	}
+	if keys := offered(roleOf{role: identity.RoleMember}); slices.Contains(keys, "reject") {
+		t.Fatalf("a member is offered the change manager's step: %v", keys)
+	}
+	if keys := offered(roleOf{role: identity.RoleMember, custom: []string{"change_manager"}}); !slices.Contains(keys, "reject") {
+		t.Fatalf("the custom role's holder is not offered its step: %v", keys)
+	}
+	if keys := offered(roleOf{role: identity.RoleMember, permissions: []service.Permission{service.TakeStep("review", "reject")}}); !slices.Contains(keys, "reject") {
+		t.Fatalf("the step permission does not open the step: %v", keys)
+	}
+}
+
+type groupMembers map[shared.ID][]shared.ID
+
+func (g groupMembers) Members(_ context.Context, groupID shared.ID) ([]shared.ID, error) {
+	return g[groupID], nil
+}
+
+// UC-FLW-04 check 1: a step limited by group is offered to the group's members and to nobody
+// else by it; the owner and the administrators hold every step's permission as a family.
+func TestAStepIsOpenedByAGroupAndToTheShapersByTheFamily(t *testing.T) {
+	h, _ := workflowHarness(t)
+	buyers := shared.MustParseID("0192f000-0000-7000-8000-0000000006b1")
+	workflow := reviewWorkflow()
+	workflow.Published.Steps[3].Who = domain.StepWho{Groups: []string{buyers.String()}}
+	h.writer.Workflow.Workflows = &workflowStore{
+		rows:    []domain.Workflow{workflow},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}
+	offered := func(roles roleOf, members groupMembers) bool {
+		h.writer.Workflow.Roles, h.writer.Workflow.Groups = roles, members
+		steps, err := ListEntrySteps{Completion: h.writer}.Execute(t.Context(), actorFixture(), taskID)
+		if err != nil {
+			t.Fatalf("listing: %v", err)
+		}
+		return slices.ContainsFunc(steps.Offered, func(verdict StepVerdict) bool { return verdict.Step.Key == "reject" })
+	}
+	member := roleOf{role: identity.RoleMember}
+	if offered(member, groupMembers{}) {
+		t.Fatal("a member outside the group is offered its step")
+	}
+	if !offered(member, groupMembers{buyers: {actorFixture().AccountID}}) {
+		t.Fatal("the group's member is not offered its step")
+	}
+	if !offered(roleOf{role: identity.RoleAdmin}, groupMembers{}) {
+		t.Fatal("an administrator does not hold the step's permission")
+	}
+}
+
+// An import's entries arrive with no status; settling their collection enters them into its
+// workflow, the done ones into its first done status.
+func TestSettlingACollectionEntersWhatCarriesNoStatus(t *testing.T) {
+	store := &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+		groups: []domain.StatusGroup{
+			{CollectionID: collectionID, EntryType: "task", Status: "", Count: 2},
+			{CollectionID: collectionID, EntryType: "task", Status: "", Completed: true, Count: 1},
+			{CollectionID: collectionID, EntryType: "task", Status: "review", Count: 1},
+		},
+	}
+	h := newItemHarness()
+	settler := StatusSettler{
+		Workflow: WorkflowGate{Workflows: store},
+		Statuses: StatusMover{Workflows: store, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}}, Changes: h.changes, HLC: &hlcSource{}},
+	}
+	collection := domain.Container{ID: collectionID, Type: domain.ContainerCollection, ParentID: hubID}
+	if err := settler.Settle(context.Background(), actor(), collection, now); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.moves) != 2 {
+		t.Fatalf("moves = %+v, want the two groups without a status", store.moves)
+	}
+	for _, move := range store.moves {
+		want := "todo"
+		if move.Completed {
+			want = "done"
+		}
+		if move.From != "" || move.To != want {
+			t.Errorf("move %+v, want from none to %q", move, want)
+		}
+	}
+}

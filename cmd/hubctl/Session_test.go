@@ -34,7 +34,7 @@ func TestListingSessionsSaysWhichOneIsAnsweringTheCall(t *testing.T) {
 		t.Errorf("both sessions should be listed: %q", out)
 	}
 	// Which line is this shell is the column the whole listing exists for.
-	if !strings.Contains(out, "THIS ONE") {
+	if !strings.Contains(out, "CURRENT") || !strings.Contains(out, "true") {
 		t.Errorf("nothing says which session is answering: %q", out)
 	}
 	// The network is what was recorded, coarsened where it was recorded (T-01).

@@ -45,6 +45,11 @@
      * rail, which is a column of marks.
      */
     readonly meta?: string;
+    /**
+     * A quieter row: a link to one of its parent's views rather than a place of its own - a hub's
+     * tabs mirrored under its collections (user-experience.md §2.4).
+     */
+    readonly isQuiet?: boolean;
   }
 
   /** A row's own menu: what can be done to the place the row is (design-system.md §13, G7). */
@@ -356,7 +361,7 @@
          A navigation tree is the one place the two coincide, and a screen reader is told each in
          its own vocabulary. -->
     {#each rows as row, index (row.node.id)}
-      {#if row.depth === 0 && row.node.band !== undefined}
+      {#if row.node.band !== undefined}
         <!-- Where a band begins, as an element of its own: the hairline, the air above it, and the
              caption where there is one. `role="none"` because it is not a node of the tree — it
              says what the rows under it are, and the arrows walk past it the way they walk past a
@@ -368,12 +373,13 @@
              Folded, the caption is not drawn: a rail is a column of marks, and a five-word group
              name in it is words in a place that has no room for any. What separates
              one group of marks from the next is the hairline, which is what is left here. -->
-        <li class="band" role="none">
+        <li class="band" class:nested={row.depth > 0} role="none" style:--depth={row.depth}>
           {#if row.node.band.caption && !isRail}<span>{row.node.band.caption}</span>{/if}
         </li>
       {/if}
       <li
         class="row"
+        class:quiet={row.node.isQuiet}
         role="treeitem"
         data-index={index}
         data-node={row.node.id}
@@ -422,7 +428,7 @@
           {/if}
         </span>
         {#if !isRail}
-          <span class="label">{row.node.label}</span>
+          <span class="label" title={row.node.label}>{row.node.label}</span>
           {@const menu = rowMenu?.(row.node.id)}
           <!-- The figure and the place's menu share one cell at the end: the figure is drawn, and
                where the pointer or the focus is the menu takes its place, so a row with a menu wraps
@@ -632,23 +638,28 @@
   /* The indent is the label's, and it is `padding-inline-start`, which mirrors itself: a
      `padding-left` would put the indent on the wrong side of an RTL tree, and that is what the
      direction axis catches.
-     Two lines before it gives up, not one: a row whose label says what the place is for — the
-     installation's "applies to every workspace you create" in a phone's drawer — said nothing
-     once cut after its first words. A third line is where a row stops being a row, so the clamp
-     is there and the whole text stays the row's accessible name. The prefixed form is what every
-     engine implements; the standard property stands beside it, as in `TaskRow`. */
+     One line with an ellipsis, never a break inside a word (user-experience.md §2.5): the whole
+     name stays the row's accessible name, and its tooltip. */
   .label {
     flex: 1;
     min-width: 0;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
     overflow: hidden;
-    /* Between words, and inside one only when it alone is wider than the row: "anywhere" broke a
-       short name mid-word as soon as a figure stood beside it. */
-    overflow-wrap: break-word;
-    hyphens: auto;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A parent's view, not a place: the secondary ink and the smaller size. */
+  .row.quiet {
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
+
+  /* A band inside a branch separates its kinds of rows - the collections from the hub's views - and
+     starts where its rows' labels do. */
+  .band.nested {
+    margin-block-start: var(--sp-050);
+    padding-block-start: var(--sp-050);
+    margin-inline-start: calc(var(--depth) * var(--sp-300));
   }
 
   /* The figure keeps to one line and to its own width, so a long label wraps beside it rather than
@@ -672,6 +683,14 @@
     .row:focus .more,
     .row:focus-within .more,
     .row .more:has([aria-expanded='true']) { opacity: 1; }
+
+    /* A row with no figure keeps no room for its menu until the menu shows: the name has the
+       width, and a five-hub tree reads its names rather than their first letters. */
+    .row:not(:hover, :focus, :focus-within) .end:not(:has(.meta), :has([aria-expanded='true'])) {
+      inline-size: 0;
+      overflow: hidden;
+      margin-inline-start: calc(-1 * var(--density-row-gap));
+    }
 
     /* Where the menu shows, the figure it covers steps back. */
     .row:hover .end:has(.more) .meta,

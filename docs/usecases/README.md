@@ -32,6 +32,16 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`suggestion/`](./suggestion/) | `UC-AI` | AI providers and suggestions | `service/suggestion` |
 | [`sync/`](./sync/) | `UC-SYN` | Working offline and merging | `service/sync` |
 | [`importer/`](./importer/) | `UC-IMP` | Bringing work in from elsewhere | `service/importer` |
+| [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and how its work moves | `service/workflow` |
+| [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones, sprints and estimates | `service/work` (links), `service/planning` |
+| [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
+| [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history, comments | `service/whiteboard` |
+| [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
+| [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction, approvals | `service/servicedesk` |
+| [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
+| [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
+| [`agent/`](./agent/) | `UC-AGT` | Governed agents: the registry and lifecycle, the gate every act passes, held acts approved by a person, budgets and kill switches, the models agents may call, evaluation before going live, the provenance of accepted AI values, an agent configuring within its sections | `service/agent` |
+| [`config/`](./config/) | `UC-CFG` | The configuration document of a workspace and of a hub: export, plan with its reach, apply, versions and rollback, the sandbox, the plan seen before it applies | `service/config` |
 
 ## What a use case looks like
 
@@ -96,7 +106,13 @@ names (those are in `checked_by:`). At `built` and `verified` the section is gon
 | `verified` | Every check is proven — `checked_by` names the tests that assert it. |
 | `retired` | No longer applies; a line says why. The ID is not reused. |
 
-The gate also refuses a `partial` or `specified` use case without a *Today* section, a use case
+A `verified` use case's checks are each cited - `UC-XX-nn check n`, `UC-XX-nn/n` or, for several,
+`UC-XX-nn checks n, m and k` or `UC-XX-nn checks n-k` - by a file its `checked_by` names; the gate
+refuses a check of a verified use case that no such file cites. The uncited checks of `built` use
+cases are counted too and held to a bound that only falls (`uncitedBuiltAtMost` in
+`tools/checkdocs/usecases.go`): more fail, and fewer fail until the bound is lowered with the
+change that cited them. The gate also refuses a `partial` or `specified` use case
+without a *Today* section, a use case
 without *Goal*, *How to check* or *Where it ends*, and a `UC-…` cited anywhere in the repository
 that does not exist.
 
@@ -185,6 +201,12 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-ID-23](./identity/UC-ID-23-see-hubtask-in-my-own-script.md) | See Hubtask in my own script | identity |
 | [UC-ID-24](./identity/UC-ID-24-run-the-workspace-from-one-overview.md) | Run the workspace from one overview | identity |
 | [UC-ID-25](./identity/UC-ID-25-switch-between-my-workspaces.md) | Switch between my workspaces on this device | identity |
+| [UC-ID-26](./identity/UC-ID-26-define-our-own-roles.md) | Define our own roles from the permissions Hubtask knows | identity |
+| [UC-ID-27](./identity/UC-ID-27-hide-a-field-from-those-who-must-not-see-it.md) | Hide a field from those who must not see it | identity |
+| [UC-ID-28](./identity/UC-ID-28-provision-people-from-our-directory.md) | Provision people and groups from our directory | identity |
+| [UC-ID-29](./identity/UC-ID-29-look-at-the-app-as-a-person-sees-it.md) | Look at the app as a person of the workspace sees it | identity |
+| [UC-ID-30](./identity/UC-ID-30-sign-in-through-our-saml-directory.md) | Sign in through our SAML directory | identity |
+| [UC-ID-31](./identity/UC-ID-31-keep-people-from-our-ldap-directory.md) | Keep our people and groups from our LDAP directory | identity |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin |
@@ -205,6 +227,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INS-18](./admin/UC-INS-18-offer-presets-to-every-workspace.md) | Offer presets to every workspace | admin |
 | [UC-INS-19](./admin/UC-INS-19-change-a-workspaces-address.md) | Change a workspace's address | admin |
 | [UC-INS-20](./admin/UC-INS-20-give-a-workspace-a-host-of-my-choosing.md) | Give each workspace a host of my choosing | admin |
+| [UC-INS-21](./admin/UC-INS-21-switch-a-module-on.md) | Switch a module on for the workspace, a hub, or a plan | admin |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work |
 | [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work |
@@ -236,6 +259,90 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-29](./work/UC-WRK-29-see-what-counts.md) | See what counts in a hub or collection | work |
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work |
 | [UC-WRK-31](./work/UC-WRK-31-run-a-collection-as-a-flow.md) | Run a collection as a flow | work |
+| [UC-FLW-01](./workflow/UC-FLW-01-give-our-work-its-own-types.md) | Give our work its own types | workflow |
+| [UC-FLW-02](./workflow/UC-FLW-02-describe-how-our-work-moves.md) | Describe how our work moves, and switch it on | workflow |
+| [UC-FLW-03](./workflow/UC-FLW-03-move-an-entry-on.md) | Move an entry on, and be told what it still needs | workflow |
+| [UC-FLW-04](./workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | Ask for what a step needs, and act when it is taken | workflow |
+| [UC-FLW-05](./workflow/UC-FLW-05-change-a-workflow-in-use.md) | Change a workflow that is already in use | workflow |
+| [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
+| [UC-PLN-02](./planning/UC-PLN-02-see-the-plan-as-a-gantt-chart-and-move-it.md) | See the plan as a Gantt chart and move it by hand | planning |
+| [UC-PLN-03](./planning/UC-PLN-03-know-which-chain-decides-the-end-date.md) | Know which chain decides the end date | planning |
+| [UC-PLN-04](./planning/UC-PLN-04-keep-the-agreed-plan-and-compare-it-with-today.md) | Keep the agreed plan and compare it with today | planning |
+| [UC-PLN-05](./planning/UC-PLN-05-mark-the-dates-that-matter-as-milestones.md) | Mark the dates that matter as milestones | planning |
+| [UC-PLN-06](./planning/UC-PLN-06-plan-a-sprint-run-it-and-close-it.md) | Plan a sprint, run it and close it | planning |
+| [UC-PLN-07](./planning/UC-PLN-07-estimate-work-and-see-how-much-a-team-gets-done.md) | Estimate work and see how much a team gets done | planning |
+| [UC-PLN-08](./planning/UC-PLN-08-collect-work-into-a-release-and-tell-people-what-is-in-it.md) | Collect work into a release and tell people what is in it | planning |
+| [UC-PLN-09](./planning/UC-PLN-09-bring-a-plan-in-from-a-project-file.md) | Bring a plan in from a project file | planning |
+| [UC-DOC-01](./knowledge/UC-DOC-01-write-a-page-in-a-hub-and-find-it-again.md) | Write a page in a hub and find it again | knowledge |
+| [UC-DOC-02](./knowledge/UC-DOC-02-write-a-page-together-at-the-same-time.md) | Write a page together at the same time | knowledge |
+| [UC-DOC-03](./knowledge/UC-DOC-03-turn-a-line-of-a-page-into-a-task-and-keep-them-linked.md) | Turn a line of a page into a task and keep them linked | knowledge |
+| [UC-DOC-04](./knowledge/UC-DOC-04-link-pages-and-entries-and-see-what-links-here.md) | Link pages and entries and see what links here | knowledge |
+| [UC-DOC-05](./knowledge/UC-DOC-05-start-a-page-from-a-template.md) | Start a page from a template | knowledge |
+| [UC-DOC-06](./knowledge/UC-DOC-06-see-how-a-page-changed-and-bring-an-older-version-back.md) | See how a page changed and bring an older version back | knowledge |
+| [UC-DOC-07](./knowledge/UC-DOC-07-keep-notes-only-i-can-read.md) | Keep notes only I can read | knowledge |
+| [UC-DOC-08](./knowledge/UC-DOC-08-share-a-page-with-someone-outside-read-only.md) | Share a page with someone outside, read-only | knowledge |
+| [UC-DOC-09](./knowledge/UC-DOC-09-take-a-wiki-out-again.md) | Take a wiki out again | knowledge |
+| [UC-DOC-10](./knowledge/UC-DOC-10-embed-a-live-view-of-work-in-a-page.md) | Embed a live view of work in a page | knowledge |
+| [UC-DOC-11](./knowledge/UC-DOC-11-discuss-a-page-beside-its-words.md) | Discuss a page beside its words | knowledge |
+| [UC-DOC-12](./knowledge/UC-DOC-12-keep-a-page-known-to-be-right.md) | Keep a page known to be right | knowledge |
+| [UC-DOC-13](./knowledge/UC-DOC-13-answer-a-requester-from-the-knowledge-base.md) | Answer a requester from the knowledge base | knowledge |
+| [UC-DOC-14](./knowledge/UC-DOC-14-put-pictures-and-files-on-a-page.md) | Put pictures and files on a page | knowledge |
+| [UC-DOC-15](./knowledge/UC-DOC-15-prepare-changes-to-a-page-before-readers-see-them.md) | Prepare changes to a page before readers see them | knowledge |
+| [UC-CNV-01](./whiteboard/UC-CNV-01-draw-on-a-whiteboard-together.md) | Draw on a whiteboard together | whiteboard |
+| [UC-CNV-02](./whiteboard/UC-CNV-02-turn-a-sticky-note-into-a-task-and-keep-it-on-the-board.md) | Turn a sticky note into a task and keep it on the board | whiteboard |
+| [UC-CNV-03](./whiteboard/UC-CNV-03-take-a-whiteboard-out-again.md) | Take a whiteboard out again | whiteboard |
+| [UC-CNV-04](./whiteboard/UC-CNV-04-arrange-a-whiteboard-quickly.md) | Arrange a whiteboard quickly | whiteboard |
+| [UC-CNV-05](./whiteboard/UC-CNV-05-run-a-session-on-a-whiteboard.md) | Run a session on a whiteboard | whiteboard |
+| [UC-CNV-06](./whiteboard/UC-CNV-06-go-back-to-an-earlier-state-of-a-whiteboard.md) | Go back to an earlier state of a whiteboard | whiteboard |
+| [UC-CNV-07](./whiteboard/UC-CNV-07-see-what-points-at-a-whiteboard.md) | See what points at a whiteboard | whiteboard |
+| [UC-CNV-08](./whiteboard/UC-CNV-08-put-pictures-and-files-on-a-whiteboard.md) | Put pictures and files on a whiteboard | whiteboard |
+| [UC-CNV-09](./whiteboard/UC-CNV-09-discuss-a-whiteboard-where-it-is-drawn.md) | Discuss a whiteboard where it is drawn | whiteboard |
+| [UC-AST-01](./assets/UC-AST-01-keep-an-inventory-of-what-our-services-run-on.md) | Keep an inventory of what our services run on | assets |
+| [UC-AST-02](./assets/UC-AST-02-let-every-source-write-through-one-reconciliation.md) | Let every source write through one reconciliation | assets |
+| [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate configuration items without losing one | assets |
+| [UC-AST-04](./assets/UC-AST-04-bring-an-inventory-in-from-a-file.md) | Bring an inventory in from a file | assets |
+| [UC-AST-05](./assets/UC-AST-05-see-what-a-failure-reaches.md) | See what a failure reaches | assets |
+| [UC-AST-06](./assets/UC-AST-06-see-how-healthy-our-inventory-is.md) | See how healthy our inventory is | assets |
+| [UC-AST-07](./assets/UC-AST-07-pull-our-inventory-from-the-tools-that-know-it.md) | Pull our inventory from the tools that already know it | assets |
+| [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected configuration item | assets |
+| [UC-AST-09](./assets/UC-AST-09-see-what-an-incident-or-a-change-touches.md) | See what an incident or a change touches | assets |
+| [UC-AST-10](./assets/UC-AST-10-have-owners-attest-our-inventory.md) | Have owners attest our inventory | assets |
+| [UC-AST-11](./assets/UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md) | Group configuration items by a filter and draw the service map | assets |
+| [UC-AST-12](./assets/UC-AST-12-keep-an-asset-register-to-its-disposal.md) | Keep an asset register to its disposal | assets |
+| [UC-AST-13](./assets/UC-AST-13-count-software-by-its-product.md) | Count software by its product | assets |
+| [UC-SVC-01](./servicedesk/UC-SVC-01-keep-our-working-hours-and-holidays.md) | Keep our working hours and holidays | servicedesk |
+| [UC-SVC-02](./servicedesk/UC-SVC-02-promise-response-times-and-see-which-is-about-to-break.md) | Promise response times and see which promise is about to break | servicedesk |
+| [UC-SVC-03](./servicedesk/UC-SVC-03-work-the-queue-by-what-breaks-first.md) | Work the queue by what breaks first | servicedesk |
+| [UC-SVC-04](./servicedesk/UC-SVC-04-keep-notes-for-the-team-beside-the-replies.md) | Keep notes for the team beside the replies | servicedesk |
+| [UC-SVC-05](./servicedesk/UC-SVC-05-ask-the-service-desk-for-help.md) | Ask the service desk for help and follow my request | servicedesk |
+| [UC-SVC-06](./servicedesk/UC-SVC-06-answer-the-usual-requests-the-usual-way.md) | Answer the usual requests the usual way | servicedesk |
+| [UC-SVC-07](./servicedesk/UC-SVC-07-learn-whether-the-requester-was-satisfied.md) | Learn whether the requester was satisfied | servicedesk |
+| [UC-SVC-08](./servicedesk/UC-SVC-08-make-a-step-wait-for-somebodys-yes.md) | Make a step wait for somebody's yes | servicedesk |
+| [UC-SVC-09](./servicedesk/UC-SVC-09-approve-or-decline-with-a-reason.md) | Approve or decline, with a reason | servicedesk |
+| [UC-SVC-10](./servicedesk/UC-SVC-10-hand-my-approvals-to-someone-while-i-am-away.md) | Hand my approvals to someone while I am away | servicedesk |
+| [UC-SVC-11](./servicedesk/UC-SVC-11-see-the-requests-of-my-organisation.md) | See the requests of my organisation in the portal | servicedesk |
+| [UC-SVC-12](./servicedesk/UC-SVC-12-answer-a-requester-by-mail.md) | Answer a requester by mail and get their reply on the request | servicedesk |
+| [UC-SVC-13](./servicedesk/UC-SVC-13-take-a-request-from-somebody-without-an-account.md) | Take a request from somebody without an account through a public form | servicedesk |
+| [UC-TIM-01](./timekeeping/UC-TIM-01-track-my-time-on-what-i-work-on.md) | Track my time on what I work on | timekeeping |
+| [UC-TIM-02](./timekeeping/UC-TIM-02-fill-in-and-hand-in-my-week.md) | Fill in and hand in my week | timekeeping |
+| [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |
+| [UC-TIM-04](./timekeeping/UC-TIM-04-see-where-the-time-went.md) | See where the time went | timekeeping |
+| [UC-TIM-05](./timekeeping/UC-TIM-05-hand-time-to-accounting.md) | Hand time to accounting | timekeeping |
+| [UC-TIM-06](./timekeeping/UC-TIM-06-see-who-has-room-before-handing-out-work.md) | See who has room before handing out work | timekeeping |
+| [UC-TIM-07](./timekeeping/UC-TIM-07-record-absences-and-holidays-once-for-every-plan.md) | Record absences and holidays once for every plan | timekeeping |
+| [UC-TIM-08](./timekeeping/UC-TIM-08-keep-a-project-within-its-budget.md) | Keep a project within its budget | timekeeping |
+| [UC-GOL-01](./goal/UC-GOL-01-set-goals-for-a-period-and-connect-them-to-the-work.md) | Set goals for a period and connect them to the work | goal |
+| [UC-GOL-02](./goal/UC-GOL-02-check-in-on-a-goal-and-say-how-confident-we-are.md) | Check in on a goal and say how confident we are | goal |
+| [UC-GOL-03](./goal/UC-GOL-03-keep-a-portfolio-of-projects-and-its-health-in-one-place.md) | Keep a portfolio of projects and its health in one place | goal |
+| [UC-GOL-04](./goal/UC-GOL-04-put-the-numbers-i-watch-on-a-dashboard.md) | Put the numbers I watch on a dashboard | goal |
+| [UC-AGT-01](./agent/UC-AGT-01-register-an-agent-and-let-it-act-only-once-a-person-approved-it.md) | Register an agent and let it act only once a person approved it | agent |
+| [UC-AGT-02](./agent/UC-AGT-02-hold-every-act-of-an-agent-to-its-policy-budget-and-person.md) | Hold every act of an agent to its policy, its budget and the person it acts for | agent |
+| [UC-AGT-03](./agent/UC-AGT-03-register-the-models-agents-may-call.md) | Register the models agents may call, with the consent to send them material | agent |
+| [UC-AGT-04](./agent/UC-AGT-04-evaluate-an-agent-before-it-goes-live.md) | Evaluate an agent before it goes live | agent |
+| [UC-AGT-05](./agent/UC-AGT-05-see-where-an-ai-value-came-from.md) | See where a value that came from AI came from | agent |
+| [UC-AGT-06](./agent/UC-AGT-06-let-an-agent-configure-only-the-sections-it-was-given.md) | Let an agent configure only the sections it was given | agent |
+| [UC-AGT-07](./agent/UC-AGT-07-let-a-shipped-agent-propose-what-it-found.md) | Let a shipped agent propose what it found, for a person to apply | agent |
+| [UC-CFG-01](./config/UC-CFG-01-change-our-configuration-as-one-document-seen-before-it-applies.md) | Change our configuration as one document, seen before it applies | config |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
@@ -273,6 +380,15 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INT-09](./integration/UC-INT-09-let-an-ai-agent-work-in-my-workspace.md) | Let an AI agent work in my workspace | integration |
 | [UC-INT-10](./integration/UC-INT-10-script-my-workspace-with-a-token.md) | Script my workspace with hubctl or the API | integration |
 | [UC-INT-11](./integration/UC-INT-11-connect-hubtask-to-n8n-or-zapier.md) | Connect Hubtask to n8n or Zapier | integration |
+| [UC-INT-12](./integration/UC-INT-12-tell-our-chat-room-what-happens.md) | Tell our team's chat room what happens | integration |
+| [UC-INT-13](./integration/UC-INT-13-see-the-code-that-names-an-entry.md) | See the commits, branches and pull requests that name an entry | integration |
+| [UC-INT-14](./integration/UC-INT-14-link-a-file-from-a-store-on-an-entry.md) | Link a file from Nextcloud, SharePoint, OneDrive or WebDAV on an entry | integration |
+| [UC-INT-15](./integration/UC-INT-15-read-a-view-in-power-bi-or-excel.md) | Read a saved view in Power BI or Excel | integration |
+| [UC-INT-16](./integration/UC-INT-16-write-my-calendar-feed-into-my-calendar.md) | Write my calendar feed into my Outlook or Google calendar | integration |
+| [UC-INT-17](./integration/UC-INT-17-pick-a-file-from-my-own-file-store.md) | Pick a file from my own Nextcloud, OneDrive or SharePoint | integration |
+| [UC-INT-18](./integration/UC-INT-18-answer-and-capture-from-a-matrix-room.md) | Answer links and capture tasks from a Matrix room | integration |
+| [UC-INT-19](./integration/UC-INT-19-answer-and-capture-from-slack-teams-and-mattermost.md) | Answer links and capture tasks from Slack, Teams and Mattermost | integration |
+| [UC-INT-20](./integration/UC-INT-20-see-my-entries-on-another-products-dashboard-and-search.md) | See my entries on another product's dashboard and in its search | integration |
 | [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification |
@@ -331,3 +447,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-IMP-01](./importer/UC-IMP-01-import-entries-from-a-spreadsheet.md) | Import entries from a spreadsheet | importer |
 | [UC-IMP-02](./importer/UC-IMP-02-move-over-from-another-task-app.md) | Move over from Trello, Google Tasks or Microsoft To Do | importer |
 | [UC-IMP-03](./importer/UC-IMP-03-see-what-an-import-did.md) | See what an import did | importer |
+| [UC-IMP-04](./importer/UC-IMP-04-move-over-from-an-issue-tracker.md) | Move over from an issue tracker with its configuration, history and attachments | importer |
+| [UC-IMP-05](./importer/UC-IMP-05-move-a-wiki-space-into-a-hub.md) | Move a wiki space into a hub's pages | importer |
+| [UC-IMP-06](./importer/UC-IMP-06-move-a-wiki-space-with-its-history.md) | Move a wiki space with its history and comments | importer |
+| [UC-IMP-07](./importer/UC-IMP-07-bring-a-trackers-transitions-sprints-and-boards.md) | Bring an issue tracker's transitions, sprints and boards along | importer |

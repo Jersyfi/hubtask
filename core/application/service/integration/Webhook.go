@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
@@ -137,6 +138,39 @@ type CreateWebhookSubscriptionCommand struct {
 	Filter     string
 	// Scope is where it listens; nil is the whole workspace.
 	Scope *domain.WebhookScope
+	// Chat is the format and a chat room's room and language (UC-INT-12); zero is the CloudEvent.
+	Chat domain.ChatTarget
+	// Credential is the Matrix account's access token, and empty for every other format.
+	Credential secret.Secret
+}
+
+// chatSealing decides what a subscription seals and what its creation answers (UC-INT-12): the
+// drawn signing secret for the CloudEvent; the access token for Matrix; the incoming address for a
+// room's webhook, whose origin alone becomes the target. A chat format answers no secret - none of
+// them signs - and its credential is never answered back.
+func chatSealing(
+	chat domain.ChatTarget, target string, credential, signing secret.Secret,
+) (stored string, sealed, answered secret.Secret, err error) {
+	switch {
+	case chat.Format == domain.FormatMatrix:
+		if credential.IsEmpty() {
+			return "", secret.Secret{}, secret.Secret{}, shared.ErrValidation.
+				WithDetail("webhooks.credential_required").
+				WithFields(shared.FieldError{Path: "/credential", Code: "webhooks.credential_required"})
+		}
+		return target, credential, secret.Secret{}, nil
+	case !credential.IsEmpty():
+		return "", secret.Secret{}, secret.Secret{}, shared.ErrValidation.
+			WithDetail("webhooks.credential_not_for_format").
+			WithFields(shared.FieldError{Path: "/credential", Code: "webhooks.credential_not_for_format"})
+	case chat.Format.TakesIncomingAddress():
+		address, origin, err := domain.IncomingAddress(target)
+		if err != nil {
+			return "", secret.Secret{}, secret.Secret{}, err
+		}
+		return origin, secret.New(address), secret.Secret{}, nil
+	}
+	return target, signing, signing, nil
 }
 
 // Execute creates the subscription and answers its signing secret, once.
@@ -169,7 +203,15 @@ func (h CreateWebhookSubscription) Execute(
 			WithDetail("webhooks.secret_undrawable").
 			WithCause(err)
 	}
-	signing := secret.New(encodeSecret(material))
+	chat, err := domain.ValidChatTarget(cmd.Chat)
+	if err != nil {
+		return MintedSubscription{}, err
+	}
+	target, sealedValue, answered, err := chatSealing(
+		chat, cmd.TargetURL, cmd.Credential, secret.New(encodeSecret(material)))
+	if err != nil {
+		return MintedSubscription{}, err
+	}
 
 	var created domain.WebhookSubscription
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -187,14 +229,14 @@ func (h CreateWebhookSubscription) Execute(
 
 		subscription, err := domain.NewWebhookSubscription(domain.NewWebhookSubscriptionInput{
 			ID: w.IDs.NewID(), TenantID: actor.TenantID,
-			TargetURL: cmd.TargetURL, EventTypes: cmd.EventTypes, Filter: cmd.Filter, Scope: scope,
-			CreatedBy: actor.AccountID, Now: now,
+			TargetURL: target, EventTypes: cmd.EventTypes, Filter: cmd.Filter, Scope: scope,
+			Chat: chat, CreatedBy: actor.AccountID, Now: now,
 		})
 		if err != nil {
 			return err
 		}
 
-		sealed, err := w.Encryptor.Seal(ctx, signing, SecretPurpose(subscription.ID))
+		sealed, err := w.Encryptor.Seal(ctx, sealedValue, SecretPurpose(subscription.ID))
 		if err != nil {
 			return err
 		}
@@ -211,7 +253,7 @@ func (h CreateWebhookSubscription) Execute(
 	if err != nil {
 		return MintedSubscription{}, err
 	}
-	return MintedSubscription{Subscription: created, Secret: signing}, nil
+	return MintedSubscription{Subscription: created, Secret: answered}, nil
 }
 
 // GetWebhookSubscription answers one subscription.
@@ -388,6 +430,13 @@ func applyChange(
 ) (domain.WebhookSubscription, error) {
 	after := before
 
+	if cmd.TargetURL != nil && before.Format.IsChat() {
+		// A chat room's target is bound to its sealed credential; pointing it elsewhere would send
+		// the room's token to another server. Another room is another subscription.
+		return domain.WebhookSubscription{}, shared.ErrValidation.
+			WithDetail("webhooks.target_fixed_for_chat").
+			WithFields(shared.FieldError{Path: "/target_url", Code: "webhooks.target_fixed_for_chat"})
+	}
 	if cmd.TargetURL != nil {
 		target, err := domain.TargetURL(*cmd.TargetURL)
 		if err != nil {
@@ -482,6 +531,9 @@ func (w Writer) recordAudit(
 		// person wrote and which may carry anything (rule 10).
 		{Field: "filter_set", Classification: audit.Open, To: strconv.FormatBool(subscription.Filter != "")},
 		{Field: "scope", Classification: audit.Open, To: scopeAudit(subscription.Scope)},
+		// The format and a Matrix room are where the events go; the credential is nowhere.
+		{Field: "format", Classification: audit.Open, To: string(subscription.Format)},
+		{Field: "room", Classification: audit.Open, To: subscription.Room},
 	}, extra...)
 
 	return w.Audit.Append(ctx, audit.Entry{
@@ -556,6 +608,13 @@ func subscriptionOutput(subscription domain.WebhookSubscription) usecase.Output 
 		"filter":        optionalFilter(subscription.Filter),
 		"scope":         scopeOutput(subscription.Scope),
 		"last_error":    nil,
+		"format":        string(formatOrCloudEvents(subscription.Format)),
+	}
+	if subscription.Room != "" {
+		out["room"] = subscription.Room
+	}
+	if subscription.Locale != "" {
+		out["locale"] = subscription.Locale
 	}
 	if subscription.Filter != "" {
 		out["filter"] = subscription.Filter
@@ -564,6 +623,14 @@ func subscriptionOutput(subscription domain.WebhookSubscription) usecase.Output 
 		out["last_error"] = subscription.LastError
 	}
 	return out
+}
+
+// formatOrCloudEvents answers a subscription built without a format as the CloudEvent it is.
+func formatOrCloudEvents(format domain.DeliveryFormat) domain.DeliveryFormat {
+	if format == "" {
+		return domain.FormatCloudEvents
+	}
+	return format
 }
 
 func joinTypes(types []event.Type) string {
@@ -586,6 +653,7 @@ func encodeSecret(material []byte) string {
 // Descriptor is the catalogue entry.
 func (h CreateWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        CreateWebhookSubscriptionName,
 		Entitlement: entitlement.Webhooks,
 		Summary: "Subscribes an external system to this workspace's event stream and answers " +
@@ -617,6 +685,28 @@ func (h CreateWebhookSubscription) Descriptor() usecase.Descriptor {
 				Description: "Where it listens: {type: TENANT|HUB|COLLECTION, id}. A hub includes " +
 					"its collections. Omitted is the whole workspace.",
 			},
+			{
+				Name: "format", Kind: usecase.KindString,
+				Enum: []string{"CLOUDEVENTS", "MATRIX", "SLACK", "MATTERMOST", "TEAMS"},
+				Description: "What the target receives: the signed CloudEvent (the default), or a " +
+					"sentence for a chat room - Matrix through the homeserver at target_url, the " +
+					"others through the room's incoming webhook address at target_url, kept sealed " +
+					"and shown by its origin.",
+			},
+			{
+				Name: "room", Kind: usecase.KindString,
+				Description: "The Matrix room identifier (!opaque:server). Only for MATRIX.",
+			},
+			{
+				Name: "locale", Kind: usecase.KindString,
+				Description: "The language a chat room's sentence is written in, such as de; " +
+					"omitted is the installation's source language. Only for a chat format.",
+			},
+			{
+				Name: "credential", Kind: usecase.KindString,
+				Description: "The Matrix account's access token, sealed and never answered. Only " +
+					"for MATRIX.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: WebhookCreatedAction, TargetType: webhookTarget,
@@ -644,6 +734,11 @@ func (h CreateWebhookSubscription) invoke(
 	}
 	minted, err := h.Execute(ctx, actor, CreateWebhookSubscriptionCommand{
 		TargetURL: in.String("target_url"), EventTypes: types, Filter: in.String("filter"), Scope: scope,
+		Chat: domain.ChatTarget{
+			Format: domain.DeliveryFormat(in.String("format")),
+			Room:   in.String("room"), Locale: in.String("locale"),
+		},
+		Credential: secret.New(in.String("credential")),
 	})
 	if err != nil {
 		return nil, err
@@ -651,7 +746,7 @@ func (h CreateWebhookSubscription) invoke(
 
 	// The one place the signing secret is ever answered, beside a rotation. Every channel gets it
 	// here and no channel can get it again - the projection every other call uses does not carry
-	// it.
+	// it. A chat format's is empty: it signs nothing.
 	out := subscriptionOutput(minted.Subscription)
 	out["secret"] = minted.Secret.Reveal()
 	return out, nil
@@ -660,6 +755,7 @@ func (h CreateWebhookSubscription) invoke(
 // Descriptor is the catalogue entry.
 func (h GetWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        GetWebhookSubscriptionName,
 		Summary:     "One webhook subscription, with its state and its failure run. Not its secret.",
 		SideEffects: "None. Reads only.",
@@ -693,7 +789,8 @@ func (h GetWebhookSubscription) invoke(
 // Descriptor is the catalogue entry.
 func (h ListWebhookSubscriptions) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListWebhookSubscriptionsName,
+		Permission: service.PermissionAutomation,
+		Name:       ListWebhookSubscriptionsName,
 		Summary: "The workspace's webhook subscriptions, newest first, with each one's state " +
 			"and how many consecutive failures it has seen. The secrets are not among the " +
 			"fields: each is answered once, at creation and at each rotation.",
@@ -726,7 +823,8 @@ func (h ListWebhookSubscriptions) invoke(
 // Descriptor is the catalogue entry.
 func (h UpdateWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateWebhookSubscriptionName,
+		Permission: service.PermissionAutomation,
+		Name:       UpdateWebhookSubscriptionName,
 		Summary: "Changes a subscription's target, event types, filter or state. An omitted " +
 			"field is left alone. DISABLED cannot be set by hand - it is what a run of failures " +
 			"produces, and a subscription somebody wants stopped is paused instead. Re-enabling " +
@@ -797,7 +895,8 @@ func (h UpdateWebhookSubscription) invoke(
 // Descriptor is the catalogue entry.
 func (h DeleteWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteWebhookSubscriptionName,
+		Permission: service.PermissionAutomation,
+		Name:       DeleteWebhookSubscriptionName,
 		Summary: "Unsubscribes. The deliveries go with the subscription: a delivery log for a " +
 			"subscription nobody can reach any more is a record of attempts against an address " +
 			"the workspace no longer knows.",

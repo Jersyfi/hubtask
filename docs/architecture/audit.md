@@ -169,7 +169,10 @@ runs, webhook subscriptions, the AI provider configuration — but no secret and
 **A renamed action stays one action.** A stored entry is never rewritten (§3); old entries keep the
 old name, and the `action` filter matches both names and the family (`core/port/audit/Renamed.go`).
 
-**Routes:** `GET /audit` with the shared query DSL (period, `action`, `actor`, `target`, `outcome`);
+**Routes:** `GET /audit` with the shared query DSL (period, `action`, `actor`, `target`, `outcome`,
+and `request_id` - the reference an error answer carries, matched against the entry's context, so
+the sentence a person quotes finds its record; read through `audit_request_idx` on every partition,
+0366);
 `POST /audit:export` as a signed JSON Lines or CSV archive with a checksum manifest and a stated
 period; `POST /audit:verify` for the chain check. Scopes: `audit:read` for reading and verifying,
 `audit:export` for the export — carrying a copy out is a different act.

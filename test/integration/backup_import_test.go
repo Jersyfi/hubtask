@@ -96,6 +96,33 @@ func TestASecondCollectionUnderATakenNameIsAConflict(t *testing.T) {
 	}
 }
 
+// A row naming by key something neither the archive nor the workspace holds - here a hub's
+// workflow scheme naming a workflow no workspace has - is refused by its foreign key, and that refusal
+// is a conflict the restore stops on by name, not a database error the queue would retry against
+// the same row forever.
+func TestARowNamingAKeyNobodyHoldsIsRefusedByName(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub := freshID(t)
+
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := importRepo().Write(ctx, "container", containerRow(hub, authorA, "Desk "+hub.String()[:8]), false); err != nil {
+			return err
+		}
+		_, err := importRepo().Write(ctx, "workflow_scheme", map[string]any{
+			"container_id": hub.String(), "entry_type": "", "workflow_key": "nobody_holds_this",
+			"created_at": created.Format(time.RFC3339Nano),
+		}, false)
+		return err
+	})
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "backup.row_dangles" {
+		t.Fatalf("the write answered %v, want the dangling row's conflict", err)
+	}
+	if got := shared.AsError(err).Params["constraint"]; got != "workflow_scheme_workflow_fkey" {
+		t.Errorf("the conflict names %q, want the foreign key that refused the row", got)
+	}
+}
+
 // The three outcomes of a collision, which is the whole of the conflict rule: a row the tenant does
 // not have is written, one it has is left alone under SKIP, and replaced under OVERWRITE.
 func TestACollisionIsSettledByTheOverwriteFlag(t *testing.T) {
@@ -301,31 +328,38 @@ func TestClearEmptiesTheTenantAndAnswersHowMuchWent(t *testing.T) {
 
 // The reference graph the DUPLICATE rule remaps through has to be the one the database actually
 // has. A foreign key nobody declared is a duplicate that keeps pointing at the original; a
-// declaration with no foreign key behind it is a remap of a column that means something else.
+// declaration with no foreign key behind it is a remap of a column that means something else; a
+// key declared as an identifier is a word the remap turns into a reference to nothing.
 func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 	ctx := context.Background()
 
 	rows, err := adminPool(ctx, t).Query(ctx, `
-		SELECT c.conrelid::regclass::text, a.attname, c.confrelid::regclass::text
+		SELECT c.conrelid::regclass::text, a.attname, c.confrelid::regclass::text, fa.attname
 		FROM pg_constraint c
-		JOIN unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
+		JOIN unnest(c.conkey, c.confkey) AS k(attnum, fattnum) ON true
 		JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+		JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = k.fattnum
 		WHERE c.contype = 'f'`)
 	if err != nil {
 		t.Fatalf("reading the foreign keys: %v", err)
 	}
 	defer rows.Close()
 
-	declared := map[string]bool{}
+	// What each column is declared as: an identifier the remap follows, or a key it carries.
+	byIdentity := map[string]bool{}
+	byKey := map[string]string{}
 	for _, entity := range archive.Entities() {
 		for _, reference := range entity.References {
-			declared[entity.Table+"."+reference.Field] = true
+			byIdentity[entity.Table+"."+reference.Field] = true
+		}
+		for _, named := range entity.ByKey {
+			byKey[entity.Table+"."+named.Field] = named.Table + "." + named.Key
 		}
 	}
 
 	for rows.Next() {
-		var source, column, target string
-		if err := rows.Scan(&source, &column, &target); err != nil {
+		var source, column, target, targetColumn string
+		if err := rows.Scan(&source, &column, &target, &targetColumn); err != nil {
 			t.Fatalf("reading a foreign key: %v", err)
 		}
 		// The tenant is not a reference a restore remaps: it comes from the scope.
@@ -338,9 +372,20 @@ func TestEveryForeignKeyBetweenArchivedEntitiesIsDeclared(t *testing.T) {
 		if _, archived := archive.FindEntityByTable(target); !archived {
 			continue
 		}
-		if !declared[source+"."+column] {
-			t.Errorf("%s.%s points at %s and is not declared in the archive's entity list",
-				source, column, target)
+		field := source + "." + column
+		// An identifier is the target's own `id`, or a column of a key made of references
+		// (`page_article` is keyed by its page and collection) - both move with the remap.
+		identifier := targetColumn == "id" || byIdentity[target+"."+targetColumn]
+		switch {
+		case identifier && !byIdentity[field]:
+			t.Errorf("%s points at %s and is not declared a reference in the archive's entity list",
+				field, target)
+		case !identifier && byIdentity[field]:
+			t.Errorf("%s names %s.%s by key and is declared a reference, which the DUPLICATE "+
+				"remap would rewrite as an identifier", field, target, targetColumn)
+		case !identifier && byKey[field] != target+"."+targetColumn:
+			t.Errorf("%s names %s.%s by key and is not declared so in the archive's entity list",
+				field, target, targetColumn)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -1099,5 +1144,71 @@ func TestASignInNameIsUniqueAndNeverAnAddress(t *testing.T) {
 	}
 	if _, err := admin.Exec(ctx, `UPDATE account SET sign_in_name = 'le' WHERE id = $1`, second.String()); err == nil {
 		t.Error("a sign-in name of two characters was stored")
+	}
+}
+
+// A hub's logo, a person's picture and a mail's intended place come back from an archive: the
+// export writes the whole row, and an import whose column list lacks one drops it without a word
+// (the unit gate TestARestoreWritesBackEveryColumnTheSchemaHolds holds the list; this proves the
+// statements write what they name).
+func TestALogoAPictureAndAMailsPlaceSurviveTheRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, _ := hubWithCollection(ctx, t, tenantA, authorA)
+	media, jumble := freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		  VALUES ($1::uuid, $2, 'logo/' || $1::text, 'image/png', 10, 'DESK_LOGO', 'READY')`,
+			[]any{media.String(), tenantA.String()}},
+		{`UPDATE container SET logo_media_id = $1 WHERE tenant_id = $2 AND id = $3`,
+			[]any{media.String(), tenantA.String(), hub.String()}},
+		{`UPDATE account SET avatar_media_id = $1, external_id = 'dir-7', celebrations = false
+		  WHERE tenant_id = $2 AND id = $3`,
+			[]any{media.String(), tenantA.String(), authorA.String()}},
+		{`INSERT INTO jumble_entry (id, tenant_id, channel, meant_for_kind, meant_for_id, intake_reason)
+		  VALUES ($1, $2, 'EMAIL', 'HUB', $3, 'handle_unknown')`,
+			[]any{jumble.String(), tenantA.String(), hub.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+
+	for _, row := range []struct {
+		table   string
+		id      shared.ID
+		columns []string
+	}{
+		{"container", hub, []string{"logo_media_id"}},
+		{"account", authorA, []string{"avatar_media_id", "external_id", "celebrations"}},
+		{"jumble_entry", jumble, []string{"meant_for_kind", "meant_for_id", "intake_reason"}},
+	} {
+		exportedRow := exportedRowOf(ctx, t, tenantA, row.table, row.id)
+		for _, column := range row.columns {
+			if exportedRow[column] == nil {
+				t.Fatalf("the export carries no %s.%s, so this test proves nothing", row.table, column)
+			}
+			if _, err := admin.Exec(ctx,
+				`UPDATE `+row.table+` SET `+column+` = NULL WHERE tenant_id = $1 AND id = $2`,
+				tenantA.String(), row.id.String()); err != nil {
+				t.Fatalf("clearing %s.%s: %v", row.table, column, err)
+			}
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := importRepo().Write(ctx, row.table, exportedRow, true)
+			return err
+		}); err != nil {
+			t.Fatalf("importing the %s back: %v", row.table, err)
+		}
+		restored := exportedRowOf(ctx, t, tenantA, row.table, row.id)
+		for _, column := range row.columns {
+			if !sameJSON(exportedRow[column], restored[column]) {
+				t.Errorf("%s.%s came back as %#v, want %#v", row.table, column, restored[column], exportedRow[column])
+			}
+		}
 	}
 }

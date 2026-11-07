@@ -820,7 +820,7 @@ func TestTheConsumptionRecordsAreSweptWithTheirEvents(t *testing.T) {
 }
 
 // The JUMBLE_ENTRY class of data-retention.md §3: ninety days from the arrival, swept by the same
-// job that empties the trash.
+// job that empties the trash (UC-JUM-06 check 4).
 func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
 	h := newRunHarness()
 	h.inbox.rows = []inboxRow{
@@ -898,7 +898,8 @@ func TestAPassWithoutTheSuggestionStoreStillRuns(t *testing.T) {
 
 // An entry that became a work item is that item's provenance: `origin_jumble_id` points at it, and
 // an item claiming an origin nobody can read is worse than an inbox that kept one message. What
-// ages out is what was never converted, which is what the statement itself decides.
+// ages out is what was never converted, which is what the statement itself decides (UC-JUM-06
+// check 4).
 func TestAConvertedEntryNeverAgesOut(t *testing.T) {
 	h := newRunHarness()
 	ancient := now.Add(-400 * 24 * time.Hour)
@@ -923,7 +924,7 @@ func TestAConvertedEntryNeverAgesOut(t *testing.T) {
 // Where this kind parts company with the notification history and the outbox: an entry is somebody's
 // work that nobody has filed yet, so a tenant-wide hold reaches it (data-retention.md §4.1). The
 // entries are counted as blocked rather than passed over in silence, so a run that removed nothing
-// says why.
+// says why (UC-JUM-06 check 5).
 func TestATenantWideHoldStopsTheJumbleSweep(t *testing.T) {
 	h := newRunHarness()
 	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
@@ -1100,5 +1101,50 @@ func TestAPassWithoutTheDeviceSweepStillRuns(t *testing.T) {
 
 	if _, err := h.run.Execute(t.Context(), actor()); err != nil {
 		t.Fatalf("a pass without the device sweep failed: %v", err)
+	}
+}
+
+// The agents' kinds (accepted.md B): the ledger goes after thirteen months, held acts and jobs
+// after ninety days, in the same pass and under a tenant-wide hold not at all.
+func TestAPassSweepsTheAgentsRowsAtTheirPeriods(t *testing.T) {
+	for _, c := range []struct {
+		kind domain.DataKind
+		days int
+		set  func(*runHarness, *inboxStore)
+	}{
+		{domain.KindAgentLedger, 397, func(h *runHarness, s *inboxStore) { h.run.AgentLedger = s }},
+		{domain.KindAgentRequest, 90, func(h *runHarness, s *inboxStore) { h.run.AgentRequests = s }},
+		{domain.KindAgentJob, 90, func(h *runHarness, s *inboxStore) { h.run.AgentJobs = s }},
+		{domain.KindTimer, 30, func(h *runHarness, s *inboxStore) { h.run.Timers = s }},
+		{domain.KindConnectorRun, 90, func(h *runHarness, s *inboxStore) { h.run.ConnectorRuns = s }},
+	} {
+		t.Run(string(c.kind), func(t *testing.T) {
+			h := newRunHarness()
+			rows := &inboxStore{rows: []inboxRow{
+				{receivedAt: now.AddDate(0, 0, -c.days-1)},
+				{receivedAt: now.AddDate(0, 0, -c.days+1)},
+			}}
+			c.set(h, rows)
+			if _, err := h.run.Execute(t.Context(), actor()); err != nil {
+				t.Fatalf("the run failed: %v", err)
+			}
+			if want := now.AddDate(0, 0, -c.days); !rows.askedAt.Equal(want) {
+				t.Errorf("the cutoff was %v, want %v", rows.askedAt, want)
+			}
+			if len(rows.rows) != 1 {
+				t.Errorf("%d rows left, want the one inside the period", len(rows.rows))
+			}
+
+			held := newRunHarness()
+			held.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}
+			kept := &inboxStore{rows: []inboxRow{{receivedAt: now.AddDate(0, 0, -c.days-30)}}}
+			c.set(held, kept)
+			if _, err := held.run.Execute(t.Context(), actor()); err != nil {
+				t.Fatalf("the held run failed: %v", err)
+			}
+			if len(kept.rows) != 1 {
+				t.Error("a held workspace's rows were swept")
+			}
+		})
 	}
 }

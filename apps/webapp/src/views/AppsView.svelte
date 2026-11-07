@@ -15,14 +15,19 @@
   //
   // **Removing an app withdraws every grant that pointed at it** — the people who allowed it stop
   // being able to, and the sessions it holds refuse on their next request. Said before the button.
+  //
+  // **Registering is the head's** (user-experience.md §7.10): *Machines and apps* carries the act
+  // and this tab its dialog, which keeps a refusal inside it; the secret is shown on the screen
+  // once the dialog closes, with its acknowledgement.
 
   import { untrack } from 'svelte';
 
   import {
-    Badge,
+    EmptyState, Badge,
     Banner,
     Button,
     Checkbox,
+    Dialog,
     Input,
     OneTimeSecret,
     Spinner,
@@ -38,6 +43,14 @@
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { mayHere } from '../lib/data/capability.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
+  interface Props {
+    /** Whether the registering dialog is open; the head opens it. */
+    isAdding?: boolean;
+  }
+
+  let { isAdding = $bindable(false) }: Props = $props();
 
   let name = $state('');
   /** What *Register* found missing when pressed, marked at the fields (UC-WRK-32 check 3). */
@@ -47,6 +60,7 @@
   let registered = $state<RegisteredApp | undefined>(undefined);
   let removing = $state<string | undefined>(undefined);
   let failure = $state<string | undefined>(undefined);
+  let addFailure = $state<string | undefined>(undefined);
   let isWorking = $state(false);
 
   $effect(() => untrack(() => apps.open()));
@@ -86,12 +100,20 @@
       { kind: 'field', key: 'uris', code: 'app.forms.required', isFilled: list.length > 0 },
     ]);
     if (!isComplete(missing)) return;
-    await attempt(async () => {
+    addFailure = undefined;
+    isWorking = true;
+    try {
       registered = await apps.register(name.trim(), list, confidential);
       name = '';
       uris = '';
       confidential = false;
-    }, t('app.apps.registered_announced'));
+      isAdding = false;
+      announcer.say(t('app.apps.registered_announced'));
+    } catch (error) {
+      addFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isWorking = false;
+    }
   }
 
   /** Whether the reader may register and remove apps (`MANAGE_MEMBERS`), as the server asks. */
@@ -124,14 +146,12 @@
       {/if}
     {/if}
 
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.apps.reading')} /> <span>{t('app.apps.reading')}</span></p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       {#each apps.all as app (app.id)}
         <section class="app">
@@ -174,43 +194,48 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.apps.none')}</p>
+        <EmptyState kind="unused" icon="key" title={t('app.apps.none')} description={t('app.apps.empty_body')} action={mayManage ? addAct : undefined} />
       {/each}
     {/if}
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.apps.new_title')}</h2>
-      <WorkspaceGate permission="MANAGE_MEMBERS">
-        {#snippet actions()}
-        <form class="panel" onsubmit={register}>
-          <Stack gap="200">
-            <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired error={missing.name && !name.trim() ? t(missing.name) : undefined} />
-            <Textarea
-              label={t('app.apps.uris')}
-              hint={t('app.apps.uris_hint')}
-              bind:value={uris}
-              error={missing.uris && readUris(uris).length === 0 ? t(missing.uris) : undefined}
-              rows={3}
-              spellcheck={false}
-            />
-            <Checkbox
-              label={t('app.apps.is_confidential')}
-              hint={t('app.apps.is_confidential_hint')}
-              checked={confidential}
-              onchange={(event: Event) => (confidential = (event.currentTarget as HTMLInputElement).checked)}
-            />
-            <div>
-              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.apps.registering')}>
-                {t('app.apps.register')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-        {/snippet}
-      </WorkspaceGate>
-    </Stack>
+    <!-- A reader without MANAGE_MEMBERS is told once why nothing here can be registered (P-05). -->
+    <WorkspaceGate permission="MANAGE_MEMBERS" />
     </Stack>
 </Stack>
+
+{#snippet addAct()}
+  <Button tone="primary" icon="plus" onclick={() => (isAdding = true)}>{t('app.apps.new_title')}</Button>
+{/snippet}
+
+{#if mayManage}
+  <Dialog bind:isOpen={isAdding} title={t('app.apps.new_title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (addFailure = undefined)}>
+    <form onsubmit={register}>
+      <Stack gap="200">
+        {#if addFailure}<FailureNote problem={addFailure} />{/if}
+        <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired error={missing.name && !name.trim() ? t(missing.name) : undefined} />
+        <Textarea
+          label={t('app.apps.uris')}
+          hint={t('app.apps.uris_hint')}
+          bind:value={uris}
+          error={missing.uris && readUris(uris).length === 0 ? t(missing.uris) : undefined}
+          rows={3}
+          spellcheck={false}
+        />
+        <Checkbox
+          label={t('app.apps.is_confidential')}
+          hint={t('app.apps.is_confidential_hint')}
+          checked={confidential}
+          onchange={(event: Event) => (confidential = (event.currentTarget as HTMLInputElement).checked)}
+        />
+        <div>
+          <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.apps.registering')}>
+            {t('app.apps.register')}
+          </Button>
+        </div>
+      </Stack>
+    </form>
+  </Dialog>
+{/if}
 
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
@@ -218,7 +243,6 @@
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
      around a screen that is not a document. */
 
-  .section,
   .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
@@ -250,18 +274,5 @@
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
-  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
-     input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables beside them take the width. */
-  form { margin: 0; max-inline-size: 52ch; }
-
-  /* The surface a form stands on, as the other screens of the section draw one: a standalone
-     element in the sense of design-system.md rule 1, on the frame's canvas. */
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  form { margin: 0; }
 </style>

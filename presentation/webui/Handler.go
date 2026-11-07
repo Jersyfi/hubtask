@@ -66,6 +66,34 @@ func PolicyFor(mediaOrigin string) string {
 	return policy
 }
 
+// EmbeddableBy is a policy with `frame-ancestors 'none'` replaced by the origins that may frame
+// the interface - a portal embedding it (HUBTASK_UI_FRAME_ANCESTORS). None answers the policy
+// unchanged. The origins are the operator's, validated as complete origins at start; the API's
+// own policy never takes them, so a frame can show the interface and never an API answer.
+func EmbeddableBy(policy string, origins []string) string {
+	if len(origins) == 0 {
+		return policy
+	}
+	return strings.Replace(policy, "frame-ancestors 'none'", "frame-ancestors "+strings.Join(origins, " "), 1)
+}
+
+// FramingSources is a policy with a `frame-src` of the origins a page's embed may frame
+// (HUBTASK_UI_FRAME_SOURCES). None answers the policy unchanged, and `default-src 'none'` then
+// frames nothing. The origins are the operator's, validated as complete https origins at start;
+// the API's own policy never takes them.
+func FramingSources(policy string, origins []string) string {
+	if len(origins) == 0 {
+		return policy
+	}
+	return policy + "; frame-src " + strings.Join(origins, " ")
+}
+
+// FramingSources answers the handler with the origins its pages may frame added to its policy.
+func (h Handler) FramingSources(origins []string) Handler {
+	h.policy = FramingSources(h.policy, origins)
+	return h
+}
+
 // Cache-Control for the two kinds of file a bundle contains.
 //
 // The pairing is what makes an update take effect on the next reload while a browser still gets
@@ -115,6 +143,38 @@ type Handler struct {
 	// policy is the content security policy every answer carries, composed once at construction
 	// from the installation's media origin (ADR-0047), the way the entity tags are computed once.
 	policy string
+	// build is the bundle's entry script (Build), empty for a document without one.
+	build string
+	// previous is the previous release's content-hashed assets (WithPrevious), nil for none.
+	previous fs.FS
+}
+
+// WithPrevious answers the handler with the previous release's assets beside its own bundle: a
+// content-hashed file the bundle lacks is taken from them. During a rolling update a tab loaded
+// from the previous release asks a new pod for a chunk of its own release, and would otherwise
+// get a 404 and fail to open a screen (deployment.md §5). Nothing else is ever taken from them.
+func (h Handler) WithPrevious(previous fs.FS) Handler {
+	h.previous = previous
+	return h
+}
+
+// buildHeader is rest.BuildHeader, written out because this adapter does not import that one.
+const buildHeader = "X-Hubtask-Build"
+
+var entryScript = regexp.MustCompile(`<script[^>]*type="module"[^>]*src="([^"]+)"`)
+
+// Build answers the bundle's build: the entry script its document loads. A client reads the same
+// value from the document it runs, so a server and a client compare builds without a second id
+// that could disagree (api-guidelines.md §8). Empty for the placeholder.
+func Build(files fs.FS) string {
+	document, err := fs.ReadFile(files, indexPath)
+	if err != nil {
+		return ""
+	}
+	if match := entryScript.FindSubmatch(document); match != nil {
+		return string(match[1])
+	}
+	return ""
 }
 
 // NewHandler reads the bundle once and computes an entity tag per file, and composes the policy
@@ -125,7 +185,9 @@ type Handler struct {
 // revalidate" degenerates into "always re-download": an embedded file has no modification time -
 // every byte of it was fixed when the binary was linked - so there would be nothing for the
 // browser to ask about. With one, a reload that changes nothing costs a 304.
-func NewHandler(files fs.FS, headers SecurityHeaderWriter, mediaOrigin string) (Handler, error) {
+func NewHandler(
+	files fs.FS, headers SecurityHeaderWriter, mediaOrigin string, frameAncestors ...string,
+) (Handler, error) {
 	if files == nil {
 		return Handler{}, fmt.Errorf("webui: no bundle")
 	}
@@ -151,13 +213,19 @@ func NewHandler(files fs.FS, headers SecurityHeaderWriter, mediaOrigin string) (
 	if err != nil {
 		return Handler{}, fmt.Errorf("webui: reading the bundle: %w", err)
 	}
-	return Handler{Files: files, SecurityHeaders: headers, etags: etags, policy: PolicyFor(mediaOrigin)}, nil
+	return Handler{
+		Files: files, SecurityHeaders: headers, etags: etags,
+		policy: EmbeddableBy(PolicyFor(mediaOrigin), frameAncestors), build: Build(files),
+	}, nil
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The policy is set before anything else, so that it is on the answer whatever happens below,
 	// including the 404 and the 405.
 	h.SecurityHeaders(w.Header(), h.policy)
+	if h.build != "" {
+		w.Header().Set(buildHeader, h.build)
+	}
 
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
@@ -176,6 +244,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = file.Close() }()
 		if info, statErr := file.Stat(); statErr == nil && !info.IsDir() {
 			h.serve(w, r, name)
+			return
+		}
+	}
+
+	if h.previous != nil && contentHashed.MatchString(name) {
+		if info, err := fs.Stat(h.previous, name); err == nil && !info.IsDir() {
+			w.Header().Set("Cache-Control", immutableCache)
+			http.ServeFileFS(w, r, h.previous, name) //nolint:gosec // G703: an fs.FS cannot be escaped
 			return
 		}
 	}

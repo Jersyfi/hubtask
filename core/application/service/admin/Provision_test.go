@@ -13,6 +13,7 @@ import (
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -398,6 +399,60 @@ func TestProvisioningSeedsTheWorkspacesRetentionSweep(t *testing.T) {
 	}
 }
 
+// UC-INS-07 check 3: where mail is sent, the owner's invitation is queued and the answer says so,
+// with no token; where it is not, the token is answered once and nothing is mailed. Never both:
+// the mail mints a token of its own at delivery, which would void the one answered.
+func TestTheOwnersWayInIsMailedOrHandedOverNeverBoth(t *testing.T) {
+	for _, mails := range []bool{true, false} {
+		f := newProvisionFixture()
+		f.handler.MailsOwner = mails
+		provisioned, err := f.handler.Execute(t.Context(), operator(), provisionCommand())
+		if err != nil {
+			t.Fatalf("provisioning: %v", err)
+		}
+		var invitations []queue.Request
+		for _, request := range f.jobs.requests {
+			if request.Kind == queue.KindInvitationEmail {
+				invitations = append(invitations, request)
+			}
+		}
+		stored := f.redemption.accountID
+		out, err := f.handler.Descriptor().Handler.Invoke(t.Context(), operator(), usecase.Input{
+			"slug": "other-" + map[bool]string{true: "mail", false: "link"}[mails], "display_name": "Other",
+			"owner_email": "owner@example.com",
+		})
+		if err != nil {
+			t.Fatalf("provisioning through the catalogue: %v", err)
+		}
+		_, answered := out["owner_redemption_token"]
+		if mails {
+			if provisioned.OwnerDelivery != "MAIL" || !provisioned.OwnerRedemption.IsEmpty() || !stored.IsZero() {
+				t.Errorf("with mail: delivery %q, a token answered or stored", provisioned.OwnerDelivery)
+			}
+			if len(invitations) != 1 || invitations[0].TenantID != provisioned.Tenant.ID ||
+				invitations[0].Payload["account_id"] != provisioned.OwnerAccountID.String() {
+				t.Errorf("with mail the invitations queued are %+v", invitations)
+			}
+			if _, named := invitations[0].Payload["invited_by"]; named {
+				t.Error("the control plane was named as the inviter")
+			}
+			if answered || out["owner_delivery"] != "MAIL" {
+				t.Errorf("with mail the answer is %v", out)
+			}
+			continue
+		}
+		if provisioned.OwnerDelivery != "LINK" || provisioned.OwnerRedemption.IsEmpty() || stored != provisioned.OwnerAccountID {
+			t.Errorf("without mail: delivery %q, the token not answered or not stored", provisioned.OwnerDelivery)
+		}
+		if len(invitations) != 0 {
+			t.Errorf("without mail an invitation was queued: %+v", invitations)
+		}
+		if !answered || out["owner_delivery"] != "LINK" {
+			t.Errorf("without mail the answer is %v", out)
+		}
+	}
+}
+
 // sequentialIDs answers distinct, valid identifiers, because provisioning mints a dozen rows in
 // one call and a fake answering one value would make them indistinguishable.
 type sequentialIDs struct{ count int }
@@ -417,6 +472,7 @@ func provisionCommand() ProvisionTenantCommand {
 	}
 }
 
+// UC-INS-07 check 5: the creation is in the instance journal and in the new workspace's own trail.
 func TestProvisioningCreatesTheWholeSection5Table(t *testing.T) {
 	f := newProvisionFixture()
 

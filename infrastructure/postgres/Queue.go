@@ -149,6 +149,8 @@ func (q Queue) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error
 		LockedUntil: timestampOf(lease.Until),
 		Now:         timestampOf(lease.Now),
 		BatchSize:   boundedBatch(lease.Batch),
+		OnlyKinds:   kindNames(lease.Only),
+		ExceptKinds: kindNames(lease.Except),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -165,6 +167,15 @@ func (q Queue) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
+}
+
+// kindNames is never nil: a NULL array would make the claim's kind filter match no row.
+func kindNames(kinds []queue.Kind) []string {
+	names := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		names = append(names, string(kind))
+	}
+	return names
 }
 
 // Hold takes the row lock on the job for the rest of the caller's transaction (queue.Queue.Hold).
@@ -191,6 +202,33 @@ func (q Queue) Hold(ctx context.Context, job queue.Job) error {
 			WithCause(fmt.Errorf("holding job %s: %w", job.ID, err))
 	}
 	return nil
+}
+
+// Extend moves a claimed job's lease, fenced on the lease it carries.
+func (q Queue) Extend(ctx context.Context, job queue.Job, until time.Time) (queue.Job, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return job, err
+	}
+	id, lease, err := fence(job)
+	if err != nil {
+		return job, err
+	}
+	affected, err := queries.ExtendJobLease(ctx, sqlc.ExtendJobLeaseParams{
+		ID: id, Lease: lease, LockedUntil: timestampOf(until),
+	})
+	if err != nil {
+		return job, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("extending job %s: %w", job.ID, err))
+	}
+	if err := leaseHeld(affected, job); err != nil {
+		return job, err
+	}
+	// The stored moment, not the one asked for: the next fence compares against the column, and
+	// the column holds microseconds.
+	job.Lease = until.Truncate(time.Microsecond)
+	return job, nil
 }
 
 // Complete finishes a job for good, in the transaction that carries its effect.
@@ -354,6 +392,107 @@ func (q Queue) Depth(ctx context.Context) ([]queue.Depth, error) {
 	return depths, nil
 }
 
+// OpenJobs counts the jobs of one kind not yet finished - what hubtask_media_scan_held_workspaces
+// reads (observability-reliability.md §4).
+func (q Queue) OpenJobs(ctx context.Context, kind queue.Kind) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.OpenJobCount(ctx, string(kind))
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the open jobs: %w", err))
+	}
+	return int(count), nil
+}
+
+// UnsettledDuties counts the keys of one duty kind with work left, a dead letter not yet settled
+// by a later success included - what hubtask_media_scan_held_workspaces reads
+// (observability-reliability.md §4).
+func (q Queue) UnsettledDuties(ctx context.Context, kind queue.Kind) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.UnsettledDutyCount(ctx, string(kind))
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the unsettled duties: %w", err))
+	}
+	return int(count), nil
+}
+
+// maxOpenKeys bounds one listing of open jobs' keys.
+const maxOpenKeys = 10_000
+
+// maxShards bounds how many parts a listing splits the workspaces into: a count beyond it is read
+// as one, every workspace, rather than as parts nothing leads.
+const maxShards = 1024
+
+func shardCount(s queue.Shard) int32 {
+	if s.Count <= 1 || s.Count > maxShards || s.Index < 0 || s.Index >= s.Count {
+		return 1
+	}
+	return int32(s.Count)
+}
+
+func shardIndex(s queue.Shard) int32 {
+	if shardCount(s) == 1 {
+		return 0
+	}
+	return int32(s.Index) //nolint:gosec // G115: below the count, bounded by maxShards
+}
+
+// OpenKeyCount counts the open jobs of one kind OpenKeys could answer for the shard.
+func (q Queue) OpenKeyCount(ctx context.Context, kind queue.Kind, shard queue.Shard) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountOpenJobKeys(ctx, sqlc.CountOpenJobKeysParams{
+		Kind: string(kind), ShardCount: shardCount(shard), ShardIndex: shardIndex(shard),
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the open jobs' keys: %w", err))
+	}
+	return count, nil
+}
+
+// OpenKeys answers the workspace and dedupe key of up to limit open jobs of one kind, by turns -
+// each workspace's oldest first: for a kind with one job per thing while it lives, the things
+// that live now.
+func (q Queue) OpenKeys(ctx context.Context, kind queue.Kind, shard queue.Shard, limit int) ([]queue.OpenKey, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > maxOpenKeys {
+		limit = maxOpenKeys
+	}
+	rows, err := queries.OpenJobKeys(ctx, sqlc.OpenJobKeysParams{
+		Kind: string(kind), ShardCount: shardCount(shard), ShardIndex: shardIndex(shard), LimitCount: int32(limit),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the open jobs' keys: %w", err))
+	}
+	out := make([]queue.OpenKey, 0, len(rows))
+	for _, row := range rows {
+		tenantID, err := optionalID(row.TenantID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, queue.OpenKey{TenantID: tenantID, DedupeKey: row.DedupeKey})
+	}
+	return out, nil
+}
+
 // ScheduledBacklog counts the jobs of one kind waiting for a future moment - the retry ladders
 // parked on the queue, which is what hubtask_webhook_retry_backlog reads
 // (observability-reliability.md §4).
@@ -395,6 +534,79 @@ func (q Queue) PurgeFinished(ctx context.Context, before time.Time, batch int) (
 	return purged, nil
 }
 
+// ReviveDeadDuties brings back up to batch dead-lettered jobs of the duty kinds whose wait has run
+// out, and answers how many of each kind came back.
+func (q Queue) ReviveDeadDuties(ctx context.Context, kinds []queue.Kind, batch int) (map[queue.Kind]int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		names = append(names, string(kind))
+	}
+	revived, err := queries.ReviveDeadDuties(ctx, sqlc.ReviveDeadDutiesParams{
+		Now: timestampOf(q.now.Now()), Kinds: names, Batch: int32(min(max(batch, 0), math.MaxInt32)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reviving dead duties: %w", err))
+	}
+	counts := map[queue.Kind]int{}
+	for _, kind := range revived {
+		counts[queue.Kind(kind)]++
+	}
+	return counts, nil
+}
+
+// OldestTransactionSeconds answers how long the database's oldest open transaction has run, the
+// caller's own left out (migration 0338).
+func (q Queue) OldestTransactionSeconds(ctx context.Context) (float64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	seconds, err := queries.OldestTransactionSeconds(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the oldest transaction: %w", err))
+	}
+	return seconds, nil
+}
+
+// DatabaseHorizon answers the share of the NOTIFY queue in use, the transaction-ID age vacuum
+// has not frozen (alerts A-36, A-37; migration 0360) and the database's size (A-42).
+func (q Queue) DatabaseHorizon(ctx context.Context) (float64, int64, int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	row, err := queries.DatabaseHorizon(ctx)
+	if err != nil {
+		return 0, 0, 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the database's horizon: %w", err))
+	}
+	return row.NotifyQueueUsage, row.XidAge, row.DatabaseBytes, nil
+}
+
+// InvalidIndexCount answers how many indexes of the schema PostgreSQL holds invalid (alert A-28).
+func (q Queue) InvalidIndexCount(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.InvalidIndexCount(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the invalid indexes: %w", err))
+	}
+	return count, nil
+}
+
 // jobFrom rebuilds a claimed job. A row that cannot be read is a defect rather than a bad job:
 // everything in it was written by this adapter.
 func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {
@@ -423,6 +635,7 @@ func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {
 		Payload:     payload,
 		Attempts:    int(row.Attempts),
 		MaxAttempts: int(row.MaxAttempts),
+		Reclaimed:   row.Reclaimed,
 		Lease:       timeFrom(row.LockedUntil),
 	}, nil
 }

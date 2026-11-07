@@ -75,7 +75,7 @@ func (noRemovals) Record(context.Context, []domain.Removal, time.Time, time.Time
 
 type noTrash struct{}
 
-func (noTrash) List(context.Context, workrepo.Page) (workrepo.TrashPage, error) {
+func (noTrash) List(context.Context, workrepo.Page, work.TrashKind) (workrepo.TrashPage, error) {
 	return workrepo.TrashPage{}, nil
 }
 func (noTrash) SubtreeIDs(context.Context, string) ([]shared.ID, error) { return nil, nil }

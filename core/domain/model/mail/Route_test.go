@@ -13,6 +13,7 @@ var (
 	operator = Door{Domain: "in.hubtask.app", Workspace: "familie-meier"}
 )
 
+// UC-JUM-12 check 2: a key or a handle in either form, in the subject or on the address.
 func TestTheSubjectRoutesThroughEveryDoor(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -23,21 +24,21 @@ func TestTheSubjectRoutesThroughEveryDoor(t *testing.T) {
 		handles    []string
 	}{
 		{"a bracketed key", "Re: [WEB-42] Logo", []string{"familie@gmail.com"}, gmail,
-			[]Key{{"web", 42}}, nil},
-		{"a bare key", "Zum Vorgang WEB-42, bitte", nil, gmail, []Key{{"web", 42}}, nil},
+			[]Key{{Handle: "web", Number: 42}}, nil},
+		{"a bare key", "Zum Vorgang WEB-42, bitte", nil, gmail, []Key{{Handle: "web", Number: 42}}, nil},
 		{"a handle", "Rechnung #Büro", []string{"familie-meier@in.hubtask.app"}, operator,
 			nil, []string{"buro", "buero"}},
 		{"two handles in order", "#einkauf #metro", nil, gmail, nil, []string{"einkauf", "metro"}},
 		{"a plus handle on the mailbox", "Milch", []string{"Familie <familie+einkauf@gmail.com>"}, gmail,
 			nil, []string{"einkauf"}},
 		{"a plus key on the mailbox", "Antwort", []string{"familie+web-42@gmail.com"}, gmail,
-			[]Key{{"web", 42}}, nil},
+			[]Key{{Handle: "web", Number: 42}}, nil},
 		{"a label on the operator's domain", "x", []string{"einkauf.familie-meier@in.hubtask.app"}, operator,
 			nil, []string{"einkauf"}},
 		{"a plus on the operator's domain", "x", []string{"familie-meier+web-7@in.hubtask.app"}, operator,
-			[]Key{{"web", 7}}, nil},
+			[]Key{{Handle: "web", Number: 7}}, nil},
 		{"the address before the subject", "[WEB-1]", []string{"familie+web-2@gmail.com"}, gmail,
-			[]Key{{"web", 2}, {"web", 1}}, nil},
+			[]Key{{Handle: "web", Number: 2}, {Handle: "web", Number: 1}}, nil},
 		{"no word inside another", "mail@WEB-42 a#einkauf x-WEB-3", nil, gmail, nil, nil},
 		{"another mailbox's plus is not ours", "x", []string{"other+einkauf@gmail.com"}, gmail, nil, nil},
 	}
@@ -86,5 +87,23 @@ func TestTheTitleLosesTheRoutingAndThePrefixes(t *testing.T) {
 func TestAKeyIsWrittenInCapitals(t *testing.T) {
 	if got := (Key{Handle: "einkauf", Number: 42}).String(); got != "EINKAUF-42" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// One key format (user-experience.md §5.6): the prefix where the collection has one, the handle
+// in capitals where it has none.
+// UC-JUM-12 check 1.
+func TestAKeyReadsWithItsPrefixWhereTheCollectionHasOne(t *testing.T) {
+	for _, tc := range []struct {
+		key  Key
+		want string
+	}{
+		{Key{Prefix: "INC", Handle: "incidents", Number: 42}, "INC-42"},
+		{Key{Handle: "einkauf", Number: 7}, "EINKAUF-7"},
+		{Key{Prefix: "", Handle: "web", Number: 1}, "WEB-1"},
+	} {
+		if got := tc.key.String(); got != tc.want {
+			t.Errorf("%+v: got %q, want %q", tc.key, got, tc.want)
+		}
 	}
 }

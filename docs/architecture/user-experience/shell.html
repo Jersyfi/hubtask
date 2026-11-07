@@ -1,0 +1,234 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!--
+  Mockup of docs/architecture/user-experience.md §2, §5.1, §7.4 and §7.9: the column's five bands,
+  a product home (the service desk's queue), a hub with its tab strip, and the phone's bars.
+  Draws the generated token sheet only (rule 15); run `make tokens` before opening it.
+  A picture to build from: none of the names or figures are real.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the shell and a product home</title>
+<link rel="stylesheet" href="../../../packages/design-system/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/design-system/dist/fonts.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg-canvas); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--fs-200); line-height: var(--lh-normal); }
+  button { font: inherit; color: inherit; }
+  .scenes { display: flex; flex-wrap: wrap; gap: var(--sp-100); padding: var(--sp-150) var(--sp-300); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); align-items: center; }
+  .scenes button { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-full); padding: var(--sp-050) var(--sp-200); cursor: pointer; }
+  .scenes button[aria-pressed="true"] { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); }
+  .scenes .note { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-100); }
+
+  .bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-200); height: var(--layout-appbar-height); padding: 0 var(--sp-300); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .logo { font-weight: var(--fw-bold); font-family: var(--font-display); color: var(--brand-outline); }
+  .mid { display: flex; gap: var(--sp-150); justify-content: center; }
+  .field { border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); color: var(--text-subtle); background: var(--bg-surface-sunken); min-width: 40%; }
+  .cap { border: 0; background: var(--accent-primary); color: var(--text-inverse); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); box-shadow: var(--shadow-glow); }
+  .end { display: flex; gap: var(--sp-150); align-items: center; }
+  .av { display: inline-grid; place-items: center; width: var(--sp-400); height: var(--sp-400); border-radius: var(--r-full); background: var(--label-violet-bg); color: var(--label-violet-fg); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+
+  .frame { display: grid; grid-template-columns: var(--layout-sidenav-max) 1fr; min-height: 0; }
+  nav.col { background: var(--bg-surface); border-inline-end: var(--bw-hairline) solid var(--border-subtle); padding: var(--sp-150); display: flex; flex-direction: column; gap: var(--sp-025); }
+  .cap-label { margin: var(--sp-200) var(--sp-100) var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); font-weight: var(--fw-semibold); text-transform: uppercase; }
+  .row { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-100); align-items: center; padding: var(--sp-050) var(--sp-100); border-radius: var(--r-sm); white-space: nowrap; }
+  .row .t { overflow: hidden; text-overflow: ellipsis; }
+  .row[aria-current="page"] { background: var(--accent-primary-subtle); color: var(--text-brand); font-weight: var(--fw-medium); }
+  .row .fig { color: var(--text-subtle); font-size: var(--fs-075); }
+  .row .fig.hot { color: var(--status-danger-text); background: var(--status-danger-surface); border-radius: var(--r-full); padding: 0 var(--sp-100); }
+  .row.child { padding-inline-start: var(--sp-500); color: var(--text-secondary); }
+  .row.tab { padding-inline-start: var(--sp-500); color: var(--text-subtle); font-size: var(--fs-100); }
+  .mark { display: inline-grid; place-items: center; width: var(--sp-300); height: var(--sp-300); border-radius: var(--r-xs); font-size: var(--fs-075); }
+  .m-teal { background: var(--label-teal-bg); color: var(--label-teal-fg); }
+  .m-blue { background: var(--label-blue-bg); color: var(--label-blue-fg); }
+  .m-amber { background: var(--label-amber-bg); color: var(--label-amber-fg); }
+  .m-plain { color: var(--text-subtle); }
+  .new { font-size: var(--fs-050); color: var(--text-brand); border: var(--bw-hairline) solid var(--accent-primary); border-radius: var(--r-full); padding: 0 var(--sp-050); }
+  .hair { border-top: var(--bw-hairline) solid var(--border-subtle); margin: var(--sp-150) 0; }
+  .spacer { flex: 1; }
+
+  main { padding: var(--sp-400) var(--sp-500); min-width: 0; }
+  .trail { color: var(--text-subtle); font-size: var(--fs-100); }
+  .head { display: flex; align-items: center; gap: var(--sp-200); flex-wrap: wrap; margin: var(--sp-100) 0 var(--sp-200); }
+  .head h1 { font-family: var(--font-display); font-size: var(--fs-600); margin: 0; }
+  .head .figure { color: var(--text-secondary); }
+  .head .sp, .toolbar .sp { flex: 1; }
+  .btn { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); }
+  .split { display: inline-flex; }
+  .split .btn { border-radius: var(--r-md) 0 0 var(--r-md); background: var(--accent-primary); color: var(--text-inverse); border-color: var(--accent-primary); box-shadow: var(--shadow-glow); }
+  .split .btn + .btn { border-radius: 0 var(--r-md) var(--r-md) 0; border-inline-start: var(--bw-hairline) solid var(--accent-primary-hover); box-shadow: none; }
+  .tabs { display: flex; gap: var(--sp-050); border-bottom: var(--bw-hairline) solid var(--border-subtle); margin-bottom: var(--sp-200); overflow-x: auto; }
+  .tabs a { padding: var(--sp-100) var(--sp-200); color: var(--text-secondary); text-decoration: none; border-bottom: var(--bw-thick) solid transparent; white-space: nowrap; }
+  .tabs a[aria-current="page"] { color: var(--text-brand); border-bottom-color: var(--accent-primary); font-weight: var(--fw-medium); }
+  .toolbar { display: flex; gap: var(--sp-100); align-items: center; margin-bottom: var(--sp-200); flex-wrap: wrap; }
+  .seg { display: inline-flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); overflow: hidden; }
+  .seg span { padding: var(--sp-050) var(--sp-150); }
+  .seg span[aria-pressed="true"] { background: var(--accent-primary-subtle); color: var(--text-brand); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--bg-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-raised); overflow: hidden; }
+  th, td { text-align: start; padding: var(--sp-150) var(--sp-200); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  th { color: var(--text-subtle); font-size: var(--fs-075); font-weight: var(--fw-semibold); text-transform: uppercase; }
+  .key { font-family: var(--font-mono); color: var(--text-subtle); font-size: var(--fs-100); }
+  .pill { display: inline-flex; align-items: center; gap: var(--sp-050); border-radius: var(--r-full); padding: 0 var(--sp-150); font-size: var(--fs-100); background: var(--status-neutral-surface); color: var(--status-neutral-text); }
+  .pill.prog { background: var(--status-info-surface); color: var(--status-info-text); }
+  .sla { display: inline-grid; grid-template-columns: auto auto; gap: var(--sp-050); align-items: center; font-size: var(--fs-100); }
+  .sla .b { display: inline-block; width: var(--sp-600); height: var(--sp-050); border-radius: var(--r-full); background: var(--bg-surface-sunken); position: relative; overflow: hidden; }
+  .sla .b i { position: absolute; inset: 0 auto 0 0; background: var(--status-success-accent); }
+  .sla.warn .b i { background: var(--status-warning-accent); width: 80%; }
+  .sla.ok .b i { width: 30%; }
+  .sla.bad { color: var(--status-danger-text); font-weight: var(--fw-semibold); }
+  .sla.bad .b i { background: var(--status-danger-accent); width: 100%; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--layout-gallery-card), 1fr)); gap: var(--sp-200); }
+  .card { background: var(--bg-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-raised); padding: var(--sp-200); display: grid; gap: var(--sp-100); }
+  .card h3 { margin: 0; font-size: var(--fs-300); }
+  .card .figs { display: flex; gap: var(--sp-150); flex-wrap: wrap; color: var(--text-secondary); font-size: var(--fs-100); }
+  .card .figs b { color: var(--text-primary); }
+  .card.dashed { box-shadow: none; border: var(--bw-thick) dashed var(--border-default); color: var(--text-subtle); place-items: center; }
+  .activity { margin-top: var(--sp-300); display: grid; gap: var(--sp-100); color: var(--text-secondary); }
+
+  .phone { width: var(--layout-pane-width); max-width: 100%; margin: var(--sp-300) auto; border: var(--bw-thick) solid var(--border-strong); border-radius: var(--r-2xl); overflow: hidden; background: var(--bg-canvas); display: grid; grid-template-rows: auto 1fr auto; min-height: 60%; }
+  .phone .pbar { display: flex; align-items: center; gap: var(--sp-150); padding: var(--sp-150) var(--sp-200); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .phone .pbody { padding: var(--sp-200); display: grid; gap: var(--sp-150); align-content: start; }
+  .phone .bottom { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--bg-surface); border-top: var(--bw-hairline) solid var(--border-subtle); text-align: center; font-size: var(--fs-075); }
+  .phone .bottom span { padding: var(--sp-100) 0; }
+  .phone .bottom .on { color: var(--text-brand); font-weight: var(--fw-semibold); }
+  .phone .bottom .plus { color: var(--text-inverse); background: var(--accent-primary); border-radius: var(--r-full); margin: var(--sp-050) var(--sp-150); }
+  .stack { background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-150); box-shadow: var(--shadow-raised); display: grid; gap: var(--sp-050); }
+
+  .scene { display: none; }
+  .scene.on { display: block; }
+  .explain { margin-top: var(--sp-400); padding: var(--sp-200); border-inline-start: var(--bw-thick) solid var(--accent-primary); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-100); }
+</style>
+</head>
+<body>
+<div class="scenes" role="toolbar" aria-label="Scenes">
+  <button data-scene="desk" aria-pressed="true">Product home: Service desk</button>
+  <button data-scene="hub" aria-pressed="false">A hub with its tab strip</button>
+  <button data-scene="phone" aria-pressed="false">Phone</button>
+  <button id="theme" aria-pressed="false">Dark</button>
+  <span class="note">user-experience.md §2, §5.1, §7.4, §7.9</span>
+</div>
+
+<div class="bar">
+  <span class="logo">hubtask</span>
+  <div class="mid"><span class="field">Search or run a command ⌘K</span><button class="cap">＋ Capture</button></div>
+  <div class="end"><span class="mark m-plain" title="Notices">ⓘ</span><span class="mark m-plain" title="All synchronised">☁</span><span class="av">JW</span></div>
+</div>
+
+<div class="frame">
+  <nav class="col" aria-label="Workspace">
+    <a class="row" data-for="hub"><span class="mark m-plain">☀</span><span class="t">Today</span><span class="fig">4</span></a>
+    <a class="row"><span class="mark m-plain">⌕</span><span class="t">Search</span></a>
+    <a class="row"><span class="mark m-plain">✉</span><span class="t">Inbox</span><span class="fig">2</span></a>
+    <a class="row"><span class="mark m-plain">✓</span><span class="t">Waiting for your yes</span><span class="fig">3</span></a>
+
+    <div class="cap-label">Products</div>
+    <a class="row"><span class="mark m-plain">▤</span><span class="t">Plans</span></a>
+    <a class="row"><span class="mark m-plain">¶</span><span class="t">Pages</span></a>
+    <a class="row"><span class="mark m-plain">▢</span><span class="t">Whiteboards</span></a>
+    <a class="row" data-for="desk"><span class="mark m-plain">☎</span><span class="t">Service desk</span><span class="fig hot">1 over SLA</span></a>
+    <a class="row"><span class="mark m-plain">◇</span><span class="t">Assets</span><span class="new">new</span></a>
+    <a class="row"><span class="mark m-plain">◷</span><span class="t">Time</span><span class="fig">5:40</span></a>
+    <a class="row"><span class="mark m-plain">◎</span><span class="t">Goals</span><span class="fig">Q4</span></a>
+
+    <div class="cap-label">Hubs ＋</div>
+    <a class="row"><span class="mark m-teal">☎</span><span class="t">IT help desk</span><span class="fig">12 open</span></a>
+    <a class="row child"><span class="mark m-teal">✉</span><span class="t">Incidents and requests</span><span class="fig hot">1 over SLA</span></a>
+    <a class="row tab"><span class="mark m-plain">¶</span><span class="t">Pages</span><span></span></a>
+    <a class="row tab"><span class="mark m-plain">◇</span><span class="t">Assets</span><span></span></a>
+    <a class="row" data-for="hub-row"><span class="mark m-blue">‹›</span><span class="t">Product development and delivery</span><span class="fig">62 %</span></a>
+    <a class="row"><span class="mark m-amber">◆</span><span class="t">Marketing and communication</span><span class="fig">Sprint 42 · 6 d</span></a>
+
+    <div class="cap-label">Workspace</div>
+    <a class="row"><span class="mark m-plain">⚙</span><span class="t">Administration</span></a>
+    <div class="spacer"></div>
+    <div class="hair"></div>
+    <a class="row"><span class="mark m-plain">▣</span><span class="t">Archive</span></a>
+    <a class="row"><span class="mark m-plain">🗑</span><span class="t">Trash</span></a>
+  </nav>
+
+  <main>
+    <section class="scene on" id="desk">
+      <div class="trail">Products › Service desk</div>
+      <div class="head">
+        <h1>Service desk</h1><span class="figure">12 open · 1 over SLA · 3 unassigned</span><span class="sp"></span>
+        <button class="btn">Open the portal</button>
+        <span class="split"><button class="btn">＋ New request</button><button class="btn" aria-label="From a template…">▾</button></span>
+      </div>
+      <nav class="tabs" aria-label="Service desk"><a aria-current="page">Queues</a><a>Desks</a><a>Settings</a></nav>
+      <div class="toolbar">
+        <span class="seg"><span aria-pressed="true">Mine 4</span><span>Unassigned 3</span><span>About to breach 2</span><span>All open 12</span></span>
+        <span class="sp"></span><button class="btn">Filter</button><button class="btn">By hub</button><button class="btn">Views</button>
+      </div>
+      <table>
+        <thead><tr><th>Key</th><th>Request</th><th>Requester</th><th>Status</th><th>Priority</th><th>SLA</th><th>Assignee</th></tr></thead>
+        <tbody>
+          <tr><td class="key">INC-128</td><td>VPN does not connect after the update</td><td>M. Becker</td><td><span class="pill prog">● In progress</span></td><td>P2</td><td><span class="sla warn"><span class="b"><i></i></span>42 min left</span></td><td><span class="av">JW</span></td></tr>
+          <tr><td class="key">INC-119</td><td>Printer on floor 2 prints blank pages</td><td>S. Kaya</td><td><span class="pill prog">● In progress</span></td><td>P3</td><td><span class="sla bad"><span class="b"><i></i></span>⚠ breached 18 min</span></td><td><span class="av">AK</span></td></tr>
+          <tr><td class="key">REQ-131</td><td>Access for a new intern from 3 Nov</td><td>L. Hahn</td><td><span class="pill">○ New</span></td><td>P4</td><td><span class="sla ok"><span class="b"><i></i></span>5 h 10 left</span></td><td>—</td></tr>
+          <tr><td class="key">INC-124</td><td>Invoice export stops at 500 rows</td><td>T. Wolf</td><td><span class="pill">◐ Waiting for customer</span></td><td>P3</td><td><span class="sla">⏸ paused</span></td><td><span class="av">JW</span></td></tr>
+        </tbody>
+      </table>
+      <p class="explain">One anatomy for every product home (§5.1): trail, title with a live figure, the primary create act with <i>From a template…</i> as its split, tabs with <i>Settings</i> last, the toolbar's saved views, the list. The SLA says its state in words and a mark, never colour alone (UX-7). The product sits in the <i>Products</i> band; the hub tree mirrors a hub's tabs as quieter rows (§2.4).</p>
+    </section>
+
+    <section class="scene" id="hub">
+      <div class="trail">Hubs › Product development and delivery</div>
+      <div class="head">
+        <h1>Product development and delivery</h1><span class="figure">62 % · next milestone: go-live 14 Nov</span><span class="sp"></span>
+        <span class="av">TB</span><span class="av">CN</span><span class="av">+5</span>
+        <button class="btn" aria-label="Manage this hub">⋯</button>
+        <span class="split"><button class="btn">＋ Create collection</button><button class="btn" aria-label="From a template…">▾</button></span>
+      </div>
+      <nav class="tabs" aria-label="Product development and delivery"><a aria-current="page">Overview</a><a>Plan</a><a>Pages</a><a>Whiteboards</a><a>Time</a><a>Goals</a></nav>
+      <div class="cards">
+        <div class="card"><h3>Team Atlas</h3><div class="figs"><span><b>Sprint 42</b> · 6 days left</span><span><b>21/34</b> points</span></div></div>
+        <div class="card"><h3>Project plan</h3><div class="figs"><span><b>5</b> open</span><span><b>1</b> overdue</span><span>ends <b>10 Jun 2027</b></span></div></div>
+        <div class="card"><h3>Content board Q4</h3><div class="figs"><span><b>7</b> open</span><span><b>2</b> in progress</span></div></div>
+        <div class="card dashed">＋ Create collection</div>
+      </div>
+      <div class="activity">
+        <b>This week</b>
+        <span>3 pages changed in the handbook · Sprint 42 started Monday · 14:20 h recorded</span>
+        <span>Anna moved “Design review” to Done · Tom added 2 entries to Project plan</span>
+      </div>
+      <p class="explain">The hub's tab strip (§2.4) is fixed: Overview · Plan · Pages · Whiteboards · Desk · Assets · Time · Goals, each only where its module is on, never a header button chosen by position and never in the ⋯ menu, which holds only verbs on the hub. The overview's cards carry their figures (§7.9).</p>
+    </section>
+
+    <section class="scene" id="phone">
+      <div class="phone">
+        <div class="pbar"><span>☰</span><b>Service desk</b><span class="spacer"></span><span class="av">JW</span></div>
+        <div class="pbody">
+          <span class="seg"><span aria-pressed="true">Mine 4</span><span>Unassigned 3</span><span>All</span></span>
+          <div class="stack"><span class="key">INC-128</span><b>VPN does not connect after the update</b><span class="sla warn"><span class="b"><i></i></span>42 min left · In progress</span></div>
+          <div class="stack"><span class="key">INC-119</span><b>Printer on floor 2 prints blank pages</b><span class="sla bad"><span class="b"><i></i></span>⚠ breached 18 min</span></div>
+        </div>
+        <div class="bottom"><span>Today</span><span>Search</span><span class="plus">＋</span><span>Inbox</span><span class="on">More</span></div>
+      </div>
+      <p class="explain">On compact widths a table is stacked cards (§5.12). The bottom bar keeps Today, Search, Capture, Inbox and More; More opens the drawer whose first band is the products (§2.6).</p>
+    </section>
+  </main>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll('[data-scene]');
+  const rows = { desk: '[data-for="desk"]', hub: '[data-for="hub-row"]', phone: '[data-for="desk"]' };
+  function show(id) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scene === id)));
+    document.querySelectorAll('.scene').forEach((s) => s.classList.toggle('on', s.id === id));
+    document.querySelectorAll('nav.col .row').forEach((r) => r.removeAttribute('aria-current'));
+    document.querySelector(rows[id])?.setAttribute('aria-current', 'page');
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => show(b.dataset.scene)));
+  document.getElementById('theme').addEventListener('click', (e) => {
+    const dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    e.currentTarget.setAttribute('aria-pressed', String(dark));
+  });
+  show('desk');
+</script>
+</body>
+</html>

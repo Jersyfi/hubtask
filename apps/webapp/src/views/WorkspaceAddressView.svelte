@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import ChangeAddressDialog from '../lib/address/ChangeAddressDialog.svelte';
   import MainAddressDialog from '../lib/address/MainAddressDialog.svelte';
@@ -33,6 +33,7 @@
   import { formatLongDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   $effect(() => untrack(() => workspace.open()));
   $effect(() => page.entitle(t('app.address.title')));
@@ -87,9 +88,7 @@
       <span>{t('app.address.reading')}</span>
     </p>
   {:else if refusal}
-    <Banner tone="danger" title={refusal.message}>
-      {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={refusal} />
   {:else if current && address && wayBack}
     <section class="panel" aria-labelledby="main-address" data-main="own">
       <Stack gap="100">

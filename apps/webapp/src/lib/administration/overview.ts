@@ -4,11 +4,18 @@
 /**
  * What the administration's overview says needs attention (UC-ID-24 check 2), decided from reads
  * the screens behind it already make — the limits, the rules, the backup archives and their runs,
- * the privacy register — so the overview and the page a card links to never disagree.
+ * the connected mailboxes, the privacy register — so the overview and the page a card links to never disagree.
  *
  * Pure: the screen holds the reads, this decides what of them is said. Each answer is ordered so
  * the first line is the one that most needs somebody.
  */
+
+import { formatBytes } from '../i18n/bytes.ts';
+
+/** A limit's figure as the reader writes numbers (`200,000`, `200.000`); stored bytes as a size. */
+export function limitAmount(quota: string, value: number, locale: string): string {
+  return quota === 'media_bytes' ? formatBytes(value, locale) : new Intl.NumberFormat(locale).format(value);
+}
 
 /** A limit as `/quotas` answers it, the part the overview reads. */
 export interface LimitStanding {
@@ -33,11 +40,14 @@ export interface LimitLine {
 /**
  * The limits with a ceiling and a live count, fullest first. A limit without a ceiling (`0`) or
  * without a count says nothing about how close anything is, so it is not a line here; the limits
- * page lists it.
+ * page lists it. Where no AI answers (`aiOn` false), the AI limits measure nothing the workspace
+ * uses, so they are left out until AI is set up.
  */
-export function limitLines(standings: readonly LimitStanding[]): LimitLine[] {
+export function limitLines(standings: readonly LimitStanding[], options: { readonly aiOn?: boolean } = {}): LimitLine[] {
+  const aiOn = options.aiOn ?? true;
   return standings
     .filter((standing) => standing.limit > 0 && typeof standing.used === 'number')
+    .filter((standing) => aiOn || !standing.quota.startsWith('ai_'))
     .map((standing) => {
       const used = standing.used as number;
       const ratio = typeof standing.ratio === 'number' ? standing.ratio : used / standing.limit;
@@ -105,6 +115,22 @@ export function newestArchive(
   return newest;
 }
 
+/** A mailbox as `/mail/mailboxes` answers it, the part the overview reads. */
+export interface MailboxReading {
+  readonly id: string;
+  readonly address: string;
+  readonly enabled: boolean;
+  readonly failing: boolean;
+}
+
+/**
+ * The switched-on mailboxes the server calls failing - refusing for over an hour: mail sent to the
+ * desk through them is not arriving, and no ticket starts until somebody fixes the sign-in.
+ */
+export function mailboxLines<M extends MailboxReading>(boxes: readonly M[]): M[] {
+  return boxes.filter((box) => box.enabled && box.failing).sort((a, b) => a.address.localeCompare(b.address));
+}
+
 /** Whether the last backup opened: checked and read back, checked and broken, not checked, unfinished. */
 export type BackupState = 'opened' | 'broken' | 'unchecked' | 'incomplete';
 
@@ -153,3 +179,51 @@ const FEATURE_PAGES: Readonly<Record<string, string>> = {
 };
 
 export const pageOfFeature = (feature: string): string | undefined => FEATURE_PAGES[feature];
+
+/**
+ * The page that changes the block a configuration check's finding is about (configuration/ui.md
+ * A5): its section's administration page, or a hub's settings for the hub's own scheme.
+ */
+const CHECK_PAGES: Readonly<Record<string, string>> = {
+  workflows: '/administration/workflows',
+  rules: '/administration/rules',
+  roles: '/administration/permissions',
+  types: '/administration/types',
+};
+
+export function pageOfFinding(path: string, hubId?: string): string | undefined {
+  const section = path.slice(0, Math.max(0, path.indexOf('.'))) || path;
+  if (section === 'scheme') return hubId ? `/hubs/${hubId}/settings/workflow` : undefined;
+  return CHECK_PAGES[section];
+}
+
+/** A finding as `/config/check` answers it, the part a page reads. */
+export interface FindingAt {
+  readonly path: string;
+}
+
+/**
+ * The findings a block's own page shows (configuration.md §11): those about a block of the
+ * sections the page configures, in the check's order - errors first.
+ */
+export function findingsIn<F extends FindingAt>(findings: readonly F[], sections: readonly string[]): F[] {
+  return findings.filter((finding) => sections.includes(finding.path.slice(0, Math.max(0, finding.path.indexOf('.'))) || finding.path));
+}
+
+/** A template as `/config/templates` answers it, the part the overview reads. */
+export interface TemplateOffer {
+  readonly key: string;
+  readonly name: string;
+  readonly taken_version?: number | null;
+  readonly update_available: boolean;
+}
+
+/**
+ * What waits for a person's word (configuration.md §3, §8): the configuration plans proposed and
+ * not yet decided, and the templates the workspace took that have a newer version. A template
+ * never taken is an offer, not something waiting.
+ */
+export function waitingLines<T extends TemplateOffer>(proposals: readonly unknown[], templates: readonly T[]): { proposals: number; updates: T[]; needs: boolean } {
+  const updates = templates.filter((template) => template.taken_version !== null && template.taken_version !== undefined && template.update_available);
+  return { proposals: proposals.length, updates, needs: proposals.length > 0 || updates.length > 0 };
+}

@@ -1,0 +1,730 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package cmdb
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	repository "github.com/Jersyfi/hubtask/core/application/repository/cmdb"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	connectorport "github.com/Jersyfi/hubtask/core/port/connector"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
+)
+
+var incidents = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000d006")
+
+type connectorMemory struct {
+	repository.Connectors
+	conns   map[shared.ID]domain.Connector
+	creds   map[shared.ID]repository.Credential
+	alerts  map[string]domain.Alert
+	digests map[string]bool
+	// calls is the order of the lock and the alert reads, for the serialisation of deliveries.
+	calls []string
+}
+
+func newConnectorMemory() *connectorMemory {
+	return &connectorMemory{conns: map[shared.ID]domain.Connector{}, creds: map[shared.ID]repository.Credential{},
+		alerts: map[string]domain.Alert{}, digests: map[string]bool{}}
+}
+
+func (m *connectorMemory) ListConnectors(_ context.Context, h shared.ID) ([]domain.Connector, error) {
+	var out []domain.Connector
+	for _, c := range m.conns {
+		if h.IsZero() || c.HubID == h {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+func (m *connectorMemory) FindConnector(_ context.Context, id shared.ID, lock bool) (domain.Connector, error) {
+	if lock {
+		m.calls = append(m.calls, "lock")
+	}
+	c, ok := m.conns[id]
+	if !ok {
+		return c, shared.ErrNotFound.WithDetail("cmdb.connector_not_found")
+	}
+	_, c.HasCredential = m.creds[id]
+	return c, nil
+}
+func (m *connectorMemory) CountConnectors(context.Context, shared.ID) (int, error) {
+	return len(m.conns), nil
+}
+func (m *connectorMemory) PutConnector(_ context.Context, c domain.Connector, expected int) error {
+	if m.conns[c.ID].Version != expected {
+		return shared.ErrVersionConflict
+	}
+	c.Version = expected + 1
+	m.conns[c.ID] = c
+	return nil
+}
+func (m *connectorMemory) SetCredential(_ context.Context, id shared.ID, ct []byte, key string, _ time.Time) error {
+	m.creds[id] = repository.Credential{ConnectorID: id, Ciphertext: ct, KeyID: key}
+	return nil
+}
+func (m *connectorMemory) Credential(_ context.Context, id shared.ID) (repository.Credential, error) {
+	c, ok := m.creds[id]
+	if !ok {
+		return c, shared.ErrNotFound
+	}
+	return c, nil
+}
+func (m *connectorMemory) RecordRun(_ context.Context, c domain.Connector) error {
+	m.conns[c.ID] = c
+	return nil
+}
+func (m *connectorMemory) FindAlert(_ context.Context, conn shared.ID, key string) (domain.Alert, error) {
+	m.calls = append(m.calls, "alert")
+	a, ok := m.alerts[conn.String()+key]
+	if !ok {
+		return a, shared.ErrNotFound
+	}
+	return a, nil
+}
+func (m *connectorMemory) PutAlert(_ context.Context, a domain.Alert) error {
+	m.alerts[a.Connector.String()+a.Key] = a
+	return nil
+}
+func (m *connectorMemory) SeeDigest(_ context.Context, _ shared.ID, d []byte, _, _ time.Time) (bool, error) {
+	if m.digests[string(d)] {
+		return false, nil
+	}
+	m.digests[string(d)] = true
+	return true, nil
+}
+
+// sealer seals by prefixing the purpose, so that a credential moved to another connector does
+// not open.
+type sealer struct{ crypto.Encryptor }
+
+func (sealer) Seal(_ context.Context, v secret.Secret, p crypto.Purpose) (crypto.Sealed, error) {
+	return crypto.Sealed{KeyID: "k1", Ciphertext: []byte(string(p) + "|" + v.Reveal())}, nil
+}
+func (sealer) Open(_ context.Context, s crypto.Sealed, p crypto.Purpose) (secret.Secret, error) {
+	purpose, value, _ := strings.Cut(string(s.Ciphertext), "|")
+	if purpose != string(p) {
+		return secret.Secret{}, shared.ErrUnavailable.WithDetail("crypto.not_authentic")
+	}
+	return secret.New(value), nil
+}
+
+type drawn struct{}
+
+func (drawn) Bytes(n int) ([]byte, error) { return make([]byte, n), nil }
+
+type jobs struct{ asked []queue.Request }
+
+func (j *jobs) Enqueue(_ context.Context, r queue.Request) (shared.ID, error) {
+	j.asked = append(j.asked, r)
+	return "", nil
+}
+
+// source answers scripted pages and remembers the cursors it was asked from.
+type source struct {
+	pages   []connectorport.Page
+	fail    error
+	cursors []string
+	secrets []string
+	// during runs while a page is fetched, as a person's change made meanwhile.
+	during func()
+}
+
+func (s *source) Pull(_ context.Context, p connectorport.Pull) (connectorport.Page, error) {
+	s.cursors, s.secrets = append(s.cursors, p.Cursor), append(s.secrets, p.Credential.Reveal())
+	if s.during != nil {
+		s.during()
+	}
+	if s.fail != nil {
+		return connectorport.Page{}, s.fail
+	}
+	page := s.pages[0]
+	s.pages = s.pages[1:]
+	return page, nil
+}
+
+type entries struct {
+	calls []string
+	ins   []usecase.Input
+	// failing refuses so many calls first, as a database away for a moment.
+	failing int
+}
+
+func (e *entries) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	e.calls, e.ins = append(e.calls, name), append(e.ins, in)
+	if e.failing > 0 {
+		e.failing--
+		return nil, shared.ErrUnavailable
+	}
+	return usecase.Output{"id": "01936f2a-7c1e-7000-8000-00000000e001"}, nil
+}
+
+type hubsAndCollections struct{ hubs }
+
+func (h hubsAndCollections) Find(ctx context.Context, id shared.ID) (work.Container, error) {
+	if id == incidents {
+		return work.Container{ID: id, Type: work.ContainerCollection, ParentID: hub}, nil
+	}
+	return h.hubs.Find(ctx, id)
+}
+
+type connectorFixture struct {
+	fixture
+	c       Connectors
+	store   *connectorMemory
+	src     *source
+	jobs    *jobs
+	entries *entries
+}
+
+func newConnectorFixture() connectorFixture {
+	f := newFixture()
+	f.m.sources = append(f.m.sources, domain.Source{Key: "alerts", Kind: domain.SourceConnector, Rank: 300})
+	f.inv.Containers = hubsAndCollections{}
+	cf := connectorFixture{fixture: f, store: newConnectorMemory(), src: &source{}, jobs: &jobs{}, entries: &entries{}}
+	cf.c = Connectors{Inventory: f.inv, Store: cf.store, Pullers: cf.src, Encryptor: sealer{}, Entropy: drawn{},
+		Jobs: cf.jobs, Entries: cf.entries}
+	return cf
+}
+
+func (f connectorFixture) define(t *testing.T, in usecase.Input) usecase.Output {
+	t.Helper()
+	out, err := call(t, DefineCiConnector{f.c}.Descriptor(), as(anna), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func idOf(t *testing.T, out usecase.Output) shared.ID {
+	t.Helper()
+	id, err := shared.ParseID(out.String("id"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// UC-AST-07 check 2.
+func TestAConnectorIsScheduledAndItsCredentialIsSealedAndNeverAnswered(t *testing.T) {
+	f := newConnectorFixture()
+	out := f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org", "every_minutes": 60})
+	if len(f.jobs.asked) != 1 || f.jobs.asked[0].Kind != queue.KindCmdbConnectorPull || !f.jobs.asked[0].RunAt.Equal(start) {
+		t.Fatalf("a scheduled connector seeds its pull: %+v", f.jobs.asked)
+	}
+	id := idOf(t, out)
+	got, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	if err != nil || got["has_credential"] != true || got["secret"] != nil {
+		t.Fatalf("a pull's credential is never answered: %v %v", got, err)
+	}
+	if string(f.store.creds[id].Ciphertext) != string(CredentialPurpose(id))+"|tok" {
+		t.Fatal("the credential is sealed under the connector's purpose")
+	}
+	if _, err := call(t, DefineCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "key": "x",
+		"kind": "NETBOX", "source": "scan", "base_url": "https://n.example"}); code(err) != "cmdb.connector_source_not_connector" {
+		t.Fatalf("a connector writes as a connector source: %v", err)
+	}
+}
+
+// UC-AST-07 checks 3 and 5: every page reconciled, the cursor kept through a failure, a dry run
+// writing nothing and a full walk starting over.
+func TestAPullRunsEveryPageThroughTheReconciliationAndKeepsTheCursor(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org"}))
+	if _, err := call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()}); code(err) != "cmdb.connector_credential_missing" {
+		t.Fatalf("a run without a credential: %v", err)
+	}
+	if _, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"}); err != nil {
+		t.Fatal(err)
+	}
+	item := func(n string) domain.Item {
+		return domain.Item{Class: "server", Name: "srv-" + n, NativeKey: n, Attributes: map[string]any{"hostname": "srv-" + n}}
+	}
+	f.src.pages = []connectorport.Page{
+		{Payload: domain.Payload{Items: []domain.Item{item("1")}}, Cursor: "c1", More: true},
+		{Payload: domain.Payload{Items: []domain.Item{item("2")}}, Cursor: "c2"},
+	}
+	out, err := call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out["pages"] != 2 || len(f.m.cis) != 2 || f.src.secrets[0] != "tok" || f.src.cursors[1] != "c1" {
+		t.Fatalf("both pages written: %v, %d CIs, cursors %v", out, len(f.m.cis), f.src.cursors)
+	}
+	if c := f.store.conns[id]; c.Cursor != "c2" || c.LastOutcome != domain.ConnectorOK || len(f.m.runs) != 2 || c.LastRun != f.m.runs[1].ID {
+		t.Fatalf("the connector keeps where it ended: %+v", c)
+	}
+	f.src.fail = shared.ErrUnavailable.WithDetail(connectorport.CodeRateLimited).WithParams(map[string]string{"retry_after": "30"})
+	out, err = call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil || out["outcome"] != "FAILED" || out["error"] != connectorport.CodeRateLimited {
+		t.Fatalf("a failure is answered by its code: %v %v", out, err)
+	}
+	if c := f.store.conns[id]; c.Cursor != "c2" || c.Failures != 1 || f.src.cursors[2] != "c2" {
+		t.Fatalf("a failure keeps the cursor: %+v", c)
+	}
+	f.src.fail = nil
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{item("3")}}}}
+	out, err = call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "dry_run": true, "full": true})
+	if err != nil || len(f.m.cis) != 2 || f.src.cursors[3] != "" || out["dry_run"] != true {
+		t.Fatalf("a dry run writes nothing and a full walk starts over: %v %v", out, err)
+	}
+	if decisions, _ := out["decisions"].([]usecase.Output); len(decisions) != 1 || decisions[0]["outcome"] != "CREATE" {
+		t.Fatalf("a dry run explains: %v", out["decisions"])
+	}
+}
+
+// UC-AST-07 check 3: a run whose caller's deadline is near stops after the page it is on and keeps
+// its cursor, so the next run continues there rather than walking the same pages again.
+func TestARunNearItsDeadlineStopsAndKeepsTheCursor(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org"}))
+	if _, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"}); err != nil {
+		t.Fatal(err)
+	}
+	item := func(n string) domain.Item {
+		return domain.Item{Class: "server", Name: "srv-" + n, NativeKey: n, Attributes: map[string]any{"hostname": "srv-" + n}}
+	}
+	f.src.pages = []connectorport.Page{
+		{Payload: domain.Payload{Items: []domain.Item{item("1")}}, Cursor: "c1", More: true},
+		{Payload: domain.Payload{Items: []domain.Item{item("2")}}, Cursor: "c2"},
+	}
+	// The fixture's clock stands at start: a second is left, under the reserve.
+	near, cancel := context.WithDeadline(context.Background(), start.Add(time.Second))
+	defer cancel()
+	out, err := RunCiConnector{f.c}.Descriptor().Handler.Invoke(near, as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil || out["pages"] != 1 || out["outcome"] != "OK" {
+		t.Fatalf("the run near its deadline: %v %v", out, err)
+	}
+	if c := f.store.conns[id]; c.Cursor != "c1" || c.LastOutcome != domain.ConnectorOK {
+		t.Fatalf("the cursor the page reached is not kept: %+v", c)
+	}
+	out, err = call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil || out["pages"] != 1 || f.src.cursors[1] != "c1" || len(f.m.cis) != 2 {
+		t.Fatalf("the next run does not continue there: %v %v, cursors %v", out, err, f.src.cursors)
+	}
+}
+
+// UC-AST-07 check 6.
+func TestAScheduledPullRunsAsItsDefinerWhenDue(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "hz", "kind": "HETZNER", "source": "netbox",
+		"base_url": "https://api.hetzner.example", "every_minutes": 30}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "virtual_machine", Name: "vm", NativeKey: "1"}}}}}
+	next, err := f.c.RunScheduled(context.Background(), tenant, id)
+	if err != nil || !next.Equal(start.Add(30*time.Minute)) || len(f.m.cis) != 1 {
+		t.Fatalf("ran and owed in a period: %v %v", next, err)
+	}
+	for _, ci := range f.m.cis {
+		if ci.CreatedBy != anna {
+			t.Fatal("a scheduled run writes as the person who defined the connector")
+		}
+	}
+	if again, _ := f.c.RunScheduled(context.Background(), tenant, id); !again.Equal(next) || len(f.src.cursors) != 1 {
+		t.Fatal("a connector not yet due is not pulled")
+	}
+}
+
+func TestAFailedOrEmptyPullRaisesTheHubsRunAlertAndAFetchingOneResolvesIt(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org"}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	run := func(in usecase.Input) {
+		t.Helper()
+		in["connector_id"] = id.String()
+		if _, err := call(t, RunCiConnector{f.c}.Descriptor(), as(anna), in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	alert := func() domain.Alert { return f.store.alerts[id.String()+domain.RunAlertKey] }
+
+	f.src.fail = shared.ErrUnavailable.WithDetail(connectorport.CodeUnauthorised)
+	run(usecase.Input{})
+	if a := alert(); a.Status != domain.AlertFiring || a.Title != connectorport.CodeUnauthorised || a.HubID != hub || a.Count != 1 {
+		t.Fatalf("a failed run fires the run alert by its code: %+v", a)
+	}
+	f.src.fail = nil
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{}}}
+	run(usecase.Input{})
+	if a := alert(); a.Status != domain.AlertFiring || a.Title != domain.RunEmptyCode || a.Count != 2 {
+		t.Fatalf("an empty run is the same alert again: %+v", a)
+	}
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}}}
+	run(usecase.Input{"dry_run": true})
+	if a := alert(); a.Status != domain.AlertFiring || a.Count != 2 {
+		t.Fatalf("a dry run tells nothing: %+v", a)
+	}
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}}}
+	run(usecase.Input{})
+	if a := alert(); a.Status != domain.AlertResolved || len(f.entries.calls) != 0 {
+		t.Fatalf("a run that fetched resolves it, and no entry is opened: %+v %v", a, f.entries.calls)
+	}
+}
+
+func intake(t *testing.T, f connectorFixture) (shared.ID, string) {
+	t.Helper()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "am", "kind": "ALERTMANAGER", "source": "alerts",
+		"collection_id": incidents.String()}))
+	out, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, _ := out["secret"].(string)
+	if key == "" {
+		t.Fatal("an intake's secret is drawn and answered once")
+	}
+	return id, key
+}
+
+func signals(list ...domain.AlertSignal) AlertParser {
+	return func(domain.ConnectorKind, []byte) ([]domain.AlertSignal, error) { return list, nil }
+}
+
+// UC-AST-08 check 2: a wrong secret, a stale signature, a replay, an unknown and a switched-off
+// intake answer the same cmdb.intake_not_found.
+func TestAnAlertIntakeAcceptsOnlyItsSecretOrAFreshSignature(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	fire := signals(domain.AlertSignal{Key: "k", Status: domain.AlertFiring, Title: "down"})
+	ctx := context.Background()
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: "wrong"}, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a wrong secret: %v", err)
+	}
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil {
+		t.Fatalf("the bearer secret: %v", err)
+	}
+	body := []byte(`{"alerts":[]}`)
+	ts := strconv.FormatInt(start.Unix(), 10)
+	signed := AlertDelivery{TenantID: tenant, ConnectorID: id, Signature: Sign(key, ts, body), Timestamp: ts, Body: body}
+	if _, err := f.c.DeliverAlerts(ctx, signed, fire); err != nil {
+		t.Fatalf("a signed delivery: %v", err)
+	}
+	if _, err := f.c.DeliverAlerts(ctx, signed, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a replayed delivery: %v", err)
+	}
+	stale := strconv.FormatInt(start.Add(-10*time.Minute).Unix(), 10)
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Signature: Sign(key, stale, body), Timestamp: stale, Body: body}, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a stale signature: %v", err)
+	}
+	unknown := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000fffff")
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: unknown, Bearer: key}, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("an unknown intake: %v", err)
+	}
+	off := f.store.conns[id]
+	off.Enabled = false
+	f.store.conns[id] = off
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a switched-off intake: %v", err)
+	}
+}
+
+func TestAnAlertOpensAnEntryBoundToItsCIAndItsResolutionCompletesIt(t *testing.T) {
+	f := newConnectorFixture()
+	if _, err := call(t, CreateCi{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "class": "server",
+		"name": "web01", "attributes": map[string]any{"hostname": "web01"}}); err != nil {
+		t.Fatal(err)
+	}
+	var ci shared.ID
+	for id := range f.m.cis {
+		ci = id
+	}
+	id, key := intake(t, f)
+	ctx := context.Background()
+	fire := signals(domain.AlertSignal{Key: "fp1", Status: domain.AlertFiring, Title: "disk full", Hosts: []string{"web01.example.org:9100"}})
+	r, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire)
+	if err != nil || r.Opened != 1 {
+		t.Fatalf("opened: %+v %v", r, err)
+	}
+	a := f.store.alerts[id.String()+"fp1"]
+	if a.CI != ci || a.Entry.IsZero() || f.entries.calls[0] != "CreateWorkItem" ||
+		f.entries.ins[0]["collection_id"] != incidents.String() || f.entries.ins[0]["notes"] != "![](hubtask:ci/"+ci.String()+")" {
+		t.Fatalf("bound to the CI and its entry: %+v %v", a, f.entries.ins)
+	}
+	if r, _ = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); len(f.entries.calls) != 1 || r.Opened != 0 {
+		t.Fatal("firing again opens no second entry")
+	}
+	resolve := signals(domain.AlertSignal{Key: "fp1", Status: domain.AlertResolved})
+	if r, err = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, resolve); err != nil || r.Resolved != 1 ||
+		f.entries.calls[1] != "CompleteWorkItem" || f.store.alerts[id.String()+"fp1"].Status != domain.AlertResolved {
+		t.Fatalf("resolved: %+v %v %v", r, err, f.entries.calls)
+	}
+	list, err := call(t, ListCiAlerts{f.c}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String()})
+	if rows, _ := list["data"].([]usecase.Output); err != nil || len(rows) != 1 || rows[0]["count"] != 2 {
+		t.Fatalf("listed: %v %v", list, err)
+	}
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key},
+		func(domain.ConnectorKind, []byte) ([]domain.AlertSignal, error) { return nil, errors.New("x") }); err == nil {
+		t.Fatal("an unreadable delivery is refused")
+	}
+}
+
+func TestAGLPIAgentsInventoryIsReconciledAsItsIntakesSourceOnlyWithItsSecret(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "agents", "kind": "GLPI_AGENT", "source": "netbox"}))
+	out, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	key, _ := out["secret"].(string)
+	if err != nil || key == "" || out["inventory"] != true {
+		t.Fatalf("an inventory intake draws its secret: %v %v", out, err)
+	}
+	ctx := context.Background()
+	machine := func(domain.ConnectorKind, []byte) (InventoryDocument, error) {
+		return InventoryDocument{Payload: domain.Payload{
+			Items: []domain.Item{{Ref: "pc", Class: "laptop", Name: "PC-42", NativeKey: "uuid-42", Attributes: map[string]any{"hostname": "pc-42"}},
+				{Ref: "sw", Class: "software", Name: "openssl", Attributes: map[string]any{"version": "3.0.14"}}},
+			Relations: []domain.RelationItem{{Type: domain.RelInstalled, From: "sw", To: "pc"}},
+		}}, nil
+	}
+	if _, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: "wrong"}, machine); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a wrong secret: %v", err)
+	}
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, signals()); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("an inventory intake takes no alerts: %v", err)
+	}
+	contact, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key},
+		func(domain.ConnectorKind, []byte) (InventoryDocument, error) {
+			return InventoryDocument{Contact: true}, nil
+		})
+	if err != nil || !contact.Contact || len(f.m.cis) != 0 {
+		t.Fatalf("a contact writes nothing: %+v %v", contact, err)
+	}
+	r, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, machine)
+	if err != nil || r.Run.Counts.Created != 2 || len(f.m.cis) != 2 || len(f.m.runs) != 1 || f.m.runs[0].Source != "netbox" {
+		t.Fatalf("reconciled as the intake's source: %+v %v (%d CIs)", r, err, len(f.m.cis))
+	}
+	if c := f.store.conns[id]; c.LastOutcome != domain.ConnectorOK || c.LastRun != r.Run.ID {
+		t.Fatalf("the run is the intake's last: %+v", c)
+	}
+	if again, _ := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, machine); again.Run.Counts.Created != 0 || len(f.m.cis) != 2 {
+		t.Fatalf("the same machine posted again is the same CIs: %+v", again.Run.Counts)
+	}
+	am, alertKey := intake(t, f)
+	if _, err := f.c.DeliverInventory(ctx, AlertDelivery{TenantID: tenant, ConnectorID: am, Bearer: alertKey}, machine); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("an alert intake takes no inventory: %v", err)
+	}
+}
+
+func (m *connectorMemory) ListAlerts(_ context.Context, h shared.ID, status domain.AlertStatus, limit int) ([]domain.Alert, error) {
+	var out []domain.Alert
+	for _, a := range m.alerts {
+		if a.HubID == h && (status == "" || a.Status == status) && len(out) < limit {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+func code(err error) string {
+	var e *shared.Error
+	if errors.As(err, &e) {
+		return e.DetailCode
+	}
+	if err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+type switchedOff struct{ told []shared.ID }
+
+func (s *switchedOff) ConnectorSwitchedOff(_ context.Context, _, hubID, connectorID shared.ID) error {
+	if hubID != hub {
+		return errors.New("told for another hub")
+	}
+	s.told = append(s.told, connectorID)
+	return nil
+}
+
+// A scheduled connector that switches itself off after its failures in a row tells its hub's and
+// workspace's administrators once: nothing is pulled any more, and the run alert alone is seen
+// only by whoever opens the hub's alerts.
+func TestAConnectorThatSwitchesItselfOffIsToldOnce(t *testing.T) {
+	f := newConnectorFixture()
+	told := &switchedOff{}
+	f.c.SwitchedOff = told
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "hz", "kind": "HETZNER", "source": "netbox",
+		"base_url": "https://api.hetzner.example", "every_minutes": 30}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	f.src.fail = shared.ErrUnavailable.WithDetail(connectorport.CodeUnauthorised)
+	for range domain.MaxConnectorFailures {
+		if _, err := call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(told.told) != 1 || told.told[0] != id {
+		t.Errorf("told %v, want [%v] once", told.told, id)
+	}
+}
+
+// The usual order in the web app: the connector first, its credential in a second step. A
+// scheduled pull owed before the credential arrives waits for it instead of failing for good.
+func TestAScheduledConnectorDefinedBeforeItsCredentialWaitsForIt(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org", "every_minutes": 60}))
+	next, err := f.c.RunScheduled(context.Background(), tenant, id)
+	if err != nil || !next.IsZero() || len(f.src.cursors) != 0 {
+		t.Fatalf("no credential yet: the job ends without a failure: %v %v", next, err)
+	}
+	if c := f.store.conns[id]; c.Failures != 0 || c.LastOutcome != domain.ConnectorNeverRan {
+		t.Fatalf("nothing ran: %+v", c)
+	}
+	asked := len(f.jobs.asked)
+	if _, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.jobs.asked) != asked+1 || f.jobs.asked[asked].Kind != queue.KindCmdbConnectorPull || !f.jobs.asked[asked].RunAt.Equal(start) {
+		t.Fatalf("the credential seeds the pull again: %+v", f.jobs.asked)
+	}
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}}}
+	if next, err = f.c.RunScheduled(context.Background(), tenant, id); err != nil || len(f.m.cis) != 1 || next.IsZero() {
+		t.Fatalf("and then it pulls: %v %v", next, err)
+	}
+}
+
+// A pull takes minutes; what a person changed on the connector meanwhile is not undone by the
+// run's end.
+func TestAConnectorSwitchedOffDuringAPullStaysOff(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org", "every_minutes": 60}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}, Cursor: "c1"}}
+	f.src.during = func() {
+		f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+			"base_url": "https://netbox.example.org", "every_minutes": 60, "enabled": false})
+	}
+	asked := len(f.jobs.asked)
+	next, err := f.c.RunScheduled(context.Background(), tenant, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := f.store.conns[id]
+	if c.Enabled || c.NextRunAt != nil || !next.IsZero() || len(f.jobs.asked) != asked {
+		t.Fatalf("switched off meanwhile stays off and unscheduled: %+v, next %v, jobs %d", c, next, len(f.jobs.asked)-asked)
+	}
+	if c.LastOutcome != domain.ConnectorOK || c.Cursor != "c1" || len(f.m.cis) != 1 {
+		t.Fatalf("the run itself is still recorded: %+v", c)
+	}
+}
+
+// Two deliveries of the same new problem at once - an Alertmanager pair, a retry crossing the
+// first post - both found no alert and both opened an entry, one never completed. Every alert
+// read of a delivery is made under the connector's lock, so that deliveries take turns.
+func TestDeliveriesOfOneIntakeTakeTurnsOnItsAlerts(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	f.store.calls = nil
+	fire := signals(domain.AlertSignal{Key: "a", Status: domain.AlertFiring}, domain.AlertSignal{Key: "b", Status: domain.AlertFiring})
+	if _, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(f.store.calls, ","); got != "lock,alert,lock,alert" {
+		t.Fatalf("each alert is read under the connector's lock: %s", got)
+	}
+}
+
+// UC-AST-08 check 5: a firing alert has its entry. When the first write of it failed, the
+// alert's next firing opens it, rather than the problem going on without one until it resolves.
+func TestAnAlertWhoseEntryCouldNotBeOpenedOpensItAtItsNextFiring(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	ctx := context.Background()
+	fire := signals(domain.AlertSignal{Key: "fp1", Status: domain.AlertFiring, Title: "disk full"})
+	f.entries.failing = 1
+	r, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire)
+	if err != nil || r.EntriesFailed != 1 || !f.store.alerts[id.String()+"fp1"].Entry.IsZero() {
+		t.Fatalf("the entry failed, the alert is kept: %+v %v", r, err)
+	}
+	if r, err = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil || r.EntriesFailed != 0 {
+		t.Fatalf("fired again: %+v %v", r, err)
+	}
+	if a := f.store.alerts[id.String()+"fp1"]; a.Entry.IsZero() || len(f.entries.calls) != 2 || f.entries.calls[1] != "CreateWorkItem" {
+		t.Fatalf("the next firing opens it: %+v %v", a, f.entries.calls)
+	}
+	if _, err = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil || len(f.entries.calls) != 2 {
+		t.Fatalf("and only once: %v %v", f.entries.calls, err)
+	}
+}
+
+// A delivery of more alerts than one takes is not refused whole - a monitoring program does not
+// resend after a 4xx, so every alert would be lost: the first ones are taken and the rest counted
+// as truncated (the webhook's max_alerts keeps a delivery within it).
+func TestADeliveryOfTooManyAlertsTakesTheFirstAndCountsTheRest(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	var many []domain.AlertSignal
+	for i := 0; i < domain.MaxAlertsPerDelivery+3; i++ {
+		many = append(many, domain.AlertSignal{Key: fmt.Sprintf("k%d", i), Status: domain.AlertResolved, Title: "ok"})
+	}
+	receipt, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, signals(many...))
+	if err != nil || receipt.Received != domain.MaxAlertsPerDelivery || receipt.Truncated != 3 {
+		t.Fatalf("a crowded delivery: %+v, %v", receipt, err)
+	}
+}
+
+// turns is a unit of work that says whether its transaction is open, with savepoints in it.
+type turns struct{ open bool }
+
+func (u *turns) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	was := u.open
+	u.open = true
+	defer func() { u.open = was }()
+	return fn(ctx)
+}
+
+func (u *turns) WithinReadOnly(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	return u.Within(ctx, scope, fn)
+}
+
+func (u *turns) WithinSavepoint(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+// heldEntries records whether each entry was opened while the delivery held the connector.
+type heldEntries struct {
+	entries
+	uow  *turns
+	held []bool
+}
+
+func (e *heldEntries) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	e.held = append(e.held, e.uow.open)
+	return e.entries.Invoke(ctx, name, actor, in)
+}
+
+// UC-AST-08 check 5: two repeated firings at once of an alert whose entry could not be opened
+// both found it without one and opened two. The entry is opened while the delivery holds the
+// connector, so the second finds the first's.
+func TestAnAlertsMissingEntryIsOpenedWhileTheDeliveryHoldsTheIntake(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	uow := &turns{}
+	f.c.Inventory.UnitOfWork = uow
+	held := &heldEntries{uow: uow}
+	f.c.Entries = held
+	fire := signals(domain.AlertSignal{Key: "fp2", Status: domain.AlertFiring, Title: "disk full"})
+	if _, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil {
+		t.Fatal(err)
+	}
+	if len(held.held) != 1 || !held.held[0] || f.store.alerts[id.String()+"fp2"].Entry.IsZero() {
+		t.Fatalf("opened while held: %v, alert %+v", held.held, f.store.alerts[id.String()+"fp2"])
+	}
+}

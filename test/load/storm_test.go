@@ -65,6 +65,7 @@ type StormFinding struct {
 // slowed is a correct outcome; a neighbour whose reads got slower because of it is not.
 func TestTheAutomationStormDoesNotStarveTheTenantNextDoor(t *testing.T) {
 	stack := runningStack(t)
+	defer scenario("storm")()
 	if len(stack.tenants) < 2 {
 		t.Skip("the storm needs a tenant to storm and a tenant to be quiet")
 	}

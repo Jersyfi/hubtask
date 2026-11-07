@@ -154,6 +154,8 @@ CREATE TABLE tenant (
   password_opened_until     timestamptz,
   password_opened_requester text CHECK (length(password_opened_requester) BETWEEN 1 AND 200),
   password_opened_reason    text CHECK (length(password_opened_reason) BETWEEN 1 AND 500),
+  -- The owner's last whole-archive download, judged once in 24 hours (migration 0322).
+  archive_downloaded_at     timestamptz,
   -- A pending deletion can be called off (0130, multi-tenancy.md §5): where the workspace stood
   -- when it was requested, to return it there, and the grace job's mark, written before the first
   -- byte goes, after which no cancel lands.
@@ -212,6 +214,9 @@ CREATE TABLE account (
   -- The picture the person shows beside their name (migration 0199); NULL means the initials. Its
   -- foreign key is declared after media_object.
   avatar_media_id   uuid,
+  -- The identifier a directory knows the person by, provisioning over SCIM (UC-ID-28, migration 0263).
+  external_id       text CONSTRAINT account_external_id_length_check
+                      CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255),
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -224,6 +229,11 @@ CREATE UNIQUE INDEX account_sign_in_name_uq ON account (tenant_id, sign_in_name)
   WHERE sign_in_name IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
   WHERE external_subject IS NOT NULL;
+CREATE UNIQUE INDEX account_external_id_uq ON account (tenant_id, external_id)
+  WHERE external_id IS NOT NULL AND deleted_at IS NULL;
+-- A portal organisation's people by their address's domain (migration 0307, UC-SVC-11 check 3).
+CREATE INDEX account_mail_domain_idx ON account (tenant_id, lower(split_part(email, '@', 2)))
+  WHERE email IS NOT NULL AND deleted_at IS NULL;
 -- The lookup the public redemption route makes: the hash covers the whole presented string,
 -- tenant half included, and is unique across the installation.
 CREATE UNIQUE INDEX account_redemption_token_uq ON account (redemption_token_hash)
@@ -235,9 +245,14 @@ CREATE TABLE account_group (
   name         text NOT NULL,
   description  text,
   created_at   timestamptz NOT NULL DEFAULT now(),
-  version      integer NOT NULL DEFAULT 1
+  version      integer NOT NULL DEFAULT 1,
+  -- The identifier a directory knows the group by (UC-ID-28, migration 0263).
+  external_id  text CONSTRAINT account_group_external_id_length_check
+                 CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255)
 );
 CREATE UNIQUE INDEX account_group_tenant_id_uq ON account_group (tenant_id, id);
+CREATE UNIQUE INDEX account_group_external_id_uq ON account_group (tenant_id, external_id)
+  WHERE external_id IS NOT NULL;
 CREATE UNIQUE INDEX account_group_name_uq ON account_group (tenant_id, lower(name));
 
 CREATE TABLE account_group_member (
@@ -281,6 +296,130 @@ CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_i
 -- is NULL in every row, and scope_id at the tenant.
 CREATE UNIQUE INDEX membership_grant_uq
   ON membership (tenant_id, account_id, group_id, scope_type, scope_id, role) NULLS NOT DISTINCT;
+
+-- Custom roles from the permission catalogue and where they are held (migration 0226, UC-ID-26). The
+-- seven built-in roles are the enum above and have no row.
+CREATE TABLE custom_role (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{1,62}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  permissions text[] NOT NULL CHECK (cardinality(permissions) BETWEEN 1 AND 256),
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT custom_role_key_uq UNIQUE (tenant_id, key)
+);
+CREATE TABLE custom_role_grant (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id  uuid,
+  group_id    uuid,
+  scope_type  membership_scope NOT NULL CHECK (scope_type <> 'ITEM'),
+  scope_id    uuid,
+  role_id     uuid NOT NULL,
+  created_at  timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CHECK ((account_id IS NULL) <> (group_id IS NULL)),
+  CHECK ((scope_type = 'TENANT') = (scope_id IS NULL)),
+  CONSTRAINT custom_role_grant_account_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT custom_role_grant_group_fkey
+    FOREIGN KEY (tenant_id, group_id) REFERENCES account_group (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT custom_role_grant_role_fkey
+    FOREIGN KEY (tenant_id, role_id) REFERENCES custom_role (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX custom_role_grant_uq
+  ON custom_role_grant (tenant_id, account_id, group_id, scope_type, scope_id, role_id) NULLS NOT DISTINCT;
+CREATE INDEX custom_role_grant_lookup_idx ON custom_role_grant (tenant_id, account_id, scope_type, scope_id);
+CREATE INDEX custom_role_grant_group_idx ON custom_role_grant (tenant_id, group_id) WHERE group_id IS NOT NULL;
+CREATE INDEX custom_role_grant_role_idx ON custom_role_grant (tenant_id, role_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON custom_role TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON custom_role_grant TO hubtask_app;
+
+-- The configuration document's versions, agents' plans waiting for a person, and templates
+-- (migration 0228, F-6, D-16, D-17). Configuration and counts only, never content (rule 10).
+CREATE TABLE config_revision (
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  version        integer NOT NULL CHECK (version > 0),
+  document       jsonb NOT NULL,
+  hash           text NOT NULL,
+  plan_hash      text NOT NULL,
+  actor_kind     text NOT NULL,
+  actor_id       uuid,
+  proposed_by    uuid,
+  rolled_back_to integer,
+  template       text,
+  added          integer NOT NULL DEFAULT 0,
+  changed        integer NOT NULL DEFAULT 0,
+  removed        integer NOT NULL DEFAULT 0,
+  created_at     timestamptz NOT NULL,
+  -- The hub whose document this version is, NULL for the workspace's (migration 0230).
+  hub_id         uuid,
+  PRIMARY KEY (tenant_id, version)
+);
+CREATE TABLE config_proposal (
+  id                  uuid PRIMARY KEY,
+  tenant_id           uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  state               text NOT NULL CHECK (state IN ('WAITING', 'APPLIED', 'DECLINED')),
+  document            jsonb NOT NULL,
+  mode                text NOT NULL CHECK (mode IN ('MERGE', 'REPLACE')),
+  base_hash           text NOT NULL,
+  plan_hash           text NOT NULL,
+  template            text,
+  added               integer NOT NULL DEFAULT 0,
+  changed             integer NOT NULL DEFAULT 0,
+  removed             integer NOT NULL DEFAULT 0,
+  hides_data          boolean NOT NULL DEFAULT false,
+  changes_permissions boolean NOT NULL DEFAULT false,
+  proposed_by         uuid,
+  decided_by          uuid,
+  created_at          timestamptz NOT NULL,
+  decided_at          timestamptz,
+  hub_id              uuid,
+  collection_id       uuid,  -- migration 0317: the collection taking a template's collection part
+  UNIQUE (tenant_id, id)
+);
+CREATE INDEX config_proposal_waiting_idx ON config_proposal (tenant_id, created_at DESC) WHERE state = 'WAITING';
+CREATE TABLE config_template (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$'),
+  version    integer NOT NULL CHECK (version > 0),
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  origin     text NOT NULL CHECK (origin IN ('WORKSPACE', 'OWN')),
+  document   jsonb NOT NULL,
+  created_by uuid,
+  created_at timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT config_template_version_uq UNIQUE (tenant_id, key, version)
+);
+CREATE TABLE config_template_use (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  template_key text NOT NULL,
+  version      integer NOT NULL,
+  document     jsonb NOT NULL,
+  applied_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, template_key)
+);
+-- DELETE only for a replacing restore (migration 0229, tenant-export.md §6).
+GRANT SELECT, INSERT, DELETE ON config_revision TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_proposal TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON config_template TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_template_use TO hubtask_app;
+-- The sandbox: a copy of the configuration without content, and the one it was copied from
+-- (migration 0231, config-document.md §3).
+CREATE TABLE config_sandbox (
+  tenant_id     uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  document      jsonb NOT NULL,
+  base_document jsonb NOT NULL,
+  base_hash     text NOT NULL,
+  base_version  integer NOT NULL DEFAULT 0,
+  writes        integer NOT NULL DEFAULT 0,
+  updated_at    timestamptz NOT NULL
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_sandbox TO hubtask_app;
 
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,
@@ -346,8 +485,15 @@ CREATE TABLE session (
   -- Which provider opened it, for a session opened through one (migration 0111): named in the
   -- session list. No foreign key - a removed provider is no reason to touch the sessions it opened.
   signed_in_provider_id uuid,
+  -- *View as* (UC-ID-29, migration 0265): the person this session shows the app as, and until when.
+  -- NULL is "not viewing as anybody"; one deleted while being viewed ends the view.
+  viewing_as       uuid,
+  viewing_as_until timestamptz,
   CONSTRAINT session_account_fkey FOREIGN KEY (tenant_id, account_id)
-    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT session_viewing_as_fkey FOREIGN KEY (tenant_id, viewing_as)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (viewing_as),
+  CONSTRAINT session_viewing_as_check CHECK ((viewing_as IS NULL) OR (viewing_as_until IS NOT NULL))
 );
 CREATE INDEX session_grant_idx ON session (grant_id) WHERE grant_id IS NOT NULL;
 CREATE UNIQUE INDEX session_tenant_id_uq ON session (tenant_id, id);
@@ -648,6 +794,8 @@ CREATE TABLE blocked_domain (
   was_main     boolean NOT NULL DEFAULT false,
   dismissed_at timestamptz
 );
+-- A workspace's blocks, by when, for its owner and for the workspace's deletion (migration 0386).
+CREATE INDEX blocked_domain_tenant_idx ON blocked_domain (tenant_id, blocked_at DESC) WHERE tenant_id IS NOT NULL;
 
 -- The providers a workspace signs its people in through (migration 0103). Plural,
 -- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
@@ -665,7 +813,7 @@ CREATE TABLE identity_provider (
   -- The preset it was configured from, which decides the mark that is drawn (ADR-0069). GENERIC
   -- is the letter tile.
   kind                  text NOT NULL DEFAULT 'GENERIC'
-                          CHECK (kind IN ('GENERIC', 'GOOGLE', 'MICROSOFT')),
+                          CHECK (kind IN ('GENERIC', 'GOOGLE', 'MICROSOFT', 'SAML')),
   -- Who gets an account on a first arrival. A public provider may only be INVITED_ONLY, which the
   -- application enforces: "public" is a property of the preset, not of anything a CHECK can see.
   provisioning          text NOT NULL DEFAULT 'DOMAINS'
@@ -686,6 +834,14 @@ CREATE TABLE identity_provider (
   -- one group of it, or nothing (both NULL). Never on the installation's rows, never OWNER.
   newcomer_role         membership_role,
   newcomer_group_id     uuid,
+  -- A SAML provider's sign-in address and signing certificate, both or neither, and only a
+  -- workspace's own (migration 0291, UC-ID-30).
+  saml_sso_url          text CHECK (length(saml_sso_url) <= 2000),
+  saml_certificate      text CHECK (length(saml_certificate) <= 20000),
+  CONSTRAINT identity_provider_saml_whole CHECK (
+    (kind = 'SAML') = (saml_sso_url IS NOT NULL AND saml_certificate IS NOT NULL)
+    AND (kind <> 'SAML' OR tenant_id IS NOT NULL)
+  ),
   CONSTRAINT identity_provider_newcomers_check CHECK (
     (newcomer_role IS NULL OR newcomer_group_id IS NULL)
     AND (tenant_id IS NOT NULL OR (newcomer_role IS NULL AND newcomer_group_id IS NULL))
@@ -810,6 +966,9 @@ CREATE TABLE oidc_flow (
   -- migration 0140); the arrival that activates the invited account stores them.
   terms_url     text CONSTRAINT oidc_flow_terms_url_check CHECK (char_length(terms_url) <= 2000),
   terms_version text CONSTRAINT oidc_flow_terms_version_check CHECK (char_length(terms_version) <= 64),
+  -- A SAML answer kept for the handoff, and its hash (migration 0291).
+  saml_response     text CHECK (length(saml_response) <= 350000),
+  saml_handoff_hash bytea,
   CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
     REFERENCES session (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT oidc_flow_invited_account_fkey FOREIGN KEY (tenant_id, invited_account_id)
@@ -881,9 +1040,12 @@ CREATE TABLE container (
   -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0124).
   private      boolean NOT NULL DEFAULT false,
   -- A collection's short name and the count its entries' numbers come from (migration 0204,
-  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry.
+  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry. A hub's handle since 0293: its
+  -- stable key in the configuration document.
   handle       text CHECK (handle IS NULL OR handle ~ '^[a-z][a-z0-9]{1,19}$'),
   item_counter bigint NOT NULL DEFAULT 0,
+  -- A desk's own logo (migration 0320); cleared when the picture goes.
+  logo_media_id uuid,
   CHECK ((type = 'HUB') = (parent_id IS NULL)),
   CONSTRAINT container_private_hub_check CHECK (NOT private OR type = 'HUB')
 );
@@ -951,6 +1113,114 @@ CREATE TABLE item_capability_profile (
 );
 CREATE UNIQUE INDEX icp_uq ON item_capability_profile
   (coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), type);
+
+-- The settings catalogue's entries of the workspace, its hubs, collections and people (migration
+-- 0215): a dotted key, its value as JSON, how the level holds it, and what it leaves the levels
+-- below. `scope_id` is the tenant, the container or the account, by `level`; no foreign key, since it
+-- points into three tables.
+CREATE TABLE setting_value (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  level      text NOT NULL CHECK (level IN ('WORKSPACE', 'HUB', 'COLLECTION', 'PERSON')),
+  scope_id   uuid NOT NULL,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'),
+  value      jsonb,
+  hold       text NOT NULL DEFAULT 'SET' CHECK (hold IN ('SET', 'LOCK', 'RESTRICT')),
+  allowed    jsonb,
+  set_by     uuid,
+  updated_at timestamptz NOT NULL,
+  UNIQUE (tenant_id, level, scope_id, key),
+  CHECK (value IS NOT NULL OR hold <> 'SET'),
+  CHECK ((allowed IS NOT NULL) = (hold = 'RESTRICT'))
+);
+
+-- The type registry (migrations 0216, 0217; UC-FLW-01): a workspace's own kinds of entries, each on
+-- one level. The three system types are declared in the domain and gain a row only once changed.
+CREATE TABLE entry_type (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key              text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  level            text NOT NULL CHECK (level IN ('TASK', 'WORK_PACKAGE', 'ACTIVITY')),
+  system           boolean NOT NULL DEFAULT false,
+  -- Empty only on a system type nobody named: a client shows its own word for the level (rule 8).
+  name             text NOT NULL CHECK (char_length(name) <= 120 AND (system OR btrim(name) <> '')),
+  icon             text NOT NULL CHECK (icon ~ '^[a-z][a-z0-9-]{0,39}$'),
+  color_token      text NOT NULL CHECK (color_token ~ '^[a-z][a-z0-9-]{0,39}$'),
+  completable      boolean NOT NULL DEFAULT true,
+  workflow         boolean NOT NULL DEFAULT false,
+  record           boolean NOT NULL DEFAULT false,
+  schedulable      boolean NOT NULL DEFAULT true,
+  estimable        boolean NOT NULL DEFAULT false,
+  allowed_children text[] NOT NULL DEFAULT '{}',
+  -- The type's form (0221): one document, read and written whole.
+  form             jsonb NOT NULL DEFAULT '{}'::jsonb
+                     CHECK (jsonb_typeof(form) = 'object' AND pg_column_size(form) <= 262144),
+  -- What it is for, and its name and description per language (0318, UC-SVC-05 check 7).
+  description      text NOT NULL DEFAULT '' CHECK (char_length(description) <= 500),
+  translations     jsonb NOT NULL DEFAULT '{}'::jsonb
+                     CHECK (jsonb_typeof(translations) = 'object' AND pg_column_size(translations) <= 65536),
+  position         integer NOT NULL DEFAULT 0,
+  archived_at      timestamptz,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  -- The hub it is defined at and offered in; null is the whole workspace. A copy names the key it
+  -- was copied from (0324, UC-FLW-01 check 10).
+  hub_id           uuid,
+  copied_from      text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_type_key_uq UNIQUE (tenant_id, key),
+  CONSTRAINT entry_type_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_type_system_workspace_check CHECK (NOT system OR hub_id IS NULL),
+  CHECK (NOT (record AND completable)),
+  CHECK (NOT system OR (key = lower(level) AND NOT record AND archived_at IS NULL))
+);
+CREATE UNIQUE INDEX entry_type_system_uq ON entry_type (tenant_id, level) WHERE system;
+CREATE INDEX entry_type_hub_idx ON entry_type (tenant_id, hub_id) WHERE hub_id IS NOT NULL;
+
+-- Workflows and which hub or collection runs which per type (migration 0223, UC-FLW-02 … 05).
+CREATE TABLE workflow (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key          text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  system       boolean NOT NULL DEFAULT false,
+  name         text NOT NULL CHECK (char_length(name) <= 120 AND (system OR btrim(name) <> '')),
+  published    jsonb NOT NULL
+    CHECK (jsonb_typeof(published) = 'object' AND pg_column_size(published) <= 262144),
+  draft        jsonb
+    CHECK (draft IS NULL OR (jsonb_typeof(draft) = 'object' AND pg_column_size(draft) <= 262144)),
+  published_at timestamptz,
+  published_by uuid,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  version      integer NOT NULL DEFAULT 1,
+  -- The hub it is defined at, which alone runs it; null is the whole workspace. A copy names the
+  -- key it was copied from (0330, UC-FLW-02 check 9).
+  hub_id       uuid,
+  copied_from  text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
+  UNIQUE (tenant_id, id),
+  CONSTRAINT workflow_key_uq UNIQUE (tenant_id, key),
+  CONSTRAINT workflow_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT workflow_system_workspace_check CHECK (NOT system OR hub_id IS NULL),
+  CHECK (NOT system OR key = 'default')
+);
+CREATE INDEX workflow_hub_idx ON workflow (tenant_id, hub_id) WHERE hub_id IS NOT NULL;
+
+CREATE TABLE workflow_scheme (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  container_id uuid NOT NULL,
+  entry_type   text NOT NULL DEFAULT ''
+    CHECK (entry_type = '' OR entry_type ~ '^[a-z][a-z0-9_]{0,49}$'),
+  workflow_key text NOT NULL,
+  created_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, container_id, entry_type),
+  CONSTRAINT workflow_scheme_container_fkey
+    FOREIGN KEY (tenant_id, container_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT workflow_scheme_workflow_fkey
+    FOREIGN KEY (tenant_id, workflow_key) REFERENCES workflow (tenant_id, key)
+);
 
 CREATE TABLE work_item (
   id                 uuid PRIMARY KEY,
@@ -1023,6 +1293,9 @@ CREATE TABLE work_item (
   CHECK (is_completed = (completed_at IS NOT NULL)),
   CHECK ((type = 'TASK') = (parent_id IS NULL)),
   CHECK (bucket_id IS NULL OR type = 'TASK'),
+  -- A due date's qualifiers only beside a due date (migration 0023).
+  CONSTRAINT wi_due_qualifiers_check
+    CHECK (due_at IS NOT NULL OR (due_time_zone IS NULL AND NOT due_date_only)),
   -- The cover's integrity (migration 0013). No TASK tie: which types carry COVER is the
   -- capability matrix, which is data per tenant.
   CONSTRAINT work_item_cover_consistent CHECK (
@@ -1037,8 +1310,16 @@ CREATE TABLE work_item (
   CONSTRAINT work_item_collection_id_fkey
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
   -- The entry's number in its collection (migration 0204, ADR-0094).
-  number       bigint
+  number       bigint,
+  -- The entry's type by key, null for its level's system type (migration 0216).
+  entry_type   text,
+  -- Its status in the workflow in force for it, null where none runs (migration 0223).
+  status       text,
+  CONSTRAINT work_item_entry_type_fkey
+    FOREIGN KEY (tenant_id, entry_type) REFERENCES entry_type (tenant_id, key)
 );
+CREATE INDEX wi_entry_type_idx ON work_item (tenant_id, entry_type) WHERE entry_type IS NOT NULL;
+CREATE INDEX wi_status_idx ON work_item (tenant_id, collection_id, status) WHERE status IS NOT NULL;
 CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
 CREATE UNIQUE INDEX wi_calendar_uid_uq ON work_item (tenant_id, calendar_uid)
   WHERE calendar_uid IS NOT NULL;
@@ -1046,6 +1327,11 @@ ALTER TABLE work_item ADD CONSTRAINT work_item_parent_id_fkey
     FOREIGN KEY (tenant_id, parent_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, order_key)
   WHERE deleted_at IS NULL AND archived_at IS NULL;
+-- A board's columns, by column or by status, archived entries included (migration 0371).
+CREATE INDEX wi_board_bucket_idx ON work_item (tenant_id, collection_id, bucket_id, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL AND parent_id IS NULL;
+CREATE INDEX wi_board_status_idx ON work_item (tenant_id, collection_id, status, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL AND parent_id IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
 -- A collection's figure: its open rows directly under it (OPEN, FIELD_SUM), and its completions
@@ -1054,6 +1340,9 @@ CREATE INDEX wi_figure_open_idx ON work_item (tenant_id, collection_id)
   WHERE parent_id IS NULL AND is_completed = false AND archived_at IS NULL AND deleted_at IS NULL;
 CREATE INDEX wi_figure_done_idx ON work_item (tenant_id, collection_id, completed_at)
   WHERE is_completed = true AND deleted_at IS NULL;
+-- A count by completion over a hub or a collection, from the index alone. Migration 0325.
+CREATE INDEX wi_completion_idx ON work_item (tenant_id, collection_id, is_completed)
+  WHERE deleted_at IS NULL AND archived_at IS NULL;
 -- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
 -- last done.
 CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)
@@ -1172,24 +1461,631 @@ CREATE INDEX item_member_reverse_idx ON item_member (tenant_id, account_id, item
 CREATE TABLE custom_field_definition (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id uuid,   -- NULL = tenant-wide
+  collection_id uuid,   -- the collection or the hub (migration 0332); NULL = tenant-wide
   key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
-  kind          text NOT NULL CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL')),
+  kind          text NOT NULL CONSTRAINT custom_field_definition_kind_check
+                  CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
+                                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT','CALCULATED',
+                                  'DATE_TIME','GROUP','CASCADING_SELECT','IP_ADDRESS','FILE','LABEL',
+                                  'STATUS')),  -- migrations 0222, 0305
   options       jsonb NOT NULL DEFAULT '[]'::jsonb,
+  -- The ISO 4217 code of a MONEY field's amounts, null for every other kind (migration 0218).
+  currency      text,
   is_required   boolean NOT NULL DEFAULT false,
+  -- Written only by holders of FIELD_WRITE:<key> (migration 0226, UC-ID-27).
+  restricted    boolean NOT NULL DEFAULT false,
+  -- Read only by holders of FIELD_READ:<key>; only a write-restricted field (migration 0227).
+  read_restricted boolean NOT NULL DEFAULT false,
+  -- A CALCULATED field's expression, null for every other kind (migration 0222).
+  formula       text,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
   version       integer     NOT NULL DEFAULT 1,
   deleted_at    timestamptz,
   CONSTRAINT custom_field_definition_collection_id_fkey
-    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT custom_field_definition_currency_check
+    CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$')),
+  CONSTRAINT custom_field_definition_formula_check
+    CHECK ((kind = 'CALCULATED') = (formula IS NOT NULL) AND (formula IS NULL OR length(formula) <= 2000)),
+  CONSTRAINT cfd_read_restricted_ck CHECK (NOT read_restricted OR restricted),
+  -- The shared definition a hub's copy was made from; an identifier, not a reference (0332).
+  copied_from   uuid
 );
 CREATE UNIQUE INDEX custom_field_definition_tenant_id_uq ON custom_field_definition (tenant_id, id);
 CREATE INDEX cfd_scope_idx ON custom_field_definition (tenant_id, collection_id) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX cfd_key_uq
   ON custom_field_definition (tenant_id, coalesce(collection_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
   WHERE deleted_at IS NULL;
+
+-- The typed projection of `work_item.custom_fields` the query language ranges, sorts and groups
+-- over (migrations 0218, 0219; F-2): one row per value, per element of a set, in the one column its
+-- kind compares in. Written by the trigger below in the transaction that writes the document.
+CREATE TABLE entry_field_value (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entry_id      uuid NOT NULL,
+  definition_id uuid NOT NULL,
+  ordinal       integer NOT NULL DEFAULT 0 CHECK (ordinal >= 0),
+  num           numeric,          -- NUMBER, MONEY, DURATION, BOOL (1 or 0)
+  ts            timestamptz,      -- DATE (midnight UTC), DATE_TIME
+  text          text CHECK (text IS NULL OR char_length(text) <= 256),  -- TEXT, SELECT, MULTI_SELECT, URL,
+                                  -- CASCADING_SELECT, LABEL, STATUS, IP_ADDRESS (canonical)
+  ref           uuid,             -- USER, USER_SET, REFERENCE, GROUP, FILE
+  addr          inet,             -- IP_ADDRESS beside its text (migration 0305)
+  PRIMARY KEY (tenant_id, entry_id, definition_id, ordinal),
+  CHECK (num_nonnulls(num, ts, text, ref) = 1),
+  CONSTRAINT entry_field_value_addr_check CHECK (addr IS NULL OR text IS NOT NULL),
+  CONSTRAINT entry_field_value_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_field_value_definition_fkey
+    FOREIGN KEY (tenant_id, definition_id) REFERENCES custom_field_definition (tenant_id, id)
+    ON DELETE CASCADE
+);
+CREATE INDEX efv_num_idx  ON entry_field_value (tenant_id, definition_id, num)  WHERE num IS NOT NULL;
+CREATE INDEX efv_ts_idx   ON entry_field_value (tenant_id, definition_id, ts)   WHERE ts IS NOT NULL;
+CREATE INDEX efv_text_idx ON entry_field_value (tenant_id, definition_id, text) WHERE text IS NOT NULL;
+CREATE INDEX efv_ref_idx  ON entry_field_value (tenant_id, definition_id, ref)  WHERE ref IS NOT NULL;
+CREATE INDEX efv_addr_idx ON entry_field_value (tenant_id, definition_id, addr) WHERE addr IS NOT NULL;  -- migration 0306
+CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'::regconfig, text)) WHERE text IS NOT NULL;  -- migration 0232
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
+-- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0218.
+
+-- The slim entry's side tables (migrations 0234, 0235; F-10): what background loops keep on an
+-- entry, mirrored from its columns by the trigger work_item_side_rows until the contract release
+-- moves the readers here and drops the columns. A row exists only while one of its values does.
+CREATE TABLE work_item_announcement (
+  tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id               uuid NOT NULL,
+  due_soon_announced_at timestamptz,
+  overdue_announced_at  timestamptz,
+  PRIMARY KEY (tenant_id, item_id),
+  CHECK (num_nonnulls(due_soon_announced_at, overdue_announced_at) > 0),
+  CONSTRAINT work_item_announcement_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE TABLE work_item_flow (
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id          uuid NOT NULL,
+  flow_started_at  timestamptz,
+  flow_finished_at timestamptz,
+  PRIMARY KEY (tenant_id, item_id),
+  CHECK (num_nonnulls(flow_started_at, flow_finished_at) > 0),
+  CONSTRAINT work_item_flow_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE TABLE work_item_retention (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id       uuid NOT NULL,
+  pending_until timestamptz,
+  rule_id       uuid,
+  action        text,
+  blocked_by    text,
+  PRIMARY KEY (tenant_id, item_id),
+  CHECK (num_nonnulls(pending_until, rule_id, action, blocked_by) > 0),
+  CONSTRAINT work_item_retention_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX work_item_retention_due_idx ON work_item_retention (tenant_id, pending_until)
+  WHERE pending_until IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, work_item_retention
+  TO hubtask_app;
+-- work_item_mirror_side_rows(work_item) and the trigger work_item_side_rows: migration 0234.
+
+-- Durable timers on business calendars (migration 0236, F-10, domain-model.md §3.7).
+CREATE TABLE durable_timer (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW', 'OLA')),
+  subject_id       uuid NOT NULL,
+  name             text NOT NULL CHECK (name ~ '^[a-z][a-z0-9_]{0,49}$'),
+  calendar         jsonb NOT NULL,   -- the calendar it was armed on
+  budget_seconds   bigint NOT NULL CHECK (budget_seconds > 0),
+  consumed_seconds bigint NOT NULL DEFAULT 0 CHECK (consumed_seconds >= 0),
+  running_since    timestamptz,
+  due_at           timestamptz,
+  state            text NOT NULL CHECK (state IN ('RUNNING', 'PAUSED', 'FIRED', 'STOPPED')),
+  fired_at         timestamptz,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  CHECK ((state = 'RUNNING') = (running_since IS NOT NULL)),
+  CHECK (state <> 'RUNNING' OR due_at IS NOT NULL),
+  CHECK ((state = 'FIRED') = (fired_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX durable_timer_live_uq ON durable_timer (tenant_id, purpose, subject_id, name)
+  WHERE state IN ('RUNNING', 'PAUSED');
+CREATE INDEX durable_timer_due_idx ON durable_timer (tenant_id, due_at) WHERE state = 'RUNNING';
+GRANT SELECT, INSERT, UPDATE, DELETE ON durable_timer TO hubtask_app;
+
+-- Live documents (migration 0237, F-8): a document's CRDT update log, its snapshots and its head.
+-- The updates are the editor's bytes and never read here; what a snapshot covers (seq <= its
+-- up_to_seq) is removed by the DOCUMENT_HISTORY retention kind (migration 0361). compacted_at is no
+-- longer written; it stays until a contract step drops it.
+CREATE TABLE realtime_document (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  kind         text NOT NULL CHECK (kind ~ '^[a-z][a-z_]{1,31}$'),
+  document_id  uuid NOT NULL,
+  head_seq     bigint NOT NULL DEFAULT 0 CHECK (head_seq >= 0),
+  snapshot_seq bigint NOT NULL DEFAULT 0 CHECK (snapshot_seq >= 0 AND snapshot_seq <= head_seq),
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, kind, document_id)
+) WITH (fillfactor = 70);
+GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_document TO hubtask_app;
+
+CREATE TABLE realtime_update (
+  tenant_id    uuid NOT NULL,
+  kind         text NOT NULL,
+  document_id  uuid NOT NULL,
+  seq          bigint NOT NULL CHECK (seq > 0),
+  data         bytea NOT NULL CHECK (octet_length(data) BETWEEN 1 AND 1048576),
+  author_id    uuid,
+  created_at   timestamptz NOT NULL,
+  compacted_at timestamptz,
+  PRIMARY KEY (tenant_id, kind, document_id, seq),
+  CONSTRAINT realtime_update_document_fkey FOREIGN KEY (tenant_id, kind, document_id)
+    REFERENCES realtime_document (tenant_id, kind, document_id) ON DELETE CASCADE,
+  CONSTRAINT realtime_update_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+) WITH (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.05);
+CREATE INDEX realtime_update_compacted_idx ON realtime_update (tenant_id, compacted_at)
+  WHERE compacted_at IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_update TO hubtask_app;
+
+CREATE TABLE realtime_snapshot (
+  tenant_id     uuid NOT NULL,
+  kind          text NOT NULL,
+  document_id   uuid NOT NULL,
+  up_to_seq     bigint NOT NULL CHECK (up_to_seq > 0),
+  state         bytea NOT NULL CHECK (octet_length(state) BETWEEN 1 AND 16777216),
+  created_at    timestamptz NOT NULL,
+  superseded_at timestamptz,
+  PRIMARY KEY (tenant_id, kind, document_id, up_to_seq),
+  CONSTRAINT realtime_snapshot_document_fkey FOREIGN KEY (tenant_id, kind, document_id)
+    REFERENCES realtime_document (tenant_id, kind, document_id) ON DELETE CASCADE
+);
+CREATE INDEX realtime_snapshot_superseded_idx ON realtime_snapshot (tenant_id, superseded_at)
+  WHERE superseded_at IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_snapshot TO hubtask_app;
+
+-- Pages of the knowledge module (migration 0238, M3).
+CREATE TABLE page (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id           uuid NOT NULL,
+  parent_id        uuid,
+  title            text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  body             text NOT NULL DEFAULT '' CHECK (octet_length(body) <= 1048576),
+  icon             text NOT NULL DEFAULT '' CHECK (char_length(icon) <= 16),
+  order_key        text NOT NULL,
+  template         boolean NOT NULL DEFAULT false,
+  content_language text,
+  owner_id         uuid,
+  verified_until   timestamptz,
+  verified_at      timestamptz,
+  verified_by      uuid,
+  archived_at      timestamptz,
+  deleted_at       timestamptz,
+  -- Who trashed it (migration 0378).
+  deleted_by_type  text,
+  deleted_by_id    uuid,
+  created_by       uuid NOT NULL,
+  created_at       timestamptz NOT NULL,
+  updated_by       uuid NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  restricted       boolean NOT NULL DEFAULT false,   -- migration 0268: who reads it is page_restriction
+  daily_for        date,                             -- a personal space's daily note (UC-DOC-07)
+  search_document  tsvector,
+  -- A language variant of another page for a portal (migration 0321); cleared when the source goes.
+  language_source_id uuid,
+  language_variant   text CONSTRAINT page_language_variant_check
+                     CHECK (language_variant IS NULL OR char_length(language_variant) BETWEEN 1 AND 35),
+  UNIQUE (tenant_id, id),
+  CHECK (parent_id IS NULL OR parent_id <> id),
+  CONSTRAINT page_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  -- Deferred to the commit: a restore writes pages in identifier order, and a page moved under a
+  -- newer one comes before its parent.
+  CONSTRAINT page_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT page_owner_fkey FOREIGN KEY (tenant_id, owner_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (owner_id),
+  CONSTRAINT page_language_source_fkey FOREIGN KEY (tenant_id, language_source_id)
+    REFERENCES page (tenant_id, id) ON DELETE SET NULL (language_source_id) DEFERRABLE INITIALLY DEFERRED
+);
+-- One language variant per tag and source (migration 0321).
+CREATE UNIQUE INDEX page_language_variant_idx ON page (tenant_id, language_source_id, lower(language_variant))
+  WHERE language_source_id IS NOT NULL;
+-- The tree a space reads: its pages in order under each parent.
+CREATE INDEX page_tree_idx ON page (tenant_id, hub_id, parent_id, order_key);
+CREATE INDEX page_search_idx ON page USING gin (search_document);
+-- The review list: the pages whose verification runs out.
+CREATE INDEX page_verified_until_idx ON page (tenant_id, verified_until)
+  WHERE verified_until IS NOT NULL AND deleted_at IS NULL;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON page TO hubtask_app;
+
+CREATE OR REPLACE FUNCTION page_search_document() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  NEW.search_document := hubtask_search_document(NEW.content_language, NEW.title, NEW.body);
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS page_search_document ON page;
+CREATE TRIGGER page_search_document
+  BEFORE INSERT OR UPDATE OF title, body, content_language ON page
+  FOR EACH ROW EXECUTE FUNCTION page_search_document();
+
+CREATE TABLE page_version (
+  tenant_id  uuid NOT NULL,
+  page_id    uuid NOT NULL,
+  seq        integer NOT NULL CHECK (seq > 0),
+  title      text NOT NULL,
+  body       text NOT NULL,
+  author_id  uuid,
+  name       text NOT NULL DEFAULT '' CHECK (char_length(name) <= 120),
+  restored   integer NOT NULL DEFAULT 0 CHECK (restored >= 0),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, seq),
+  CONSTRAINT page_version_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_version_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_version TO hubtask_app;
+
+CREATE TABLE page_comment (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id     uuid NOT NULL,
+  parent_id   uuid,
+  author_id   uuid,
+  body        text NOT NULL CHECK (octet_length(body) <= 65536),
+  anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  quote       text NOT NULL DEFAULT '' CHECK (char_length(quote) <= 500),
+  resolved_at timestamptz,
+  resolved_by uuid,
+  created_at  timestamptz NOT NULL,
+  edited_at   timestamptz,
+  deleted_at  timestamptz,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT page_comment_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_comment_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES page_comment (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT page_comment_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+CREATE INDEX page_comment_page_idx ON page_comment (tenant_id, page_id, created_at);
+CREATE INDEX page_comment_parent_idx ON page_comment (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_comment TO hubtask_app;
+
+CREATE TABLE page_reference (
+  tenant_id   uuid NOT NULL,
+  page_id     uuid NOT NULL,
+  target_kind text NOT NULL CHECK (target_kind IN
+                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT', 'CI')),
+  target_id   uuid NOT NULL,
+  anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  strength    text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
+  PRIMARY KEY (tenant_id, page_id, target_kind, target_id, anchor),
+  CONSTRAINT page_reference_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX page_reference_target_idx ON page_reference (tenant_id, target_kind, target_id);
+
+GRANT SELECT, INSERT, DELETE ON page_reference TO hubtask_app;
+
+-- Migration 0268: who reads a page beyond its hub, and a person's own space.
+CREATE UNIQUE INDEX page_daily_note_idx ON page (tenant_id, hub_id, daily_for)
+  WHERE daily_for IS NOT NULL AND deleted_at IS NULL;
+
+CREATE TABLE page_restriction (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  granted_by uuid,
+  granted_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT page_restriction_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_restriction_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_restriction_granted_by_fkey FOREIGN KEY (tenant_id, granted_by)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (granted_by)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_restriction TO hubtask_app;
+
+CREATE TABLE page_share (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  granted_by uuid,
+  granted_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT page_share_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_share_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_share_granted_by_fkey FOREIGN KEY (tenant_id, granted_by)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (granted_by)
+);
+CREATE INDEX page_share_account_idx ON page_share (tenant_id, account_id, granted_at);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_share TO hubtask_app;
+
+CREATE TABLE personal_space (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  hub_id     uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT personal_space_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT personal_space_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON personal_space TO hubtask_app;
+
+-- Migration 0269: a page opened read-only by a link (UC-DOC-08); only the token's hash is kept.
+CREATE TABLE page_public_link (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  token_hash bytea NOT NULL,
+  created_by uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id),
+  CONSTRAINT page_public_link_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_public_link_created_by_fkey FOREIGN KEY (tenant_id, created_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX page_public_link_token_uq ON page_public_link (token_hash);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_public_link TO hubtask_app;
+
+-- Migration 0271: a page published as an article of a service's portal (UC-DOC-13).
+CREATE TABLE page_article (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id       uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  published_by  uuid,
+  published_at  timestamptz NOT NULL,
+  views         bigint NOT NULL DEFAULT 0 CHECK (views >= 0),
+  PRIMARY KEY (tenant_id, page_id, collection_id),
+  CONSTRAINT page_article_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_article_collection_fkey FOREIGN KEY (tenant_id, collection_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT page_article_published_by_fkey FOREIGN KEY (tenant_id, published_by)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (published_by)
+);
+CREATE INDEX page_article_collection_idx ON page_article (tenant_id, collection_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_article TO hubtask_app;
+
+CREATE TABLE page_article_rating (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id       uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  account_id    uuid NOT NULL,
+  helpful       boolean NOT NULL,
+  rated_at      timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, collection_id, account_id),
+  CONSTRAINT page_article_rating_article_fkey FOREIGN KEY (tenant_id, page_id, collection_id)
+    REFERENCES page_article (tenant_id, page_id, collection_id) ON DELETE CASCADE,
+  CONSTRAINT page_article_rating_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_article_rating TO hubtask_app;
+
+CREATE OR REPLACE FUNCTION page_reference_of_body() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM page_reference WHERE tenant_id = NEW.tenant_id AND page_id = NEW.id;
+  -- A trashed page points nowhere until it is restored.
+  IF NEW.deleted_at IS NULL AND position('hubtask:' IN NEW.body) > 0 THEN
+    INSERT INTO page_reference (tenant_id, page_id, target_kind, target_id, anchor, strength)
+    SELECT NEW.tenant_id, NEW.id, r.target_kind, r.target_id, r.anchor, r.strength
+      FROM entry_references_of(NEW.body) AS r
+     WHERE NOT (r.target_kind = 'PAGE' AND r.target_id = NEW.id);
+  END IF;
+  RETURN NULL;
+END $$;
+
+DROP TRIGGER IF EXISTS page_references_insert ON page;
+CREATE TRIGGER page_references_insert AFTER INSERT ON page
+  FOR EACH ROW EXECUTE FUNCTION page_reference_of_body();
+DROP TRIGGER IF EXISTS page_references_update ON page;
+CREATE TRIGGER page_references_update AFTER UPDATE OF body, deleted_at ON page
+  FOR EACH ROW EXECUTE FUNCTION page_reference_of_body();
+
+-- Boards of the whiteboard module (migration 0240, M4).
+CREATE TABLE whiteboard (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id     uuid NOT NULL,
+  title      text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  scene      jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(scene) = 'array' AND jsonb_array_length(scene) <= 5000),
+  deleted_at timestamptz,
+  -- Who trashed it (migration 0378).
+  deleted_by_type text,
+  deleted_by_id   uuid,
+  created_by uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  updated_by uuid NOT NULL,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT whiteboard_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX whiteboard_hub_idx ON whiteboard (tenant_id, hub_id, updated_at DESC);
+
+ALTER TABLE whiteboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON whiteboard;
+CREATE POLICY tenant_isolation ON whiteboard
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON whiteboard TO hubtask_app;
+
+CREATE TABLE whiteboard_reference (
+  tenant_id     uuid NOT NULL,
+  whiteboard_id uuid NOT NULL,
+  target_kind   text NOT NULL CHECK (target_kind IN
+                  ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT', 'CI')),
+  target_id     uuid NOT NULL,
+  anchor        text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  strength      text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
+  PRIMARY KEY (tenant_id, whiteboard_id, target_kind, target_id, anchor),
+  CONSTRAINT whiteboard_reference_board_fkey FOREIGN KEY (tenant_id, whiteboard_id)
+    REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX whiteboard_reference_target_idx
+  ON whiteboard_reference (tenant_id, target_kind, target_id);
+
+ALTER TABLE whiteboard_reference ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard_reference FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON whiteboard_reference;
+CREATE POLICY tenant_isolation ON whiteboard_reference
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON whiteboard_reference TO hubtask_app;
+
+CREATE OR REPLACE FUNCTION whiteboard_reference_of_scene() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM whiteboard_reference WHERE tenant_id = NEW.tenant_id AND whiteboard_id = NEW.id;
+  -- A trashed board points nowhere until it is restored.
+  IF NEW.deleted_at IS NULL THEN
+    INSERT INTO whiteboard_reference (tenant_id, whiteboard_id, target_kind, target_id, anchor, strength)
+    SELECT NEW.tenant_id, NEW.id, found.target_kind, found.target_id, found.anchor,
+           (array_agg(found.strength ORDER BY found.rank DESC))[1]
+    FROM (
+      SELECT e #>> '{target,kind}' AS target_kind, (e #>> '{target,id}')::uuid AS target_id,
+             '' AS anchor, 'CARD' AS strength, 1 AS rank
+        FROM jsonb_array_elements(NEW.scene) AS e
+       WHERE e ->> 'kind' = 'CARD' AND e #>> '{target,id}' IS NOT NULL
+      UNION ALL
+      SELECT r.target_kind, r.target_id, r.anchor, r.strength,
+             CASE r.strength WHEN 'EMBED' THEN 2 WHEN 'CARD' THEN 1 ELSE 0 END
+        FROM jsonb_array_elements(NEW.scene) AS e, entry_references_of(e ->> 'text') AS r
+       WHERE position('hubtask:' IN coalesce(e ->> 'text', '')) > 0
+    ) AS found
+    WHERE NOT (found.target_kind = 'WHITEBOARD' AND found.target_id = NEW.id)
+    GROUP BY found.target_kind, found.target_id, found.anchor;
+  END IF;
+  RETURN NULL;
+END $$;
+
+DROP TRIGGER IF EXISTS whiteboard_references_insert ON whiteboard;
+CREATE TRIGGER whiteboard_references_insert AFTER INSERT ON whiteboard
+  FOR EACH ROW EXECUTE FUNCTION whiteboard_reference_of_scene();
+DROP TRIGGER IF EXISTS whiteboard_references_update ON whiteboard;
+CREATE TRIGGER whiteboard_references_update AFTER UPDATE OF scene, deleted_at ON whiteboard
+  FOR EACH ROW EXECUTE FUNCTION whiteboard_reference_of_scene();
+
+-- A whiteboard's history (migration 0241, UC-CNV-06): one row per drawing session, a named
+-- version its own row.
+CREATE TABLE whiteboard_version (
+  tenant_id     uuid NOT NULL,
+  whiteboard_id uuid NOT NULL,
+  seq           integer NOT NULL CHECK (seq > 0),
+  title         text NOT NULL,
+  scene         jsonb NOT NULL CHECK (jsonb_typeof(scene) = 'array' AND jsonb_array_length(scene) <= 5000),
+  author_id     uuid,
+  name          text NOT NULL DEFAULT '' CHECK (char_length(name) <= 120),
+  created_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, whiteboard_id, seq),
+  CONSTRAINT whiteboard_version_board_fkey FOREIGN KEY (tenant_id, whiteboard_id)
+    REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT whiteboard_version_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+ALTER TABLE whiteboard_version ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard_version FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON whiteboard_version
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON whiteboard_version TO hubtask_app;
+
+-- Links and references (migration 0220, F-3). The six shipped link types have no row.
+CREATE TABLE link_type (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key          text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'
+                 AND key NOT IN ('blocks', 'depends_on', 'duplicates', 'runs_on', 'affects', 'implements')),
+  name         text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  inverse_name text NOT NULL CHECK (char_length(inverse_name) <= 120),
+  direction    text NOT NULL CHECK (direction IN ('DIRECTED', 'SYMMETRIC')),
+  cardinality  text NOT NULL CHECK (cardinality IN ('MANY', 'ONE')),
+  cycles       text NOT NULL CHECK (cycles IN ('FORBIDDEN', 'ALLOWED')),
+  waits        text NOT NULL CHECK (waits IN ('NONE', 'SOURCE', 'TARGET')),
+  position     integer NOT NULL DEFAULT 0,
+  archived_at  timestamptz,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT link_type_key_uq UNIQUE (tenant_id, key),
+  CHECK (direction = 'DIRECTED' OR (waits = 'NONE' AND cardinality = 'MANY')),
+  CHECK (direction = 'SYMMETRIC' OR inverse_name <> ''),
+  CHECK (waits = 'NONE' OR cycles = 'FORBIDDEN')
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON link_type TO hubtask_app;
+
+CREATE TABLE entry_link (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  link_type   text NOT NULL CHECK (link_type ~ '^[a-z][a-z0-9_]{0,49}$'),
+  own_type    text GENERATED ALWAYS AS (
+                CASE WHEN link_type IN ('blocks', 'depends_on', 'duplicates', 'runs_on', 'affects', 'implements')
+                     THEN NULL ELSE link_type END) STORED,
+  source_id   uuid NOT NULL,
+  target_id   uuid NOT NULL,
+  created_by  uuid,
+  created_at  timestamptz NOT NULL,
+  -- A waiting link's timing (migration 0251, M2).
+  dependency_kind text NOT NULL DEFAULT 'FS' CHECK (dependency_kind IN ('FS', 'SS', 'FF', 'SF')),
+  lag_days    integer NOT NULL DEFAULT 0 CHECK (lag_days BETWEEN -999 AND 999),
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_link_uq UNIQUE (tenant_id, link_type, source_id, target_id),
+  CHECK (source_id <> target_id),
+  CONSTRAINT entry_link_source_fkey
+    FOREIGN KEY (tenant_id, source_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_link_target_fkey
+    FOREIGN KEY (tenant_id, target_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_link_type_fkey
+    FOREIGN KEY (tenant_id, own_type) REFERENCES link_type (tenant_id, key)
+);
+CREATE INDEX entry_link_source_idx ON entry_link (tenant_id, source_id, link_type);
+CREATE INDEX entry_link_target_idx ON entry_link (tenant_id, target_id, link_type);
+CREATE INDEX entry_link_own_type_idx ON entry_link (tenant_id, own_type) WHERE own_type IS NOT NULL;
+GRANT SELECT, INSERT, DELETE ON entry_link TO hubtask_app;
+GRANT UPDATE (dependency_kind, lag_days) ON entry_link TO hubtask_app;
+
+CREATE TABLE entry_reference (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  source_kind text NOT NULL CHECK (source_kind IN ('ENTRY', 'COMMENT')),
+  source_id   uuid NOT NULL,
+  entry_id    uuid NOT NULL,
+  target_kind text NOT NULL CHECK (target_kind IN
+                ('ENTRY', 'HUB', 'COLLECTION', 'VIEW', 'PAGE', 'WHITEBOARD', 'DASHBOARD', 'GOAL', 'SPRINT', 'CI')),
+  target_id   uuid NOT NULL,
+  anchor      text NOT NULL DEFAULT '' CHECK (anchor ~ '^[A-Za-z0-9_-]{0,64}$'),
+  strength    text NOT NULL CHECK (strength IN ('MENTION', 'CARD', 'EMBED')),
+  PRIMARY KEY (tenant_id, source_kind, source_id, target_kind, target_id, anchor),
+  CONSTRAINT entry_reference_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX entry_reference_target_idx ON entry_reference (tenant_id, target_kind, target_id);
+-- A purged entry's references, which its cascade takes (0340).
+CREATE INDEX entry_reference_entry_idx ON entry_reference (tenant_id, entry_id);
+GRANT SELECT, INSERT, DELETE ON entry_reference TO hubtask_app;
+-- entry_references_of(text) and the triggers work_item_references_* and comment_references_*,
+-- which keep entry_reference from an entry's notes and its comments: migration 0220.
 
 CREATE TABLE comment (
   id                uuid PRIMARY KEY,
@@ -1201,7 +2097,8 @@ CREATE TABLE comment (
   -- rather than hiding it - while a living comment carries 1 to 20000 characters. A tombstone a
   -- legal hold covers keeps its text until the retention pass clears it once no hold covers it
   -- (data-retention.md §4); no read serves it (Comment.sql).
-  body              text NOT NULL CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
+  body              text NOT NULL CONSTRAINT comment_body_check
+                      CHECK (deleted_at IS NOT NULL OR length(body) BETWEEN 1 AND 20000),
   created_at        timestamptz NOT NULL DEFAULT now(),
   edited_at         timestamptz,
   deleted_at        timestamptz,
@@ -1212,13 +2109,19 @@ CREATE TABLE comment (
   kind              text NOT NULL DEFAULT 'USER' CONSTRAINT comment_kind_known CHECK (kind IN ('USER', 'SYSTEM')),
   system_code       text,
   system_params     jsonb,
+  -- A note for the team beside the public replies (migration 0248, UC-SVC-04).
+  internal          boolean NOT NULL DEFAULT false,
   CONSTRAINT comment_item_id_fkey
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX comment_tenant_id_uq ON comment (tenant_id, id);
+-- A search finds an entry by its comments (migration 0232, F-9).
+CREATE INDEX comment_search_idx ON comment USING gin (to_tsvector('simple'::regconfig, body)) WHERE deleted_at IS NULL;
 ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
+-- A purged comment's replies, which its cascade takes (0342).
+CREATE INDEX comment_parent_idx ON comment (tenant_id, parent_comment_id) WHERE parent_comment_id IS NOT NULL;
 -- The tombstones whose text a legal hold keeps, which the retention pass reads (migration 0122).
 CREATE INDEX comment_kept_text_idx ON comment (tenant_id, id)
   WHERE deleted_at IS NOT NULL AND body <> '';
@@ -1341,7 +2244,7 @@ CREATE TABLE media_object (
   byte_size   bigint NOT NULL CHECK (byte_size >= 0),
   checksum    text,
   usage       text NOT NULL CONSTRAINT media_object_usage_check
-              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR')),
+              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR', 'DESK_LOGO')),
   ref_count   integer NOT NULL DEFAULT 0,
   -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
   -- tenant and no person, and an account here would be an uploader this system invented
@@ -1350,8 +2253,10 @@ CREATE TABLE media_object (
   created_at  timestamptz NOT NULL DEFAULT now(),
   deleted_at  timestamptz,
   -- The upload life (migration 0013): PENDING between staging and confirmation, READY once
-  -- the bytes were read back, judged and sealed. Fail-closed default.
-  status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY')),
+  -- the bytes were read back, judged and sealed; PENDING_SCAN held for a scanner that could not
+  -- answer, INFECTED found malicious, its bytes gone (migration 0308), UNSCANNABLE refused by the
+  -- scanner for its size (0343). Fail-closed default.
+  status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY', 'PENDING_SCAN', 'INFECTED', 'UNSCANNABLE')),
   file_name   text,
   -- Since when nothing has pointed at this object, NULL while something does (migration 0051).
   -- The recount maintains it, and the sweep waits it out before marking: an object is at
@@ -1359,17 +2264,149 @@ CREATE TABLE media_object (
   -- not evidence of anything.
   unreferenced_since timestamptz
 );
+
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
+-- A search finds an entry by the name of a file attached to it (migration 0233, F-9).
+CREATE INDEX media_object_name_search_idx ON media_object USING gin (to_tsvector('simple'::regconfig, translate(file_name, '._-', '   '))) WHERE file_name IS NOT NULL AND deleted_at IS NULL;
 -- Declared here rather than in work_item's definition, because media_object is created after it
 -- in this file; migration 0013 is where it arrived.
 ALTER TABLE work_item ADD CONSTRAINT work_item_cover_media_fkey
   FOREIGN KEY (tenant_id, cover_media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT;
+
+-- A whiteboard's pictures and files (migration 0242, UC-CNV-08), placed by AttachWhiteboardMedia.
+CREATE TABLE whiteboard_media (
+  tenant_id     uuid NOT NULL,
+  whiteboard_id uuid NOT NULL,
+  media_id      uuid NOT NULL,
+  PRIMARY KEY (tenant_id, whiteboard_id, media_id),
+  CONSTRAINT whiteboard_media_board_fkey FOREIGN KEY (tenant_id, whiteboard_id)
+    REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT whiteboard_media_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX whiteboard_media_object_idx ON whiteboard_media (tenant_id, media_id);
+ALTER TABLE whiteboard_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard_media FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON whiteboard_media
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON whiteboard_media TO hubtask_app;
+-- A page's pictures and files (migration 0272, UC-DOC-14).
+CREATE TABLE page_media (
+  tenant_id uuid NOT NULL,
+  page_id   uuid NOT NULL,
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, media_id),
+  CONSTRAINT page_media_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT page_media_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX page_media_object_idx ON page_media (tenant_id, media_id);
+ALTER TABLE page_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_media FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON page_media
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON page_media TO hubtask_app;
+-- The labels a page carries (migration 0304, UC-DOC-01 check 9).
+CREATE TABLE page_label (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id   uuid NOT NULL,
+  label     text NOT NULL CHECK (char_length(label) BETWEEN 1 AND 40 AND label = lower(label)),
+  PRIMARY KEY (tenant_id, page_id, label),
+  CONSTRAINT page_label_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+CREATE INDEX page_label_label_idx ON page_label (tenant_id, label);
+ALTER TABLE page_label ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_label FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON page_label
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON page_label TO hubtask_app;
+-- What waits on a page to be published in a space with drafts (migration 0313, UC-DOC-15).
+CREATE TABLE page_draft (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id     uuid NOT NULL,
+  unpublished boolean NOT NULL DEFAULT false,
+  title       text CHECK (title IS NULL OR char_length(title) BETWEEN 1 AND 200),
+  body        text CHECK (body IS NULL OR octet_length(body) <= 1048576),
+  updated_by  uuid NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id),
+  CHECK (unpublished OR (title IS NOT NULL AND body IS NOT NULL)),
+  CONSTRAINT page_draft_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+ALTER TABLE page_draft ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_draft FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON page_draft
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON page_draft TO hubtask_app;
+-- A template's sample entries (migration 0314, configuration.md §6): one act removes them all.
+CREATE TABLE sample_entry (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id    uuid NOT NULL,
+  hub_id     uuid NOT NULL,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, item_id),
+  UNIQUE (tenant_id, hub_id, key),
+  CONSTRAINT sample_entry_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT sample_entry_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+ALTER TABLE sample_entry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sample_entry FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sample_entry
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sample_entry TO hubtask_app;
+-- Drafts of the configuration's shared blocks (migration 0315, ui.md A4): in force once applied.
+CREATE TABLE config_draft (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  section   text NOT NULL CHECK (section IN ('types', 'sla_policies', 'roles')),
+  -- A custom role's key may be 63 characters (0372).
+  key       text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$'),
+  block     jsonb NOT NULL
+    CHECK (jsonb_typeof(block) = 'object' AND pg_column_size(block) <= 262144),
+  saved_by  uuid NOT NULL,
+  saved_at  timestamptz NOT NULL,
+  version   integer NOT NULL DEFAULT 1,
+  PRIMARY KEY (tenant_id, section, key)
+);
+ALTER TABLE config_draft ENABLE ROW LEVEL SECURITY;
+ALTER TABLE config_draft FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON config_draft
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON config_draft TO hubtask_app;
+-- A template's pages (migration 0316, configuration.md §6): read back by the hub's document.
+CREATE TABLE template_page (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  hub_id     uuid NOT NULL,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id),
+  UNIQUE (tenant_id, hub_id, key),
+  CONSTRAINT template_page_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT template_page_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+ALTER TABLE template_page ENABLE ROW LEVEL SECURITY;
+ALTER TABLE template_page FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON template_page
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON template_page TO hubtask_app;
 -- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
 -- media before the account row is done with (migration 0199).
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey
   FOREIGN KEY (tenant_id, avatar_media_id) REFERENCES media_object (tenant_id, id)
   ON DELETE SET NULL (avatar_media_id);
+-- The same for a desk's logo (migration 0320).
+ALTER TABLE container ADD CONSTRAINT container_logo_media_fkey
+  FOREIGN KEY (tenant_id, logo_media_id) REFERENCES media_object (tenant_id, id)
+  ON DELETE SET NULL (logo_media_id);
 
 CREATE TABLE item_attachment (
   tenant_id uuid NOT NULL,
@@ -1442,9 +2479,14 @@ CREATE TABLE saved_view (
   visible_fields text[] NOT NULL DEFAULT '{}',
   sharing       text NOT NULL DEFAULT 'PRIVATE' CHECK (sharing IN ('PRIVATE','SCOPE','PUBLIC_LINK')),
   created_at    timestamptz NOT NULL DEFAULT now(),
-  version       integer NOT NULL DEFAULT 1
+  version       integer NOT NULL DEFAULT 1,
+  -- The view's stable key in its scope (migration 0293), as a rule's.
+  key           text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$')
 );
 CREATE UNIQUE INDEX saved_view_tenant_id_uq ON saved_view (tenant_id, id);
+CREATE UNIQUE INDEX saved_view_key_uq ON saved_view
+  (tenant_id, scope_type, coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+  WHERE key IS NOT NULL;
 
 CREATE TABLE template (
   id          uuid PRIMARY KEY,
@@ -1558,7 +2600,8 @@ CREATE INDEX mail_receipt_recent_idx ON mail_receipt (tenant_id, received_at DES
 CREATE TABLE mailbox (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  protocol      text NOT NULL CHECK (protocol IN ('IMAP', 'JMAP')),
+  -- GRAPH (migration 0312): Microsoft Graph, neither a host nor a session URL.
+  protocol      text NOT NULL CONSTRAINT mailbox_protocol_check CHECK (protocol IN ('IMAP', 'JMAP', 'GRAPH')),
   address       text NOT NULL,
   host          text,
   port          integer CHECK (port IS NULL OR port BETWEEN 1 AND 65535),
@@ -1660,7 +2703,8 @@ CREATE UNIQUE INDEX auto_assign_policy_scope_uq ON auto_assign_policy (tenant_id
 CREATE TABLE automation_rule (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION')),
+  -- PERSON is a person's own rule (migration 0319): scope_id is the owner, who it acts as.
+  scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION','PERSON')),
   scope_id    uuid,
   name        text NOT NULL,
   enabled     boolean NOT NULL DEFAULT true,
@@ -1691,10 +2735,18 @@ CREATE TABLE automation_rule (
   -- Switched off by the workspace's deletion request (0130), so that a cancel switches exactly
   -- these back on.
   paused_for_deletion boolean NOT NULL DEFAULT false,
+  -- The rule's stable key in its scope (migration 0293): the configuration document's name for
+  -- it, drawn from the name by a trigger when the writer named none.
+  key         text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$'),
   CONSTRAINT automation_rule_run_as_fkey
-    FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
+    FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT,
+  CONSTRAINT automation_rule_person_run_as_check
+    CHECK (scope_type <> 'PERSON' OR (scope_id IS NOT NULL AND run_as = scope_id))
 );
 CREATE UNIQUE INDEX automation_rule_tenant_id_uq ON automation_rule (tenant_id, id);
+CREATE UNIQUE INDEX automation_rule_key_uq ON automation_rule
+  (tenant_id, scope_type, coalesce(scope_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+  WHERE key IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX rule_trigger_idx ON automation_rule (tenant_id, enabled)
   WHERE deleted_at IS NULL;
 -- What the dispatcher asks per event (migration 0053): the enabled rules whose trigger is
@@ -1745,7 +2797,7 @@ CREATE TABLE rule_run_history (
   CONSTRAINT rule_run_rule_id_fkey
     FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT rule_run_trigger_check
-    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY','STEP_TAKEN'))
 );
 CREATE INDEX rule_run_idx ON rule_run_history (tenant_id, rule_id, started_at DESC);
 CREATE INDEX rule_run_trigger_idx ON rule_run_history (tenant_id, trigger, id DESC);
@@ -1772,7 +2824,7 @@ CREATE TABLE rule_run (
   CONSTRAINT rule_run_rule_id_fkey
     FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT rule_run_trigger_check
-    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY'))
+    CHECK (trigger IN ('EVENT','SCHEDULE','RELATIVE_DATE','INBOUND_WEBHOOK','MANUAL','JUMBLE_ENTRY','STEP_TAKEN'))
 ) PARTITION BY RANGE (started_at);
 CREATE INDEX rule_run_rule_idx ON rule_run (tenant_id, rule_id, started_at DESC);
 -- What the run listing's trigger filter asks: this tenant's runs of one kind, newest first.
@@ -1816,6 +2868,12 @@ CREATE TABLE webhook_subscription (
   -- Where it listens (migration 0156): a hub or a collection, both NULL for the whole workspace.
   scope_type    text,
   scope_id      uuid,
+  -- What the target receives (UC-INT-12, migration 0264): the CloudEvent or a chat room's
+  -- sentence. A chat room's credential - a Matrix token, an incoming webhook address - is sealed in
+  -- secret_enc; chat_room is the Matrix room, chat_locale the sentence's language.
+  format        text NOT NULL DEFAULT 'CLOUDEVENTS',
+  chat_room     text,
+  chat_locale   text,
   secret_enc    bytea NOT NULL,
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
@@ -1839,6 +2897,12 @@ CREATE TABLE webhook_subscription (
   CONSTRAINT webhook_subscription_scope_check CHECK (
     (scope_type IS NULL AND scope_id IS NULL)
     OR (scope_type IN ('HUB','COLLECTION') AND scope_id IS NOT NULL)
+  ),
+  CONSTRAINT webhook_subscription_format_check CHECK (
+    format IN ('CLOUDEVENTS','MATRIX','SLACK','MATTERMOST','TEAMS')
+    AND (chat_room IS NULL OR char_length(chat_room) BETWEEN 1 AND 255)
+    AND (chat_locale IS NULL OR char_length(chat_locale) BETWEEN 2 AND 16)
+    AND ((format = 'MATRIX') = (chat_room IS NOT NULL))
   )
 );
 CREATE UNIQUE INDEX webhook_subscription_tenant_id_uq ON webhook_subscription (tenant_id, id);
@@ -1875,6 +2939,8 @@ CREATE TABLE calendar_feed (
   token_hash  bytea NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   revoked_at  timestamptz,
+  -- What the token opens (migration 0284): a calendar, or a data feed of the view's rows.
+  kind        text NOT NULL DEFAULT 'CALENDAR' CHECK (kind IN ('CALENDAR', 'DATA')),
   CONSTRAINT calendar_feed_account_id_fkey
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT calendar_feed_view_id_fkey
@@ -1913,7 +2979,7 @@ CREATE TABLE notification (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
   -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -1933,6 +2999,9 @@ CREATE TABLE notification (
   -- The role somebody was given (migrations 0144, 0145, UC-NOT-01 check 9): the mail reads the role,
   -- the scope and the place's name from the grant at delivery, and a revoked grant takes it along.
   membership_id uuid,
+  -- The page whose review fell due (migration 0239, UC-DOC-12 check 4): the mail reads its title at
+  -- delivery, and a purged page takes it along.
+  page_id uuid,
 
   CONSTRAINT notification_recipient_id_fkey
     FOREIGN KEY (tenant_id, recipient_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -1948,10 +3017,13 @@ CREATE TABLE notification (
   CONSTRAINT notification_private_hub_access_id_fkey
     FOREIGN KEY (tenant_id, private_hub_access_id) REFERENCES private_hub_access (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT notification_one_subject_check
-    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id) <= 1),
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id) <= 1),
   CONSTRAINT notification_membership_id_fkey
-    FOREIGN KEY (tenant_id, membership_id) REFERENCES membership (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, membership_id) REFERENCES membership (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_page_id_fkey
+    FOREIGN KEY (tenant_id, page_id) REFERENCES page (tenant_id, id) ON DELETE CASCADE
 );
+CREATE INDEX notification_page_idx ON notification (tenant_id, page_id) WHERE page_id IS NOT NULL;
 -- Partial: the invitation carries no event, and NULLs are all distinct to a unique index.
 CREATE UNIQUE INDEX notification_event_recipient_idx
   ON notification (tenant_id, event_id, recipient_id, channel)
@@ -1959,6 +3031,13 @@ CREATE UNIQUE INDEX notification_event_recipient_idx
 CREATE INDEX notification_pending_idx
   ON notification (tenant_id, created_at) WHERE state = 'PENDING';
 CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
+-- The last invitation notification per account, for the people list (migration 0370).
+CREATE INDEX notification_invitation_idx ON notification (tenant_id, recipient_id, created_at DESC)
+  WHERE category = 'INVITATION';
+-- The last notification of any kind per account, for the people list (migration 0382).
+CREATE INDEX notification_recipient_idx ON notification (tenant_id, recipient_id, created_at DESC);
+-- A purged entry's notifications, which its cascade takes (0342).
+CREATE INDEX notification_item_idx ON notification (tenant_id, item_id) WHERE item_id IS NOT NULL;
 -- What a revocation's cascade finds its records by.
 CREATE INDEX notification_membership_idx
   ON notification (tenant_id, membership_id) WHERE membership_id IS NOT NULL;
@@ -1967,7 +3046,7 @@ CREATE INDEX notification_membership_idx
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
@@ -2067,11 +3146,21 @@ CREATE TABLE job (
   -- How far along, between 0 and 1, or NULL from a job that cannot say (migration 0032).
   progress     real,
   -- The parameters of the refusal a job ended with, beside its code (migration 0151).
-  last_error_params jsonb
+  last_error_params jsonb,
+  -- How a job that succeeded ended, where its kind says more: a message code only (migration 0171).
+  outcome      text,
+  -- How often a dead duty was revived since its last round that worked (migration 0337).
+  revivals     integer NOT NULL DEFAULT 0
 );
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
   WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING');
+-- The last invitation mail per account, for the people list (migration 0369).
+CREATE INDEX job_invitation_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
+  WHERE kind = 'notification.invitation';
+-- A notification's delivery job, for the people list's last mail (migration 0382).
+CREATE INDEX job_notification_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
+  WHERE kind = 'notification.deliver';
 
 -- What a subscriber has already seen. The outbox delivers at-least-once, so a consumer asks here
 -- before it reacts; the insert is the question (ADR-0007, db/migrations/0003).
@@ -2460,7 +3549,11 @@ CREATE TABLE restore_run (
   approved_by    uuid,
   started_at     timestamptz,
   finished_at    timestamptz,
-  error_code     text
+  error_code     text,
+  -- The sealed passphrase of a passphrase-encrypted archive's restore, held while the run goes and
+  -- emptied when it ends (migration 0327).
+  passphrase_enc bytea,
+  passphrase_key_id text
 );
 CREATE INDEX restore_run_tenant_idx ON restore_run (tenant_id, started_at DESC);
 
@@ -2626,6 +3719,75 @@ CREATE TRIGGER change_log_notify
   AFTER INSERT ON change_log
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 
+-- A live document's update wakes the connections on every process (migration 0237).
+CREATE TRIGGER realtime_update_notify
+  AFTER INSERT ON realtime_update
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
+
+-- And the document's own connections alone, by its key (migration 0303).
+CREATE OR REPLACE FUNCTION hubtask_notify_document() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_document', NEW.tenant_id::text || '/' || NEW.kind || '/' || NEW.document_id::text);
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER realtime_update_notify_document
+  AFTER INSERT ON realtime_update
+  FOR EACH ROW EXECUTE FUNCTION hubtask_notify_document();
+
+-- A credential ended rings every process holding a stream of its account, which asks the
+-- credential again at once (migration 0339): `tenant/account`, or `tenant` for a whole workspace.
+CREATE OR REPLACE FUNCTION hubtask_notify_credential() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_credential', NEW.tenant_id::text || '/' || NEW.account_id::text);
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION hubtask_notify_account_credential() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_credential', NEW.tenant_id::text || '/' || NEW.id::text);
+  RETURN NULL;
+END $$;
+
+CREATE OR REPLACE FUNCTION hubtask_notify_tenant_credential() RETURNS trigger
+  LANGUAGE plpgsql AS
+$$
+BEGIN
+  PERFORM pg_notify('hubtask_credential', NEW.id::text);
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER session_notify_credential
+  AFTER UPDATE OF revoked_at ON session
+  FOR EACH ROW WHEN (OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL)
+  EXECUTE FUNCTION hubtask_notify_credential();
+
+CREATE TRIGGER access_token_notify_credential
+  AFTER UPDATE OF revoked_at ON access_token
+  FOR EACH ROW WHEN (OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL)
+  EXECUTE FUNCTION hubtask_notify_credential();
+
+CREATE TRIGGER oauth_grant_notify_credential
+  AFTER UPDATE OF revoked_at ON oauth_grant
+  FOR EACH ROW WHEN (OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL)
+  EXECUTE FUNCTION hubtask_notify_credential();
+
+CREATE TRIGGER account_notify_credential
+  AFTER UPDATE OF status ON account
+  FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION hubtask_notify_account_credential();
+
+CREATE TRIGGER tenant_notify_credential
+  AFTER UPDATE OF status ON tenant
+  FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
+  EXECUTE FUNCTION hubtask_notify_tenant_credential();
+
 -- The wake-up for the dispatcher (ADR-0007). The queue rather than outbox_event: an event is
 -- written together with its dispatch job in one transaction, so the row the worker waits for is the
 -- job. No payload - `job` has no tenant column and none is needed, and an empty payload is what
@@ -2676,9 +3838,11 @@ CREATE TABLE import_run (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   requested_by  uuid NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('CSV','TRELLO','GOOGLE_TASKS','MICROSOFT_TODO')),
+  kind          text NOT NULL CHECK (kind IN ('CSV','TRELLO','GOOGLE_TASKS','MICROSOFT_TODO','JIRA','CONFLUENCE')),
   media_id      uuid NOT NULL,
   hub_id        uuid NOT NULL,
+  -- The existing collection an import writes into, held to its types' forms (migration 0200).
+  collection_id uuid,
   mapping       jsonb,
   -- The requester's zone and language at the request, for a source that writes dates without a
   -- zone and entries without a language: what the rows are read in.
@@ -2884,7 +4048,15 @@ BEGIN
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
-    'import_run','quota_reached'
+    'import_run','quota_reached','setting_value','entry_type','entry_field_value',
+    'link_type','entry_link','entry_reference','workflow','workflow_scheme',
+    'custom_role','custom_role_grant',
+    'config_revision','config_proposal','config_template','config_template_use',
+    'config_sandbox',
+    'work_item_announcement','work_item_flow','work_item_retention','durable_timer',
+    'realtime_document','realtime_update','realtime_snapshot',
+    'page','page_version','page_comment','page_reference','page_restriction','page_share','personal_space',
+    'page_public_link','page_article','page_article_rating'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
@@ -3283,6 +4455,28 @@ END;
 $$;
 REVOKE ALL ON FUNCTION applied_schema_versions() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION applied_schema_versions() TO hubtask_app;
+
+-- The oldest binary, by its newest embedded migration, that still works on this schema
+-- (migration 0344): a contract migration raises it, readiness compares it (deployment.md §5).
+CREATE OR REPLACE FUNCTION schema_compatibility_floor()
+RETURNS bigint
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, pg_temp AS $$
+  SELECT 0::bigint;
+$$;
+REVOKE ALL ON FUNCTION schema_compatibility_floor() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION schema_compatibility_floor() TO hubtask_app;
+
+-- The oldest open transaction's age in seconds, the caller's own left out, for alert A-25
+-- (migration 0338): the application role sees its own sessions' transactions.
+CREATE OR REPLACE FUNCTION oldest_transaction_seconds()
+RETURNS double precision
+LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
+  SELECT coalesce(extract(epoch FROM max(now() - xact_start)), 0)::double precision
+  FROM pg_catalog.pg_stat_activity
+  WHERE datname = current_database() AND xact_start IS NOT NULL AND pid <> pg_backend_pid();
+$$;
+REVOKE ALL ON FUNCTION oldest_transaction_seconds() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION oldest_transaction_seconds() TO hubtask_app;
 
 -- ============ The instance's own journal ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
@@ -4320,6 +5514,17 @@ CREATE TABLE restore_drill_marker (
 );
 REVOKE ALL ON restore_drill_marker FROM hubtask_app;
 
+-- ============================ Backfill ledger =========================
+-- Where a migration's backfill stopped, one row per migration while it runs, so that a run killed
+-- between batches resumes after the last batch it committed (versioning-release.md §4). Created by
+-- the first backfill that needs it (migration 0219); the application role has no access at all.
+CREATE TABLE migration_cursor (
+  name       text PRIMARY KEY CHECK (name ~ '^[0-9]{4}_[a-z0-9_]{1,80}$'),
+  position   text NOT NULL CHECK (char_length(position) <= 200),
+  updated_at timestamptz NOT NULL
+);
+REVOKE ALL ON migration_cursor FROM hubtask_app;
+
 -- ============ Use the platform can bill by (multi-tenancy.md §4.3, migration 0183) ============
 -- Each workspace's entries, stored bytes and people per UTC day, the day's highest and closing count,
 -- kept by statement-level triggers where the count changes; the purged workspaces' counts in the
@@ -4549,5 +5754,2354 @@ REVOKE ALL ON FUNCTION admin_usage(date, date, text, uuid, uuid, integer) FROM P
 GRANT EXECUTE ON FUNCTION admin_usage(date, date, text, uuid, uuid, integer) TO hubtask_app;
 REVOKE ALL ON FUNCTION sweep_usage(date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sweep_usage(date) TO hubtask_app;
+
+-- The assets and configuration module (M6), migration 0243.
+CREATE TABLE cmdb_class (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key            text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  parent_key     text NOT NULL,
+  name           text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  icon           text NOT NULL DEFAULT '',
+  abstract       boolean NOT NULL DEFAULT false,
+  attributes     jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(attributes) = 'array'),
+  rules          jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(rules) = 'array'),
+  required       jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(required) = 'array'),
+  staleness_days integer NOT NULL DEFAULT 0 CHECK (staleness_days BETWEEN 0 AND 3650),
+  archived_at    timestamptz,
+  created_at     timestamptz NOT NULL,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, key)
+);
+
+CREATE TABLE cmdb_relation_type (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key          text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name         text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  reverse_name text NOT NULL CHECK (char_length(reverse_name) BETWEEN 1 AND 120),
+  impact       text NOT NULL CHECK (impact IN ('NONE', 'SOURCE', 'TARGET', 'BOTH')),
+  pairs        jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(pairs) = 'array'),
+  archived_at  timestamptz,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, key)
+);
+
+CREATE TABLE cmdb_source (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$' AND key <> 'manual'),
+  kind        text NOT NULL CHECK (kind IN ('FILE', 'API', 'CONNECTOR')),
+  rank        integer NOT NULL CHECK (rank BETWEEN 1 AND 1000),
+  classes     text[] NOT NULL DEFAULT '{}',
+  may_create  boolean NOT NULL DEFAULT false,
+  mapping     jsonb,
+  last_run_at timestamptz,
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, key)
+);
+
+CREATE TABLE cmdb_ci (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id           uuid NOT NULL,
+  class_key        text NOT NULL,
+  name             text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  stage            text NOT NULL CHECK (stage IN
+                     ('PLANNED', 'ORDERED', 'IN_STOCK', 'IN_USE', 'MAINTENANCE', 'RETIRED', 'DISPOSED')),
+  status           text NOT NULL CHECK (status IN ('OK', 'PENDING', 'BLOCKED', 'MERGED')),
+  attributes       jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(attributes) = 'object'),
+  provenance       jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(provenance) = 'object'),
+  owner_account_id uuid,
+  owner_group_id   uuid,
+  location_ci_id   uuid,
+  protection       jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(protection) = 'object'),
+  review_due       date,
+  quantity         integer NOT NULL DEFAULT 1 CHECK (quantity BETWEEN 1 AND 1000000),
+  last_seen_at     timestamptz,
+  merged_into      uuid,
+  created_by       uuid NOT NULL,
+  created_at       timestamptz NOT NULL,
+  updated_by       uuid NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_ci_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_ci_hub_idx ON cmdb_ci (tenant_id, hub_id, class_key, id);
+CREATE INDEX cmdb_ci_owner_account_idx ON cmdb_ci (tenant_id, owner_account_id)
+  WHERE owner_account_id IS NOT NULL AND merged_into IS NULL;
+
+CREATE TABLE cmdb_ci_identifier (
+  tenant_id uuid NOT NULL,
+  ci_id     uuid NOT NULL,
+  hub_id    uuid NOT NULL,
+  name      text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  value     text NOT NULL CHECK (char_length(value) BETWEEN 1 AND 500),
+  PRIMARY KEY (tenant_id, ci_id, name),
+  CONSTRAINT cmdb_ci_identifier_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_ci_identifier_lookup_idx ON cmdb_ci_identifier (tenant_id, hub_id, name, value);
+
+CREATE TABLE cmdb_relation (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL,
+  hub_id       uuid NOT NULL,
+  type_key     text NOT NULL,
+  source_ci_id uuid NOT NULL,
+  target_ci_id uuid NOT NULL CHECK (target_ci_id <> source_ci_id),
+  data_source  text NOT NULL,
+  first_seen   timestamptz NOT NULL,
+  last_seen    timestamptz NOT NULL,
+  created_by   uuid NOT NULL,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, type_key, source_ci_id, target_ci_id),
+  CONSTRAINT cmdb_relation_source_fkey FOREIGN KEY (tenant_id, source_ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_relation_target_fkey FOREIGN KEY (tenant_id, target_ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_relation_source_idx ON cmdb_relation (tenant_id, source_ci_id);
+CREATE INDEX cmdb_relation_target_idx ON cmdb_relation (tenant_id, target_ci_id);
+CREATE INDEX cmdb_relation_hub_idx ON cmdb_relation (tenant_id, hub_id);
+
+CREATE TABLE cmdb_run (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL,
+  hub_id     uuid NOT NULL,
+  source_key text NOT NULL,
+  actor_id   uuid NOT NULL,
+  started_at timestamptz NOT NULL,
+  counts     jsonb NOT NULL DEFAULT '{}'::jsonb,
+  decisions  jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(decisions) = 'array'),
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_run_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_run_hub_idx ON cmdb_run (tenant_id, hub_id, started_at DESC);
+
+CREATE TABLE cmdb_hold (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL,
+  hub_id      uuid NOT NULL,
+  run_id      uuid NOT NULL,
+  source_key  text NOT NULL,
+  item        jsonb NOT NULL,
+  reason      text NOT NULL,
+  created_at  timestamptz NOT NULL,
+  resolved_at timestamptz,
+  resolved_by uuid,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_hold_run_fkey FOREIGN KEY (tenant_id, run_id)
+    REFERENCES cmdb_run (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_hold_hub_idx ON cmdb_hold (tenant_id, hub_id, created_at DESC) WHERE resolved_at IS NULL;
+
+CREATE TABLE cmdb_duplicate (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL,
+  hub_id      uuid NOT NULL,
+  ci_ids      uuid[] NOT NULL CHECK (cardinality(ci_ids) BETWEEN 2 AND 50),
+  rule        text NOT NULL,
+  created_at  timestamptz NOT NULL,
+  resolved_at timestamptz,
+  resolved_by uuid,
+  survivor_id uuid,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_duplicate_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_duplicate_hub_idx ON cmdb_duplicate (tenant_id, hub_id, created_at DESC) WHERE resolved_at IS NULL;
+
+ALTER TABLE cmdb_class ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_class FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_class
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_relation_type ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_relation_type FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_relation_type
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_source ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_source FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_source
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_ci ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_ci_identifier ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci_identifier FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci_identifier
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_relation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_relation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_relation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_run ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_run FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_run
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_hold ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_hold FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_hold
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_duplicate ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_duplicate FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_duplicate
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- DELETE is the identifier index's, a relation's and the replacing restore's (no use case deletes
+-- a CI, a run, a hold or a duplicate).
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci,
+  cmdb_ci_identifier, cmdb_relation, cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
+
+-- The connectors, their alerts and the signed deliveries seen (migrations 0245, 0246).
+CREATE TABLE cmdb_connector (
+  id                    uuid PRIMARY KEY,
+  tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id                uuid NOT NULL,
+  key                   text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  kind                  text NOT NULL CHECK (kind IN
+                          ('GLPI', 'NETBOX', 'INTUNE', 'ENTRA', 'HETZNER', 'OPENSTACK',
+                           'ALERTMANAGER', 'ZABBIX', 'CHECKMK', 'GLPI_AGENT')),
+  source_key            text NOT NULL,
+  base_url              text NOT NULL DEFAULT '',
+  settings              jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(settings) = 'object'),
+  allowed_hosts         text[] NOT NULL DEFAULT '{}',
+  every_minutes         integer NOT NULL DEFAULT 0 CHECK (every_minutes = 0 OR every_minutes BETWEEN 15 AND 10080),
+  enabled               boolean NOT NULL DEFAULT true,
+  collection_id         uuid,
+  run_as                uuid NOT NULL,
+  credential_enc        bytea,
+  credential_key_id     text,
+  cursor                text NOT NULL DEFAULT '',
+  next_run_at           timestamptz,
+  last_run_at           timestamptz,
+  last_run_id           uuid,
+  last_outcome          text NOT NULL DEFAULT '' CHECK (last_outcome IN ('', 'OK', 'EMPTY', 'FAILED')),
+  last_error            text NOT NULL DEFAULT '',
+  failures              integer NOT NULL DEFAULT 0,
+  created_at            timestamptz NOT NULL,
+  updated_at            timestamptz NOT NULL,
+  version               integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, key),
+  CONSTRAINT cmdb_connector_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_connector_credential_whole CHECK ((credential_enc IS NULL) = (credential_key_id IS NULL)),
+  -- Migrations 0376/0377.
+  CONSTRAINT cmdb_connector_run_as_fkey FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id)
+);
+CREATE INDEX cmdb_connector_hub_idx ON cmdb_connector (tenant_id, hub_id, key);
+CREATE INDEX cmdb_connector_due_idx ON cmdb_connector (tenant_id, next_run_at)
+  WHERE enabled AND next_run_at IS NOT NULL;
+
+CREATE TABLE cmdb_alert (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL,
+  hub_id        uuid NOT NULL,
+  connector_id  uuid NOT NULL,
+  dedup_key     text NOT NULL CHECK (char_length(dedup_key) BETWEEN 1 AND 200),
+  status        text NOT NULL CHECK (status IN ('FIRING', 'RESOLVED')),
+  severity      text NOT NULL DEFAULT '' CHECK (char_length(severity) <= 30),
+  title         text NOT NULL DEFAULT '' CHECK (char_length(title) <= 300),
+  ci_id         uuid,
+  entry_id      uuid,
+  first_at      timestamptz NOT NULL,
+  last_at       timestamptz NOT NULL,
+  resolved_at   timestamptz,
+  count         integer NOT NULL DEFAULT 1 CHECK (count >= 1),
+  started_at    timestamptz,  -- 0379: when the program says the current episode began
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, connector_id, dedup_key),
+  CONSTRAINT cmdb_alert_connector_fkey FOREIGN KEY (tenant_id, connector_id)
+    REFERENCES cmdb_connector (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_alert_hub_idx ON cmdb_alert (tenant_id, hub_id, last_at DESC);
+
+CREATE TABLE cmdb_intake_seen (
+  tenant_id     uuid NOT NULL,
+  connector_id  uuid NOT NULL,
+  digest        bytea NOT NULL,
+  seen_at       timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, connector_id, digest),
+  CONSTRAINT cmdb_intake_seen_connector_fkey FOREIGN KEY (tenant_id, connector_id)
+    REFERENCES cmdb_connector (tenant_id, id) ON DELETE CASCADE
+);
+
+ALTER TABLE cmdb_connector ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_connector FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_connector
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_alert ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_alert FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_alert
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_intake_seen ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_intake_seen FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_intake_seen
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- DELETE is the replacing restore's and the expired signatures'; no use case deletes a connector
+-- or an alert.
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_connector, cmdb_alert, cmdb_intake_seen TO hubtask_app;
+
+
+-- Business calendars, SLA policies and what became of each goal on an entry (migration 0247, M5).
+CREATE TABLE business_calendar (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  spec        jsonb NOT NULL,
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT business_calendar_key_uq UNIQUE (tenant_id, key)
+);
+ALTER TABLE business_calendar ENABLE ROW LEVEL SECURITY;
+ALTER TABLE business_calendar FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON business_calendar
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON business_calendar TO hubtask_app;
+
+CREATE TABLE sla_policy (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key            text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name           text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  calendar_key   text CHECK (calendar_key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  entry_types    text[] NOT NULL,
+  priority_field text NOT NULL DEFAULT '',
+  goals          jsonb NOT NULL,
+  position       integer NOT NULL DEFAULT 0,
+  enabled        boolean NOT NULL DEFAULT true,
+  created_at     timestamptz NOT NULL,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  -- the requester organisations measured; empty measures every requester's (0301)
+  organisations  text[] NOT NULL DEFAULT '{}' CHECK (cardinality(organisations) <= 20),
+  -- the group whose internal promise (an OLA) the policy is; NULL is the requester's (0310)
+  assignee_group_id uuid,
+  -- the hub it is defined at, whose entries alone it measures; null is the whole workspace. A copy
+  -- names the key it was copied from (0331, UC-SVC-02 check 13)
+  hub_id         uuid,
+  copied_from    text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
+  UNIQUE (tenant_id, id),
+  -- the calendar is held by key in the use cases: the workspace's or the installation's (0298)
+  CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key),
+  CONSTRAINT sla_policy_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX sla_policy_hub_idx ON sla_policy (tenant_id, hub_id) WHERE hub_id IS NOT NULL;
+ALTER TABLE sla_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sla_policy FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sla_policy
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sla_policy TO hubtask_app;
+
+CREATE TABLE entry_sla (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id        uuid NOT NULL,
+  goal           text NOT NULL CHECK (goal IN ('FIRST_RESPONSE', 'NEXT_RESPONSE', 'RESOLUTION')),
+  policy_key     text NOT NULL,
+  target_seconds bigint NOT NULL CHECK (target_seconds > 0),
+  standing       text NOT NULL CHECK (standing IN ('RUNNING', 'PAUSED', 'MET', 'BREACHED')),
+  armed_at       timestamptz NOT NULL,
+  due_at         timestamptz,
+  at_risk_at     timestamptz,
+  met_at         timestamptz,
+  breached_at    timestamptz,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  -- What a paused goal had spent, from which a restore re-arms it (0341).
+  consumed_seconds bigint,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_sla_goal_uq UNIQUE (tenant_id, item_id, goal),
+  CONSTRAINT entry_sla_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CHECK ((standing = 'MET') = (met_at IS NOT NULL)),
+  CHECK (standing <> 'BREACHED' OR breached_at IS NOT NULL)
+);
+-- A queue sorted by the next breach, and a report by standing.
+CREATE INDEX entry_sla_due_idx ON entry_sla (tenant_id, due_at) WHERE standing = 'RUNNING';
+CREATE INDEX entry_sla_standing_idx ON entry_sla (tenant_id, policy_key, standing);
+ALTER TABLE entry_sla ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_sla FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_sla
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_sla TO hubtask_app;
+
+-- The goals of the assignee groups' OLAs on an entry, one per entry, policy and goal (0310).
+CREATE TABLE entry_ola (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id        uuid NOT NULL,
+  policy_key     text NOT NULL,
+  group_id       uuid NOT NULL,
+  goal           text NOT NULL CHECK (goal IN ('FIRST_RESPONSE', 'RESOLUTION')),
+  target_seconds bigint NOT NULL CHECK (target_seconds > 0),
+  standing       text NOT NULL CHECK (standing IN ('RUNNING', 'PAUSED', 'MET', 'BREACHED')),
+  armed_at       timestamptz NOT NULL,
+  due_at         timestamptz,
+  at_risk_at     timestamptz,
+  met_at         timestamptz,
+  breached_at    timestamptz,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  -- What a paused goal had spent, from which a restore re-arms it (0341).
+  consumed_seconds bigint,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT entry_ola_goal_uq UNIQUE (tenant_id, item_id, policy_key, goal),
+  CONSTRAINT entry_ola_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CHECK ((standing = 'MET') = (met_at IS NOT NULL)),
+  CHECK (standing <> 'BREACHED' OR breached_at IS NOT NULL)
+);
+CREATE INDEX entry_ola_standing_idx ON entry_ola (tenant_id, policy_key, standing);
+ALTER TABLE entry_ola ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_ola FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_ola
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_ola TO hubtask_app;
+
+
+-- Canned replies (migration 0249, M5).
+CREATE TABLE reply_template (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  body        text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 20000),
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT reply_template_key_uq UNIQUE (tenant_id, key)
+);
+ALTER TABLE reply_template ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reply_template FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON reply_template
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON reply_template TO hubtask_app;
+
+
+-- How satisfied a requester was with a resolved request (migration 0250, M5).
+CREATE TABLE satisfaction_rating (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id    uuid NOT NULL,
+  score      smallint NOT NULL CHECK (score BETWEEN 1 AND 5),
+  rated_at   timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT satisfaction_rating_item_uq UNIQUE (tenant_id, item_id),
+  CONSTRAINT satisfaction_rating_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE satisfaction_rating ENABLE ROW LEVEL SECURITY;
+ALTER TABLE satisfaction_rating FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON satisfaction_rating
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_rating TO hubtask_app;
+
+
+-- An entry's scheduling mode and a plan's baselines (migration 0251, M2).
+CREATE TABLE entry_schedule (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entry_id   uuid NOT NULL,
+  mode       text NOT NULL CHECK (mode IN ('MANUAL', 'AUTOMATIC')),
+  milestone  boolean NOT NULL DEFAULT false,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  PRIMARY KEY (tenant_id, entry_id),
+  CONSTRAINT entry_schedule_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE entry_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_schedule FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_schedule
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_schedule TO hubtask_app;
+
+CREATE TABLE plan_baseline (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  plan_id     uuid NOT NULL,
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  taken_at    timestamptz NOT NULL,
+  taken_by    uuid,
+  entry_count integer NOT NULL DEFAULT 0 CHECK (entry_count BETWEEN 0 AND 10000),
+  exception_noticed_at timestamptz,  -- 0380: the plan first found in exception against it
+  UNIQUE (tenant_id, id),
+  CONSTRAINT plan_baseline_plan_fkey
+    FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX plan_baseline_plan_idx ON plan_baseline (tenant_id, plan_id, taken_at);
+ALTER TABLE plan_baseline ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_baseline FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON plan_baseline
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON plan_baseline TO hubtask_app;
+GRANT UPDATE (entry_count) ON plan_baseline TO hubtask_app;
+
+CREATE TABLE plan_baseline_entry (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  baseline_id uuid NOT NULL,
+  entry_id    uuid NOT NULL,
+  start_at    timestamptz,
+  due_at      timestamptz,
+  PRIMARY KEY (tenant_id, baseline_id, entry_id),
+  CONSTRAINT plan_baseline_entry_baseline_fkey
+    FOREIGN KEY (tenant_id, baseline_id) REFERENCES plan_baseline (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE plan_baseline_entry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_baseline_entry FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON plan_baseline_entry
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON plan_baseline_entry TO hubtask_app;
+
+-- Sprints, their entries and an entry's estimate (migration 0252, M2).
+CREATE TABLE sprint (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id   uuid NOT NULL,
+  name            text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  goal            text NOT NULL DEFAULT '' CHECK (char_length(goal) <= 500),
+  start_on        date NOT NULL,
+  end_on          date NOT NULL,
+  state           text NOT NULL CHECK (state IN ('PLANNED', 'ACTIVE', 'CLOSED')),
+  unit            text NOT NULL DEFAULT 'POINTS' CHECK (unit IN ('POINTS', 'HOURS')),
+  committed_value double precision NOT NULL DEFAULT 0,
+  committed_count integer NOT NULL DEFAULT 0,
+  completed_value double precision NOT NULL DEFAULT 0,
+  completed_count integer NOT NULL DEFAULT 0,
+  started_at      timestamptz,
+  closed_at       timestamptz,
+  created_at      timestamptz NOT NULL,
+  created_by      uuid,
+  updated_at      timestamptz NOT NULL,
+  version         integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CHECK (end_on >= start_on AND end_on - start_on < 92),
+  CONSTRAINT sprint_collection_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX sprint_collection_idx ON sprint (tenant_id, collection_id, start_on);
+CREATE UNIQUE INDEX sprint_one_active_idx ON sprint (tenant_id, collection_id)
+  WHERE state = 'ACTIVE';
+ALTER TABLE sprint ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sprint
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sprint TO hubtask_app;
+
+CREATE TABLE sprint_entry (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  sprint_id  uuid NOT NULL,
+  entry_id   uuid NOT NULL,
+  added_at   timestamptz NOT NULL,
+  removed_at timestamptz,
+  committed  boolean NOT NULL DEFAULT false,
+  outcome    text CHECK (outcome IN ('DONE', 'CARRIED', 'RETURNED')),
+  PRIMARY KEY (tenant_id, sprint_id, entry_id),
+  CONSTRAINT sprint_entry_sprint_fkey
+    FOREIGN KEY (tenant_id, sprint_id) REFERENCES sprint (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT sprint_entry_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX sprint_entry_one_open_idx ON sprint_entry (tenant_id, entry_id)
+  WHERE removed_at IS NULL AND outcome IS NULL;
+ALTER TABLE sprint_entry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sprint_entry FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sprint_entry
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sprint_entry TO hubtask_app;
+
+CREATE TABLE entry_estimate (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entry_id   uuid NOT NULL,
+  unit       text NOT NULL CHECK (unit IN ('POINTS', 'HOURS', 'SIZE')),
+  value      double precision NOT NULL CHECK (value >= 0 AND value <= 10000),
+  size       text CHECK (size IN ('XS', 'S', 'M', 'L', 'XL', 'XXL')),
+  updated_at timestamptz NOT NULL,
+  updated_by uuid,
+  version    integer NOT NULL DEFAULT 1,
+  PRIMARY KEY (tenant_id, entry_id),
+  CHECK ((unit = 'SIZE') = (size IS NOT NULL)),
+  CONSTRAINT entry_estimate_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE entry_estimate ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_estimate FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_estimate
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_estimate TO hubtask_app;
+
+-- Time (migration 0253, M7).
+CREATE TABLE time_work_type (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,39}$'),
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  billable   boolean NOT NULL DEFAULT false,
+  archived   boolean NOT NULL DEFAULT false,
+  position   integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, key)
+);
+ALTER TABLE time_work_type ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_work_type FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_work_type
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_work_type TO hubtask_app;
+
+CREATE TABLE time_record (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  entry_id   uuid,
+  work_type  text NOT NULL DEFAULT '',
+  day        date NOT NULL,
+  started_at timestamptz,
+  minutes    integer NOT NULL CHECK (minutes <> 0 AND minutes BETWEEN -1440 AND 1440),
+  note       text NOT NULL DEFAULT '' CHECK (char_length(note) <= 2000),
+  billable   boolean NOT NULL DEFAULT false,
+  source     text NOT NULL CHECK (source IN ('MANUAL', 'TIMER', 'COPY', 'CORRECTION')),
+  corrects   uuid,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  CHECK ((source = 'CORRECTION') = (corrects IS NOT NULL)),
+  CHECK (source = 'CORRECTION' OR minutes > 0)
+);
+CREATE INDEX time_record_person_idx ON time_record (tenant_id, account_id, day);
+CREATE INDEX time_record_day_idx ON time_record (tenant_id, day);
+CREATE INDEX time_record_entry_idx ON time_record (tenant_id, entry_id) WHERE entry_id IS NOT NULL;
+ALTER TABLE time_record ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_record FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_record
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_record TO hubtask_app;
+
+CREATE TABLE time_timer (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  entry_id   uuid,
+  work_type  text NOT NULL DEFAULT '',
+  note       text NOT NULL DEFAULT '' CHECK (char_length(note) <= 2000),
+  billable   boolean NOT NULL DEFAULT false,
+  started_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, account_id)
+);
+ALTER TABLE time_timer ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_timer FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_timer
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_timer TO hubtask_app;
+
+CREATE TABLE timesheet (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id   uuid NOT NULL,
+  week_start   date NOT NULL CHECK (extract(isodow FROM week_start) = 1),
+  state        text NOT NULL CHECK (state IN ('OPEN', 'SUBMITTED', 'APPROVED', 'REJECTED')),
+  minutes      integer NOT NULL DEFAULT 0,
+  submitted_at timestamptz,
+  decided_at   timestamptz,
+  decided_by   uuid,
+  reason       text NOT NULL DEFAULT '' CHECK (char_length(reason) <= 500),
+  updated_at   timestamptz NOT NULL,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, account_id, week_start)
+);
+CREATE INDEX timesheet_state_idx ON timesheet (tenant_id, state, week_start);
+ALTER TABLE timesheet ENABLE ROW LEVEL SECURITY;
+ALTER TABLE timesheet FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON timesheet
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON timesheet TO hubtask_app;
+
+CREATE TABLE time_policy (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  locked_through date,
+  visibility     text NOT NULL DEFAULT 'FULL' CHECK (visibility IN ('FULL', 'AGGREGATED')),
+  updated_at     timestamptz NOT NULL,
+  updated_by     uuid,
+  version        integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id)
+);
+ALTER TABLE time_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_policy FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_policy
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_policy TO hubtask_app;
+
+-- Time's capacity, absences, cost rates and budgets (migration 0254, M7).
+CREATE TABLE time_capacity (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id   uuid NOT NULL,
+  from_day     date NOT NULL,
+  week_minutes integer[] NOT NULL CHECK (cardinality(week_minutes) = 7
+    AND 0 <= ALL (week_minutes) AND 1440 >= ALL (week_minutes)),
+  updated_at   timestamptz NOT NULL,
+  updated_by   uuid,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, account_id, from_day)
+);
+ALTER TABLE time_capacity ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_capacity FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_capacity
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_capacity TO hubtask_app;
+
+CREATE TABLE time_absence (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  from_day   date NOT NULL,
+  to_day     date NOT NULL,
+  kind       text NOT NULL CHECK (kind IN ('LEAVE', 'TRAINING', 'OTHER')),
+  half       boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL,
+  created_by uuid,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  CHECK (to_day >= from_day AND to_day - from_day < 366)
+);
+CREATE INDEX time_absence_person_idx ON time_absence (tenant_id, account_id, from_day);
+CREATE INDEX time_absence_day_idx ON time_absence (tenant_id, to_day, from_day);
+ALTER TABLE time_absence ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_absence FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_absence
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_absence TO hubtask_app;
+
+CREATE TABLE time_cost_rate (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid,
+  role       text CHECK (char_length(role) BETWEEN 1 AND 64),
+  hour_minor bigint NOT NULL CHECK (hour_minor BETWEEN 0 AND 1000000000),
+  currency   text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  from_day   date NOT NULL,
+  to_day     date,
+  updated_at timestamptz NOT NULL,
+  updated_by uuid,
+  version    integer NOT NULL DEFAULT 1,
+  -- a billing rate's hub or collection (migration 0297): the subject is a person, a role or a plan
+  plan_id    uuid,
+  CONSTRAINT time_cost_rate_subject_check CHECK (num_nonnulls(account_id, role, plan_id) = 1),
+  CONSTRAINT time_cost_rate_check1 CHECK (to_day IS NULL OR to_day >= from_day),
+  CONSTRAINT time_cost_rate_plan_fkey
+    FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX time_cost_rate_subject_idx ON time_cost_rate (tenant_id, account_id, role, from_day);
+CREATE INDEX time_cost_rate_plan_idx ON time_cost_rate (tenant_id, plan_id, from_day)
+  WHERE plan_id IS NOT NULL;
+ALTER TABLE time_cost_rate ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_cost_rate FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_cost_rate
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_cost_rate TO hubtask_app;
+
+CREATE TABLE time_budget (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  plan_id      uuid NOT NULL,
+  minutes      bigint NOT NULL DEFAULT 0 CHECK (minutes BETWEEN 0 AND 60000000),
+  amount_minor bigint NOT NULL DEFAULT 0 CHECK (amount_minor BETWEEN 0 AND 10000000000000),
+  currency     text NOT NULL DEFAULT '' CHECK (currency = '' OR currency ~ '^[A-Z]{3}$'),
+  updated_at   timestamptz NOT NULL,
+  updated_by   uuid,
+  version      integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, plan_id),
+  CHECK (amount_minor = 0 OR currency <> ''),
+  CONSTRAINT time_budget_plan_fkey
+    FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE time_budget ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_budget FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON time_budget
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON time_budget TO hubtask_app;
+
+-- Goals and insight (migration 0255, M8).
+CREATE TABLE goal_period (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  start_on   date NOT NULL,
+  end_on     date NOT NULL,
+  state      text NOT NULL CHECK (state IN ('OPEN', 'CLOSED')),
+  closed_at  timestamptz,
+  closed_by  uuid,
+  created_at timestamptz NOT NULL,
+  created_by uuid,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CHECK (end_on >= start_on)
+);
+ALTER TABLE goal_period ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goal_period FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goal_period
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON goal_period TO hubtask_app;
+
+CREATE TABLE goal (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  period_id   uuid NOT NULL,
+  hub_id      uuid,
+  parent_id   uuid,
+  title       text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  description text NOT NULL DEFAULT '' CHECK (char_length(description) <= 10000),
+  owner_id    uuid,
+  status      text NOT NULL CHECK (status IN ('NONE', 'ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'DONE', 'DROPPED')),
+  confidence  integer NOT NULL DEFAULT -1 CHECK (confidence BETWEEN -1 AND 10),
+  key_results jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(key_results) = 'array'),
+  grade       double precision CHECK (grade BETWEEN 0 AND 1),
+  created_at  timestamptz NOT NULL,
+  created_by  uuid,
+  updated_at  timestamptz NOT NULL,
+  updated_by  uuid,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT goal_period_fkey
+    FOREIGN KEY (tenant_id, period_id) REFERENCES goal_period (tenant_id, id),
+  CONSTRAINT goal_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX goal_period_idx ON goal (tenant_id, period_id);
+CREATE INDEX goal_parent_idx ON goal (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
+ALTER TABLE goal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goal FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goal
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON goal TO hubtask_app;
+
+CREATE TABLE goal_entry (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  goal_id    uuid NOT NULL,
+  entry_id   uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  created_by uuid,
+  PRIMARY KEY (tenant_id, goal_id, entry_id),
+  CONSTRAINT goal_entry_goal_fkey
+    FOREIGN KEY (tenant_id, goal_id) REFERENCES goal (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT goal_entry_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX goal_entry_entry_idx ON goal_entry (tenant_id, entry_id);
+ALTER TABLE goal_entry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goal_entry FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goal_entry
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON goal_entry TO hubtask_app;
+
+CREATE TABLE goal_check_in (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  goal_id    uuid NOT NULL,
+  author_id  uuid,
+  status     text NOT NULL CHECK (status IN ('ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'DONE', 'DROPPED')),
+  confidence integer NOT NULL CHECK (confidence BETWEEN 0 AND 10),
+  note       text NOT NULL DEFAULT '' CHECK (char_length(note) <= 5000),
+  "values"   jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof("values") = 'object'),
+  created_at timestamptz NOT NULL,
+  CONSTRAINT goal_check_in_goal_fkey
+    FOREIGN KEY (tenant_id, goal_id) REFERENCES goal (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX goal_check_in_goal_idx ON goal_check_in (tenant_id, goal_id, created_at DESC);
+ALTER TABLE goal_check_in ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goal_check_in FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON goal_check_in
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON goal_check_in TO hubtask_app;
+
+CREATE TABLE portfolio (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  parent_id   uuid,
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  description text NOT NULL DEFAULT '' CHECK (char_length(description) <= 10000),
+  owner_id    uuid,
+  status      text NOT NULL CHECK (status IN ('NONE', 'ON_TRACK', 'AT_RISK', 'OFF_TRACK')),
+  created_at  timestamptz NOT NULL,
+  created_by  uuid,
+  updated_at  timestamptz NOT NULL,
+  updated_by  uuid,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id)
+);
+ALTER TABLE portfolio ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON portfolio
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio TO hubtask_app;
+
+CREATE TABLE portfolio_item (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  portfolio_id uuid NOT NULL,
+  container_id uuid NOT NULL,
+  position     integer NOT NULL CHECK (position >= 0),
+  start_on     date,
+  end_on       date,
+  status       text NOT NULL CHECK (status IN ('NONE', 'ON_TRACK', 'AT_RISK', 'OFF_TRACK')),
+  PRIMARY KEY (tenant_id, portfolio_id, container_id),
+  CHECK (start_on IS NULL OR end_on IS NULL OR end_on >= start_on),
+  CONSTRAINT portfolio_item_portfolio_fkey
+    FOREIGN KEY (tenant_id, portfolio_id) REFERENCES portfolio (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT portfolio_item_container_fkey
+    FOREIGN KEY (tenant_id, container_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE portfolio_item ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_item FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON portfolio_item
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_item TO hubtask_app;
+
+CREATE TABLE portfolio_update (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  portfolio_id uuid NOT NULL,
+  author_id    uuid,
+  status       text NOT NULL CHECK (status IN ('ON_TRACK', 'AT_RISK', 'OFF_TRACK')),
+  summary      text NOT NULL CHECK (char_length(summary) BETWEEN 1 AND 10000),
+  created_at   timestamptz NOT NULL,
+  CONSTRAINT portfolio_update_portfolio_fkey
+    FOREIGN KEY (tenant_id, portfolio_id) REFERENCES portfolio (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX portfolio_update_idx ON portfolio_update (tenant_id, portfolio_id, created_at DESC);
+ALTER TABLE portfolio_update ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_update FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON portfolio_update
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_update TO hubtask_app;
+
+-- A portfolio's roadmap opened by a link without signing in (migration 0329, UC-GOL-03 check 15).
+CREATE TABLE portfolio_public_link (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  portfolio_id uuid NOT NULL,
+  token_hash   bytea NOT NULL,
+  created_by   uuid NOT NULL,
+  created_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, portfolio_id),
+  CONSTRAINT portfolio_public_link_portfolio_fkey FOREIGN KEY (tenant_id, portfolio_id)
+    REFERENCES portfolio (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT portfolio_public_link_created_by_fkey FOREIGN KEY (tenant_id, created_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX portfolio_public_link_token_uq ON portfolio_public_link (token_hash);
+ALTER TABLE portfolio_public_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_public_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON portfolio_public_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_public_link TO hubtask_app;
+
+CREATE TABLE dashboard (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id     uuid,
+  owner_id   uuid,
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  sharing    text NOT NULL CHECK (sharing IN ('PRIVATE', 'SCOPE', 'GROUPS')),
+  widgets    jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(widgets) = 'array'),
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  updated_by uuid,
+  version    integer NOT NULL DEFAULT 1,
+  -- The groups a GROUPS dashboard is shared with (migration 0281).
+  group_ids  uuid[] NOT NULL DEFAULT '{}' CHECK (cardinality(group_ids) <= 20),
+  CONSTRAINT dashboard_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX dashboard_hub_idx ON dashboard (tenant_id, hub_id);
+CREATE UNIQUE INDEX dashboard_tenant_id_uq ON dashboard (tenant_id, id);
+ALTER TABLE dashboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dashboard FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON dashboard
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON dashboard TO hubtask_app;
+
+CREATE TABLE dashboard_digest (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  dashboard_id uuid NOT NULL,
+  account_id   uuid NOT NULL,
+  cadence      text NOT NULL CHECK (cadence IN ('DAILY', 'WEEKLY')),
+  weekday      smallint NOT NULL DEFAULT 0 CHECK (weekday BETWEEN 0 AND 7),
+  hour         smallint NOT NULL CHECK (hour BETWEEN 0 AND 23),
+  time_zone    text NOT NULL CHECK (char_length(time_zone) BETWEEN 1 AND 64),
+  next_at      timestamptz NOT NULL,
+  last_sent_at timestamptz,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  CHECK ((cadence = 'WEEKLY') = (weekday > 0)),
+  UNIQUE (tenant_id, dashboard_id, account_id),
+  -- Tenant-first since migration 0288 (ADR-0024).
+  CONSTRAINT dashboard_digest_dashboard_fkey
+    FOREIGN KEY (tenant_id, dashboard_id) REFERENCES dashboard (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX dashboard_digest_account_idx ON dashboard_digest (tenant_id, account_id);
+ALTER TABLE dashboard_digest ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dashboard_digest FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON dashboard_digest
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON dashboard_digest TO hubtask_app;
+
+-- An entry's status history (migration 0257): written by a trigger as an entry enters a status.
+-- `from_restore` (0381) marks the stand-in a restore's write of an entry leaves until the
+-- archive's own history for it is written back.
+CREATE TABLE entry_status_change (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id      uuid NOT NULL,
+  seq          bigint GENERATED ALWAYS AS IDENTITY,
+  status       text NOT NULL,
+  entered_at   timestamptz NOT NULL,
+  from_restore boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (tenant_id, item_id, seq),
+  CONSTRAINT entry_status_change_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE entry_status_change ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entry_status_change FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON entry_status_change
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON entry_status_change TO hubtask_app;
+CREATE OR REPLACE FUNCTION work_item_status_history() RETURNS trigger LANGUAGE plpgsql AS
+$$
+DECLARE
+  entered   timestamptz;
+  restoring boolean := coalesce(current_setting('hubtask.restoring', true), '') = 'on';
+BEGIN
+  IF NEW.status IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF TG_OP = 'UPDATE' AND NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    RETURN NULL;
+  END IF;
+  IF restoring THEN
+    entered := transaction_timestamp();
+  ELSIF TG_OP = 'UPDATE' THEN
+    entered := NEW.updated_at;
+  ELSE
+    entered := NEW.created_at;
+  END IF;
+  INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at, from_restore)
+  VALUES (NEW.tenant_id, NEW.id, NEW.status, entered, restoring);
+  RETURN NULL;
+END
+$$;
+CREATE TRIGGER work_item_status_history
+  AFTER INSERT OR UPDATE OF status ON work_item
+  FOR EACH ROW EXECUTE FUNCTION work_item_status_history();
+
+-- Kept collection figures (migration 0299): a count kept between reads beside the collection's
+-- number of changes, which every write in the workspace's context moves by trigger.
+CREATE SEQUENCE collection_figure_touch_token;
+GRANT USAGE ON SEQUENCE collection_figure_touch_token TO hubtask_app;
+
+CREATE TABLE collection_figure_touch (
+  tenant_id     uuid NOT NULL,
+  collection_id uuid NOT NULL,   -- the collection, or the workspace's id for what all of them read
+  token         bigint NOT NULL,
+  PRIMARY KEY (tenant_id, collection_id, token)
+) WITH (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.05);
+CREATE TABLE collection_figure_stamp (
+  tenant_id     uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  folded        bigint NOT NULL DEFAULT 0 CHECK (folded >= 0),
+  PRIMARY KEY (tenant_id, collection_id)
+);
+CREATE TABLE collection_figure (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL,
+  kind          text NOT NULL,
+  basis_key     text NOT NULL,
+  basis         jsonb NOT NULL,
+  changes       bigint NOT NULL CHECK (changes >= 0),
+  counts        jsonb NOT NULL,
+  counted_at    timestamptz NOT NULL,
+  verified_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, collection_id, kind, basis_key),
+  CONSTRAINT collection_figure_collection_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+-- The recount walks the longest unverified first.
+CREATE INDEX collection_figure_verified_idx ON collection_figure (tenant_id, verified_at);
+
+ALTER TABLE collection_figure_touch ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collection_figure_touch FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON collection_figure_touch
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE collection_figure_stamp ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collection_figure_stamp FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON collection_figure_stamp
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE collection_figure ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collection_figure FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON collection_figure
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON collection_figure_touch TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON collection_figure_stamp, collection_figure TO hubtask_app;
+
+-- A collection's number of changes: the folded ones and the rows not folded yet, its own and its
+-- workspace's. Monotonic, and unchanged by a fold, which moves rows into the stamp in one commit.
+-- Counts the collection's hub as well (migration 0332).
+CREATE OR REPLACE FUNCTION collection_figure_changes(collection uuid) RETURNS bigint
+LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  WITH scopes AS (
+    SELECT collection AS id
+    UNION ALL SELECT current_tenant_id()
+    UNION ALL SELECT c.parent_id FROM container c WHERE c.id = collection AND c.parent_id IS NOT NULL
+  )
+  SELECT coalesce((SELECT sum(s.folded) FROM collection_figure_stamp s
+                    WHERE s.tenant_id = current_tenant_id()
+                      AND s.collection_id IN (SELECT id FROM scopes)), 0)::bigint
+       + (SELECT count(*) FROM collection_figure_touch t
+           WHERE t.tenant_id = current_tenant_id()
+             AND t.collection_id IN (SELECT id FROM scopes))
+$$;
+GRANT EXECUTE ON FUNCTION collection_figure_changes(uuid) TO hubtask_app;
+
+-- Records that a collection changed, once per transaction and collection. The last collection is
+-- remembered so that a statement writing thousands of entries into one collection probes nothing;
+-- both settings are transaction-local and roll back with a savepoint, as the row does.
+CREATE OR REPLACE FUNCTION collection_figure_touch(tenant uuid, collection uuid) RETURNS void
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+DECLARE
+  token bigint;
+BEGIN
+  IF collection IS NULL OR tenant IS DISTINCT FROM current_tenant_id() THEN
+    RETURN;
+  END IF;
+  IF current_setting('hubtask.figure_last', true) = collection::text THEN
+    RETURN;
+  END IF;
+  -- A workspace's own deletion cascades to its entries; nothing is recorded for a workspace gone.
+  IF NOT EXISTS (SELECT 1 FROM tenant t WHERE t.id = tenant) THEN
+    RETURN;
+  END IF;
+  token := nullif(current_setting('hubtask.figure_token', true), '')::bigint;
+  IF token IS NULL THEN
+    token := nextval('collection_figure_touch_token');
+    PERFORM set_config('hubtask.figure_token', token::text, true);
+  END IF;
+  INSERT INTO collection_figure_touch (tenant_id, collection_id, token)
+  VALUES (tenant, collection, token)
+  ON CONFLICT DO NOTHING;
+  PERFORM set_config('hubtask.figure_last', collection::text, true);
+END
+$$;
+
+-- BEFORE rather than AFTER: an after-trigger queues an event per row until the statement ends, and
+-- a load of 500 000 entries would queue as many (migration 0296).
+CREATE OR REPLACE FUNCTION work_item_figure_touch() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM collection_figure_touch(OLD.tenant_id, OLD.collection_id);
+    RETURN OLD;
+  END IF;
+  PERFORM collection_figure_touch(NEW.tenant_id, NEW.collection_id);
+  IF TG_OP = 'UPDATE' AND OLD.collection_id IS DISTINCT FROM NEW.collection_id THEN
+    PERFORM collection_figure_touch(OLD.tenant_id, OLD.collection_id);
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER work_item_figure_touch
+  BEFORE INSERT OR UPDATE OR DELETE ON work_item
+  FOR EACH ROW EXECUTE FUNCTION work_item_figure_touch();
+
+-- A column's limit decides FLOW's columns over their limit.
+CREATE OR REPLACE FUNCTION bucket_figure_touch() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM collection_figure_touch(OLD.tenant_id, OLD.collection_id);
+    RETURN OLD;
+  END IF;
+  PERFORM collection_figure_touch(NEW.tenant_id, NEW.collection_id);
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER bucket_figure_touch
+  BEFORE INSERT OR UPDATE OR DELETE ON bucket
+  FOR EACH ROW EXECUTE FUNCTION bucket_figure_touch();
+
+-- A definition decides which values FIELD_SUM sums; a workspace-wide one is every collection's.
+CREATE OR REPLACE FUNCTION custom_field_figure_touch() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    PERFORM collection_figure_touch(OLD.tenant_id, coalesce(OLD.collection_id, OLD.tenant_id));
+    RETURN OLD;
+  END IF;
+  PERFORM collection_figure_touch(NEW.tenant_id, coalesce(NEW.collection_id, NEW.tenant_id));
+  IF TG_OP = 'UPDATE' AND OLD.collection_id IS DISTINCT FROM NEW.collection_id THEN
+    PERFORM collection_figure_touch(OLD.tenant_id, coalesce(OLD.collection_id, OLD.tenant_id));
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER custom_field_figure_touch
+  BEFORE INSERT OR UPDATE OR DELETE ON custom_field_definition
+  FOR EACH ROW EXECUTE FUNCTION custom_field_figure_touch();
+
+CREATE TABLE agent_model (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key            text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_-]{0,63}$'),
+  name           text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  source         text NOT NULL CHECK (source IN ('OWN', 'OFFERED')),
+  offered_id     uuid,
+  model          text NOT NULL CHECK (char_length(model) BETWEEN 1 AND 200),
+  region         text NOT NULL CHECK (region IN ('ANY', 'ADEQUACY', 'EEA', 'SELF_HOSTED')),
+  retention_days integer CHECK (retention_days BETWEEN 0 AND 3650),
+  consent_by     uuid NOT NULL,
+  consent_at     timestamptz NOT NULL,
+  revision       integer NOT NULL DEFAULT 1 CHECK (revision >= 1),
+  retired        boolean NOT NULL DEFAULT false,
+  created_at     timestamptz NOT NULL,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  CHECK ((source = 'OFFERED') = (offered_id IS NOT NULL)),
+  UNIQUE (tenant_id, key),
+  UNIQUE (tenant_id, id)
+);
+ALTER TABLE agent_model ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_model FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_model
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_model TO hubtask_app;
+
+CREATE TABLE agent (
+  id                      uuid PRIMARY KEY,
+  tenant_id               uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id              uuid NOT NULL,
+  name                    text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  purpose                 text NOT NULL CHECK (char_length(purpose) BETWEEN 1 AND 2000),
+  kind                    text NOT NULL CHECK (kind IN ('TICKET_TRIAGE', 'CI_SUGGESTION', 'DUPLICATE_REVIEW', 'KNOWLEDGE_DRAFT', 'EXTERNAL')),
+  owner_id                uuid NOT NULL,
+  risk_class              text NOT NULL CHECK (risk_class IN ('MINIMAL', 'LIMITED')),
+  scopes                  text[] NOT NULL DEFAULT '{}' CHECK (cardinality(scopes) <= 64),
+  model_id                uuid,
+  policy_reversible       text NOT NULL CHECK (policy_reversible IN ('ALLOW', 'NOTIFY', 'APPROVAL', 'NEVER')),
+  policy_irreversible     text NOT NULL CHECK (policy_irreversible IN ('APPROVAL', 'NEVER')),
+  tokens_per_day          bigint NOT NULL CHECK (tokens_per_day >= 0),
+  actions_per_hour        integer NOT NULL CHECK (actions_per_hour >= 0),
+  concurrent_runs         integer NOT NULL CHECK (concurrent_runs >= 0),
+  min_accuracy            smallint NOT NULL DEFAULT 0 CHECK (min_accuracy BETWEEN 0 AND 100),
+  status                  text NOT NULL CHECK (status IN ('DRAFT', 'APPROVED', 'ACTIVE', 'SUSPENDED', 'RETIRED')),
+  approved_by             uuid,
+  approved_at             timestamptz,
+  approved_model_revision integer NOT NULL DEFAULT 0,
+  suspended_by            uuid,
+  suspended_at            timestamptz,
+  created_by              uuid NOT NULL,
+  created_at              timestamptz NOT NULL,
+  updated_at              timestamptz NOT NULL,
+  version                 integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, account_id),
+  UNIQUE (tenant_id, id),
+  CONSTRAINT agent_model_fkey FOREIGN KEY (tenant_id, model_id) REFERENCES agent_model (tenant_id, id),
+  -- Migrations 0376/0377.
+  CONSTRAINT agent_owner_fkey FOREIGN KEY (tenant_id, owner_id) REFERENCES account (tenant_id, id)
+);
+ALTER TABLE agent ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent TO hubtask_app;
+
+CREATE TABLE agent_halt (
+  id        uuid PRIMARY KEY,
+  tenant_id uuid NOT NULL UNIQUE REFERENCES tenant(id) ON DELETE CASCADE,
+  halted    boolean NOT NULL,
+  set_by    uuid NOT NULL,
+  set_at    timestamptz NOT NULL
+);
+ALTER TABLE agent_halt ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_halt FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_halt
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_halt TO hubtask_app;
+
+CREATE TABLE agent_request (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  agent_id   uuid NOT NULL,
+  use_case   text NOT NULL CHECK (char_length(use_case) BETWEEN 1 AND 120),
+  class      text NOT NULL CHECK (class IN ('REVERSIBLE', 'IRREVERSIBLE')),
+  input      jsonb NOT NULL,
+  status     text NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'DECLINED', 'FAILED')),
+  decided_by uuid,
+  decided_at timestamptz,
+  code       text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT agent_request_agent_fkey FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id)
+);
+CREATE INDEX agent_request_pending_idx ON agent_request (tenant_id, status, created_at);
+ALTER TABLE agent_request ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_request FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_request
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE ON agent_request TO hubtask_app;
+
+CREATE TABLE agent_action (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  agent_id   uuid NOT NULL,
+  use_case   text NOT NULL CHECK (char_length(use_case) BETWEEN 1 AND 120),
+  class      text NOT NULL CHECK (class IN ('READ', 'REVERSIBLE', 'IRREVERSIBLE')),
+  decision   text NOT NULL CHECK (decision IN ('ALLOWED', 'NOTIFIED', 'HELD', 'REFUSED')),
+  code       text NOT NULL DEFAULT '',
+  tokens     bigint NOT NULL DEFAULT 0 CHECK (tokens >= 0),
+  request_id uuid,
+  at         timestamptz NOT NULL,
+  CONSTRAINT agent_action_agent_fkey FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id)
+);
+CREATE INDEX agent_action_agent_idx ON agent_action (tenant_id, agent_id, at);
+ALTER TABLE agent_action ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_action FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_action
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT ON agent_action TO hubtask_app;
+
+CREATE TABLE agent_eval_case (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  agent_id   uuid NOT NULL,
+  title      text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 500),
+  notes      text NOT NULL DEFAULT '' CHECK (char_length(notes) <= 20000),
+  expected   jsonb NOT NULL,
+  created_by uuid NOT NULL,
+  created_at timestamptz NOT NULL,
+  CONSTRAINT agent_eval_case_agent_fkey FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id)
+);
+CREATE INDEX agent_eval_case_agent_idx ON agent_eval_case (tenant_id, agent_id, created_at);
+ALTER TABLE agent_eval_case ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_eval_case FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_eval_case
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON agent_eval_case TO hubtask_app;
+
+CREATE TABLE agent_eval_run (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  agent_id       uuid NOT NULL,
+  model_revision integer NOT NULL,
+  cases          integer NOT NULL CHECK (cases >= 0),
+  passed         integer NOT NULL CHECK (passed BETWEEN 0 AND cases),
+  run_by         uuid NOT NULL,
+  at             timestamptz NOT NULL,
+  CONSTRAINT agent_eval_run_agent_fkey FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id)
+);
+CREATE INDEX agent_eval_run_agent_idx ON agent_eval_run (tenant_id, agent_id, at);
+ALTER TABLE agent_eval_run ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_eval_run FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_eval_run
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON agent_eval_run TO hubtask_app;
+
+CREATE TABLE ai_provenance (
+  id             uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  target_type    text NOT NULL CHECK (char_length(target_type) BETWEEN 1 AND 64),
+  target_id      uuid NOT NULL,
+  fields         text[] NOT NULL DEFAULT '{}',
+  suggestion_id  uuid,
+  agent_id       uuid,
+  model          text NOT NULL CHECK (char_length(model) BETWEEN 1 AND 200),
+  prompt_id      text NOT NULL DEFAULT '',
+  prompt_version text NOT NULL DEFAULT '',
+  accepted_by    uuid NOT NULL,
+  accepted_at    timestamptz NOT NULL
+);
+CREATE INDEX ai_provenance_target_idx ON ai_provenance (tenant_id, target_type, target_id, accepted_at);
+ALTER TABLE ai_provenance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_provenance FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON ai_provenance
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON ai_provenance TO hubtask_app;
+
+CREATE TABLE agent_job (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  agent_id    uuid NOT NULL,
+  target_type text NOT NULL CHECK (target_type IN ('ENTRY', 'HUB')),
+  target_id   uuid NOT NULL,
+  status      text NOT NULL CHECK (status IN ('RUNNING', 'DONE', 'FAILED')),
+  code        text NOT NULL DEFAULT '',
+  proposals   integer NOT NULL DEFAULT 0 CHECK (proposals >= 0),
+  tokens      bigint NOT NULL DEFAULT 0 CHECK (tokens >= 0),
+  started_by  uuid,
+  started_at  timestamptz NOT NULL,
+  ended_at    timestamptz,
+  CHECK ((status = 'RUNNING') = (ended_at IS NULL)),
+  CONSTRAINT agent_job_agent_fkey FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id)
+);
+CREATE INDEX agent_job_agent_idx ON agent_job (tenant_id, agent_id, started_at);
+ALTER TABLE agent_job ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_job FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON agent_job
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE ON agent_job TO hubtask_app;
+
+-- The agent a suggestion and a notification name (migrations 0260, 0261), declared after agent.
+ALTER TABLE ai_suggestion ADD COLUMN agent_id uuid,
+  ADD CONSTRAINT ai_suggestion_agent_id_fkey
+    FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id) ON DELETE CASCADE;
+ALTER TABLE notification ADD COLUMN agent_id uuid,
+  ADD CONSTRAINT notification_agent_id_fkey
+    FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id) <= 1);
+CREATE INDEX notification_agent_idx ON notification (tenant_id, agent_id) WHERE agent_id IS NOT NULL;
+
+-- Comments pinned on a whiteboard, and the board a mention's notification names (migration 0273,
+-- UC-CNV-09).
+CREATE TABLE whiteboard_comment (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  whiteboard_id uuid NOT NULL,
+  parent_id     uuid,
+  author_id     uuid,
+  body          text NOT NULL CHECK (octet_length(body) <= 65536),
+  element_id    text NOT NULL DEFAULT '' CHECK (element_id ~ '^[A-Za-z0-9_-]{0,64}$'),
+  x             double precision NOT NULL DEFAULT 0 CHECK (abs(x) <= 1000000),
+  y             double precision NOT NULL DEFAULT 0 CHECK (abs(y) <= 1000000),
+  resolved_at   timestamptz,
+  resolved_by   uuid,
+  created_at    timestamptz NOT NULL,
+  edited_at     timestamptz,
+  deleted_at    timestamptz,
+  version       integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT whiteboard_comment_board_fkey FOREIGN KEY (tenant_id, whiteboard_id)
+    REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT whiteboard_comment_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES whiteboard_comment (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT whiteboard_comment_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+CREATE INDEX whiteboard_comment_board_idx ON whiteboard_comment (tenant_id, whiteboard_id, created_at);
+CREATE INDEX whiteboard_comment_parent_idx ON whiteboard_comment (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
+ALTER TABLE whiteboard_comment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whiteboard_comment FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON whiteboard_comment
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON whiteboard_comment TO hubtask_app;
+
+ALTER TABLE notification ADD COLUMN whiteboard_id uuid,
+  ADD CONSTRAINT notification_whiteboard_id_fkey
+    FOREIGN KEY (tenant_id, whiteboard_id) REFERENCES whiteboard (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id) <= 1);
+CREATE INDEX notification_whiteboard_idx ON notification (tenant_id, whiteboard_id) WHERE whiteboard_id IS NOT NULL;
+
+-- The CMDB's assurance: affected CIs, certification campaigns, CI groups, assets and software
+-- aliases (migration 0274).
+CREATE TABLE cmdb_affected (
+  id        uuid PRIMARY KEY,
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id   uuid NOT NULL,
+  ci_id     uuid NOT NULL,
+  added_by  uuid NOT NULL,
+  added_at  timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, item_id, ci_id),
+  CONSTRAINT cmdb_affected_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_affected_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_affected_ci_idx ON cmdb_affected (tenant_id, ci_id);
+
+CREATE TABLE cmdb_campaign (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id        uuid NOT NULL,
+  name          text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  classes       text[] NOT NULL DEFAULT '{}',
+  due_by        date,
+  due_on        date NOT NULL,
+  review_months integer NOT NULL CHECK (review_months BETWEEN 1 AND 60),
+  started_by    uuid NOT NULL,
+  started_at    timestamptz NOT NULL,
+  closed_at     timestamptz,
+  closed_by     uuid,
+  version       integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_campaign_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_campaign_hub_idx ON cmdb_campaign (tenant_id, hub_id, started_at DESC);
+
+CREATE TABLE cmdb_attestation (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  campaign_id uuid NOT NULL,
+  ci_id       uuid NOT NULL,
+  owner_id    uuid,
+  verdict     text NOT NULL DEFAULT 'PENDING' CHECK (verdict IN ('PENDING', 'CONFIRMED', 'DISPUTED')),
+  attested_by uuid,
+  attested_at timestamptz,
+  PRIMARY KEY (tenant_id, campaign_id, ci_id),
+  CONSTRAINT cmdb_attestation_campaign_fkey FOREIGN KEY (tenant_id, campaign_id)
+    REFERENCES cmdb_campaign (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_attestation_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_attestation_ci_idx ON cmdb_attestation (tenant_id, ci_id);
+
+CREATE TABLE cmdb_ci_group (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id     uuid NOT NULL,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$'),
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  filter     jsonb NOT NULL,
+  service_id uuid,
+  updated_by uuid NOT NULL,
+  updated_at timestamptz NOT NULL,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, hub_id, key),
+  CONSTRAINT cmdb_ci_group_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_ci_group_service_fkey FOREIGN KEY (tenant_id, service_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE SET NULL (service_id)
+);
+
+CREATE TABLE cmdb_asset (
+  ci_id          uuid PRIMARY KEY,
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id         uuid NOT NULL,
+  asset_tag      text NOT NULL DEFAULT '' CHECK (char_length(asset_tag) <= 100),
+  cost_minor     bigint NOT NULL DEFAULT 0 CHECK (cost_minor >= 0),
+  currency       text NOT NULL DEFAULT '' CHECK (currency ~ '^([A-Z]{3})?$'),
+  purchased_on   date,
+  supplier       text NOT NULL DEFAULT '' CHECK (char_length(supplier) <= 200),
+  warranty_until date,
+  contract_id    uuid,
+  stockroom_id   uuid,
+  assigned_to    uuid,
+  request_id     uuid,
+  state          text NOT NULL CHECK (state IN ('REQUESTED', 'ORDERED', 'IN_STOCK', 'DEPLOYED', 'RETIRED', 'DISPOSED')),
+  disposal       jsonb,
+  updated_by     uuid NOT NULL,
+  updated_at     timestamptz NOT NULL,
+  version        integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, ci_id),
+  CONSTRAINT cmdb_asset_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_asset_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_asset_contract_fkey FOREIGN KEY (tenant_id, contract_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE SET NULL (contract_id),
+  CONSTRAINT cmdb_asset_stockroom_fkey FOREIGN KEY (tenant_id, stockroom_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE SET NULL (stockroom_id),
+  CONSTRAINT cmdb_asset_assigned_fkey FOREIGN KEY (tenant_id, assigned_to)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (assigned_to),
+  CONSTRAINT cmdb_asset_request_fkey FOREIGN KEY (tenant_id, request_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE SET NULL (request_id)
+);
+CREATE INDEX cmdb_asset_hub_idx ON cmdb_asset (tenant_id, hub_id, ci_id);
+
+CREATE TABLE cmdb_software_alias (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  match_publisher text NOT NULL DEFAULT '' CHECK (char_length(match_publisher) <= 200),
+  match_product   text NOT NULL CHECK (char_length(match_product) BETWEEN 1 AND 200),
+  publisher       text NOT NULL DEFAULT '' CHECK (char_length(publisher) <= 200),
+  product         text NOT NULL CHECK (char_length(product) BETWEEN 1 AND 200),
+  updated_by      uuid NOT NULL,
+  updated_at      timestamptz NOT NULL,
+  version         integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, match_publisher, match_product)
+);
+
+ALTER TABLE cmdb_affected ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_affected FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_affected
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_campaign ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_campaign FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_campaign
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_attestation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_attestation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_attestation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_ci_group ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci_group FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci_group
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_asset ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_asset FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_asset
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE cmdb_software_alias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_software_alias FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_software_alias
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- Approvals: a step waiting for people's yes, its decisions and delegations (migration 0275).
+CREATE TABLE approval (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id       uuid NOT NULL,
+  workflow_key  text NOT NULL,
+  step_key      text NOT NULL,
+  item_version  integer NOT NULL,
+  levels        jsonb NOT NULL,
+  decline_to    text NOT NULL DEFAULT '',
+  due_hours     integer NOT NULL DEFAULT 0 CHECK (due_hours BETWEEN 0 AND 2160),
+  current_level smallint NOT NULL DEFAULT 0 CHECK (current_level BETWEEN 0 AND 4),
+  state         text NOT NULL CHECK (state IN ('PENDING', 'APPROVED', 'DECLINED', 'WITHDRAWN')),
+  requested_by  uuid NOT NULL,
+  requested_at  timestamptz NOT NULL,
+  level_since   timestamptz NOT NULL,
+  decided_at    timestamptz,
+  version       integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT approval_item_fkey
+    FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+-- One approval waits on an entry at a time.
+CREATE UNIQUE INDEX approval_pending_uq ON approval (tenant_id, item_id) WHERE state = 'PENDING';
+CREATE INDEX approval_item_idx ON approval (tenant_id, item_id, requested_at DESC);
+
+CREATE TABLE approval_decision (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  approval_id   uuid NOT NULL,
+  level         smallint NOT NULL CHECK (level BETWEEN 0 AND 4),
+  approver_id   uuid NOT NULL,
+  on_behalf_of  uuid,
+  verdict       text NOT NULL CHECK (verdict IN ('APPROVE', 'DECLINE')),
+  reason        text NOT NULL DEFAULT '',
+  item_version  integer NOT NULL,
+  decided_at    timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT approval_decision_approval_fkey
+    FOREIGN KEY (tenant_id, approval_id) REFERENCES approval (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT approval_decision_once UNIQUE (tenant_id, approval_id, level, approver_id)
+);
+
+CREATE TABLE approval_delegation (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id  uuid NOT NULL,
+  delegate_id uuid NOT NULL CHECK (delegate_id <> account_id),
+  starts_at   timestamptz NOT NULL,
+  ends_at     timestamptz NOT NULL CHECK (ends_at > starts_at),
+  PRIMARY KEY (tenant_id, account_id)
+);
+
+ALTER TABLE approval ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON approval
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE approval_decision ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_decision FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON approval_decision
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE approval_delegation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_delegation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON approval_delegation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- An approval's people told and reminded, and its asker told of an overdue level (migration 0276).
+ALTER TABLE notification ADD COLUMN approval_id uuid,
+  ADD CONSTRAINT notification_approval_id_fkey
+    FOREIGN KEY (tenant_id, approval_id) REFERENCES approval (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id) <= 1);
+CREATE INDEX notification_approval_idx ON notification (tenant_id, approval_id) WHERE approval_id IS NOT NULL;
+
+-- A hub's own version of a workspace business calendar (migration 0277).
+CREATE TABLE hub_business_calendar (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id      uuid NOT NULL,
+  key         text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  spec        jsonb NOT NULL,
+  created_at  timestamptz NOT NULL,
+  updated_at  timestamptz NOT NULL,
+  version     integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT hub_business_calendar_key_uq UNIQUE (tenant_id, hub_id, key),
+  CONSTRAINT hub_business_calendar_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX hub_business_calendar_key_idx ON hub_business_calendar (tenant_id, key);
+ALTER TABLE hub_business_calendar ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hub_business_calendar FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON hub_business_calendar
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- A hub template's part and the hubs that took it (migration 0278).
+ALTER TABLE config_template ADD COLUMN hub_document jsonb;
+-- A template's collection part (migration 0317); a collection's use is a row below under its id.
+ALTER TABLE config_template ADD COLUMN collection_document jsonb;
+CREATE TABLE config_hub_template_use (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id       uuid NOT NULL,
+  template_key text NOT NULL,
+  version      integer NOT NULL,
+  document     jsonb NOT NULL,
+  applied_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, hub_id, template_key),
+  CONSTRAINT config_hub_template_use_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE config_hub_template_use ENABLE ROW LEVEL SECURITY;
+ALTER TABLE config_hub_template_use FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON config_hub_template_use
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- Releases and their entries (migration 0279, M2, PLN-08).
+CREATE TABLE release (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id        uuid NOT NULL,
+  name          text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  description   text NOT NULL DEFAULT '' CHECK (char_length(description) <= 2000),
+  release_on    date NOT NULL,
+  state         text NOT NULL CHECK (state IN ('PLANNED', 'RELEASED')),
+  released_at   timestamptz,
+  notes_page_id uuid,
+  created_at    timestamptz NOT NULL,
+  created_by    uuid,
+  updated_at    timestamptz NOT NULL,
+  version       integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CHECK ((state = 'RELEASED') = (released_at IS NOT NULL)),
+  CONSTRAINT release_hub_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX release_hub_idx ON release (tenant_id, hub_id, release_on);
+ALTER TABLE release ENABLE ROW LEVEL SECURITY;
+ALTER TABLE release FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON release
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON release TO hubtask_app;
+
+CREATE TABLE release_entry (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  release_id uuid NOT NULL,
+  entry_id   uuid NOT NULL,
+  added_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, release_id, entry_id),
+  CONSTRAINT release_entry_release_fkey
+    FOREIGN KEY (tenant_id, release_id) REFERENCES release (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT release_entry_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX release_entry_one_idx ON release_entry (tenant_id, entry_id);
+ALTER TABLE release_entry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE release_entry FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON release_entry
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON release_entry TO hubtask_app;
+
+-- A plan in exception told to whoever decided its tolerance, once per baseline (migration 0280).
+ALTER TABLE notification ADD COLUMN baseline_id uuid,
+  ADD CONSTRAINT notification_baseline_id_fkey
+    FOREIGN KEY (tenant_id, baseline_id) REFERENCES plan_baseline (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id, baseline_id) <= 1);
+CREATE UNIQUE INDEX notification_baseline_once
+  ON notification (tenant_id, baseline_id, recipient_id, channel) WHERE baseline_id IS NOT NULL;
+
+-- The code on an entry: a forge's hooks and an entry's code links (migration 0282).
+CREATE TABLE code_hook (
+  id                uuid PRIMARY KEY,
+  tenant_id         uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id            uuid NOT NULL,
+  kind              text NOT NULL CHECK (kind IN ('GITHUB', 'GITLAB', 'FORGEJO')),
+  name              text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  enabled           boolean NOT NULL DEFAULT true,
+  salt              text NOT NULL CHECK (char_length(salt) BETWEEN 16 AND 128),
+  run_as            uuid NOT NULL,
+  created_at        timestamptz NOT NULL,
+  updated_at        timestamptz NOT NULL,
+  last_delivery_at  timestamptz,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT code_hook_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  -- Migrations 0376/0377.
+  CONSTRAINT code_hook_run_as_fkey FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id)
+);
+CREATE INDEX code_hook_hub_idx ON code_hook (tenant_id, hub_id, created_at);
+
+CREATE TABLE code_link (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL,
+  item_id      uuid NOT NULL,
+  hub_id       uuid NOT NULL,
+  hook_id      uuid NOT NULL,
+  kind         text NOT NULL CHECK (kind IN ('COMMIT', 'BRANCH', 'PULL_REQUEST')),
+  repository   text NOT NULL CHECK (char_length(repository) BETWEEN 1 AND 200),
+  ref          text NOT NULL CHECK (char_length(ref) BETWEEN 1 AND 255),
+  title        text NOT NULL DEFAULT '' CHECK (char_length(title) <= 300),
+  url          text NOT NULL DEFAULT '' CHECK (char_length(url) <= 2048),
+  author       text NOT NULL DEFAULT '' CHECK (char_length(author) <= 100),
+  state        text NOT NULL CHECK (state IN ('PUSHED', 'OPEN', 'MERGED', 'CLOSED')),
+  happened_at  timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, item_id, hook_id, kind, repository, ref),
+  CONSTRAINT code_link_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT code_link_hook_fkey FOREIGN KEY (tenant_id, hook_id)
+    REFERENCES code_hook (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX code_link_item_idx ON code_link (tenant_id, item_id, happened_at DESC);
+
+CREATE TABLE code_delivery_seen (
+  tenant_id  uuid NOT NULL,
+  hook_id    uuid NOT NULL,
+  digest     bytea NOT NULL,
+  seen_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, hook_id, digest),
+  CONSTRAINT code_delivery_seen_hook_fkey FOREIGN KEY (tenant_id, hook_id)
+    REFERENCES code_hook (tenant_id, id) ON DELETE CASCADE
+);
+
+ALTER TABLE code_hook ENABLE ROW LEVEL SECURITY;
+ALTER TABLE code_hook FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON code_hook
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE code_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE code_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON code_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+ALTER TABLE code_delivery_seen ENABLE ROW LEVEL SECURITY;
+ALTER TABLE code_delivery_seen FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON code_delivery_seen
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+-- DELETE is the replacing restore's and the expired digests'; no use case removes a hook or a link -
+-- a hook is switched off, and a link goes with its entry.
+GRANT SELECT, INSERT, UPDATE, DELETE ON code_hook, code_link, code_delivery_seen TO hubtask_app;
+
+-- A file in a store on an entry (migration 0283).
+CREATE TABLE file_link (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL,
+  item_id    uuid NOT NULL,
+  provider   text NOT NULL CHECK (provider IN ('NEXTCLOUD', 'SHAREPOINT', 'ONEDRIVE', 'WEBDAV')),
+  address    text NOT NULL CHECK (char_length(address) BETWEEN 9 AND 2048 AND address LIKE 'https://%'),
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 200),
+  added_by   uuid NOT NULL,
+  added_at   timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, item_id, address),
+  CONSTRAINT file_link_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX file_link_item_idx ON file_link (tenant_id, item_id, added_at);
+
+ALTER TABLE file_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE file_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON file_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON file_link TO hubtask_app;
+
+-- A calendar feed pushed into a provider's calendar (migration 0285).
+-- A feed's identity per workspace, which the push's tenant-scoped reference needs; a small table.
+CREATE UNIQUE INDEX calendar_feed_tenant_id_uq ON calendar_feed (tenant_id, id);
+
+CREATE TABLE calendar_push (
+  id                uuid PRIMARY KEY,
+  tenant_id         uuid NOT NULL,
+  account_id        uuid NOT NULL,
+  feed_id           uuid NOT NULL,
+  provider          text NOT NULL CHECK (provider IN ('MICROSOFT', 'GOOGLE')),
+  address           text NOT NULL DEFAULT '' CHECK (char_length(address) <= 320),
+  secret_enc        bytea NOT NULL,
+  secret_key_id     text NOT NULL,
+  state             text NOT NULL CHECK (state IN ('ACTIVE', 'FAILED')),
+  failure           text NOT NULL DEFAULT '' CHECK (char_length(failure) <= 120),
+  pushed_at         timestamptz,
+  created_at        timestamptz NOT NULL,
+  updated_at        timestamptz NOT NULL,
+  version           integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, feed_id, provider),
+  CONSTRAINT calendar_push_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT calendar_push_feed_fkey FOREIGN KEY (tenant_id, feed_id)
+    REFERENCES calendar_feed (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX calendar_push_account_idx ON calendar_push (tenant_id, account_id, created_at);
+
+CREATE TABLE calendar_push_event (
+  tenant_id  uuid NOT NULL,
+  push_id    uuid NOT NULL,
+  entry_id   uuid NOT NULL,
+  remote_id  text NOT NULL CHECK (char_length(remote_id) BETWEEN 1 AND 1024),
+  digest     text NOT NULL CHECK (char_length(digest) <= 64),
+  pushed_at  timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, push_id, entry_id),
+  CONSTRAINT calendar_push_event_push_fkey FOREIGN KEY (tenant_id, push_id)
+    REFERENCES calendar_push (tenant_id, id) ON DELETE CASCADE
+);
+
+CREATE TABLE calendar_push_authorization (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL,
+  account_id      uuid NOT NULL,
+  feed_id         uuid NOT NULL,
+  provider        text NOT NULL CHECK (provider IN ('MICROSOFT', 'GOOGLE')),
+  state_hash      bytea NOT NULL,
+  verifier_enc    bytea NOT NULL,
+  verifier_key_id text NOT NULL,
+  expires_at      timestamptz NOT NULL,
+  CONSTRAINT calendar_push_authorization_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX calendar_push_authorization_state_uq ON calendar_push_authorization (tenant_id, state_hash);
+
+ALTER TABLE calendar_push ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_push FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON calendar_push
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON calendar_push TO hubtask_app;
+
+ALTER TABLE calendar_push_event ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_push_event FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON calendar_push_event
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON calendar_push_event TO hubtask_app;
+
+ALTER TABLE calendar_push_authorization ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_push_authorization FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON calendar_push_authorization
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON calendar_push_authorization TO hubtask_app;
+
+-- A person's own sign-in to a file store (migration 0286).
+CREATE TABLE file_store_connection (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL,
+  account_id    uuid NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('NEXTCLOUD', 'MICROSOFT')),
+  server        text NOT NULL DEFAULT '' CHECK (char_length(server) <= 512 AND (server = '' OR server LIKE 'https://%')),
+  login         text NOT NULL DEFAULT '' CHECK (char_length(login) <= 320),
+  secret_enc    bytea NOT NULL,
+  secret_key_id text NOT NULL,
+  created_at    timestamptz NOT NULL,
+  used_at       timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, account_id, kind, server, login),
+  CONSTRAINT file_store_connection_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX file_store_connection_account_idx ON file_store_connection (tenant_id, account_id, created_at);
+
+CREATE TABLE file_store_authorization (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL,
+  account_id    uuid NOT NULL,
+  kind          text NOT NULL CHECK (kind IN ('NEXTCLOUD', 'MICROSOFT')),
+  server        text NOT NULL DEFAULT '' CHECK (char_length(server) <= 512),
+  poll_endpoint text NOT NULL DEFAULT '' CHECK (char_length(poll_endpoint) <= 1024),
+  state_hash    bytea NOT NULL,
+  secret_enc    bytea NOT NULL,
+  secret_key_id text NOT NULL,
+  expires_at    timestamptz NOT NULL,
+  CONSTRAINT file_store_authorization_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX file_store_authorization_state_uq ON file_store_authorization (tenant_id, state_hash);
+
+ALTER TABLE file_store_connection ENABLE ROW LEVEL SECURITY;
+ALTER TABLE file_store_connection FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON file_store_connection
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON file_store_connection TO hubtask_app;
+
+ALTER TABLE file_store_authorization ENABLE ROW LEVEL SECURITY;
+ALTER TABLE file_store_authorization FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON file_store_authorization
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON file_store_authorization TO hubtask_app;
+
+-- A chat bot in a hub's room (migrations 0287, 0295): a Matrix account, or a Slack, Teams or
+-- Mattermost app posting to the bot's intake.
+CREATE TABLE chat_bot (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL,
+  hub_id        uuid NOT NULL,
+  collection_id uuid NOT NULL,
+  homeserver    text NOT NULL CHECK (char_length(homeserver) <= 512 AND homeserver LIKE 'https://%'),
+  room          text NOT NULL CHECK (char_length(room) BETWEEN 3 AND 255),
+  bot_user      text NOT NULL CHECK (char_length(bot_user) <= 255),
+  locale        text NOT NULL DEFAULT '' CHECK (char_length(locale) <= 16),
+  unfurl        boolean NOT NULL,
+  capture       boolean NOT NULL,
+  enabled       boolean NOT NULL,
+  run_as        uuid NOT NULL,
+  since         text NOT NULL DEFAULT '' CHECK (char_length(since) <= 1024),
+  failure       text NOT NULL DEFAULT '' CHECK (char_length(failure) <= 120),
+  secret_enc    bytea NOT NULL,
+  secret_key_id text NOT NULL,
+  created_at    timestamptz NOT NULL,
+  updated_at    timestamptz NOT NULL,
+  version       integer NOT NULL DEFAULT 1,
+  platform      text NOT NULL DEFAULT 'MATRIX'
+    CONSTRAINT chat_bot_platform_check CHECK (platform IN ('MATRIX', 'SLACK', 'TEAMS', 'MATTERMOST')),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, hub_id, homeserver, room),
+  CONSTRAINT chat_bot_run_as_fkey FOREIGN KEY (tenant_id, run_as)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT chat_bot_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT chat_bot_collection_fkey FOREIGN KEY (tenant_id, collection_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX chat_bot_hub_idx ON chat_bot (tenant_id, hub_id, created_at);
+
+ALTER TABLE chat_bot ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_bot FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON chat_bot
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON chat_bot TO hubtask_app;
+
+-- A person linked to their chat account through a bot (migration 0328).
+CREATE TABLE chat_link (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL,
+  bot_id          uuid NOT NULL,
+  account_id      uuid NOT NULL,
+  chat_user       text NOT NULL DEFAULT '' CHECK (char_length(chat_user) <= 255),
+  address         text NOT NULL DEFAULT '' CHECK (char_length(address) <= 1024),
+  code_hash       bytea,
+  code_expires_at timestamptz,
+  created_at      timestamptz NOT NULL,
+  linked_at       timestamptz,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, bot_id, account_id),
+  CONSTRAINT chat_link_bot_fkey FOREIGN KEY (tenant_id, bot_id)
+    REFERENCES chat_bot (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT chat_link_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX chat_link_user_idx ON chat_link (tenant_id, bot_id, chat_user) WHERE chat_user <> '';
+CREATE UNIQUE INDEX chat_link_code_idx ON chat_link (tenant_id, bot_id, code_hash) WHERE code_hash IS NOT NULL;
+CREATE INDEX chat_link_account_idx ON chat_link (tenant_id, account_id);
+
+ALTER TABLE chat_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON chat_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON chat_link TO hubtask_app;
+
+-- Migration 0289: what the retention pass reads of pages and boards.
+CREATE INDEX page_trashed_idx ON page (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX page_children_idx ON page (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX whiteboard_trashed_idx ON whiteboard (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
+CREATE INDEX page_version_unnamed_idx ON page_version (tenant_id, created_at) WHERE name = '';
+
+-- Migration 0290: A requester without an account (accepted.md B, data-protection.md §4): an address that wrote in
+-- by mail and whose request an account filed on its behalf, with its name, its first and last
+-- contact and the entries it wrote on. REQUESTER removes it 24 months after the last contact; an
+-- erasure case by address removes it at once.
+CREATE TABLE requester (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  address          text NOT NULL CHECK (char_length(address) BETWEEN 3 AND 320 AND address = lower(address)),
+  display_name     text NOT NULL DEFAULT '' CHECK (char_length(display_name) <= 200),
+  first_contact_at timestamptz NOT NULL,
+  last_contact_at  timestamptz NOT NULL,
+  CHECK (last_contact_at >= first_contact_at),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, address)
+);
+CREATE INDEX requester_last_contact_idx ON requester (tenant_id, last_contact_at);
+ALTER TABLE requester ENABLE ROW LEVEL SECURITY;
+ALTER TABLE requester FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON requester
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON requester TO hubtask_app;
+
+CREATE TABLE requester_contact (
+  tenant_id    uuid NOT NULL,
+  requester_id uuid NOT NULL,
+  item_id      uuid NOT NULL,
+  at           timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, requester_id, item_id),
+  CONSTRAINT requester_contact_requester_fkey FOREIGN KEY (tenant_id, requester_id)
+    REFERENCES requester (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT requester_contact_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX requester_contact_item_idx ON requester_contact (tenant_id, item_id);
+ALTER TABLE requester_contact ENABLE ROW LEVEL SECURITY;
+ALTER TABLE requester_contact FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON requester_contact
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON requester_contact TO hubtask_app;
+
+-- The LDAP directory a workspace synchronises its people from (migration 0292, identity.md §27):
+-- the bind password sealed under the installation's key; who it holds is the `ldap:` prefix on
+-- account.external_id and account_group.external_id.
+CREATE TABLE ldap_directory (
+  tenant_id            uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  url                  text NOT NULL CHECK (url ~ '^ldaps?://' AND char_length(url) <= 500),
+  bind_dn              text NOT NULL CHECK (char_length(bind_dn) BETWEEN 1 AND 1000),
+  password_enc         bytea NOT NULL,
+  password_key_id      text NOT NULL,
+  user_base            text NOT NULL CHECK (char_length(user_base) BETWEEN 1 AND 1000),
+  user_filter          text NOT NULL CHECK (char_length(user_filter) BETWEEN 1 AND 2000),
+  group_base           text CHECK (group_base IS NULL OR char_length(group_base) BETWEEN 1 AND 1000),
+  group_filter         text NOT NULL CHECK (char_length(group_filter) BETWEEN 1 AND 2000),
+  id_attribute         text NOT NULL CHECK (char_length(id_attribute) BETWEEN 1 AND 100),
+  mail_attribute       text NOT NULL CHECK (char_length(mail_attribute) BETWEEN 1 AND 100),
+  name_attribute       text NOT NULL CHECK (char_length(name_attribute) BETWEEN 1 AND 100),
+  group_name_attribute text NOT NULL CHECK (char_length(group_name_attribute) BETWEEN 1 AND 100),
+  member_attribute     text NOT NULL CHECK (char_length(member_attribute) BETWEEN 1 AND 100),
+  run_as               uuid NOT NULL,
+  every_minutes        integer NOT NULL CHECK (every_minutes BETWEEN 15 AND 1440),
+  enabled              boolean NOT NULL,
+  next_run_at          timestamptz,
+  last_run_at          timestamptz,
+  last_outcome         text CHECK (last_outcome IN ('OK', 'PARTIAL', 'REFUSED', 'FAILED')),
+  last_error           text CHECK (char_length(last_error) <= 200),
+  last_counts          jsonb,
+  failures             integer NOT NULL DEFAULT 0 CHECK (failures >= 0),
+  created_at           timestamptz NOT NULL,
+  updated_at           timestamptz NOT NULL,
+  updated_by           uuid
+);
+ALTER TABLE ldap_directory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ldap_directory FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON ldap_directory
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON ldap_directory TO hubtask_app;
+
+
+-- A portal's organisations (migration 0294, UC-SVC-11): requesters grouped by mail domain, a
+-- domain in at most one organisation of a workspace (a trigger under a lock per workspace).
+CREATE TABLE requester_organisation (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key              text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  name             text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
+  domains          text[] NOT NULL CHECK (cardinality(domains) BETWEEN 1 AND 20),
+  shares_requests  boolean NOT NULL DEFAULT false,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT requester_organisation_key_uq UNIQUE (tenant_id, key)
+);
+CREATE INDEX requester_organisation_domains_idx ON requester_organisation USING gin (domains);
+ALTER TABLE requester_organisation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE requester_organisation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON requester_organisation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON requester_organisation TO hubtask_app;
+CREATE FUNCTION requester_organisation_domains_unique() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('requester_organisation:' || NEW.tenant_id::text, 0));
+  IF EXISTS (
+    SELECT 1 FROM requester_organisation o
+    WHERE o.tenant_id = NEW.tenant_id AND o.id <> NEW.id AND o.domains && NEW.domains
+  ) THEN
+    RAISE EXCEPTION 'a mail domain belongs to another organisation'
+      USING ERRCODE = 'unique_violation', CONSTRAINT = 'requester_organisation_domain_uq';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER requester_organisation_domains_unique
+  BEFORE INSERT OR UPDATE OF domains ON requester_organisation
+  FOR EACH ROW EXECUTE FUNCTION requester_organisation_domains_unique();
+
+
+-- Migration 0309: a collection's public form (UC-SVC-13); only the token's hash is kept.
+CREATE TABLE public_form (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL,
+  token_hash    bytea NOT NULL,
+  created_by    uuid NOT NULL,
+  created_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, collection_id),
+  CONSTRAINT public_form_collection_fkey FOREIGN KEY (tenant_id, collection_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT public_form_created_by_fkey FOREIGN KEY (tenant_id, created_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX public_form_token_uq ON public_form (token_hash);
+ALTER TABLE public_form ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public_form FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON public_form
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public_form TO hubtask_app;
+
+-- Migration 0311: a resolution mail's satisfaction link (UC-SVC-07 check 6), one per requester and
+-- entry, hung on the contact; only the token's hash is kept.
+CREATE TABLE satisfaction_link (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  requester_id uuid NOT NULL,
+  item_id      uuid NOT NULL,
+  token_hash   bytea NOT NULL,
+  created_at   timestamptz NOT NULL,
+  expires_at   timestamptz NOT NULL,
+  used_at      timestamptz,
+  PRIMARY KEY (tenant_id, requester_id, item_id),
+  CHECK (expires_at > created_at),
+  CONSTRAINT satisfaction_link_contact_fkey FOREIGN KEY (tenant_id, requester_id, item_id)
+    REFERENCES requester_contact (tenant_id, requester_id, item_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX satisfaction_link_token_uq ON satisfaction_link (token_hash);
+ALTER TABLE satisfaction_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE satisfaction_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON satisfaction_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_link TO hubtask_app;
+
+-- Migration 0326: a public form's spent challenges (UC-SVC-13 check 8), kept until they expire so a
+-- challenge is answered once across every server.
+CREATE TABLE public_form_challenge (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  nonce      text NOT NULL CHECK (char_length(nonce) BETWEEN 1 AND 64),
+  expires_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, nonce)
+);
+CREATE INDEX public_form_challenge_expiry_idx ON public_form_challenge (tenant_id, expires_at);
+ALTER TABLE public_form_challenge ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public_form_challenge FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON public_form_challenge
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public_form_challenge TO hubtask_app;
+
+-- Migrations 0338-0358: a notification about a failing mailbox, a SAML certificate ending, a
+-- calendar push, a CMDB connector or a forge's hook; what the certificate watch keeps; a durable
+-- timer's attempts.
+ALTER TABLE notification ADD COLUMN mailbox_id uuid,
+  ADD COLUMN identity_provider_id uuid,
+  ADD COLUMN calendar_push_id uuid,
+  ADD COLUMN cmdb_connector_id uuid,
+  ADD COLUMN code_hook_id uuid,
+  ADD CONSTRAINT notification_mailbox_id_fkey
+    FOREIGN KEY (tenant_id, mailbox_id) REFERENCES mailbox (tenant_id, id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_identity_provider_id_fkey
+    FOREIGN KEY (identity_provider_id) REFERENCES identity_provider (id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_calendar_push_id_fkey
+    FOREIGN KEY (tenant_id, calendar_push_id) REFERENCES calendar_push (tenant_id, id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_cmdb_connector_id_fkey
+    FOREIGN KEY (tenant_id, cmdb_connector_id) REFERENCES cmdb_connector (tenant_id, id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_code_hook_id_fkey
+    FOREIGN KEY (tenant_id, code_hook_id) REFERENCES code_hook (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id, baseline_id, mailbox_id, identity_provider_id, calendar_push_id,
+      cmdb_connector_id, code_hook_id) <= 1);
+ALTER TABLE identity_provider ADD COLUMN saml_expiry_told_for timestamptz,
+  ADD COLUMN saml_expiry_told_days smallint,
+  ADD COLUMN saml_certificates_end timestamptz;
+ALTER TABLE durable_timer ADD COLUMN fire_attempts integer NOT NULL DEFAULT 0;
+
+-- Migrations 0355-0368: a custom field's name; a collection's key prefix (its functions and trigger
+-- are the migration's); an import's dry run; the addresses mail no longer reaches; an agent
+-- request being performed.
+ALTER TABLE custom_field_definition ADD COLUMN name text NULL,
+  ADD CONSTRAINT cfd_name_length CHECK (char_length(name) BETWEEN 1 AND 100);
+ALTER TABLE container ADD COLUMN key_prefix text,
+  ADD CONSTRAINT container_key_prefix_check
+    CHECK (key_prefix IS NULL OR (type = 'COLLECTION' AND key_prefix ~ '^[A-Z][A-Z0-9]{1,4}$'));
+CREATE UNIQUE INDEX container_key_prefix_uq ON container (tenant_id, key_prefix) WHERE key_prefix IS NOT NULL;
+ALTER TABLE import_run ADD COLUMN dry_run boolean NOT NULL DEFAULT false;
+CREATE TABLE mail_undeliverable (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  address    text NOT NULL CHECK (char_length(address) <= 320),
+  since      timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT mail_undeliverable_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE mail_undeliverable ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mail_undeliverable FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON mail_undeliverable
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON mail_undeliverable TO hubtask_app;
+ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
+
+-- Migration 0383: the products whose first-visit mark the person has seen.
+ALTER TABLE account ADD COLUMN products_seen text[] NOT NULL DEFAULT '{}',
+  ADD CONSTRAINT account_products_seen_bound CHECK (cardinality(products_seen) <= 9);
+
+-- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
+CREATE TABLE sample_object (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_.]{0,99}$'),
+  kind       text NOT NULL CHECK (kind IN ('CONTAINER', 'ENTRY', 'PAGE', 'WHITEBOARD', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'TIME_RECORD')),
+  object_id  uuid NOT NULL,
+  version    bigint CHECK (version >= 0),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, key)
+);
+ALTER TABLE sample_object ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sample_object FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sample_object
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sample_object TO hubtask_app;
 
 COMMIT;

@@ -441,6 +441,7 @@ func TestTheIdempotencyKeyDistinguishesTwoActionsOfOneKind(t *testing.T) {
 }
 
 // A chain that reaches the limit aborts, does nothing, and says which of the two things happened.
+// UC-AUT-07 check 1.
 func TestARunAtTheDepthLimitAbortsAndActsOnNothing(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}
@@ -468,6 +469,7 @@ func TestARunAtTheDepthLimitAbortsAndActsOnNothing(t *testing.T) {
 }
 
 // The throttle holds a rule to its bound, and does it before the conditions are asked.
+// UC-AUT-07 check 3.
 func TestTheThrottleHoldsARuleToItsBound(t *testing.T) {
 	rule := enabledRule()
 	rule.Throttle = domain.Throttle{MaxRunsPerHour: 10}
@@ -1469,6 +1471,8 @@ func (j jumbleEntries) Find(_ context.Context, id shared.ID) (jumbledomain.Entry
 	return j.entry, nil
 }
 
+// UC-JUM-08 check 3: the action converting or dismissing an entry acts on the run's entry without
+// the rule naming it.
 func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
 	entry := jumbledomain.Entry{
 		ID:      shared.ID("01936f2a-7c1e-7000-8000-000000000ea1"),
@@ -1483,10 +1487,11 @@ func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
 	rule.Conditions = []domain.Condition{{Expr: "payload.channel == 'WEBHOOK'"}}
 	rule.Actions = []domain.Action{{Kind: "CONVERT_JUMBLE_ENTRY", Params: map[string]any{
 		"collection_id": "01936f2a-7c1e-7000-8000-000000000ea2",
-	}}}
+	}}, {Kind: "DISMISS_JUMBLE_ENTRY"}}
 	h := newEngine(t, rule)
 	h.engine.Jumble = jumbleEntries{entry: entry}
 	h.dispatcher.scopes["CONVERT_JUMBLE_ENTRY"] = "items:write"
+	h.dispatcher.scopes["DISMISS_JUMBLE_ENTRY"] = "items:write"
 
 	run, err := h.engine.Execute(context.Background(), engineActor(), Command{
 		RuleID: ruleID, Trigger: domain.TriggerJumbleEntry,
@@ -1502,14 +1507,15 @@ func TestAJumbleRunReadsTheEntryAndSuppliesIt(t *testing.T) {
 		t.Errorf("the run's subject is %s, want the entry", run.SubjectID)
 	}
 
-	if len(h.dispatcher.calls) != 1 {
+	if len(h.dispatcher.calls) != 2 {
 		t.Fatalf("%d dispatches", len(h.dispatcher.calls))
 	}
-	call := h.dispatcher.calls[0]
 	// The run supplies the entry: not a value a rule can carry, because the entry arrives after
 	// the rule is written.
-	if call.supplied["entry_id"] != entry.ID.String() {
-		t.Errorf("the run supplied %v, want the entry", call.supplied)
+	for _, call := range h.dispatcher.calls {
+		if call.supplied["entry_id"] != entry.ID.String() {
+			t.Errorf("the run supplied %v, want the entry", call.supplied)
+		}
 	}
 }
 
@@ -1525,6 +1531,7 @@ func (b *tenantBudgetFake) AutomationRuns(context.Context, string, time.Time) (b
 	return b.allowed, nil
 }
 
+// UC-AUT-07 check 3.
 func TestTheTenantBudgetThrottlesTheWholeWorkspace(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}

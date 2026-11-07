@@ -65,18 +65,24 @@ func TestAnInstallationWideExtensionQueuesAnEntryForEveryOtherWorkspace(t *testi
 	}
 }
 
-// A case with no address names nobody anywhere else: no question across workspaces, no job.
+// A case with no address names nobody anywhere else: it is refused when recorded (UC-PRV-06
+// check 2), and one stored before that rule asks no question across workspaces and queues no job.
 func TestAnInstallationWideCaseWithoutAnAddressQueuesNothing(t *testing.T) {
 	h := newHarness()
 	h.subjects.tenants = []shared.ID{otherTenant}
-	out, err := h.registry(t).Invoke(t.Context(), CreateDataSubjectRequestName, operator(), usecase.Input{
+	if _, err := h.registry(t).Invoke(t.Context(), CreateDataSubjectRequestName, operator(), usecase.Input{
 		"kind": string(domain.KindAccess), "scope": string(domain.ScopeInstallation),
 		"subject_account_id": subjectID.String(),
-	})
-	if err != nil {
-		t.Fatalf("recording: %v", err)
+	}); shared.AsError(err).DetailCode != domain.CodeSubjectRequired {
+		t.Fatalf("recording by account came back as %v", err)
 	}
-	if _, err := h.registry(t).Invoke(t.Context(), ExtendDataSubjectRequestName, operator(), extensionInput(out.String("id"))); err != nil {
+
+	id := h.recorded(t, operator(), domain.ScopeInstallation).String("id")
+	older := h.requests.stored[shared.MustParseID(id)]
+	older.SubjectEmail, older.SubjectAccountID = "", subjectID
+	h.requests.stored[older.ID] = older
+	h.jobs.requests = nil
+	if _, err := h.registry(t).Invoke(t.Context(), ExtendDataSubjectRequestName, operator(), extensionInput(id)); err != nil {
 		t.Fatalf("extending: %v", err)
 	}
 	if h.subjects.asked != 0 || len(entryJobs(h.jobs.requests)) != 0 {

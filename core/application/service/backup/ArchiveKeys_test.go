@@ -58,7 +58,7 @@ func TestEveryArchiveOfAChainOpensWithItsOwnKey(t *testing.T) {
 	}
 	keys := &recordingKeys{}
 
-	got, err := archiveKeysOf(context.Background(), keys, chain, targetID)
+	got, err := archiveKeysOf(context.Background(), keys, chain, targetID, ArchivePassphrase{})
 	if err != nil {
 		t.Fatalf("deriving: %v", err)
 	}
@@ -80,8 +80,56 @@ func TestEveryArchiveOfAChainOpensWithItsOwnKey(t *testing.T) {
 
 func TestASaltThatIsNotBase64IsAManifestNobodyCanUse(t *testing.T) {
 	_, err := archiveKeysOf(context.Background(), &recordingKeys{},
-		[]archive.Description{described("broken", "k1", "%%%")}, targetID)
+		[]archive.Description{described("broken", "k1", "%%%")}, targetID, ArchivePassphrase{})
 	if code := shared.AsError(err).DetailCode; code != archive.CodeManifestInvalid {
 		t.Fatalf("detail code %q", code)
+	}
+}
+
+// echoDeriver answers a key that names the passphrase and the salt, so a test can tell what an
+// archive's key was derived from.
+type echoDeriver struct{}
+
+func (echoDeriver) NewDerivation() (crypto.Derivation, error) {
+	return crypto.Derivation{Salt: []byte("salt-of-sixteen!"), Passes: 3, MemoryKiB: 64, Parallelism: 1, KeyLength: 32}, nil
+}
+
+func (echoDeriver) Derive(passphrase secret.Secret, from crypto.Derivation) (secret.Bytes, error) {
+	if passphrase.IsEmpty() {
+		return secret.Bytes{}, shared.ErrValidation.WithDetail(crypto.CodePassphraseRequired)
+	}
+	return secret.NewBytes([]byte(passphrase.Reveal() + "|" + string(from.Salt))), nil
+}
+
+// UC-BAK-07 check 7: an archive downloaded with a passphrase opens with the key that passphrase
+// and its manifest's derivation give - not with a master key - and is refused by name without
+// one; a passphrase given for a chain no archive of which needs one is refused, not ignored.
+func TestAPassphraseArchiveOpensWithItsPassphraseAlone(t *testing.T) {
+	encryption, written, err := PassphraseEncryption(echoDeriver{}, secret.New("correct horse battery staple"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain := []archive.Description{{Prefix: "download", Manifest: archive.Manifest{ArchiveID: "download", Encryption: encryption}}}
+	keys := &recordingKeys{}
+
+	given := ArchivePassphrase{Deriver: echoDeriver{}, Passphrase: secret.New("correct horse battery staple")}
+	got, err := archiveKeysOf(context.Background(), keys, chain, targetID, given)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got.Of(chain[0]).Reveal()) != string(written.Reveal()) || len(keys.asked) != 0 {
+		t.Errorf("the key was %q (master asked %d times)", got.Of(chain[0]).Reveal(), len(keys.asked))
+	}
+
+	_, err = archiveKeysOf(context.Background(), keys, chain, targetID, ArchivePassphrase{Deriver: echoDeriver{}})
+	if code := shared.AsError(err).DetailCode; code != archive.CodeArchivePassphraseRequired {
+		t.Errorf("without a passphrase: %q", code)
+	}
+
+	_, err = archiveKeysOf(context.Background(), keys,
+		[]archive.Description{described("plain", "", ""), described("salted", "k1", base64.StdEncoding.EncodeToString([]byte("s")))},
+		targetID, given)
+	if code := shared.AsError(err).DetailCode; code != archive.CodeArchivePassphraseUnused {
+		t.Errorf("a passphrase nothing needs: %q", code)
 	}
 }

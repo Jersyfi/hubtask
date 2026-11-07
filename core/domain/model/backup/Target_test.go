@@ -89,6 +89,7 @@ func TestTheConfigurationIsCopiedInAndOut(t *testing.T) {
 
 // The two check constraints 0001_init has carried since phase 0, made into field errors. A
 // database error is not something a client can act on.
+// UC-BAK-01 check 6.
 func TestAnInsecureTargetIsRefusedUntilSomebodySaysSoOutLoud(t *testing.T) {
 	cases := map[string]domain.NewTargetInput{
 		"unencrypted": input(func(in *domain.NewTargetInput) {

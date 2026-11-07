@@ -22,7 +22,7 @@ type layerDocument struct {
 	DefaultPreset string            `json:"default_preset,omitempty"`
 }
 
-// structureSettingsDocument is the eight settings; a key that is absent is a setting this layer leaves to
+// structureSettingsDocument is the nine settings; a key that is absent is a setting this layer leaves to
 // the one above.
 type structureSettingsDocument struct {
 	Levels      []levelDocument                `json:"levels,omitempty"`
@@ -37,6 +37,8 @@ type structureSettingsDocument struct {
 	Automation *[]string `json:"automation,omitempty"`
 	// Capture likewise: an empty list recognises nothing, which is not "inherit".
 	CaptureSet bool `json:"capture_set,omitempty"`
+	// EntryTypes is a pointer, because the empty map ("every type") is a decision.
+	EntryTypes *map[string][]string `json:"entry_types,omitempty"`
 }
 
 type levelDocument struct {
@@ -111,6 +113,13 @@ func valuesDocument(values work.StructureValues) *structureSettingsDocument {
 		}
 		document.Automation = &behaviours
 	}
+	if values.EntryTypes != nil {
+		offered := make(map[string][]string, len(values.EntryTypes))
+		for level, keys := range values.EntryTypes {
+			offered[string(level)] = append([]string(nil), keys...)
+		}
+		document.EntryTypes = &offered
+	}
 	return document
 }
 
@@ -166,6 +175,12 @@ func valuesFrom(document *structureSettingsDocument) work.StructureValues {
 		values.Automation = make([]work.AutomationBehaviour, 0, len(*document.Automation))
 		for _, behaviour := range *document.Automation {
 			values.Automation = append(values.Automation, work.AutomationBehaviour(behaviour))
+		}
+	}
+	if document.EntryTypes != nil {
+		values.EntryTypes = make(map[work.ItemType][]string, len(*document.EntryTypes))
+		for level, keys := range *document.EntryTypes {
+			values.EntryTypes[work.ItemType(level)] = append([]string(nil), keys...)
 		}
 	}
 	return values

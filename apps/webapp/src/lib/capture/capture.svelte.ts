@@ -10,6 +10,8 @@
  * `CaptureDialog` that reads this. Focus going back to where it was is the `Dialog`'s.
  */
 
+import type { ImportKind, SourceFamily } from '../data/imports.ts';
+
 /** Where an add control opened capture: what it already knows about the entry to be. */
 export interface Door {
   /** The collection the entry goes into. */
@@ -28,6 +30,11 @@ export interface Door {
   readonly bucketId?: string;
   /** The mode the dialog opens in. */
   readonly mode?: Mode;
+  /**
+   * Where an import opened from a product starts (user-experience.md §7.11): one source, whose
+   * file is asked for at once, or the family of sources that product takes.
+   */
+  readonly importFrom?: { readonly source: ImportKind } | { readonly family: SourceFamily };
   /** Whether the field stays open after Enter, for a list typed one line after another. */
   readonly keepsOpen?: boolean;
 }

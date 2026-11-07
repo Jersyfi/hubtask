@@ -8,7 +8,9 @@
 package importer
 
 import (
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	backup "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -22,20 +24,65 @@ const (
 	KindTrello        Kind = "TRELLO"
 	KindGoogleTasks   Kind = "GOOGLE_TASKS"
 	KindMicrosoftTodo Kind = "MICROSOFT_TODO"
+	// KindIssueTracker is an issue tracker's search answer, with its configuration, history and
+	// attachments (D-10); the value is the format's name.
+	KindIssueTracker Kind = "JIRA"
+	// KindWiki is a wiki space's HTML export; it lands pages, not entries.
+	KindWiki Kind = "CONFLUENCE"
+	// KindMarkdown is a ZIP of Markdown files, folders as the tree; it lands pages.
+	KindMarkdown Kind = "MARKDOWN"
+	// KindHTML is one HTML file or a ZIP of them, a notes app's HTML export included; it lands pages.
+	KindHTML Kind = "HTML"
+	// KindDOCX is one word-processor document or a ZIP of them; it lands pages.
+	KindDOCX Kind = "DOCX"
+	// KindXLSX is a workbook whose first sheet is read as a CSV file is; it lands entries.
+	KindXLSX Kind = "XLSX"
 )
+
+// LandsPages reports whether the kind brings pages into the hub rather than entries into
+// collections - such a kind takes no target collection.
+func (k Kind) LandsPages() bool {
+	return k == KindWiki || k == KindMarkdown || k == KindHTML || k == KindDOCX
+}
 
 // ParseKind reads a submitted kind. The contract's enum is the whole list; which of them this
 // build converts is the converters' business and refused by name there.
 func ParseKind(value string) (Kind, error) {
 	kind := Kind(value)
 	switch kind {
-	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo:
+	case KindCSV, KindTrello, KindGoogleTasks, KindMicrosoftTodo, KindIssueTracker, KindWiki, KindMarkdown, KindHTML, KindDOCX, KindXLSX:
 		return kind, nil
 	}
 	return "", shared.ErrValidation.
 		WithDetail(CodeKindUnknown).
 		WithParams(map[string]string{"value": value}).
 		WithFields(shared.FieldError{Path: "/kind", Code: CodeKindUnknown})
+}
+
+// MaxMappingEntries bounds a request's mapping: a table names a handful of fields, and the run
+// keeps the mapping whole.
+const MaxMappingEntries = 32
+
+// CheckMapping refuses a mapping the run cannot keep or no file can meet: more entries than any
+// table has fields, a name past 200 characters, or a zero byte, which the stored JSON cannot hold.
+func CheckMapping(mapping map[string]string) error {
+	refuse := func(field string) error {
+		return shared.ErrValidation.WithDetail(CodeMappingUnknown).
+			WithParams(map[string]string{"field": field}).
+			WithFields(shared.FieldError{Path: "/mapping", Code: CodeMappingUnknown})
+	}
+	if len(mapping) > MaxMappingEntries {
+		return refuse("")
+	}
+	for field, column := range mapping {
+		if strings.ContainsRune(field, 0) || strings.ContainsRune(column, 0) {
+			return refuse(strings.ReplaceAll(field, "\x00", ""))
+		}
+		if utf8.RuneCountInString(field) > 200 || utf8.RuneCountInString(column) > 200 {
+			return refuse("")
+		}
+	}
+	return nil
 }
 
 // Status is where the run stands.
@@ -48,10 +95,14 @@ const (
 	StatusFailed    Status = "FAILED"
 )
 
-// Refusal is one row of the source the converter could not read, while the rest landed.
+// Refusal is one row of the source that did not land, while the rest did: one the converter could
+// not read, or an entry its type's form refuses.
 type Refusal struct {
 	Row  int
 	Code string
+	// Fields are the form keys a refused entry left short (`title`, `custom_fields.<key>`), or the
+	// validations it failed; empty for a refusal of the converter's.
+	Fields []string
 }
 
 // Run is one import.
@@ -71,7 +122,10 @@ type Run struct {
 	// entry without a language are read in.
 	Zone     string
 	Language string
-	Status   Status
+	// DryRun is a run that only plans: it converts and decides every record, writes nothing but
+	// its own report, and keeps the file for the import that follows.
+	DryRun bool
+	Status Status
 	// Report is what the applier did, in the restore's shape, once the job has run.
 	Report backup.Report
 	// Refused is what the converter could not read, by row.
@@ -105,10 +159,13 @@ const (
 	CodeHubRequired     = "imports.hub_required"
 	CodeNotAHub         = "imports.not_a_hub"
 	// CodeNotInHub is a target collection that is not a live collection of the named hub.
-	CodeNotInHub         = "imports.not_in_hub"
-	CodeFileNotKind      = "imports.file_not_kind"
-	CodeFileEmpty        = "imports.file_empty"
-	CodeRunNotRunning    = "imports.run_not_running"
+	CodeNotInHub      = "imports.not_in_hub"
+	CodeFileNotKind   = "imports.file_not_kind"
+	CodeFileEmpty     = "imports.file_empty"
+	CodeRunNotRunning = "imports.run_not_running"
+	// CodeRunAbandoned is a run whose job the queue gave up on: every attempt failed, and nothing
+	// would have closed the run otherwise.
+	CodeRunAbandoned     = "imports.run_abandoned"
 	CodeRowUnreadable    = "imports.row_unreadable"
 	CodeRowDateInvalid   = "imports.row_date_invalid"
 	CodeRowZoneUnknown   = "imports.row_zone_unknown"
@@ -120,4 +177,15 @@ const (
 	// hub already holds. A refusal recorded on the run rather than a retried database error: the
 	// next attempt would meet the same name.
 	CodeCollectionExists = "imports.collection_exists"
+	// CodeKindTakesNoCollection is a target collection named for a kind that lands pages.
+	CodeKindTakesNoCollection = "imports.kind_takes_no_collection"
+	// CodeRowFormRefused is an entry an import into a collection would create that its type's
+	// form refuses: a required field empty, a check that does not hold, a restricted field.
+	CodeRowFormRefused = "imports.row_form_refused"
+	// CodeRowChannelClosed is an entry of a type whose form takes no entry through an import.
+	CodeRowChannelClosed = "imports.row_channel_closed"
+	// CodeRowParentRefused is an entry under one that was refused: it has nowhere to land.
+	CodeRowParentRefused = "imports.row_parent_refused"
+	// CodeArchiveUnreadable is a ZIP the converter cannot open, or one holding no document it reads.
+	CodeArchiveUnreadable = "imports.archive_unreadable"
 )

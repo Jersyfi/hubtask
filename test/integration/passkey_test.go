@@ -528,6 +528,7 @@ func TestAPasskeySignInChallengeNamesNobodyAndIsSpentOnce(t *testing.T) {
 
 // The credential a browser names is read with its holder in its own workspace only, and its counter
 // only goes up.
+// UC-ID-21 check 3: another workspace does not find this workspace's passkey.
 func TestAPasskeysHolderIsReadInItsWorkspaceAndItsCounterOnlyRises(t *testing.T) {
 	ctx := context.Background()
 	people := seedPasskeyPeople(ctx, t)

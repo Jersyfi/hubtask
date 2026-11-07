@@ -95,6 +95,13 @@ type OidcFlows interface {
 	ConsumeForConnect(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
 }
 
+// SAMLAnswers keeps a SAML provider's answer on its sign-in flow (identity.md §26).
+type SAMLAnswers interface {
+	// KeepSAMLAnswer keeps the answer and the handoff code's hash on the live sign-in of a SAML
+	// provider the state names, once; false where no such flow takes it.
+	KeepSAMLAnswer(ctx context.Context, presented identity.Token, answer string, handoffHash []byte, now time.Time) (bool, error)
+}
+
 // Connection is one provider identity connected to an account, as the person may read it.
 type Connection struct {
 	ProviderID shared.ID
@@ -164,4 +171,17 @@ type IdentityProviderSealing interface {
 	// RewrapSecret writes the moved wrapping on one row, guarded by the key it named when it was
 	// read. False means the row is gone, or it changed in between.
 	RewrapSecret(ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+}
+
+// SAMLCertificateWatches is what the watch over a workspace's SAML certificates reads and writes
+// (identity.md §26.1), in the workspace's transaction.
+type SAMLCertificateWatches interface {
+	// SAMLWatches answers the workspace's SAML providers, switched off ones included.
+	SAMLWatches(ctx context.Context) ([]identity.SAMLWatch, error)
+	// MarkSAMLExpiryTold records the warning given for the end, or an error wrapping
+	// shared.ErrNotFound where the provider is gone.
+	MarkSAMLExpiryTold(ctx context.Context, id shared.ID, end time.Time, days int) error
+	// RecordSAMLCertificatesEnd keeps the certificates' end on the provider, or answers an error
+	// wrapping shared.ErrNotFound where the provider is gone.
+	RecordSAMLCertificatesEnd(ctx context.Context, id shared.ID, end time.Time) error
 }

@@ -34,6 +34,106 @@ wired together inside a test is a different process from the one that is deploye
 | `HUBTASK_LOAD_HARDWARE` | `unnamed-<os>-<arch>` | The machine's name. The guard compares only against a baseline recorded under the same one |
 | `HUBTASK_LOAD_EVIDENCE_DIR` | a temporary directory | Where each run leaves its JSON |
 
+## The capacity run (F-10)
+
+```bash
+make capacity                                   # 10⁶ entries over 200 workspaces
+make capacity ITEMS=10000000 TENANTS=2000       # 10⁷, on named hardware only
+```
+
+`capacity_test.go` seeds the dataset into its own container (through files, so 10⁷ rows never sit
+in memory, and in COPY statements of 500 000 rows, so no statement queues ten million rows'
+after-triggers; every entry carries its number, as a restore does - migration 0296), vacuums it,
+starts the real binary and holds each read path that grows with a workspace - a
+collection's page, an open-entries query sorted by due date, the board grouped by completion, a
+count over the hub, the hub's level - for the largest, a middle and the smallest credentialled
+workspace: 30 s each after a 5 s warm-up, eight callers, paced at 400 requests a second. It writes
+`capacity-<items>.json` with requests per second per vCPU and P50 / P95 / P99 per path and
+workspace, which is how the decay with entries per workspace is read. It asserts only that every
+path answered without a server error; what the figures mean is the release tier's to judge, and a
+cell no run filled stays *not measured*. No path writes, so the hub's level is answered from the
+collections' kept figures after the warm-up (migration 0299): it measures the read once a count is
+kept. The count a write makes the next read pay is the mixed run beside it: for each of the three
+workspaces the hub's level is read by eight callers at 400 a second while two writers add entries
+to its collection at 40 a second, each side recorded on its own (`mixed` in the same file: the
+read's and the write's rate and P50 / P95 / P99). It skips unless `HUBTASK_LOAD_CAPACITY` is set, so
+`make gate-load` does not run it. It runs at the installation's default shed threshold (64 in flight), not RT-6's
+8, under which one workspace's deferrable calls are capped at two and its queries would measure
+the shedder. The server's peak resident memory is recorded where `/proc` is
+readable (Linux); elsewhere `memory_observed` is false.
+
+What a run needs: Docker, Go and `make tools` on the host, and the database grows by about 1.2 GB
+per 10⁶ entries (indexes 70 % of it) - at 10⁷ about 12 GB, with the COPY files (about 3 GB twice)
+in the host's temporary directory and room for the WAL beside it. At 10⁶ the seed takes about three
+minutes on a workstation and the whole run about fourteen; the run's own budget for the stack is
+twenty minutes and ten more per 10⁶ entries. The 10⁷ run, on the owner's workstation (accepted.md,
+third answers 9) - give the Docker VM at least 16 GB of disk for the database beside its WAL:
+
+```bash
+HUBTASK_LOAD_HARDWARE="workstation (Apple silicon, 14 cores, 36 GB)" \
+HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
+  make capacity ITEMS=10000000 TENANTS=2000
+```
+
+Run R3 of [PLAN.md](./PLAN.md) is the same run with `HUBTASK_LOAD_WALK=1`: after the measuring,
+the built web app (`corepack pnpm --filter @hubtask/webapp build`, and Playwright's Chromium) is
+walked per measured workspace - its start, its hub, its collection and the product homes - by
+`apps/webapp/e2e/scalewalk.mjs`, and every console error and warning, uncaught error, failed
+request and 5xx answer is added to `errors-<items>.json` as a `browser` row, deduplicated the way
+the server's are. The walk signs in with a token of its own that carries every scope a session
+carries; the load token's four would see only refusals. The three workspaces' walk - its start, its hub, its
+collection and the eight product homes, 33 screens - shares one 10-minute deadline, and per screen
+it records S7's figures into `walk-<items>.json`: the script and style bytes the screen fetched,
+raw and gzip-compressed, and the time until it settled; a screen that did not settle within 30 s
+fails the run.
+
+A slow path is read with `HUBTASK_LOAD_EXPLAIN=1`: PostgreSQL runs with `auto_explain` and logs the
+plan, row counts and buffers of every statement over 100 ms, without its parameters, and the run
+writes the slowest plan per sqlc query to `plans-<items>.json`. Such a run diagnoses rather than
+measures, since every statement is instrumented. A PostgreSQL error row is named by the query its
+statement ran, as `(in ListWorkItems)`.
+
+## The live runs
+
+Run L1 of [PLAN.md](./PLAN.md), live updates in one workspace, skips unless `HUBTASK_LOAD_LIVE`
+is set: the largest workspace gets eight more credentials, each holds eight change streams, and
+ten entries a second are written for five minutes (`HUBTASK_LOAD_LIVE_SECONDS` shortens it). It
+records each stream's delay per entry, the writes' latency, the database's transactions a second
+and the NOTIFY queue's peak into `live-l1-latest.json`, and fails on any refused stream, a write
+P95 past 300 ms, a record later than 30 s or missing, or the queue past half full.
+
+```sh
+HUBTASK_LOAD_LIVE=1 HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
+  go test -tags=load -run '^TestL1LiveUpdatesInOneWorkspace$' -timeout=40m -v ./test/load/
+```
+
+Scenario S5, live documents with many writers, skips unless `HUBTASK_LOAD_DOCUMENTS` is set: one
+page in the largest workspace, thirty writers over four credentials of eight connections at most,
+each an edit a second and its cursor ten times a second for two minutes
+(`HUBTASK_LOAD_DOCUMENTS_SECONDS` shortens it), through the editors' own connection
+(`packages/editor/scripts/liveload.mjs`, `src/live.ts`). It fails unless every writer's document,
+and one opened afresh on a fifth credential, is the same at the end, every edit was sent, no
+connection was closed, and the awareness relay counted no `too_large` or `failed`
+(`documents-s5-latest.json`). With the run's one process the relay opens no transaction for a
+cursor (offline-sync.md §13), so its bound of ten a second is met by construction there.
+
+## The sync walk
+
+Scenario S3 skips unless `HUBTASK_LOAD_SYNC` is set: the largest workspace walked from a null cursor
+to its end three times - as one `sync:snapshot`, page by page through `:pull` at the browser's 500,
+and as the browser's narrowed snapshot of its hub - each with its records, bytes, first byte and
+the time it held the connection (`sync-s3-<items>.json`). It fails on a page slower than 30 s, any
+status but 200, a walk that did not end, or the cap of 10 minutes (20 above 10⁶ entries).
+
+## What every run collects
+
+Every P95 is written with its 95 % confidence band (`p95_low`, `p95_high`: the samples at the
+order statistics 0.95 *n* ± 1.96 √(*n* · 0.95 · 0.05)). After the last test of an invocation,
+`TestMain` reads the server's log and PostgreSQL's once and writes `errors-<items>.json`: the
+scenarios' windows (each test records its own; S1 and S2 one window per workspace), the findings,
+and the expected rows (`harness.ExpectedRows`, each with its reason) apart. Each row carries its
+first and last time and the scenarios whose windows held it; the browser's rows carry S7.
+
 ## The release tier, step by step
 
 ```bash
@@ -61,6 +161,11 @@ user count appears anywhere, the model appears beside it.
 | `rt6_test.go` | RT-6 — overload, shedding, the interactive target, memory |
 | `storm_test.go` | The automation storm, and the fairness of multi-tenancy §4 asserted rather than eyeballed |
 | `guard_test.go` | The relative regression guard |
+| `capacity_test.go` | The capacity run at 10⁶ / 10⁷ entries (`make capacity`) |
+| `cmdb_test.go` | Run C1, the CMDB views of one hub at its ceiling of 20 000 CIs (`make capacity`, after the capacity run) |
+| `live_test.go` | Run L1, live updates in one workspace (`HUBTASK_LOAD_LIVE=1`), and S5, live documents with many writers (`HUBTASK_LOAD_DOCUMENTS=1`) |
+| `sync_test.go` | S3, the sync walk of the largest workspace (`HUBTASK_LOAD_SYNC=1`) |
+| `errors_test.go` | The scenarios' windows and the one collection of the run's errors |
 
 ## Refreshing a baseline
 

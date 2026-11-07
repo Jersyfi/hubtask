@@ -82,8 +82,9 @@ test('chromium: a subscription takes a condition and a scope, and says both back
   assert.equal(await page.locator('ul.deliveries').getByText(/^Attempt/).count(), 0);
 
   // The form sends both, the scope with its level.
+  await page.getByRole('button', { name: 'Add a webhook' }).first().click();
   await page.getByLabel('Where to deliver').fill('https://example.org/hooks/narrow');
-  await page.getByLabel(CREATED).check();
+  await page.getByLabel('An entry is created', { exact: true }).check();
   await page.getByLabel('Where it listens').selectOption({ label: `The collection ${HUB.name} · ${COLLECTION.name}` });
   await page.getByLabel('Only when (optional)').fill('data.title.startsWith("Ship")');
   const posted = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/integrations/webhooks'), { timeout: 5_000 });
@@ -96,5 +97,25 @@ test('chromium: a subscription takes a condition and a scope, and says both back
     filter: 'data.title.startsWith("Ship")',
     scope: { type: 'COLLECTION', id: COLLECTION.id },
   });
+  assert.deepEqual(failures, []);
+});
+
+// The column counts a connection switched off after failures on the *Webhooks* row, on every
+// screen of the administration, before the webhooks are opened (user-experience.md §7.10).
+test('chromium: the column counts a webhook switched off after failures', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  const OFF = { ...SUBSCRIPTION, id: '01a0e2e0-0000-7000-8000-000000001803', state: 'DISABLED', failure_count: 12 };
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', (route) => (new URL(route.request().url()).pathname.endsWith('/integrations/webhooks')
+    ? route.fulfill({ json: [SUBSCRIPTION, OFF] })
+    : stub(route)));
+
+  await page.goto(`${served.origin}/administration/people`);
+  const column = page.getByRole('navigation', { name: 'Administration' });
+  await column.getByText('1 switched off').waitFor({ timeout: 10_000 });
+  assert.equal(await column.getByRole('treeitem', { name: /Webhooks.*1 switched off/ }).count(), 1, 'the figure is not heard with the row');
   assert.deepEqual(failures, []);
 });

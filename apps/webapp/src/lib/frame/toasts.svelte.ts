@@ -49,8 +49,8 @@ class Toasts {
     this.#sync();
   }
 
-  dismiss(id: number): void {
-    this.#model.dismiss(id);
+  dismiss(id: number, isUndone = false): void {
+    this.#model.dismiss(id, isUndone);
     this.#sync();
   }
 

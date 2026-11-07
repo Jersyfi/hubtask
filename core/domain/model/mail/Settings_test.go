@@ -78,6 +78,7 @@ func TestSettingsAreNormalised(t *testing.T) {
 	}
 }
 
+// UC-JUM-11 check 2.
 func TestBadSettingsNameTheirFields(t *testing.T) {
 	_, err := Settings{
 		Name:         "-bad-",

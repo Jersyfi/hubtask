@@ -148,6 +148,7 @@ func TestAutoAssigningWritesTheStrategyIntoTheEvent(t *testing.T) {
 	}
 }
 
+// UC-WRK-11 check 5.
 func TestACandidateWhoCannotSeeTheEntryIsSkipped(t *testing.T) {
 	h := newAutoAssignHarness(t)
 	h.withItem(domain.ItemTask)
@@ -166,6 +167,7 @@ func TestACandidateWhoCannotSeeTheEntryIsSkipped(t *testing.T) {
 	}
 }
 
+// UC-WRK-11 check 5.
 func TestNobodyEligibleLeavesTheEntryAsItWas(t *testing.T) {
 	h := newAutoAssignHarness(t)
 	h.withItem(domain.ItemTask)

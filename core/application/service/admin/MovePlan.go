@@ -202,6 +202,7 @@ func (h MoveTenantPlan) exceeded(ctx context.Context, levels quotaservice.Levels
 		{quotaservice.MediaBytes, h.Usage.MediaBytes},
 		{quotaservice.WebhookTargets, h.Usage.WebhookTargets},
 		{quotaservice.Accounts, h.Usage.Accounts},
+		{quotaservice.Mailboxes, h.Usage.Mailboxes},
 	} {
 		limit := limits.Of(counted.quota)
 		if limit == quotaservice.Unlimited {
@@ -254,6 +255,7 @@ func exceptionsOf(overrides quotarepo.Overrides) []string {
 		quotaservice.Accounts:                 overrides.Accounts,
 		quotaservice.AiTokensPerDay:           overrides.AiTokensPerDay,
 		quotaservice.AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay,
+		quotaservice.Mailboxes:                overrides.Mailboxes,
 	}
 	kept := []string{}
 	for _, name := range quotaservice.OperatorNames() {

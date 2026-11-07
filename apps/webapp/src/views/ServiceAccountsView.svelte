@@ -16,10 +16,13 @@
   // **Its tokens are minted through the same panel as a person's**, with `account_id` naming it —
   // the one exception the contract carves into "a token is its holder's", and the reason it needs
   // the permission that manages members.
+  //
+  // **Adding is the head's** (user-experience.md §7.10): *Machines and apps* carries the act and
+  // this tab its dialog, which keeps a refusal inside it.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Button, Dialog, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -32,6 +35,14 @@
   import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
+  interface Props {
+    /** Whether the adding dialog is open; the head opens it. */
+    isAdding?: boolean;
+  }
+
+  let { isAdding = $bindable(false) }: Props = $props();
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
@@ -39,7 +50,7 @@
   /** What *Create* found missing when pressed (UC-WRK-32 check 3). */
   let missing = $state<Missing>({});
   let opened = $state<string | undefined>(undefined);
-  let failure = $state<string | undefined>(undefined);
+  let addFailure = $state<string | undefined>(undefined);
   let isWorking = $state(false);
 
   $effect(() =>
@@ -71,14 +82,15 @@
     const name = newName.trim();
     missing = marked(event, [{ kind: 'field', key: 'name', code: 'app.forms.required', isFilled: name !== '' }]);
     if (!isComplete(missing)) return;
-    failure = undefined;
+    addFailure = undefined;
     isWorking = true;
     try {
       await serviceAccounts.create(name);
       announcer.say(t('app.service_accounts.created_announced'));
       newName = '';
+      isAdding = false;
     } catch (cause) {
-      failure = renderProblem(cause as never, messages).message;
+      addFailure = renderProblem(cause as never, messages).message;
     } finally {
       isWorking = false;
     }
@@ -89,24 +101,23 @@
     <Stack gap="300">
     <p class="quiet">{t('app.service_accounts.intro')}</p>
 
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
-
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting">
         <Spinner label={t('app.service_accounts.reading')} />
         <span>{t('app.service_accounts.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       {#each all as account (account.id)}
         <section class="account">
           <Stack gap="150">
             <div class="head">
               <h2 class="name">{account.display_name}</h2>
-{#if mayAdminister}
+              {#if rolesOf(account.id).length === 0}
+                <Badge tone="warning">{t('app.service_accounts.state_no_role')}</Badge>
+              {/if}
+              {#if mayAdminister}
               <Button
                 size="sm"
                 tone="subtle"
@@ -140,36 +151,41 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.service_accounts.none')}</p>
+        <EmptyState kind="unused" icon="key" title={t('app.service_accounts.none')} description={t('app.service_accounts.empty_body')} action={mayAdminister ? addAct : undefined} />
       {/each}
     {/if}
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.service_accounts.new_title')}</h2>
-      <WorkspaceGate permission="MANAGE_MEMBERS">
-        {#snippet actions()}
-        <form class="panel" onsubmit={create}>
-          <Stack gap="150">
-            <Input
-              label={t('app.service_accounts.name')}
-              hint={t('app.service_accounts.name_hint')}
-              bind:value={newName}
-              isRequired
-              error={missing.name && !newName.trim() ? t(missing.name) : undefined}
-            />
-            <div>
-              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.service_accounts.creating')}>
-                {t('app.service_accounts.create')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-        {/snippet}
-      </WorkspaceGate>
-      <p class="quiet small">{t('app.service_accounts.then_grant')}</p>
-    </Stack>
+    <!-- A reader without MANAGE_MEMBERS is told once why nothing here can be added (P-05). -->
+    <WorkspaceGate permission="MANAGE_MEMBERS" />
     </Stack>
 </Stack>
+
+{#snippet addAct()}
+  <Button tone="primary" icon="plus" onclick={() => (isAdding = true)}>{t('app.service_accounts.new_title')}</Button>
+{/snippet}
+
+{#if mayAdminister}
+  <Dialog bind:isOpen={isAdding} title={t('app.service_accounts.new_title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (addFailure = undefined)}>
+    <form onsubmit={create}>
+      <Stack gap="150">
+        {#if addFailure}<FailureNote problem={addFailure} />{/if}
+        <Input
+          label={t('app.service_accounts.name')}
+          hint={t('app.service_accounts.name_hint')}
+          bind:value={newName}
+          isRequired
+          error={missing.name && !newName.trim() ? t(missing.name) : undefined}
+        />
+        <p class="quiet small">{t('app.service_accounts.then_grant')}</p>
+        <div>
+          <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.service_accounts.creating')}>
+            {t('app.service_accounts.create')}
+          </Button>
+        </div>
+      </Stack>
+    </form>
+  </Dialog>
+{/if}
 
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
@@ -177,7 +193,6 @@
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
      around a screen that is not a document. */
 
-  .section,
   .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
@@ -200,18 +215,5 @@
 
   .roles { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
-  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
-     input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables beside them take the width. */
-  form { margin: 0; max-inline-size: 52ch; }
-
-  /* The surface a form stands on, as the other screens of the section draw one: a standalone
-     element in the sense of design-system.md rule 1, on the frame's canvas. */
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  form { margin: 0; }
 </style>

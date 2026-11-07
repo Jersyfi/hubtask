@@ -57,6 +57,7 @@ func moveHierarchy(t *testing.T) service.Hierarchy {
 
 // The invariant that must be impossible rather than forbidden: an item cannot move under anything
 // inside its own subtree.
+// UC-WRK-06 check 4.
 func TestMovingIntoOwnSubtreeIsRefused(t *testing.T) {
 	task, pack, activity := moveTree()
 	hierarchy := moveHierarchy(t)

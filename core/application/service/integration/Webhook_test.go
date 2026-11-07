@@ -122,7 +122,23 @@ func (s *subscriptionStore) Delete(_ context.Context, id shared.ID) (bool, error
 	return true, nil
 }
 
-type deliveryStore struct{ rows []domain.WebhookDelivery }
+type deliveryStore struct {
+	rows   []domain.WebhookDelivery
+	locked map[shared.ID]bool
+}
+
+func (d *deliveryStore) Superseded(_ context.Context, delivery domain.WebhookDelivery) (bool, error) {
+	if d.locked == nil {
+		d.locked = map[shared.ID]bool{}
+	}
+	d.locked[delivery.ID] = true
+	for _, row := range d.rows {
+		if row.SubscriptionID == delivery.SubscriptionID && row.EventID == delivery.EventID && row.Attempt > delivery.Attempt {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 func (d *deliveryStore) Insert(_ context.Context, delivery domain.WebhookDelivery) error {
 	d.rows = append(d.rows, delivery)
@@ -309,6 +325,7 @@ func validCreate() CreateWebhookSubscriptionCommand {
 
 // The secret is answered once and stored sealed, under a purpose that names the row - so a
 // ciphertext lifted out of one subscription and dropped into another no longer opens.
+// UC-INT-01 check 1.
 func TestACreationAnswersTheSecretOnceAndStoresItSealed(t *testing.T) {
 	h := newHarness()
 
@@ -338,6 +355,7 @@ func TestACreationAnswersTheSecretOnceAndStoresItSealed(t *testing.T) {
 
 // Subscribing an external system to the stream and writing a rule that reacts to it are the same
 // power over the same stream.
+// UC-INT-01 check 1.
 func TestEveryWebhookOperationAsksForAutomation(t *testing.T) {
 	h := newHarness()
 
@@ -426,6 +444,7 @@ func TestAnUpdateLeavesOmittedFieldsAlone(t *testing.T) {
 
 // DISABLED is the system's conclusion from a run of failures, not a value to type. A subscription
 // somebody wants stopped is paused, and the two say different things to whoever reads the list.
+// UC-INT-01 check 7.
 func TestDisabledCannotBeSetByHandAndReEnablingIsAudited(t *testing.T) {
 	h := newHarness()
 	if _, err := (CreateWebhookSubscription{Writer: h.writer}).Execute(t.Context(), actor(), validCreate()); err != nil {

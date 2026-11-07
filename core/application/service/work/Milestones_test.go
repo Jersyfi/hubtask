@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -18,7 +19,7 @@ import (
 type milestones struct {
 	collectionDone, hubDone bool
 	asked                   []string
-	reached                 map[shared.ID]time.Time
+	reached                 map[shared.ID]repository.Milestone
 }
 
 func (m *milestones) LockHub(_ context.Context, hub shared.ID) error {
@@ -36,8 +37,8 @@ func (m *milestones) RecordHub(_ context.Context, hub shared.ID, _ time.Time) (b
 	return m.hubDone, nil
 }
 
-func (m *milestones) Of(_ context.Context, ids []shared.ID) (map[shared.ID]time.Time, error) {
-	found := map[shared.ID]time.Time{}
+func (m *milestones) Of(_ context.Context, ids []shared.ID) (map[shared.ID]repository.Milestone, error) {
+	found := map[shared.ID]repository.Milestone{}
 	for _, id := range ids {
 		if at, held := m.reached[id]; held {
 			found[id] = at
@@ -108,7 +109,7 @@ func TestAContainerReadAnswersItsMilestone(t *testing.T) {
 			Name: "Kitchen", OrderKey: "a0", Version: 1,
 		},
 	}}
-	recorded := &milestones{reached: map[shared.ID]time.Time{collectionID: reached}}
+	recorded := &milestones{reached: map[shared.ID]repository.Milestone{collectionID: {ReachedAt: reached, OpenSince: 5}}}
 	get := GetContainer{Containers: store, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}, Milestones: recorded}
 
 	for id, want := range map[shared.ID]bool{collectionID: true, hubID: false} {
@@ -120,8 +121,8 @@ func TestAContainerReadAnswersItsMilestone(t *testing.T) {
 		if held != want {
 			t.Fatalf("%s answered a milestone: %v, want %v", id, held, want)
 		}
-		if held && milestone["reached_at"] != reached {
-			t.Errorf("reached at %v, want %v", milestone["reached_at"], reached)
+		if held && (milestone["reached_at"] != reached || milestone["open_since"] != 5) {
+			t.Errorf("the milestone is %v, want reached at %v with 5 open since", milestone, reached)
 		}
 	}
 

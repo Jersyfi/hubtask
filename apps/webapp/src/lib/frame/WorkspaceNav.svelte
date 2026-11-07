@@ -18,7 +18,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
+  import { Button, EmptyState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
+  import FailureState from './FailureState.svelte';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
@@ -26,19 +27,31 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
-  import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
   import { people } from '../data/people.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { rowMessage } from '../data/figure.ts';
-  import { KEEPING, primary } from '../navigation.ts';
+  import { KEEPING, leftToWebApp, primary, products, workspaceBand } from '../navigation.ts';
+  import { platform } from '../platform/index.ts';
+  import { webAppAddress, webAppHost } from '../webApp.ts';
   import { commands } from '../palette/commands.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { archivalOf } from '../data/containers.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { placeMenu } from '../workspace/placeMenu.ts';
+  import { placeTabs, tabNodeId, tabOfNode } from '../workspace/placeTabs.ts';
+  import { modules, modulesHere } from '../data/modules.svelte.ts';
+  import { newMarks } from '../product/newmark.svelte.ts';
+  import { engine } from '../data/engine.ts';
+  import { myApprovalsPath } from '../data/approvals.svelte.ts';
+  import { productBandsOf, todayRowCountOf } from '../today.ts';
+  import { watchPageReviews } from '../data/reviews.svelte.ts';
+  import { requestsPath } from '../data/agents.ts';
+  import type { AgentRequestList, ApprovalList, Container } from '@hubtask/sync-engine';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
@@ -60,15 +73,94 @@
   /** Whether the jumble is the reader's, which decides whether its row is drawn. */
   const hasJumble = $derived(holdsHere('READ') === true);
 
-  /** The one list's primary group, as nodes of the same tree. */
+  const modulesOn = $derived(manifest.value?.modules_on);
+  /**
+   * The places band, as nodes of the same tree. On `compact` the bottom bar carries Today, Search
+   * and the Inbox, so the drawer draws only the places the bar leaves to it (user-experience.md §2.6).
+   */
+  const places = $derived(primary({ hasJumble, modulesOn }).filter((destination) => hasDestinations || destination.isOffBar));
+  /**
+   * What waits for the reader's yes - approvals, agents' held acts, page reviews - counted on the *Today* row
+   * (user-experience.md §3.3); each read only where Today draws it, from the same list it reads.
+   */
+  let waiting = $state<ApprovalList['data'] | undefined>(undefined);
+  let waitingHasMore = $state(false);
+  let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
+  const todayBands = $derived(productBandsOf(modulesOn));
+  const countsApprovals = $derived(todayBands.includes('approvals'));
+  const countsActs = $derived(todayBands.includes('agent_acts'));
+  $effect(() => {
+    if (!countsApprovals) {
+      waiting = undefined;
+      return;
+    }
+    return untrack(() => engine.subscribe<ApprovalList>({ path: myApprovalsPath }, (next) => {
+      if (next.status === 'ready') {
+        waiting = next.data.data;
+        waitingHasMore = next.data.page?.has_more === true;
+      }
+    }));
+  });
+  $effect(() => {
+    if (!countsActs) {
+      heldActs = undefined;
+      return;
+    }
+    return untrack(() => engine.subscribe<AgentRequestList>({ path: requestsPath('PENDING') }, (next) => {
+      if (next.status === 'ready') heldActs = next.data.data;
+    }));
+  });
+  let reviews = $state(0);
+  const countsReviews = $derived(todayBands.includes('reviews'));
+  const reviewHubs = $derived(containers.hubs.map((hub) => hub.id).join(' '));
+  $effect(() => {
+    const ids = countsReviews && reviewHubs ? reviewHubs.split(' ') : [];
+    const viewer = actor.account?.id;
+    if (ids.length === 0) {
+      reviews = 0;
+      return;
+    }
+    return untrack(() => watchPageReviews(ids, viewer, (rows) => (reviews = rows.length)));
+  });
+  const todayCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore, reviews));
   const destinationNodes = $derived(
-    hasDestinations
-      ? primary({ hasJumble }).map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon }))
-      : [],
+    places.map((destination) => ({
+      id: destination.id,
+      label: t(destination.code),
+      icon: destination.icon,
+      ...(destination.id === 'workspace' && todayCount !== undefined ? { meta: t('app.nav.today_waiting', { count: todayCount }) } : {}),
+    })),
+  );
+  /** The products band (§2.2): one row per product switched on, under its caption; none while none is on. */
+  const productRows = $derived(products({ modulesOn }));
+  const productNodes = $derived(
+    productRows.map((row, index) => ({
+      id: row.id,
+      label: t(row.code),
+      icon: row.icon,
+      // Quiet, until its home is first visited (user-experience.md §2.8).
+      meta: newMarks.has(row.module) ? t('app.nav.new_mark') : undefined,
+      ...(index === 0 ? { band: { caption: t('app.nav.products') } } : {}),
+    })),
+  );
+  /** The workspace band (§2.1): *Administration*, where the manifest says the reader reaches it. */
+  const workspaceRows = $derived(workspaceBand({ isAdministrationReachable: reachesAdministrationArea() === true }));
+  /** Where a build leaves the row's area to the web app (UC-SYN-07 check 7): it names that address and opens it. */
+  const webAppOrigins = $derived({ workspace: platform.webOrigin, installation: manifest.value?.installation_url });
+  const leftOut = (id: string) => leftToWebApp(id, platform.webApp?.areas);
+  const workspaceNodes = $derived(
+    workspaceRows.map((row, index) => {
+      const area = leftOut(row.id);
+      return {
+        id: row.id,
+        label: t(row.code),
+        icon: row.icon,
+        ...(area === undefined ? {} : { meta: t('app.web_app.at', { host: webAppHost(area, webAppOrigins) }) }),
+        ...(index === 0 ? { band: { caption: t('app.nav.workspace_band') } } : {}),
+      };
+    }),
   );
 
-  // A workspace has to be startable from inside the application, and a hub is where starting one
-  // begins: nothing else can be created until one exists.
   let isCreatingHub = $state(false);
   // Which hub the reader may create, as the overview's head offers it: a shared one with STRUCTURE,
   // a private one of one's own where the manifest offers it, none otherwise or while unknown.
@@ -112,6 +204,12 @@
     }
   }
 
+  /** A row's figure, short; nothing where it counts nothing or could not be counted. */
+  function figureText(container: Container): string | undefined {
+    const figure = container.figure ? rowMessage(container.figure, messages.locale) : undefined;
+    return figure ? t(figure.code, figure.params) : undefined;
+  }
+
   let expanded = $state<string[]>([]);
 
   // One subscription per open hub, dropped when it closes. The effect is what ties the two
@@ -145,13 +243,46 @@
     });
   });
 
-  // The hub the reader is inside is opened for them. Arriving at a collection by deep link and
-  // finding its own hub collapsed would make the sidebar disagree with the address bar.
+  // The hub the reader is inside is opened for them. Arriving at a collection or a hub's tab by deep
+  // link and finding its own hub collapsed would make the sidebar disagree with the address bar.
   $effect(() => {
-    const container = current ? containers.find(current) : undefined;
-    const hubId = container?.type === 'COLLECTION' ? container.parent_id : undefined;
+    const tab = current ? tabOfNode(current) : undefined;
+    const container = current && !tab ? containers.find(current) : undefined;
+    const hubId = tab?.placeId ?? (container?.type === 'COLLECTION' ? container.parent_id : undefined);
     if (hubId && !expanded.includes(hubId)) expanded = [...expanded, hubId];
   });
+
+  // The modules on at each open hub and at the one the reader is on, for the hub's views mirrored
+  // under its collections (user-experience.md §2.4); a closed hub is not asked.
+  let hubModules = $state<Record<string, readonly string[]>>({});
+  const askedHubs = $derived(
+    [...new Set([...expanded, ...(current && containers.find(current)?.type === 'HUB' ? [current] : [])])].sort().join(','),
+  );
+  $effect(() => {
+    const ids = askedHubs === '' ? [] : askedHubs.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
+        if (next.status === 'ready') hubModules = { ...hubModules, [hubId]: next.data.modules_on };
+      }));
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
+  });
+  /** A hub's views other than its overview, as quieter rows after a hairline, once its modules answered. */
+  function viewRowsOf(hubId: string) {
+    const here = hubModules[hubId];
+    if (here === undefined) return [];
+    return placeTabs({ type: 'HUB', id: hubId, modulesOn: modulesHere(modulesOn, here) })
+      .slice(1)
+      .map((tab, index) => ({
+        id: tabNodeId(hubId, tab.id),
+        label: t(tab.code),
+        icon: tab.icon,
+        isQuiet: true,
+        ...(index === 0 ? { band: {} } : {}),
+      }));
+  }
 
   /** The hubs and a hub's collections as the tree draws them: the levels a rank position is in. */
   const shownHubs = $derived(containers.hubs.filter((hub) => !live.hasLost(hub.id)));
@@ -262,7 +393,13 @@
       // it in words at the end of the row, so the choice does not cost the fact.
       icon: hub.private && !chosenSymbol(hub) ? ('lock' as const) : markOf(hub),
       colorToken: hub.color_token ?? undefined,
-      meta: hub.private && chosenSymbol(hub) ? t('app.nav.private') : undefined,
+      // What counts in it, from its collections (user-experience.md §2.5), after what the hub is.
+      meta: [
+        hub.private && chosenSymbol(hub)
+          ? t('app.nav.private')
+          : live.isOnlineOnly(hub.id) ? t('app.nav.online_only') : undefined,
+        figureText(hub),
+      ].filter(Boolean).join(' · ') || undefined,
       isMovable: mayRankIn(hub.id),
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
@@ -270,20 +407,21 @@
       // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
       // the hub, which is where a collection is made.
       isBranch:
-        containers.isLevelLoading(hub.id) || shownCollectionsOf(hub.id).length > 0,
-      children: shownCollectionsOf(hub.id)
-        .map((collection) => {
+        containers.isLevelLoading(hub.id) || shownCollectionsOf(hub.id).length > 0 || viewRowsOf(hub.id).length > 0,
+      children: [
+        ...shownCollectionsOf(hub.id).map((collection) => {
           // What counts in it, short (UC-WRK-29): nothing where it counts nothing or nothing yet.
-          const figure = collection.figure ? rowMessage(collection.figure, messages.locale) : undefined;
           return {
             id: collection.id,
             label: collection.name,
             icon: markOf(collection),
             colorToken: collection.color_token ?? undefined,
-            meta: figure ? t(figure.code, figure.params) : undefined,
+            meta: figureText(collection),
             isMovable: mayRankIn(hub.id),
           };
         }),
+        ...viewRowsOf(hub.id),
+      ],
     })),
   );
 
@@ -300,6 +438,7 @@
    */
   const nodes = $derived([
     ...destinationNodes,
+    ...productNodes,
     ...hubNodes.map((hub, index) => (index === 0 ? { ...hub, band: { caption: t('app.nav.hubs') } } : hub)),
   ]);
 
@@ -312,15 +451,31 @@
    * list is still `navigation.ts`'s, and the rows are the same rows. What it costs is that the
    * arrows do not carry from the last hub into the trash, which `Tab` does instead.
    */
+  const portalNodes = $derived(actor.portals.map((each) => ({ id: `portal:${each.collection_id}`, label: each.name, icon: 'inbox' as const })));
   const keepingNodes = $derived(KEEPING.map((each) => ({ id: each.id, label: t(each.code), icon: each.icon })));
 
   const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
 
   function navigate(id: string) {
-    const destination = primary({ hasJumble }).find((each) => each.id === id);
+    const destination = places.find((each) => each.id === id);
     if (destination && destination.target.kind === 'route') return onnavigate(destination.target.path);
+    const product = productRows.find((each) => each.id === id);
+    if (product) return onnavigate(product.path);
+    const room = workspaceRows.find((each) => each.id === id);
+    const roomArea = room === undefined ? undefined : leftOut(room.id);
+    if (room && roomArea !== undefined) {
+      void platform.webApp?.open(webAppAddress(roomArea, room.path, webAppOrigins).href).catch(() => {});
+      return;
+    }
+    if (room) return onnavigate(room.path);
     const keeping = KEEPING.find((each) => each.id === id);
     if (keeping) return onnavigate(keeping.path);
+    const tab = tabOfNode(id);
+    if (tab) {
+      const href = placeTabs({ type: 'HUB', id: tab.placeId, modulesOn: modulesHere(modulesOn, hubModules[tab.placeId] ?? []) }).find((each) => each.id === tab.tab)?.href;
+      if (href) onnavigate(href);
+      return;
+    }
     const container = containers.find(id);
     if (!container) return;
     onnavigate(container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
@@ -378,13 +533,11 @@
   {#if !isTreeReady}
     {#if !isRail}<div aria-busy="true"><Skeleton lines={4} /></div>{/if}
   {:else if failure && !isRail}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => containers.refresh()}
-    />
+    <FailureState problem={failure} onRetry={() => containers.refresh()} />
+  {:else if actor.hasNoAccess && actor.portals.length > 0}
+    <!-- A requester holding nothing but portals: their portals are their navigation (UC-SVC-05). -->
+    <SideNav label={t('app.nav.portals')} nodes={portalNodes} {isRail}
+      onnavigate={(id) => onnavigate(`/portal/${id.slice('portal:'.length)}`)} />
   {:else if actor.hasNoAccess}
     {#if !isRail}
       <!-- Nobody gave this person anything yet (UC-ID-08 check 2): a sentence, and no *Create hub*,
@@ -423,6 +576,11 @@
     </div>
   {/if}
 
+  {#if workspaceNodes.length > 0 && !actor.hasNoAccess}
+    <!-- The workspace's own administration, under the hubs and above the keeping band (§2.1). -->
+    <SideNav label={t('app.nav.administration')} nodes={workspaceNodes} {current} {isRail} onnavigate={navigate} />
+  {/if}
+
   <!-- Where a reader goes when something is missing: at the foot of the column, on every width,
        never mixed in with the hubs above it (ADR-0063 decision 1). -->
   <div class="keeping">
@@ -434,7 +592,7 @@
   bind:isOpen={isCreatingHub}
   type="HUB"
   isPrivateOnly={creation === 'private'}
-  oncreated={(id) => onnavigate(`/hubs/${id}`)}
+  oncreated={(id, landing) => onnavigate(landing ?? `/hubs/${id}`)}
 />
 {#if collectionHubId}
   <CreateContainerDialog

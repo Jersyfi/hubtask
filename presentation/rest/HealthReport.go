@@ -32,9 +32,10 @@ type healthReport struct {
 }
 
 type migrationState struct {
-	Applied  int    `json:"applied"`
-	Expected int    `json:"expected"`
-	Status   string `json:"status"`
+	Applied        int    `json:"applied"`
+	Expected       int    `json:"expected"`
+	CompatibleFrom int    `json:"compatible_from"`
+	Status         string `json:"status"`
 }
 
 type dependencyHealth struct {
@@ -55,6 +56,7 @@ type degradedFeature struct {
 }
 
 type backlogs struct {
+	SampledAt           string  `json:"sampled_at"`
 	OutboxPending       int64   `json:"outbox_pending"`
 	OutboxLagSeconds    float64 `json:"outbox_lag_seconds"`
 	JobQueueDepth       int64   `json:"job_queue_depth"`
@@ -78,13 +80,15 @@ func healthReportJSON(report health.Report) healthReport {
 
 	if report.Migration != (health.MigrationState{}) {
 		out.Migration = &migrationState{
-			Applied:  report.Migration.Applied,
-			Expected: report.Migration.Expected,
-			Status:   report.Migration.Status,
+			Applied:        report.Migration.Applied,
+			Expected:       report.Migration.Expected,
+			CompatibleFrom: report.Migration.CompatibleFrom,
+			Status:         report.Migration.Status,
 		}
 	}
-	if report.Backlogs != (health.Backlogs{}) {
+	if !report.Backlogs.SampledAt.IsZero() {
 		out.Backlogs = &backlogs{
+			SampledAt:           report.Backlogs.SampledAt.UTC().Format(time.RFC3339),
 			OutboxPending:       report.Backlogs.OutboxPending,
 			OutboxLagSeconds:    report.Backlogs.OutboxLagSeconds,
 			JobQueueDepth:       report.Backlogs.JobQueueDepth,
@@ -156,7 +160,7 @@ type HealthReportReader interface {
 //
 // Who sees how much is not decided here. The use case answers the whole report or the reduced one,
 // because that is an authorisation decision and those live in the application layer (rule 2).
-func (c *RestController) GetHealthReport(w http.ResponseWriter, r *http.Request) {
+func (c *MetaDoor) GetHealthReport(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	if c.HealthReport == nil {

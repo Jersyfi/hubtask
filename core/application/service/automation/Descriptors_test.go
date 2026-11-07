@@ -304,3 +304,18 @@ func TestEveryDescriptorDeclaresItsScopeAndItsAudit(t *testing.T) {
 		})
 	}
 }
+
+// A relative date's business calendar is read from the trigger document and answered back.
+func TestARelativeDatesCalendarIsReadAndAnswered(t *testing.T) {
+	h := permittedHarness()
+	in := validInput()
+	in["trigger"] = map[string]any{"kind": "RELATIVE_DATE", "anchor": "COMPLETED_AT", "offset": "P5D", "calendar": "office"}
+
+	out, err := CreateRule{Writer: h.writer}.invoke(context.Background(), writerActor(), in)
+	if err != nil {
+		t.Fatalf("invoking: %v", err)
+	}
+	if trigger, _ := out["trigger"].(map[string]any); trigger["calendar"] != "office" || trigger["offset"] != "P5D" {
+		t.Errorf("trigger %v, want the calendar answered", out["trigger"])
+	}
+}

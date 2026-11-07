@@ -120,6 +120,12 @@ export function todayIn(zone: string, now: number = Date.now()): string {
   return `${pad(wall.year, 4)}-${pad(wall.month)}-${pad(wall.day)}`;
 }
 
+/** A calendar date moved by whole days, as `YYYY-MM-DD`: arithmetic on the date, in no zone. */
+export function addDays(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days)).toISOString().slice(0, 10);
+}
+
 /** The zone the platform is set to. The fallback when an account states none. */
 export function deviceZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

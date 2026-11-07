@@ -25,9 +25,14 @@
   // processor and where - and the own model's form only where the workspace may use its own. With
   // nothing offered and nothing decided this is the screen it always was (P-10).
 
+  //
+  // **The head says what answers** (user-experience.md §7.10), as a badge in words: an offered
+  // model, the own one, or why nothing does - a withdrawn offered model being the one that broke.
+
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { AI_ANSWERING_TONE, aiAnsweringOf } from '../lib/data/aianswering.ts';
   import { TransportError } from '@hubtask/sync-engine';
   import type { AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
@@ -49,6 +54,10 @@
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the source where it names none or one not drawn. */
@@ -91,7 +100,7 @@
   let ownBudgetDraft = $state('');
   let ownBudgetWorking = $state(false);
   /** The draft follows the stored budget until somebody types. */
-  let ownBudgetTouched = false;
+  let ownBudgetTouched = $state(false);
   $effect(() => {
     const current = ownBudget;
     if (!current || ownBudgetTouched) return;
@@ -137,9 +146,10 @@
 
   const reading = $derived(aiProvider.state);
   const provider = $derived(aiProvider.provider);
-
-  /** A `404` is a workspace that has never configured one — the form, not an error. */
-  const unconfigured = $derived(reading.status === 'failed' && reading.error.status === 404);
+  const answering = $derived(aiAnsweringOf(source, provider));
+  /** A workspace that has never configured one — the form, not an error. */
+  const unconfigured = $derived(aiProvider.unconfigured);
+  const isAnsweringKnown = $derived(reading.status === 'ready' || unconfigured);
   const unreadable = $derived(
     reading.status === 'failed' && !unconfigured ? renderProblem(reading.error, messages) : undefined,
   );
@@ -264,7 +274,7 @@
   function problemOf(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
@@ -281,10 +291,21 @@
   const arrivalOffered = $derived(source !== undefined && hasAi && !allowsNone);
   /** The consent and people tab is drawn where it would hold something, and absent otherwise. */
   const tabs = $derived([
-    { id: 'source', label: t('app.ai.tab_source') },
-    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', label: t('app.ai.tab_consent') }] : []),
-    { id: 'budget', label: t('app.ai.tab_budget') },
+    { id: 'source', label: t('app.ai.tab_source'), href: '/administration/ai' },
+    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', label: t('app.ai.tab_consent'), href: '/administration/ai?tab=consent' }] : []),
+    { id: 'budget', label: t('app.ai.tab_budget'), href: '/administration/ai?tab=budget' },
   ]);
+
+  /**
+   * What is typed and not yet saved, for the leave guard (user-experience.md §5.4): the own model's
+   * form against what is stored - a typed key is always one - and the own budget once typed in.
+   */
+  const changes = $derived.by(() => {
+    const stored = provider ? modelOf(provider) : emptyModel('', '');
+    const fields = (Object.keys(stored) as (keyof typeof stored)[]).filter((key) => draft[key] !== stored[key]).length;
+    const consent = provider ? Number(processingAllowed !== provider.processing_allowed) : Number(processingAllowed);
+    return fields + consent + Number(ownBudgetTouched);
+  });
   const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'source');
 
   function select(next: string): void {
@@ -304,29 +325,32 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet figure()}
+      {#if isAnsweringKnown && source}
+        <span data-ai-answering={answering}><Badge tone={AI_ANSWERING_TONE[answering]}>{t(`app.ai.answering_${answering}`)}</Badge></span>
+      {/if}
+    {/snippet}
+  </PageHeader>
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/ai')} /></div>
 
     <Stack gap="300">
     <p class="quiet">{t('app.ai.intro')}</p>
 
-    {#if reading.status === 'loading' || reading.status === 'idle'}
+    {#if !unconfigured && (reading.status === 'loading' || reading.status === 'idle')}
       <p class="quiet">
         <Spinner label={t('app.ai.reading')} />
         <span>{t('app.ai.reading')}</span>
       </p>
     {:else if unreadable}
-      <Banner tone="danger" title={unreadable.message}>
-        {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-      </Banner>
+      <FailureNote problem={unreadable} />
     {:else}
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       <!-- The tabs outside the gate: a reader who may not change anything still reads every tab. -->
-      <Tabs label={t('app.ai.title')} selected={current} onselect={select} {tabs}>
+      <SettingsPage label={t('app.settings_page.sections', { name: t('app.ai.title') })} sections={tabs} selected={current} onselect={select} {changes}>
         <WorkspaceGate permission="STRUCTURE">
         {#if current === 'consent'}
           <Stack gap="300">
@@ -531,7 +555,7 @@
           </Stack>
         {/if}
         </WorkspaceGate>
-      </Tabs>
+      </SettingsPage>
     {/if}
     </Stack>
 </Stack>
@@ -561,4 +585,5 @@
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .name { margin: 0; font-weight: var(--fw-semibold); }
   .budget { margin: 0; max-inline-size: 52ch; }
+  .file { display: flex; justify-content: flex-end; }
 </style>

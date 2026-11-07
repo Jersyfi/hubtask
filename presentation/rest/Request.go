@@ -46,23 +46,28 @@ const mailIntakePath = "/jumble/mail/"
 // addressedMailPath is the receiving domain's door (ADR-0092), bounded as the mail door is.
 const addressedMailPath = "/mail/inbound"
 
-// streamSuffix is the one route with no end of its own: a stream is held open until the client
-// leaves or the process drains, which is the opposite of what a request timeout is for.
-const streamSuffix = "/stream"
+// streamSuffix and liveDocumentPrefix are the routes with no end of their own: a stream and a live
+// document's socket are held open until the client leaves or the process drains, which is the
+// opposite of what a request timeout is for.
+const (
+	streamSuffix       = "/stream"
+	liveDocumentPrefix = APIBasePath + "/realtime/documents/"
+)
 
 // deadlineFor is how long this request may run.
 //
-// Every request gets the configured deadline, which is what rule 7 asks for - and exactly one does
-// not, because for it the deadline would be a bug rather than a bound. A stream cut off after the
-// request timeout would look to a client like a server that drops connections on a timer, and the
-// client would reconnect on that timer forever.
+// Every request gets the configured deadline, which is what rule 7 asks for - and the two held
+// connections do not, because for them the deadline would be a bug rather than a bound. A stream
+// or a live document cut off after the request timeout would look to a client like a server that
+// drops connections on a timer, and the client would reconnect on that timer forever.
 //
-// What bounds a stream instead is everything the handler already selects on: the client's own
-// context, the shutdown, and a heartbeat that fails to write. Recognised by method and shape for
-// the reason limitFor recognises the byte route - the alternative is a list in the composition root
-// that drifts from the contract.
+// What bounds them instead is everything their handlers already select on: the client's own
+// context, the shutdown, a heartbeat that fails to write and, for a document, a read silent past
+// its idle bound. Recognised by method and shape for the reason limitFor recognises the byte route
+// - the alternative is a list in the composition root that drifts from the contract.
 func (b Bounded) deadlineFor(r *http.Request) time.Duration {
-	if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, streamSuffix) {
+	if r.Method == http.MethodGet &&
+		(strings.HasSuffix(r.URL.Path, streamSuffix) || strings.HasPrefix(r.URL.Path, liveDocumentPrefix)) {
 		return 0
 	}
 	return b.Timeout

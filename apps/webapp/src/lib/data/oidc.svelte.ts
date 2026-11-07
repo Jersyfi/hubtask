@@ -215,10 +215,11 @@ class Oidc {
    *
    * The same sentence a spent `state` gets, and deliberately so — "start again" is the whole of
    * what a reader can do about either, and telling the two apart would be telling somebody
-   * standing at the callback whether a handle they do not hold was ever real.
+   * standing at the callback whether a handle they do not hold was ever real. `code` is a sign-in
+   * code this installation sent the browser back with itself, said where the catalogue knows it.
    */
-  refuse(): void {
-    this.#failure = ownCode(REFUSED);
+  refuse(code?: string): void {
+    this.#failure = ownCode(code !== undefined && messages.has(code) ? code : REFUSED);
   }
 
   /** Drops the refusal. Called when the screen that shows it leaves. */

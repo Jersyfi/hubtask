@@ -151,10 +151,13 @@ type noJobs struct{}
 func (noJobs) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
 func (noJobs) Claim(context.Context, queue.Lease) ([]queue.Job, error)   { return nil, nil }
 func (noJobs) Hold(context.Context, queue.Job) error                     { return nil }
-func (noJobs) Complete(context.Context, queue.Job, string) error         { return nil }
-func (noJobs) Repeat(context.Context, queue.Job, time.Time) error        { return nil }
-func (noJobs) Fail(context.Context, queue.Failure) error                 { return nil }
-func (noJobs) Depth(context.Context) ([]queue.Depth, error)              { return nil, nil }
+func (noJobs) Extend(_ context.Context, job queue.Job, _ time.Time) (queue.Job, error) {
+	return job, nil
+}
+func (noJobs) Complete(context.Context, queue.Job, string) error  { return nil }
+func (noJobs) Repeat(context.Context, queue.Job, time.Time) error { return nil }
+func (noJobs) Fail(context.Context, queue.Failure) error          { return nil }
+func (noJobs) Depth(context.Context) ([]queue.Depth, error)       { return nil, nil }
 
 // pull is the pull as the server wires it, over this package's cursors.
 func (s *suite) pull(t *testing.T) syncservice.PullChanges {
@@ -203,6 +206,7 @@ func (s *suite) count(t *testing.T, query string, args ...any) int {
 // and unique, and no reordering rewrites any key but the moved entry's own - which is what "no
 // renumbering" means, and what lets two devices reorder offline without either's keys being
 // invalidated by the other's.
+// UC-SYN-02 check 4.
 func TestSY4AThousandReorderingsConvergeWithoutRenumbering(t *testing.T) {
 	s := newSuite(t)
 	w := s.workspace(t, "SY-4")

@@ -72,6 +72,7 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import { arrivals } from './motion.ts';
   import { nextSort, type Sort } from './table.ts';
 
   /** One column. `align` is `start`/`end`, never left and right. */
@@ -105,6 +106,11 @@
     empty?: Snippet;
     /** The rows. Each renders its own `<td>`s, in the columns' order. */
     children: Snippet;
+    /**
+     * Below `medium` each row is drawn as a card of label and value, so nothing scrolls sideways
+     * on a phone (user-experience.md §5.12). The cells are labelled from `columns`.
+     */
+    isStacked?: boolean;
   }
 
   const {
@@ -116,7 +122,32 @@
     isBusy = false,
     empty,
     children,
+    isStacked = false,
   }: Props = $props();
+
+  /**
+   * A stacked table's cells carry their column's name, which the narrow drawing shows before each
+   * value; and its parts carry their roles, because a table drawn as blocks loses its semantics in
+   * some engines. Rows arrive and change with the caller's data, so they are labelled as they come.
+   */
+  function stacked(body: HTMLTableSectionElement): () => void {
+    const label = () => {
+      for (const row of body.rows) {
+        if (row.classList.contains('empty-row')) continue;
+        row.setAttribute('role', 'row');
+        Array.from(row.cells).forEach((cell, index) => {
+          cell.setAttribute('role', cell.tagName === 'TH' ? 'rowheader' : 'cell');
+          const name = columns[index]?.label;
+          if (name && !columns[index]?.isLabelHidden) cell.dataset.label = name;
+          else delete cell.dataset.label;
+        });
+      }
+    };
+    label();
+    const observer = new MutationObserver(label);
+    observer.observe(body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }
 
   // The drawn name and the table are tied together by an id, the way `IconButton` ties a control
   // to its reason. Generated rather than taken from the caller: a table has no natural key, and
@@ -151,7 +182,7 @@
      box and reads as its first row. -->
 {#if !isLabelHidden}<p class="title" id={titleId}>{label}</p>{/if}
 
-<div class="frame">
+<div class="frame" class:is-stacked={isStacked}>
   <!-- `tabindex="0"` on the scroll container, and the first `svelte-ignore` in this package.
 
        The rule it suspends is a good one — a `div` nobody can interact with should not be in the
@@ -177,13 +208,14 @@
       <table
         class="table"
         class:is-busy={isBusy}
+        role={isStacked ? 'table' : undefined}
         aria-labelledby={isLabelHidden ? undefined : titleId}
         aria-label={isLabelHidden ? label : undefined}
       >
-        <thead>
-          <tr>
+        <thead role={isStacked ? 'rowgroup' : undefined}>
+          <tr role={isStacked ? 'row' : undefined}>
             {#each columns as column (column.id)}
-              <th scope="col" data-align={column.align ?? 'start'} aria-sort={ariaSort(column)}>
+              <th scope="col" role={isStacked ? 'columnheader' : undefined} data-align={column.align ?? 'start'} aria-sort={ariaSort(column)}>
                 {#if column.isSortable && onSort}
                   <!-- The control fills the cell rather than sitting in it: a heading whose target
                        is the word alone is a target the width of the word, and `Fällig` is six
@@ -208,7 +240,7 @@
             {/each}
           </tr>
         </thead>
-        <tbody>
+        <tbody {@attach arrivals} {@attach (body) => (isStacked ? stacked(body) : undefined)} role={isStacked ? 'rowgroup' : undefined}>
           {@render children()}
           {#if empty}
             <!-- Drawn by the stylesheet only when it is the sole row, so the caller renders it
@@ -245,6 +277,48 @@
     background: var(--bg-surface);
     overflow: hidden;
     max-inline-size: 100%;
+  }
+
+  /* A stacked table measures the room it has, not the window: a table in a side pane is narrow on
+     a wide screen. */
+  .frame.is-stacked { container-type: inline-size; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .is-stacked .table :global(thead) {
+      position: absolute;
+      inline-size: var(--sp-025);
+      block-size: var(--sp-025);
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .is-stacked .table,
+    .is-stacked .table :global(tbody) { display: block; }
+    .is-stacked .table :global(tbody tr) {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-050);
+      padding: var(--sp-150) var(--sp-200);
+      border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    }
+    .is-stacked .table :global(tbody tr:last-child) { border-block-end: 0; }
+    .is-stacked .table :global(tbody td),
+    .is-stacked .table :global(tbody th) {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      gap: var(--sp-100);
+      padding: 0;
+      text-align: start;
+      overflow-wrap: anywhere;
+    }
+    .is-stacked .table :global(tbody [data-label])::before {
+      content: attr(data-label) / '';
+      color: var(--text-secondary);
+      font-size: var(--fs-075);
+    }
+    .is-stacked .table :global(tbody > tr > :not([data-label])) { grid-template-columns: minmax(0, 1fr); }
+    .is-stacked .fade { display: none; }
   }
 
   /* The table scrolls inside this rather than widening the page. Rule 4 makes it ordinary: the

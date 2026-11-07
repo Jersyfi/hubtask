@@ -125,7 +125,7 @@ func (q *Queries) InsertPlatformEvent(ctx context.Context, arg InsertPlatformEve
 
 const lockPlatformEventNumbering = `-- name: LockPlatformEventNumbering :exec
 
-SELECT pg_advisory_xact_lock(8010002)
+SELECT pg_advisory_xact_lock(8010004)
 `
 
 // The installation's events (UC-INS-14, multi-tenancy.md §4.3; migration 0180).
@@ -138,8 +138,23 @@ SELECT pg_advisory_xact_lock(8010002)
 // start, so that only the tail of a change - from its event to its commit - waits for another. A
 // fixed key beside the scheduler's 8_010_001 rather than a hashed name, which would share its space
 // with the per-workspace hashed keys.
+//
+// Its own key is 8_010_004; 8_010_002 is the migrator's, and a write that shared it waited for a
+// whole migration run.
 func (q *Queries) LockPlatformEventNumbering(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockPlatformEventNumbering)
+	return err
+}
+
+const lockPlatformEventNumberingOfTheReleaseBefore = `-- name: LockPlatformEventNumberingOfTheReleaseBefore :exec
+SELECT pg_advisory_xact_lock(8010002)
+`
+
+// The key a pod of the release before numbers under, taken after the own one and never before it:
+// two writers of this release taking them in opposite orders would wait for each other. Dropped by
+// the release after (versioning-release.md §4, "Scheduled contract steps").
+func (q *Queries) LockPlatformEventNumberingOfTheReleaseBefore(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockPlatformEventNumberingOfTheReleaseBefore)
 	return err
 }
 

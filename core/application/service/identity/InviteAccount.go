@@ -277,7 +277,8 @@ func (h InviteAccount) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h InviteAccount) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: InviteAccountName,
+		Name:       InviteAccountName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Invites a person into this workspace by email address. The account is created " +
 			"immediately and cannot act until the invitation is accepted, so roles may be granted " +
 			"to it straight away.",
@@ -356,6 +357,9 @@ func accountOutput(account domain.Account) usecase.Output {
 	}
 	if account.OnboardingCompletedAt != nil {
 		out["onboarding_completed_at"] = *account.OnboardingCompletedAt
+	}
+	if len(account.ProductsSeen) > 0 {
+		out["products_seen"] = append([]string(nil), account.ProductsSeen...)
 	}
 	return out
 }

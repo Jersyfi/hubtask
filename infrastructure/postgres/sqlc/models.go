@@ -7,6 +7,7 @@ package sqlc
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -359,6 +360,8 @@ type Account struct {
 	TermsVersion          *string
 	TermsAgreedAt         pgtype.Timestamptz
 	AvatarMediaID         pgtype.UUID
+	ExternalID            *string
+	ProductsSeen          []string
 }
 
 type AccountGroup struct {
@@ -368,6 +371,7 @@ type AccountGroup struct {
 	Description *string
 	CreatedAt   pgtype.Timestamptz
 	Version     int32
+	ExternalID  *string
 }
 
 type AccountGroupMember struct {
@@ -438,10 +442,147 @@ type AddressChangeNotice struct {
 	ChangedAt pgtype.Timestamptz
 }
 
+type Agent struct {
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	AccountID             pgtype.UUID
+	Name                  string
+	Purpose               string
+	Kind                  string
+	OwnerID               pgtype.UUID
+	RiskClass             string
+	Scopes                []string
+	ModelID               pgtype.UUID
+	PolicyReversible      string
+	PolicyIrreversible    string
+	TokensPerDay          int64
+	ActionsPerHour        int32
+	ConcurrentRuns        int32
+	MinAccuracy           int16
+	Status                string
+	ApprovedBy            pgtype.UUID
+	ApprovedAt            pgtype.Timestamptz
+	ApprovedModelRevision int32
+	SuspendedBy           pgtype.UUID
+	SuspendedAt           pgtype.Timestamptz
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+type AgentAction struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AgentID   pgtype.UUID
+	UseCase   string
+	Class     string
+	Decision  string
+	Code      string
+	Tokens    int64
+	RequestID pgtype.UUID
+	At        pgtype.Timestamptz
+}
+
+type AgentEvalCase struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AgentID   pgtype.UUID
+	Title     string
+	Notes     string
+	Expected  []byte
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type AgentEvalRun struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	AgentID       pgtype.UUID
+	ModelRevision int32
+	Cases         int32
+	Passed        int32
+	RunBy         pgtype.UUID
+	At            pgtype.Timestamptz
+}
+
+type AgentHalt struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	Halted   bool
+	SetBy    pgtype.UUID
+	SetAt    pgtype.Timestamptz
+}
+
+type AgentJob struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AgentID    pgtype.UUID
+	TargetType string
+	TargetID   pgtype.UUID
+	Status     string
+	Code       string
+	Proposals  int32
+	Tokens     int64
+	StartedBy  pgtype.UUID
+	StartedAt  pgtype.Timestamptz
+	EndedAt    pgtype.Timestamptz
+}
+
+type AgentModel struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	Key           string
+	Name          string
+	Source        string
+	OfferedID     pgtype.UUID
+	Model         string
+	Region        string
+	RetentionDays *int32
+	ConsentBy     pgtype.UUID
+	ConsentAt     pgtype.Timestamptz
+	Revision      int32
+	Retired       bool
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+type AgentRequest struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AgentID    pgtype.UUID
+	UseCase    string
+	Class      string
+	Input      []byte
+	Status     string
+	DecidedBy  pgtype.UUID
+	DecidedAt  pgtype.Timestamptz
+	Code       string
+	CreatedAt  pgtype.Timestamptz
+	Version    int32
+	Performing bool
+}
+
 type AiObjectionNotice struct {
 	TenantID  pgtype.UUID
 	AccountID pgtype.UUID
 	NoticedAt pgtype.Timestamptz
+}
+
+type AiProvenance struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	TargetType    string
+	TargetID      pgtype.UUID
+	Fields        []string
+	SuggestionID  pgtype.UUID
+	AgentID       pgtype.UUID
+	Model         string
+	PromptID      string
+	PromptVersion string
+	AcceptedBy    pgtype.UUID
+	AcceptedAt    pgtype.Timestamptz
 }
 
 type AiProvider struct {
@@ -497,6 +638,47 @@ type AiSuggestion struct {
 	DecidedBy     pgtype.UUID
 	Version       int32
 	DroppedNodes  int32
+	AgentID       pgtype.UUID
+}
+
+type Approval struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	WorkflowKey  string
+	StepKey      string
+	ItemVersion  int32
+	Levels       []byte
+	DeclineTo    string
+	DueHours     int32
+	CurrentLevel int16
+	State        string
+	RequestedBy  pgtype.UUID
+	RequestedAt  pgtype.Timestamptz
+	LevelSince   pgtype.Timestamptz
+	DecidedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+type ApprovalDecision struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ApprovalID  pgtype.UUID
+	Level       int16
+	ApproverID  pgtype.UUID
+	OnBehalfOf  pgtype.UUID
+	Verdict     string
+	Reason      string
+	ItemVersion int32
+	DecidedAt   pgtype.Timestamptz
+}
+
+type ApprovalDelegation struct {
+	TenantID   pgtype.UUID
+	AccountID  pgtype.UUID
+	DelegateID pgtype.UUID
+	StartsAt   pgtype.Timestamptz
+	EndsAt     pgtype.Timestamptz
 }
 
 type AuditAnchor struct {
@@ -653,6 +835,7 @@ type AutomationRule struct {
 	Findings          []byte
 	CheckedAt         pgtype.Timestamptz
 	PausedForDeletion bool
+	Key               *string
 }
 
 type BackupRun struct {
@@ -746,6 +929,17 @@ type Bucket struct {
 	Version      int32
 }
 
+type BusinessCalendar struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Name      string
+	Spec      []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type CalendarFeed struct {
 	ID        pgtype.UUID
 	TenantID  pgtype.UUID
@@ -754,6 +948,45 @@ type CalendarFeed struct {
 	TokenHash []byte
 	CreatedAt pgtype.Timestamptz
 	RevokedAt pgtype.Timestamptz
+	Kind      string
+}
+
+type CalendarPush struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	FeedID      pgtype.UUID
+	Provider    string
+	Address     string
+	SecretEnc   []byte
+	SecretKeyID string
+	State       string
+	Failure     string
+	PushedAt    pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type CalendarPushAuthorization struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	AccountID     pgtype.UUID
+	FeedID        pgtype.UUID
+	Provider      string
+	StateHash     []byte
+	VerifierEnc   []byte
+	VerifierKeyID string
+	ExpiresAt     pgtype.Timestamptz
+}
+
+type CalendarPushEvent struct {
+	TenantID pgtype.UUID
+	PushID   pgtype.UUID
+	EntryID  pgtype.UUID
+	RemoteID string
+	Digest   string
+	PushedAt pgtype.Timestamptz
 }
 
 type ChangeLog struct {
@@ -798,6 +1031,367 @@ type ChangeLogDefault struct {
 	Payload     []byte
 }
 
+type ChatBot struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	HubID        pgtype.UUID
+	CollectionID pgtype.UUID
+	Homeserver   string
+	Room         string
+	BotUser      string
+	Locale       string
+	Unfurl       bool
+	Capture      bool
+	Enabled      bool
+	RunAs        pgtype.UUID
+	Since        string
+	Failure      string
+	SecretEnc    []byte
+	SecretKeyID  string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	Platform     string
+}
+
+type ChatLink struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	BotID         pgtype.UUID
+	AccountID     pgtype.UUID
+	ChatUser      string
+	Address       string
+	CodeHash      []byte
+	CodeExpiresAt pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	LinkedAt      pgtype.Timestamptz
+}
+
+type CmdbAffected struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	CiID     pgtype.UUID
+	AddedBy  pgtype.UUID
+	AddedAt  pgtype.Timestamptz
+}
+
+type CmdbAlert struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	ConnectorID pgtype.UUID
+	DedupKey    string
+	Status      string
+	Severity    string
+	Title       string
+	CiID        pgtype.UUID
+	EntryID     pgtype.UUID
+	FirstAt     pgtype.Timestamptz
+	LastAt      pgtype.Timestamptz
+	ResolvedAt  pgtype.Timestamptz
+	Count       int32
+	StartedAt   pgtype.Timestamptz
+}
+
+type CmdbAsset struct {
+	CiID          pgtype.UUID
+	TenantID      pgtype.UUID
+	HubID         pgtype.UUID
+	AssetTag      string
+	CostMinor     int64
+	Currency      string
+	PurchasedOn   pgtype.Date
+	Supplier      string
+	WarrantyUntil pgtype.Date
+	ContractID    pgtype.UUID
+	StockroomID   pgtype.UUID
+	AssignedTo    pgtype.UUID
+	RequestID     pgtype.UUID
+	State         string
+	Disposal      []byte
+	UpdatedBy     pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+type CmdbAttestation struct {
+	TenantID   pgtype.UUID
+	CampaignID pgtype.UUID
+	CiID       pgtype.UUID
+	OwnerID    pgtype.UUID
+	Verdict    string
+	AttestedBy pgtype.UUID
+	AttestedAt pgtype.Timestamptz
+}
+
+type CmdbCampaign struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	HubID        pgtype.UUID
+	Name         string
+	Classes      []string
+	DueBy        pgtype.Date
+	DueOn        pgtype.Date
+	ReviewMonths int32
+	StartedBy    pgtype.UUID
+	StartedAt    pgtype.Timestamptz
+	ClosedAt     pgtype.Timestamptz
+	ClosedBy     pgtype.UUID
+	Version      int32
+}
+
+type CmdbCi struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	HubID          pgtype.UUID
+	ClassKey       string
+	Name           string
+	Stage          string
+	Status         string
+	Attributes     []byte
+	Provenance     []byte
+	OwnerAccountID pgtype.UUID
+	OwnerGroupID   pgtype.UUID
+	LocationCiID   pgtype.UUID
+	Protection     []byte
+	ReviewDue      pgtype.Date
+	Quantity       int32
+	LastSeenAt     pgtype.Timestamptz
+	MergedInto     pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+type CmdbCiGroup struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	Name      string
+	Filter    []byte
+	ServiceID pgtype.UUID
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type CmdbCiIdentifier struct {
+	TenantID pgtype.UUID
+	CiID     pgtype.UUID
+	HubID    pgtype.UUID
+	Name     string
+	Value    string
+}
+
+type CmdbClass struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	Key           string
+	ParentKey     string
+	Name          string
+	Icon          string
+	Abstract      bool
+	Attributes    []byte
+	Rules         []byte
+	Required      []byte
+	StalenessDays int32
+	ArchivedAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+}
+
+type CmdbConnector struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	HubID           pgtype.UUID
+	Key             string
+	Kind            string
+	SourceKey       string
+	BaseUrl         string
+	Settings        []byte
+	AllowedHosts    []string
+	EveryMinutes    int32
+	Enabled         bool
+	CollectionID    pgtype.UUID
+	RunAs           pgtype.UUID
+	CredentialEnc   []byte
+	CredentialKeyID *string
+	Cursor          string
+	NextRunAt       pgtype.Timestamptz
+	LastRunAt       pgtype.Timestamptz
+	LastRunID       pgtype.UUID
+	LastOutcome     string
+	LastError       string
+	Failures        int32
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+type CmdbDuplicate struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	CiIds      []pgtype.UUID
+	Rule       string
+	CreatedAt  pgtype.Timestamptz
+	ResolvedAt pgtype.Timestamptz
+	ResolvedBy pgtype.UUID
+	SurvivorID pgtype.UUID
+}
+
+type CmdbHold struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	RunID      pgtype.UUID
+	SourceKey  string
+	Item       []byte
+	Reason     string
+	CreatedAt  pgtype.Timestamptz
+	ResolvedAt pgtype.Timestamptz
+	ResolvedBy pgtype.UUID
+}
+
+type CmdbIntakeSeen struct {
+	TenantID    pgtype.UUID
+	ConnectorID pgtype.UUID
+	Digest      []byte
+	SeenAt      pgtype.Timestamptz
+}
+
+type CmdbRelation struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	TypeKey    string
+	SourceCiID pgtype.UUID
+	TargetCiID pgtype.UUID
+	DataSource string
+	FirstSeen  pgtype.Timestamptz
+	LastSeen   pgtype.Timestamptz
+	CreatedBy  pgtype.UUID
+}
+
+type CmdbRelationType struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Name        string
+	ReverseName string
+	Impact      string
+	Pairs       []byte
+	ArchivedAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type CmdbRun struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	SourceKey string
+	ActorID   pgtype.UUID
+	StartedAt pgtype.Timestamptz
+	Counts    []byte
+	Decisions []byte
+}
+
+type CmdbSoftwareAlias struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	MatchPublisher string
+	MatchProduct   string
+	Publisher      string
+	Product        string
+	UpdatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+type CmdbSource struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Kind      string
+	Rank      int32
+	Classes   []string
+	MayCreate bool
+	Mapping   []byte
+	LastRunAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type CodeDeliverySeen struct {
+	TenantID pgtype.UUID
+	HookID   pgtype.UUID
+	Digest   []byte
+	SeenAt   pgtype.Timestamptz
+}
+
+type CodeHook struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	HubID          pgtype.UUID
+	Kind           string
+	Name           string
+	Enabled        bool
+	Salt           string
+	RunAs          pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	LastDeliveryAt pgtype.Timestamptz
+}
+
+type CodeLink struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	ItemID     pgtype.UUID
+	HubID      pgtype.UUID
+	HookID     pgtype.UUID
+	Kind       string
+	Repository string
+	Ref        string
+	Title      string
+	Url        string
+	Author     string
+	State      string
+	HappenedAt pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
+type CollectionFigure struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Kind         string
+	BasisKey     string
+	Basis        []byte
+	Changes      int64
+	Counts       []byte
+	CountedAt    pgtype.Timestamptz
+	VerifiedAt   pgtype.Timestamptz
+}
+
+type CollectionFigureStamp struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Folded       int64
+}
+
+type CollectionFigureTouch struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	Token        int64
+}
+
 type Comment struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID
@@ -812,6 +1406,98 @@ type Comment struct {
 	Kind            string
 	SystemCode      *string
 	SystemParams    []byte
+	Internal        bool
+}
+
+type ConfigDraft struct {
+	TenantID pgtype.UUID
+	Section  string
+	Key      string
+	Block    []byte
+	SavedBy  pgtype.UUID
+	SavedAt  pgtype.Timestamptz
+	Version  int32
+}
+
+type ConfigHubTemplateUse struct {
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	TemplateKey string
+	Version     int32
+	Document    []byte
+	AppliedAt   pgtype.Timestamptz
+}
+
+type ConfigProposal struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	State              string
+	Document           []byte
+	Mode               string
+	BaseHash           string
+	PlanHash           string
+	Template           *string
+	Added              int32
+	Changed            int32
+	Removed            int32
+	HidesData          bool
+	ChangesPermissions bool
+	ProposedBy         pgtype.UUID
+	DecidedBy          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	DecidedAt          pgtype.Timestamptz
+	HubID              pgtype.UUID
+	CollectionID       pgtype.UUID
+}
+
+type ConfigRevision struct {
+	TenantID     pgtype.UUID
+	Version      int32
+	Document     []byte
+	Hash         string
+	PlanHash     string
+	ActorKind    string
+	ActorID      pgtype.UUID
+	ProposedBy   pgtype.UUID
+	RolledBackTo *int32
+	Template     *string
+	Added        int32
+	Changed      int32
+	Removed      int32
+	CreatedAt    pgtype.Timestamptz
+	HubID        pgtype.UUID
+}
+
+type ConfigSandbox struct {
+	TenantID     pgtype.UUID
+	Document     []byte
+	BaseDocument []byte
+	BaseHash     string
+	BaseVersion  int32
+	Writes       int32
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type ConfigTemplate struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	Key                string
+	Version            int32
+	Name               string
+	Origin             string
+	Document           []byte
+	CreatedBy          pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	HubDocument        []byte
+	CollectionDocument []byte
+}
+
+type ConfigTemplateUse struct {
+	TenantID    pgtype.UUID
+	TemplateKey string
+	Version     int32
+	Document    []byte
+	AppliedAt   pgtype.Timestamptz
 }
 
 type ConsentRecord struct {
@@ -848,6 +1534,8 @@ type Container struct {
 	Private       bool
 	Handle        *string
 	ItemCounter   int64
+	LogoMediaID   pgtype.UUID
+	KeyPrefix     *string
 }
 
 type ContainerMilestone struct {
@@ -857,18 +1545,76 @@ type ContainerMilestone struct {
 }
 
 type CustomFieldDefinition struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	IsRequired   bool
-	AppliesTo    []ItemType
-	DeletedAt    pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	Version      int32
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	IsRequired     bool
+	AppliesTo      []ItemType
+	DeletedAt      pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+	Currency       *string
+	Formula        *string
+	Restricted     bool
+	ReadRestricted bool
+	CopiedFrom     pgtype.UUID
+	Name           *string
+}
+
+type CustomRole struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Name        string
+	Permissions []string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type CustomRoleGrant struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	RoleID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type Dashboard struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	OwnerID   pgtype.UUID
+	Name      string
+	Sharing   string
+	Widgets   []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	Version   int32
+	GroupIds  []pgtype.UUID
+}
+
+type DashboardDigest struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	DashboardID pgtype.UUID
+	AccountID   pgtype.UUID
+	Cadence     string
+	Weekday     int16
+	Hour        int16
+	TimeZone    string
+	NextAt      pgtype.Timestamptz
+	LastSentAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
 }
 
 type DataSubjectRequest struct {
@@ -900,6 +1646,154 @@ type DeletionJournal struct {
 	EntityID  pgtype.UUID
 	DeletedAt pgtype.Timestamptz
 	Reason    string
+}
+
+type DurableTimer struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Purpose         string
+	SubjectID       pgtype.UUID
+	Name            string
+	Calendar        []byte
+	BudgetSeconds   int64
+	ConsumedSeconds int64
+	RunningSince    pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	State           string
+	FiredAt         pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	FireAttempts    int32
+}
+
+type EntryEstimate struct {
+	TenantID  pgtype.UUID
+	EntryID   pgtype.UUID
+	Unit      string
+	Value     float64
+	Size      *string
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	Version   int32
+}
+
+type EntryFieldValue struct {
+	TenantID     pgtype.UUID
+	EntryID      pgtype.UUID
+	DefinitionID pgtype.UUID
+	Ordinal      int32
+	Num          pgtype.Numeric
+	Ts           pgtype.Timestamptz
+	Text         *string
+	Ref          pgtype.UUID
+	Addr         *netip.Addr
+}
+
+type EntryLink struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	LinkType       string
+	OwnType        *string
+	SourceID       pgtype.UUID
+	TargetID       pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DependencyKind string
+	LagDays        int32
+}
+
+type EntryOla struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	PolicyKey       string
+	GroupID         pgtype.UUID
+	Goal            string
+	TargetSeconds   int64
+	Standing        string
+	ArmedAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	AtRiskAt        pgtype.Timestamptz
+	MetAt           pgtype.Timestamptz
+	BreachedAt      pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	ConsumedSeconds *int64
+}
+
+type EntryReference struct {
+	TenantID   pgtype.UUID
+	SourceKind string
+	SourceID   pgtype.UUID
+	EntryID    pgtype.UUID
+	TargetKind string
+	TargetID   pgtype.UUID
+	Anchor     string
+	Strength   string
+}
+
+type EntrySchedule struct {
+	TenantID  pgtype.UUID
+	EntryID   pgtype.UUID
+	Mode      string
+	Milestone bool
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type EntrySla struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	Goal            string
+	PolicyKey       string
+	TargetSeconds   int64
+	Standing        string
+	ArmedAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	AtRiskAt        pgtype.Timestamptz
+	MetAt           pgtype.Timestamptz
+	BreachedAt      pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	ConsumedSeconds *int64
+}
+
+type EntryStatusChange struct {
+	TenantID    pgtype.UUID
+	ItemID      pgtype.UUID
+	Seq         int64
+	Status      string
+	EnteredAt   pgtype.Timestamptz
+	FromRestore bool
+}
+
+type EntryType struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Key             string
+	Level           string
+	System          bool
+	Name            string
+	Icon            string
+	ColorToken      string
+	Completable     bool
+	Workflow        bool
+	Record          bool
+	Schedulable     bool
+	Estimable       bool
+	AllowedChildren []string
+	Position        int32
+	ArchivedAt      pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	Form            []byte
+	Description     string
+	Translations    []byte
+	HubID           pgtype.UUID
+	CopiedFrom      *string
 }
 
 type ErasureKept struct {
@@ -934,6 +1828,110 @@ type FieldClock struct {
 	Hlc      string
 }
 
+type FileLink struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	Provider string
+	Address  string
+	Name     string
+	AddedBy  pgtype.UUID
+	AddedAt  pgtype.Timestamptz
+}
+
+type FileStoreAuthorization struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	AccountID    pgtype.UUID
+	Kind         string
+	Server       string
+	PollEndpoint string
+	StateHash    []byte
+	SecretEnc    []byte
+	SecretKeyID  string
+	ExpiresAt    pgtype.Timestamptz
+}
+
+type FileStoreConnection struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	Kind        string
+	Server      string
+	Login       string
+	SecretEnc   []byte
+	SecretKeyID string
+	CreatedAt   pgtype.Timestamptz
+	UsedAt      pgtype.Timestamptz
+}
+
+type Goal struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	PeriodID    pgtype.UUID
+	HubID       pgtype.UUID
+	ParentID    pgtype.UUID
+	Title       string
+	Description string
+	OwnerID     pgtype.UUID
+	Status      string
+	Confidence  int32
+	KeyResults  []byte
+	Grade       *float64
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type GoalCheckIn struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	GoalID     pgtype.UUID
+	AuthorID   pgtype.UUID
+	Status     string
+	Confidence int32
+	Note       string
+	Values     []byte
+	CreatedAt  pgtype.Timestamptz
+}
+
+type GoalEntry struct {
+	TenantID  pgtype.UUID
+	GoalID    pgtype.UUID
+	EntryID   pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+}
+
+type GoalPeriod struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Name      string
+	StartOn   pgtype.Date
+	EndOn     pgtype.Date
+	State     string
+	ClosedAt  pgtype.Timestamptz
+	ClosedBy  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type HubBusinessCalendar struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	Name      string
+	Spec      []byte
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type IdempotencyKey struct {
 	TenantID     pgtype.UUID
 	Key          string
@@ -961,11 +1959,16 @@ type IdentityProvider struct {
 	Provisioning        string
 	Position            int32
 	// The provider's own identifiers for the organisations this row admits: Microsoft tid, Google hd. Empty under DOMAINS with a preset that has a directory claim admits nobody (ADR-0071 §2).
-	AllowedDirectories []string
-	OfferedWorkspaces  int32
-	WithdrawAt         pgtype.Timestamptz
-	NewcomerRole       *MembershipRole
-	NewcomerGroupID    pgtype.UUID
+	AllowedDirectories  []string
+	OfferedWorkspaces   int32
+	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
+	SamlExpiryToldFor   pgtype.Timestamptz
+	SamlExpiryToldDays  *int16
+	SamlCertificatesEnd pgtype.Timestamptz
 }
 
 type ImportRun struct {
@@ -987,6 +1990,7 @@ type ImportRun struct {
 	StartedAt    pgtype.Timestamptz
 	FinishedAt   pgtype.Timestamptz
 	CollectionID pgtype.UUID
+	DryRun       bool
 }
 
 type InstallationPreset struct {
@@ -1070,6 +2074,7 @@ type Job struct {
 	Progress        *float32
 	LastErrorParams []byte
 	Outcome         *string
+	Revivals        int32
 }
 
 type JumbleEntry struct {
@@ -1116,6 +2121,35 @@ type Label struct {
 	Version      int32
 }
 
+type LdapDirectory struct {
+	TenantID           pgtype.UUID
+	Url                string
+	BindDn             string
+	PasswordEnc        []byte
+	PasswordKeyID      string
+	UserBase           string
+	UserFilter         string
+	GroupBase          *string
+	GroupFilter        string
+	IDAttribute        string
+	MailAttribute      string
+	NameAttribute      string
+	GroupNameAttribute string
+	MemberAttribute    string
+	RunAs              pgtype.UUID
+	EveryMinutes       int32
+	Enabled            bool
+	NextRunAt          pgtype.Timestamptz
+	LastRunAt          pgtype.Timestamptz
+	LastOutcome        *string
+	LastError          *string
+	LastCounts         []byte
+	Failures           int32
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	UpdatedBy          pgtype.UUID
+}
+
 type LegalHold struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID
@@ -1127,6 +2161,23 @@ type LegalHold struct {
 	ReleasedBy     pgtype.UUID
 	ReleasedAt     pgtype.Timestamptz
 	ReleasedReason *string
+}
+
+type LinkType struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	Name        string
+	InverseName string
+	Direction   string
+	Cardinality string
+	Cycles      string
+	Waits       string
+	Position    int32
+	ArchivedAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
 }
 
 type MailReceipt struct {
@@ -1155,6 +2206,13 @@ type MailSetting struct {
 	OpenedBy            pgtype.UUID
 	UpdatedAt           pgtype.Timestamptz
 	UpdatedBy           pgtype.UUID
+}
+
+type MailUndeliverable struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	Address   string
+	Since     pgtype.Timestamptz
 }
 
 type Mailbox struct {
@@ -1235,6 +2293,12 @@ type Membership struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type MigrationCursor struct {
+	Name      string
+	Position  string
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Notification struct {
 	ID                 pgtype.UUID
 	TenantID           pgtype.UUID
@@ -1253,6 +2317,16 @@ type Notification struct {
 	SubscriptionID     pgtype.UUID
 	PrivateHubAccessID pgtype.UUID
 	MembershipID       pgtype.UUID
+	PageID             pgtype.UUID
+	AgentID            pgtype.UUID
+	WhiteboardID       pgtype.UUID
+	ApprovalID         pgtype.UUID
+	BaselineID         pgtype.UUID
+	MailboxID          pgtype.UUID
+	IdentityProviderID pgtype.UUID
+	CalendarPushID     pgtype.UUID
+	CmdbConnectorID    pgtype.UUID
+	CodeHookID         pgtype.UUID
 }
 
 type NotificationPreference struct {
@@ -1318,6 +2392,8 @@ type OidcFlow struct {
 	TermsUrl         *string
 	TermsVersion     *string
 	Connect          bool
+	SamlResponse     *string
+	SamlHandoffHash  []byte
 }
 
 type Operator struct {
@@ -1347,6 +2423,146 @@ type OutboxEvent struct {
 	PushID         pgtype.UUID
 }
 
+type Page struct {
+	ID               pgtype.UUID
+	TenantID         pgtype.UUID
+	HubID            pgtype.UUID
+	ParentID         pgtype.UUID
+	Title            string
+	Body             string
+	Icon             string
+	OrderKey         string
+	Template         bool
+	ContentLanguage  *string
+	OwnerID          pgtype.UUID
+	VerifiedUntil    pgtype.Timestamptz
+	VerifiedAt       pgtype.Timestamptz
+	VerifiedBy       pgtype.UUID
+	ArchivedAt       pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedBy        pgtype.UUID
+	UpdatedAt        pgtype.Timestamptz
+	Version          int32
+	SearchDocument   interface{}
+	Restricted       bool
+	DailyFor         pgtype.Date
+	LanguageSourceID pgtype.UUID
+	LanguageVariant  *string
+	DeletedByType    *string
+	DeletedByID      pgtype.UUID
+}
+
+type PageArticle struct {
+	TenantID     pgtype.UUID
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+	PublishedBy  pgtype.UUID
+	PublishedAt  pgtype.Timestamptz
+	Views        int64
+}
+
+type PageArticleRating struct {
+	TenantID     pgtype.UUID
+	PageID       pgtype.UUID
+	CollectionID pgtype.UUID
+	AccountID    pgtype.UUID
+	Helpful      bool
+	RatedAt      pgtype.Timestamptz
+}
+
+type PageComment struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	PageID     pgtype.UUID
+	ParentID   pgtype.UUID
+	AuthorID   pgtype.UUID
+	Body       string
+	Anchor     string
+	Quote      string
+	ResolvedAt pgtype.Timestamptz
+	ResolvedBy pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	EditedAt   pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+	Version    int32
+}
+
+type PageDraft struct {
+	TenantID    pgtype.UUID
+	PageID      pgtype.UUID
+	Unpublished bool
+	Title       *string
+	Body        *string
+	UpdatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type PageLabel struct {
+	TenantID pgtype.UUID
+	PageID   pgtype.UUID
+	Label    string
+}
+
+type PageMedium struct {
+	TenantID pgtype.UUID
+	PageID   pgtype.UUID
+	MediaID  pgtype.UUID
+}
+
+type PagePublicLink struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	TokenHash []byte
+	CreatedBy pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
+type PageReference struct {
+	TenantID   pgtype.UUID
+	PageID     pgtype.UUID
+	TargetKind string
+	TargetID   pgtype.UUID
+	Anchor     string
+	Strength   string
+}
+
+type PageRestriction struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	GrantedBy pgtype.UUID
+	GrantedAt pgtype.Timestamptz
+}
+
+type PageShare struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	GrantedBy pgtype.UUID
+	GrantedAt pgtype.Timestamptz
+}
+
+type PageVersion struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	Seq       int32
+	Title     string
+	Body      string
+	AuthorID  pgtype.UUID
+	Name      string
+	Restored  int32
+	CreatedAt pgtype.Timestamptz
+}
+
+type PersonalSpace struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	HubID     pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type Plan struct {
 	ID          pgtype.UUID
 	Name        string
@@ -1356,6 +2572,25 @@ type Plan struct {
 	UpdatedAt   pgtype.Timestamptz
 	UpdatedBy   pgtype.UUID
 	RemovedAt   pgtype.Timestamptz
+}
+
+type PlanBaseline struct {
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	PlanID             pgtype.UUID
+	Name               string
+	TakenAt            pgtype.Timestamptz
+	TakenBy            pgtype.UUID
+	EntryCount         int32
+	ExceptionNoticedAt pgtype.Timestamptz
+}
+
+type PlanBaselineEntry struct {
+	TenantID   pgtype.UUID
+	BaselineID pgtype.UUID
+	EntryID    pgtype.UUID
+	StartAt    pgtype.Timestamptz
+	DueAt      pgtype.Timestamptz
 }
 
 type PlanSetting struct {
@@ -1406,6 +2641,49 @@ type PlatformSubscription struct {
 	Version        int32
 }
 
+type Portfolio struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	ParentID    pgtype.UUID
+	Name        string
+	Description string
+	OwnerID     pgtype.UUID
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type PortfolioItem struct {
+	TenantID    pgtype.UUID
+	PortfolioID pgtype.UUID
+	ContainerID pgtype.UUID
+	Position    int32
+	StartOn     pgtype.Date
+	EndOn       pgtype.Date
+	Status      string
+}
+
+type PortfolioPublicLink struct {
+	TenantID    pgtype.UUID
+	PortfolioID pgtype.UUID
+	TokenHash   []byte
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
+type PortfolioUpdate struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	PortfolioID pgtype.UUID
+	AuthorID    pgtype.UUID
+	Status      string
+	Summary     string
+	CreatedAt   pgtype.Timestamptz
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
@@ -1431,11 +2709,56 @@ type PrivateHubAccess struct {
 	EndsAt   pgtype.Timestamptz
 }
 
+type PublicForm struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	TokenHash    []byte
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+type PublicFormChallenge struct {
+	TenantID  pgtype.UUID
+	Nonce     string
+	ExpiresAt pgtype.Timestamptz
+}
+
 type QuotaReached struct {
 	TenantID  pgtype.UUID
 	Quota     string
 	Period    string
 	ReachedAt pgtype.Timestamptz
+}
+
+type RealtimeDocument struct {
+	TenantID    pgtype.UUID
+	Kind        string
+	DocumentID  pgtype.UUID
+	HeadSeq     int64
+	SnapshotSeq int64
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type RealtimeSnapshot struct {
+	TenantID     pgtype.UUID
+	Kind         string
+	DocumentID   pgtype.UUID
+	UpToSeq      int64
+	State        []byte
+	CreatedAt    pgtype.Timestamptz
+	SupersededAt pgtype.Timestamptz
+}
+
+type RealtimeUpdate struct {
+	TenantID    pgtype.UUID
+	Kind        string
+	DocumentID  pgtype.UUID
+	Seq         int64
+	Data        []byte
+	AuthorID    pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CompactedAt pgtype.Timestamptz
 }
 
 type RecurrenceRule struct {
@@ -1454,6 +2777,29 @@ type RecurrenceRule struct {
 	UpdatedAt          pgtype.Timestamptz
 }
 
+type Release struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	Name        string
+	Description string
+	ReleaseOn   pgtype.Date
+	State       string
+	ReleasedAt  pgtype.Timestamptz
+	NotesPageID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+type ReleaseEntry struct {
+	TenantID  pgtype.UUID
+	ReleaseID pgtype.UUID
+	EntryID   pgtype.UUID
+	AddedAt   pgtype.Timestamptz
+}
+
 type Reminder struct {
 	ID         pgtype.UUID
 	TenantID   pgtype.UUID
@@ -1466,6 +2812,45 @@ type Reminder struct {
 	CreatedAt  pgtype.Timestamptz
 	Version    int32
 	UpdatedAt  pgtype.Timestamptz
+}
+
+type ReplyTemplate struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Name      string
+	Body      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type Requester struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	Address        string
+	DisplayName    string
+	FirstContactAt pgtype.Timestamptz
+	LastContactAt  pgtype.Timestamptz
+}
+
+type RequesterContact struct {
+	TenantID    pgtype.UUID
+	RequesterID pgtype.UUID
+	ItemID      pgtype.UUID
+	At          pgtype.Timestamptz
+}
+
+type RequesterOrganisation struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	Key            string
+	Name           string
+	Domains        []string
+	SharesRequests bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
 }
 
 type RestoreDrillMarker struct {
@@ -1496,6 +2881,8 @@ type RestoreRun struct {
 	TargetTenantID     pgtype.UUID
 	CreateSafetyBackup bool
 	Progress           []byte
+	PassphraseEnc      []byte
+	PassphraseKeyID    *string
 }
 
 type RetentionCursor struct {
@@ -1584,6 +2971,42 @@ type RuleRun struct {
 	Occasion         *string
 }
 
+type SampleEntry struct {
+	TenantID  pgtype.UUID
+	ItemID    pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	CreatedAt pgtype.Timestamptz
+}
+
+type SampleObject struct {
+	TenantID  pgtype.UUID
+	Key       string
+	Kind      string
+	ObjectID  pgtype.UUID
+	Version   *int64
+	CreatedAt pgtype.Timestamptz
+}
+
+type SatisfactionLink struct {
+	TenantID    pgtype.UUID
+	RequesterID pgtype.UUID
+	ItemID      pgtype.UUID
+	TokenHash   []byte
+	CreatedAt   pgtype.Timestamptz
+	ExpiresAt   pgtype.Timestamptz
+	UsedAt      pgtype.Timestamptz
+}
+
+type SatisfactionRating struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	Score    int16
+	RatedAt  pgtype.Timestamptz
+	Version  int32
+}
+
 type SavedView struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID
@@ -1598,6 +3021,7 @@ type SavedView struct {
 	Sharing       string
 	CreatedAt     pgtype.Timestamptz
 	Version       int32
+	Key           *string
 }
 
 type Session struct {
@@ -1621,6 +3045,8 @@ type Session struct {
 	IdleMinutes        *int32
 	ElevatedUntil      pgtype.Timestamptz
 	SignedInProviderID pgtype.UUID
+	ViewingAs          pgtype.UUID
+	ViewingAsUntil     pgtype.Timestamptz
 }
 
 type SessionRefreshToken struct {
@@ -1640,6 +3066,71 @@ type SetElement struct {
 	ElementID pgtype.UUID
 	AddTag    *string
 	RemoveTag *string
+}
+
+type SettingValue struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Level     string
+	ScopeID   pgtype.UUID
+	Key       string
+	Value     []byte
+	Hold      string
+	Allowed   []byte
+	SetBy     pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
+type SlaPolicy struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Key             string
+	Name            string
+	CalendarKey     *string
+	EntryTypes      []string
+	PriorityField   string
+	Goals           []byte
+	Position        int32
+	Enabled         bool
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	Organisations   []string
+	AssigneeGroupID pgtype.UUID
+	HubID           pgtype.UUID
+	CopiedFrom      *string
+}
+
+type Sprint struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Name           string
+	Goal           string
+	StartOn        pgtype.Date
+	EndOn          pgtype.Date
+	State          string
+	Unit           string
+	CommittedValue float64
+	CommittedCount int32
+	CompletedValue float64
+	CompletedCount int32
+	StartedAt      pgtype.Timestamptz
+	ClosedAt       pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+type SprintEntry struct {
+	TenantID  pgtype.UUID
+	SprintID  pgtype.UUID
+	EntryID   pgtype.UUID
+	AddedAt   pgtype.Timestamptz
+	RemovedAt pgtype.Timestamptz
+	Committed bool
+	Outcome   *string
 }
 
 type StructurePreset struct {
@@ -1693,6 +3184,14 @@ type Template struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type TemplatePage struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	HubID     pgtype.UUID
+	Key       string
+	CreatedAt pgtype.Timestamptz
+}
+
 type Tenant struct {
 	ID                      pgtype.UUID
 	Slug                    string
@@ -1716,6 +3215,7 @@ type Tenant struct {
 	ExternalReference       *string
 	StarterAnsweredAt       pgtype.Timestamptz
 	AddressChangedAt        pgtype.Timestamptz
+	ArchiveDownloadedAt     pgtype.Timestamptz
 }
 
 type TenantHost struct {
@@ -1733,6 +3233,126 @@ type TenantHost struct {
 	ProofFound         bool
 	CertificateAskedAt pgtype.Timestamptz
 	FellBackAt         pgtype.Timestamptz
+}
+
+type TimeAbsence struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	Kind      string
+	Half      bool
+	CreatedAt pgtype.Timestamptz
+	CreatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type TimeBudget struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	PlanID      pgtype.UUID
+	Minutes     int64
+	AmountMinor int64
+	Currency    string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type TimeCapacity struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	FromDay     pgtype.Date
+	WeekMinutes []int32
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	Version     int32
+}
+
+type TimeCostRate struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	Role      *string
+	HourMinor int64
+	Currency  string
+	FromDay   pgtype.Date
+	ToDay     pgtype.Date
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+	Version   int32
+	PlanID    pgtype.UUID
+}
+
+type TimePolicy struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	LockedThrough pgtype.Date
+	Visibility    string
+	UpdatedAt     pgtype.Timestamptz
+	UpdatedBy     pgtype.UUID
+	Version       int32
+}
+
+type TimeRecord struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	EntryID   pgtype.UUID
+	WorkType  string
+	Day       pgtype.Date
+	StartedAt pgtype.Timestamptz
+	Minutes   int32
+	Note      string
+	Billable  bool
+	Source    string
+	Corrects  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type TimeTimer struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	EntryID   pgtype.UUID
+	WorkType  string
+	Note      string
+	Billable  bool
+	StartedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type TimeWorkType struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Key       string
+	Name      string
+	Billable  bool
+	Archived  bool
+	Position  int32
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Version   int32
+}
+
+type Timesheet struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	AccountID   pgtype.UUID
+	WeekStart   pgtype.Date
+	State       string
+	Minutes     int32
+	SubmittedAt pgtype.Timestamptz
+	DecidedAt   pgtype.Timestamptz
+	DecidedBy   pgtype.UUID
+	Reason      string
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
 }
 
 type Tombstone struct {
@@ -1833,6 +3453,69 @@ type WebhookSubscription struct {
 	DisabledAt          pgtype.Timestamptz
 	ScopeType           *string
 	ScopeID             pgtype.UUID
+	Format              string
+	ChatRoom            *string
+	ChatLocale          *string
+}
+
+type Whiteboard struct {
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	HubID         pgtype.UUID
+	Title         string
+	Scene         []byte
+	DeletedAt     pgtype.Timestamptz
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	UpdatedBy     pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
+}
+
+type WhiteboardComment struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	ParentID     pgtype.UUID
+	AuthorID     pgtype.UUID
+	Body         string
+	ElementID    string
+	X            float64
+	Y            float64
+	ResolvedAt   pgtype.Timestamptz
+	ResolvedBy   pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	EditedAt     pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	Version      int32
+}
+
+type WhiteboardMedium struct {
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	MediaID      pgtype.UUID
+}
+
+type WhiteboardReference struct {
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	TargetKind   string
+	TargetID     pgtype.UUID
+	Anchor       string
+	Strength     string
+}
+
+type WhiteboardVersion struct {
+	TenantID     pgtype.UUID
+	WhiteboardID pgtype.UUID
+	Seq          int32
+	Title        string
+	Scene        []byte
+	AuthorID     pgtype.UUID
+	Name         string
+	CreatedAt    pgtype.Timestamptz
 }
 
 type WorkItem struct {
@@ -1888,4 +3571,54 @@ type WorkItem struct {
 	FlowStartedAt         pgtype.Timestamptz
 	FlowFinishedAt        pgtype.Timestamptz
 	Number                *int64
+	EntryType             *string
+	Status                *string
+}
+
+type WorkItemAnnouncement struct {
+	TenantID           pgtype.UUID
+	ItemID             pgtype.UUID
+	DueSoonAnnouncedAt pgtype.Timestamptz
+	OverdueAnnouncedAt pgtype.Timestamptz
+}
+
+type WorkItemFlow struct {
+	TenantID       pgtype.UUID
+	ItemID         pgtype.UUID
+	FlowStartedAt  pgtype.Timestamptz
+	FlowFinishedAt pgtype.Timestamptz
+}
+
+type WorkItemRetention struct {
+	TenantID     pgtype.UUID
+	ItemID       pgtype.UUID
+	PendingUntil pgtype.Timestamptz
+	RuleID       pgtype.UUID
+	Action       *string
+	BlockedBy    *string
+}
+
+type Workflow struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	Key         string
+	System      bool
+	Name        string
+	Published   []byte
+	Draft       []byte
+	PublishedAt pgtype.Timestamptz
+	PublishedBy pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+	HubID       pgtype.UUID
+	CopiedFrom  *string
+}
+
+type WorkflowScheme struct {
+	TenantID    pgtype.UUID
+	ContainerID pgtype.UUID
+	EntryType   string
+	WorkflowKey string
+	CreatedAt   pgtype.Timestamptz
 }

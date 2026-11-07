@@ -1,6 +1,6 @@
 # Product principles
 
-Sixteen principles every use case is measured against. They are about what a **person** meets,
+Nineteen principles every use case is measured against. They are about what a **person** meets,
 not about how the code is layered — the engineering rules are in [`AGENTS.md`](../../AGENTS.md)
 and the ADRs, and several principles here are the reason those rules exist.
 
@@ -223,6 +223,61 @@ The owner set the rule on 2026-10-03 ([ADR-0077](../adr/ADR-0077-nobody-is-locke
 workspace, a deployment — is left with no way in that works, and nobody told the person what to do.
 Its limits, where P-02 wins because no proof is left: a lost second factor with lost recovery codes,
 which an administrator answers.
+
+### P-17: Depth is switched on, and starts from a default that works
+
+**Rule.** Every capability beyond the core — workflows and types, planning, pages, whiteboards,
+forms and the service desk, assets, time, goals and insight, governed agents — is a module switched
+on per workspace, and where it makes sense per hub. A module that is off is invisible — no menu
+entry, no field, no word of its vocabulary. A module that is on works immediately from a shipped
+default (a three-status workflow, a blank page tree, a two-week sprint length) and is configured
+only by whoever may shape the workspace.
+
+**Why.** The owner wants the full breadth of the market's suites; P-10 says the smallest deployment
+comes first. Both hold only if breadth is opt-in. The lesson of the market's last five years is that
+configuration depth without a working default sinks adoption, and depth with one wins enterprises.
+Decided by the owner on 2026-10-28 with the suite ([ADR-0098](../adr/ADR-0098-the-suite-and-its-foundation.md);
+the modules are in [`backlog/suite/products.md`](../backlog/suite/products.md)).
+
+**Broken when** a new workspace must configure something before its first task; a person meets a
+scheme, a status category or a sprint in a workspace that never switched the module on; or switching
+a module off loses data (it hides; P-03).
+
+### P-18: One feature, one building block, every door
+
+**Rule.** A capability exists once, as one building block; every door — the screen, the panel, the
+portal, mail, import, voice, REST, MCP, `hubctl`, a rule — uses that block and is held to it by the
+server. A second way to do the same thing with different abilities is a defect, not an option. A
+type's form is the one way an entry of that type is created or edited, wherever it is created; a
+setting has one home per level.
+
+**Why.** The market's suites grew a create screen beside a field configuration beside a portal form
+beside a forms add-on, each checking something different — and every split is a way around a rule.
+P-06 and P-08 already ask for one place and every door; a suite holds them only if each feature is
+one block. Decided by the owner on 2026-10-28
+([ADR-0098](../adr/ADR-0098-the-suite-and-its-foundation.md); the building blocks are in
+[`backlog/suite/configuration/model.md`](../backlog/suite/configuration/model.md) §2).
+
+**Broken when** a person can reach a result by two paths that check different things; a setting
+exists on two pages; or an agent can do through the API what the form forbids a person.
+
+### P-19: Everything is an object you can point at, and every view of it is the same view
+
+**Rule.** Every entry, page, record, view, dashboard, goal, sprint and whiteboard has one address
+and one reference type. Any tool that holds text or space — a page, a whiteboard, a comment, a
+form's help, a status update — can mention it, embed it live, or turn its own content into it. An
+embedded view is the view itself, with the reader's permissions, not a copy.
+
+**Why.** A suite whose tools only sit side by side is several products sharing a login; the value is
+in the task on the whiteboard and the board inside the page. It follows from P-18: the view is one
+block, so a board in a page is the same block in a smaller frame, and a sticky note turned into a
+task opens the same form. Decided by the owner on 2026-10-28
+([ADR-0098](../adr/ADR-0098-the-suite-and-its-foundation.md); the references are in
+[`backlog/suite/configuration/connected.md`](../backlog/suite/configuration/connected.md)).
+
+**Broken when** a tool shows a copy that goes stale; an embed shows the reader something their role
+would not; a tool can show entries but not the board everybody else uses; or two tools have two ways
+of linking.
 
 ---
 

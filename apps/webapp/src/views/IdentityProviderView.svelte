@@ -38,6 +38,8 @@
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import ProviderFields from '../lib/signin/ProviderFields.svelte';
   import { draftBody, draftOf, draftRefusal, emptyDraft } from '../lib/signin/issuer.ts';
+  import { certificateState } from '../lib/signin/certificate.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -48,6 +50,7 @@
   import ValueSource from '../lib/workspace/ValueSource.svelte';
   import { focusFirst } from '../lib/forms/missing.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
   let editing = $state<string | undefined>(undefined);
@@ -140,6 +143,11 @@
     saved = false;
   }
 
+  /** Where a SAML provider's certificates stand, and the moment they end in the reader's words. */
+  const certificate = (provider: IdentityProvider) => certificateState(provider.saml_certificate_expires_at, Date.now());
+  const certificateEnd = (provider: IdentityProvider): string =>
+    provider.saml_certificate_expires_at ? formatDateTime(provider.saml_certificate_expires_at, messages.locale) : '';
+
   function close(): void {
     editing = undefined;
     draft.clientSecret = '';
@@ -205,7 +213,7 @@
   function problemOf(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
   /** Whether the reader may configure the workspace's providers (`MANAGE_MEMBERS`). */
   const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
@@ -226,9 +234,7 @@
         <span>{t('app.identity_provider.reading')}</span>
       </p>
     {:else if unreadable}
-      <Banner tone="danger" title={unreadable.message}>
-        {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-      </Banner>
+      <FailureNote problem={unreadable} />
     {:else if unavailable}
       <ReadOnlyNotice icon="info" text={t('app.identity_provider.not_served')} />
     {:else}
@@ -236,9 +242,7 @@
         <!-- The server's own sentence: an issuer that could not be reached, a mark on an issuer it
              does not belong to, a mode the provider may not use, a caller who may read and not
              write. -->
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {:else if saved}
         <Banner tone="success">{t('app.identity_provider.saved')}</Banner>
       {/if}
@@ -298,6 +302,13 @@
                   <Badge tone="neutral">{t('app.plan.resting')}</Badge>
                 {:else if !provider.enabled}
                   <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
+                {/if}
+                <!-- Before the e-mail is the only sign: an ended certificate refuses every answer,
+                     so nobody signs in through the provider until a new one is stored. -->
+                {#if certificate(provider) === 'ended'}
+                  <Badge tone="danger">{t('app.identity_provider.certificate_ended', { date: certificateEnd(provider) })}</Badge>
+                {:else if certificate(provider) === 'ending'}
+                  <Badge tone="warning">{t('app.identity_provider.certificate_ending', { date: certificateEnd(provider) })}</Badge>
                 {/if}
                 {#if mayManage}
                 <div class="row">

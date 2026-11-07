@@ -6,6 +6,7 @@ package mail_test
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"mime/quotedprintable"
@@ -20,6 +21,7 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/mail"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/infrastructure/mail"
+	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 )
 
 // server is a scripted SMTP server on a real socket. Enough of RFC 5321 for the adapter's
@@ -33,6 +35,8 @@ type server struct {
 	// refuseRecipient makes the server answer RCPT the way a real one refuses an address: with
 	// the address quoted back in the reply text.
 	refuseRecipient bool
+	// refuseContaining refuses, with a 550, only the recipients whose RCPT line holds it.
+	refuseContaining string
 }
 
 func newServer(t *testing.T) *server {
@@ -107,7 +111,7 @@ func (s *server) converse(conn net.Conn) {
 			write("250-test.invalid")
 			write("250 SIZE 10240000")
 		case strings.HasPrefix(line, "RCPT TO"):
-			if s.refuseRecipient {
+			if s.refuseRecipient || (s.refuseContaining != "" && strings.Contains(line, s.refuseContaining)) {
 				write("550 5.1.1 <anna@test.invalid>: Recipient address rejected")
 				continue
 			}
@@ -140,12 +144,15 @@ func configFor(s *server) env.MailConfig {
 	}
 }
 
+// UC-JUM-10 check 1: a notification about an entry carries its address as Reply-To and Hubtask's
+// own notification header.
 func TestAMessageReachesTheServer(t *testing.T) {
 	smtpServer := newServer(t)
 	sender := mail.NewSMTP(configFor(smtpServer))
 
 	err := sender.Send(context.Background(), port.Message{
 		To:      "anna@test.invalid",
+		ReplyTo: "familie+web-42@in.example.test",
 		Subject: "Anna commented on Review the quote",
 		Body:    "Anna wrote on “Review the quote”.\nhttps://hub.test.invalid/items/1",
 	})
@@ -166,6 +173,8 @@ func TestAMessageReachesTheServer(t *testing.T) {
 		"Content-Type: text/plain; charset=utf-8",
 		// RFC 3834: so that an out-of-office reply does not bounce around a notification.
 		"Auto-Submitted: auto-generated",
+		"Reply-To: familie+web-42@in.example.test",
+		port.NotificationHeader + ": 1",
 		"https://hub.test.invalid/items/1",
 	} {
 		if !strings.Contains(message, want) {
@@ -201,6 +210,7 @@ func TestANonASCIISubjectIsEncoded(t *testing.T) {
 
 // The SMTP half of T-06's reasoning: a header separator in user content ends the header and starts
 // whatever follows it.
+// UC-NOT-05 check 4.
 func TestHeaderInjectionIsRefusedBeforeAnythingIsDialled(t *testing.T) {
 	// No server at all: a refusal that reached the network would be a refusal that came too late.
 	sender := mail.NewSMTP(env.MailConfig{
@@ -282,6 +292,7 @@ func TestARefusedRecipientDoesNotCarryTheAddressOut(t *testing.T) {
 
 // An installation that never set HUBTASK_SMTP_HOST is not broken; it is one whose notifications
 // wait. Reported as the dependency being down, which is what /meta/health says about it.
+// UC-NOT-05 check 2.
 func TestNoServerConfiguredIsADependencyThatIsDown(t *testing.T) {
 	err := mail.NewSMTP(env.MailConfig{From: "hubtask@test.invalid"}).
 		Send(context.Background(), port.Message{To: "anna@test.invalid", Subject: "Hello"})
@@ -388,5 +399,81 @@ func TestAnASCIIBodyTravelsAsItIs(t *testing.T) {
 	message := smtpServer.messages()[0]
 	if strings.Contains(message, "Content-Transfer-Encoding") {
 		t.Errorf("an ASCII body was encoded:\n%s", message)
+	}
+}
+
+// A scheduled report's table travels as a CSV attachment (UC-GOL-04): one multipart message, the
+// body quoted-printable so no line of it can be taken for the boundary, the file base64.
+func TestACsvAttachmentTravelsBesideTheBody(t *testing.T) {
+	smtpServer := newServer(t)
+	sender := mail.NewSMTP(configFor(smtpServer))
+	csv := []byte("group,value\r\nOpen,3\r\n")
+	if err := sender.Send(context.Background(), port.Message{
+		To: "anna@test.invalid", Subject: "Report", Body: "--=_hubtask_part\nthe totals",
+		Attachments: []port.Attachment{{Name: "widget-1.csv", ContentType: "text/csv", Content: csv}},
+	}); err != nil {
+		t.Fatalf("sending: %v", err)
+	}
+	message := smtpServer.messages()[0]
+	if !strings.HasPrefix(headerOf(t, message, "Content-Type"), "multipart/mixed") {
+		t.Fatalf("not a multipart message:\n%s", message)
+	}
+	if strings.Contains(message, "\n--=_hubtask_part\nthe totals") {
+		t.Errorf("the body forged a part boundary:\n%s", message)
+	}
+	if !strings.Contains(message, `filename="widget-1.csv"`) || !strings.Contains(message, base64.StdEncoding.EncodeToString(csv)) {
+		t.Errorf("the attachment is missing:\n%s", message)
+	}
+}
+
+// An attachment of another type, with a name that could leave its quotes, or past the bound is
+// refused before anything is sent.
+func TestAnUnsafeAttachmentIsRefused(t *testing.T) {
+	smtpServer := newServer(t)
+	sender := mail.NewSMTP(configFor(smtpServer))
+	for name, attachment := range map[string]port.Attachment{
+		"a type":  {Name: "a.html", ContentType: "text/html", Content: []byte("x")},
+		"a name":  {Name: "a\".csv", ContentType: "text/csv", Content: []byte("x")},
+		"a size":  {Name: "a.csv", ContentType: "text/csv", Content: make([]byte, port.MaxAttachmentBytes+1)},
+		"no name": {ContentType: "text/csv", Content: []byte("x")},
+	} {
+		err := sender.Send(context.Background(), port.Message{To: "anna@test.invalid", Subject: "R", Body: "b",
+			Attachments: []port.Attachment{attachment}})
+		if !errors.Is(err, port.ErrAttachmentRefused) {
+			t.Errorf("%s: %v, want the refusal", name, err)
+		}
+	}
+	if len(smtpServer.messages()) != 0 {
+		t.Error("a refused message reached the server")
+	}
+}
+
+// A refused address is the message's answer, not the mail server's health: six of them in a row
+// leave the installation-wide breaker closed, and the next valid message goes out.
+func TestRefusedRecipientsLeaveTheBreakerClosed(t *testing.T) {
+	smtpServer := newServer(t)
+	smtpServer.refuseContaining = "bounced"
+	breaker := resilience.NewBreaker(resilience.BreakerConfig{Dependency: mail.Dependency})
+	sender := mail.NewResilientSender(mail.NewSMTP(configFor(smtpServer)), breaker,
+		resilience.NewBulkhead(resilience.BulkheadConfig{Name: mail.Dependency, Capacity: 1}))
+
+	for range 6 {
+		err := sender.Send(context.Background(), port.Message{
+			To: "bounced@test.invalid", Subject: "Hello", Body: "there",
+		})
+		if code := shared.AsError(err).DetailCode; code != "mail.recipient_rejected" {
+			t.Fatalf("a refused recipient answered %q, want mail.recipient_rejected", code)
+		}
+		if resilience.Retryable(err) {
+			t.Fatal("a refused recipient is retryable, so the delivery would ask again")
+		}
+	}
+	if state := breaker.State(); state != resilience.BreakerClosed {
+		t.Fatalf("six refused recipients put the breaker in state %v", state)
+	}
+	if err := sender.Send(context.Background(), port.Message{
+		To: "anna@test.invalid", Subject: "Hello", Body: "there",
+	}); err != nil {
+		t.Fatalf("a valid message after the refusals failed: %v", err)
 	}
 }

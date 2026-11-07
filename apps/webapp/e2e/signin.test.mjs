@@ -42,11 +42,11 @@ const TOKENS = {
 };
 
 /** What the sign-in screens read, and nothing else: an unsigned visitor reaches nothing else. */
-function stubFor({ answer, onCheck }) {
+function stubFor({ answer, onCheck, rules = RULES }) {
   return async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    if (path.endsWith('/api/v1/auth/sign-in-rules')) return route.fulfill({ json: RULES });
+    if (path.endsWith('/api/v1/auth/sign-in-rules')) return route.fulfill({ json: rules });
     if (path.endsWith('/api/v1/auth/password:check')) {
       const violations = onCheck?.(request.postDataJSON()) ?? [];
       return route.fulfill({ json: { violations } });
@@ -117,6 +117,36 @@ test('the card is reached, filled and submitted from the keyboard alone', async 
   }
 });
 
+// UC-ID-01 checks 1 and 7: no app bar, navigation or account menu, the host beside the wordmark,
+// and nothing sent until the button.
+test('the signed-out card stands alone and sends nothing by itself', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = [];
+  const stub = stubFor({ answer: refused });
+  const { browser, page } = await open(origin, async (route) => {
+    if (route.request().url().endsWith('/auth/sessions')) sent.push(route.request().method());
+    return stub(route);
+  });
+  try {
+    assert.equal(await page.getByRole('navigation').count(), 0, 'a navigation is drawn');
+    assert.equal(await page.getByRole('banner').count(), 0, 'an app bar is drawn');
+    assert.equal(await page.getByRole('button', { name: /account/i }).count(), 0, 'an account menu is drawn');
+    assert.equal(await page.getByText('to contoso.hubtask.eu').count(), 1);
+    const address = page.locator('input[autocomplete="username webauthn"]');
+    assert.equal(await address.count(), 1);
+    await address.fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('a-long-enough-password');
+    await page.waitForTimeout(500);
+    assert.deepEqual(sent, [], 'the card sent itself');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.locator('[role="alert"]').waitFor();
+    assert.deepEqual(sent, ['POST']);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 test('the eye shows the password and says which state it is in', async () => {
   const { origin, close } = await serve(DIST);
   const { browser, page } = await open(origin, stubFor({ answer: refused }));
@@ -127,6 +157,8 @@ test('the eye shows the password and says which state it is in', async () => {
     assert.equal(await eye.getAttribute('aria-pressed'), 'false');
     await eye.click();
     assert.equal(await page.locator('input[autocomplete="current-password"]').getAttribute('type'), 'text');
+    // UC-ID-01 check 3: shown and hidden without changing it.
+    assert.equal(await page.locator('input[autocomplete="current-password"]').inputValue(), 'a-long-enough-password');
     const hide = page.getByRole('button', { name: 'Hide password' });
     assert.equal(await hide.getAttribute('aria-pressed'), 'true');
     await hide.click();
@@ -151,8 +183,10 @@ test('a refusal is one sentence, and it is announced rather than only drawn', as
     assert.match(text, /Sign-in failed/);
     // T-02: nothing on the screen says which half was wrong.
     assert.ok(!/address .*(unknown|not found)/i.test(text), text);
-    // The password is out of the field, and out of the DOM with it.
+    // The password is out of the field, and out of the DOM with it - and the field has the focus
+    // (UC-ID-01 check 4).
     assert.equal(await page.locator('input[autocomplete="current-password"]').inputValue(), '');
+    await page.waitForFunction(() => document.activeElement?.getAttribute('autocomplete') === 'current-password');
   } finally {
     await browser.close();
     await close();
@@ -182,6 +216,39 @@ test('a second factor becomes the second step, with the code field and the ident
 
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-02 check 3: six digits typed in, a numeric keyboard on a phone, and no submit of its own -
+// the person presses Sign in. UC-ID-02 check 1: *Not you?* returns to step one, the address kept.
+test('the code field waits for its button, and Not you? goes back with the address kept', async () => {
+  const { origin, close } = await serve(DIST);
+  let verified = 0;
+  const stub = stubFor({ answer: owed });
+  const { browser, page } = await open(origin, async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sessions:verify')) verified++;
+    return stub(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+
+    const code = page.locator('input[autocomplete="one-time-code"]');
+    assert.equal(await code.getAttribute('inputmode'), 'numeric', 'a phone shows the numeric keyboard');
+    await code.pressSequentially('482197');
+    await page.waitForTimeout(500);
+    assert.equal(verified, 0, 'six digits sent themselves');
+    assert.ok(await code.isVisible(), 'the step moved on by itself');
+
+    await page.getByRole('button', { name: 'Not you?' }).click();
+    await page.locator('input[autocomplete="one-time-code"]').waitFor({ state: 'detached' });
+    assert.equal(await page.locator('input[type="email"]').inputValue(), 'walker@example.invalid', 'the address was kept');
+    assert.equal(verified, 0);
   } finally {
     await browser.close();
     await close();
@@ -496,6 +563,38 @@ test('an invitation under a factor rule continues into the setup and opens the s
     assert.equal(sent.confirm?.pending_token, 'enroll-r');
     await page.getByRole('button', { name: 'Continue' }).waitFor({ state: 'detached' });
     assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-07 check 2: the invitation token leaves the address bar before the first request - the
+// page notes the address at every request it makes, and none of them still carries the token.
+test('the invitation token is out of the address bar before the first request', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.addInitScript(() => {
+    const seen = [];
+    Object.defineProperty(window, '__addressesAtRequests', { value: seen });
+    const original = window.fetch.bind(window);
+    window.fetch = (...args) => { seen.push(location.href + ' -> ' + String(args[0]?.url ?? args[0])); return original(...args); };
+  });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/invitations:inspect')) {
+      return route.fulfill({ json: { workspace_name: 'Contoso', email: 'bert@contoso.example' } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByLabel(/New password/).waitFor();
+    const addresses = await page.evaluate(() => window.__addressesAtRequests);
+    assert.ok(addresses.length > 0, 'the card made no request at all');
+    for (const address of addresses) assert.doesNotMatch(address, /invitation-token/, `a request left from ${address}`);
+    assert.doesNotMatch(page.url(), /invitation-token/);
   } finally {
     await browser.close();
     await close();
@@ -886,7 +985,7 @@ test('no provider button when the rules name none', async () => {
   }
 });
 
-// UC-ID-18 checks 4 and 5: the footer's links are the operator's, labelled neutrally whatever they
+// UC-ID-18 checks 4, 5 and 7: the footer's links are the operator's, labelled neutrally whatever they
 // point at, and a link nobody set is not shown - the accessibility link included, which does not fall
 // back to hubtask.eu.
 test('the footer shows only the links that were set, with neutral labels', async () => {
@@ -900,6 +999,8 @@ test('the footer shows only the links that were set, with neutral labels', async
         imprint_url: 'https://op.example/imprint', privacy_url: 'https://op.example/privacy',
         terms_url: 'https://op.example/terms', accessibility_url: 'https://op.example/a11y',
       }, ['Imprint', 'Privacy', 'Terms', 'Accessibility']],
+      // UC-ID-18 check 7: the support contact and the documentation are Help's, never the footer's.
+      [{ imprint_url: 'https://op.example/imprint', support_url: 'mailto:help@op.example', docs_url: 'https://op.example/docs' }, ['Imprint']],
     ]) {
       const context = await browser.newContext();
       await context.route('**/api/v1/**', async (route) => {
@@ -914,6 +1015,7 @@ test('the footer shows only the links that were set, with neutral labels', async
       const links = await page.locator('footer a').allTextContents();
       assert.deepEqual(links.map((text) => text.trim()), expected);
       assert.equal(await page.locator('footer a[href*="hubtask.eu"]').count(), 0, 'the footer points at hubtask.eu');
+      assert.equal(await page.locator('footer a[href^="mailto:"], footer a[href*="/docs"]').count(), 0, 'the footer shows the support contact or the documentation');
       await context.close();
     }
   } finally {
@@ -1244,9 +1346,13 @@ test('a provider return the server fails is a sentence with its reference, not a
   try {
     await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
     await page.getByRole('heading', { name: 'Not signed in' }).waitFor();
-    const said = await page.getByRole('alert').innerText();
-    assert.match(said, /Something went wrong on our side/, said);
-    assert.match(said, /req_e2e_500/, `no reference: ${said}`);
+    // The sentence, and the reference folded behind *Details for support* (user-experience.md §5.8).
+    const alert = page.getByRole('alert');
+    const said = await alert.innerText();
+    assert.match(said, /Something went wrong/, said);
+    assert.doesNotMatch(said, /req_e2e_500/, `the reference is in the sentence: ${said}`);
+    await alert.getByRole('button', { name: 'Details for support' }).click();
+    assert.match(await alert.getByRole('region', { name: 'Details for support' }).innerText(), /req_e2e_500/);
   } finally {
     await browser.close();
     await close();
@@ -1302,6 +1408,27 @@ test('a provider mark is drawn inline in its owner\'s colours, and nothing is fe
     }
     const foreign = requests.filter((url) => new URL(url).origin !== new URL(origin).origin);
     assert.deepEqual(foreign, [], 'the card reached another origin');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+test('the card names the workspace by its name, its host beside it as the secondary line', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    await context.route('**/api/v1/**', stubFor({ answer: refused, rules: { ...RULES, workspace_name: 'Leerer Arbeitsbereich' } }));
+    const page = await context.newPage();
+    await page.goto(origin);
+    const named = page.locator('[data-sign-in-workspace]');
+    await named.waitFor({ timeout: 10_000 });
+    assert.equal(await named.locator('.name').innerText(), 'to Leerer Arbeitsbereich');
+    assert.equal(await named.locator('.host').innerText(), 'contoso.hubtask.eu');
+    const [nameSize, hostSize] = await Promise.all(['.name', '.host'].map((each) => named.locator(each).evaluate((node) => parseFloat(getComputedStyle(node).fontSize))));
+    assert.ok(nameSize > hostSize, `the name (${nameSize}px) does not lead the host (${hostSize}px)`);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the card scrolls sideways at 375');
   } finally {
     await browser.close();
     await close();

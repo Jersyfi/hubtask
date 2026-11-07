@@ -13,8 +13,8 @@ import (
 )
 
 // A sign-in begun on the invitation card carries the invitation (ADR-0078 §1): the body's
-// token reaches the use case under the name its descriptor declares, and a sign-in without one sends
-// nothing - an empty token is not an invitation.
+// token reaches the use case under the name its descriptor declares, as it arrived - an empty
+// token the use case reads as none.
 func TestTheInvitationTokenReachesTheStart(t *testing.T) {
 	cases := []struct {
 		name string
@@ -23,7 +23,7 @@ func TestTheInvitationTokenReachesTheStart(t *testing.T) {
 	}{
 		{name: "carried", body: `{"invitation_token":"inv_the-token"}`, want: "inv_the-token"},
 		{name: "absent", body: `{}`, want: nil},
-		{name: "empty", body: `{"invitation_token":""}`, want: nil},
+		{name: "empty", body: `{"invitation_token":""}`, want: ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestTheInvitationTokenReachesTheStart(t *testing.T) {
 }
 
 // A sign-in begun on the connect card carries the link a workspace without the password mailed
-// (ADR-0078 §1), under the name the descriptor declares; an empty token is no link.
+// (ADR-0078 §1), under the name the descriptor declares, as it arrived.
 func TestTheConnectTokenReachesTheStart(t *testing.T) {
 	cases := []struct {
 		name string
@@ -61,7 +61,7 @@ func TestTheConnectTokenReachesTheStart(t *testing.T) {
 	}{
 		{name: "carried", body: `{"connect_token":"hbt_mfa_the-link"}`, want: "hbt_mfa_the-link"},
 		{name: "absent", body: `{}`, want: nil},
-		{name: "empty", body: `{"connect_token":""}`, want: nil},
+		{name: "empty", body: `{"connect_token":""}`, want: ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

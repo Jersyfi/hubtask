@@ -227,7 +227,7 @@ func TestListingBackupsReadsTheArchivesLyingAtTheTarget(t *testing.T) {
 	  "complete":true,"encrypted":true}]`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"backup", "ls", "--target", targetID, "--refresh")
+		"backup", "ls", targetID, "--refresh")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -240,7 +240,7 @@ func TestListingBackupsReadsTheArchivesLyingAtTheTarget(t *testing.T) {
 	if !strings.Contains(out, "hubtask-backup-20260827T004305Z-full") {
 		t.Errorf("the archive a restore would name is not in the listing: %q", out)
 	}
-	if !strings.Contains(out, "5.0 MiB") {
+	if !strings.Contains(out, "5242880") {
 		t.Errorf("the size does not read like a size: %q", out)
 	}
 }

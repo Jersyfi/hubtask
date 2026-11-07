@@ -38,6 +38,9 @@ func titled(records []archive.Record, title string) map[string]any {
 	return nil
 }
 
+// UC-IMP-02 checks 1-5: lists as columns, cards as tasks with notes, due date, whether it was met
+// and labels on the colours; checklists as the work under a card; a closed card archived; comments
+// by the importing person naming the author; members counted, not carried, attachments not fetched.
 func TestABoardBecomesACollectionWithItsListsCardsLabelsChecklistsAndComments(t *testing.T) {
 	result, err := Trello{}.Convert(context.Background(), boardSource(t))
 	if err != nil {
@@ -168,6 +171,7 @@ func TestABoardBecomesACollectionWithItsListsCardsLabelsChecklistsAndComments(t 
 	}
 }
 
+// UC-IMP-02 check 8: the same export twice is the same identities, so nothing is created again.
 func TestTheSameBoardTwiceIsTheSameIdentities(t *testing.T) {
 	first, err := Trello{}.Convert(context.Background(), boardSource(t))
 	if err != nil {
@@ -188,6 +192,7 @@ func TestTheSameBoardTwiceIsTheSameIdentities(t *testing.T) {
 	}
 }
 
+// UC-IMP-02 check 7.
 func TestAFileThatIsNotABoardIsRefused(t *testing.T) {
 	for name, content := range map[string]string{
 		"csv":        "title,notes\nA,b\n",
@@ -199,7 +204,7 @@ func TestAFileThatIsNotABoardIsRefused(t *testing.T) {
 			src := boardSource(t)
 			src.Content = strings.NewReader(content)
 			_, err := Trello{}.Convert(context.Background(), src)
-			if !errors.Is(err, shared.ErrValidation) {
+			if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != domain.CodeFileNotKind {
 				t.Errorf("err = %v", err)
 			}
 		})
@@ -236,6 +241,28 @@ func TestTokenNamedMapsTrellosColoursOntoTheTen(t *testing.T) {
 		}
 		if got != want {
 			t.Errorf("%q = %q, want %q", colour, got, want)
+		}
+	}
+}
+
+// A checklist and its items have no row of their own: they are reported by their card's.
+func TestAChecklistIsReportedByItsCardsRow(t *testing.T) {
+	result, err := Trello{}.Convert(context.Background(), boardSource(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]map[string]any{}
+	for _, record := range result.Records["work_items"] {
+		byID[record.ID] = record.Data
+		if result.Rows[record.ID] == 0 {
+			t.Errorf("%v has no row", record.Data["title"])
+		}
+	}
+	for _, record := range result.Records["work_items"] {
+		if parent, ok := record.Data["parent_id"].(string); ok && parent != "" {
+			if result.Rows[record.ID] != result.Rows[parent] {
+				t.Errorf("%v reports row %d, its parent %d", record.Data["title"], result.Rows[record.ID], result.Rows[parent])
+			}
 		}
 	}
 }

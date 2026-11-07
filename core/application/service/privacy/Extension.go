@@ -155,7 +155,8 @@ func (h ExtendDataSubjectRequest) Descriptor() usecase.Descriptor {
 		reasons = append(reasons, string(reason))
 	}
 	return usecase.Descriptor{
-		Name: ExtendDataSubjectRequestName,
+		Name:       ExtendDataSubjectRequestName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Extends a data subject request's deadline once, as Art. 12(3) GDPR allows: an " +
 			"open case before its original deadline, to a day at most three months after the day " +
 			"it was received, naming the reason and the day the person was informed. The case " +

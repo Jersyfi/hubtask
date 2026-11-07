@@ -344,7 +344,8 @@ func (a Anchoring) readBack(
 // Descriptor registers the configuration in all three channels.
 func (h ConfigureAuditAnchoring) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ConfigureAuditAnchoringName,
+		Name:       ConfigureAuditAnchoringName,
+		Permission: service.PermissionStructure,
 		Summary: "Names the workspace's backup target the audit chain's end is anchored to once " +
 			"a day - the last sequence number and its hash, written as a small file the " +
 			"verification reads back and compares - or switches anchoring off. The target is one " +

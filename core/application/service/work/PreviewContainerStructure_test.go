@@ -39,6 +39,17 @@ func newPreviewHarness(t *testing.T) (*structureHarness, *usecase.Registry) {
 	hub.Structure = domain.StructureLayer{Preset: domain.PresetProject, Values: project.Values}
 	h.containers.stored[hubID] = hub
 
+	preview := PreviewContainerStructure{Set: h.set, Shapes: summerPartyShapes()}
+	registry, err := usecase.NewRegistry(nil, preview.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	return h, registry
+}
+
+// summerPartyShapes is a task with a due date, a work package under it and an activity under
+// that, in each of the two collections.
+func summerPartyShapes() entryShapes {
 	shapes := entryShapes{}
 	for n, collection := range []shared.ID{collectionID, otherCollectionID} {
 		task := shared.MustParseID(fmt.Sprintf("0192f000-0000-7000-8000-0000000a1%d01", n))
@@ -54,12 +65,7 @@ func newPreviewHarness(t *testing.T) (*structureHarness, *usecase.Registry) {
 				Path: packPath + step.String() + "/"},
 		)
 	}
-	preview := PreviewContainerStructure{Set: h.set, Shapes: shapes}
-	registry, err := usecase.NewRegistry(nil, preview.Descriptor())
-	if err != nil {
-		t.Fatalf("the catalogue refused the entry: %v", err)
-	}
-	return h, registry
+	return shapes
 }
 
 // UC-WRK-24 checks 2 and 7: switching the hub to a list names the levels with their counts, the

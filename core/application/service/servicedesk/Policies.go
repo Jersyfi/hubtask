@@ -1,0 +1,511 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package servicedesk
+
+import (
+	"context"
+	"errors"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/audit"
+)
+
+const (
+	ListSLAPoliciesName = "ListSlaPolicies"
+	DefineSLAPolicyName = "DefineSlaPolicy"
+	DeleteSLAPolicyName = "DeleteSlaPolicy"
+)
+
+// GoalsFromInput reads a policy's goals from a door's input (schema SlaGoal).
+func GoalsFromInput(raw any) ([]domain.SLAGoal, error) {
+	list, ok := raw.([]any)
+	if !ok {
+		return nil, malformed("/goals", "sla_policies.goals_malformed")
+	}
+	goals := make([]domain.SLAGoal, 0, len(list))
+	for i, entry := range list {
+		at := "/goals/" + strconv.Itoa(i)
+		member, ok := entry.(map[string]any)
+		if !ok {
+			return nil, malformed(at, "sla_policies.goals_malformed")
+		}
+		kind, _ := member["kind"].(string)
+		goal := domain.SLAGoal{
+			Kind: domain.GoalKind(kind), Minutes: intOf(member["minutes"]), WarnPercent: intOf(member["warn_percent"]),
+		}
+		if targets, ok := member["by_priority"].(map[string]any); ok {
+			goal.ByPriority = make(map[string]int, len(targets))
+			for priority, minutes := range targets {
+				goal.ByPriority[priority] = intOf(minutes)
+			}
+		}
+		if pauses, ok := member["pause_statuses"].([]any); ok {
+			for _, status := range pauses {
+				text, _ := status.(string)
+				goal.PauseStatuses = append(goal.PauseStatuses, text)
+			}
+		}
+		goals = append(goals, goal)
+	}
+	return goals, nil
+}
+
+func intOf(raw any) int {
+	switch value := raw.(type) {
+	case int:
+		return value
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	}
+	return 0
+}
+
+// PolicyOutput is the shape every door returns (api/openapi.yaml, schema SlaPolicy).
+func PolicyOutput(p domain.SLAPolicy) usecase.Output {
+	goals := make([]usecase.Output, 0, len(p.Goals))
+	for _, goal := range p.Goals {
+		byPriority := usecase.Output{}
+		for priority, minutes := range goal.ByPriority {
+			byPriority[priority] = minutes
+		}
+		pauses := goal.PauseStatuses
+		if pauses == nil {
+			pauses = []string{}
+		}
+		goals = append(goals, usecase.Output{
+			"kind": string(goal.Kind), "minutes": goal.Minutes, "by_priority": byPriority,
+			"pause_statuses": pauses, "warn_percent": goal.WarnPercent,
+		})
+	}
+	out := usecase.Output{
+		"key": p.Key, "name": p.Name, "calendar": nil, "entry_types": p.EntryTypes,
+		"organisations": keysOf(p.Organisations), "priority_field": nil, "goals": goals, "position": p.Position, "enabled": p.Enabled,
+		"version": p.Version,
+	}
+	if p.CalendarKey != "" {
+		out["calendar"] = p.CalendarKey
+	}
+	if p.PriorityField != "" {
+		out["priority_field"] = p.PriorityField
+	}
+	out["assignee_group"] = nil
+	if p.IsOLA() {
+		out["assignee_group"] = p.AssigneeGroup.String()
+	}
+	// Left out for a workspace's policy, so its configuration document stays as it was.
+	if !p.HubID.IsZero() {
+		out["hub_id"] = p.HubID.String()
+	}
+	if p.CopiedFrom != "" {
+		out["copied_from"] = p.CopiedFrom
+	}
+	return out
+}
+
+// ListSlaPolicies reads the workspace's SLA policies (UC-SVC-02).
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type ListSlaPolicies struct{ Desk Desk }
+
+// Execute answers every policy by position and key, to any member of the workspace.
+func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.SLAPolicy, error) {
+	if err := h.Desk.authorizeRead(ctx, actor, PoliciesReadAction, policyTarget); err != nil {
+		return nil, err
+	}
+	var out []domain.SLAPolicy
+	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		all, err := h.Desk.Policies.List(ctx)
+		if err != nil {
+			return err
+		}
+		out, err = h.Desk.visiblePolicies(ctx, actor, all)
+		return err
+	})
+	return out, err
+}
+
+// visiblePolicies leaves out the policies of hubs the caller may not read; nothing is audited, a
+// policy left out of a list is nobody refused (audit.md §4).
+func (d Desk) visiblePolicies(ctx context.Context, actor appshared.ActorContext, all []domain.SLAPolicy) ([]domain.SLAPolicy, error) {
+	var hubs []shared.ID
+	for _, p := range all {
+		if !p.HubID.IsZero() && !slices.Contains(hubs, p.HubID) {
+			hubs = append(hubs, p.HubID)
+		}
+	}
+	readable := map[shared.ID]bool{}
+	if len(hubs) > 0 && d.Visibility != nil {
+		paths := make([][]identity.Scope, 0, len(hubs))
+		for _, hub := range hubs {
+			paths = append(paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		allowed, err := d.Visibility.Permitted(ctx, actor, access.Request{
+			Permission: service.PermissionRead, Action: PoliciesReadAction, TokenScope: deskRead, TargetType: policyTarget,
+		}, paths)
+		if err != nil {
+			return nil, err
+		}
+		for i, hub := range hubs {
+			readable[hub] = i < len(allowed) && allowed[i]
+		}
+	}
+	out := make([]domain.SLAPolicy, 0, len(all))
+	for _, p := range all {
+		if p.HubID.IsZero() || readable[p.HubID] {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// authorizePolicyAt asks STRUCTURE where the policy is defined: the workspace, or a living hub
+// for a hub's own (UC-SVC-02 check 13). Before any transaction, so that a refusal's audit entry
+// is not rolled back with it (audit.md §7).
+func (d Desk) authorizePolicyAt(ctx context.Context, actor appshared.ActorContext, action audit.Action, hubID shared.ID) error {
+	if hubID.IsZero() {
+		return d.authorizeWrite(ctx, actor, action, policyTarget)
+	}
+	var hub work.Container
+	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		hub, err = d.Containers.Find(ctx, hubID)
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) || (err == nil && (hub.Type != work.ContainerHub || hub.DeletedAt != nil)) {
+		return appshared.ContainerNotFound(hubID)
+	}
+	if err != nil {
+		return err
+	}
+	return d.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionStructure, Path: service.ContainerScopes(hub),
+		Action: action, TokenScope: deskWrite, TargetType: policyTarget, TargetID: hubID,
+	})
+}
+
+// policyHub answers the hub an existing policy of the key is defined at; zero for none or the
+// workspace's. A policy's hub never changes, so reading it before the write decides nothing the
+// write could move.
+func (d Desk) policyHub(ctx context.Context, actor appshared.ActorContext, key string) (shared.ID, bool, error) {
+	var (
+		hub   shared.ID
+		found bool
+	)
+	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		current, err := d.Policies.Find(ctx, strings.TrimSpace(key))
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		hub, found = current.HubID, err == nil
+		return err
+	})
+	return hub, found, err
+}
+
+// Descriptor is the catalogue entry.
+func (h ListSlaPolicies) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ListSLAPoliciesName, Permission: service.PermissionRead,
+		Summary: "Lists the workspace's SLA policies: the types each measures, its goals with targets per " +
+			"priority, the statuses that pause them and the share at which they are at risk, and its calendar.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  deskRead, ReadOnly: true,
+		Audit: usecase.AuditDeclaration{Action: PoliciesReadAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
+			policies, err := h.Execute(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			data := make([]usecase.Output, 0, len(policies))
+			for _, p := range policies {
+				data = append(data, PolicyOutput(p))
+			}
+			return usecase.Output{"data": data}, nil
+		}),
+	}, policyTarget)
+}
+
+// DefineSLAPolicyCommand is the input, typed.
+type DefineSLAPolicyCommand struct {
+	Key             string
+	Name            string
+	CalendarKey     string
+	EntryTypes      []string
+	Organisations   []string
+	PriorityField   string
+	AssigneeGroup   shared.ID
+	Goals           []domain.SLAGoal
+	Position        int
+	Enabled         bool
+	ExpectedVersion int
+	// HubID defines the policy at that hub; zero is the whole workspace. A policy's hub never
+	// changes.
+	HubID shared.ID
+}
+
+// DefineSlaPolicy creates a policy under a key, or replaces the one there (UC-SVC-02). A change
+// measures what is armed after it; a clock already running keeps its target.
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type DefineSlaPolicy struct{ Desk Desk }
+
+// Execute defines the policy.
+func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineSLAPolicyCommand) (domain.SLAPolicy, error) {
+	// A replacement is asked where the policy already is; a new one where it is to be.
+	existing, held, err := h.Desk.policyHub(ctx, actor, cmd.Key)
+	if err != nil {
+		return domain.SLAPolicy{}, err
+	}
+	at := cmd.HubID
+	if held {
+		at = existing
+	}
+	if err := h.Desk.authorizePolicyAt(ctx, actor, PolicyDefinedAction, at); err != nil {
+		return domain.SLAPolicy{}, err
+	}
+	if held && existing != cmd.HubID {
+		return domain.SLAPolicy{}, shared.ErrConflict.WithDetail("sla_policies.hub_fixed").
+			WithFields(shared.FieldError{Path: "/hub_id", Code: "sla_policies.hub_fixed"})
+	}
+
+	now := h.Desk.Clock.Now()
+	input := domain.NewSLAPolicyInput{
+		ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Name: cmd.Name,
+		CalendarKey: cmd.CalendarKey, EntryTypes: cmd.EntryTypes, Organisations: cmd.Organisations,
+		PriorityField: cmd.PriorityField, AssigneeGroup: cmd.AssigneeGroup, Goals: cmd.Goals, Position: cmd.Position,
+		Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text, HubID: cmd.HubID,
+	}
+	var out domain.SLAPolicy
+	err = h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Desk.calendarHeld(ctx, strings.TrimSpace(cmd.CalendarKey)); err != nil {
+			return err
+		}
+		if err := h.Desk.organisationsHeld(ctx, cmd.Organisations); err != nil {
+			return err
+		}
+		if err := h.Desk.groupHeld(ctx, cmd.AssigneeGroup); err != nil {
+			return err
+		}
+		current, err := h.Desk.Policies.Find(ctx, strings.TrimSpace(cmd.Key))
+		switch {
+		case errors.Is(err, shared.ErrNotFound):
+			if out, err = domain.NewSLAPolicy(input); err != nil {
+				return err
+			}
+			if err := h.Desk.Policies.Insert(ctx, out); err != nil {
+				return err
+			}
+		case err != nil:
+			return err
+		default:
+			if cmd.ExpectedVersion != 0 && cmd.ExpectedVersion != current.Version {
+				return shared.ErrVersionConflict.WithDetail("sla_policies.version_conflict")
+			}
+			if out, err = current.Change(input); err != nil {
+				return err
+			}
+			if err := h.Desk.Policies.Update(ctx, out, current.Version); err != nil {
+				return err
+			}
+			out.Version = current.Version + 1
+		}
+		return h.Desk.record(ctx, actor, PolicyDefinedAction, policyTarget, out.ID, now,
+			audit.Change{Field: "key", Classification: audit.Open, To: out.Key},
+			audit.Change{Field: "name", Classification: audit.Sensitive, To: out.Name},
+			audit.Change{Field: "calendar", Classification: audit.Open, To: out.CalendarKey},
+			audit.Change{Field: "entry_types", Classification: audit.Open, To: strings.Join(out.EntryTypes, ",")},
+			audit.Change{Field: "organisations", Classification: audit.Open, To: strings.Join(out.Organisations, ",")},
+			audit.Change{Field: "assignee_group", Classification: audit.Open, To: out.AssigneeGroup.String()},
+			audit.Change{Field: "enabled", Classification: audit.Open, To: strconv.FormatBool(out.Enabled)})
+	})
+	return out, err
+}
+
+// Descriptor is the catalogue entry.
+func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: DefineSLAPolicyName,
+		Summary: "Creates an SLA policy under a key, or replaces the one there: the entry types it measures, a " +
+			"first-response and a resolution goal with targets in working minutes per priority, the statuses " +
+			"that pause a goal, the share of the target at which it is at risk, and the business calendar its " +
+			"time is counted on - around the clock when none is named. An entry is measured by the first " +
+			"enabled policy, by position, that covers its type and, where it names organisations, the requester's. " +
+			"A policy naming an assignee group is that group's OLA, measured beside the requester's while the " +
+			"entry is on one of its members.",
+		SideEffects: "Writes the policy and an audit entry. Entries already measured keep their clocks.",
+		TokenScope:  deskWrite,
+		Input: []usecase.Field{
+			{Name: "key", Kind: usecase.KindString, Required: true, Description: "Small letters, digits and underscores, starting with a letter."},
+			{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
+			{Name: "calendar", Kind: usecase.KindString, Description: "A business calendar's key; absent counts around the clock."},
+			{Name: "entry_types", Kind: usecase.KindList, Required: true, Description: "The entry type keys the policy measures."},
+			{Name: "organisations", Kind: usecase.KindList, Description: "The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's."},
+			{Name: "priority_field", Kind: usecase.KindString, Description: "The custom field whose option value picks a goal's target."},
+			{Name: "assignee_group", Kind: usecase.KindID, Description: "Makes the policy an OLA: the group's internal promise, armed while an entry is on one of its members."},
+			{Name: "goals", Kind: usecase.KindList, Required: true, Description: "{kind: FIRST_RESPONSE, NEXT_RESPONSE or RESOLUTION, minutes, by_priority, pause_statuses, warn_percent}, each kind once."},
+			{Name: "position", Kind: usecase.KindInt, Description: "The order in which policies are tried; lower first."},
+			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether the policy measures new entries; true when absent."},
+			{Name: "hub_id", Kind: usecase.KindID, Description: "Defines the policy at this hub, whose entries alone it measures; unset is the whole workspace."},
+			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a replacement of a newer one is refused."},
+		},
+		Audit: usecase.AuditDeclaration{Action: PolicyDefinedAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			types, err := in.StringList("entry_types")
+			if err != nil {
+				return nil, err
+			}
+			organisations, err := in.StringList("organisations")
+			if err != nil {
+				return nil, err
+			}
+			goals, err := GoalsFromInput(in["goals"])
+			if err != nil {
+				return nil, err
+			}
+			enabled := true
+			if in.Present("enabled") {
+				enabled = in.Bool("enabled")
+			}
+			var group shared.ID
+			if in.Present("assignee_group") {
+				if group, err = in.ID("assignee_group"); err != nil {
+					return nil, err
+				}
+			}
+			hub, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
+			defined, err := h.Execute(ctx, actor, DefineSLAPolicyCommand{
+				Key: in.String("key"), Name: in.String("name"), CalendarKey: in.String("calendar"),
+				EntryTypes: types, Organisations: organisations, PriorityField: in.String("priority_field"),
+				AssigneeGroup: group, Goals: goals, HubID: hub,
+				Position: in.Int("position"), Enabled: enabled, ExpectedVersion: in.Int("expected_version"),
+			})
+			if err != nil {
+				return nil, err
+			}
+			return PolicyOutput(defined), nil
+		}),
+	}, policyTarget)
+}
+
+// DeleteSlaPolicy removes a policy (UC-SVC-02). The entries it measured keep their records; their
+// clocks stop being moved by it.
+//
+//nolint:revive // var-naming: a use case type is named as the catalogue names it
+type DeleteSlaPolicy struct{ Desk Desk }
+
+// Execute deletes the policy.
+func (h DeleteSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
+	hub, _, err := h.Desk.policyHub(ctx, actor, key)
+	if err != nil {
+		return err
+	}
+	if err := h.Desk.authorizePolicyAt(ctx, actor, PolicyDeletedAction, hub); err != nil {
+		return err
+	}
+	now := h.Desk.Clock.Now()
+	return h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		current, err := h.Desk.Policies.Find(ctx, key)
+		if err != nil {
+			return err
+		}
+		if err := h.Desk.Policies.Delete(ctx, key); err != nil {
+			return err
+		}
+		return h.Desk.record(ctx, actor, PolicyDeletedAction, policyTarget, current.ID, now,
+			audit.Change{Field: "key", Classification: audit.Open, From: current.Key})
+	})
+}
+
+// Descriptor is the catalogue entry.
+func (h DeleteSlaPolicy) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name:        DeleteSLAPolicyName,
+		Summary:     "Deletes an SLA policy. The entries it measured keep the record of how their goals stood.",
+		SideEffects: "Deletes the policy and writes an audit entry.",
+		TokenScope:  deskWrite,
+		Input: []usecase.Field{
+			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The policy's key."},
+		},
+		Audit: usecase.AuditDeclaration{Action: PolicyDeletedAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			if err := h.Execute(ctx, actor, in.String("key")); err != nil {
+				return nil, err
+			}
+			return usecase.Output{}, nil
+		}),
+	}, policyTarget)
+}
+
+// calendarHeld refuses a policy's calendar that neither the workspace nor the installation holds
+// (UC-SVC-01 check 6); no key counts around the clock.
+// groupHeld refuses an OLA for a group the workspace does not hold: it would measure nobody.
+func (d Desk) groupHeld(ctx context.Context, group shared.ID) error {
+	if group.IsZero() || d.Groups == nil {
+		return nil
+	}
+	if _, err := d.Groups.Members(ctx, group); errors.Is(err, shared.ErrNotFound) {
+		return shared.ErrValidation.WithDetail("sla_policies.group_unknown").
+			WithFields(shared.FieldError{Path: "/assignee_group", Code: "sla_policies.group_unknown"})
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+// organisationsHeld refuses a policy for an organisation the workspace does not hold: it would
+// measure nobody's requests without saying so.
+func (d Desk) organisationsHeld(ctx context.Context, keys []string) error {
+	for i, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" || d.Organisations == nil {
+			continue
+		}
+		if _, err := d.Organisations.Find(ctx, key); errors.Is(err, shared.ErrNotFound) {
+			at := "/organisations/" + strconv.Itoa(i)
+			return shared.ErrValidation.WithDetail("sla_policies.organisation_unknown").
+				WithFields(shared.FieldError{Path: at, Code: "sla_policies.organisation_unknown"})
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// keysOf answers keys for an output, never null.
+func keysOf(keys []string) []string {
+	if keys == nil {
+		return []string{}
+	}
+	return keys
+}
+
+func (d Desk) calendarHeld(ctx context.Context, key string) error {
+	if key == "" {
+		return nil
+	}
+	if _, offered := d.Offered[key]; offered {
+		return nil
+	}
+	_, err := d.Calendars.Find(ctx, key)
+	if errors.Is(err, shared.ErrNotFound) {
+		return shared.ErrValidation.WithDetail("sla_policies.calendar_unknown").
+			WithFields(shared.FieldError{Path: "/calendar", Code: "sla_policies.calendar_unknown"})
+	}
+	return err
+}

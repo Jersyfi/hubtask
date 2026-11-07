@@ -7,7 +7,9 @@ services:
     # pgvector rather than plain postgres, so the reference stack has semantic search (ADR-0050).
     # The extension is detected rather than demanded, so an operator who swaps this back gets a
     # working installation with lexical search - and `/meta/capabilities` says which they have.
-    image: pgvector/pgvector:pg16
+    # Pinned to a release and its digest (PostgreSQL 16.15) so a pull never changes the server unseen;
+    # Dependabot moves it, and upgrade-dump and ops below carry the same image.
+    image: pgvector/pgvector:0.8.7-pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hubtask}
@@ -15,6 +17,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - db-data:/var/lib/postgresql/data
+    # A container's /dev/shm is 64 MB by default; PostgreSQL's parallel workers share memory
+    # through it, and a parallel scan of a large collection failed "No space left on device".
+    shm_size: 256mb
     healthcheck:
       # Over TCP (-h), which is the whole point rather than a detail. While initdb runs, the
       # entrypoint starts a temporary server that listens on the unix socket alone; a probe
@@ -28,8 +33,69 @@ services:
       retries: 10
     # Not published externally: the database is not a public interface.
 
+  # A recovery point before an upgrade migrates (backup-restore.md §8.6). Migrations are forward
+  # only and a failed one is undone by a restore, so the database is dumped before `migrate` runs a
+  # release it has not run yet: a fresh database and a restart of the same release dump nothing.
+  # The same image as `db`, so pg_dump matches the server's major. A dump that fails stops the
+  # upgrade before any migration ran. The last HUBTASK_UPGRADE_DUMPS_KEPT dumps are kept in the
+  # upgrade-dumps volume; HUBTASK_UPGRADE_DUMP=false is for an installation backed up otherwise.
+  upgrade-dump:
+    image: pgvector/pgvector:0.8.7-pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-hubtask}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-hubtask}
+      RELEASE: ${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
+      ENABLED: ${HUBTASK_UPGRADE_DUMP:-true}
+      KEPT: ${HUBTASK_UPGRADE_DUMPS_KEPT:-3}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ "$$ENABLED" = "false" ]; then echo "upgrade dump switched off"; exit 0; fi
+        # Assigned first: under -e a database that cannot be reached stops here, never reads as new.
+        migrated=$$(psql -tAc "SELECT to_regclass('public.goose_db_version') IS NOT NULL")
+        if [ "$$migrated" != "t" ]; then echo "a new database: nothing to dump"; exit 0; fi
+        last=$$(cat /dumps/release 2>/dev/null || true)
+        if [ "$$last" = "$$RELEASE" ]; then echo "$$RELEASE has run on this database: nothing to dump"; exit 0; fi
+        file="/dumps/hubtask-$$(date -u +%Y%m%dT%H%M%SZ)-before-$$RELEASE.dump"
+        pg_dump -Fc -f "$$file.partial"
+        mv "$$file.partial" "$$file"
+        echo "$$RELEASE" > /dumps/release
+        ls -1t /dumps/hubtask-*.dump | tail -n +$$((KEPT + 1)) | xargs -r rm -f --
+        echo "dumped before $$RELEASE: $$file"
+    volumes:
+      - upgrade-dumps:/dumps
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # The operator's tools for a backup and a restore (backup-restore.md §8.6): backup.sh and
+  # restore.sh beside this file run it; `up` never starts it. The database's image, so pg_dump and
+  # pg_restore match the server's major, with the volumes a restore puts back.
+  ops:
+    image: pgvector/pgvector:0.8.7-pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    profiles: ["ops"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-hubtask}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-hubtask}
+      RELEASE: ${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
+    volumes:
+      - media:/var/lib/hubtask/media
+      - restore-drill:/var/lib/hubtask/restore-drill
+      - upgrade-dumps:/dumps
+      - ${HUBTASK_BACKUP_DIR:-./backup}:/backup
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   migrate:
-    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
     entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
     environment:
       # The owner's DSN: migrations create and alter objects. The application below deliberately
@@ -54,20 +120,30 @@ services:
       # database in an earlier wave (k8s/values.yaml, migration.connectWait). The wait is bounded;
       # a database that is not there in five minutes is not late, it is absent.
       HUBTASK_DB_CONNECT_WAIT: ${HUBTASK_DB_CONNECT_WAIT:-5m}
+      # The bound on the whole run (deployment.md §2). A large installation's upgrade may need
+      # longer; a run cut off is resumed by the next `docker compose up`.
+      HUBTASK_MIGRATE_TIMEOUT: ${HUBTASK_MIGRATE_TIMEOUT:-30m}
     depends_on:
       db:
         condition: service_healthy
+      upgrade-dump:
+        condition: service_completed_successfully
     restart: "no"          # the migration runs once, not continuously (ADR-0016)
 
   app:
-    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:-latest}
+    image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
     restart: unless-stopped
+    # A memory limit comes with GOMEMLIMIT at about 90 % of it, or the runtime grows the heap until
+    # the kernel kills the process (deployment.md §2, "Memory"). The pair below is that section's
+    # example, not a measured recommendation - support-matrix.md §8 has what is measured.
+    # mem_limit: 1g
     environment:
+      # GOMEMLIMIT: 921MiB
       HUBTASK_ROLES: api,worker,scheduler,automation
       # The application role, not the owner: no SUPERUSER, no BYPASSRLS, not an owner - which is
       # what makes row level security the last, unbypassable boundary here too (ADR-0010).
       HUBTASK_DB_DSN: postgres://hubtask_app:${HUBTASK_DB_APP_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
-      HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
+      HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:?set HUBTASK_BASE_URL in .env to the address people reach Hubtask at, such as https://tasks.example.org}
       # Single by default - the self-hoster's mode. The smoke check overrides it to exercise the
       # multi-mode control plane against the same file: one Compose file, both modes.
       HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
@@ -76,6 +152,9 @@ services:
       HUBTASK_WORKSPACE_HOSTS: ${HUBTASK_WORKSPACE_HOSTS:-subdomain}
       # Operators named by the environment (UC-INS-02); empty names nobody.
       HUBTASK_OPERATORS: ${HUBTASK_OPERATORS:-}
+      # The reverse proxy in front, if one terminates TLS here (a CIDR or an address): only from
+      # it is X-Forwarded-For believed. Empty while the port is published directly.
+      HUBTASK_TRUSTED_PROXIES: ${HUBTASK_TRUSTED_PROXIES:-}
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
       # The master keyring for envelope encryption (security.md §8). Empty means this installation
       # encrypts nothing and says so when asked to seal something; `.env.example` shows how to fill
@@ -109,13 +188,14 @@ services:
       # end-to-end session overrides it, because the AI provider it configures is a stub container
       # on its own compose network and has no public address to have.
       HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS: ${HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS:-false}
-      # Where a restore drill's last success is recorded. Two containers have no operator doing
-      # continuous archiving, so nothing writes this file by itself: an operator who has restored a
-      # dump and checked it writes the Unix timestamp into it, and the process then reports
-      # hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Empty, and
-      # unset here, means the series stays absent, which is the honest state for an installation
-      # whose backups nobody has restored (backup-restore.md §8.6).
-      HUBTASK_RESTORE_DRILL_RECORD_FILE: ${HUBTASK_RESTORE_DRILL_RECORD_FILE:-}
+      # Where a restore drill's last success is recorded, in the restore-drill volume below - a
+      # path no volume mounts is one the read-only container can never read. Two containers have
+      # no operator doing continuous archiving, so nothing writes this file by itself: an operator
+      # who has restored a dump and checked it copies the Unix timestamp in (`docker compose cp`,
+      # backup-restore.md §8.6), and the process then reports
+      # hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Until then
+      # the series stays absent, which is the honest state for backups nobody has restored.
+      HUBTASK_RESTORE_DRILL_RECORD_FILE: ${HUBTASK_RESTORE_DRILL_RECORD_FILE:-/var/lib/hubtask/restore-drill/last_success_unix}
       # Mail, object storage and the installation's AI switches, passed through for the reason the
       # keyring is: Compose hands a container only what this file names, so a line `.env.example`
       # offers and this file does not pass is a setting the operator makes and the process never
@@ -138,11 +218,46 @@ services:
       HUBTASK_S3_BUCKET: ${HUBTASK_S3_BUCKET:-}
       HUBTASK_S3_ACCESS_KEY: ${HUBTASK_S3_ACCESS_KEY:-}
       HUBTASK_S3_SECRET_KEY: ${HUBTASK_S3_SECRET_KEY:-}
+      HUBTASK_CLAMD_ADDRESS: ${HUBTASK_CLAMD_ADDRESS:-}
+      HUBTASK_CLAMD_TIMEOUT: ${HUBTASK_CLAMD_TIMEOUT:-2m}
+      HUBTASK_CLAMD_STREAM_MAX_BYTES: ${HUBTASK_CLAMD_STREAM_MAX_BYTES:-26214400}
       HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER: ${HUBTASK_AI_ALLOW_THIRD_COUNTRY_TRANSFER:-}
       HUBTASK_AI_DUPLICATE_THRESHOLD: ${HUBTASK_AI_DUPLICATE_THRESHOLD:-}
+      HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE: ${HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE:-}
+      HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE: ${HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE:-}
+      HUBTASK_RATE_LIMIT_BURST: ${HUBTASK_RATE_LIMIT_BURST:-}
+      HUBTASK_RATE_LIMIT_TENANT_BURST: ${HUBTASK_RATE_LIMIT_TENANT_BURST:-}
+      # The rest of deployment.md §6.1's operator settings, for the same reason; what that table
+      # names and this file leaves at its default is listed in test/architecture.
+      HUBTASK_UI_ENABLED: ${HUBTASK_UI_ENABLED:-}
+      HUBTASK_UI_FRAME_ANCESTORS: ${HUBTASK_UI_FRAME_ANCESTORS:-}
+      HUBTASK_UI_FRAME_SOURCES: ${HUBTASK_UI_FRAME_SOURCES:-}
+      HUBTASK_CORS_ALLOWED_ORIGINS: ${HUBTASK_CORS_ALLOWED_ORIGINS:-}
+      HUBTASK_HTTP_ALLOWED_HOSTS: ${HUBTASK_HTTP_ALLOWED_HOSTS:-}
+      HUBTASK_HTTP_CA_FILE: ${HUBTASK_HTTP_CA_FILE:-}
+      HUBTASK_DEFAULT_LOCALE: ${HUBTASK_DEFAULT_LOCALE:-}
+      HUBTASK_DEFAULT_TIMEZONE: ${HUBTASK_DEFAULT_TIMEZONE:-}
+      HUBTASK_MAX_UPLOAD_BYTES: ${HUBTASK_MAX_UPLOAD_BYTES:-}
+      HUBTASK_MAX_MAIL_BYTES: ${HUBTASK_MAX_MAIL_BYTES:-}
+      HUBTASK_REQUEST_TIMEOUT: ${HUBTASK_REQUEST_TIMEOUT:-}
+      HUBTASK_NATS_URL: ${HUBTASK_NATS_URL:-}
+      HUBTASK_NATS_SUBJECT_PREFIX: ${HUBTASK_NATS_SUBJECT_PREFIX:-}
+      HUBTASK_TRACING_ENABLED: ${HUBTASK_TRACING_ENABLED:-}
+      HUBTASK_TRACING_ENDPOINT: ${HUBTASK_TRACING_ENDPOINT:-}
+      HUBTASK_TRACING_SAMPLE_RATIO: ${HUBTASK_TRACING_SAMPLE_RATIO:-}
+      # The instance file (business calendars, the upload scanner, presets, plans) is read inside
+      # the container, so it needs the mount below as well: a path nothing is mounted at is read
+      # as a file not written yet, logged, and applies nothing.
+      HUBTASK_INSTANCE_FILE: ${HUBTASK_INSTANCE_FILE:-}
+      HUBTASK_INSTANCE_FILE_MODE: ${HUBTASK_INSTANCE_FILE_MODE:-}
     volumes:
       - media:/var/lib/hubtask/media
       - backups:/var/lib/hubtask/backups
+      - restore-drill:/var/lib/hubtask/restore-drill
+      # With HUBTASK_INSTANCE_FILE=/etc/hubtask/instance.json in .env:
+      # - ./instance.json:/etc/hubtask/instance.json:ro
+      # Check a changed file before the restart it would refuse:
+      # docker compose run --rm --no-deps app instance check
     ports:
       - "${HUBTASK_PORT:-8080}:8080"
       # The operations port on loopback only. It carries the metrics and the health report, which
@@ -169,3 +284,5 @@ volumes:
   db-data:
   media:
   backups:
+  restore-drill:
+  upgrade-dumps:

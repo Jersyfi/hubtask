@@ -1,0 +1,63 @@
+{
+  "key": "configuration_items",
+  "version": 1,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "assets": {
+        "switch": "ON"
+      }
+    },
+    "ci_classes": {
+      "printer": {
+        "parent": "network_device",
+        "name": "Printer",
+        "icon": "printer",
+        "attributes": [
+          {
+            "key": "location_note",
+            "kind": "TEXT",
+            "need": "OPTIONAL"
+          }
+        ]
+      },
+      "mobile_device": {
+        "parent": "hardware",
+        "name": "Mobile device",
+        "icon": "smartphone",
+        "attributes": [
+          {
+            "key": "imei",
+            "kind": "TEXT",
+            "need": "RECOMMENDED",
+            "identifier": true
+          },
+          {
+            "key": "phone_number",
+            "kind": "TEXT",
+            "need": "OPTIONAL"
+          }
+        ],
+        "identifier_rules": [
+          {
+            "attributes": [
+              "imei"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "assets": {
+        "switch": "ON"
+      }
+    }
+  }
+}

@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { FIGURE_HUB, FIGURES, showFigures, signedIn, openSettings } from './fixture.mjs';
+import { FIGURE_HUB, FIGURES, HUB_FIGURE_OPEN, showFigures, signedIn, openSettings } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -44,6 +44,7 @@ async function open(browser, width, collection, options = {}) {
 const headText = (page) => page.locator('[data-figure] .text').first().textContent({ timeout: 5_000 }).catch(() => undefined);
 
 for (const width of [390, 700, 1280]) {
+  // UC-WRK-25 check 7: a list summing a field heads with its open count and the sum, no percentage.
   test(`chromium: ${width} px — every figure in the head, and no percentage but progress's`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
@@ -112,6 +113,26 @@ test('chromium: 390 and 1280 px — the hub draws its collections as cards, each
   }
 });
 
+// user-experience.md §2.5: a hub's row and its head say the figure the server summed from its
+// collections, the same words a collection of open entries uses.
+test("chromium: 390 and 1280 px — the hub's row and head say its open entries", async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const width of [390, 1280]) {
+    const { page, context, failures } = await signedIn(browser, width, 900);
+    await page.goto(`${served.origin}/hubs/${FIGURE_HUB.id}`);
+    await page.getByRole('heading', { name: FIGURE_HUB.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
+    const head = page.locator('header [data-figure="OPEN"] .text').first();
+    assert.equal((await head.textContent({ timeout: 5_000 }))?.trim(), `${HUB_FIGURE_OPEN} open`, `${width}: the hub's head`);
+    if (width === 1280) {
+      const row = page.locator(`[data-node="${FIGURE_HUB.id}"] .meta`).first();
+      assert.equal((await row.textContent({ timeout: 5_000 }))?.trim(), `${HUB_FIGURE_OPEN} open`, "the hub's row");
+    }
+    assert.deepEqual(failures, []);
+    await context.close();
+  }
+});
+
 test('chromium: 1280 px — a figure moves neither the title nor the row it stands in', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -145,9 +166,9 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   t.after(() => browser.close());
   const choicesOf = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
-    // What counts is one setting of the settings page's *Structure* (UC-WRK-23).
+    // What counts is one setting of the settings page's *Views* (UC-WRK-23).
     await openSettings(page, collection.name);
-    await page.getByRole('link', { name: 'Structure' }).click();
+    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Views', exact: true }).click();
     const dialog = page.locator('[data-setting="counts"]');
     await dialog.waitFor({ timeout: 5_000 });
     const options = await dialog.getByRole('combobox', { name: 'Show' }).locator('option').allTextContents();

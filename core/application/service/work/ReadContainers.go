@@ -5,7 +5,7 @@ package work
 
 import (
 	"context"
-	"time"
+	"maps"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -56,6 +56,8 @@ type GetContainer struct {
 	Structure StructureResolver
 	// Figures counts what counts in a collection, after the structure (UC-WRK-29).
 	Figures FigureReader
+	// HubFigures counts a hub's figure from its collections. A build without it answers none.
+	HubFigures HubFigureReader
 	// Milestones answers when the container was last finished (UC-WRK-29 check 4). A build
 	// without it answers none.
 	Milestones repository.Milestones
@@ -106,7 +108,8 @@ func (h GetContainer) Execute(
 // Descriptor is the catalogue entry.
 func (h GetContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetContainerName,
+		Name:       GetContainerName,
+		Permission: service.PermissionRead,
 		Summary: "Reads one hub or collection by its identifier. An archived or trashed container " +
 			"is returned as it is, with the timestamp saying so, rather than reported as missing.",
 		SideEffects: "None. Reads only.",
@@ -146,6 +149,7 @@ func (h GetContainer) invoke(
 		return nil, err
 	}
 	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, []domain.Container{container}, structures)
+	maps.Copy(figures, h.HubFigures.Count(ctx, actor, h.UnitOfWork, []domain.Container{container}, structures))
 	milestones, err := milestonesOf(ctx, actor, h.UnitOfWork, h.Milestones, []domain.Container{container})
 	if err != nil {
 		return nil, err
@@ -163,15 +167,15 @@ func (h GetContainer) invoke(
 func milestonesOf(
 	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
 	milestones repository.Milestones, containers []domain.Container,
-) (map[shared.ID]time.Time, error) {
+) (map[shared.ID]repository.Milestone, error) {
 	if milestones == nil || uow == nil || len(containers) == 0 {
-		return map[shared.ID]time.Time{}, nil
+		return map[shared.ID]repository.Milestone{}, nil
 	}
 	ids := make([]shared.ID, 0, len(containers))
 	for _, container := range containers {
 		ids = append(ids, container.ID)
 	}
-	var found map[shared.ID]time.Time
+	var found map[shared.ID]repository.Milestone
 	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		found, err = milestones.Of(ctx, ids)
@@ -181,9 +185,9 @@ func milestonesOf(
 }
 
 // withMilestone adds a container's milestone to its output, where it has one.
-func withMilestone(out map[string]any, milestones map[shared.ID]time.Time, id shared.ID) map[string]any {
-	if reachedAt, reached := milestones[id]; reached {
-		out["milestone"] = map[string]any{"reached_at": reachedAt}
+func withMilestone(out map[string]any, milestones map[shared.ID]repository.Milestone, id shared.ID) map[string]any {
+	if milestone, reached := milestones[id]; reached {
+		out["milestone"] = map[string]any{"reached_at": milestone.ReachedAt, "open_since": milestone.OpenSince}
 	}
 	return out
 }
@@ -199,6 +203,8 @@ type ListContainers struct {
 	Structure StructureResolver
 	// Figures counts what counts in each collection of the page, one statement per kind on it.
 	Figures FigureReader
+	// HubFigures counts each hub's figure on the hub level, its collections in one statement.
+	HubFigures HubFigureReader
 	// Milestones answers when each container of the page was last finished, in one statement.
 	Milestones repository.Milestones
 }
@@ -307,7 +313,8 @@ func (h ListContainers) visible(
 // Descriptor is the catalogue entry.
 func (h ListContainers) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListContainersName,
+		Name:       ListContainersName,
+		Permission: service.PermissionRead,
 		Summary: "Lists one level of the workspace tree in its manual order: the hubs when no " +
 			"parent is given, that hub's collections when one is. Paged with an opaque cursor; " +
 			"a page carries the cursor for the next one until there are none left.",
@@ -371,6 +378,7 @@ func (h ListContainers) invoke(
 		return nil, err
 	}
 	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, page.Containers, structures)
+	maps.Copy(figures, h.HubFigures.Count(ctx, actor, h.UnitOfWork, page.Containers, structures))
 	milestones, err := milestonesOf(ctx, actor, h.UnitOfWork, h.Milestones, page.Containers)
 	if err != nil {
 		return nil, err

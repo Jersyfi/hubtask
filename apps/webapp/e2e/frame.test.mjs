@@ -111,6 +111,9 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   await page.locator('header .trigger').click();
   const band = page.locator('p.band[data-tone]');
   await band.waitFor({ timeout: 5_000 });
+  // The stream opens after the copy is attached; until then the mark says it is connecting. A
+  // loaded runner can open the band before that, so the state is awaited, then read.
+  await page.locator('p.band[data-tone]', { hasText: 'All synchronised' }).waitFor({ timeout: 10_000 }).catch(() => {});
   assert.equal((await band.innerText()).trim(), 'All synchronised', 'the band names the state, not only the connection');
   const geometry = await page.evaluate(() => {
     const state = document.querySelector('p.band[data-tone]');
@@ -139,5 +142,35 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   });
   assert.notEqual(fill, '600', 'offline is drawn as a bold filled block');
   await context.setOffline(false);
+  assert.deepEqual(failures, []);
+});
+
+// A hub named in two words reads whole in the column at a desktop's width: the row keeps no room
+// for its menu until the menu shows, and the default width holds the name beside mark and twist.
+test('chromium: 1280 px — a hub row has room for a two-word name until its menu shows', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await home(page);
+
+  const tree = page.getByRole('navigation', { name: 'Workspace' }).first();
+  const row = tree.getByRole('treeitem', { name: /^House/ });
+  await row.waitFor();
+  await page.mouse.move(900, 600);
+  const room = () => row.locator('.label').first().evaluate((label) => {
+    const probe = label.cloneNode();
+    probe.textContent = 'Neubau Logistikzentrum';
+    probe.style.cssText = 'position: absolute; visibility: hidden; flex: none; overflow: visible';
+    label.parentElement.appendChild(probe);
+    const needed = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { needed: Math.ceil(needed), has: Math.floor(label.getBoundingClientRect().width) };
+  });
+  const resting = await room();
+  assert.ok(resting.has >= resting.needed, `the name has ${resting.has} px of the ${resting.needed} it needs`);
+  await row.hover();
+  await tree.getByRole('button', { name: 'Manage House' }).waitFor();
+  assert.ok((await room()).has < resting.has, 'the menu shows beside the name on hover');
   assert.deepEqual(failures, []);
 });

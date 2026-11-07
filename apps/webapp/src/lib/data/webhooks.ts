@@ -29,12 +29,32 @@ export function scopeOfChoice(choice: string): WebhookScope | undefined {
   return undefined;
 }
 
+/**
+ * What a target receives (UC-INT-12): the signed CloudEvent, or a chat room's sentence. A chat
+ * room is not signed, so it has no secret to show or rotate, and its address cannot be changed.
+ */
+export type WebhookFormat = 'CLOUDEVENTS' | 'MATRIX' | 'SLACK' | 'MATTERMOST' | 'TEAMS';
+
+export const WEBHOOK_FORMATS: readonly WebhookFormat[] = ['CLOUDEVENTS', 'MATRIX', 'SLACK', 'MATTERMOST', 'TEAMS'];
+
+/** Whether a format is a chat room's: absent is the CloudEvent, as the contract reads it. */
+export function isChat(format: WebhookFormat | null | undefined): boolean {
+  return Boolean(format) && format !== 'CLOUDEVENTS';
+}
+
 /** What a subscription asks for, as the form holds it before it is sent. */
 export interface SubscriptionDraft {
   readonly target_url: string;
   readonly event_types: readonly string[];
   readonly condition: string;
   readonly scope: string;
+  /** Absent is the CloudEvent. */
+  readonly format?: WebhookFormat;
+  /** The Matrix room and the account's access token; sent for a Matrix room only. */
+  readonly room?: string;
+  readonly credential?: string;
+  /** The language of a chat room's sentence; sent for a chat room only, and blank is the default. */
+  readonly locale?: string;
 }
 
 /** The body of a subscription: a blank condition and the whole workspace are left out, not sent empty. */
@@ -43,13 +63,69 @@ export function subscriptionBody(draft: SubscriptionDraft): {
   event_types: readonly string[];
   filter?: string;
   scope?: WebhookScope;
+  format?: WebhookFormat;
+  room?: string;
+  credential?: string;
+  locale?: string;
 } {
   const condition = draft.condition.trim();
   const scope = scopeOfChoice(draft.scope);
+  const chat = isChat(draft.format) ? draft.format : undefined;
+  const locale = chat ? (draft.locale ?? '').trim() : '';
   return {
     target_url: draft.target_url.trim(),
     event_types: draft.event_types,
     ...(condition ? { filter: condition } : {}),
     ...(scope ? { scope } : {}),
+    ...(chat ? { format: chat } : {}),
+    ...(chat === 'MATRIX' ? { room: (draft.room ?? '').trim(), credential: (draft.credential ?? '').trim() } : {}),
+    ...(locale ? { locale } : {}),
   };
+}
+
+/** An event type without its namespace and version - the part its words are keyed by. */
+export function eventKey(type: string): string {
+  const match = /^de\.hubtask\.(.+)\.v\d+$/u.exec(type);
+  return match?.[1] ?? type;
+}
+
+export type EventGroupId = 'entries' | 'comments' | 'places' | 'board' | 'automation' | 'inbox' | 'other';
+
+const GROUP_ORDER: readonly EventGroupId[] = ['entries', 'comments', 'places', 'board', 'automation', 'inbox', 'other'];
+
+function groupOf(key: string): EventGroupId {
+  if (/^work\.(item|attachment|recurrence|template)\./u.test(key)) return 'entries';
+  if (key.startsWith('work.comment.')) return 'comments';
+  if (key.startsWith('work.container.')) return 'places';
+  if (/^work\.(bucket|label)\./u.test(key)) return 'board';
+  if (key.startsWith('automation.')) return 'automation';
+  if (key.startsWith('jumble.')) return 'inbox';
+  return 'other';
+}
+
+/** The declared event types by what they are about, each group in the manifest's order; empty groups left out. */
+export function eventGroups(types: readonly string[]): { readonly id: EventGroupId; readonly types: readonly string[] }[] {
+  return GROUP_ORDER.map((id) => ({ id, types: types.filter((type) => groupOf(eventKey(type)) === id) })).filter((group) => group.types.length > 0);
+}
+
+/** The head's figure: the subscriptions delivering, paused by somebody, and switched off after failures. */
+export function webhookFigure(list: readonly { readonly state: string }[]): { active: number; paused: number; disabled: number } {
+  return {
+    active: list.filter((each) => each.state === 'ACTIVE').length,
+    paused: list.filter((each) => each.state === 'PAUSED').length,
+    disabled: list.filter((each) => each.state === 'DISABLED').length,
+  };
+}
+
+/**
+ * The administration column's figure on *Webhooks* (user-experience.md §7.10): the connections
+ * switched off after failures, so an administrator sees one is down before opening the screen.
+ * Nothing while every one delivers or is paused - a pause is somebody's choice, not a failure.
+ */
+export function webhookColumnFigure(
+  list: readonly { readonly state: string }[],
+  t: (code: string, params?: Record<string, string>) => string,
+): string | undefined {
+  const { disabled } = webhookFigure(list);
+  return disabled > 0 ? t('app.webhooks.column_disabled', { count: String(disabled) }) : undefined;
 }

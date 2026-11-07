@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-09, P-10, P-12]
-state: built
+state: verified
 tasks: [H-01, B-02, SC-13, CP-12]
-checked_by: [core/domain/service/Authorization_test.go, core/application/service/access/AuthorizationService_test.go, core/application/service/identity/Membership_test.go, core/application/service/identity/ListMemberships_test.go, core/application/service/identity/CreateManagedAccount_test.go, test/integration/role_ceiling_test.go, core/application/service/identity/InviteAccount_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/identity/RenewInvitation_test.go, presentation/rest/InvitationController_test.go, test/integration/invitation_link_test.go, apps/webapp/e2e/invitationlink.test.mjs, docs/evidence/SC-13-2026-10-12.md, docs/evidence/SC-15-D2-2026-10-13.md, apps/webapp/e2e/invitescope.test.mjs, cmd/hubctl/People_test.go, scripts/hubctl-e2e.sh]
+checked_by: [core/domain/service/Authorization_test.go, core/application/service/access/AuthorizationService_test.go, core/application/service/identity/Membership_test.go, core/application/service/identity/ListMemberships_test.go, core/application/service/identity/CreateManagedAccount_test.go, test/integration/role_ceiling_test.go, core/application/service/identity/InviteAccount_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/identity/RenewInvitation_test.go, presentation/rest/InvitationController_test.go, test/integration/invitation_link_test.go, apps/webapp/e2e/invitationlink.test.mjs, docs/evidence/SC-13-2026-10-12.md, docs/evidence/SC-15-D2-2026-10-13.md, apps/webapp/e2e/invitescope.test.mjs, cmd/hubctl/People_test.go, scripts/hubctl-e2e.sh, locales/InvitationMail_test.go, core/application/service/identity/Session_test.go, test/integration/notification_delivery_test.go]
 ---
 
 # Invite people and give them a role

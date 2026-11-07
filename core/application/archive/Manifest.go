@@ -144,6 +144,16 @@ const (
 	EncryptionNone      = "NONE"
 )
 
+// A key derived from a passphrase (backup-restore.md §4): KDF names Argon2id, the four numbers and
+// the salt are its parameters, and KeyID is PassphraseKeyID, because no master key is named.
+const (
+	KDFArgon2id     = "argon2id"
+	PassphraseKeyID = "passphrase"
+)
+
+// FromPassphrase reports whether the members open under a key derived from a passphrase.
+func (e Encryption) FromPassphrase() bool { return e.IsEncrypted() && e.KDF == KDFArgon2id }
+
 // IsEncrypted reports whether the members have to be opened before they can be read.
 func (e Encryption) IsEncrypted() bool { return e.Mode == EncryptionAES256GCM }
 

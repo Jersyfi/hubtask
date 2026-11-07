@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 )
@@ -56,5 +57,30 @@ func TestWaitForDatabaseGivesUpAtItsDeadline(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed < 5*time.Second || elapsed > 20*time.Second {
 		t.Errorf("the wait lasted %s, want about six seconds", elapsed)
+	}
+}
+
+// A database whose newest migration is older than the floor this build upgrades from - two majors
+// behind - is refused before anything is applied; an empty database, one at the floor and one past
+// it are migrated.
+func TestADatabaseTwoMajorsBehindIsRefused(t *testing.T) {
+	for _, c := range []struct {
+		name          string
+		before, floor int64
+		refused       bool
+	}{
+		{"an empty database", 0, 120, false},
+		{"one at the floor", 120, 120, false},
+		{"one past it", 300, 120, false},
+		{"one behind it", 119, 120, true},
+		{"no floor yet", 5, 0, false},
+	} {
+		err := refuseSkippedMajor(c.before, c.floor)
+		if (err != nil) != c.refused {
+			t.Errorf("%s: %v, want refused %v", c.name, err, c.refused)
+		}
+		if err != nil && !strings.Contains(err.Error(), "migrate.upgrade_path_skipped") {
+			t.Errorf("%s: the refusal %v names no code", c.name, err)
+		}
 	}
 }

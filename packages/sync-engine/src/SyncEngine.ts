@@ -17,10 +17,10 @@ import { TransportError } from './errors.ts';
 import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
-import { Replica, collectionOf } from './replica.ts';
+import { META, Replica, collectionOf } from './replica.ts';
 import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
 import { HybridClock, formatHlc } from './hlc.ts';
-import { Queue, mutationOf, subjectOf } from './queue.ts';
+import { Queue, mutationOf, rewriteOf, subjectOf } from './queue.ts';
 import type { PendingMutation, QueueState, QueuedWrite, SyncMutationResult } from './schema.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
@@ -40,10 +40,36 @@ export const DEFAULT_IDLE_TIMEOUT_MS = 45_000;
 export const RECONNECT_BASE_MS = 1_000;
 /** The longest the engine waits between attempts. A tab left open overnight still comes back. */
 export const RECONNECT_MAX_MS = 30_000;
+/** The server's code for a stream refused at a cap: the server is up and busy. */
+const STREAM_REFUSED = 'sync.stream_unavailable';
+/** Why the stream is not attached, where it is known: refused at the server's cap. */
+export type ConnectionPause = 'refused';
 /** How many records one delta page asks for. The contract's default, and well under its maximum. */
 export const PULL_PAGE_SIZE = 500;
 /** How many mutations one push carries at most: the contract's `maxItems`. */
 export const PUSH_BATCH = 500;
+
+/**
+ * How far a copy may grow before it holds less than everything (offline-sync.md §1): past
+ * `records` counted records, the copy holds the containers `containers` names instead, most wanted
+ * first, and reads the rest from the server. The application's, like `pathsFor`: which records
+ * count and which containers a person wants are what the engine does not know. A copy of one
+ * container is never narrowed further.
+ */
+export interface ReplicaBound {
+  readonly records: number;
+  readonly counts: (record: ChangeRecord) => boolean;
+  readonly containers: () => Promise<readonly string[]>;
+}
+
+/** What a narrowed copy holds: the containers, and how many of them the bound let fit. */
+interface HeldScope {
+  readonly containers: readonly string[];
+  readonly fit?: number;
+}
+
+const SCOPE = 'scope';
+const OUTGROWN = Symbol('outgrown');
 
 /**
  * A captured file's upload deadline, sized by its bytes: a floor of 32 kB/s - slower than that
@@ -212,6 +238,18 @@ export interface ListenOptions {
    */
   readonly onRecord?: (record: ChangeRecord) => void;
   /**
+   * Whether a record cannot change a read's answer though `pathsFor` names its path - the
+   * application's, like `pathsFor`, and asked only of a read that holds an answer. One person's
+   * bulk move in one collection then reloads that collection's board, not every board open in the
+   * workspace. A read it is not sure of is stale.
+   */
+  readonly unaffected?: (record: ChangeRecord, request: ResourceRequest, data: unknown) => boolean;
+  /**
+   * How long the records of a burst are gathered before the reads they make stale are reloaded,
+   * once each. Zero, the default, reloads on each record.
+   */
+  readonly batchMs?: number;
+  /**
    * Whether the stream is attached, called when that changes and not otherwise.
    *
    * `true` the moment the server accepts the connection, `false` when an attempt fails and the
@@ -224,8 +262,17 @@ export interface ListenOptions {
    * connected, so an open and idle stream - the normal state of a workspace nobody else is writing
    * in - would read *Reconnecting…* for as long as nobody changed anything. Only this loop knows
    * the connection's state, so this loop says it.
+   *
+   * `reason` is `'refused'` when the server refused the stream at its cap (`503`
+   * `sync.stream_unavailable`): the server is up and every turn still pulls the changes, so the
+   * caller can say "live updates paused" rather than "reconnecting".
    */
-  readonly onConnection?: (isOpen: boolean) => void;
+  readonly onConnection?: (isOpen: boolean, reason?: ConnectionPause) => void;
+  /**
+   * A number in [0, 1) that spreads the waits before a reconnection - after a drain, a failure or
+   * a refusal at the server's stream cap - injected so a test can fix it. The default is `Math.random`: it schedules, it identifies nothing.
+   */
+  readonly random?: () => number;
   /**
    * How the engine waits between attempts, injected so a test does not spend the wait.
    *
@@ -303,6 +350,14 @@ export interface SyncEngineOptions {
    */
   readonly onRefresh?: () => Promise<boolean>;
   /**
+   * Opens a live document's WebSocket (offline-sync.md §13) at a path under the API, with the
+   * protocols given. The application's, because the address is the page's origin; the bearer is
+   * added here, as the subprotocol a browser can carry it in, and nowhere else.
+   */
+  readonly socket?: (path: string, protocols: string[]) => unknown;
+  /** Where a copy stops holding everything. None: the copy holds everything the caller may read. */
+  readonly bound?: ReplicaBound;
+  /**
    * Whether the store is the installed apps' encrypted copy, which may hold a file captured
    * offline until it can be uploaded (offline-sync.md §1). The browser's copy is not encrypted
    * and holds no file: there a capture without the server is refused, `sync.needs_connection`.
@@ -318,6 +373,13 @@ export interface SyncEngineOptions {
   readonly firstSynchronisation?: 'snapshot' | 'pages';
 }
 
+/** The subprotocol the server answers a live document with, and the prefix that carries a bearer. */
+export const LIVE_SUBPROTOCOL = 'hubtask.v1';
+export const LIVE_BEARER_PREFIX = 'hubtask.bearer.';
+
+/** The close code the server ends a live connection with once its credential no longer holds. */
+export const LIVE_CLOSE_UNAUTHENTICATED = 4401;
+
 /**
  * SyncEngine is the client's only door to a server.
  *
@@ -332,10 +394,17 @@ export class SyncEngine {
   readonly #token: () => string | undefined;
   /** One entry per path, so two components asking for the same thing share one state. */
   readonly #resources = new Map<string, ResourceEntry<unknown>>();
+  /** The reads a batch of stream records made stale, and the batch's end (`batchMs`). */
+  readonly #due = new Set<string>();
+  #dueTimer: ReturnType<typeof setTimeout> | undefined;
   readonly #onUnauthorized: () => void;
   readonly #onRefresh: () => Promise<boolean>;
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
   readonly #mutationFor: SyncEngineOptions['mutationFor'];
+  readonly #socket: SyncEngineOptions['socket'];
+  readonly #bound: ReplicaBound | undefined;
+  /** The containers a narrowed copy holds; none held means everything. */
+  #scope: HeldScope | undefined;
   readonly #holdsFiles: boolean;
   readonly #snapshotFirst: boolean;
   /** The queue, once a store is attached. */
@@ -367,9 +436,38 @@ export class SyncEngine {
     this.#onRefresh = options.onRefresh ?? (async () => false);
     this.#storeFor = options.storeFor;
     this.#mutationFor = options.mutationFor;
+    this.#socket = options.socket;
+    this.#bound = options.bound;
     this.#holdsFiles = options.holdsFiles === true;
     this.#snapshotFirst = options.firstSynchronisation !== 'pages';
   }
+
+  /**
+   * A live document's socket, its bearer asked for now and carried as the subprotocol - never in
+   * the address (security.md §9). A refreshed token reaches the next connection, since the editor
+   * asks for a new socket on every reconnect. Refused with `sync.needs_connection` where the
+   * application gave no way to open one.
+   *
+   * The server closes a held connection with 4401 once its credential no longer holds; the pair
+   * is then renewed, as a refused call's is, so the editor's reconnect carries a fresh bearer -
+   * and a pair that cannot be renewed ends the session rather than leaving a page retrying a
+   * dead token unseen.
+   */
+  liveSocket<T>(path: string): T {
+    if (!this.#socket) throw new TransportError('offline', { code: 'sync.needs_connection' });
+    const token = this.#token();
+    const protocols = [LIVE_SUBPROTOCOL, ...(token ? [LIVE_BEARER_PREFIX + token] : [])];
+    const socket = this.#socket(path, protocols);
+    const events = socket as { addEventListener?: (type: string, listener: (event: { code?: number }) => void) => void };
+    events.addEventListener?.('close', (event) => {
+      if (event.code !== LIVE_CLOSE_UNAUTHENTICATED) return;
+      void this.#renew().then((renewed) => {
+        if (!renewed) this.#onUnauthorized();
+      });
+    });
+    return socket as T;
+  }
+
 
   /** Whether a file captured offline waits in this copy (`holdsFiles`). */
   get holdsFiles(): boolean {
@@ -439,6 +537,7 @@ export class SyncEngine {
     }
     this.#replica = replica;
     this.#device = device;
+    this.#scope = await storage.get<HeldScope & { id: string }>(META, SCOPE);
     this.#hlc = new HybridClock(this.#clock, device.id, await replica.hlc());
     this.#queue = new Queue(replica);
     await this.#publishQueue();
@@ -553,7 +652,7 @@ export class SyncEngine {
       const waiting = this.#queueState.count > 0 || !this.#reachable;
       if (waiting) {
         const queued = await this.#enqueue(method, path, body, options);
-        if (queued !== undefined) return queued as T;
+        if (queued) return queued.prediction as T;
       }
     }
     try {
@@ -568,22 +667,24 @@ export class SyncEngine {
       if (options.signal?.aborted) throw cause;
       if (!(cause instanceof TransportError) || !unreachable(cause) || !queue || !this.#mutationFor) throw cause;
       const queued = await this.#enqueue(method, path, body, options);
-      if (queued === undefined) throw cause;
-      return queued as T;
+      if (!queued) throw cause;
+      return queued.prediction as T;
     }
   }
 
   /**
    * Queues a write the application knows how to queue, applies its prediction to the replica,
    * tells the screens that show it, and pushes at once where the server answers. Answers the
-   * prediction as the write's result, or `undefined` for a write that cannot be queued.
+   * prediction as the write's result, or `undefined` for a write that cannot be queued. A queued
+   * deletion predicts no document, which is why the answer is wrapped: an empty prediction is
+   * still a queued write and must not be sent a second time.
    */
   async #enqueue(
     method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     path: string,
     body: unknown,
     options: MutateOptions,
-  ): Promise<unknown> {
+  ): Promise<{ prediction: unknown } | undefined> {
     const queue = this.#queue;
     const replica = this.#replica;
     if (!queue || !replica || !this.#mutationFor) return undefined;
@@ -606,11 +707,10 @@ export class SyncEngine {
     // is where the prediction is, and from the server once the push has landed.
     this.#invalidate(write.invalidates ?? options.invalidates);
     if (this.#reachable) void this.push();
-    // Queued is answered, whatever the copy holds now: a deletion's prediction is the object gone,
-    // and a template applied predicts nothing.
+    // A deletion's prediction is the object gone, and a template applied predicts nothing.
     const subject = subjectOf(write, String(mutation.op_id));
     const held = await replica.store.get<{ document: unknown }>(collectionOf(subject.entity), subject.id);
-    return held?.document ?? {};
+    return { prediction: held?.document };
   }
 
   /**
@@ -781,6 +881,27 @@ export class SyncEngine {
     await this.#publishQueue();
   }
 
+  /**
+   * Sends a refused change again as its draft says (user-experience.md §5.11): the same write with
+   * the values the person changed, a new operation queued and predicted as any write is, and the
+   * refusal taken off the list only once the new one is queued. False where the record holds no
+   * mutation to send.
+   */
+  async resendRejected(id: string, values: Readonly<Record<string, unknown>>): Promise<boolean> {
+    const queue = this.#queue;
+    if (!queue) return false;
+    const rejected = (await queue.rejected()).find((each) => each.id === id);
+    const write = rejected ? rewriteOf(rejected, values) : undefined;
+    if (!write) return false;
+    const mutation = mutationOf(write, mintUuidV7(this.#clock), () => this.#stampNow());
+    await queue.enqueue(write, mutation, this.#clock.now());
+    await queue.dismiss(id);
+    await this.#publishQueue();
+    this.#invalidate(write.invalidates);
+    if (this.#reachable) void this.push();
+    return true;
+  }
+
   /** Takes a conflict off the list: the person has seen both values. */
   async dismissConflict(id: string): Promise<void> {
     await this.#queue?.dismissConflict(id);
@@ -829,8 +950,21 @@ export class SyncEngine {
    * travels through access logs — the same reason `/search` is one — and the engine already knows
    * that a `POST` can be a read.
    */
-  async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string } = {}) {
-    return this.#attempt(() => this.#transport.document(path, body, this.#options(options)));
+  async document(path: string, body: unknown, options: { timeoutMs?: number; idempotencyKey?: string; accept?: string; stepUpToken?: string } = {}) {
+    return this.#attempt(() => this.#transport.document(path, body, { ...this.#options(options), accept: options.accept }));
+  }
+
+  /**
+   * documentTo is `document` with the bytes written into `sink` as they arrive (ports.ts). The
+   * sink stays the caller's until the server answered: a renewal repeats the call into it.
+   */
+  async documentTo(
+    path: string,
+    body: unknown,
+    sink: WritableStream<Uint8Array>,
+    options: { timeoutMs?: number; idempotencyKey?: string; accept?: string; stepUpToken?: string } = {},
+  ) {
+    return this.#attempt(() => this.#transport.documentTo(path, body, sink, { ...this.#options(options), accept: options.accept }));
   }
 
   /**
@@ -870,6 +1004,7 @@ export class SyncEngine {
         data: [...(held.data ?? []), ...(arrived?.data ?? [])],
       } as T;
       entry.etag = answer.etag;
+      entry.pages = (entry.pages ?? 1) + 1;
       this.#publish(entry, { status: 'ready', data: combined, at: this.#clock.now(), source: 'server', etag: answer.etag });
     } catch (cause) {
       // The page that failed does not take the pages that succeeded with it: the reader keeps what
@@ -981,19 +1116,22 @@ export class SyncEngine {
             // Applied to the replica before anything is re-read: the store is what a
             // screen reads while offline, and a record it has not been given is a change it
             // shows nobody. The cursor advances in the store on the frame, not on the record.
-            await this.#replica?.apply(record);
+            const replica = this.#replica;
+            if (replica && (await this.#admits(replica, record))) await replica.apply(record);
             options.onRecord?.(record);
             // The empty list is not the absent one: `#invalidate(undefined)` means everything,
             // and an application that maps a record to no path means the opposite. The list
             // travels as it is, and a record that names nothing here invalidates nothing.
-            this.#invalidate(options.pathsFor(record));
+            this.#invalidateFor(record, options);
           }
           if (event.id && this.#replica) await this.#replica.hold({ ...(await this.#replica.position()), cursor: event.id });
         }
         // The server closed the stream: a deployment, a drain, an idle proxy. Come back when it
         // asked to be come back to.
         if (turn.signal.aborted) continue;
-        pause = suggested ?? RECONNECT_BASE_MS;
+        // Spread around the server's word: a drain ends every stream of a pod at once, and the
+        // tabs must not reach the surviving pods in the same second.
+        pause = spread(suggested ?? RECONNECT_BASE_MS, options.random ?? Math.random);
       } catch (cause) {
         // Ended here rather than by the server: not a failure, and nothing to wait for.
         if (turn.signal.aborted && !signal.aborted) continue;
@@ -1025,10 +1163,15 @@ export class SyncEngine {
           continue;
         }
         attempt += 1;
-        pause = error.retryAfterMs ?? backoff(attempt - 1);
+        const refused = error.status === 503 && (error.detailCode ?? error.code) === STREAM_REFUSED;
+        pause = refused
+          ? // The server's word is the floor; past it the wait grows and spreads, so a full pod is
+            // not asked again by every refused tab at the same second, each with a catch-up pull.
+            Math.max(error.retryAfterMs ?? 0, backoff(attempt - 1)) * (1 + 0.5 * (options.random ?? Math.random)())
+          : spread(error.retryAfterMs ?? backoff(attempt - 1), options.random ?? Math.random);
         // An attempt failed and the next one is a wait away: the caller is told, once per change,
         // so that what it draws says what is true rather than what last arrived through it.
-        options.onConnection?.(false);
+        options.onConnection?.(false, refused ? 'refused' : undefined);
       } finally {
         signal.removeEventListener('abort', follow);
         this.#turns.delete(follow);
@@ -1050,10 +1193,112 @@ export class SyncEngine {
     const replica = this.#replica;
     this.#replica = undefined;
     this.#device = undefined;
+    this.#scope = undefined;
     this.#hlc = undefined;
     this.#queue = undefined;
     this.#queueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
     await replica?.store.clear();
+  }
+
+  /**
+   * Forgets what was read and keeps what was done: an end of the session nobody chose - expired,
+   * ended by an administrator, a credential refused. The copy and the cursor go as at `reset`; the
+   * queue, what was refused and the device stay in the account's store, so that the same account
+   * signing in again pushes them under the same device (`offline-sync.md` §9.6). With nothing owed
+   * the store is deleted whole, as at sign-out. Answers how many changes - queued or refused - were
+   * kept.
+   */
+  async release(): Promise<number> {
+    const { count, rejected, conflicts } = this.#queueState;
+    const owed = count + rejected.length + conflicts.length;
+    const replica = this.#replica;
+    if (owed === 0 || !replica) {
+      await this.reset();
+      return 0;
+    }
+    for (const entry of this.#resources.values()) entry.listeners.clear();
+    this.#resources.clear();
+    this.#replica = undefined;
+    this.#device = undefined;
+    this.#scope = undefined;
+    this.#hlc = undefined;
+    this.#queue = undefined;
+    this.#queueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
+    await replica.empty();
+    return owed;
+  }
+
+  /**
+   * The containers the copy holds where the bound narrowed it, or nothing where it holds
+   * everything the caller may read.
+   */
+  get heldContainers(): readonly string[] | undefined {
+    return this.#scope?.containers;
+  }
+
+  /**
+   * Asks the application again which containers a narrowed copy should hold - opened lately, say -
+   * and where the answer differs, empties the copy (the queue kept) and takes it afresh: a running
+   * listen loop reconnects to do it now. Answers whether it did. A copy holding everything stays.
+   */
+  async renarrow(): Promise<boolean> {
+    const replica = this.#replica;
+    const held = this.#scope;
+    if (!replica || !this.#bound || !held) return false;
+    const wanted = await this.#bound.containers();
+    const next = wanted.slice(0, held.fit ?? wanted.length);
+    if (next.length === held.containers.length && next.every((id, i) => id === held.containers[i])) return false;
+    await this.#holdScope(replica, { containers: next, fit: held.fit });
+    for (const end of this.#turns) end();
+    return true;
+  }
+
+  async #holdScope(replica: Replica, scope: HeldScope): Promise<void> {
+    await replica.store.put(META, SCOPE, { id: SCOPE, ...scope });
+    this.#scope = scope;
+    await replica.empty();
+  }
+
+  /**
+   * The copy outgrew the bound: it holds the application's containers instead, or, where it held
+   * some already, the first half of them. Answers whether anything is left to walk.
+   */
+  async #narrow(replica: Replica): Promise<boolean> {
+    const held = this.#scope;
+    const bound = this.#bound;
+    if (!bound) return false;
+    if (held) {
+      const fit = Math.max(1, Math.ceil(held.containers.length / 2));
+      await this.#holdScope(replica, { containers: held.containers.slice(0, fit), fit });
+    } else {
+      await this.#holdScope(replica, { containers: [...(await bound.containers())] });
+    }
+    return (this.#scope?.containers.length ?? 0) > 0;
+  }
+
+  /** Whether the walk is to stop past the bound: never for a copy of one container. */
+  #bounded(): ReplicaBound | undefined {
+    if (!this.#bound) return undefined;
+    if (this.#scope && this.#scope.containers.length <= 1) return undefined;
+    return this.#bound;
+  }
+
+  /**
+   * Whether a stream record belongs in a narrowed copy: one filed under no container, under a held
+   * container or under one the copy holds below it. A removal is always applied, since it can only
+   * take away. What is left out is still made stale on the screens that read it from the server.
+   */
+  async #admits(replica: Replica, record: ChangeRecord): Promise<boolean> {
+    const held = this.#scope;
+    if (!held || record.op !== 'UPSERT' || !record.container_id) return true;
+    if (held.containers.includes(record.container_id) || held.containers.includes(record.entity_id)) return true;
+    return (await replica.store.get(collectionOf('container'), record.container_id)) !== undefined;
+  }
+
+  /** The scopes a pull and a snapshot ask with: none for a copy of everything. */
+  #scopes(): { scopes?: { container_id: string; depth: 'SUBTREE' }[] } {
+    if (!this.#scope) return {};
+    return { scopes: this.#scope.containers.map((id) => ({ container_id: id, depth: 'SUBTREE' })) };
   }
 
   /**
@@ -1073,6 +1318,8 @@ export class SyncEngine {
   ): Promise<string | undefined> {
     const replica = this.#replica;
     if (!replica) return undefined;
+    // A bound that left no container to hold: every read is the server's.
+    if (this.#scope?.containers.length === 0) return undefined;
     let cursor = (await replica.position())?.cursor;
     if (cursor !== undefined && Object.values(await replica.resynchronisations()).includes('pending')) {
       // The delta first: a deletion since the held cursor travels only there, and a snapshot
@@ -1126,7 +1373,23 @@ export class SyncEngine {
   ): Promise<string | undefined> {
     const replica = this.#replica;
     if (!replica) return undefined;
-    const body = this.#deviceBody();
+    for (;;) {
+      const walked = await this.#walk(replica, options, signal);
+      if (walked !== OUTGROWN) return walked;
+      if (!(await this.#narrow(replica))) return undefined;
+    }
+  }
+
+  /** One initial synchronisation, ended early as `OUTGROWN` once the copy passes the bound. */
+  async #walk(
+    replica: Replica,
+    options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>,
+    signal: AbortSignal,
+  ): Promise<string | undefined | typeof OUTGROWN> {
+    const body = { ...this.#deviceBody(), ...this.#scopes() };
+    const bound = this.#bounded();
+    let counted = 0;
+    const outgrown = (record: ChangeRecord) => bound !== undefined && bound.counts(record) && ++counted > bound.records;
 
     for (let attempt = 0; this.#snapshotFirst && attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
       const lines = await this.#attempt(() => this.#transport.snapshot('/sync:snapshot', body, {
@@ -1144,9 +1407,11 @@ export class SyncEngine {
         }
         const record = recordOf(JSON.stringify(line.record));
         if (!record) continue;
+        if (outgrown(record)) return OUTGROWN;
         await replica.apply(record);
         options.onRecord?.(record);
       }
+      counted = 0;
     }
     if (signal.aborted) return undefined;
 
@@ -1155,8 +1420,14 @@ export class SyncEngine {
     // page's is the delta cursor - the same one the snapshot would have ended on. `#pull` holds
     // each one, so a walk cut short is continued by the next catch-up's delta, not begun again.
     let cursor: string | undefined;
+    let over = false;
+    const counting = { ...options, onRecord: (record: ChangeRecord) => {
+      if (outgrown(record)) over = true;
+      options.onRecord?.(record);
+    } };
     for (;;) {
-      const page = await this.#pull(cursor ?? null, options);
+      const page = await this.#pull(cursor ?? null, counting);
+      if (over) return OUTGROWN;
       cursor = page.cursor;
       if (!page.has_more) break;
     }
@@ -1195,6 +1466,7 @@ export class SyncEngine {
     if (!replica) throw new TypeError('no store is attached');
     const answer = await this.#attempt(() => this.#transport.send<PullPage>('POST', '/sync:pull', {
       ...this.#deviceBody(),
+      ...this.#scopes(),
       cursor,
       limit: PULL_PAGE_SIZE,
     }, this.#options({})));
@@ -1295,9 +1567,10 @@ export class SyncEngine {
           : this.#transport.send<T>('POST', request.path, request.body, options);
       });
       entry.etag = answer.etag;
+      const data = (entry.pages ?? 1) > 1 ? await this.#pagesAfter(request, entry, answer.body) : answer.body;
       this.#publish(entry, {
         status: 'ready',
-        data: answer.body,
+        data,
         at: this.#clock.now(),
         source: 'server',
         etag: answer.etag,
@@ -1322,6 +1595,33 @@ export class SyncEngine {
       // a 401 - here it only becomes a state a screen can render.
       this.#publish(entry, { status: 'failed', error: this.#needsConnection(error) });
     }
+  }
+
+  /**
+   * A reload of a list the reader had paged through reads as many pages again, following the
+   * fresh first page's cursor: re-reading the first alone dropped every row loadMore had appended
+   * at the next change anybody made. A page that does not arrive ends the walk there, with the
+   * rows that did - fewer rows rather than none.
+   */
+  async #pagesAfter<T>(request: ResourceRequest, entry: ResourceEntry<T>, first: T): Promise<T> {
+    let combined = first as Paged;
+    let read = 1;
+    for (; read < (entry.pages ?? 1); read += 1) {
+      const cursor = combined?.page?.next_cursor;
+      if (!cursor) break;
+      try {
+        const options = this.#options(request);
+        const answer = request.body === undefined
+          ? await this.#transport.get<T>(withCursor(request.path, cursor), options)
+          : await this.#transport.send<T>('POST', request.path, nextPage(request.body, cursor), options);
+        const arrived = answer.body as Paged;
+        combined = { ...arrived, data: [...(combined.data ?? []), ...(arrived?.data ?? [])] };
+      } catch {
+        break;
+      }
+    }
+    entry.pages = read;
+    return combined as T;
   }
 
   /** The replica's answer to a request, as a state, or nothing where it cannot answer. */
@@ -1412,11 +1712,41 @@ export class SyncEngine {
    * a write returns what the server answered and does not wait for the screens around it to catch
    * up — and a reload that fails reaches its subscribers as a `failed` state like any other.
    */
+  /**
+   * A stream record's invalidation: narrowed by `scopeOf`, and gathered for `batchMs` so that a
+   * burst reloads each stale read once. The reads are chosen when the record arrives; whether one
+   * is still watched is asked when the batch ends.
+   */
+  #invalidateFor(record: ChangeRecord, options: ListenOptions): void {
+    const prefixes = options.pathsFor(record);
+    if (prefixes.length === 0) return;
+    const stale = [...this.#resources].filter(([, entry]) =>
+      prefixes.some((prefix) => matchesPath(prefix, entry.path)) && !unaffectedBy(record, entry, options.unaffected));
+    const batchMs = options.batchMs ?? 0;
+    if (batchMs <= 0) {
+      this.#reload(stale);
+      return;
+    }
+    for (const [key] of stale) this.#due.add(key);
+    this.#dueTimer ??= setTimeout(() => {
+      this.#dueTimer = undefined;
+      const due = [...this.#due];
+      this.#due.clear();
+      this.#reload(due.flatMap((key) => {
+        const entry = this.#resources.get(key);
+        return entry ? [[key, entry] as [string, ResourceEntry<unknown>]] : [];
+      }));
+    }, batchMs);
+  }
+
   #invalidate(prefixes: readonly string[] | undefined): void {
     const stale = [...this.#resources].filter(
       ([, entry]) => prefixes === undefined || prefixes.some((prefix) => matchesPath(prefix, entry.path)),
     );
+    this.#reload(stale);
+  }
 
+  #reload(stale: readonly (readonly [string, ResourceEntry<unknown>])[]): void {
     for (const [key, entry] of stale) {
       if (entry.listeners.size === 0) {
         this.#resources.delete(key);
@@ -1449,6 +1779,14 @@ export function matchesPath(name: string, path: string): boolean {
     .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('[^/?]+');
   return new RegExp(`^${source}${isExact ? '(?:\\?.*)?$' : ''}`).test(path);
+}
+
+function unaffectedBy(
+  record: ChangeRecord,
+  entry: ResourceEntry<unknown>,
+  unaffected: ListenOptions['unaffected'],
+): boolean {
+  return unaffected !== undefined && entry.state.status === 'ready' && unaffected(record, entry.request, entry.state.data);
 }
 
 /** A failure that never reached the server: no answer at all, or none in time. */
@@ -1487,6 +1825,11 @@ function recordOf(data: string): ChangeRecord | undefined {
 }
 
 /** Doubling, to a ceiling. Deterministic, because a test that cannot predict the wait cannot assert it. */
+/** A wait spread over half to one and a half of itself, so waits begun together end apart. */
+function spread(ms: number, random: () => number): number {
+  return ms * (0.5 + random());
+}
+
 function backoff(attempt: number): number {
   return Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS);
 }
@@ -1545,4 +1888,6 @@ interface ResourceEntry<T> {
   next?: Promise<void>;
   /** The tag the last successful read carried, so a write can state the version it saw. */
   etag?: string;
+  /** How many pages the reader holds, loadMore's included, which a reload reads again. */
+  pages?: number;
 }

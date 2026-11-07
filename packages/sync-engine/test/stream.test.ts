@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SyncEngine, RECONNECT_BASE_MS } from '../src/SyncEngine.ts';
+import { SyncEngine, RECONNECT_BASE_MS, RECONNECT_MAX_MS } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import type { ChangeRecord } from '../src/schema.ts';
 import type { StreamEvent } from '../src/ports.ts';
@@ -223,11 +223,52 @@ test('a busy server is waited out for exactly as long as it asked', async () => 
   const engine = new SyncEngine({ transport });
   const pause = pauses(1);
 
-  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0 }));
   await settle();
   pause.end();
 
   assert.deepEqual(pause.seen, [12_000], 'the server said when, and the engine came back sooner');
+});
+
+test('a stream refused at the cap is paused, not lost: the waits grow past the server\'s and spread', async () => {
+  const refusal = () => ({ refuse: new TransportError('problem', { status: 503, detailCode: 'sync.stream_unavailable', retryAfterMs: 5_000 }) });
+  const transport = new FakeTransport().streamSessions(refusal(), refusal(), refusal(), refusal(), refusal(), refusal());
+  const engine = new SyncEngine({ transport });
+  const pause = pauses(6);
+  const reasons: (string | undefined)[] = [];
+
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0, onConnection: (_, reason) => reasons.push(reason) }));
+  await settle(24);
+  pause.end();
+
+  assert.deepEqual(pause.seen, [5_000, 5_000, 5_000, 8_000, 16_000, RECONNECT_MAX_MS], 'never sooner than asked, and slower each time');
+  assert.equal(reasons[0], 'refused', 'the caller is told the server refused, not that it is gone');
+
+  const spread = new SyncEngine({ transport: new FakeTransport().streamSessions(refusal()) });
+  const later = pauses(1);
+  later.hold(spread.listen({ pathsFor, wait: later.wait, random: () => 0.5 }));
+  await settle();
+  later.end();
+  assert.deepEqual(later.seen, [6_250], 'the wait is spread above the floor');
+});
+
+test('a hundred tabs whose streams a drain ended come back spread, not in the same second', async () => {
+  // A rolling update ends every stream of a pod at once. The server suggests its delay; each tab
+  // spreads it, so the surviving pods are not met by the whole herd and its catch-up pulls at once.
+  const waits: number[] = [];
+  for (let tab = 0; tab < 100; tab += 1) {
+    const transport = new FakeTransport().streamSessions({ events: [{ data: '', retryMs: 3_000 }] }, { open: true });
+    const engine = new SyncEngine({ transport });
+    const pause = pauses(1);
+    pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+    await settle();
+    pause.end();
+    waits.push(...pause.seen);
+  }
+  assert.equal(waits.length, 100);
+  assert.ok(waits.every((ms) => ms >= 1_500 && ms < 4_500), `a wait outside half to one and a half of 3 s: ${waits}`);
+  const seconds = new Set(waits.map((ms) => Math.floor(ms / 250)));
+  assert.ok(seconds.size >= 8, `100 waits fell into ${seconds.size} quarter-seconds: not spread`);
 });
 
 test('a connection that will not open backs off, doubling', async () => {
@@ -235,7 +276,8 @@ test('a connection that will not open backs off, doubling', async () => {
   const engine = new SyncEngine({ transport });
   const pause = pauses(3);
 
-  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  // The spread's middle is the wait itself.
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0.5 }));
   await settle(12);
   pause.end();
 
@@ -259,7 +301,7 @@ test('a cursor older than the tombstone window empties the engine and starts aga
   await settle();
   const before = transport.calls.length;
 
-  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0.5 }));
   await settle(10);
   pause.end();
 
@@ -415,7 +457,7 @@ test('the connection says when it is attached, and when an attempt failed', asyn
   const clock = pauses();
   const seen: boolean[] = [];
 
-  const stop = engine.listen({ pathsFor, wait: clock.wait, onConnection: (isOpen) => seen.push(isOpen) });
+  const stop = engine.listen({ pathsFor, wait: clock.wait, random: () => 0.5, onConnection: (isOpen) => seen.push(isOpen) });
   clock.hold(stop);
   await settle(10);
 
@@ -438,4 +480,59 @@ test('an open stream with nothing on it is attached, and says so without a recor
   // up - which is what the mark in the bar draws.
   assert.deepEqual(seen, [true]);
   stop();
+});
+
+test('a burst of records reloads each stale read once, at the end of the batch', async () => {
+  const records = Array.from({ length: 50 }, (_, i) => frame(String(10 + i), { entity: 'work_item', entity_id: ITEM }));
+  const transport = new FakeTransport()
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })
+    .streamSessions({ events: records, open: true });
+  const engine = new SyncEngine({ transport });
+  const pause = pauses(1);
+
+  engine.subscribe({ path: `/items/${ITEM}` }, () => {});
+  await settle();
+  const before = transport.calls.length;
+
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, batchMs: 20 }));
+  await settle();
+  assert.equal(transport.calls.length, before, 'a read reloaded before its batch ended');
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  await settle();
+  pause.end();
+
+  assert.equal(transport.calls.length - before, 1, 'fifty records reloaded the read more than once');
+});
+
+test('a record the application calls unaffected leaves a read alone', async () => {
+  const transport = new FakeTransport()
+    .answer(`/items/${ITEM}`, { id: ITEM, title: 'one' })
+    .answer(`/items/${OTHER}`, { id: OTHER, title: 'two' })
+    .streamSessions({
+      events: [frame('7', { entity: 'work_item', entity_id: ITEM, container_id: CONTAINER })],
+      open: true,
+    });
+  const engine = new SyncEngine({ transport });
+  const pause = pauses(1);
+  const both = (record: ChangeRecord) => (record.entity === 'work_item' ? [`/items/${ITEM}`, `/items/${OTHER}`] : []);
+
+  engine.subscribe({ path: `/items/${ITEM}` }, () => {});
+  engine.subscribe({ path: `/items/${OTHER}` }, () => {});
+  await settle();
+  const before = transport.calls.length;
+
+  const asked: unknown[] = [];
+  pause.hold(engine.listen({
+    pathsFor: both,
+    wait: pause.wait,
+    unaffected: (_record, request, data) => {
+      asked.push(data);
+      return request.path === `/items/${OTHER}`;
+    },
+  }));
+  await settle();
+  pause.end();
+
+  assert.deepEqual(transport.calls.slice(before).map((call) => call.path), [`/items/${ITEM}`]);
+  assert.ok(asked.some((data) => (data as { id?: string }).id === OTHER), 'the answer held was not handed over');
 });

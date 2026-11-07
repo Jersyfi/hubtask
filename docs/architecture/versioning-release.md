@@ -76,6 +76,21 @@ the signed tag `vX.Y.Z` and pushes it; `release.yml` builds the installed apps, 
 after the `production` environment's approval ([deployment.md](./deployment.md) §7): the apps are
 signed with the project's two keys there (§9).
 
+A release that ships a security fix also publishes its advisory: the GitHub security advisory
+with its CVE, and the CSAF 2.0 document (and any VEX statement) under `hubtask.eu/.well-known/csaf/`
+([security.md](./security.md) §14.2) — written by `release.yml` and the website from the
+advisory's file in `security/advisories/`, committed with the fix.
+
+**The release record.** Every release attaches `release-record.json` (`tools/releaserecord`,
+schema `hubtask-release-record/1`), signed keyless beside it: the tag, the commit, the image and
+its digest, the pipeline run that built and checked it, the Go toolchain, the gates the tag ran
+(§6), the SBOM's and the licence list's SHA-256, the advisories the release fixes, and the support
+policy (§5) it was released under. It is what a provider who is a manufacturer, an authority or a
+court asks of a release years after it shipped - the state of the art it was built to, what it
+contained, what was known about it (Directive (EU) 2024/2853 on product liability; CRA Annex VII).
+It names the evidence by hash and address and copies none of it; a GitHub release is never
+deleted, so the record stays with its artefacts.
+
 The release notes are the changelog; there is no `CHANGELOG.md`. There is no version field in the
 code: the version is burned in through `-ldflags` and reported by `/meta/health`.
 
@@ -89,17 +104,27 @@ code: the version is burned in through `-ldflags` and reported by `/meta/health`
 Rolling updates run the old and the new version at once, so every schema change follows
 expand/contract:
 
-1. **Expand** (release *n*): a new column or table, additive and nullable, backfilled as a
-   background job; the code writes both old **and** new.
+1. **Expand** (release *n*): a new column or table, additive and nullable, backfilled by a
+   migration of its own in resumable batches (the rules below); the code writes both old **and**
+   new.
 2. **Migrate** (release *n*): the code reads new, falling back to old.
 3. **Contract** (release *n+1* or later): remove the old column once every instance runs the new
    code.
 
 Rules:
 
-* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE`.
+* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. A new column carries no inline `CHECK` or `REFERENCES` (it is checked against every row under the ALTER's lock; measured on postgres:16), and a transaction that alters a table updates no rows of one - its backfill is a file of its own (0336). `test/architecture` holds every migration after the last release to it on the tables that release created.
+* An interrupted `CREATE INDEX CONCURRENTLY` leaves an invalid index its retry's `IF NOT EXISTS` would keep. Before the pending files, the migrator drops every invalid index a `NO TRANSACTION` file builds and runs that build again; one still invalid after the run fails it with the index's name. An invalid index no file builds is logged and left; any index invalid for an hour raises A-28 (`hubtask_db_invalid_indexes`, sampled by the scheduler leader).
+* A new index on a partitioned table (`audit_log`) is created `ON ONLY` the parent in a transactional file. After the pending files the migrator builds it `CONCURRENTLY` on every partition it does not reach and attaches it, so the parent's index turns valid without a write held; a share an interrupted build left invalid is dropped and built again on the next run. A partition created later takes the index with it.
+* A backfill in a migration walks in batches, one transaction each, in a `NO TRANSACTION` file,
+  and records where it stopped in `migration_cursor` in the transaction of each batch, deleting its
+  row at the end: a run killed between batches resumes after the last batch it committed
+  (0219, 0235; `TestAnInterruptedBackfillResumesWhereItStopped`). The first backfill that needs the
+  ledger creates it (`CREATE TABLE IF NOT EXISTS`).
 * No destructive step in the same release as the code change that stops using the object.
-* The schema stays backwards compatible with the previous minor, which makes a rollback possible
+* The schema stays backwards compatible with the previous minor, which makes a rollback possible;
+  `make gate-upgrade` (CI job `upgrade`) runs the last release's binary and client on this build's
+  schema, during the migration and after a rollback
   ([deployment.md](./deployment.md) §5).
 * A migration assumes nothing but the schema it names: a lower number can merge after a higher one
   is applied, and the migrator applies it late (`goose` with missing migrations allowed). A number
@@ -107,18 +132,73 @@ Rules:
 * The migration runs as the database owner; the application connects as `hubtask_app`, without
   `SUPERUSER` or `BYPASSRLS` ([multi-tenancy.md](./multi-tenancy.md) §2.1).
 
+**Scheduled contract steps.** A drop waits until no binary that can still run names the object, so
+a step that moves its writers lands one release before the drop:
+
+* *The slim entry* (F-10, migrations 0234/0235). This release reads the side tables
+  `work_item_retention` and `work_item_flow` - the retention walk and an entry's marking, every
+  entry read (sqlc and the query compiler), the flow figure - and still writes the eight columns,
+  which the trigger `work_item_side_rows` mirrors (`TestTheMirrorAgreesAfterEveryWritePath`). The
+  due announcements' claim and next moment stay on the columns: their exactly-once guard is the
+  re-check of the row the claiming `UPDATE` locks, and `wi_due_announce_idx` is partial over the
+  columns. The first migration of the release after the suite gives `work_item_announcement` its
+  partial index; that release moves every writer to the side tables (the claim an
+  `INSERT … ON CONFLICT DO NOTHING` on the side row), names the columns nowhere and keeps the
+  trigger for the older binary still rolling out. The first migration of the release after it drops
+  the trigger and `work_item_mirror_side_rows`, the eight columns, `wi_due_announce_idx`,
+  `work_item_retention_idx` and the generated `search_vector`. Until then no new query names
+  the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns` holds the queries that still
+  do to a list, which each moved writer leaves. Neither step can be forgotten: `make release-tag`
+  counts the releases (pre-releases aside) that already shipped migration 0235 and runs
+  `TestTheSlimEntrysContractStepsAreDueOnTime` with that count, which refuses the release after
+  the suite's while a query on that list other than `CountFigureFlow` remains, and the release
+  after that while no later migration drops `work_item_side_rows`.
+
+* *The installation events' numbering key.* Released sharing the migrator's advisory lock
+  8_010_002, so every installation event written while a migration ran waited for the whole run.
+  The suite's release numbers under its own 8_010_004 and then, never in the other order, under
+  8_010_002, so that it still waits for a pod of the release before, which takes 8_010_002 alone
+  (`TestTheNumberingWaitsForItsOwnKeyAndTheReleaseBeforesKey`). The release after drops
+  `LockPlatformEventNumberingOfTheReleaseBefore` and the exception in
+  `TestEveryFixedAdvisoryLockKeyHasOneHolder`; from then on an event write does not wait for a
+  migration. No schema object changes, so the floor stays.
+
+**A contract step raises the compatibility floor.** The migration that drops what an older binary
+names also replaces `schema_compatibility_floor()` (migration 0344) with the number of the first
+migration of the release that stopped naming it — never with a lower one. A binary whose newest
+migration is below the floor is `migration:too_old`: not ready, and it refuses to start
+(`config.binary_older_than_schema`), instead of passing readiness and failing every write on a
+dropped column ([deployment.md](./deployment.md) §5).
+
 ---
 
 ## 5. Support and upgrade policy
 
 None of this is a commitment: Hubtask is provided as is ([licensing-editions.md](./licensing-editions.md)),
-fixes are best effort and go into the current minor, no version has a support period, and the
-project may be archived at any time. The rows are what the project *aims* for.
+fixes are best effort, and the project may be archived at any time. The rows are what the project
+*aims* for.
+
+**Every release line has a published support period** — the time it receives security fixes —
+stated in [`SECURITY.md`](../../SECURITY.md) and in the release notes of the release that starts
+or ends it. It is an intention, not a warranty; what it is for is that a provider who sells Hubtask
+and is a manufacturer under the Cyber Resilience Act can plan its own, longer period on top of it
+([security.md](./security.md) §14).
+
+| Line | Support period |
+|---|---|
+| A `0.x` minor | Until the next minor is released; fixes go into its latest patch |
+| The current major (from `1.0.0`) | Its latest minor, for as long as it is current |
+| The previous major | 12 months after the next major is released, on its `release/N.x` branch (§3) |
+
+A changed period is announced in the release notes and in `SECURITY.md` before it takes effect,
+never shortened backwards for a line already released. **No release is withdrawn:** a tag, its
+signed image, its SBOM and its advisories stay published after the line's support ends, so a
+security update remains available as long as the registry keeps it.
 
 | Point | Aim |
 |---|---|
-| Supported versions | The current major plus the previous major for its declared support period (12 months intended) |
-| Upgrade path | From any version of the previous major; across two majors with an intermediate step |
+| Supported versions | The lines of the table above |
+| Upgrade path | From any version of the previous major; across two majors with an intermediate step, which the migrator holds: it refuses a database whose newest migration is older than `db.UpgradeFrom` (`migrate.upgrade_path_skipped`) before it applies anything |
 | Downgrade | Not supported (restore from backup) |
 | Deprecation | At least two minor releases of notice: release notes, `Deprecation`/`Sunset` headers, the capability manifest |
 | Security updates | A patch on every supported major; an advisory with CVSS |
@@ -162,7 +242,9 @@ Three movements, in this order, for `1.0.0` and every major after it
    the major is tagged, a **golden archive** written by it is committed under
    `test/backup/golden/v<format-version>/` (none if the format did not change; none is ever
    removed), and BK-4 imports every directory there. Regenerating one is a deliberate act at a
-   release (`HUBTASK_WRITE_GOLDEN=1`), never what a test does when it disagrees.
+   release (`HUBTASK_WRITE_GOLDEN=1`), never what a test does when it disagrees. `db.UpgradeFrom`
+   is set to the newest migration the previous major's first release carried, so a database two
+   majors behind is refused rather than migrated past its intermediate step (§5).
 
 **A major is released when the server, the clients and the website are finished together, from one
 commit.** No client ships later under the same version.

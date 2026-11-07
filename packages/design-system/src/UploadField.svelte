@@ -19,8 +19,9 @@
   // than swallowed — the reader learns before the upload rather than after it.
 
   import Button from './Button.svelte';
+  import IconButton from './IconButton.svelte';
   import ProgressBar from './ProgressBar.svelte';
-  import type { Disableable } from './control.ts';
+  import type { ControlSize, Disableable } from './control.ts';
   import ReasonMark from './_ReasonMark.svelte';
   import { provideReasonGroup } from './reason.ts';
 
@@ -31,10 +32,19 @@
     hint?: string;
     /** What the button that opens the file dialog says. */
     chooseLabel: string;
+    /**
+     * `target` draws a drop area around the button, for a form; `button` draws the button alone,
+     * for a toolbar, where the button's words are the visible name and the label is kept for the
+     * accessibility tree only (user-experience.md §5.10). `icon` is the button as a paperclip
+     * alone, for a bar of icon buttons (a whiteboard's tools), its words the button's name.
+     */
+    variant?: 'target' | 'button' | 'icon';
+    /** The button's size; a toolbar's `sm`. */
+    size?: ControlSize;
     /** What the drop target says. An addition to the button, never the only way in. */
-    dropLabel: string;
-    /** What the control that abandons an upload in flight says. */
-    cancelLabel: string;
+    dropLabel?: string;
+    /** What the control that abandons an upload in flight says. Absent, no cancel is offered. */
+    cancelLabel?: string;
     /** The file the caller currently holds, already chosen. */
     file?: { readonly name: string; readonly size: number } | null;
     /**
@@ -65,6 +75,8 @@
     label,
     hint,
     chooseLabel,
+    variant = 'target',
+    size,
     dropLabel,
     cancelLabel,
     file = null,
@@ -101,12 +113,14 @@
 
   function take(files: FileList | null | undefined) {
     const chosen = files?.[0];
+    // Emptied at once, so the same file chosen again after a refusal is a change again.
+    if (input) input.value = '';
     if (!chosen || unavailable) return;
     onChoose?.(chosen);
   }
 </script>
 
-<div class="field" data-invalid={error ? '' : undefined} bind:this={container}>
+<div class="field" data-variant={variant} data-invalid={error ? '' : undefined} bind:this={container}>
   <label class="label" for={inputId}>{label}<ReasonMark id={groupId} text={disabledReason} {container} /></label>
   {#if hint}<p class="hint" id={hintId}>{hint}</p>{/if}
 
@@ -146,10 +160,14 @@
       onchange={(event) => take((event.currentTarget as HTMLInputElement).files)}
     />
     <span class="painted">
-      <Button tone="secondary" disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
-        {chooseLabel}
-      </Button>
-      <span class="drop">{dropLabel}</span>
+      {#if variant === 'icon'}
+        <IconButton icon="paperclip" label={chooseLabel} {size} {disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()} />
+      {:else}
+        <Button tone={variant === 'button' ? 'subtle' : 'secondary'} {size} icon={variant === 'button' ? 'paperclip' : undefined} disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
+          {chooseLabel}
+        </Button>
+      {/if}
+      {#if variant === 'target' && dropLabel}<span class="drop">{dropLabel}</span>{/if}
     </span>
   </div>
 
@@ -178,7 +196,7 @@
          one is where a component belongs, and the indeterminate case a job with no percentage
          needs comes with it. Politeness, the accessible name and the sentence are all its. -->
     <ProgressBar label={label} value={progress} valueLabel={progressLabel} />
-    <Button tone="subtle" onclick={() => onCancel?.()}>{cancelLabel}</Button>
+    {#if cancelLabel}<Button tone="subtle" onclick={() => onCancel?.()}>{cancelLabel}</Button>{/if}
   {/if}
 
 </div>
@@ -201,6 +219,24 @@
   }
 
   .target[data-over] { background: var(--bg-surface-hover); border-color: var(--accent-primary); }
+
+  /* The button alone: no area, no gap, and the label for the accessibility tree only - the
+     button's words are what a sighted reader sees. */
+  .field:is([data-variant='button'], [data-variant='icon']) { display: inline-flex; }
+
+  .field:is([data-variant='button'], [data-variant='icon']) .target { border: none; padding: 0; border-radius: var(--r-sm); }
+
+  .field:is([data-variant='button'], [data-variant='icon']) .label {
+    position: absolute;
+    /* VisuallyHidden's clip pattern: the one pixel is not a design value (see there). */
+    /* design-system-lint-ignore */
+    inline-size: 1px;
+    /* design-system-lint-ignore */
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 
   .field[data-invalid] .target { border-color: var(--status-danger-border); background: var(--status-danger-surface); }
 

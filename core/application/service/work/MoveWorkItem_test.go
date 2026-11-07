@@ -344,6 +344,7 @@ func TestACollectionContradictingTheParentIsRefused(t *testing.T) {
 
 // The move announces where the item came from, which is what lets a client rewrite its own subtree from one
 // event rather than one per descendant.
+// UC-WRK-06 check 7.
 func TestTheMoveAnnouncesWhereItCameFrom(t *testing.T) {
 	h := newPlacementHarness()
 	h.items.previousKey = "a0"
@@ -643,6 +644,7 @@ func TestAMoveThatDropsNothingReportsAnEmptyList(t *testing.T) {
 // Only what moved. A reorder that stayed put in every other respect records its rank and nothing
 // else - a history of an entry somebody drags around a board should not read as four identical
 // steps naming the same parent each time.
+// UC-WRK-06 check 7.
 func TestAReorderRecordsTheRankAloneInTheHistory(t *testing.T) {
 	h := newPlacementHarness()
 	h.items.previousKey, h.items.nextKey = "a0", "a1"
@@ -688,6 +690,7 @@ func TestReorderingAnActivityRecordsACompactStep(t *testing.T) {
 // The verb is the use case's rather than a reading of what changed: somebody asked to move this,
 // and a history that called it a reorder because the parent happened to stay would be telling them
 // something other than what they did.
+// UC-WRK-06 check 7.
 func TestAMoveRecordsWhatChangedUnderTheMoveVerb(t *testing.T) {
 	h := newPlacementHarness()
 	h.items.previousKey = "a0"
@@ -745,5 +748,40 @@ func TestACallerComputedRankIsTakenAsItIsOnceJudged(t *testing.T) {
 		if err == nil || shared.AsError(err).Category != shared.CategoryValidation {
 			t.Errorf("%s was answered %v, want a validation refusal", name, err)
 		}
+	}
+}
+
+// UC-FLW-01 check 9: a move under a parent whose type leaves the entry's type out of its allowed
+// children is refused by name and writes nothing, as a create under it is; the same move under a
+// parent allowing it goes through.
+func TestAMoveUnderAParentThatDoesNotAllowTheTypeIsRefused(t *testing.T) {
+	h := newPlacementHarness()
+	h.writer.Gate.EntryTypes = &entryTypes{rows: []domain.EntryType{
+		{Key: "change", Level: domain.ItemTask, AllowedChildren: []string{"risk"}},
+		{Key: "risk", Level: domain.ItemWorkPackage},
+	}}
+	target := h.items.stored[targetTaskID]
+	target.EntryType = "change"
+	h.items.stored[targetTaskID] = target
+
+	_, err := MoveWorkItem{Placement: h.writer}.Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+		ItemID: movedPackID, TargetParentID: targetTaskID, ParentGiven: true,
+	})
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "entry_types.not_allowed_here" ||
+		refusal.Params["item_id"] != movedPackID.String() {
+		t.Fatalf("a work package moved under a change allowing only risks: %v", err)
+	}
+	if len(h.items.moves) != 0 || len(h.events.appended) != 0 {
+		t.Error("a refused move wrote something")
+	}
+
+	pack := h.items.stored[movedPackID]
+	pack.EntryType = "risk"
+	h.items.stored[movedPackID] = pack
+	if _, err := (MoveWorkItem{Placement: h.writer}).Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+		ItemID: movedPackID, TargetParentID: targetTaskID, ParentGiven: true,
+	}); err != nil {
+		t.Fatalf("an allowed child was refused: %v", err)
 	}
 }

@@ -334,7 +334,11 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	}
 
 	verified := false
-	if accountOK && !found.PasswordHash.IsEmpty() {
+	// A service account signs in by no password (identity.md §15), and an account that may not act
+	// is answered as a wrong password whatever was typed (UC-ID-01 check 4): neither is told apart.
+	byPassword := accountOK && !found.PasswordHash.IsEmpty() &&
+		found.Account.Kind != domain.AccountServiceAccount && found.Account.Status.MayAct()
+	if byPassword {
 		ok, err := w.Passwords.Verify(found.PasswordHash.Reveal(), cmd.Password)
 		if err != nil {
 			return SignInResult{}, err

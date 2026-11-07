@@ -8,9 +8,10 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { formatDateTime } from './i18n/datetime.ts';
 import { createMessages } from './i18n/messages.ts';
-import { renderProblem, renderRefusal } from './problem.ts';
+import { SOURCE } from './i18n/source.ts';
+import { isNoSuchObject, isObjectId, renderProblem, renderRefusal } from './problem.ts';
 
-const messages = createMessages({ locale: 'en', onProblem: () => {} });
+const messages = createMessages({ locale: 'en', catalogues: [SOURCE], onProblem: () => {} });
 
 test('the specific code wins over the category it falls into', () => {
   const rendered = renderProblem(
@@ -56,6 +57,24 @@ test('a field error lands on its field, by path', () => {
   assert.equal(rendered.message, 'The request contains invalid values.');
 });
 
+test('field errors without a path are each said, not dropped - a step\'s failing checks', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 422,
+      code: 'validation_failed',
+      detailCode: 'workflows.step_refused',
+      fieldErrors: [
+        { path: '/custom_fields/resolution', code: 'fields.value_required', params: { key: 'custom_fields.resolution' } },
+        { path: '', code: 'workflows.check_failed', params: { check: 'tested', message: 'Attach the test report.' } },
+        { path: '', code: 'workflows.check_failed', params: { check: 'signed', message: 'A reviewer signs it off.' } },
+      ],
+    }),
+    messages,
+  );
+  assert.equal(rendered.fields.size, 1);
+  assert.deepEqual(rendered.wholes, ['Attach the test report.', 'A reviewer signs it off.']);
+});
+
 test('a 500 renders its reference, and does not say it twice', () => {
   const rendered = renderProblem(
     new TransportError('problem', { status: 500, code: 'internal', requestId: '01J9Z2ABCD' }),
@@ -67,14 +86,28 @@ test('a 500 renders its reference, and does not say it twice', () => {
   assert.equal(rendered.isServerFault, true);
 });
 
+test('a refusal or a failure carries its reference in the sentence, so every screen shows it', () => {
+  for (const status of [403, 409, 422, 503]) {
+    const rendered = renderProblem(new TransportError('problem', { status, code: 'forbidden', requestId: 'r-77' }), messages);
+    assert.ok(rendered.message.endsWith('Reference: r-77'), `${status}: ${rendered.message}`);
+    assert.equal(rendered.reference, undefined, `${status}: said twice`);
+  }
+});
+
 test('a reference the sentence does not carry is handed to the frame', () => {
-  const rendered = renderProblem(
-    new TransportError('problem', { status: 503, code: 'dependency_unavailable', requestId: 'r-77' }),
-    messages,
-  );
-  assert.equal(rendered.message, 'A required service is temporarily unavailable.');
+  const rendered = renderProblem(new TransportError('problem', { status: 404, code: 'not_found', requestId: 'r-77' }), messages);
+  assert.ok(!rendered.message.includes('r-77'));
   assert.equal(rendered.reference, 'r-77');
-  assert.equal(rendered.isServerFault, true);
+});
+
+// The copy control copies the reference itself, whether the sentence carries it or the frame does.
+test('the reference is handed over for copying whether or not the sentence carries it', () => {
+  const said = renderProblem(new TransportError('problem', { status: 403, code: 'forbidden', requestId: 'r-77' }), messages);
+  const beside = renderProblem(new TransportError('problem', { status: 404, code: 'not_found', requestId: 'r-78' }), messages);
+  const none = renderProblem(new TransportError('timeout'), messages);
+  assert.equal(said.requestId, 'r-77');
+  assert.equal(beside.requestId, 'r-78');
+  assert.equal(none.requestId, undefined);
 });
 
 test('a failure that never reached the server still says something true', () => {
@@ -208,4 +241,83 @@ test('every scope a hold refusal names reads as words, never as its key', () => 
     assert.ok(!rendered.message.includes(scope), `${scope} reached the reader: ${rendered.message}`);
     assert.match(rendered.message, /legal hold/);
   }
+});
+
+// user-experience.md §5.8: a refusal says what and what next - the permission by its name in the
+// role editor, the limit by what it guards, and when to try again from the server's Retry-After.
+test('a missing permission is named as the role editor names it, never by its key', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 403, code: 'forbidden', detailCode: 'access.not_permitted', params: { permission: 'WRITE_ITEMS' },
+    }),
+    messages,
+  );
+  assert.ok(rendered.message.includes(messages.t('app.permissions.name.write_items')), rendered.message);
+  assert.ok(!rendered.message.includes('WRITE_ITEMS'), rendered.message);
+
+  // A permission this build has no name for stays as it arrived rather than turning into nothing.
+  const unknown = renderProblem(
+    new TransportError('problem', {
+      status: 403, code: 'forbidden', detailCode: 'access.not_permitted', params: { permission: 'INVENTED' },
+    }),
+    messages,
+  );
+  assert.ok(unknown.message.includes('INVENTED'), unknown.message);
+});
+
+test('a rate limit says what it guards and when to try again', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 429, code: 'rate_limited', detailCode: 'access.rate_limit_exceeded',
+      params: { level: 'credential' }, retryAfterMs: 120_000,
+    }),
+    messages,
+  );
+  assert.ok(rendered.message.includes(messages.t('app.limit_level.credential')), rendered.message);
+  assert.ok(rendered.message.includes(new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(2, 'minute')), rendered.message);
+  assert.ok(!rendered.message.includes('credential '), rendered.message);
+  assert.ok(!rendered.message.includes('{'), rendered.message);
+
+  // Without Retry-After the sentence still reads, and says soon rather than a placeholder.
+  const bare = renderProblem(
+    new TransportError('problem', { status: 429, code: 'rate_limited', detailCode: 'access.rate_limit_exceeded', params: { level: 'tenant' } }),
+    messages,
+  );
+  assert.ok(bare.message.includes(messages.t('app.retry_soon')), bare.message);
+  assert.ok(!bare.message.includes('{'), bare.message);
+
+  // A numeric level - an approval's step - is not a limit and stays a number.
+  const step = renderProblem(
+    new TransportError('problem', { status: 409, code: 'conflict', detailCode: 'approvals.too_few_approvers', params: { level: '2' } }),
+    messages,
+  );
+  assert.ok(step.message.includes('Level 2'), step.message);
+});
+
+// user-experience.md §5.8: where a screen can fold the reference behind *Details for support*, the
+// sentence it shows is the reason alone; the code and the reference are handed over beside it.
+test('the sentence without its reference is handed over for a fold that carries the reference', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', { status: 403, code: 'forbidden', detailCode: 'access.not_permitted', params: { permission: 'READ' }, requestId: 'r-77' }),
+    messages,
+  );
+  assert.ok(rendered.message.includes('r-77'), 'the sentence alone still carries it, for a screen with no fold');
+  assert.ok(!rendered.sentence?.includes('r-77'), rendered.sentence);
+  assert.ok(rendered.message.startsWith(rendered.sentence ?? '-'));
+  assert.equal(rendered.code, 'access.not_permitted');
+
+  const internal = renderProblem(new TransportError('problem', { status: 500, code: 'internal', requestId: 'r-78' }), messages);
+  assert.ok(!internal.sentence?.includes('r-78'), internal.sentence);
+  assert.ok(internal.sentence !== undefined && !internal.sentence.includes('{'), internal.sentence);
+});
+
+// UX-5: an address naming no object - a not-found, or an id in no id's shape - is a not-found
+// state with a way back, not "this version cannot read the answer".
+test('an address that names no object is told apart from a failure', () => {
+  assert.equal(isNoSuchObject(new TransportError('problem', { status: 404, code: 'not_found' })), true);
+  assert.equal(isNoSuchObject(new TransportError('problem', { status: 400, code: 'malformed_request', detailCode: 'request.parameter_invalid' })), true);
+  assert.equal(isNoSuchObject(new TransportError('problem', { status: 403, code: 'forbidden' })), false);
+  assert.equal(isNoSuchObject(new TransportError('malformed', { status: 200 })), false);
+  assert.equal(isObjectId('01a0e2e0-0000-7000-8000-0000000018c1'), true);
+  assert.equal(isObjectId('dashboards'), false);
 });

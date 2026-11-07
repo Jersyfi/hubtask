@@ -24,8 +24,10 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -42,6 +44,7 @@ type Signals interface {
 	JobFinished(ctx context.Context, kind string, seconds float64)
 	JobFailed(ctx context.Context, kind, attemptClass string)
 	JobDeadLettered(ctx context.Context, kind string)
+	JobLeaseExpired(ctx context.Context, kind string)
 }
 
 // Runner claims jobs and runs them until its context ends.
@@ -55,8 +58,15 @@ type Runner struct {
 	Clock    clock.Clock
 	Signals  Signals
 
-	// Batch is how many jobs one round claims.
+	// Only and Except narrow the kinds this runner claims (queue.Lease); both empty claims all.
+	Only, Except []queue.Kind
+
+	// Batch is how many jobs one round claims at most.
 	Batch int
+	// Concurrency is how many jobs run at once. A round claims no more than there are free
+	// slots, so a long job holds one slot rather than every job behind it; each running job holds
+	// one connection of the background pool. Below one runs one at a time.
+	Concurrency int
 	// PollInterval is the wait after a round that found nothing. A full batch is followed by the
 	// next round at once - a backlog is not a reason to wait.
 	PollInterval time.Duration
@@ -64,6 +74,9 @@ type Runner struct {
 	// configuration where it is not: a job still running when its lease expires is a job two
 	// workers are doing.
 	JobTimeout time.Duration
+	// LongJobTimeout bounds one pass of a queue.LongRunning handler, whose lease is kept alive
+	// while it runs. Zero gives such a handler the ordinary JobTimeout.
+	LongJobTimeout time.Duration
 	// Lease is how long a claim holds. Long enough to outlast a job, short enough that a killed
 	// worker's jobs do not sit still for minutes.
 	Lease time.Duration
@@ -114,18 +127,28 @@ func (r Runner) Run(ctx context.Context) {
 		return
 	}
 
+	slots := newSlots(max(r.Concurrency, 1))
+	// A shutdown ends the claiming; the jobs already running finish under their own deadlines
+	// before Run returns, as one job did when they ran one after another.
+	defer slots.drain()
+
 	slog.InfoContext(ctx, "worker ready",
 		slog.Int("batch", r.Batch),
+		slog.Int("concurrency", slots.size()),
 		slog.Duration("poll_interval", r.PollInterval),
 		slog.Duration("job_timeout", r.JobTimeout),
 		slog.Bool("woken_by_notification", r.Woken != nil))
 
 	for {
-		claimed := r.round(ctx)
+		if !slots.awaitFree(ctx) {
+			return
+		}
+		want := min(r.Batch, slots.free())
+		claimed := r.claimAndRun(ctx, want, slots)
 
-		// A full batch means there is probably more. Anything less means the queue is drained,
-		// and asking again immediately would only be polling faster.
-		if claimed >= r.Batch {
+		// As many as asked for means there is probably more. Anything less means the queue is
+		// drained, and asking again immediately would only be polling faster.
+		if claimed >= want {
 			if ctx.Err() != nil {
 				return
 			}
@@ -170,9 +193,15 @@ func (r Runner) idle(ctx context.Context) bool {
 	}
 }
 
-// round claims a batch and runs it. Every failure is logged rather than returned: a loop that
-// stopped on the first failed claim would stop for a database that was restarting.
+// round claims a batch and runs it, one job after another.
 func (r Runner) round(ctx context.Context) int {
+	return r.claimAndRun(ctx, r.Batch, nil)
+}
+
+// claimAndRun claims up to want jobs and runs them: each in a slot of its own, or, without
+// slots, one after another before it returns. Every failure is logged rather than returned: a
+// loop that stopped on the first failed claim would stop for a database that was restarting.
+func (r Runner) claimAndRun(ctx context.Context, want int, slots *slots) int {
 	claimCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 
@@ -187,7 +216,8 @@ func (r Runner) round(ctx context.Context) int {
 		claimed, err := r.Queue.Claim(txCtx, queue.Lease{
 			Now:   now,
 			Until: now.Add(r.Lease),
-			Batch: r.Batch,
+			Batch: want,
+			Only:  r.Only, Except: r.Except,
 		})
 		jobs = claimed
 		return err
@@ -200,9 +230,76 @@ func (r Runner) round(ctx context.Context) int {
 	}
 
 	for _, job := range jobs {
-		r.execute(ctx, job)
+		if slots == nil {
+			r.start(ctx, job)
+			continue
+		}
+		slots.run(ctx, "worker.job", func(ctx context.Context) { r.start(ctx, job) })
 	}
 	return len(jobs)
+}
+
+// start runs one claimed job, unless its lease could not be made to cover it.
+func (r Runner) start(ctx context.Context, job queue.Job) {
+	if job.Reclaimed && r.crashedOut(ctx, job) {
+		return
+	}
+	held, ok := r.leased(ctx, job)
+	if !ok {
+		return
+	}
+	r.execute(ctx, held)
+}
+
+// crashedOut counts a job taken over from an attempt whose worker never ended it, and reports
+// whether those attempts used up its budget. Only the runner that survives a failure records it, so
+// a job that kills its worker - out of memory, say - would otherwise be reclaimed and kill the next
+// one for ever; it goes to the dead letter instead, without its handler running again.
+func (r Runner) crashedOut(ctx context.Context, job queue.Job) bool {
+	if r.Signals != nil {
+		r.Signals.JobLeaseExpired(ctx, job.Kind.String())
+	}
+	slog.WarnContext(ctx, "a job's lease ran out while it was running; its worker likely died",
+		slog.String("job_kind", job.Kind.String()), slog.String("job_id", job.ID.String()),
+		slog.Int("attempt", job.Attempts))
+	if job.Attempts <= job.MaxAttempts {
+		return false
+	}
+	r.fail(ctx, job, "queue.lease_expired_exhausted", nil)
+	return true
+}
+
+// leased makes sure a job of the batch starts with at least its own timeout of lease left.
+//
+// The batch shares one lease taken at the claim, and its jobs run one after another: behind two
+// jobs that each ran to their timeout, a third would start after its lease had run out - claimable
+// again, and run twice, its mail sent twice. Extending is fenced, so a job another worker took over
+// meanwhile is skipped rather than run (queue.lease_lost).
+func (r Runner) leased(ctx context.Context, job queue.Job) (queue.Job, bool) {
+	now := r.Clock.Now()
+	if now.Add(r.JobTimeout).Before(job.Lease) {
+		return job, true
+	}
+	extendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
+	defer cancel()
+	extended := job
+	err := r.UnitOfWork.Within(extendCtx, scopeOf(job), func(txCtx context.Context) error {
+		var err error
+		extended, err = r.Queue.Extend(txCtx, job, now.Add(r.Lease))
+		return err
+	})
+	if err != nil {
+		if shared.AsError(err).DetailCode == leaseLost {
+			r.letGo(ctx, job)
+		} else {
+			// Not run, and nothing written: the lease runs out and the next claim takes it.
+			slog.WarnContext(ctx, "extending a job's lease failed",
+				slog.String("job_id", job.ID.String()),
+				slog.String("error", shared.AsError(err).Code))
+		}
+		return job, false
+	}
+	return extended, true
 }
 
 // execute runs one job in one transaction, together with the record that it was run.
@@ -220,14 +317,25 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	// already been claimed is finished rather than cut in half - which is what the pod's grace
 	// period is sized for (deployment.md §5). The deadline still bounds it, so a handler that
 	// ignores its context cannot hold the shutdown open indefinitely.
-	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), r.JobTimeout)
+	budget := r.JobTimeout
+	_, long := handler.(queue.LongRunning)
+	if long && r.LongJobTimeout > budget {
+		budget = r.LongJobTimeout
+	}
+	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
 	defer cancel()
+
+	held := &heldJob{job: job}
+	if long && budget > r.JobTimeout {
+		r.keepLeased(jobCtx, cancel, held)
+		defer held.settle()
+	}
 
 	// The span covers the transaction, not just the handler: what the run cost includes what it
 	// took to record that the run happened.
 	err := r.observe(jobCtx, job.Kind.String(), func(obsCtx context.Context) error {
 		if _, detached := handler.(queue.Detached); detached {
-			return r.executeDetached(obsCtx, handler, job)
+			return r.executeDetached(obsCtx, handler, job, held)
 		}
 		return r.UnitOfWork.Within(obsCtx, scopeOf(job), func(txCtx context.Context) error {
 			result, err := run(txCtx, handler, job)
@@ -246,8 +354,9 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 			return r.Queue.Complete(txCtx, job, result.Outcome)
 		})
 	})
+	job = held.settle()
 	if err != nil {
-		if shared.AsError(err).DetailCode == leaseLost {
+		if shared.AsError(err).DetailCode == leaseLost || held.lost() {
 			r.letGo(ctx, job)
 			return
 		}
@@ -268,12 +377,14 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 // claimable again. That is why only an idempotent pass may declare itself detached - and why the
 // completion is a transaction of its own rather than an afterthought, so a failure to record it is
 // a failure the runner handles like any other.
-func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job queue.Job) error {
+func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job queue.Job, held *heldJob) error {
 	result, err := run(ctx, handler, job)
 	if err != nil {
 		return err
 	}
 	logCounts(ctx, job, result)
+	// The completion is fenced by the lease as it stands once the heartbeat has stopped moving it.
+	job = held.settle()
 
 	return r.UnitOfWork.Within(ctx, scopeOf(job), func(txCtx context.Context) error {
 		if result.Refusal != nil {
@@ -283,6 +394,90 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 			return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
 		}
 		return r.Queue.Complete(txCtx, job, result.Outcome)
+	})
+}
+
+// heldJob is the job as its lease currently stands: a long job's heartbeat moves the lease, and the
+// completion or failure has to be fenced by the moved one.
+type heldJob struct {
+	mu   sync.Mutex
+	job  queue.Job
+	gone bool
+	stop func()
+	once sync.Once
+}
+
+// settle stops the heartbeat, if there is one, and answers the job as its lease then stands.
+func (h *heldJob) settle() queue.Job {
+	h.once.Do(func() {
+		if h.stop != nil {
+			h.stop()
+		}
+	})
+	return h.get()
+}
+
+func (h *heldJob) get() queue.Job {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.job
+}
+
+func (h *heldJob) lost() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.gone
+}
+
+// keepLeased extends a long job's lease every third of a lease while it runs, so a killed worker's
+// pass is taken over within one lease instead of after the whole long budget. A lease another
+// worker took over cancels the pass (queue.lease_lost): two workers must never run it at once.
+// held.settle stops the heartbeat and waits for it.
+func (r Runner) keepLeased(ctx context.Context, cancel context.CancelFunc, held *heldJob) {
+	beatCtx, stopBeat := context.WithCancel(ctx)
+	stopped := make(chan struct{})
+	held.stop = func() {
+		stopBeat()
+		<-stopped
+	}
+	concurrency.Go(beatCtx, "worker.job_lease", func(beatCtx context.Context) {
+		defer close(stopped)
+		ticker := time.NewTicker(max(r.Lease/3, time.Millisecond))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-beatCtx.Done():
+				return
+			case <-ticker.C:
+			}
+			extendCtx, done := context.WithTimeout(context.WithoutCancel(beatCtx), bookkeepingTimeout)
+			current := held.get()
+			var extended queue.Job
+			err := r.UnitOfWork.Within(extendCtx, scopeOf(current), func(txCtx context.Context) error {
+				var err error
+				extended, err = r.Queue.Extend(txCtx, current, r.Clock.Now().Add(r.Lease))
+				return err
+			})
+			done()
+			if err == nil {
+				held.mu.Lock()
+				held.job = extended
+				held.mu.Unlock()
+				continue
+			}
+			if shared.AsError(err).DetailCode == leaseLost {
+				held.mu.Lock()
+				held.gone = true
+				held.mu.Unlock()
+				cancel()
+				return
+			}
+			// A database that did not answer this once: the lease still has two thirds left,
+			// and the next beat tries again.
+			slog.WarnContext(beatCtx, "extending a long job's lease failed",
+				slog.String("job_id", current.ID.String()),
+				slog.String("error", shared.AsError(err).Code))
+		}
 	})
 }
 
@@ -336,6 +531,9 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause erro
 	if !job.LastAttempt() {
 		retryAt = r.Clock.Now().Add(r.NextAttempt(job.Attempts))
 		attemptClass = "retry"
+	} else if _, duty := r.Handlers[job.Kind].(queue.Perpetual); duty && transient(cause) {
+		r.holdDuty(ctx, job, code, cause)
+		return
 	}
 
 	if r.Signals != nil {
@@ -382,6 +580,53 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause erro
 	if err != nil {
 		// Nothing more to do about it here. The job keeps its lease, and the next worker to come
 		// past after it expires tries again - at-least-once covers this too.
+		slog.WarnContext(ctx, "recording a job failure failed",
+			slog.String("job_id", job.ID.String()),
+			slog.String("error", shared.AsError(err).Code))
+	}
+}
+
+// transient is a failure that may answer differently later: the dependency's, a rate limit, or an
+// untyped transport or deadline error. A typed refusal, a missing thing or a defect will not.
+func transient(cause error) bool {
+	if cause == nil {
+		return false
+	}
+	var typed *shared.Error
+	if !errors.As(cause, &typed) {
+		return true
+	}
+	return typed.Category == shared.CategoryUnavailable || typed.Category == shared.CategoryRateLimited
+}
+
+// holdDuty sends a duty's last failed attempt (queue.Perpetual) to its next round at the backoff's
+// ceiling, with its attempts cleared, instead of to the dead letter. Counted as a retry, so the
+// failure stays visible on the job metrics; logged like a failure, code and identifiers only.
+func (r Runner) holdDuty(ctx context.Context, job queue.Job, code string, cause error) {
+	if r.Signals != nil {
+		r.Signals.JobFailed(ctx, job.Kind.String(), "retry")
+	}
+	attrs := []slog.Attr{
+		slog.String("job_kind", job.Kind.String()),
+		slog.String("job_id", job.ID.String()),
+		slog.Int("attempt", job.Attempts),
+		slog.String("error_code", code),
+		slog.Bool("dead_letter", false),
+		slog.Bool("duty_held", true),
+	}
+	if r.Diagnose != nil {
+		attrs = append(attrs, r.Diagnose(cause)...)
+	}
+	slog.LogAttrs(ctx, slog.LevelWarn, "job failed", attrs...)
+
+	holdCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
+	defer cancel()
+	next := r.Clock.Now().Add(r.NextAttempt(job.Attempts))
+	err := r.UnitOfWork.Within(holdCtx, scopeOf(job), func(txCtx context.Context) error {
+		return r.Queue.Repeat(txCtx, job, next)
+	})
+	if err != nil {
+		// As in fail: the job keeps its lease, and the next worker after it expires tries again.
 		slog.WarnContext(ctx, "recording a job failure failed",
 			slog.String("job_id", job.ID.String()),
 			slog.String("error", shared.AsError(err).Code))

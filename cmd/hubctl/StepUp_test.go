@@ -243,7 +243,7 @@ func TestAProofFromTheEnvironmentTravelsOnTheFirstAttempt(t *testing.T) {
 	env := signedIn(stub)
 	env[envStepUp] = stepUpToken
 	code, _, errOut := invokeAgainst(t, stub, env, "",
-		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+		"admin", "tenant", "delete", acmeID, "--confirmation", "Acme")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -268,7 +268,7 @@ func TestARefusalWithNothingToProveWithNamesTheWayOut(t *testing.T) {
 	})
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "hunter2\n",
-		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+		"admin", "tenant", "delete", acmeID, "--confirmation", "Acme")
 	if code != exitError {
 		t.Fatalf("exit %d, want %d", code, exitError)
 	}
@@ -316,7 +316,7 @@ func TestAnEmptyListOfMethodsAsksForNothing(t *testing.T) {
 	profile := filepath.Join(t.TempDir(), "profile.json")
 	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
 	code, _, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "123456\n",
-		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+		"admin", "tenant", "delete", acmeID, "--confirmation", "Acme")
 	if code != exitError {
 		t.Fatalf("exit %d, want %d", code, exitError)
 	}

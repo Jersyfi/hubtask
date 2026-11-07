@@ -1,0 +1,190 @@
+{
+  "key": "content_calendar",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "content_channel": {
+        "name": "Channel",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Blog",
+          "Newsletter",
+          "Social media",
+          "Video",
+          "Press"
+        ]
+      },
+      "content_publish_on": {
+        "name": "Publish on",
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "content_owner": {
+        "name": "Owner",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "content_link": {
+        "name": "Link",
+        "kind": "URL",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "content_piece": {
+        "level": "TASK",
+        "name": "Content",
+        "icon": "file-text",
+        "color_token": "violet",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "content",
+              "name": "Content"
+            },
+            {
+              "key": "publishing",
+              "name": "Publishing"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "content",
+              "required": true
+            },
+            {
+              "key": "custom_fields.content_channel",
+              "section": "content"
+            },
+            {
+              "key": "notes",
+              "section": "content"
+            },
+            {
+              "key": "custom_fields.content_publish_on",
+              "section": "publishing"
+            },
+            {
+              "key": "custom_fields.content_owner",
+              "section": "publishing"
+            },
+            {
+              "key": "custom_fields.content_link",
+              "section": "publishing"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "content_piece": {
+        "name": "Content",
+        "shape": {
+          "initial": "idea",
+          "statuses": [
+            {
+              "key": "idea",
+              "name": "Idea",
+              "category": "BACKLOG",
+              "color_token": "slate"
+            },
+            {
+              "key": "drafting",
+              "name": "Drafting",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "in_review",
+              "name": "In review",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "scheduled",
+              "name": "Scheduled",
+              "category": "IN_PROGRESS",
+              "color_token": "teal"
+            },
+            {
+              "key": "published",
+              "name": "Published",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "draft",
+              "name": "Start drafting",
+              "from": [
+                "idea"
+              ],
+              "to": "drafting"
+            },
+            {
+              "key": "review",
+              "name": "Ask for review",
+              "from": [
+                "drafting"
+              ],
+              "to": "in_review"
+            },
+            {
+              "key": "rework",
+              "name": "Rework",
+              "from": [
+                "in_review"
+              ],
+              "to": "drafting"
+            },
+            {
+              "key": "schedule",
+              "name": "Schedule",
+              "from": [
+                "in_review"
+              ],
+              "to": "scheduled"
+            },
+            {
+              "key": "publish",
+              "name": "Published",
+              "from": [
+                "scheduled"
+              ],
+              "to": "published"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "content_piece": {
+        "workflow": "content_piece"
+      }
+    }
+  }
+}

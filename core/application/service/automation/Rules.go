@@ -110,6 +110,10 @@ type Writer struct {
 	IDs        clock.IDGenerator
 	// Text brings the name to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// References and CustomRoles resolve whom a notification step names, so an unknown recipient
+	// is refused at the save (UC-AUT-09 check 4).
+	References  repository.References
+	CustomRoles RoleKeys
 }
 
 // schedule works out a rule's next moment and puts it on the rule.
@@ -170,7 +174,9 @@ type DeleteRule struct{ Writer Writer }
 
 // CreateRuleCommand is a new rule.
 type CreateRuleCommand struct {
-	Name       string
+	Name string
+	// Key names the rule in its scope; empty asks the store to draw one from the name.
+	Key        string
 	Scope      domain.Scope
 	RunAs      shared.ID
 	Trigger    domain.Trigger
@@ -205,7 +211,7 @@ func (h CreateRule) Execute(
 	// and says nothing about who is asking, which is the right order: telling somebody they may not
 	// write a malformed rule tells them the wrong thing.
 	rule, err := domain.NewRule(domain.NewRuleInput{
-		ID: w.IDs.NewID(), TenantID: actor.TenantID, Name: cmd.Name, Scope: cmd.Scope,
+		ID: w.IDs.NewID(), TenantID: actor.TenantID, Name: cmd.Name, Key: cmd.Key, Scope: cmd.Scope,
 		RunAs: cmd.RunAs, Trigger: cmd.Trigger, Conditions: cmd.Conditions,
 		Actions: cmd.Actions, Throttle: cmd.Throttle, OnError: cmd.OnError,
 		CreatedBy: actor.AccountID, Now: w.Clock.Now(), Text: w.Text,
@@ -233,7 +239,16 @@ func (h CreateRule) Execute(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return w.Rules.Insert(ctx, rule)
+		if err := w.holdRoles(ctx, rule.Actions, "/actions", 0); err != nil {
+			return err
+		}
+		if err := w.Rules.Insert(ctx, rule); err != nil {
+			return err
+		}
+		// The key the store drew where the writer named none.
+		stored, err := w.Rules.Find(ctx, rule.ID)
+		rule.Key = stored.Key
+		return err
 	})
 	if err != nil {
 		return domain.Rule{}, err
@@ -356,6 +371,9 @@ func (h UpdateRule) Execute(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := w.holdRoles(ctx, wanted.Actions, "/actions", 0); err != nil {
+			return err
+		}
 		if err := w.Rules.Update(ctx, wanted, expectedOr(cmd.ExpectedVersion, current.Version)); err != nil {
 			return err
 		}
@@ -461,6 +479,11 @@ func (w Writer) setEnabled(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if enabled {
+			if err := w.holdRoles(ctx, rule.Actions, "/actions", 0); err != nil {
+				return err
+			}
+		}
 		if err := w.Rules.SetEnabled(ctx, id, enabled, rule.Version, now); err != nil {
 			return err
 		}
@@ -490,11 +513,27 @@ func (w Writer) setEnabled(
 	return rule, nil
 }
 
+// ownRule is the question for a person's own rule (configuration/model.md §1): its owner, signed
+// in as themselves, manages it without the automation permission; anybody else - an administrator
+// or the owner's agent included - is told it does not exist, so nobody learns of it.
+func ownRule(actor appshared.ActorContext, scope domain.Scope) error {
+	if err := actor.RequireScope(automationScope); err != nil {
+		return err
+	}
+	if actor.Kind != appshared.ActorUser || actor.AccountID.IsZero() || actor.AccountID != scope.ID {
+		return shared.ErrNotFound.WithDetail("automation.rule_not_found")
+	}
+	return nil
+}
+
 // authorize is the ordinary question: may this actor manage rules at this scope?
 func (w Writer) authorize(
 	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
 	action audit.Action, target shared.ID,
 ) error {
+	if scope.Personal() {
+		return ownRule(actor, scope)
+	}
 	return w.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionAutomation,
 		Path:       scope.Path(),
@@ -513,6 +552,9 @@ func (w Writer) authorizeRead(
 	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
 	action audit.Action, target shared.ID,
 ) error {
+	if scope.Personal() {
+		return ownRule(actor, scope)
+	}
 	return w.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission:  service.PermissionAutomation,
 		Alternative: service.PermissionReadConfiguration,
@@ -537,6 +579,9 @@ func (w Writer) permits(
 func permitsRead(
 	ctx context.Context, authorizer Authorizer, actor appshared.ActorContext, scope domain.Scope,
 ) (bool, error) {
+	if scope.Personal() {
+		return ownRule(actor, scope) == nil, nil
+	}
 	return authorizer.Permits(ctx, actor, access.Request{
 		Permission:  service.PermissionAutomation,
 		Alternative: service.PermissionReadConfiguration,
@@ -587,6 +632,9 @@ func (w Writer) authorizeWrite(
 	}
 	checked, err := checkActions(w.Catalogue, rule.Actions)
 	if err != nil {
+		return err
+	}
+	if err := w.checkRecipients(ctx, actor, rule.Actions); err != nil {
 		return err
 	}
 	for _, scope := range requiredScopes(checked) {
@@ -706,7 +754,7 @@ func merged(
 ) (domain.Rule, error) {
 	in := domain.NewRuleInput{
 		ID: current.ID, TenantID: current.TenantID,
-		Name: current.Name, Scope: current.Scope, RunAs: current.RunAs,
+		Name: current.Name, Key: current.Key, Scope: current.Scope, RunAs: current.RunAs,
 		Trigger: current.Trigger, Conditions: current.Conditions, Actions: current.Actions,
 		Throttle: current.Throttle, OnError: current.OnError,
 		CreatedBy: current.CreatedBy, Now: current.CreatedAt, Text: form,

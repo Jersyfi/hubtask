@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -118,23 +119,15 @@ func TestAnInstallationWideExtensionIsRecordedInEveryWorkspaceOnce(t *testing.T)
 		t.Fatalf("%d entry jobs were queued, want 4", queued)
 	}
 
-	// A case without an address names nobody anywhere else, and queues nothing.
-	unnamed, err := registry.Invoke(ctx, privacyservice.CreateDataSubjectRequestName, operator, usecase.Input{
+	// A case without an address names nobody anywhere else: it is refused when recorded, before
+	// it could start or queue anything (UC-PRV-06 check 2).
+	_, err = registry.Invoke(ctx, privacyservice.CreateDataSubjectRequestName, operator, usecase.Input{
 		"kind": string(domain.KindAccess), "scope": string(domain.ScopeInstallation),
 		"subject_account_id": freshID(t).String(),
 	})
-	if err != nil {
-		t.Fatalf("recording without an address: %v", err)
-	}
-	if _, err := registry.Invoke(ctx, privacyservice.ExtendDataSubjectRequestName, operator, usecase.Input{
-		"request_id": unnamed.String("id"), "due_on": "2026-10-20",
-		"reason": string(domain.ReasonComplexity), "informed_on": "2026-08-10",
-	}); err != nil {
-		t.Fatalf("extending without an address: %v", err)
-	}
-	if queued := countIn(ctx, t, `SELECT count(*) FROM job WHERE dedupe_key LIKE $1`,
-		"dsr-extended:"+unnamed.String("id")+":%"); queued != 0 {
-		t.Errorf("a case without an address queued %d entry jobs", queued)
+	var refused *shared.Error
+	if !errors.As(err, &refused) || refused.DetailCode != domain.CodeSubjectRequired {
+		t.Fatalf("recording without an address: %v, want %s", err, domain.CodeSubjectRequired)
 	}
 
 	// The workspaces move before the jobs run: one suspended, one awaiting deletion, one gone.

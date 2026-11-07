@@ -25,7 +25,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium, firefox, webkit } from 'playwright';
 
-import { COLLECTION, ITEMS, stub as fixtureStub } from './fixture.mjs';
+import { ARRAYS, COLLECTION, ITEMS, stub as fixtureStub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -73,6 +73,8 @@ async function stub(route) {
   }
   // A bare list, as the contract answers it - not a page: the create dialog reads it.
   if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
+  // The reads the contract answers as a bare array: an envelope there is no list to the client.
+  if (ARRAYS.has(url.pathname.replace(/^.*\/api\/v1/, ''))) return route.fulfill({ json: [] });
   return route.fulfill({ json: EMPTY_PAGE });
 }
 
@@ -426,6 +428,9 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.keyboard.press('Enter');
     for (let waited = 0; creates.length === 0 && waited < 50; waited++) await page.waitForTimeout(100);
     assert.equal(creates[0]?.title, 'Order tiles !Materials', `${name}: the capture was not sent as typed`);
+    // The field closes once the capture is answered, not when it is sent; until then the page
+    // behind it is inert and a second `Q` would be typed into the field.
+    await field.waitFor({ state: 'hidden', timeout: 5_000 });
 
     await checkbox.focus();
     await page.keyboard.press('q');

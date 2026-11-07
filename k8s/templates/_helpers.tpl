@@ -110,8 +110,14 @@ ConfigMap by reference rather than by value, so that changing it is one object a
 rather than a re-render of every deployment.
 */}}
 {{- define "hubtask.env" -}}
+# The automation role claims the rule jobs alone (deployment.md §2.2); with its deployment
+# switched off, the worker takes them over, or no rule would ever run.
 - name: HUBTASK_ROLES
+  {{- if and (eq .role "worker") (not (dig "automation" "enabled" false .root.Values.roles)) }}
+  value: "worker,automation"
+  {{- else }}
   value: {{ .role | quote }}
+  {{- end }}
 {{- with (index .root.Values.roles .role).loadShedInflight }}
 # Admission control, per role rather than per installation: each role is its own deployment with
 # its own resources, so the number of requests in flight at which deferrable work is refused is a
@@ -152,6 +158,37 @@ rather than a re-render of every deployment.
     secretKeyRef:
       name: {{ include "hubtask.secretName" .root }}
       key: {{ .root.Values.smtp.existingSecretKey }}
+{{- end }}
+{{- with .root.Values.mail.inbound.existingSecret }}
+- name: HUBTASK_MAIL_INBOUND_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: inbound-key
+{{- end }}
+{{- with .root.Values.mail.oauth.google.existingSecret }}
+- name: HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: client-secret
+{{- end }}
+{{- with .root.Values.mail.oauth.microsoft.existingSecret }}
+- name: HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: client-secret
+{{- end }}
+{{- range $name, $ref := .root.Values.config.extraSecretEnv }}
+{{- if not (and $ref.secret $ref.key) }}
+{{- fail (printf "config.extraSecretEnv.%s needs both secret and key" $name) }}
+{{- end }}
+- name: {{ $name }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $ref.secret }}
+      key: {{ $ref.key }}
 {{- end }}
 {{- if and (eq .root.Values.storage.kind "s3") .root.Values.storage.existingSecret }}
 - name: HUBTASK_S3_ACCESS_KEY

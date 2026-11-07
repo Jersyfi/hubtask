@@ -61,6 +61,7 @@ func CommentPayload(comment work.Comment, collectionID shared.ID) map[string]any
 		"edited_at":         nil,
 		"deleted_at":        nil,
 		"version":           comment.Version,
+		"internal":          comment.Internal,
 	}
 	if !comment.ParentCommentID.IsZero() {
 		payload["parent_comment_id"] = comment.ParentCommentID.String()

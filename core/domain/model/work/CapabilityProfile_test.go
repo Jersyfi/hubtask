@@ -69,7 +69,7 @@ func TestTheZeroProfileAllowsNothing(t *testing.T) {
 
 // The rule of ADR-0006: a field whose capability is not in the profile is refused, not ignored.
 // The refusal carries its own code, because the client's fix is to change the type it writes to
-// rather than the value it sent.
+// rather than the value it sent, and it names the type and the capability (UC-WRK-03 check 4).
 func TestACapabilityOutsideTheProfileIsRefusedRatherThanIgnored(t *testing.T) {
 	activity := CapabilityProfile{
 		Type:         ItemActivity,

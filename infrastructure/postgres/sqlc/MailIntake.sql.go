@@ -399,12 +399,48 @@ func (q *Queries) InsertMailboxAuthorization(ctx context.Context, arg InsertMail
 	return err
 }
 
+const installationMailApps = `-- name: InstallationMailApps :many
+SELECT provider::text AS provider, connected::bigint AS connected, failing::bigint AS failing
+FROM installation_mail_apps()
+`
+
+type InstallationMailAppsRow struct {
+	Provider  string
+	Connected int64
+	Failing   int64
+}
+
+// Alert A-29's numbers, across workspaces through the door (0351): per provider preset, the enabled
+// mailboxes on the installation's own app and those failing for over an hour. Numbers, no rows.
+func (q *Queries) InstallationMailApps(ctx context.Context) ([]InstallationMailAppsRow, error) {
+	rows, err := q.db.Query(ctx, installationMailApps)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InstallationMailAppsRow{}
+	for rows.Next() {
+		var i InstallationMailAppsRow
+		if err := rows.Scan(&i.Provider, &i.Connected, &i.Failing); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const itemByKey = `-- name: ItemByKey :one
 SELECT wi.id
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
-WHERE c.handle = $1 AND wi.number = $2::bigint
+WHERE (c.handle = $1 OR c.key_prefix = upper($1))
+  AND wi.number = $2::bigint
   AND wi.deleted_at IS NULL AND c.deleted_at IS NULL
+ORDER BY (c.key_prefix IS NOT NULL AND c.key_prefix = upper($1)) DESC
+LIMIT 1
 `
 
 type ItemByKeyParams struct {
@@ -412,6 +448,9 @@ type ItemByKeyParams struct {
 	Number int64
 }
 
+// A key names its collection by the key prefix or by the handle (migration 0363); the word is
+// given in lower case, as the handle is written. 0363 keeps a prefix from being another
+// collection's handle, and the prefix is preferred should two writers have raced past that.
 func (q *Queries) ItemByKey(ctx context.Context, arg ItemByKeyParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, itemByKey, arg.Handle, arg.Number)
 	var id pgtype.UUID
@@ -420,22 +459,23 @@ func (q *Queries) ItemByKey(ctx context.Context, arg ItemByKeyParams) (pgtype.UU
 }
 
 const itemKey = `-- name: ItemKey :one
-SELECT c.handle, wi.number
+SELECT c.handle, c.key_prefix, wi.number
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
 WHERE wi.id = $1 AND wi.deleted_at IS NULL
 `
 
 type ItemKeyRow struct {
-	Handle *string
-	Number *int64
+	Handle    *string
+	KeyPrefix *string
+	Number    *int64
 }
 
 // An entry's ticket key, for the Reply-To of a notification about it.
 func (q *Queries) ItemKey(ctx context.Context, id pgtype.UUID) (ItemKeyRow, error) {
 	row := q.db.QueryRow(ctx, itemKey, id)
 	var i ItemKeyRow
-	err := row.Scan(&i.Handle, &i.Number)
+	err := row.Scan(&i.Handle, &i.KeyPrefix, &i.Number)
 	return i, err
 }
 
@@ -535,6 +575,26 @@ func (q *Queries) MailWorkspaceNameTaken(ctx context.Context, name string) (bool
 	var taken bool
 	err := row.Scan(&taken)
 	return taken, err
+}
+
+const mailboxAuthorizationIsLive = `-- name: MailboxAuthorizationIsLive :one
+SELECT EXISTS (
+  SELECT 1 FROM mailbox_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = $1 AND expires_at > $2
+)
+`
+
+type MailboxAuthorizationIsLiveParams struct {
+	StateHash []byte
+	Now       pgtype.Timestamptz
+}
+
+// Whether a provider's return is still awaited, read without spending it (locating the return).
+func (q *Queries) MailboxAuthorizationIsLive(ctx context.Context, arg MailboxAuthorizationIsLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, mailboxAuthorizationIsLive, arg.StateHash, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const recentMailReceipts = `-- name: RecentMailReceipts :many

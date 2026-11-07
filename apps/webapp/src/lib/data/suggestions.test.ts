@@ -311,6 +311,9 @@ class ListingTransport implements Transport {
   document(): never {
     throw new Error('not documented here');
   }
+  documentTo(): never {
+    throw new Error('not documented here');
+  }
 }
 
 const page = (...items: Suggestion[]) => ({ items, has_more: false });

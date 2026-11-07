@@ -174,3 +174,53 @@ func TestShedderDoReleasesAfterTheCall(t *testing.T) {
 		t.Errorf("in flight = %d after the call, want 0", got)
 	}
 }
+
+// One workspace saturating its share must leave room for another: the two stages run in the order
+// the server runs them, the process first, then the workspace.
+func TestShedderAdmitsAnotherWorkspaceWhileOneSaturates(t *testing.T) {
+	shedder := resilience.NewLoadShedder(resilience.LoadShedderConfig{Limit: 8})
+	admit := func(tenant string) error {
+		release, err := shedder.Admit(resilience.ClassDeferrable)
+		if err != nil {
+			return err
+		}
+		if _, err := shedder.AdmitTenant(tenant); err != nil {
+			release()
+			return err
+		}
+		return nil
+	}
+
+	// The noisy workspace tries far more than the threshold.
+	refused := 0
+	for range 20 {
+		if admit("noisy") != nil {
+			refused++
+		}
+	}
+	if refused != 18 {
+		t.Fatalf("the noisy workspace had %d of 20 refused, want 18 (its share is 2 of 8)", refused)
+	}
+	if err := admit("quiet"); err != nil {
+		t.Fatalf("another workspace's search was shed while one saturated: %v", err)
+	}
+	if got := shedder.InFlight(); got != 3 {
+		t.Fatalf("in flight = %d, want 3", got)
+	}
+}
+
+func TestShedderReleasesAWorkspaceShare(t *testing.T) {
+	shedder := resilience.NewLoadShedder(resilience.LoadShedderConfig{Limit: 4})
+	release, err := shedder.AdmitTenant("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := shedder.AdmitTenant("a"); err == nil {
+		t.Fatal("a workspace above its share of one was admitted")
+	}
+	release()
+	release()
+	if _, err := shedder.AdmitTenant("a"); err != nil {
+		t.Fatalf("the released share was not given back: %v", err)
+	}
+}

@@ -1,0 +1,128 @@
+---
+id: UC-CFG-01
+title: Change our configuration as one document, seen before it applies
+context: config
+actors: [PE-owner, PE-admin, PE-auditor, PE-agent, PE-scripter, PE-integrator, PE-operator]
+deployments: [D1, D2, D3, D4, D5, D6, D7]
+serves: [P-05, P-06, P-08, P-11, P-18]
+state: built
+tasks: [S-09]
+checked_by: [core/domain/model/config/Document_test.go, core/application/service/config/Config_test.go, core/application/service/config/Coverage_test.go, core/application/service/config/HubScope_test.go, core/application/service/config/Furniture_test.go, core/application/service/config/Collections_test.go, core/application/service/config/Reach_test.go, core/application/service/config/Sandbox_test.go, core/domain/model/config/Check_test.go, core/application/service/config/Check_test.go, test/integration/config_revision_test.go, presentation/mcp/Resources_test.go, cmd/hubctl/Config_test.go, apps/webapp/src/lib/data/configreach.test.ts, apps/webapp/src/lib/data/configdiff.test.ts, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/e2e/changes.test.mjs, core/application/service/config/RoleGroups_test.go, core/application/service/config/Questions_test.go, core/application/service/config/Samples_test.go, test/integration/sample_entry_repository_test.go, core/application/service/config/Drafts_test.go, core/application/service/config/ServiceDesk_test.go, test/integration/config_draft_repository_test.go, apps/webapp/src/lib/data/configdrafts.test.ts, core/application/service/config/TemplatePages_test.go, test/integration/template_page_repository_test.go, core/application/service/config/CollectionTemplates_test.go, test/integration/config_hub_template_test.go, apps/webapp/src/lib/data/configtemplates.test.ts]
+---
+
+# Change our configuration as one document, seen before it applies
+
+## Goal
+
+A workspace's configuration - and a hub's own part of it - is one document that a person, a script
+and an agent read, change and take back the same way: every change is planned first, the plan says
+what it changes and what it reaches beyond the configuration before anything is written, it is
+applied whole or not at all, and an agent may try a change out in a sandbox where nothing runs.
+
+## Story
+
+The administrator of a service desk asks an agent to require *Affected system* on urgent incidents
+and to run the *Service* workflow in the *Support* hub. The agent reads the hub's document, tries the
+change in the sandbox and proposes it. In *Changes* the administrator opens the proposal's plan: one
+form changed, 37 entries moving to *To do*, nothing hidden. She applies it; a week later she compares
+the two versions and rolls the hub's workflow back.
+
+## How to check
+
+1. `GET /config` (`hubtask://config/current`, `hubctl config export`) answers the workspace's
+   configuration as one document, each block under a stable key - never an entry, a comment or a
+   page, never a secret - with a hash; a section the reader may not read, or whose module is off,
+   is listed as withheld.
+2. Given a hub, the document is the hub's own: what the hub decides itself - its modules, its
+   structure, which workflow it runs for which type, its shared views, rules and calendars - under
+   keys the same in every hub, and none of the workspace's blocks; a workspace section in a hub's
+   document is refused with `config.section_unknown`, a collection named as a hub with
+   `config.hub_unknown`, and a hub the reader does not reach answers not found.
+3. `POST /config:plan` answers each change by key path with before and after, the refusals with a
+   code and a key path, whether the plan hides data or changes permissions, and the hash to apply
+   it by; it writes nothing.
+4. A plan says what it reaches beyond the configuration, as counts: the entries a workflow's new
+   shape or a hub's scheme moves, the entries a hub's or the workspace's structure would stop
+   showing and those whose values it would hide, the entries holding a value under a field removed
+   or hidden from readers, the people and groups a role's change gives or takes a permission, and
+   the people a module switched off leaves without it; where the reader may not see what a change
+   touches, the plan says the reach was withheld; a shape removing a status entries are in is
+   refused with `workflows.mapping_required`, naming the status and the count.
+5. `POST /config:apply` applies a plan by its hash, all or nothing: a configuration changed since
+   it was planned is refused with `config.version_conflict`, a plan that hides data or changes
+   permissions is refused until acknowledged, and an agent's apply waits for a person by default.
+   A hub's plan is applied through the hub's own use cases and versioned as the hub's.
+6. The versions (`GET /config/versions`) name who applied each and what it changed; a rollback is a
+   plan of an earlier version stated whole, and rolling the workspace back to a hub's version is
+   refused. Another workspace reads none of a workspace's versions, proposals or sandbox.
+7. In *Changes* an administrator sees each plan before it applies - a rollback, a template, the
+   sandbox's promotion, an agent's proposal planned afresh - with its changes and what it reaches,
+   and *Apply* stays unavailable until what the plan hides or changes in permissions is
+   acknowledged; two versions are compared block by block.
+8. The sandbox (`GET`/`POST /config/sandbox`, `hubtask://config/sandbox`, `hubctl config sandbox`)
+   is a copy of the configuration without content: an agent with the plan scope changes it freely
+   and nothing runs; a document the workspace would refuse is refused there with the same
+   refusals; promoting it plans and applies only what it changed since its copy - a change made in
+   force meanwhile is kept - and an agent's promotion waits for a person like any apply.
+9. A hub's document holds its collections' own configuration too - each collection's structure
+   settings, time tolerance, shared views (a queue is one), rules and custom fields, under the collection's
+   handle and the block's key - and the hub's own time tolerance; applied to a second hub whose
+   collection has the same handle, they are written at that collection, and a handle that names no
+   collection of the hub is refused with `config.collection_unknown`. A rule condition naming a
+   hub or collection by its identifier names it by its handle (`'place:network'`) and is applied
+   to the second hub's place of that handle; a handle no place holds is refused with
+   `config.place_unknown`.
+10. The configuration check (`GET /config/check`, the MCP tool `check_config`, `hubctl config
+    check`), given a hub or not, answers before anybody meets it what the configuration in force
+    would strand: a workflow no step somebody may take completes (`config.check.done_unreachable`),
+    a status no such step leads to, a step only roles that do not exist may take, a rule answering
+    every change of an entry by changing it again, a hub's scheme naming a workflow the workspace
+    does not hold, a required field every channel of a type's form hides with no preset and no
+    default (`config.check.required_unfillable`), two fields of one kind offering the same choices
+    (`config.check.fields_same_meaning`), one tolerance locked alike in several of a hub's
+    collections while the hub leaves it open (`config.check.lock_could_move_up`) - each with its severity, errors first, and the key path of the block to change;
+    a sound configuration answers no finding; a workspace template the check finds an error in is
+    refused when it is published (`config.template_check_failed`, one refusal per block).
+    *Administration → Overview* lists them, each opening
+    its block's page, and each block's page (types, workflows, roles, rules, a hub's structure)
+    shows those about its own blocks. Beside them the overview shows what waits for a person's word: the
+    plans proposed and not yet decided, opening *Changes*, and each template the workspace took
+    that has a newer version, opening *Templates*.
+11. A custom role's block of `role_groups` names the groups holding it at the workspace: an apply
+    grants it to each group added and revokes it from each dropped, flagged as changing
+    permissions, and the export reads them back; a template's roles part names the group a
+    `GROUP` question asks for, so the role is held once the template is applied.
+12. A hub taking a template with `samples` (*Templates*, *Add sample entries to try it*) gets the
+    template's sample entries as tasks of its collections, marked; a hub's document lists them by
+    key while they are out of the trash, an upgrade of the template neither adds nor removes them,
+    and `POST /hubs/{hubId}/sample-entries:remove` (*Remove sample entries* in the hub's settings, *Modules*)
+    moves every marked entry into the trash and no other.
+13. A type with its form, an SLA policy or a role people work with is changed as a draft
+    (`PUT /config/drafts/{section}/{key}`; *Save draft* in the form editor, the policy and the
+    role): the block in force stays in force for everybody, however unfinished the draft is, and
+    only the draft's attributes are checked. *Review and publish* plans the drafted block and shows
+    what it changes and reaches; applying that plan puts it in force and removes the draft, while a
+    draft saved again since is kept. An apply touching a policy keeps its requester organisations
+    and its OLA group. *Changes → Drafts* lists every waiting draft - a workflow's and each type's,
+    policy's and role's - opening the page that publishes it.
+14. A hub taking a template with pages (*Templates*) gets them at the top of its space - the ITIL
+    service desk's guide *How we work with this desk* and its knowledge base -, marked; a hub's
+    document lists them by key with their title and never their text while they are out of the
+    trash, and neither a second take nor an upgrade of the template writes, rewrites or trashes
+    one.
+15. A collection taking a template with a collection part (the collection's settings, *Templates*)
+    gets its queues, rules, fields and structure settings under its own handle, written at that
+    collection; the collection's gallery shows the version it took and offers a newer one as an
+    upgrade compared with what the collection has now, an agent's proposal for it keeps the
+    collection, and a collection of another hub, a hub named as a collection or a template without
+    a collection part is refused.
+
+## Where it ends
+
+* The installation's settings are not this document's: they are planned and listed there
+  (UC-INS-09), and applying stays the instance file's or the administration's.
+* An agent's token and the sections it may apply are UC-AGT-06; taking and upgrading a template is
+  planned and applied as any document here.
+* No sandbox of a hub's own document: the sandbox copies the workspace's document.
+* Drafts are the workspace's blocks only - a hub's own document has none -, and a workflow keeps
+  its own draft (UC-FLW-03). A draft of a template is a template version not yet published.

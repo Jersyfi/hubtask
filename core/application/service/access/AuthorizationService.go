@@ -14,6 +14,8 @@ package access
 import (
 	"context"
 	"log/slog"
+	"slices"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -65,6 +67,14 @@ type Request struct {
 	// MANAGE_MEMBERS alone would let an administrator make somebody an owner, or unmake one.
 	// A revocation and a change of who is in a group name it as a grant does - one rule, one name.
 	Grants identity.Role
+	// HandsOut are the permissions of a custom role the request defines or grants, empty where it
+	// touches none: the actor must hold every one along the path (service.MayHandOut, UC-ID-26).
+	HandsOut []string
+	// AnyMember asks for a member of the workspace instead of a permission along a path: a read of
+	// the workspace's own that a role on one hub is enough for - its groups, the names behind its
+	// identifiers, its vocabulary. A requester (service.IsRequester) and an account holding nothing
+	// are refused it as READ (anyMember); Permission and Path are not asked.
+	AnyMember bool
 }
 
 // ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
@@ -133,6 +143,9 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 			return err
 		}
 	}
+	if request.AnyMember {
+		return s.authorizeMember(ctx, actor, request)
+	}
 
 	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath(),
 		opensFor(actor, actor.AccountID))
@@ -143,7 +156,10 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 	}
 
 	if request.aboutAnEntry() {
-		return s.decideAboutTheEntry(ctx, actor, request, memberships, path)
+		if err := s.decideAboutTheEntry(ctx, actor, request, memberships, path); err != nil {
+			return err
+		}
+		return s.delegatorAllows(ctx, actor, request)
 	}
 
 	if !request.satisfiedBy(memberships, path) {
@@ -160,7 +176,75 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 			WithDetail("access.role_above_own").
 			WithParams(map[string]string{"role": string(request.Grants)})
 	}
-	return nil
+	if len(request.HandsOut) > 0 && !service.MayHandOut(memberships, path.path, path.privacy, request.HandsOut) {
+		s.recordRefusal(ctx, actor, request, "role")
+		lacking := service.Lacking(memberships, path.path, path.privacy, request.HandsOut)
+		return shared.ErrForbidden.
+			WithDetail("access.permission_above_own").
+			WithParams(map[string]string{"permissions": strings.Join(lacking, ",")})
+	}
+	return s.delegatorAllows(ctx, actor, request)
+}
+
+// delegatorAllows asks of the person a registered agent acts for what was just asked of the agent
+// (M9, G2): an agent never does what its owner may not, whatever its own account holds. The
+// refusal is recorded as the agent's, with the reason `delegator`, and reads to the caller as any
+// other refusal does.
+func (s Service) delegatorAllows(ctx context.Context, actor appshared.ActorContext, request Request) error {
+	if _, reason := alsoAsked(actor); reason == "" {
+		return nil
+	}
+	allowed, err := s.delegatorPermits(ctx, actor, request)
+	if err != nil {
+		return err
+	}
+	if allowed {
+		return nil
+	}
+	_, reason := alsoAsked(actor)
+	s.recordRefusal(ctx, actor, request, reason)
+	if request.aboutAnEntry() && !request.On.ID.IsZero() {
+		return appshared.ItemNotFound(request.On.ID)
+	}
+	return notPermitted(request)
+}
+
+// alsoAsked is the second account a request is asked of, and the reason a refusal by it records:
+// the person a registered agent acts for (G2), or the administrator whose session shows the app as
+// this actor's person (UC-ID-29) - a view shows only what both may read. Empty for every other
+// request.
+func alsoAsked(actor appshared.ActorContext) (shared.ID, string) {
+	switch {
+	case !actor.OnBehalfOf.IsZero():
+		return actor.OnBehalfOf, "delegator"
+	case actor.IsViewingAs():
+		return actor.ViewedBy, "viewer"
+	}
+	return shared.ID(""), ""
+}
+
+// delegatorPermits is the second account's answer (alsoAsked), recorded nowhere.
+func (s Service) delegatorPermits(ctx context.Context, actor appshared.ActorContext, request Request) (bool, error) {
+	person, _ := alsoAsked(actor)
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), person, request.scopePath(), false)
+	if err != nil {
+		return false, err
+	}
+	if request.aboutAnEntry() {
+		verdict, found := service.AllowsItemActionAlong(
+			memberships, path.path, path.privacy, request.On.Does, person, request.On.Assignee)
+		return found && verdict == service.ItemPermitted, nil
+	}
+	if !request.satisfiedBy(memberships, path) {
+		return false, nil
+	}
+	if request.Grants != "" && !service.MayGrant(memberships, path.path, path.privacy, request.Grants) {
+		return false, nil
+	}
+	if len(request.HandsOut) > 0 && !service.MayHandOut(memberships, path.path, path.privacy, request.HandsOut) {
+		return false, nil
+	}
+	return true, nil
 }
 
 // GrantableRoles answers which roles the actor may hand out along the path, strongest first: the
@@ -214,6 +298,10 @@ func (s Service) Permits(
 	if !actor.IsAuthenticated() {
 		return false, nil
 	}
+	if request.AnyMember {
+		reason, err := s.anyMember(ctx, actor)
+		return reason == "", err
+	}
 
 	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath(),
 		opensFor(actor, actor.AccountID))
@@ -222,7 +310,13 @@ func (s Service) Permits(
 		// that read this as a refusal would silently shorten a stream on a database blip.
 		return false, err
 	}
-	return request.satisfiedBy(memberships, path), nil
+	if !request.satisfiedBy(memberships, path) {
+		return false, nil
+	}
+	if _, reason := alsoAsked(actor); reason == "" {
+		return true, nil
+	}
+	return s.delegatorPermits(ctx, actor, request)
 }
 
 // HeldOnWorkspace answers every permission the actor holds on the workspace itself, and records
@@ -283,26 +377,26 @@ func (s Service) ReachInto(
 		}
 	}
 
-	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.Path,
+	reach, memberships, path, err := s.reachOf(ctx, actor, actor.AccountID, request, containerID,
 		opensFor(actor, actor.AccountID))
 	if err != nil {
 		return Reach{}, err
 	}
-	if request.satisfiedBy(memberships, path) {
-		return Reach{All: true}, nil
+	if second, reason := alsoAsked(actor); reason != "" && (reach.All || len(reach.Shared) > 0) {
+		// An agent reaches no further than the person it acts for, a view no further than its
+		// viewer: the entries both reach.
+		theirs, _, _, err := s.reachOf(ctx, actor, second, request, containerID, false)
+		if err != nil {
+			return Reach{}, err
+		}
+		reach = reach.within(theirs)
+		if !reach.All && len(reach.Shared) == 0 {
+			s.recordRefusal(ctx, actor, request, reason)
+			return Reach{}, notPermitted(request)
+		}
 	}
-
-	var sharedWith []shared.ID
-	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		sharedWith, err = s.Memberships.SharedItemsIn(ctx, actor.AccountID, containerID)
-		return err
-	})
-	if err != nil {
-		return Reach{}, err
-	}
-	if len(sharedWith) > 0 {
-		return Reach{Shared: sharedWith}, nil
+	if reach.All || len(reach.Shared) > 0 {
+		return reach, nil
 	}
 
 	if hidden(memberships, path) {
@@ -311,6 +405,48 @@ func (s Service) ReachInto(
 	}
 	s.recordRefusal(ctx, actor, request, "permission")
 	return Reach{}, notPermitted(request)
+}
+
+// reachOf is one account's reach into a container, recorded nowhere: all of it, the entries
+// shared with the account, or nothing.
+func (s Service) reachOf(
+	ctx context.Context, actor appshared.ActorContext, account shared.ID, request Request,
+	containerID shared.ID, opens bool,
+) (Reach, []identity.Membership, resolved, error) {
+	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), account, request.Path, opens)
+	if err != nil {
+		return Reach{}, nil, resolved{}, err
+	}
+	if request.satisfiedBy(memberships, path) {
+		return Reach{All: true}, memberships, path, nil
+	}
+	var sharedWith []shared.ID
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		sharedWith, err = s.Memberships.SharedItemsIn(ctx, account, containerID)
+		return err
+	})
+	if err != nil {
+		return Reach{}, nil, resolved{}, err
+	}
+	return Reach{Shared: sharedWith}, memberships, path, nil
+}
+
+// within is the part of this reach the other reaches too.
+func (r Reach) within(other Reach) Reach {
+	switch {
+	case other.All:
+		return r
+	case r.All:
+		return other
+	}
+	kept := make([]shared.ID, 0, len(r.Shared))
+	for _, id := range r.Shared {
+		if slices.Contains(other.Shared, id) {
+			kept = append(kept, id)
+		}
+	}
+	return Reach{Shared: kept}
 }
 
 // decideAboutTheEntry applies the qualifiers the permission column cannot express.
@@ -328,7 +464,8 @@ func (s Service) decideAboutTheEntry(
 	ctx context.Context, actor appshared.ActorContext, request Request,
 	memberships []identity.Membership, at resolved,
 ) error {
-	role, found := service.EffectiveRole(memberships, at.path, at.privacy)
+	verdict, found := service.AllowsItemActionAlong(
+		memberships, at.path, at.privacy, request.On.Does, actor.AccountID, request.On.Assignee)
 	if !found {
 		s.recordRefusal(ctx, actor, request, "sharing")
 		if request.On.ID.IsZero() {
@@ -344,7 +481,7 @@ func (s Service) decideAboutTheEntry(
 		return appshared.ItemNotFound(request.On.ID)
 	}
 
-	switch service.AllowsItemAction(role, request.On.Does, actor.AccountID, request.On.Assignee) {
+	switch verdict {
 	case service.ItemPermitted:
 		return nil
 	case service.ItemRefusedByAssignment:
@@ -366,8 +503,7 @@ func hidden(memberships []identity.Membership, at resolved) bool {
 	if at.privacy != service.PrivatePath {
 		return false
 	}
-	_, found := service.EffectiveRole(memberships, at.path, at.privacy)
-	return !found
+	return !service.HoldsAnything(memberships, at.path, at.privacy)
 }
 
 // deepestContainer is the lowest hub or collection on a path: the one a caller named.
@@ -430,6 +566,16 @@ func (s Service) Permitted(
 	allowed := make([]bool, len(paths))
 	for i, path := range answers {
 		allowed[i] = request.satisfiedBy(memberships, path)
+	}
+	if second, reason := alsoAsked(actor); reason != "" {
+		// An agent sees no more than the person it acts for (G2), a view no more than its viewer.
+		delegated, theirs, err := s.held(ctx, actor.PersistenceScope(), second, paths, false)
+		if err != nil {
+			return nil, err
+		}
+		for i, path := range theirs {
+			allowed[i] = allowed[i] && request.satisfiedBy(delegated, path)
+		}
 	}
 	return allowed, nil
 }
@@ -528,11 +674,16 @@ func (s Service) RoleOf(
 func (s Service) WritesOnlyWhatIsAssigned(
 	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
 ) (bool, error) {
-	role, found, err := s.RoleAlong(ctx, actor, path)
-	if err != nil || !found {
+	if !actor.IsAuthenticated() {
+		return false, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path,
+		opensFor(actor, actor.AccountID))
+	if err != nil {
 		return false, err
 	}
-	return service.ItemAccessOf(role, service.ItemChange) == service.AccessAssigned, nil
+	reach, found := service.ItemReach(memberships, at.path, at.privacy, service.ItemChange)
+	return found && reach == service.AccessAssigned, nil
 }
 
 // union flattens the paths into the scopes to ask about, without duplicates. The resolution ignores
@@ -612,4 +763,119 @@ func (s Service) writeRefusal(ctx context.Context, actor appshared.ActorContext,
 			slog.String("action", string(request.Action)),
 			slog.String("error", err.Error()))
 	}
+}
+
+// Held is what an account holds along one path: every role by key - a built-in role's name, a
+// custom role's key - and every permission, as Allows decides them.
+type Held struct {
+	Roles       []string
+	Permissions []service.Permission
+	// Sources are the memberships that count, one per role and place: where each is held.
+	Sources []Source
+	// Requester is whether the account is the portal's principal there (service.IsRequester).
+	Requester bool
+}
+
+// Source is one role held at one place on the path.
+type Source struct {
+	// Role is a built-in role's name or a custom role's key.
+	Role        string
+	Custom      bool
+	Scope       identity.Scope
+	permissions []string
+}
+
+// Carries reports whether the role carries the permission, as the decision reads it.
+func (s Source) Carries(permission service.Permission) bool {
+	if s.Custom {
+		return slices.Contains(s.permissions, string(permission))
+	}
+	return service.RoleAllows(identity.Role(s.Role), permission)
+}
+
+// HeldAlong answers what the actor holds along the path, and records nothing: for a step limited
+// by role, a field or step permission, and the person a screen is shown as (A6).
+func (s Service) HeldAlong(
+	ctx context.Context, actor appshared.ActorContext, path []identity.Scope,
+) (Held, error) {
+	if !actor.IsAuthenticated() {
+		return Held{}, nil
+	}
+	return s.HeldBy(ctx, actor, actor.AccountID, path)
+}
+
+// HeldBy is HeldAlong about another account, read in the actor's tenant: what *view as* and *who
+// may do what* show for a person (A6, A11). Whether the actor may ask is the caller's
+// authorisation.
+func (s Service) HeldBy(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) (Held, error) {
+	if accountID.IsZero() {
+		return Held{}, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path, opensFor(actor, accountID))
+	if err != nil {
+		return Held{}, err
+	}
+	return heldOf(memberships, at), nil
+}
+
+// RolesBy answers the role keys another account holds along the path that count there - a private
+// hub judged as everywhere else (ADR-0073 §1) -, the most specific scope first: what a role's
+// cost rate is looked up by. Whether the actor may ask is the caller's authorisation.
+func (s Service) RolesBy(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope,
+) ([]string, error) {
+	if accountID.IsZero() {
+		return nil, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), accountID, path, opensFor(actor, accountID))
+	if err != nil {
+		return nil, err
+	}
+	counting := service.Counting(memberships, at.path, at.privacy)
+	slices.SortStableFunc(counting, func(a, b identity.Membership) int { return scopeDepth(b.Scope) - scopeDepth(a.Scope) })
+	keys := []string{}
+	for _, membership := range counting {
+		key := string(membership.Role)
+		if membership.IsCustom() {
+			key = membership.Custom
+		}
+		if !slices.Contains(keys, key) {
+			keys = append(keys, key)
+		}
+	}
+	return keys, nil
+}
+
+func scopeDepth(s identity.Scope) int {
+	switch s.Type {
+	case identity.ScopeTenant:
+		return 0
+	case identity.ScopeHub:
+		return 1
+	case identity.ScopeCollection:
+		return 2
+	}
+	return 3
+}
+
+func heldOf(memberships []identity.Membership, at resolved) Held {
+	held := Held{
+		Roles: []string{}, Permissions: service.Held(memberships, at.path, at.privacy),
+		Requester: service.IsRequester(memberships, at.path, at.privacy),
+	}
+	for _, membership := range service.Counting(memberships, at.path, at.privacy) {
+		key := string(membership.Role)
+		if membership.IsCustom() {
+			key = membership.Custom
+		}
+		if !slices.Contains(held.Roles, key) {
+			held.Roles = append(held.Roles, key)
+		}
+		held.Sources = append(held.Sources, Source{
+			Role: key, Custom: membership.IsCustom(), Scope: membership.Scope, permissions: membership.Permissions,
+		})
+	}
+	return held
 }

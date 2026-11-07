@@ -48,6 +48,7 @@ async function open(browser) {
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [row] });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: ([row]).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     if (path === `/admin/tenants/${TENANT}:open-password`) {
       const body = request.postDataJSON() ?? {};
       sent.push({ path, body });
@@ -148,6 +149,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && route.request().method() === 'GET') return route.fulfill({ json: rows });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: (rows).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -177,7 +179,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
  * The installation's console against a stubbed control plane: the manifest in the mode given, the
  * rows given, and every lifecycle write recorded and answered as the server does.
  */
-async function operatorConsole(browser, { mode, rows, width = 1280 }) {
+async function operatorConsole(browser, { mode, rows, width = 1280, near = [] }) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   const sent = [];
   await context.route('**/api/v1/**', async (route) => {
@@ -187,7 +189,9 @@ async function operatorConsole(browser, { mode, rows, width = 1280 }) {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: mode } });
+    if (path === '/admin/quotas') return route.fulfill({ json: { data: near } });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: rows });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: (rows).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     const shift = /^\/admin\/tenants\/([^/:]+):(suspend|resume|cancel-deletion)$/.exec(path);
     if (shift) {
       sent.push(`${shift[1]}:${shift[2]}`);
@@ -254,6 +258,9 @@ test('chromium: suspending asks first, and the own workspace is marked and warne
   dialog = page.getByRole('dialog', { name: 'Delete this workspace' });
   await dialog.waitFor();
   assert.match(await dialog.textContent() ?? '', /only an operator from another workspace can cancel the deletion/);
+  // UC-INS-08 check 4: the name is typed to confirm, and the grace period is said.
+  assert.match(await dialog.textContent() ?? '', /removed for good when the grace period of 30 days ends/);
+  await dialog.getByLabel(`Type ${WORKSPACE.slug} to confirm`).or(dialog.getByLabel(`Type ${WORKSPACE.display_name} to confirm`)).first().waitFor();
   assert.equal(sent.length, 1, 'opening the dialogs sent something');
 });
 
@@ -283,8 +290,9 @@ test('chromium: a pending deletion is called off with one press, until the remov
   assert.equal(await rowOffers(leaving, 'Suspend'), 1);
 });
 
-// UC-INS-07 check 4: in single mode the one workspace is the installation - no *New workspace*,
-// and no *Suspend* or *Delete* either, which the server refuses there. In multi mode all three are
+// UC-INS-07 check 4, UC-INS-20 check 6: in single mode the one workspace is the installation - no
+// *New workspace*, so nothing about assigned hosts, and no *Suspend* or *Delete* either, which the
+// server refuses there. In multi mode all three are
 // there; *Resume* and *Cancel deletion* are the way back in both.
 test('chromium: single mode offers no new workspace, no suspension and no deletion', async (t) => {
   const browser = await chromium.launch();
@@ -306,6 +314,8 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
   assert.equal(await pageOffers(multi.page, 'Delete'), 2);
 });
 
+// UC-INS-07 check 1, the screen's part: *New workspace* sends POST /admin/tenants, the operation
+// `hubctl admin tenant create` sends, and the use case's refusal comes back at the field.
 // UC-INS-07 check 2: a short name the installation reserves for itself is refused at the field of
 // *New workspace*, with its own sentence, and the dialog stays for another.
 test('chromium: a reserved short name is refused at the field of New workspace', async (t) => {
@@ -319,6 +329,7 @@ test('chromium: a reserved short name is refused at the field of New workspace',
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [workspace()] });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: ([workspace()]).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     if (path === '/admin/tenants' && request.method() === 'POST') {
       const body = request.postDataJSON() ?? {};
       sent.push(body);
@@ -355,6 +366,105 @@ test('chromium: a reserved short name is refused at the field of New workspace',
   assert.ok(await dialog.isVisible(), 'a refused short name closed the dialog');
   assert.equal(sent.length, 1);
   assert.equal(sent[0].slug, 'www');
+});
+
+// UC-INS-07 check 3: where the installation mails, the screen says the owner's invitation is
+// queued for their address and shows no token; where it does not, the token is shown once.
+for (const delivery of ['MAIL', 'LINK']) {
+  test(`chromium: a new workspace's owner is reached by ${delivery === 'MAIL' ? 'mail, with no token shown' : 'the token shown once'}`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    t.after(() => context.close());
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
+      if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [workspace()] });
+      if (path === '/admin/tenants:query') return route.fulfill({ json: { data: [workspace()], page: { next_cursor: null, has_more: false } } });
+      if (path === '/admin/tenants' && request.method() === 'POST') {
+        return route.fulfill({
+          status: 201,
+          json: {
+            ...workspace(), id: '01a0e2e0-0000-7000-8000-0000000000f1', slug: 'web', display_name: 'Web',
+            owner_account_id: '01a0e2e0-0000-7000-8000-0000000000f2', owner_delivery: delivery,
+            ...(delivery === 'LINK' ? { owner_redemption_token: 'hbt_red_e2e' } : {}),
+            default_hub_id: '01a0e2e0-0000-7000-8000-0000000000f3', example_collection_id: '01a0e2e0-0000-7000-8000-0000000000f4',
+          },
+        });
+      }
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+
+    await page.goto(`${served.origin}/instance/workspaces`);
+    await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
+    await page.getByRole('button', { name: 'New workspace' }).click();
+    const dialog = page.getByRole('dialog', { name: 'New workspace' });
+    await dialog.getByLabel(/^Address/).fill('web');
+    await dialog.getByLabel(/^Name/).fill('Web');
+    await dialog.getByLabel(/^The owner's email address/).fill('eva@acme.example');
+    await dialog.getByRole('button', { name: 'Create it' }).click();
+
+    if (delivery === 'MAIL') {
+      await page.getByText('The invitation to eva@acme.example is queued for mail.', { exact: false }).waitFor({ timeout: 10_000 });
+      assert.equal(await page.getByText("The owner's token").count(), 0, 'a token was shown beside the mail');
+    } else {
+      await page.getByText("The owner's token").first().waitFor({ timeout: 10_000 });
+      assert.equal(await page.getByText('is queued for mail', { exact: false }).count(), 0, 'the mail was said beside the token');
+    }
+  });
+}
+
+// user-experience.md §8.4: a workspace near or at a limit is marked on its row, from the
+// installation's own answer of which workspaces stand at 90% or more; the limits dialog says what
+// is in use beside the field and warns, before saving, where a ceiling is typed below it.
+test('chromium: a workspace near or at a limit is marked, and its limits say what is in use', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const rows = [
+    { ...workspace(), display_name: 'Acme' },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a2', slug: 'beta', display_name: 'Beta' },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a3', slug: 'calm', display_name: 'Calm' },
+  ];
+  const near = [
+    { tenant_id: TENANT, slug: rows[0].slug, quotas: [{ quota: 'items', used: 950, limit: 1000, ratio: 0.95 }] },
+    { tenant_id: rows[1].id, slug: 'beta', quotas: [{ quota: 'accounts', used: 10, limit: 10, ratio: 1 }] },
+  ];
+  const { page, close } = await operatorConsole(browser, { mode: 'multi', rows, width: 375, near });
+  t.after(close);
+
+  const acme = page.getByRole('row').filter({ hasText: 'Acme' });
+  await acme.getByText('Near a limit').waitFor({ timeout: 15_000 });
+  await page.getByRole('row').filter({ hasText: 'Beta' }).getByText('At a limit').waitFor();
+  const calm = page.getByRole('row').filter({ hasText: 'Calm' });
+  assert.equal(await calm.getByText(/a limit/).count(), 0);
+
+  await chooseInRow(acme, 'Limits');
+  const dialog = page.getByRole('dialog', { name: 'Limits for Acme' });
+  await dialog.waitFor();
+  const use = dialog.locator('[data-quota-use="items"]');
+  assert.match(await use.textContent() ?? '', /In use now: 950/);
+  assert.doesNotMatch(await use.textContent() ?? '', /Below what is in use/);
+  await dialog.getByLabel('Entries', { exact: true }).fill('900');
+  await use.getByText(/Below what is in use/).waitFor();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
+  await dialog.getByRole('button', { name: 'Cancel' }).first().click();
+
+  // The *Limits* filter keeps those near or at one, or only those at one (§8.4).
+  const limits = page.getByLabel('Limits', { exact: true });
+  await limits.selectOption('at');
+  await acme.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.getByRole('row').filter({ hasText: 'Beta' }).waitFor();
+  assert.equal(await calm.count(), 0, 'a workspace at no limit is kept');
+  await limits.selectOption('near');
+  await acme.waitFor();
+  assert.equal(await calm.count(), 0, 'a workspace at no limit is kept');
 });
 
 // UC-INS-07 check 2: a short name the list did not know as taken - another operator took it a
@@ -412,7 +522,8 @@ test('chromium: a short name taken meanwhile is refused at the field of New work
 // workspace's host and offers the short name as optional, made from the host where it is left
 // empty. A host already in the table is said while it is typed and nothing is sent; one the server
 // refuses is said at the field with its own reason; no DNS is asked. With subdomains the dialog
-// asks for the short name as before, and no longer says it cannot be changed.
+// asks for the short name as before, and no longer says it cannot be changed; no host is asked
+// (UC-INS-20 check 6).
 test('chromium: New workspace asks for the host where the installation assigns hosts', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -427,8 +538,9 @@ test('chromium: New workspace asks for the host where the installation assigns h
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MULTI, workspace_hosts: mode } });
-    if (path === '/admin/tenants' && request.method() === 'GET') {
-      return route.fulfill({ json: [{ ...workspace(), slug: 'sales', display_name: 'Sales', host: 'tasks-sales.corp.example' }] });
+    if ((path === '/admin/tenants' && request.method() === 'GET') || path === '/admin/tenants:query') {
+      const rows = [{ ...workspace(), slug: 'sales', display_name: 'Sales', host: 'tasks-sales.corp.example' }];
+      return route.fulfill({ json: path === '/admin/tenants' ? rows : { data: rows, page: { next_cursor: null, has_more: false } } });
     }
     if (path === '/admin/tenants' && request.method() === 'POST') {
       const body = request.postDataJSON() ?? {};
@@ -532,13 +644,12 @@ test('chromium: Change address names the new address and its costs, and is confi
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MULTI, workspace_hosts: 'subdomain' } });
-    if (path === '/admin/tenants' && request.method() === 'GET') {
-      return route.fulfill({
-        json: [
-          { ...workspace(), slug: 'meier', display_name: 'Meier family', host: 'meier.tasks.example.net' },
-          { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034c1', slug: 'taken', display_name: 'Taken', host: 'taken.tasks.example.net' },
-        ],
-      });
+    if ((path === '/admin/tenants' && request.method() === 'GET') || path === '/admin/tenants:query') {
+      const rows = [
+        { ...workspace(), slug: 'meier', display_name: 'Meier family', host: 'meier.tasks.example.net' },
+        { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034c1', slug: 'taken', display_name: 'Taken', host: 'taken.tasks.example.net' },
+      ];
+      return route.fulfill({ json: path === '/admin/tenants' ? rows : { data: rows, page: { next_cursor: null, has_more: false } } });
     }
     if (path === '/auth/step-up') {
       return route.fulfill({ status: 201, json: { step_up_token: 'hbt_sup_tok', expires_at: '2099-01-01T00:00:00Z', method: 'PASSWORD' } });

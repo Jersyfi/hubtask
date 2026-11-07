@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { MemoryStorage, type StoredRecord } from '@hubtask/sync-engine';
 
-import { belowOf, fetchStructureAfresh, hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type HeldEntry, type StructureShape } from './replica.ts';
+import { belowOf, fetchStructureAfresh, hiddenOf, mondayOf, storeFor, useBound, type BoundType, type EntryHidden, type HeldEntry, type StructureShape } from './replica.ts';
 
 const HUB = 'h-1';
 const COLLECTION = 'c-1';
@@ -86,6 +86,18 @@ test('a level: the plain question the list asks, in the manual order, labels and
     path: '/items:query',
     body: { scope: { container_id: COLLECTION, include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
   }, storage), undefined);
+});
+
+// A copy narrowed to the hubs opened lately (offline-sync.md §1) holds no collection of another
+// hub: its list is not answered as empty, which would read as a collection with nothing in it.
+test('a collection the copy does not hold is not answered as an empty one', async () => {
+  const storage = await workspace();
+  for (const group of [undefined, { field: 'bucket_id', limit_per_group: 50 }]) {
+    assert.equal(await storeFor({
+      path: '/items:query',
+      body: { scope: { container_id: 'c-not-held', include_descendants: false }, include_archived: true, ...(group ? { group_by: group } : {}), sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'] },
+    }, storage), undefined);
+  }
 });
 
 test('the board: the same entries by column, the loose ones last', async () => {
@@ -197,6 +209,49 @@ test('SET_ADD, SET_REMOVE, ITEM_DELETE, COMMENT_ADD', async () => {
   );
 });
 
+test('ENTITY_*: the vocabulary written offline, a versioned change against the version the copy holds', async () => {
+  const storage = await workspace();
+  await storage.put('entry_types', 't-1', { ...record({ id: 't-1', key: 'bug', name: 'Bug', level: 'TASK' }), version: 4 });
+  await storage.put('custom_roles', 'r-1', { ...record({ id: 'r-1', key: 'auditor', name: 'Auditor' }), version: 2 });
+  const h = helpers(storage);
+  const minted = '0192f000-0000-7000-8000-00000000f00d';
+  assert.deepEqual(
+    await mutationFor('POST', '/entry-types', { key: 'risk', name: 'Risk', level: 'TASK' }, h),
+    { kind: 'ENTITY_UPSERT', entity: 'entry_type', entityKey: 'risk', itemId: minted, payload: { key: 'risk', name: 'Risk', level: 'TASK' } },
+  );
+  assert.deepEqual(
+    await mutationFor('PATCH', '/entry-types/bug', { name: 'Defect' }, h),
+    { kind: 'ENTITY_PATCH', entity: 'entry_type', entityKey: 'bug', itemId: 't-1', baseVersion: 4, payload: { name: 'Defect' } },
+  );
+  assert.deepEqual(await mutationFor('DELETE', '/entry-types/bug', undefined, h), { kind: 'ENTITY_DELETE', entity: 'entry_type', entityKey: 'bug', itemId: 't-1' });
+  assert.deepEqual(
+    await mutationFor('PATCH', '/roles/auditor', { name: 'Auditors', permissions: ['READ'] }, h),
+    { kind: 'ENTITY_PATCH', entity: 'custom_role', entityKey: 'auditor', itemId: 'r-1', baseVersion: 2, payload: { name: 'Auditors', permissions: ['READ'] } },
+  );
+  assert.equal((await mutationFor('POST', '/workflows', { key: 'triage', name: 'Triage', shape: {} }, h))?.entity, 'workflow');
+  assert.equal((await mutationFor('POST', '/link-types', { key: 'relates', name: 'Relates' }, h))?.entity, 'link_type');
+  assert.deepEqual(
+    await mutationFor('POST', '/items/i-1/links', { target_id: 'i-2', type: 'blocks' }, h),
+    { kind: 'ENTITY_UPSERT', entity: 'entry_link', entityKey: minted, itemId: minted, payload: { target_id: 'i-2', type: 'blocks', item_id: 'i-1' } },
+  );
+  assert.deepEqual(await mutationFor('DELETE', '/links/k-1', undefined, h), { kind: 'ENTITY_DELETE', entity: 'entry_link', entityKey: 'k-1', itemId: 'k-1' });
+  // A change of an entity the copy does not hold names no version: it goes directly.
+  assert.equal(await mutationFor('PATCH', '/entry-types/unknown', { name: 'x' }, h), undefined);
+});
+
+test('the vocabulary the copy answers: types by level, position and key, link types by position', async () => {
+  const storage = await workspace();
+  await storage.put('entry_types', 't-2', record({ id: 't-2', key: 'step', level: 'ACTIVITY', position: 0 }));
+  await storage.put('entry_types', 't-1', record({ id: 't-1', key: 'bug', level: 'TASK', position: 1 }));
+  await storage.put('entry_types', 't-0', record({ id: 't-0', key: 'task', level: 'TASK', position: 0 }));
+  await storage.put('link_types', 'l-2', record({ id: 'l-2', key: 'relates', position: 2 }));
+  await storage.put('link_types', 'l-1', record({ id: 'l-1', key: 'blocks', position: 1 }));
+  const types = await storeFor({ path: '/entry-types' }, storage) as { data: { key: string }[] };
+  assert.deepEqual(types.data.map((row) => row.key), ['task', 'bug', 'step']);
+  const links = await storeFor({ path: '/link-types' }, storage) as { data: { key: string }[] };
+  assert.deepEqual(links.data.map((row) => row.key), ['blocks', 'relates']);
+});
+
 test('a reminder, the series, a template applied, a container, a label and a bucket', async () => {
   const storage = await workspace();
   const h = helpers(storage);
@@ -256,6 +311,11 @@ test('the writes the queue does not carry, and why', async () => {
     ['PATCH', '/items/i-1/comments/k-1', 'editing a comment has no mutation kind; only adding one does'],
     ['POST', '/memberships', 'administration (§1\'s right column)'],
     ['POST', '/backups:run', 'administration'],
+    ['POST', '/workflows/triage:publish', 'publishing moves entries and is decided online (§4.4)'],
+    ['PUT', '/workflow-scheme', 'the scheme is read and written online'],
+    ['PUT', '/entry-types/bug/form', 'a type\'s form has no entity mutation'],
+    ['POST', '/role-grants', 'a grant is who holds what - a permission (§4.3)'],
+    ['POST', '/custom-fields', 'a field\'s definition is not in the replica'],
   ] as const) {
     assert.equal(await mutationFor(method, path, {}, h), undefined, `${method} ${path}: ${why}`);
   }
@@ -362,4 +422,501 @@ test('a copy held without a container\'s structure is fetched afresh where the m
   await current.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', parent_id: HUB, structure: STRUCTURE }));
   assert.deepEqual(await asked(current, { structure: true }), [], 'every container holds its structure');
   assert.deepEqual(await asked(new MemoryStorage(), { structure: true }), [], 'an empty copy waits for its first snapshot');
+});
+
+// A page read while the server is away (M3): a hub's tree without the bodies, in the server's
+// order and without the trashed; a page with its body and its breadcrumb, never writable.
+test('a hub\'s pages and a page are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const page = (id: string, fields: Record<string, unknown>) => storage.put('pages', id, record({ id, hub_id: HUB, ...fields }));
+  await page('p-root', { title: 'Handbook', body: 'Travel', parent_id: null, position: 'a0' });
+  await page('p-child', { title: 'Trains', body: 'Book early', parent_id: 'p-root', position: 'a0', verified_until: '2020-01-01T00:00:00Z' });
+  await page('p-later', { title: 'Later', body: '', parent_id: null, position: 'a1', template: true });
+  await page('p-gone', { title: 'Gone', body: '', parent_id: null, position: 'a2', trashed_at: '2026-10-29T00:00:00Z' });
+
+  const tree = await storeFor({ path: `/hubs/${HUB}/pages` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(tree.data.map((row) => row.id), ['p-root', 'p-later', 'p-child']);
+  assert.ok(tree.data.every((row) => !('body' in row)), 'the tree carries no bodies');
+  const templates = await storeFor({ path: `/hubs/${HUB}/pages?templates=true` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(templates.data.map((row) => row.id), ['p-later']);
+
+  const read = await storeFor({ path: '/pages/p-child' }, storage) as Record<string, unknown>;
+  assert.equal(read.body, 'Book early');
+  assert.equal(read.writable, false);
+  assert.equal(read.due_for_review, true);
+  assert.deepEqual(read.ancestors, [{ id: 'p-root', title: 'Handbook' }]);
+  assert.equal(await storeFor({ path: '/pages/p-gone' }, storage), undefined);
+});
+
+// A hub's inventory read while the server is away (UC-AST-01 check 10): the CIs of the hub in the
+// server's order without the merged, narrowed by a class and its descendants; a CI with its
+// relations and the protection it inherits; the impact walked by the catalogue's directions.
+test('a hub\'s configuration items, a CI and its impact are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('cmdb_catalogue', 'w-1', record({
+    id: 'w-1',
+    classes: [
+      { key: 'server', lineage: ['server', 'computer', 'hardware', 'ci'] },
+      { key: 'application_service', lineage: ['application_service', 'service', 'ci'] },
+      { key: 'hardware', lineage: ['hardware', 'ci'] },
+    ],
+    relation_types: [{ key: 'runs_on', impact: 'SOURCE' }, { key: 'connects_to', impact: 'NONE' }],
+  }));
+  const ci = (id: string, fields: Record<string, unknown>) => storage.put('cis', id, record({ id, hub_id: HUB, stage: 'IN_USE', ...fields }));
+  await ci('ci-1', { class: 'server', name: 'web1', protection: { c: null, i: null, a: 'NORMAL', fixed: [] } });
+  await ci('ci-2', { class: 'application_service', name: 'Shop', protection: { c: 'HIGH', i: null, a: 'VERY_HIGH', fixed: [] } });
+  await ci('ci-3', { class: 'server', name: 'old', merged_into: 'ci-1' });
+  await ci('ci-4', { class: 'server', name: 'elsewhere', hub_id: 'h-2' });
+  await storage.put('ci_relations', 'r-1', record({ id: 'r-1', type: 'runs_on', source_ci_id: 'ci-2', target_ci_id: 'ci-1' }));
+  await storage.put('ci_relations', 'r-2', record({ id: 'r-2', type: 'connects_to', source_ci_id: 'ci-1', target_ci_id: 'ci-4' }));
+
+  const all = await storeFor({ path: `/hubs/${HUB}/cis` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(all.data.map((row) => row.id), ['ci-1', 'ci-2']);
+  const hardware = await storeFor({ path: `/hubs/${HUB}/cis?class=hardware` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(hardware.data.map((row) => row.id), ['ci-1'], 'a class narrows to itself and its descendants');
+
+  const read = await storeFor({ path: '/cis/ci-1' }, storage) as Record<string, unknown>;
+  assert.deepEqual((read.relations as Record<string, unknown>[]).map((r) => r.id), ['r-2', 'r-1']);
+  assert.deepEqual(read.effective_protection, { c: 'HIGH', i: null, a: 'VERY_HIGH' }, 'the server inherits what the application on it needs');
+
+  const impact = await storeFor({ path: '/cis/ci-1/impact?direction=DOWNSTREAM' }, storage) as Record<string, unknown>;
+  assert.deepEqual(impact.reached, [{ ci_id: 'ci-2', class: 'application_service', name: 'Shop', stage: 'IN_USE', depth: 1 }]);
+  assert.deepEqual(impact.services, ['ci-2']);
+  const upstream = await storeFor({ path: '/cis/ci-2/impact?direction=UPSTREAM' }, storage) as Record<string, unknown>;
+  assert.deepEqual((upstream.reached as Record<string, unknown>[]).map((r) => r.ci_id), ['ci-1']);
+
+  const classes = await storeFor({ path: '/cmdb/classes' }, storage) as { data: unknown[] };
+  assert.equal(classes.data.length, 3);
+  assert.equal(await storeFor({ path: '/cis/ci-9' }, storage), undefined);
+});
+
+// UC-AST-11 check 4 and UC-AST-12 check 4 offline: a hub's groups by key and its asset register
+// by CI, narrowed to a state and named by its CIs, and a CI's asset; never another hub's.
+test('a hub\'s CI groups, its asset register and a CI\'s asset are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('cis', 'ci-1', record({ id: 'ci-1', hub_id: HUB, class: 'server', name: 'web1' }));
+  await storage.put('ci_groups', 'g-2', record({ id: 'g-2', hub_id: HUB, key: 'web', name: 'Web' }));
+  await storage.put('ci_groups', 'g-1', record({ id: 'g-1', hub_id: HUB, key: 'db', name: 'Databases' }));
+  await storage.put('ci_groups', 'g-3', record({ id: 'g-3', hub_id: 'h-2', key: 'all', name: 'Elsewhere' }));
+  await storage.put('ci_assets', 'ci-2', record({ ci_id: 'ci-2', hub_id: HUB, state: 'IN_STOCK' }));
+  await storage.put('ci_assets', 'ci-1', record({ ci_id: 'ci-1', hub_id: HUB, state: 'DEPLOYED' }));
+  await storage.put('ci_assets', 'ci-4', record({ ci_id: 'ci-4', hub_id: 'h-2', state: 'DEPLOYED' }));
+
+  const groups = await storeFor({ path: `/hubs/${HUB}/ci-groups` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(groups.data.map((row) => row.key), ['db', 'web']);
+  const register = await storeFor({ path: `/hubs/${HUB}/assets` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(register.data.map((row) => [row.ci_id, row.name]), [['ci-1', 'web1'], ['ci-2', undefined]]);
+  const deployed = await storeFor({ path: `/hubs/${HUB}/assets?state=DEPLOYED` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(deployed.data.map((row) => row.ci_id), ['ci-1']);
+  const asset = await storeFor({ path: '/cis/ci-2/asset' }, storage) as Record<string, unknown>;
+  assert.equal(asset.state, 'IN_STOCK');
+  assert.equal(await storeFor({ path: '/cis/ci-9/asset' }, storage), undefined);
+});
+
+// UC-PLN-06 offline: a collection's sprints are answered from the copy, the latest start first,
+// narrowed to a state when one is asked for, and never another collection's.
+test('a collection\'s sprints are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const sprint = (id: string, fields: Record<string, unknown>) => storage.put('sprints', id, record({ id, collection_id: COLLECTION, ...fields }));
+  await sprint('s-1', { name: 'One', start_on: '2026-11-02', state: 'CLOSED' });
+  await sprint('s-2', { name: 'Two', start_on: '2026-11-16', state: 'ACTIVE' });
+  await sprint('s-other', { name: 'Elsewhere', start_on: '2026-11-30', state: 'PLANNED', collection_id: 'c-other' });
+
+  const all = await storeFor({ path: `/collections/${COLLECTION}/sprints` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(all.data.map((row) => row.id), ['s-2', 's-1']);
+  const active = await storeFor({ path: `/collections/${COLLECTION}/sprints?state=ACTIVE` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(active.data.map((row) => row.id), ['s-2']);
+});
+
+// UC-PLN-08 check 8: a hub's releases and a release with its entries are answered from the copy,
+// the latest day first, never another hub's.
+test('a hub\'s releases are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const release = (id: string, fields: Record<string, unknown>) => storage.put('releases', id, record({ id, hub_id: HUB, ...fields }));
+  await release('r-1', { name: '2.3', release_on: '2026-10-01', state: 'RELEASED' });
+  await release('r-2', { name: '2.4', release_on: '2026-11-30', state: 'PLANNED' });
+  await release('r-other', { name: 'Elsewhere', release_on: '2026-12-30', state: 'PLANNED', hub_id: 'h-other' });
+  await storage.put('items', 'e-1', record({ id: 'e-1', title: 'Pay by card', is_completed: true, collection_id: COLLECTION, entry_type: 'story' }));
+  await storage.put('entry_types', 'story', record({ key: 'story', name: 'Story', level: 'TASK' }));
+  await storage.put('release_entries', 'e-1', record({ item_id: 'e-1', release_id: 'r-2', hub_id: HUB }));
+
+  const all = await storeFor({ path: `/hubs/${HUB}/releases` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(all.data.map((row) => row.id), ['r-2', 'r-1']);
+  const one = await storeFor({ path: '/releases/r-2' }, storage) as { entries: Record<string, unknown>[]; done_count: number };
+  assert.deepEqual(one.entries.map((e) => [e.title, e.type_name, e.done]), [['Pay by card', 'Story', true]]);
+  assert.equal(one.done_count, 1);
+});
+
+// A form drawn offline: the definitions in force are answered from the copy - the workspace's
+// alone without a collection, with a collection's own after them, never another collection's.
+test('the custom field definitions in force are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const field = (id: string, fields: Record<string, unknown>) => storage.put('custom_fields', id, record({ id, ...fields }));
+  await field('f-wide', { key: 'cost_centre', collection_id: null });
+  await field('f-own', { key: 'priority', collection_id: COLLECTION });
+  await field('f-other', { key: 'secret', collection_id: 'c-other' });
+
+  const wide = await storeFor({ path: '/custom-fields' }, storage) as Record<string, unknown>[];
+  assert.deepEqual(wide.map((row) => row.id), ['f-wide']);
+  const inCollection = await storeFor({ path: `/custom-fields?collection_id=${COLLECTION}` }, storage) as Record<string, unknown>[];
+  assert.deepEqual(inCollection.map((row) => row.id), ['f-wide', 'f-own']);
+});
+
+// UC-TIM-01 offline: the reader's running timer, with its minutes counted on the device, and the
+// workspace's kinds of work and policy are answered from the copy; without a timer it is not
+// running, and a policy never set is the default.
+test('the timer, the kinds of work and the policy are answered from the copy', async () => {
+  const empty = new MemoryStorage();
+  assert.deepEqual(await storeFor({ path: '/timer' }, empty), { running: false });
+  assert.deepEqual(await storeFor({ path: '/time-work-types' }, empty), { data: [] });
+  assert.equal((await storeFor({ path: '/time-policy' }, empty) as Record<string, unknown>).visibility, 'FULL');
+
+  const storage = new MemoryStorage();
+  const started = new Date(Date.now() - 25 * 60000).toISOString();
+  await storage.put('time_timers', 'me', record({ account_id: 'me', running: true, work_type: 'development', started_at: started }));
+  await storage.put('time_work_types', 't-1', record({ data: [{ key: 'development', name: 'Development' }] }));
+  const timer = await storeFor({ path: '/timer' }, storage) as Record<string, unknown>;
+  assert.equal(timer.running, true);
+  assert.equal(timer.work_type, 'development');
+  assert.ok(Number(timer.elapsed_minutes) >= 24, 'the minutes are counted from the start');
+  assert.equal('account_id' in timer, false);
+  const kinds = await storeFor({ path: '/time-work-types' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(kinds.data.map((row) => row.key), ['development']);
+});
+
+// UC-TIM-02, 06, 07 and 08 offline: the reader's week - its head, its records placed by their
+// entries, the locked days -, their capacities, the absences of a range and the cost rates are
+// answered from the copy; another person's week waits for the server, and so do the rates where the
+// copy holds none.
+test('a week, the capacities, the absences and the rates are answered from the copy', async () => {
+  assert.equal(mondayOf('2026-11-05'), '2026-11-02');
+  assert.equal(mondayOf('2026-11-02'), '2026-11-02');
+  assert.equal(mondayOf('2026-11-08'), '2026-11-02');
+
+  const storage = new MemoryStorage();
+  await storage.put('items', 'i-1', record({ id: 'i-1', title: 'Checkout form', collection_id: COLLECTION }));
+  await storage.put('timesheets', 's-1', record({ account_id: 'me', week_start: '2026-11-02', state: 'SUBMITTED', version: 1 }));
+  await storage.put('time_records', 'r-1', record({ id: 'r-1', account_id: 'me', entry_id: 'i-1', day: '2026-11-03', minutes: 90 }));
+  await storage.put('time_records', 'r-2', record({ id: 'r-2', account_id: 'me', day: '2026-11-10', minutes: 30 }));
+  await storage.put('time_policy', 't-1', record({ locked_through: '2026-11-02', visibility: 'FULL', version: 1 }));
+  const week = await storeFor({ path: '/timesheets/2026-11-05' }, storage) as {
+    state: string; minutes: number; records: Record<string, unknown>[]; days: { day: string; minutes: number; locked: boolean }[];
+  };
+  assert.equal(week.state, 'SUBMITTED');
+  assert.equal(week.minutes, 90);
+  assert.deepEqual(week.records.map((row) => [row.id, row.entry_title, row.collection_id]), [['r-1', 'Checkout form', COLLECTION]]);
+  assert.deepEqual(week.days.slice(0, 2), [{ day: '2026-11-02', minutes: 0, locked: true }, { day: '2026-11-03', minutes: 90, locked: false }]);
+  const open = await storeFor({ path: '/timesheets/2026-11-09' }, storage) as { state: string; minutes: number };
+  assert.deepEqual([open.state, open.minutes], ['OPEN', 30]);
+  assert.equal(await storeFor({ path: '/timesheets/2026-11-05?account_id=other' }, storage), undefined, "another person's week");
+
+  await storage.put('time_capacities', 'me', record({ account_id: 'me', data: [{ from: '2026-11-02', week_minutes: [360, 360, 360, 360, 0, 0, 0] }] }));
+  const capacities = await storeFor({ path: '/time-capacities' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(capacities.data.map((row) => row.from), ['2026-11-02']);
+
+  await storage.put('time_absences', 'a-1', record({ id: 'a-1', account_id: 'ben', from: '2026-11-09', to: '2026-11-13', kind: 'LEAVE' }));
+  await storage.put('time_absences', 'a-2', record({ id: 'a-2', account_id: 'me', from: '2026-12-01', to: '2026-12-01', kind: 'TRAINING' }));
+  const absences = await storeFor({ path: '/time-absences?from=2026-11-01&to=2026-11-30' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(absences.data.map((row) => row.id), ['a-1']);
+
+  assert.equal(await storeFor({ path: '/cost-rates' }, storage), undefined, 'no rates in the copy');
+  await storage.put('time_cost_rates', 't-1', record({ data: [{ id: 'rate-1', role: 'designer', hour_minor: 6000 }] }));
+  const rates = await storeFor({ path: '/cost-rates' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(rates.data.map((row) => row.id), ['rate-1']);
+});
+
+// UC-TIM-01 check 9: while the server is away the timer is started, stopped and discarded from the
+// queue with the device's moments; a stop waiting reads the timer as stopped, and a stop or a discard
+// of a timer the copy does not hold goes online.
+test('the timer is started, stopped and discarded from the queue', async () => {
+  const empty = new MemoryStorage();
+  assert.equal(await mutationFor('POST', '/timer:stop', { zone: 'Europe/Berlin' }, helpers(empty)), undefined, 'no timer held');
+  assert.equal(await mutationFor('DELETE', '/timer', undefined, helpers(empty)), undefined, 'no timer held');
+  const before = Date.now();
+  const start = await mutationFor('POST', '/timer:start', { work_type: 'development' }, helpers(empty));
+  assert.equal(start?.kind, 'ENTITY_UPSERT');
+  assert.equal(start?.entity, 'time_timer');
+  assert.equal(start?.itemId, '0192f000-0000-7000-8000-00000000f00d');
+  assert.equal(start?.payload?.work_type, 'development');
+  assert.ok(Date.parse(String(start?.payload?.started_at)) >= before - 1000, "the start carries the device's moment");
+
+  const storage = new MemoryStorage();
+  await storage.put('time_timers', 'me', record({ id: 'me', running: true, work_type: 'development', started_at: new Date().toISOString() }));
+  const stop = await mutationFor('POST', '/timer:stop', { zone: 'Europe/Berlin' }, helpers(storage));
+  assert.equal(stop?.kind, 'ENTITY_PATCH');
+  assert.equal(stop?.itemId, 'me');
+  assert.equal(stop?.payload?.zone, 'Europe/Berlin');
+  assert.ok(typeof stop?.payload?.stopped_at === 'string', "the stop carries the device's moment");
+  assert.deepEqual(await mutationFor('DELETE', '/timer', undefined, helpers(storage)), {
+    kind: 'ENTITY_DELETE', entity: 'time_timer', entityKey: 'own', itemId: 'me',
+  });
+
+  await storage.put('time_timers', 'me', record({ id: 'me', zone: 'Europe/Berlin', stopped_at: new Date().toISOString(), key: 'own' }));
+  assert.deepEqual(await storeFor({ path: '/timer' }, storage), { running: false }, 'a stop waiting reads as stopped');
+});
+
+// user-experience.md §5.11: while the server is away time is recorded, corrected, changed and
+// deleted from the queue as `time_record` mutations; a change or a deletion of a record the copy does
+// not hold goes online.
+test('time is recorded, corrected, changed and deleted from the queue', async () => {
+  const minted = '0192f000-0000-7000-8000-00000000f00d';
+  const storage = new MemoryStorage();
+  assert.deepEqual(await mutationFor('POST', '/time-records', { day: '2026-11-03', minutes: 45 }, helpers(storage)), {
+    kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: minted, itemId: minted, payload: { day: '2026-11-03', minutes: 45 },
+  });
+  assert.deepEqual(await mutationFor('POST', '/time-records/r-1:correct', { day: '2026-11-04', minutes: -15 }, helpers(storage)), {
+    kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: minted, itemId: minted, payload: { day: '2026-11-04', minutes: -15, corrects: 'r-1' },
+  });
+  assert.equal(await mutationFor('PATCH', '/time-records/r-1', { minutes: 30 }, helpers(storage)), undefined, 'a record the copy does not hold');
+  assert.equal(await mutationFor('DELETE', '/time-records/r-1', undefined, helpers(storage)), undefined, 'a record the copy does not hold');
+
+  await storage.put('time_records', 'r-1', { ...record({ id: 'r-1', day: '2026-11-03', minutes: 60 }), version: 4 });
+  assert.deepEqual(await mutationFor('PATCH', '/time-records/r-1', { minutes: 30 }, helpers(storage)), {
+    kind: 'ENTITY_PATCH', entity: 'time_record', entityKey: 'r-1', itemId: 'r-1', baseVersion: 4, payload: { minutes: 30 },
+  });
+  assert.deepEqual(await mutationFor('DELETE', '/time-records/r-1', undefined, helpers(storage)), {
+    kind: 'ENTITY_DELETE', entity: 'time_record', entityKey: 'r-1', itemId: 'r-1', baseVersion: 4,
+  });
+});
+
+// UC-GOL-03 offline: the portfolios are answered from the copy by name, each project the copy
+// holds named from its container and none counted; a project whose container the copy does not
+// hold is left out.
+test('the portfolios are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', name: 'Checkout', archived_at: null }));
+  await storage.put('portfolios', 'p-2', record({ id: 'p-2', name: 'Zeta', items: [] }));
+  await storage.put('portfolios', 'p-1', record({
+    id: 'p-1', name: 'Programme', status: 'ON_TRACK',
+    items: [{ container_id: COLLECTION, start_on: '2026-10-01', end_on: null, status: 'AT_RISK' }, { container_id: 'gone' }],
+  }));
+  const list = await storeFor({ path: '/portfolios' }, storage) as { data: { id: string; items: Record<string, unknown>[] }[] };
+  assert.deepEqual(list.data.map((row) => row.id), ['p-1', 'p-2']);
+  assert.deepEqual(list.data[0]!.items.map((row) => [row.container_id, row.kind, row.name, row.status, row.entries]), [[COLLECTION, 'COLLECTION', 'Checkout', 'AT_RISK', null]]);
+  const one = await storeFor({ path: '/portfolios/p-1' }, storage) as Record<string, unknown>;
+  assert.equal(one.latest_update, null);
+  assert.equal(one.progress, null);
+  assert.equal(await storeFor({ path: '/portfolios/none' }, storage), undefined);
+  // The roadmap's bars are each project's plan as the server schedules it: it waits for the
+  // server rather than drawing the copy's guess (UC-GOL-03 check 13).
+  assert.equal(await storeFor({ path: '/portfolios/p-1/roadmap?zone=UTC' }, storage), undefined);
+});
+
+// UC-GOL-01, 02 and 04 offline: the periods, a period's goals and a hub's dashboards are answered
+// from the copy as their definitions, nothing computed for the reader; one goal's page waits for the
+// server.
+test('the periods, the goals and the dashboards are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('goal_periods', 'q3', record({ id: 'q3', name: 'Q3', start_on: '2026-07-01' }));
+  await storage.put('goal_periods', 'q4', record({ id: 'q4', name: 'Q4', start_on: '2026-10-01' }));
+  await storage.put('goals', 'g-1', record({ id: 'g-1', period_id: 'q4', hub_id: null, title: 'Ship', key_results: [{ id: 'k-1', current: 3 }] }));
+  await storage.put('goals', 'g-2', record({ id: 'g-2', period_id: 'q4', hub_id: 'h-1', parent_id: 'g-1', title: 'Checkout', key_results: [] }));
+  await storage.put('goals', 'g-3', record({ id: 'g-3', period_id: 'q3', hub_id: null, title: 'Old', key_results: [] }));
+  await storage.put('dashboards', 'd-1', record({ id: 'd-1', hub_id: 'h-1', name: 'Team' }));
+  await storage.put('dashboards', 'd-2', record({ id: 'd-2', hub_id: null, name: 'Mine' }));
+
+  const periods = await storeFor({ path: '/goal-periods' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(periods.data.map((row) => row.id), ['q4', 'q3'], 'the latest first');
+  const goals = await storeFor({ path: '/goals?period_id=q4' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(goals.data.map((row) => [row.id, row.child_count, row.progress]), [['g-1', 1, null], ['g-2', 0, null]]);
+  assert.equal((goals.data[0]!.key_results as Record<string, unknown>[])[0]!.progress, null);
+  const workspace = await storeFor({ path: '/goals?workspace_only=true&period_id=q4' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(workspace.data.map((row) => row.id), ['g-1']);
+  assert.equal(await storeFor({ path: '/goals/g-1' }, storage), undefined, "one goal's page");
+  const dashboards = await storeFor({ path: '/dashboards?hub_id=h-1' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(dashboards.data.map((row) => row.id), ['d-1']);
+  assert.equal((await storeFor({ path: '/dashboards/d-2' }, storage) as Record<string, unknown>).name, 'Mine');
+});
+
+// UC-AGT-01 … 04 offline: the agents, the models, the held acts of a status and an agent's cases
+// and runs are answered from the copy, in the server's order and without the owner a record names
+// only to reach its devices.
+test("the agents' registry is answered from the copy", async () => {
+  const storage = new MemoryStorage();
+  await storage.put('agents', 'a-2', record({ id: 'a-2', name: 'Triage', owner_id: 'me', model_id: 'm-1' }));
+  await storage.put('agents', 'a-1', record({ id: 'a-1', name: 'Drafts', owner_id: 'ben', model_id: null }));
+  await storage.put('agent_models', 'm-1', record({ id: 'm-1', key: 'local' }));
+  await storage.put('agent_requests', 'r-1', record({ id: 'r-1', agent_id: 'a-2', status: 'PENDING', created_at: '2026-11-02T09:00:00Z', owner_id: 'me' }));
+  await storage.put('agent_requests', 'r-2', record({ id: 'r-2', agent_id: 'a-2', status: 'PENDING', created_at: '2026-11-02T10:00:00Z', owner_id: 'me' }));
+  await storage.put('agent_requests', 'r-3', record({ id: 'r-3', agent_id: 'a-2', status: 'APPROVED', created_at: '2026-11-02T11:00:00Z', owner_id: 'me' }));
+  await storage.put('agent_cases', 'c-1', record({ id: 'c-1', agent_id: 'a-2', created_at: '2026-11-01T09:00:00Z' }));
+  await storage.put('agent_runs', 'u-1', record({ id: 'u-1', agent_id: 'a-2', at: '2026-11-01T09:00:00Z', owner_id: 'me' }));
+
+  const agents = await storeFor({ path: '/agents' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(agents.data.map((row) => row.id), ['a-1', 'a-2'], 'by name');
+  const mine = await storeFor({ path: '/agents?owner_id=me' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(mine.data.map((row) => row.id), ['a-2']);
+  const models = await storeFor({ path: '/agent-models' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(models.data.map((row) => row.id), ['m-1']);
+  const pending = await storeFor({ path: '/agent-requests?status=PENDING' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(pending.data.map((row) => row.id), ['r-2', 'r-1'], 'the latest first');
+  assert.equal('owner_id' in pending.data[0]!, false);
+  const cases = await storeFor({ path: '/agents/a-2/cases' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(cases.data.map((row) => row.id), ['c-1']);
+  const runs = await storeFor({ path: '/agents/a-2/evaluations' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(runs.data.map((row) => row.id), ['u-1']);
+  assert.equal('owner_id' in runs.data[0]!, false);
+  assert.equal(await storeFor({ path: '/agents/a-2' }, storage), undefined, "one agent's spending is the server's");
+});
+
+// A board read while the server is away, an unopened one included (UC-CNV-01 check 9): a hub's
+// boards without their objects, the last changed first and without the trashed; a board with its
+// objects, never writable.
+test('a hub\'s whiteboards and a whiteboard are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  const board = (id: string, fields: Record<string, unknown>) => storage.put('whiteboards', id, record({ id, hub_id: HUB, ...fields }));
+  const note = { id: 's1', kind: 'STICKY', x: 0, y: 0, width: 160, height: 160, text: 'Keep it' };
+  await board('w-old', { title: 'Retro', elements: [note], element_count: 1, updated_at: '2026-10-28T09:00:00Z', trashed_at: null });
+  await board('w-new', { title: 'Plan', elements: [], element_count: 0, updated_at: '2026-10-30T09:00:00Z', trashed_at: null });
+  await board('w-gone', { title: 'Gone', elements: [], element_count: 0, updated_at: '2026-10-30T10:00:00Z', trashed_at: '2026-10-30T10:00:00Z' });
+
+  const list = await storeFor({ path: `/hubs/${HUB}/whiteboards` }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(list.data.map((row) => row.id), ['w-new', 'w-old']);
+  assert.ok(list.data.every((row) => !('elements' in row)), 'the list carries no objects');
+  assert.equal(await storeFor({ path: `/hubs/${HUB}/whiteboards?trashed=true` }, storage), undefined, 'the trash is the server\'s');
+
+  const read = await storeFor({ path: '/whiteboards/w-old' }, storage) as Record<string, unknown>;
+  assert.deepEqual(read.elements, [note]);
+  assert.equal(read.writable, false);
+  assert.equal(await storeFor({ path: '/whiteboards/w-gone' }, storage), undefined);
+});
+
+// An entry's SLA goals and approvals read while the server is away (M5): the goals by kind, the
+// approvals newest first with their trail, and nobody's leave to decide.
+test('an entry\'s goals and approvals are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('entry_slas', 's-2', record({ id: 's-2', item_id: 'i-1', goal: 'RESOLUTION', standing: 'RUNNING' }));
+  await storage.put('entry_slas', 's-1', record({ id: 's-1', item_id: 'i-1', goal: 'FIRST_RESPONSE', standing: 'MET' }));
+  await storage.put('entry_slas', 's-3', record({ id: 's-3', item_id: 'i-2', goal: 'RESOLUTION', standing: 'BREACHED' }));
+  await storage.put('approvals', 'a-1', record({ id: 'a-1', item_id: 'i-1', state: 'DECLINED', requested_at: '2026-10-01T08:00:00Z', may_decide: false, decisions: [{ verdict: 'DECLINE' }] }));
+  await storage.put('approvals', 'a-2', record({ id: 'a-2', item_id: 'i-1', state: 'PENDING', requested_at: '2026-10-02T08:00:00Z', may_decide: true, decisions: [] }));
+
+  const goals = await storeFor({ path: '/items/i-1/sla' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(goals.data.map((row) => row.goal), ['FIRST_RESPONSE', 'RESOLUTION']);
+  assert.ok(goals.data.every((row) => !('item_id' in row)), 'a goal reads as the server answers it');
+
+  const asked = await storeFor({ path: '/items/i-1/approvals' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(asked.data.map((row) => row.id), ['a-2', 'a-1']);
+  assert.ok(asked.data.every((row) => row.may_decide === false), 'nobody decides offline');
+  assert.equal((asked.data[1]!.decisions as unknown[]).length, 1);
+});
+
+// UC-INT-14 check 5: an entry's files read while the server is away, in the order they were added.
+test('an entry\'s file links are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('file_links', 'f-2', record({ id: 'f-2', item_id: 'i-1', provider: 'SHAREPOINT', added_at: '2026-10-02T08:00:00Z' }));
+  await storage.put('file_links', 'f-1', record({ id: 'f-1', item_id: 'i-1', provider: 'NEXTCLOUD', added_at: '2026-10-01T08:00:00Z' }));
+  await storage.put('file_links', 'f-3', record({ id: 'f-3', item_id: 'i-2', provider: 'WEBDAV', added_at: '2026-10-03T08:00:00Z' }));
+  const read = await storeFor({ path: '/items/i-1/file-links' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(read.data.map((row) => row.id), ['f-1', 'f-2']);
+});
+
+// UC-INT-13 check 6: an entry's code read while the server is away, the latest first.
+test('an entry\'s code links are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('code_links', 'c-1', record({ id: 'c-1', item_id: 'i-1', kind: 'COMMIT', happened_at: '2026-10-01T08:00:00Z' }));
+  await storage.put('code_links', 'c-2', record({ id: 'c-2', item_id: 'i-1', kind: 'PULL_REQUEST', state: 'MERGED', happened_at: '2026-10-02T08:00:00Z' }));
+  await storage.put('code_links', 'c-3', record({ id: 'c-3', item_id: 'i-2', kind: 'BRANCH', happened_at: '2026-10-03T08:00:00Z' }));
+  const read = await storeFor({ path: '/items/i-1/code-links' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(read.data.map((row) => row.id), ['c-2', 'c-1']);
+});
+
+// UC-PLN-02 check 9: a plan read while the server is away answers the entries' own dates in the
+// reader's zone, their mode and milestone, and the dependencies between them with their kind and
+// lag - never another collection's entry, and nothing the server would propose.
+test('a plan is answered from the copy without the server\'s proposals', async () => {
+  const storage = new MemoryStorage();
+  await storage.put('containers', HUB, record({ id: HUB, type: 'HUB', parent_id: null }));
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', parent_id: HUB }));
+  await storage.put('containers', 'c-other', record({ id: 'c-other', type: 'COLLECTION', parent_id: 'h-other' }));
+  const item = (id: string, fields: Record<string, unknown>) => storage.put('items', id, record({ id, title: id, collection_id: COLLECTION, ...fields }));
+  await item('design', { start_at: '2026-11-01T23:30:00Z', due_at: '2026-11-04T16:00:00Z' });
+  await item('build', { start_at: '2026-11-05T08:00:00Z', due_at: '2026-11-09T00:00:00Z', due_date_only: true, due_time_zone: 'Europe/Berlin' });
+  await item('launch', { due_at: '2026-11-20T12:00:00Z' });
+  await item('someday', {});
+  await storage.put('items', 'elsewhere', record({ id: 'elsewhere', title: 'x', collection_id: 'c-other', due_at: '2026-11-20T12:00:00Z' }));
+  await storage.put('entry_schedules', 'launch', record({ item_id: 'launch', collection_id: COLLECTION, mode: 'MANUAL', milestone: true }));
+  await storage.put('entry_schedules', 'build', record({ item_id: 'build', collection_id: COLLECTION, mode: 'AUTOMATIC', milestone: false }));
+  await storage.put('entry_links', 'l-1', record({ id: 'l-1', type: 'blocks', source_id: 'design', target_id: 'build', dependency_kind: 'SS', lag_days: 2 }));
+  await storage.put('entry_links', 'l-2', record({ id: 'l-2', type: 'depends_on', source_id: 'launch', target_id: 'build', dependency_kind: 'FS', lag_days: 0 }));
+  await storage.put('entry_links', 'l-3', record({ id: 'l-3', type: 'blocks', source_id: 'design', target_id: 'elsewhere' }));
+
+  const plan = await storeFor({ path: `/plans/${COLLECTION}/schedule?zone=Europe%2FBerlin` }, storage) as {
+    entries: Record<string, unknown>[]; dependencies: Record<string, unknown>[]; unscheduled: string[]; finish: string; conflicts: unknown[];
+  };
+  const byId = new Map(plan.entries.map((entry) => [entry.item_id, entry]));
+  assert.deepEqual([...byId.keys()].sort(), ['build', 'design', 'launch']);
+  assert.deepEqual([byId.get('design')?.start, byId.get('design')?.finish, byId.get('design')?.duration_days], ['2026-11-02', '2026-11-04', 3]);
+  assert.equal(byId.get('build')?.finish, '2026-11-09');
+  assert.equal(byId.get('build')?.mode, 'AUTOMATIC');
+  assert.equal(byId.get('build')?.moved, false);
+  assert.equal(byId.get('launch')?.milestone, true);
+  assert.deepEqual(plan.unscheduled, ['someday']);
+  // The chart trays the undated by title and draws a due date alone as a point, as the server's.
+  assert.deepEqual((plan as unknown as { undated: unknown[] }).undated, [{ item_id: 'someday', title: 'someday' }]);
+  assert.deepEqual([byId.get('launch')?.due_only, byId.get('design')?.due_only], [true, false]);
+  assert.equal(plan.finish, '2026-11-20');
+  assert.deepEqual(plan.dependencies.map((each) => [each.predecessor_id, each.successor_id, each.dependency_kind, each.lag_days]), [
+    ['design', 'build', 'SS', 2], ['build', 'launch', 'FS', 0],
+  ]);
+  assert.deepEqual(plan.conflicts, []);
+  const hub = await storeFor({ path: `/plans/${HUB}/schedule?zone=UTC` }, storage) as { entries: unknown[] };
+  assert.equal(hub.entries.length, 3);
+});
+
+// UC-SYN-01 check 10: offline, a page's mentions and cards resolve from the copy -
+// each object the device holds as the server shows it, one it does not hold only by its address.
+test('references resolve from the copy, what it does not hold as unavailable', async () => {
+  const storage = await workspace();
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', name: 'Inbox', parent_id: HUB, order_key: 'a0', handle: 'inb' }));
+  await storage.put('items', 'i-n', record({ id: 'i-n', type: 'TASK', title: 'numbered', collection_id: COLLECTION, parent_id: null, order_key: 'a3', number: 7, completion: { is_completed: true } }));
+  await storage.put('pages', 'p-1', record({ id: 'p-1', title: 'Runbook', hub_id: HUB, icon: null }));
+  await storage.put('pages', 'p-trash', record({ id: 'p-trash', title: 'Old', hub_id: HUB, trashed_at: '2026-10-01T00:00:00Z' }));
+  await storage.put('whiteboards', 'w-1', record({ id: 'w-1', title: 'Map', hub_id: HUB, elements: [{}, {}] }));
+  await storage.put('cis', 'ci-1', record({ id: 'ci-1', name: 'mail-01', hub_id: HUB, class: 'server', stage: 'LIVE' }));
+  await storage.put('goals', 'g-1', record({ id: 'g-1', title: 'Faster', status: 'ON_TRACK', hub_id: null }));
+  await storage.put('dashboards', 'd-1', record({ id: 'd-1', name: 'Desk', hub_id: HUB }));
+  const answer = (await storeFor({ path: '/references:resolve', body: { references: [
+    { kind: 'ENTRY', id: 'i-n', anchor: 'top' }, { kind: 'PAGE', id: 'p-1' }, { kind: 'PAGE', id: 'p-trash' },
+    { kind: 'WHITEBOARD', id: 'w-1' }, { kind: 'CI', id: 'ci-1' }, { kind: 'GOAL', id: 'g-1' }, { kind: 'DASHBOARD', id: 'd-1' },
+    { kind: 'COLLECTION', id: COLLECTION }, { kind: 'HUB', id: COLLECTION }, { kind: 'ENTRY', id: 'nowhere' }, { kind: 'VIEW', id: 'v-1' },
+  ] } }, storage)) as { data: Record<string, unknown>[] };
+  const rows = answer.data;
+  assert.deepEqual(rows.map((row) => [row.kind, row.id, row.available]), [
+    ['ENTRY', 'i-n', true], ['PAGE', 'p-1', true], ['PAGE', 'p-trash', false], ['WHITEBOARD', 'w-1', true], ['CI', 'ci-1', true],
+    ['GOAL', 'g-1', true], ['DASHBOARD', 'd-1', true], ['COLLECTION', COLLECTION, true], ['HUB', COLLECTION, false],
+    ['ENTRY', 'nowhere', false], ['VIEW', 'v-1', false],
+  ]);
+  assert.equal(rows[0]?.key, 'INB-7', 'the key as the server and every screen write it');
+  assert.equal(rows[0]?.completed, true);
+  assert.equal(rows[0]?.anchor, 'top');
+  assert.equal(rows[0]?.entry_type, 'task');
+  assert.equal(rows[3]?.element_count, 2);
+  assert.equal(rows[4]?.ci_class, 'server');
+  assert.deepEqual(rows[2], { kind: 'PAGE', id: 'p-trash', anchor: null, available: false }, 'nothing but the address of what is not held');
+});
+
+// A board draws its columns offline (offline-sync.md §4.4): the workflows are the shipped one -
+// its stored row where the workspace has one - and the workspace's own by key, with the scheme.
+test('the workflows and the scheme are answered from the copy', async () => {
+  const storage = new MemoryStorage();
+  assert.equal(await storeFor({ path: '/workflows' }, storage), undefined, 'a copy without the scheme asks the server');
+
+  const shipped = { key: 'default', system: true, name: null, version: 0, published: { statuses: [{ key: 'todo' }], initial: 'todo', steps: [] }, draft: null };
+  await storage.put('workflow_scheme', 'w-1', record({
+    scheme: [{ container_id: 'c-1', entry_type: null, workflow: 'support' }],
+    shipped,
+  }));
+  await storage.put('workflows', 'wf-2', record({ key: 'support', system: false, version: 3 }));
+  await storage.put('workflows', 'wf-1', record({ key: 'release', system: false, version: 1 }));
+
+  const first = await storeFor({ path: '/workflows' }, storage) as { data: Record<string, unknown>[]; scheme: unknown[] };
+  assert.deepEqual(first.data.map((row) => row.key), ['default', 'release', 'support']);
+  assert.equal(first.data[0]?.version, 0, 'the shipped workflow as the domain defines it');
+  assert.deepEqual(first.scheme, [{ container_id: 'c-1', entry_type: null, workflow: 'support' }]);
+
+  await storage.put('workflows', 'wf-0', record({ key: 'default', system: false, version: 2, published: shipped.published }));
+  const stored = await storeFor({ path: '/workflows' }, storage) as { data: Record<string, unknown>[] };
+  assert.deepEqual(stored.data.map((row) => [row.key, row.version, row.system]), [['default', 2, true], ['release', 1, false], ['support', 3, false]],
+    'the shipped workflow\'s stored row, still the shipped one');
 });

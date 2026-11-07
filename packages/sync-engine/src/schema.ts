@@ -52,7 +52,11 @@ export interface StoredRecord<T> {
   readonly tombstone?: true;
 }
 
-/** What a device can do offline, as the contract names it (offline-sync.md §3.2, §4.2). */
+/**
+ * What a device can do offline, as the contract names them: the seven an entry takes
+ * (offline-sync.md §3.2), the kinds beyond the entry (§4.2), and the three that write the
+ * workspace's vocabulary (§4.4).
+ */
 export type MutationKind =
   | 'ITEM_CREATE' | 'ITEM_PATCH' | 'ITEM_DELETE' | 'SET_ADD' | 'SET_REMOVE' | 'MOVE' | 'COMMENT_ADD'
   | 'REMINDER_CREATE' | 'REMINDER_PATCH' | 'REMINDER_DELETE'
@@ -60,7 +64,14 @@ export type MutationKind =
   | 'TEMPLATE_APPLY'
   | 'CONTAINER_CREATE' | 'CONTAINER_PATCH' | 'CONTAINER_DELETE'
   | 'LABEL_CREATE' | 'LABEL_PATCH' | 'LABEL_DELETE'
-  | 'BUCKET_CREATE' | 'BUCKET_PATCH' | 'BUCKET_DELETE';
+  | 'BUCKET_CREATE' | 'BUCKET_PATCH' | 'BUCKET_DELETE'
+  | 'ENTITY_UPSERT' | 'ENTITY_PATCH' | 'ENTITY_DELETE';
+
+/**
+ * What an `ENTITY_*` mutation writes, named as the change log names it (§4.4): the vocabulary, and
+ * the person's own timer.
+ */
+export type VocabularyEntity = 'entry_type' | 'link_type' | 'entry_link' | 'workflow' | 'custom_role' | 'time_timer' | 'time_record';
 
 /**
  * What waits in the queue: a mutation the contract names, or a file captured offline - the
@@ -83,13 +94,17 @@ export interface QueuedWrite {
   /**
    * The entry the mutation is about - the client-minted identifier on an ITEM_CREATE (§9.1) -
    * or the entry a reminder or a series hangs off; empty for a container, a label, a bucket and
-   * a template applied.
+   * a template applied. For an `ENTITY_*` mutation, the replica's identifier of the record it
+   * predicts: the held one's, or one minted for a creation, which the server's answer replaces.
    */
   readonly itemId: string;
   /** The reminder, series, container, label or bucket, minted here on its creation. */
   readonly entityId?: string;
   /** The collection a label or a bucket belongs to, on its patch and deletion. */
   readonly containerId?: string;
+  /** `ENTITY_*`: which vocabulary, and its key - for an `entry_link` the identifier minted here. */
+  readonly entity?: VocabularyEntity;
+  readonly entityKey?: string;
   readonly baseVersion?: number | null;
   /** ITEM_PATCH and every `*_PATCH`: the fields that moved, each stamped with its own clock. */
   readonly fields?: Readonly<Record<string, unknown>>;
@@ -97,8 +112,9 @@ export interface QueuedWrite {
   readonly set?: SetName;
   readonly element?: string;
   /**
-   * ITEM_CREATE, MOVE, COMMENT_ADD, every `*_CREATE` and TEMPLATE_APPLY: what the applier takes;
-   * a comment's `id` is minted here too.
+   * ITEM_CREATE, MOVE, COMMENT_ADD, every `*_CREATE`, TEMPLATE_APPLY and `ENTITY_UPSERT` /
+   * `ENTITY_PATCH`: what the applier takes - for an entity, the use case's input; a comment's `id`
+   * is minted here too.
    */
   readonly payload?: Readonly<Record<string, unknown>>;
   /** Which held reads the write makes stale, as the caller named them. */
@@ -138,6 +154,13 @@ export interface PendingMutation {
   readonly attempts: number;
 }
 
+/** One field a refusal names, with the message code and values of its reason. */
+export interface RefusedField {
+  readonly path: string;
+  readonly code: string;
+  readonly params?: Readonly<Record<string, string>>;
+}
+
 /** What a captured file declares at upload; its bytes are held in `FILES`, not here. */
 export interface CapturedFileRecord {
   readonly fileName: string | null;
@@ -157,8 +180,18 @@ export interface RejectedMutation {
   readonly itemId: string;
   readonly code: string;
   readonly messageCode?: string;
+  /** The values of the message, as the server answered them. */
+  readonly params?: Readonly<Record<string, string>>;
+  /** What the refusal says about single fields: `path` is a JSON Pointer into the values. */
+  readonly fieldErrors?: readonly RefusedField[];
   readonly local: unknown;
   readonly at: number;
+  /**
+   * The mutation as it was sent, so the change can be opened as a draft and sent again
+   * (`SyncEngine.resendRejected`). Absent on a record kept before it was stored.
+   */
+  readonly mutation?: SyncMutation;
+  readonly invalidates?: readonly string[];
 }
 
 /**
@@ -203,6 +236,236 @@ export type AccountSummary = components['schemas']['AccountSummary'];
 /** A private hub as an administrator sees it: whose and how big, never its name (ADR-0073 §3). */
 export type PrivateHubSummary = components['schemas']['PrivateHubSummary'];
 export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
+/** A session's view as another person (UC-ID-29): read only, online only. */
+export type ViewAs = components['schemas']['ViewAs'];
+/** The suite's modules at a place, each on or off with where that comes from (UC-INS-21). */
+export type ModuleList = components['schemas']['ModuleList'];
+export type ModulesOn = components['schemas']['ModulesOn'];
+export type ModuleState = components['schemas']['ModuleState'];
+export type ModuleSwitch = components['schemas']['ModuleSwitch'];
+/** Whom and what switching a module off reaches, before the switch: counts only. */
+export type ModuleReach = components['schemas']['ModuleReach'];
+/** The configuration document and its plans, versions and proposals (F-6). */
+export type ConfigExport = components['schemas']['ConfigExport'];
+export type ConfigPlan = components['schemas']['ConfigPlan'];
+export type ConfigApplyResult = components['schemas']['ConfigApplyResult'];
+export type ConfigVersion = components['schemas']['ConfigVersion'];
+export type ConfigVersionList = components['schemas']['ConfigVersionList'];
+export type ConfigProposal = components['schemas']['ConfigProposal'];
+/** The configuration check's findings (configuration.md §11). */
+export type ConfigCheck = components['schemas']['ConfigCheck'];
+export type ConfigFinding = components['schemas']['ConfigFinding'];
+/** A person's own settings with the level each comes from (model.md §4). */
+export type OwnSettings = components['schemas']['OwnSettings'];
+export type ConfigProposalList = components['schemas']['ConfigProposalList'];
+/** The sandbox: a copy of the configuration where changes run nothing, and its promotion's plan. */
+export type ConfigSandbox = components['schemas']['ConfigSandbox'];
+/** A block's draft beside the one in force (ui.md A4): a type with its form, an SLA policy, a role. */
+export type ConfigDraft = components['schemas']['ConfigDraft'];
+export type ConfigDraftList = components['schemas']['ConfigDraftList'];
+/** Templates: bundles of blocks with a version, and the plan of taking or upgrading one (D-17). */
+export type ConfigTemplate = components['schemas']['ConfigTemplate'];
+export type ConfigTemplateList = components['schemas']['ConfigTemplateList'];
+export type ConfigTemplatePlan = components['schemas']['ConfigTemplatePlan'];
+export type ConfigUpgradeChange = components['schemas']['ConfigUpgradeChange'];
+/** Every setting the product declares, with its levels and writers - no place's value. */
+export type SettingsCatalogue = components['schemas']['SettingsCatalogue'];
+export type SettingDefinition = components['schemas']['SettingDefinition'];
+/** A kind of entry the workspace names on one level, with its icon, colour and behaviours (UC-FLW-01). */
+export type EntryType = components['schemas']['EntryType'];
+export type EntryTypeList = components['schemas']['EntryTypeList'];
+export type EntryTypeCreate = components['schemas']['EntryTypeCreate'];
+export type EntryTypeChange = components['schemas']['EntryTypeChange'];
+/** How the workspace's work moves: statuses in categories, steps, the scheme, the preview of a change (UC-FLW-02 … 05). */
+export type Workflow = components['schemas']['Workflow'];
+export type WorkflowList = components['schemas']['WorkflowList'];
+export type WorkflowShape = components['schemas']['WorkflowShape'];
+export type WorkflowStatus = components['schemas']['WorkflowStatus'];
+export type WorkflowStep = components['schemas']['WorkflowStep'];
+export type WorkflowCreate = components['schemas']['WorkflowCreate'];
+export type WorkflowDraft = components['schemas']['WorkflowDraft'];
+export type WorkflowPublish = components['schemas']['WorkflowPublish'];
+export type WorkflowPreview = components['schemas']['WorkflowPreview'];
+export type WorkflowSchemeChange = components['schemas']['WorkflowSchemeChange'];
+export type WorkflowSchemeResult = components['schemas']['WorkflowSchemeResult'];
+export type StepVerdict = components['schemas']['StepVerdict'];
+export type EntrySteps = components['schemas']['EntrySteps'];
+/** A type's form - its layout and logic - and how it stands for a draft (UC-FLW-01 check 2). */
+export type EntryForm = components['schemas']['EntryForm'];
+export type EntryFormField = components['schemas']['EntryFormField'];
+export type EntryFormChannel = components['schemas']['EntryFormChannel'];
+export type EntryFormDraft = components['schemas']['EntryFormDraft'];
+export type EntryFormState = components['schemas']['EntryFormState'];
+/** A kind of relation between two entries, with its direction, cardinality and cycle rule (UC-PLN-01). */
+export type LinkType = components['schemas']['LinkType'];
+export type LinkTypeList = components['schemas']['LinkTypeList'];
+export type LinkTypeCreate = components['schemas']['LinkTypeCreate'];
+export type LinkTypeChange = components['schemas']['LinkTypeChange'];
+/** A hub's pages, their versions and comments, and what search and backlinks answer of them (M3). */
+export type Page = components['schemas']['Page'];
+export type PageRead = components['schemas']['PageRead'];
+export type PageList = components['schemas']['PageList'];
+export type PageCreate = components['schemas']['PageCreate'];
+export type PageSubpage = components['schemas']['PageSubpage'];
+export type PageSpaceDrafts = components['schemas']['PageSpaceDrafts'];
+export type PageDraft = components['schemas']['PageDraft'];
+export type PageChange = components['schemas']['PageChange'];
+export type PageMove = components['schemas']['PageMove'];
+export type PageVerify = components['schemas']['PageVerify'];
+export type PageTrashed = components['schemas']['PageTrashed'];
+export type PageVersion = components['schemas']['PageVersion'];
+export type PageVersionRead = components['schemas']['PageVersionRead'];
+export type PageVersionList = components['schemas']['PageVersionList'];
+export type PageVersionName = components['schemas']['PageVersionName'];
+export type PageVersionNamed = components['schemas']['PageVersionNamed'];
+export type PageComment = components['schemas']['PageComment'];
+export type PageCommentList = components['schemas']['PageCommentList'];
+export type PageCommentCreate = components['schemas']['PageCommentCreate'];
+export type PageCommentChange = components['schemas']['PageCommentChange'];
+export type PageBacklinkList = components['schemas']['PageBacklinkList'];
+export type PageExport = components['schemas']['PageExport'];
+export type PageSearch = components['schemas']['PageSearch'];
+export type PageHitList = components['schemas']['PageHitList'];
+export type PageLabels = components['schemas']['PageLabels'];
+export type PageLabelCounts = components['schemas']['PageLabelCounts'];
+export type PageRestrict = components['schemas']['PageRestrict'];
+export type PageAccess = components['schemas']['PageAccess'];
+export type PageShare = components['schemas']['PageShare'];
+export type SharedPageList = components['schemas']['SharedPageList'];
+export type PersonalSpace = components['schemas']['PersonalSpace'];
+export type PagePublicLink = components['schemas']['PagePublicLink'];
+export type PagePublicLinkMinted = components['schemas']['PagePublicLinkMinted'];
+export type PublicLinksPolicy = components['schemas']['PublicLinksPolicy'];
+export type PageArticle = components['schemas']['PageArticle'];
+export type PageLanguageLink = components['schemas']['PageLanguageLink'];
+export type PageLanguageVariant = components['schemas']['PageLanguageVariant'];
+export type PageLanguageVariants = components['schemas']['PageLanguageVariants'];
+export type ArticleSuggestionList = components['schemas']['ArticleSuggestionList'];
+export type Article = components['schemas']['Article'];
+/** The service desk (M5): the requester portal, calendars, SLA policies and an entry's goals, canned replies. */
+export type ArticleRating = components['schemas']['ArticleRating'];
+export type RequestCatalogue = components['schemas']['RequestCatalogue'];
+export type DeskLogo = components['schemas']['DeskLogo'];
+export type PublicForm = components['schemas']['PublicForm'];
+export type PublicFormMinted = components['schemas']['PublicFormMinted'];
+export type PublicFormView = components['schemas']['PublicFormView'];
+export type PublicFormSubmission = components['schemas']['PublicFormSubmission'];
+export type PortalRequest = components['schemas']['PortalRequest'];
+export type PortalRequestPage = components['schemas']['PortalRequestPage'];
+export type PortalRequestDetail = components['schemas']['PortalRequestDetail'];
+export type RequestSatisfaction = components['schemas']['RequestSatisfaction'];
+export type EntrySlaGoal = components['schemas']['EntrySlaGoal'];
+export type EntrySlaList = components['schemas']['EntrySlaList'];
+export type SlaReport = components['schemas']['SlaReport'];
+export type BusinessCalendar = components['schemas']['BusinessCalendar'];
+export type BusinessCalendarList = components['schemas']['BusinessCalendarList'];
+export type SampleEntryList = components['schemas']['SampleEntryList'];
+export type BusinessCalendarDefine = components['schemas']['BusinessCalendarDefine'];
+export type SlaPolicy = components['schemas']['SlaPolicy'];
+export type SlaPolicyList = components['schemas']['SlaPolicyList'];
+export type SlaPolicyDefine = components['schemas']['SlaPolicyDefine'];
+export type ReplyTemplate = components['schemas']['ReplyTemplate'];
+export type ReplyTemplateList = components['schemas']['ReplyTemplateList'];
+export type ReplyTemplateDefine = components['schemas']['ReplyTemplateDefine'];
+export type RequesterOrganisation = components['schemas']['RequesterOrganisation'];
+export type RequesterOrganisationList = components['schemas']['RequesterOrganisationList'];
+export type RequesterOrganisationDefine = components['schemas']['RequesterOrganisationDefine'];
+export type PortalOrganisation = components['schemas']['PortalOrganisation'];
+export type RenderedReply = components['schemas']['RenderedReply'];
+export type SlaGoal = components['schemas']['SlaGoal'];
+export type Approval = components['schemas']['Approval'];
+export type ApprovalList = components['schemas']['ApprovalList'];
+export type ApprovalDelegation = components['schemas']['ApprovalDelegation'];
+/** A hub's whiteboards and the objects on them (M4). */
+export type Whiteboard = components['schemas']['Whiteboard'];
+export type WhiteboardRead = components['schemas']['WhiteboardRead'];
+export type WhiteboardList = components['schemas']['WhiteboardList'];
+export type WhiteboardCreate = components['schemas']['WhiteboardCreate'];
+export type WhiteboardChange = components['schemas']['WhiteboardChange'];
+export type WhiteboardElement = components['schemas']['WhiteboardElement'];
+export type WhiteboardExport = components['schemas']['WhiteboardExport'];
+export type WhiteboardExportRequest = components['schemas']['WhiteboardExportRequest'];
+export type WhiteboardVersion = components['schemas']['WhiteboardVersion'];
+export type WhiteboardVersionRead = components['schemas']['WhiteboardVersionRead'];
+export type WhiteboardVersionList = components['schemas']['WhiteboardVersionList'];
+export type WhiteboardBacklinkList = components['schemas']['WhiteboardBacklinkList'];
+export type WhiteboardComment = components['schemas']['WhiteboardComment'];
+export type WhiteboardCommentList = components['schemas']['WhiteboardCommentList'];
+export type WhiteboardCommentCreate = components['schemas']['WhiteboardCommentCreate'];
+export type WhiteboardCommentChange = components['schemas']['WhiteboardCommentChange'];
+/** A hub's configuration items, their classes, relations and reconciliation (M6). */
+export type CiAttribute = components['schemas']['CiAttribute'];
+export type CiClass = components['schemas']['CiClass'];
+export type CiClassList = components['schemas']['CiClassList'];
+export type CiClassDefine = components['schemas']['CiClassDefine'];
+export type CiRelationTypeDefine = components['schemas']['CiRelationTypeDefine'];
+export type CiSourceDefine = components['schemas']['CiSourceDefine'];
+export type CiRelationType = components['schemas']['CiRelationType'];
+export type CiRelationTypeList = components['schemas']['CiRelationTypeList'];
+export type CiSource = components['schemas']['CiSource'];
+export type CiSourceList = components['schemas']['CiSourceList'];
+export type CiFileMapping = components['schemas']['CiFileMapping'];
+export type CiProtection = components['schemas']['CiProtection'];
+export type CiOwnProtection = components['schemas']['CiOwnProtection'];
+export type CiRelation = components['schemas']['CiRelation'];
+export type CiDecision = components['schemas']['CiDecision'];
+export type ConfigurationItem = components['schemas']['ConfigurationItem'];
+export type ConfigurationItemList = components['schemas']['ConfigurationItemList'];
+export type ConfigurationItemCreate = components['schemas']['ConfigurationItemCreate'];
+export type ConfigurationItemUpdate = components['schemas']['ConfigurationItemUpdate'];
+export type CiCompliance = components['schemas']['CiCompliance'];
+export type CiFileImport = components['schemas']['CiFileImport'];
+export type CiRun = components['schemas']['CiRun'];
+export type CiRunList = components['schemas']['CiRunList'];
+export type CiHold = components['schemas']['CiHold'];
+export type CiHoldList = components['schemas']['CiHoldList'];
+export type CiDuplicate = components['schemas']['CiDuplicate'];
+export type CiDuplicateList = components['schemas']['CiDuplicateList'];
+export type CiDuplicateResolved = components['schemas']['CiDuplicateResolved'];
+export type CiRelate = components['schemas']['CiRelate'];
+export type CiImpact = components['schemas']['CiImpact'];
+export type CiReached = components['schemas']['CiReached'];
+export type CmdbHealth = components['schemas']['CmdbHealth'];
+export type CiBacklinkList = components['schemas']['CiBacklinkList'];
+export type CiConnector = components['schemas']['CiConnector'];
+export type CiConnectorList = components['schemas']['CiConnectorList'];
+export type CiConnectorDefine = components['schemas']['CiConnectorDefine'];
+export type CiConnectorRun = components['schemas']['CiConnectorRun'];
+export type CiAlert = components['schemas']['CiAlert'];
+export type CiAlertList = components['schemas']['CiAlertList'];
+/** An entry's affected CIs, certification campaigns, CI groups and the service map, assets and software (M6). */
+export type EntryCis = components['schemas']['EntryCis'];
+export type EntryOnCi = components['schemas']['EntryOnCi'];
+export type CiCampaign = components['schemas']['CiCampaign'];
+export type CiCampaignList = components['schemas']['CiCampaignList'];
+export type CiCampaignDetail = components['schemas']['CiCampaignDetail'];
+export type CiCampaignStart = components['schemas']['CiCampaignStart'];
+export type CiAttest = components['schemas']['CiAttest'];
+export type CiAttestation = components['schemas']['CiAttestation'];
+export type CiGroup = components['schemas']['CiGroup'];
+export type CiGroupList = components['schemas']['CiGroupList'];
+export type CiGroupDefine = components['schemas']['CiGroupDefine'];
+export type CiGroupFilter = components['schemas']['CiGroupFilter'];
+export type CiGroupMembers = components['schemas']['CiGroupMembers'];
+export type ServiceMap = components['schemas']['ServiceMap'];
+export type CiAsset = components['schemas']['CiAsset'];
+export type CiAssetList = components['schemas']['CiAssetList'];
+export type CiAssetRegister = components['schemas']['CiAssetRegister'];
+export type CiAssetMove = components['schemas']['CiAssetMove'];
+export type SoftwareAlias = components['schemas']['SoftwareAlias'];
+export type SoftwareAliasList = components['schemas']['SoftwareAliasList'];
+export type SoftwareAliasDefine = components['schemas']['SoftwareAliasDefine'];
+export type SoftwareProductList = components['schemas']['SoftwareProductList'];
+/** A link between two entries, an entry's links from both sides with its backlinks, and a view's links. */
+export type EntryLink = components['schemas']['EntryLink'];
+export type EntryLinkCreate = components['schemas']['EntryLinkCreate'];
+export type EntryLinkList = components['schemas']['EntryLinkList'];
+export type EntryLinks = components['schemas']['EntryLinks'];
+/** A polymorphic reference and what it shows the reader - only its address where they may not see it. */
+export type Reference = components['schemas']['Reference'];
+export type ReferenceKind = components['schemas']['ReferenceKind'];
+export type ReferenceStrength = components['schemas']['ReferenceStrength'];
+export type ReferenceTarget = components['schemas']['ReferenceTarget'];
 /** A provider identity connected to the reader's own account: which provider, since when. */
 export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
 /** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */
@@ -287,6 +550,17 @@ export type MembershipScope = components['schemas']['MembershipScope'];
 export type Group = components['schemas']['Group'];
 export type GroupPage = components['schemas']['GroupPage'];
 export type GroupDetail = components['schemas']['GroupDetail'];
+/** The permission catalogue, the shipped and the workspace's own roles, and what a person holds (UC-ID-26). */
+export type RoleCatalogue = components['schemas']['RoleCatalogue'];
+export type PermissionEntry = components['schemas']['PermissionEntry'];
+export type ShippedRole = components['schemas']['ShippedRole'];
+export type CustomRole = components['schemas']['CustomRole'];
+export type CustomRoleCreate = components['schemas']['CustomRoleCreate'];
+export type CustomRoleChange = components['schemas']['CustomRoleChange'];
+export type CustomRoleGrant = components['schemas']['CustomRoleGrant'];
+export type CustomRoleGrantCreate = components['schemas']['CustomRoleGrantCreate'];
+export type AccessExplanation = components['schemas']['AccessExplanation'];
+export type AccessSource = components['schemas']['AccessSource'];
 /** What assigning takes, and what adding or removing a member answers. */
 export type Assignment = components['schemas']['Assignment'];
 export type ItemMembers = components['schemas']['ItemMembers'];
@@ -355,6 +629,12 @@ export type RetentionPolicy = components['schemas']['RetentionPolicy'];
 /** What one legal hold keeps, or kept, of an erasure, and what all of them would keep of one. */
 export type ErasureKept = components['schemas']['ErasureKept'];
 export type ErasurePreview = components['schemas']['ErasurePreview'];
+/** What an erasure does to one kind of data, counted where the preview reads the rows. */
+export type ErasureLine = components['schemas']['ErasureLine'];
+/** How the last invitation mail to one account went, for the people list's row. */
+export type InvitationDelivery = components['schemas']['InvitationDelivery'];
+/** A person's address and whether an authenticator app stands, for an administrator's people list. */
+export type SignInDetail = components['schemas']['SignInDetail'];
 
 /**
  * How a workspace signs its people in through its own provider, and how that is set.
@@ -416,6 +696,14 @@ export type ConsentRegisterEntry = components['schemas']['ConsentRegisterEntry']
 export type AccessToken = components['schemas']['AccessToken'];
 export type IdentityProviderConfiguration =
   components['schemas']['IdentityProviderConfiguration'];
+/** The LDAP directory a workspace synchronises its people from; never its password (UC-ID-31). */
+export type LdapDirectory = components['schemas']['LdapDirectory'];
+/** The directory as it is set, whole; the password sealed on the way in. */
+export type LdapDirectoryConfiguration = components['schemas']['LdapDirectoryConfiguration'];
+/** How a run went, or what a dry run would do. */
+export type LdapSyncRun = components['schemas']['LdapSyncRun'];
+/** What a run did, by kind of change. */
+export type LdapSyncCounts = components['schemas']['LdapSyncCounts'];
 /** When an offered provider is withdrawn, and for *Withdraw now* the count confirmed (ADR-0076). */
 export type ProviderWithdrawal = components['schemas']['ProviderWithdrawal'];
 /** The preset a provider was configured from, which decides the mark its button draws (ADR-0069). */
@@ -617,6 +905,8 @@ export type ImportRun = components['schemas']['ImportRun'];
  * of the `tenant` row rather than of anything inside it.
  */
 export type InstanceOverview = components['schemas']['InstanceOverview'];
+/** A workspace at 90% or more of a counted quota, with the quotas that put it there. */
+export type WorkspaceNearQuota = components['schemas']['WorkspaceNearQuota'];
 /** What the first start's setup card sends (UC-INS-01). */
 export type InstallationSetUp = components['schemas']['InstallationSetUp'];
 export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
@@ -628,10 +918,16 @@ export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
 export type PlatformSubscription = components['schemas']['PlatformSubscription'];
 export type PlatformSubscriptionSecret = components['schemas']['PlatformSubscriptionSecret'];
 export type PlatformDelivery = components['schemas']['PlatformDelivery'];
+/** A job of the installation that ran out of attempts, as its operator runs it again (UC-INS-12). */
+export type DeadLetter = components['schemas']['DeadLetter'];
+/** One page of the installation's use per workspace and day (`GET /admin/usage`). */
+export type UsagePage = components['schemas']['UsagePage'];
+export type WorkspaceUsage = components['schemas']['WorkspaceUsage'];
 /** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */
 export type AdminTenant = components['schemas']['AdminTenant'];
 /** The installation's own switches, each with where its lock came from. */
 export type InstanceSettings = components['schemas']['InstanceSettings'];
+export type InstanceSettingsPlan = components['schemas']['InstanceSettingsPlan'];
 export type InstanceSetting = components['schemas']['InstanceSetting'];
 /** Who operates this installation. An empty register is the private installation (ADR-0070 §1). */
 export type Operator = components['schemas']['Operator'];
@@ -701,3 +997,137 @@ export type DataSubjectRequestExtension = components['schemas']['DataSubjectRequ
 export type DataSubjectRequestExtensionReason = components['schemas']['DataSubjectRequestExtensionReason'];
 /** What an erasure does to other people's content. */
 export type ErasureMode = components['schemas']['ErasureMode'];
+
+/** A hub's or a collection's plan as the scheduler places it, and what is written to it (M2). */
+export type PlanSchedule = components['schemas']['PlanSchedule'];
+export type PlanScheduleEntry = components['schemas']['PlanScheduleEntry'];
+export type PlanDependency = components['schemas']['PlanDependency'];
+export type PlanConflict = components['schemas']['PlanConflict'];
+export type PlanMoves = components['schemas']['PlanMoves'];
+export type EntryScheduling = components['schemas']['EntryScheduling'];
+export type PlanBaseline = components['schemas']['PlanBaseline'];
+export type PlanBaselineList = components['schemas']['PlanBaselineList'];
+export type PlanTolerance = components['schemas']['PlanTolerance'];
+export type PortfolioRoadmap = components['schemas']['PortfolioRoadmap'];
+export type PortfolioPublicLinkState = components['schemas']['PortfolioPublicLinkState'];
+export type PortfolioPublicLinkMinted = components['schemas']['PortfolioPublicLinkMinted'];
+export type WorkspaceTolerance = components['schemas']['WorkspaceTolerance'];
+export type PlanImport = components['schemas']['PlanImport'];
+export type BaselineVariance = components['schemas']['BaselineVariance'];
+export type BaselineComparison = components['schemas']['BaselineComparison'];
+
+/** A collection's sprints, their entries and burndown, the backlog, the velocity and an estimate (M2). */
+export type Sprint = components['schemas']['Sprint'];
+export type SprintList = components['schemas']['SprintList'];
+export type MySprintList = components['schemas']['MySprintList'];
+export type SprintDetail = components['schemas']['SprintDetail'];
+export type SprintEntry = components['schemas']['SprintEntry'];
+export type SprintClosure = components['schemas']['SprintClosure'];
+export type SprintBacklog = components['schemas']['SprintBacklog'];
+export type Release = components['schemas']['Release'];
+export type ReleaseList = components['schemas']['ReleaseList'];
+export type ReleaseDetail = components['schemas']['ReleaseDetail'];
+export type BurndownPoint = components['schemas']['BurndownPoint'];
+export type Velocity = components['schemas']['Velocity'];
+export type Estimate = components['schemas']['Estimate'];
+export type EntryEstimate = components['schemas']['EntryEstimate'];
+
+/** Time records, the timer, weeks, kinds of work, the policy, reports and actuals (M7). */
+export type TimeRecord = components['schemas']['TimeRecord'];
+export type PlacedTimeRecord = components['schemas']['PlacedTimeRecord'];
+export type TimeRecordList = components['schemas']['TimeRecordList'];
+export type TimeReport = components['schemas']['TimeReport'];
+export type TimeExport = components['schemas']['TimeExport'];
+export type TimeTimer = components['schemas']['TimeTimer'];
+export type Timesheet = components['schemas']['Timesheet'];
+export type TimesheetList = components['schemas']['TimesheetList'];
+export type TimesheetWeek = components['schemas']['TimesheetWeek'];
+export type WorkType = components['schemas']['WorkType'];
+export type WorkTypeList = components['schemas']['WorkTypeList'];
+export type TimePolicy = components['schemas']['TimePolicy'];
+export type EstimatesVsActuals = components['schemas']['EstimatesVsActuals'];
+/** Capacity, absences, the workload, cost rates, a plan's billing rates and its budget with its burn (M7). */
+export type Capacity = components['schemas']['Capacity'];
+export type CapacityList = components['schemas']['CapacityList'];
+export type Absence = components['schemas']['Absence'];
+export type AbsenceList = components['schemas']['AbsenceList'];
+export type Workload = components['schemas']['Workload'];
+export type CostRate = components['schemas']['CostRate'];
+export type CostRateList = components['schemas']['CostRateList'];
+export type BillingRate = components['schemas']['BillingRate'];
+export type BillingRateList = components['schemas']['BillingRateList'];
+export type BudgetBurn = components['schemas']['BudgetBurn'];
+
+/** Goal periods, goals with key results and check-ins, portfolios and dashboards (M8). */
+export type GoalPeriod = components['schemas']['GoalPeriod'];
+export type GoalPeriodList = components['schemas']['GoalPeriodList'];
+export type KeyResult = components['schemas']['KeyResult'];
+export type KeyResultWrite = components['schemas']['KeyResultWrite'];
+export type Goal = components['schemas']['Goal'];
+export type GoalWrite = components['schemas']['GoalWrite'];
+export type GoalCreate = components['schemas']['GoalCreate'];
+export type GoalList = components['schemas']['GoalList'];
+export type GoalCheckIn = components['schemas']['GoalCheckIn'];
+export type GoalCheckInList = components['schemas']['GoalCheckInList'];
+export type Portfolio = components['schemas']['Portfolio'];
+export type PortfolioWrite = components['schemas']['PortfolioWrite'];
+export type PortfolioList = components['schemas']['PortfolioList'];
+export type PortfolioUpdate = components['schemas']['PortfolioUpdate'];
+export type PortfolioUpdateList = components['schemas']['PortfolioUpdateList'];
+export type Dashboard = components['schemas']['Dashboard'];
+export type DashboardWidget = components['schemas']['DashboardWidget'];
+export type DashboardWidgetWrite = components['schemas']['DashboardWidgetWrite'];
+export type DashboardWrite = components['schemas']['DashboardWrite'];
+export type DashboardCreate = components['schemas']['DashboardCreate'];
+export type DashboardList = components['schemas']['DashboardList'];
+export type DashboardFigures = components['schemas']['DashboardFigures'];
+export type DashboardDigest = components['schemas']['DashboardDigest'];
+export type DashboardDigestWrite = components['schemas']['DashboardDigestWrite'];
+export type ItemAggregateQuery = components['schemas']['ItemAggregateQuery'];
+export type ItemAggregateResult = components['schemas']['ItemAggregateResult'];
+
+/** Governed agents (M9): the registry, the models they call, held acts, the ledger, metering, jobs and evaluation. */
+export type Agent = components['schemas']['Agent'];
+export type AgentList = components['schemas']['AgentList'];
+export type AgentWrite = components['schemas']['AgentWrite'];
+export type AgentHalt = components['schemas']['AgentHalt'];
+/** Whether MCP takes registered agents only (`agents.registered_only`, UC-AGT-02). */
+export type WorkspaceAgentPolicy = components['schemas']['WorkspaceAgentPolicy'];
+export type AgentModel = components['schemas']['AgentModel'];
+export type AgentModelList = components['schemas']['AgentModelList'];
+export type AgentModelCreate = components['schemas']['AgentModelCreate'];
+export type AgentModelChange = components['schemas']['AgentModelChange'];
+export type AgentMeteringList = components['schemas']['AgentMeteringList'];
+export type AgentActionList = components['schemas']['AgentActionList'];
+export type AgentJob = components['schemas']['AgentJob'];
+export type AgentJobList = components['schemas']['AgentJobList'];
+export type AgentCase = components['schemas']['AgentCase'];
+export type AgentCaseList = components['schemas']['AgentCaseList'];
+export type AgentCaseCreate = components['schemas']['AgentCaseCreate'];
+export type AgentRun = components['schemas']['AgentRun'];
+export type AgentRunList = components['schemas']['AgentRunList'];
+export type AgentRequest = components['schemas']['AgentRequest'];
+export type AgentRequestList = components['schemas']['AgentRequestList'];
+export type ValueProvenance = components['schemas']['ValueProvenance'];
+export type ValueProvenanceList = components['schemas']['ValueProvenanceList'];
+export type CodeHook = components['schemas']['CodeHook'];
+export type CodeHookList = components['schemas']['CodeHookList'];
+export type CodeHookMinted = components['schemas']['CodeHookMinted'];
+export type CodeLink = components['schemas']['CodeLink'];
+export type CodeLinkList = components['schemas']['CodeLinkList'];
+export type FileLink = components['schemas']['FileLink'];
+export type CalendarPush = components['schemas']['CalendarPush'];
+export type CalendarPushList = components['schemas']['CalendarPushList'];
+export type CalendarPushAuthorization = components['schemas']['CalendarPushAuthorization'];
+export type FileStoreConnection = components['schemas']['FileStoreConnection'];
+export type FileStoreConnectionList = components['schemas']['FileStoreConnectionList'];
+export type ConnectorLocate = components['schemas']['ConnectorLocate'];
+export type ConnectorLocated = components['schemas']['ConnectorLocated'];
+export type FileStoreConnectionStart = components['schemas']['FileStoreConnectionStart'];
+export type FileStoreItem = components['schemas']['FileStoreItem'];
+export type FileStoreFolder = components['schemas']['FileStoreFolder'];
+export type FileStoreShare = components['schemas']['FileStoreShare'];
+export type ChatBot = components['schemas']['ChatBot'];
+export type ChatBotList = components['schemas']['ChatBotList'];
+export type ChatLinkCode = components['schemas']['ChatLinkCode'];
+export type FileLinkList = components['schemas']['FileLinkList'];

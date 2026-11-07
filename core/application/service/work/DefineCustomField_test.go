@@ -84,6 +84,26 @@ func (s *customFieldStore) FindInScope(
 	return found, nil
 }
 
+// KindsByKey answers a collection scope; the fake knows no hubs, so any other scope is the
+// workspace.
+func (s *customFieldStore) KindsByKey(
+	_ context.Context, keys []string, scope shared.ID,
+) (map[string][]domain.CustomFieldKind, error) {
+	kinds := map[string][]domain.CustomFieldKind{}
+	for _, definition := range s.stored {
+		if definition.IsDeleted() || !slices.Contains(keys, definition.Key) {
+			continue
+		}
+		if !definition.IsTenantWide() && !scope.IsZero() && definition.CollectionID != scope {
+			continue
+		}
+		if !slices.Contains(kinds[definition.Key], definition.Kind) {
+			kinds[definition.Key] = append(kinds[definition.Key], definition.Kind)
+		}
+	}
+	return kinds, nil
+}
+
 func (s *customFieldStore) ListInScope(
 	_ context.Context, collectionID shared.ID,
 ) ([]domain.CustomFieldDefinition, error) {
@@ -92,7 +112,7 @@ func (s *customFieldStore) ListInScope(
 		if definition.IsDeleted() {
 			continue
 		}
-		if definition.IsTenantWide() || definition.CollectionID == collectionID {
+		if definition.IsTenantWide() || definition.ScopeID() == collectionID {
 			listed = append(listed, definition)
 		}
 	}
@@ -507,4 +527,38 @@ func containsText(change any, text string) bool {
 		}
 	}
 	return false
+}
+
+// A field's name is a person's words for it: answered, renamed, and held in the trail as user
+// content only (rule 10).
+func TestAFieldsNameIsAnsweredRenamedAndKeptOutOfTheTrailInClearText(t *testing.T) {
+	h := newCustomFieldHarness(t)
+
+	defined, err := h.define.Execute(t.Context(), actor(), DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "customer", Name: "Customer account", Kind: domain.CustomFieldText,
+	})
+	if err != nil {
+		t.Fatalf("defining failed: %v", err)
+	}
+	if defined.Name != "Customer account" || customFieldOutput(defined)["name"] != "Customer account" {
+		t.Fatalf("the name is %q, answered as %v", defined.Name, customFieldOutput(defined)["name"])
+	}
+	if change, named := h.audit.entries[0].Changes[domain.FieldName]; !named || containsText(change, "Customer") {
+		t.Errorf("the name in the trail is %v", change)
+	}
+
+	h.audit.entries = nil
+	renamed := "Client"
+	updated, err := (UpdateCustomField{Writer: h.writer()}).Execute(t.Context(), actor(), UpdateCustomFieldCommand{
+		FieldID: defined.ID, Attributes: domain.CustomFieldAttributes{Name: &renamed},
+	})
+	if err != nil || updated.Name != "Client" || updated.Key != "customer" {
+		t.Fatalf("renamed to %+v (%v)", updated, err)
+	}
+	if change, named := h.audit.entries[0].Changes[domain.FieldName]; !named || containsText(change, "Client") {
+		t.Errorf("the rename in the trail is %v", change)
+	}
+	if customFieldOutput(domain.CustomFieldDefinition{Key: "x"})["name"] != nil {
+		t.Error("an unnamed field answers a name")
+	}
 }

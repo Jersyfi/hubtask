@@ -38,19 +38,25 @@
 
   import { untrack } from 'svelte';
 
-  import { Avatar, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import { Avatar, Badge, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
+  import type { OwnSettings } from '@hubtask/sync-engine';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
+  import DelegationSection from '../lib/profile/DelegationSection.svelte';
   import PictureField from '../lib/profile/PictureField.svelte';
   import CelebrationsSwitch from '../lib/profile/CelebrationsSwitch.svelte';
+  import UndeliverableNotice from '../lib/profile/UndeliverableNotice.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
-  import { WEEK_STARTS, clearedOr, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, clearedOr, inForce, languageInForce, zoneOptions, localesOf, withWorkspaceChoice, workspaceChoiceLabel } from '../lib/data/preferences.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
@@ -58,6 +64,32 @@
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
 
   const account = $derived(actor.account);
+
+  // Where each of the person's settings comes from, as the catalogue resolves it (model.md §4):
+  // the server's answer, re-read when a save invalidates `/accounts`.
+  let settings = $state<OwnSettings>();
+  $effect(() => untrack(() => engine.subscribe<OwnSettings>({ path: '/accounts/me/settings' }, (next) => {
+    settings = next.status === 'ready' ? next.data : settings;
+  })));
+  // The workspace's own value of each, for the choice that leaves it to the workspace (§8.8):
+  // what it decided, else what the installation decided for it - never a guess.
+  $effect(() => untrack(() => workspace.open()));
+  const ownDefaults = $derived(workspace.workspace);
+  const leaveTo = (value: string | undefined) =>
+    workspaceChoiceLabel(t('app.profile.use_workspace'), (named) => t('app.profile.use_workspace_named', { value: named }), value);
+  const workspaceLocale = $derived(ownDefaults ? leaveTo(languageName(ownDefaults.default_locale, messages.locale)) : t('app.profile.use_workspace'));
+  const workspaceZone = $derived(leaveTo(ownDefaults?.default_time_zone));
+  const workspaceWeek = $derived.by(() => {
+    const day = ownDefaults?.default_week_start ?? ownDefaults?.installation_defaults?.week_start;
+    return leaveTo(day && (WEEK_STARTS as readonly string[]).includes(day) ? t(`app.profile.week_${day}`) : undefined);
+  });
+
+  const sourceOf = (key: string, label: (value: string) => string) => {
+    const resolved = inForce(settings?.data, `localisation.${key}`);
+    const held = key === 'locale' ? languageInForce(resolved, messages.locale) : resolved;
+    if (!held) return undefined;
+    return { source: held.source, value: held.value === undefined ? t('app.profile.source_default_value') : label(held.value) };
+  };
 
   // Whether the password is a way in here decides whether an address may be added (identity.md
   // §13); the sign-in rules say it, fallback included.
@@ -168,6 +200,7 @@
 {:else}
   <Stack gap="300">
     <SettingsHead row="profile" />
+    <UndeliverableNotice />
 
     <!-- Where the tour's `profile` step points. It goes to `/profile`, which is the
          section's first screen, and what is on the next row of the column its sentence names. -->
@@ -193,6 +226,7 @@
 
         <PictureField />
 
+
         {#if locales.length > 0}
           <Select
             label={t('app.profile.language')}
@@ -201,9 +235,10 @@
             bind:value={locale}
             options={withWorkspaceChoice(
               locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
-              t('app.profile.use_workspace'),
+              workspaceLocale,
             )}
           />
+          {@render inForceLine(sourceOf('locale', (value) => languageName(value, messages.locale)))}
         {:else}
           <!-- An installation that declares no locales has none to choose between, and an empty
                dropdown says that badly. Found by reading a real manifest, which reports none. -->
@@ -213,22 +248,15 @@
           </Stack>
         {/if}
 
-        {#if zones.length > 0}
-          <Select
-            label={t('app.profile.zone')}
-            data-setting="zone"
-            hint={t('app.profile.zone_hint')}
-            bind:value={zone}
-            options={withWorkspaceChoice(
-              zones.map((each) => ({ value: each, label: each })),
-              t('app.profile.use_workspace'),
-            )}
-          />
-        {:else}
-          <!-- A browser that will not list the zones still lets somebody type one, and the server
-               refuses an unknown name. A worse offer, not a broken one. -->
-          <Input label={t('app.profile.zone')} data-setting="zone" hint={t('app.profile.zone_free')} bind:value={zone} />
-        {/if}
+        <ZonePicker
+          label={t('app.profile.zone')}
+          data-setting="zone"
+          hint={t('app.profile.zone_hint')}
+          freeHint={t('app.profile.zone_free')}
+          inheritLabel={workspaceZone}
+          bind:value={zone}
+        />
+        {#if zones.length > 0}{@render inForceLine(sourceOf('time_zone', (value) => value))}{/if}
 
         <Select
           label={t('app.profile.week_start')}
@@ -237,9 +265,10 @@
           bind:value={weekStart}
           options={withWorkspaceChoice(
             WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
-            t('app.profile.use_workspace'),
+            workspaceWeek,
           )}
         />
+        {@render inForceLine(sourceOf('week_start', (value) => t(`app.profile.week_${value}`)))}
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       </Stack>
@@ -262,6 +291,8 @@
     <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
          where there is nothing to choose (UC-PRV-05 check 8). -->
     <AiObjectionSection />
+    <!-- Who decides the person's approvals while they are away, where the service desk is on (UC-SVC-10). -->
+    {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}<DelegationSection />{/if}
     {#if account.sign_in_name && !account.email && signInRules.isSettled}
       <!-- A person without a mail address may add one (UC-ID-20 check 7): drawn exactly where the
            server would take it - a sign-in name and no address, in a workspace whose password is a
@@ -280,6 +311,15 @@
     {/if}
   </Stack>
 {/if}
+
+{#snippet inForceLine(held: { source: string; value: string } | undefined)}
+  {#if held}
+    <p class="in-force" data-source={held.source}>
+      <span>{t('app.profile.in_force', { value: held.value })}</span>
+      <Badge tone={held.source === 'PERSON' ? 'info' : 'neutral'}>{t(`app.profile.source_${held.source.toLowerCase()}`)}</Badge>
+    </p>
+  {/if}
+{/snippet}
 
 <style>
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
@@ -310,6 +350,7 @@
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
+  .in-force { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); }
 
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 

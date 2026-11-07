@@ -204,3 +204,18 @@ func TestAControllerWithoutTheCatalogueAnswers500(t *testing.T) {
 		t.Errorf("status %d, want 500", recorder.Code)
 	}
 }
+
+// A collection's key prefix reaches the client: without it every list, board and queue drew the
+// handle in capitals ("TEAMATLASMOBILEA-1") instead of the prefix (user-experience.md §5.6).
+func TestAContainerAnswersItsKeyPrefix(t *testing.T) {
+	answered := containerResponse(usecase.Output{
+		"id": "0190a000-0000-7000-8000-000000000001", "type": "COLLECTION", "name": "Team Atlas",
+		"handle": "teamatlasmobilea", "key_prefix": "TAMA",
+	})
+	if answered.KeyPrefix == nil || *answered.KeyPrefix != "TAMA" {
+		t.Fatalf("key_prefix = %v, want TAMA", answered.KeyPrefix)
+	}
+	if hub := containerResponse(usecase.Output{"id": "0190a000-0000-7000-8000-000000000002", "type": "HUB", "name": "Hub", "key_prefix": nil}); hub.KeyPrefix != nil {
+		t.Fatalf("a hub answers key_prefix %v, want none", *hub.KeyPrefix)
+	}
+}

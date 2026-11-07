@@ -1,0 +1,29 @@
+{
+  "name": "@hubtask/expression",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The browser's evaluator of a type's form and of calculated fields while offline: the server's CEL conditions read by a CEL implementation in JavaScript.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "node -e \"process.stdout.write('expression: types only, nothing to build\\n')\"",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../design-system/build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@hubtask/api-client": "workspace:*",
+    "@marcbachmann/cel-js": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^6.0.3"
+  }
+}

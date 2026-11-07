@@ -37,3 +37,22 @@ func TestNoRetiredWordReachesAReader(t *testing.T) {
 		}
 	}
 }
+
+// user-experience.md §2.1 and §2.7: the navigation's rows and the headings they open say the same
+// plain words, so a card on the overview is not named differently from the row it leads to.
+func TestARowAndItsHeadingSayTheDirectionsWords(t *testing.T) {
+	en, de := catalogue(t, "en.json"), catalogue(t, "de.json")
+	for code, want := range map[string][2]string{
+		"app.nav.approvals":           {"Waiting for your yes", "Wartet auf dein Ja"},
+		"app.approvals.mine_title":    {"Waiting for your yes", "Wartet auf dein Ja"},
+		"app.admin.privacy":           {"Privacy requests", "Datenschutzanfragen"},
+		"app.admin_overview.requests": {"Privacy requests", "Datenschutzanfragen"},
+	} {
+		if en[code] != want[0] {
+			t.Errorf("en.json %s says %q, not %q", code, en[code], want[0])
+		}
+		if de[code] != want[1] {
+			t.Errorf("de.json %s says %q, not %q", code, de[code], want[1])
+		}
+	}
+}

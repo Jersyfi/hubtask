@@ -3,6 +3,9 @@
 <script lang="ts">
   // What was deleted, what it takes with it, and how long there is to change your mind.
   //
+  // **The one trash** (user-experience.md §5.9): hubs, collections, entries, pages and whiteboards
+  // in one list with one window and one hold, narrowed by kind, each restored through its own kind.
+  //
   // **One row per deletion.** A hub with two hundred entries under it went in as one act and comes
   // back as one act (I-C2), so every row here is the *root* of a deletion and restoring it brings
   // the batch. There is deliberately nothing on this screen that restores one entry out of a batch:
@@ -27,20 +30,31 @@
     Button,
     Dialog,
     EmptyState,
-    ErrorState,
     Inline,
     ListRow,
     PageHeader,
+    Select,
     Skeleton,
     Stack,
   } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { TrashEntry } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
-  import { daysUntil, isContainer, remainingDays } from '../lib/data/lifecycle.ts';
+  import {
+    daysUntil,
+    isContainer,
+    isPurgeableAlone,
+    isRestorable,
+    remainingDays,
+    TRASH_KINDS,
+    type TrashKind,
+  } from '../lib/data/lifecycle.ts';
+  import { pages } from '../lib/data/pages.svelte.ts';
+  import { whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { retention } from '../lib/data/retention.svelte.ts';
   import { trash } from '../lib/data/trash.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
@@ -53,8 +67,24 @@
 
   // `untrack` for the reason every store here records: the load writes the store and writing it
   // reads it, so an effect that tracks that read re-runs on its own first answer.
+  interface Props {
+    /** The kind the address narrows the list to (`/trash?kind=PAGE`); none, or one it does not know, is every kind. */
+    kind?: string;
+    /** Writes the chosen kind into the address, so a hub's *Trash* link and a reload land on the same list. */
+    onnavigate?: (path: string) => void;
+  }
+  const { kind: asked, onnavigate }: Props = $props();
+
+  const knownKind = (value: string | undefined): TrashKind | undefined =>
+    value !== undefined && (TRASH_KINDS as readonly string[]).includes(value) ? (value as TrashKind) : undefined;
+  /** The kind chosen on this screen without an address to write it into; `null` until one is. */
+  let chosenHere = $state<TrashKind | undefined | null>(null);
+  /** The kind the list is narrowed to; none is every kind. */
+  const kind = $derived(chosenHere !== null ? chosenHere : knownKind(asked));
+
   $effect(() => {
-    void untrack(() => trash.load());
+    const shown = kind;
+    void untrack(() => trash.load(shown));
   });
 
   // The policies only where the manifest says the server will answer them: `STRUCTURE`, or the
@@ -143,11 +173,13 @@
     failure = undefined;
     busyId = row.id;
     try {
-      // Which endpoint is the row's own answer: the trash mixes containers and entries by design.
+      // Which endpoint is the row's own answer: the trash mixes the kinds by design.
       if (isContainer(row.kind)) await containers.restore(row.id, crypto.randomUUID());
+      else if (row.kind === 'PAGE') await pages.restore(row.hub_id ?? '', row.id);
+      else if (row.kind === 'WHITEBOARD') await whiteboards.restore({ id: row.id, hub_id: row.hub_id ?? '' });
       else await items.restore(row.id, crypto.randomUUID());
       announcer.say(t('app.trash.restored', { title: row.title }));
-      await trash.load();
+      await trash.load(kind);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -169,7 +201,7 @@
       await items.purge(row.id, crypto.randomUUID());
       announcer.say(t('app.trash.purged', { title: row.title }));
       purging = undefined;
-      await trash.load();
+      await trash.load(kind);
     } catch (error) {
       // A legal hold refuses this, and `lifecycle.legal_hold` is its own sentence naming the scope
       // — which is `problem.ts` choosing the detail code over the category, not a branch here.
@@ -183,7 +215,7 @@
     failure = undefined;
     isWorking = true;
     try {
-      const pass = await trash.empty(crypto.randomUUID());
+      const pass = await trash.empty(crypto.randomUUID(), kind);
       summary = {
         matched: pass.matched,
         removed: pass.removed,
@@ -206,6 +238,22 @@
   <PageHeader title={t('app.trash.title')} isTitleInBar={viewport.isCompact} />
 
   {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
+
+  <div class="fields">
+    <Select
+      label={t('app.trash.kind_filter')}
+      value={kind ?? ''}
+      options={[
+        { value: '', label: t('app.trash.kind_all') },
+        ...TRASH_KINDS.map((each) => ({ value: each, label: t(`app.trash.kind_${each.toLowerCase()}`) })),
+      ]}
+      onchange={(event) => {
+        const chosen = knownKind((event.currentTarget as HTMLSelectElement).value);
+        if (onnavigate) onnavigate(chosen ? `/trash?kind=${chosen}` : '/trash');
+        else chosenHere = chosen;
+      }}
+    />
+  </div>
 
   {#if summary}
     <div class="summary">
@@ -230,13 +278,7 @@
   {/if}
 
   {#if listFailure}
-    <ErrorState
-      title={listFailure.message}
-      reference={listFailure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => trash.load()}
-    />
+    <FailureState problem={listFailure} onRetry={() => trash.load(kind)} />
   {:else if trash.status === 'loading' && trash.rows.length === 0}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if trash.rows.length === 0}
@@ -244,7 +286,12 @@
          has got round to — and §4.3 offers nothing to do about it, which is what that kind
          refuses a call to action for. -->
     <!-- The same empty as the archive's: an empty place says what it is for, in one form (G4). -->
-    <EmptyState kind="unused" title={t('app.trash.empty')} description={t('app.trash.empty_body')} icon="trash" />
+    <EmptyState
+      kind="settled"
+      title={t(kind ? 'app.trash.empty_kind' : 'app.trash.empty')}
+      description={t('app.trash.empty_detail')}
+      icon="trash"
+    />
   {:else}
     <Stack gap="050">
       {#each trash.rows as row (row.id)}
@@ -269,6 +316,7 @@
                 isBusy={busyId === row.id}
                 busyLabel={t('app.trash.restore')}
                 onclick={() => restore(row)}
+                disabledReason={isRestorable(row.kind) ? undefined : t('app.trash.restore_unknown')}
               >
                 {t('app.trash.restore')}
               </Button>
@@ -276,7 +324,9 @@
                 size="sm"
                 tone="danger"
                 onclick={() => (purging = row)}
-                disabledReason={isContainer(row.kind) ? t('app.trash.purge_container') : undefined}
+                disabledReason={isPurgeableAlone(row.kind)
+                  ? undefined
+                  : t(isContainer(row.kind) ? 'app.trash.purge_container' : 'app.trash.purge_document')}
               >
                 {t('app.trash.purge')}
               </Button>
@@ -346,6 +396,9 @@
 {/if}
 
 <style>
+
+  /* The filter takes the width a field wants, not the region's (ADR-0065 decision 2). */
+  .fields { max-width: 26ch; }
 
   .row { display: flex; flex-direction: column; gap: var(--sp-025); }
 

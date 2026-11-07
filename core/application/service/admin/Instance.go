@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -158,6 +159,29 @@ func (h WriteInstanceSettings) ExecuteAsFile(
 	return h.write(ctx, appshared.ActorContext{AccountName: source}, level, 0, false)
 }
 
+// ApplyFile writes the instance file's level at start (ADR-0070 §5, UC-INS-02 checks 1 and 2): in
+// `seed` mode only when the level is still empty, so the file is written once and then left alone;
+// in `enforce` mode every time. It answers whether it wrote.
+func (h WriteInstanceSettings) ApplyFile(
+	ctx context.Context, level identityrepo.InstanceLevel, seed bool, source string,
+) (bool, error) {
+	if seed {
+		var already bool
+		if err := h.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+			stored, err := h.Writer.Settings.Read(ctx)
+			already = !stored.Policy.Patch.IsEmpty() || !stored.Legal.Links.IsEmpty() ||
+				!stored.Localisation.IsZero() || !stored.Quotas.IsZero() || !stored.Ai.IsZero()
+			return err
+		}); err != nil || already {
+			return false, err
+		}
+	}
+	if _, err := h.ExecuteAsFile(ctx, level, source); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Execute writes the level on a person's behalf, made on the version `expected` (UC-INS-09 check
 // 8). Zero means the caller named none, and the level is compared with the version read in the
 // same transaction - so two saves at once still refuse the second, as the workspace's own does.
@@ -221,7 +245,8 @@ func (h WriteInstanceSettings) write(
 			// The switches that moved, by name. Never their values: a journal that recorded the
 			// blocklist's path or a legal URL would be a journal carrying configuration into a
 			// place nothing ever deletes from.
-			Details: map[string]any{"switches": movedSwitches(before, read)},
+			// The version it made, so the journal is the level's history (accepted.md D).
+			Details: map[string]any{"switches": movedSwitches(before, read), "version": read.Version},
 		})
 	})
 	if err != nil {
@@ -268,6 +293,13 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 		if aiValueOf(before.Ai, name) != aiValueOf(after.Ai, name) ||
 			before.Ai.Locks[name] != after.Ai.Locks[name] {
 			moved = append(moved, "ai."+string(name))
+		}
+	}
+	for _, key := range module.Keys() {
+		earlier, earlierSet := before.Modules[key]
+		later, laterSet := after.Modules[key]
+		if earlier != later || earlierSet != laterSet {
+			moved = append(moved, "module."+key.Name())
 		}
 	}
 	if before.BlocklistFile != after.BlocklistFile {
@@ -566,6 +598,12 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 					"workspace's own model must declare - each `{value, locked}`. A lock holds a " +
 					"workspace out of a source and never in one: no AI is always its own choice, " +
 					"and no value here switches processing on.",
+			},
+			{
+				Name: "module", Kind: usecase.KindObject,
+				Description: "The modules by name, each `{value, locked}`: on or off for every " +
+					"workspace that switches none itself, and locked there. A module nothing " +
+					"decides is off; switching off hides and never deletes.",
 			},
 			{
 				Name: "blocklist_file", Kind: usecase.KindString,

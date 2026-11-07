@@ -120,7 +120,43 @@ tests:
               severity: page
               alert_id: A-12
             exp_annotations:
-              summary: "No successful backup in the last 24 hours"
+              summary: "No successful backup within the target's schedule"
+              description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+              runbook: RB-A12-backup-stale.md
+
+  # A-12, held to the target's own cadence: a weekly target six days after its last success is on
+  # time and silent; one eight days after it is a day late and fires. A target without a cadence
+  # is still held to a day. The test clock starts at zero, so the moments are negative.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_backup_last_success_timestamp_seconds{target_id="weekly-on-time"}'
+        values: '-518400x90'
+      - series: 'hubtask_backup_cadence_seconds{target_id="weekly-on-time"}'
+        values: '604800x90'
+      - series: 'hubtask_backup_last_success_timestamp_seconds{target_id="weekly-late"}'
+        values: '-691200x90'
+      - series: 'hubtask_backup_cadence_seconds{target_id="weekly-late"}'
+        values: '604800x90'
+      - series: 'hubtask_backup_last_success_timestamp_seconds{target_id="unscheduled"}'
+        values: '-90000x90'
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: HubtaskBackupStale
+        exp_alerts:
+          - exp_labels:
+              target_id: weekly-late
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "No successful backup within the target's schedule"
+              description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+              runbook: RB-A12-backup-stale.md
+          - exp_labels:
+              target_id: unscheduled
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "No successful backup within the target's schedule"
               description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
               runbook: RB-A12-backup-stale.md
 
@@ -160,3 +196,111 @@ tests:
               summary: "The last restore drill is more than 90 days old"
               description: "Nobody has proved that these backups restore. Run a trial restore into a new tenant."
               runbook: RB-A20-restore-drill-stale.md
+
+  # A-30: the leader's last tick stops moving - a hung leader whose lag gauge still reads 1.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_scheduler_last_tick_timestamp_seconds{instance="one"}'
+        values: '0+60x3 180x30'
+      - series: 'hubtask_scheduler_tick_lag_seconds{instance="one"}'
+        values: '1x33'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-30
+            exp_annotations:
+              summary: "The scheduler is not running its duties"
+              description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
+              runbook: RB-A30-scheduler-stalled.md
+
+  # A-30 stays quiet while a leader ticks, even with a former leader's stale timestamp beside it.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_scheduler_last_tick_timestamp_seconds{instance="one"}'
+        values: '0+60x30'
+      - series: 'hubtask_scheduler_last_tick_timestamp_seconds{instance="old"}'
+        values: '0x30'
+      - series: 'hubtask_scheduler_tick_lag_seconds{instance="one"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts: []
+
+  # A-30 for an installation where no instance has ever ticked.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="hubtask", instance="one"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-30
+            exp_annotations:
+              summary: "The scheduler is not running its duties"
+              description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
+              runbook: RB-A30-scheduler-stalled.md
+
+  # A-41: the release's database volume at 10% free and falling fires; a volume of another
+  # namespace in the same state does not, because the chart recorded the release's namespace.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask:release_namespace{namespace="hubtask"}'
+        values: '1x400'
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-db-1"}'
+        values: '1000x400'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-db-1"}'
+        values: '140-0.05x400'
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '1000x400'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '140-0.05x400'
+      # Plenty of room and falling slowly: no alert.
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-media"}'
+        values: '1000x400'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-media"}'
+        values: '600-0.05x400'
+    alert_rule_test:
+      - eval_time: 6h
+        alertname: HubtaskVolumeFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-41
+              namespace: hubtask
+              persistentvolumeclaim: hubtask-db-1
+            exp_annotations:
+              summary: "A volume is filling up"
+              description: "hubtask-db-1 will be full within days, or is almost full. A full database volume refuses every write; grow the volume or free space before then."
+              runbook: RB-A41-volume-filling-up.md
+
+  # A-41 without the chart's record (the file copied by hand): every volume is watched, and an
+  # almost full one fires whatever its trend.
+  - interval: 1m
+    input_series:
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '1000x60'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '40x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskVolumeFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-41
+              namespace: other
+              persistentvolumeclaim: data
+            exp_annotations:
+              summary: "A volume is filling up"
+              description: "data will be full within days, or is almost full. A full database volume refuses every write; grow the volume or free space before then."
+              runbook: RB-A41-volume-filling-up.md

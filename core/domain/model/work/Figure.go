@@ -153,6 +153,15 @@ type CollectionFigure struct {
 	Unavailable bool
 	Counts      FigureCounts
 	WeekStart   string
+	// CountedAt is set where the counts are a kept count made before the collection's last
+	// change (StaleAnswers): the reader is told whose moment they are. Zero where they are current.
+	CountedAt time.Time
+}
+
+// AsOf marks the figure as counted at the moment given, before the collection's last change.
+func (f CollectionFigure) AsOf(at time.Time) CollectionFigure {
+	f.CountedAt = at.UTC()
+	return f
 }
 
 // NewCollectionFigure assembles the answer for one collection.
@@ -166,6 +175,29 @@ func NewCollectionFigure(request FigureRequest, window FigureWindow, counts Figu
 // UnavailableFigure is the answer where the count failed: the kind, the day, and the mark.
 func UnavailableFigure(request FigureRequest, window FigureWindow) CollectionFigure {
 	return CollectionFigure{Kind: request.Kind, Today: window.Today, Unavailable: true}
+}
+
+// HubFigure is a hub's figure: always OPEN, the open entries of its collections summed
+// (user-experience.md §2.5). One collection that could not be counted makes the hub's
+// unavailable - a smaller sum would be a wrong one - and the sum is as of the oldest kept count
+// among them.
+func HubFigure(window FigureWindow, collections []CollectionFigure) CollectionFigure {
+	hub := CollectionFigure{Kind: FigureOpen, Today: window.Today}
+	for _, collection := range collections {
+		if collection.Unavailable {
+			return HubUnavailableFigure(window)
+		}
+		hub.Counts.Open += collection.Counts.Open
+		if !collection.CountedAt.IsZero() && (hub.CountedAt.IsZero() || collection.CountedAt.Before(hub.CountedAt)) {
+			hub.CountedAt = collection.CountedAt
+		}
+	}
+	return hub
+}
+
+// HubUnavailableFigure is a hub's answer where its collections could not be counted.
+func HubUnavailableFigure(window FigureWindow) CollectionFigure {
+	return CollectionFigure{Kind: FigureOpen, Today: window.Today, Unavailable: true}
 }
 
 // JoinTypes is a type list as one comma-separated parameter of the figure statement.

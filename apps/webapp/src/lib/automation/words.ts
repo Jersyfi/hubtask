@@ -123,7 +123,7 @@ export const COMMON_GROUPS: readonly { code: string; kinds: readonly string[] }[
     code: 'app.flow.group_entries',
     kinds: ['ADD_LABEL', 'REMOVE_LABEL', 'SET_DUE_DATE', 'CLEAR_DUE_DATE', 'COMPLETE_WORK_ITEM', 'REOPEN_WORK_ITEM', 'MOVE_WORK_ITEM', 'ARCHIVE_WORK_ITEM', 'TRASH_WORK_ITEM', 'DUPLICATE_WORK_ITEM', 'SET_COVER', 'SET_CUSTOM_FIELD', 'CREATE_WORK_ITEM'],
   },
-  { code: 'app.flow.group_people', kinds: ['ASSIGN_WORK_ITEM', 'AUTO_ASSIGN_WORK_ITEM', 'UNASSIGN_WORK_ITEM', 'ADD_MEMBER', 'REMOVE_MEMBER'] },
+  { code: 'app.flow.group_people', kinds: ['ASSIGN_WORK_ITEM', 'AUTO_ASSIGN_WORK_ITEM', 'UNASSIGN_WORK_ITEM', 'ADD_MEMBER', 'REMOVE_MEMBER', 'NOTIFY_ACCOUNT', 'NOTIFY_GROUP', 'NOTIFY_ROLE'] },
   { code: 'app.flow.group_structure', kinds: ['CREATE_BUCKET', 'CREATE_CONTAINER', 'INSTANTIATE_TEMPLATE', 'SET_RECURRENCE', 'SKIP_OCCURRENCE'] },
   { code: 'app.flow.group_content', kinds: ['ADD_COMMENT', 'CONVERT_JUMBLE_ENTRY', 'DISMISS_JUMBLE_ENTRY'] },
   { code: 'app.flow.group_outbound', kinds: ['SEND_WEBHOOK', 'HTTP_REQUEST'] },
@@ -165,6 +165,7 @@ const KIND_ICON: Readonly<Record<string, KindIconName>> = {
   SET_CUSTOM_FIELD: 'sliders-horizontal', CREATE_WORK_ITEM: 'plus',
   ASSIGN_WORK_ITEM: 'user-plus', AUTO_ASSIGN_WORK_ITEM: 'users', UNASSIGN_WORK_ITEM: 'user-minus',
   ADD_MEMBER: 'user-plus', REMOVE_MEMBER: 'user-minus',
+  NOTIFY_ACCOUNT: 'user', NOTIFY_GROUP: 'users', NOTIFY_ROLE: 'users',
   CREATE_BUCKET: 'columns-3', CREATE_CONTAINER: 'folder-plus', INSTANTIATE_TEMPLATE: 'layout-template',
   SET_RECURRENCE: 'repeat', SKIP_OCCURRENCE: 'skip-forward',
   ADD_COMMENT: 'message-square', CONVERT_JUMBLE_ENTRY: 'inbox', DISMISS_JUMBLE_ENTRY: 'circle-x',
@@ -179,13 +180,14 @@ const GROUP_ICON: Readonly<Record<string, KindIconName>> = {
 };
 
 /** The trigger kinds' icons, the same table on the card and in the palette. */
-export const TRIGGER_ICONS: Readonly<Record<string, 'zap' | 'clock' | 'calendar' | 'globe' | 'hand' | 'inbox'>> = {
+export const TRIGGER_ICONS: Readonly<Record<string, 'zap' | 'clock' | 'calendar' | 'globe' | 'hand' | 'inbox' | 'skip-forward'>> = {
   EVENT: 'zap',
   SCHEDULE: 'clock',
   RELATIVE_DATE: 'calendar',
   INBOUND_WEBHOOK: 'globe',
   MANUAL: 'hand',
   JUMBLE_ENTRY: 'inbox',
+  STEP_TAKEN: 'skip-forward',
 };
 
 export function kindIcon(kind: string): KindIconName {
@@ -263,6 +265,9 @@ export const REFERENCE: Readonly<Record<string, string>> = {
   group_id: 'group',
   account_id: 'account',
   assignee_id: 'account',
+  // A role is named by its key rather than an identifier (NOTIFY_ROLE): the built-in seven and the
+  // workspace's own.
+  role: 'role',
 };
 
 /**
@@ -334,6 +339,8 @@ function triggerSentence(words: Catalogue, names: Names, trigger: TriggerDraft):
         offset: trigger.offset ?? '',
         anchor: words.t(`app.flow.anchor_${(trigger.anchor ?? 'DUE_DATE').toLowerCase()}`),
       });
+    case 'STEP_TAKEN':
+      return words.t('app.flow.sentence_trigger_step_taken', { step: trigger.step ?? '', workflow: trigger.workflow ?? '' });
     default:
       return words.t(`app.flow.sentence_trigger_${trigger.kind.toLowerCase()}`);
   }
@@ -385,6 +392,9 @@ export function generatedName(words: Catalogue, names: Names, draft: Draft): str
         offset: seed.trigger.offset ?? '',
         anchor: words.t(`app.flow.anchor_${(seed.trigger.anchor ?? 'DUE_DATE').toLowerCase()}`),
       });
+      break;
+    case 'STEP_TAKEN':
+      trigger = words.t('app.flow.name_trigger_step_taken', { step: seed.trigger.step ?? '' });
       break;
     default:
       trigger = words.t(`app.flow.name_trigger_${seed.trigger.kind.toLowerCase()}`);

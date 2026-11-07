@@ -21,9 +21,9 @@
  * so one listing plus one read per row needs no mapping in between.
  */
 
-import type { ResourceState } from '@hubtask/sync-engine';
+import type { ResourceState, TransportDocument, TransportDocumentHead } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import type { Retention } from './backup.ts';
@@ -31,6 +31,8 @@ import type { Retention } from './backup.ts';
 const TARGETS = '/backup-targets';
 const SCHEDULES = '/backup-schedules';
 const RUNS = '/backups';
+/** Six hours: a large workspace is a long transfer, and a bound is owed. */
+const DOWNLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
 /** Where an archive may be written. The manifest's own vocabulary. */
 export type TargetKind =
@@ -90,6 +92,7 @@ export interface Schedule {
   readonly full_rrule?: string | null;
   readonly include_media?: boolean;
   readonly include_audit?: boolean;
+  readonly trial_restore?: boolean;
   readonly retention?: Retention;
   readonly notify_on?: readonly string[];
   readonly enabled?: boolean;
@@ -179,7 +182,7 @@ class Backup {
 
   async createTarget(draft: TargetDraft): Promise<Target> {
     return engine.mutate<Target>('POST', TARGETS, draft, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [TARGETS],
     });
   }
@@ -239,7 +242,7 @@ class Backup {
 
   async createSchedule(draft: Omit<Schedule, 'id' | 'next_run_at'>): Promise<Schedule> {
     return engine.mutate<Schedule>('POST', SCHEDULES, draft, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [SCHEDULES],
     });
   }
@@ -275,10 +278,28 @@ class Backup {
     include_audit?: boolean;
   }): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', RUNS, request, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
     jobs.watch(accepted);
     return accepted;
+  }
+
+  /**
+   * The whole workspace as one ZIP file, for its owner (UC-BAK-07 check 7): once in 24 hours, with
+   * a fresh proof.
+   */
+  downloadWorkspace(stepUpToken?: string, passphrase = ''): Promise<TransportDocument> {
+    // Encrypted to the passphrase when one is given; the export's unencrypted format otherwise.
+    return engine.document('/backups:download-workspace', passphrase === '' ? {} : { passphrase }, {
+      timeoutMs: DOWNLOAD_TIMEOUT_MS, accept: 'application/zip', stepUpToken,
+    });
+  }
+
+  /** `downloadWorkspace` written into `sink` as it arrives, so no tab holds a whole workspace. */
+  downloadWorkspaceTo(sink: WritableStream<Uint8Array>, stepUpToken?: string, passphrase = ''): Promise<TransportDocumentHead> {
+    return engine.documentTo('/backups:download-workspace', passphrase === '' ? {} : { passphrase }, sink, {
+      timeoutMs: DOWNLOAD_TIMEOUT_MS, accept: 'application/zip', stepUpToken,
+    });
   }
 
   /**
@@ -290,7 +311,7 @@ class Backup {
    */
   async verify(runId: string): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', `${RUNS}/${runId}:verify`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
     jobs.watch(accepted);
     return accepted;

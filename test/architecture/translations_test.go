@@ -119,3 +119,28 @@ func sortedTags(catalogues map[string]i18n.Catalogue) []string {
 	sort.Strings(tags)
 	return tags
 }
+
+// heldComplete names the catalogues the repository itself keeps whole (i18n-l10n.md §3): for
+// these a key the source has and the translation lacks fails, because a person reading them sees
+// English in the middle of their language. Every other translation may stay partial.
+var heldComplete = []string{"de"}
+
+func TestTheCataloguesKeptWholeLackNoKey(t *testing.T) {
+	catalogues, err := i18n.LoadEmbedded()
+	if err != nil {
+		t.Fatalf("a catalogue the binary carries does not load: %v", err)
+	}
+	source := catalogues[i18n.SourceLocale]
+	for _, tag := range heldComplete {
+		translation, ok := catalogues[tag]
+		if !ok {
+			t.Errorf("%s.json is held complete but is not shipped", tag)
+			continue
+		}
+		for _, code := range source.Codes() {
+			if !translation.Has(code) {
+				t.Errorf("%s.json lacks %s", tag, code)
+			}
+		}
+	}
+}

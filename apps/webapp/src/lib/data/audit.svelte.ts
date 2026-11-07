@@ -20,7 +20,7 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import { AUDIT, auditPath, type Entry, type Query, type Verification } from './audit.ts';
@@ -120,7 +120,7 @@ class Audit {
     target_id: string;
   }): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', `${AUDIT}:export`, request, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
     jobs.watch(accepted);
     return accepted;

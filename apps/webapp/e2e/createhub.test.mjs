@@ -142,6 +142,7 @@ test('chromium: inside a hub, *New* makes a hub or a collection in that hub, wit
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal(await dialog.getByRole('heading', { name: 'Create collection' }).count(), 1, 'the dialog does not make a collection');
+  await dialog.getByRole('radio').first().waitFor({ timeout: 10_000 });
   assert.ok((await dialog.getByRole('radio').count()) > 0, 'the dialog offers no preset');
   await dialog.getByRole('textbox').first().fill('Groceries');
   await dialog.getByRole('button', { name: 'Create collection' }).click();
@@ -149,5 +150,54 @@ test('chromium: inside a hub, *New* makes a hub or a collection in that hub, wit
   assert.equal(sent.length, 1);
   assert.equal(sent[0].type, 'COLLECTION', `the body was ${JSON.stringify(sent[0])}`);
   assert.equal(sent[0].parent_id, HUB.id, `the body was ${JSON.stringify(sent[0])}`);
+  assert.deepEqual(failures, []);
+});
+
+// §5.2 and UX-4: *Create hub* asks the name, then shows the template gallery - a family filter above
+// cards side by side - and folds the description, colour and symbol below it, so the templates are
+// in view when the dialog opens.
+test('chromium: the hub dialog shows the gallery under the name, filtered by family, the look folded', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
+  t.after(() => context.close());
+  const template = (key) => ({
+    key, version: 1, name: key, origin: 'HUBTASK', provenance: `${key}@1`, created_at: '2026-09-01T00:00:00Z',
+    update_available: false, taken_version: null, hub_document: { collections: {} }, document: { modules: { workflows: { switch: 'ON' } } },
+  });
+  const keys = ['kanban_team', 'scrum_team', 'bug_tracking', 'classic_project', 'hybrid_project', 'itil_service_desk', 'internal_it', 'approvals'];
+  await context.route('**/api/v1/config/templates*', (route) => route.fulfill({ json: { data: keys.map(template) } }));
+
+  await page.goto(`${served.origin}/`);
+  await offered(page);
+  await chooseNew(page, 'Create hub');
+  const dialog = page.locator('dialog[open]');
+  const gallery = dialog.locator('[data-hub-gallery]');
+  await gallery.locator('[data-hub-template="kanban_team"]').waitFor({ timeout: 10_000 });
+  // The gallery comes right after the name; the look waits folded behind one press.
+  const order = await dialog.evaluate((element) => {
+    const name = element.querySelector('input');
+    const cards = element.querySelector('[data-hub-gallery]');
+    const symbol = element.querySelector('[data-look-fields]');
+    return {
+      galleryAfterName: Boolean(name && cards && name.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING),
+      lookShown: Boolean(symbol && symbol.getClientRects().length > 0),
+    };
+  });
+  assert.ok(order.galleryAfterName, 'the gallery is not under the name');
+  assert.equal(order.lookShown, false, 'the colours and symbols are not folded');
+  const first = await gallery.locator('[data-hub-template="kanban_team"]').boundingBox();
+  assert.ok(first && first.y < 900, 'the first template is below the fold');
+  const second = await gallery.locator('[data-hub-template="scrum_team"]').boundingBox();
+  assert.ok(second && Math.abs(second.y - first.y) < 2, 'the templates stand in one column');
+  // The family filter narrows the gallery to one family.
+  const filter = gallery.getByRole('group', { name: 'Families' });
+  await filter.getByRole('button', { name: 'Service', exact: true }).click();
+  assert.equal(await gallery.locator('[data-hub-template="kanban_team"]').count(), 0, 'the filter left another family');
+  assert.equal(await gallery.locator('[data-hub-template="itil_service_desk"]').count(), 1);
+  await filter.getByRole('button', { name: 'All', exact: true }).click();
+  assert.equal(await gallery.locator('[data-hub-template="kanban_team"]').count(), 1);
+  await dialog.getByRole('button', { name: /Description, colour and symbol/u }).click();
+  await dialog.locator('[data-look-fields]').waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });

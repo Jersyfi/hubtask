@@ -21,7 +21,8 @@
 
 import type { Container, ContainerPage, ResourceState, StructureChange, StructurePreview } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { TOUCHED } from './config.svelte.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { anchorFor } from './rank.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
@@ -212,6 +213,8 @@ class Containers {
    */
   async refreshFigures(targets: { readonly collections: readonly string[]; readonly hubs: readonly string[] }): Promise<void> {
     const reads: Promise<unknown>[] = [];
+    // A hub's row carries the figure of its collections, so the hub level is read again once.
+    if (targets.hubs.length > 0 && this.#hubs.status !== 'idle') reads.push(this.refresh());
     for (const hubId of targets.hubs) {
       if (this.#levels[hubId] !== undefined) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
       // The hub's own document carries its milestone, which the same completions move (UC-WRK-29
@@ -240,7 +243,7 @@ class Containers {
    */
   async setHandle(id: string, hubId: string | null | undefined, handle: string): Promise<string> {
     const answer = await engine.mutate<{ handle: string }>(
-      'PUT', `/collections/${encodeURIComponent(id)}/handle`, { handle }, { idempotencyKey: crypto.randomUUID() },
+      'PUT', `/collections/${encodeURIComponent(id)}/handle`, { handle }, { idempotencyKey: INTENT },
     );
     const reads: Promise<unknown>[] = [engine.refresh<Container>({ path: `/containers/${id}` })];
     if (hubId) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
@@ -273,6 +276,30 @@ class Containers {
   }
 
   /**
+   * A hub made from a catalogue template (user-experience.md §5.2): the template's workspace part
+   * where the workspace lacks it, the hub and its hub part land in one transaction or not at all,
+   * so a refused part leaves no hub. The answer is the hub.
+   */
+  async createFromTemplate(
+    body: {
+      name: string;
+      description?: string | null;
+      icon?: string | null;
+      color_token?: string | null;
+      template: string;
+      answers?: Record<string, string>;
+      samples?: boolean;
+      acknowledge?: boolean;
+    },
+    idempotencyKey: string,
+  ): Promise<Container> {
+    return engine.mutate<Container>('POST', '/containers:from-template', body, {
+      idempotencyKey,
+      invalidates: [...new Set([...TOUCHES, ...TOUCHED])],
+    });
+  }
+
+  /**
    * Renames, describes, or recolours one.
    *
    * `ifMatch` is the version the reader had when they started typing, so a rename that lost a race
@@ -280,7 +307,7 @@ class Containers {
    */
   async update(
     id: string,
-    body: { name?: string; description?: string | null; icon?: string | null; color_token?: string | null },
+    body: { name?: string; description?: string | null; icon?: string | null; color_token?: string | null; key_prefix?: string | null },
     version: number,
   ): Promise<Container> {
     return engine.mutate<Container>('PATCH', `/containers/${id}`, body, {

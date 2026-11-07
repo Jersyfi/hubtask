@@ -115,7 +115,7 @@ test('chromium: a template drafted for the collection stands in Structure → Te
   t.after(() => context.close());
   await openSettings(page, COLLECTION.name);
   const panel = page.getByRole('main');
-  await panel.getByRole('link', { name: 'Templates' }).click();
+  await panel.getByRole('link', { name: 'Entry templates' }).click();
   const draft = panel.locator('[data-ai="template"]').first();
   await draft.getByText('Room by room', { exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await draft.getByText('Strip the walls').count(), 1, 'the draft without its tree');

@@ -31,6 +31,10 @@ test('a capture says where it went, and a jumble capture taken back is dismissed
   assert.equal(sentenceOf(jumbled).code, 'app.capture.jumbled');
   assert.equal(takenBackCode(jumbled), 'app.capture.dismissed');
   assert.equal(takenBackCode(captured), 'app.undo.done');
+  // UC-WRK-02 check 1: one entry is said by its title, several by the place.
+  const one: Act = { kind: 'captured', itemIds: ['i1'], place: 'Groceries', title: 'Buy flour' };
+  assert.deepEqual(sentenceOf(one), { code: 'app.capture.added_title', params: { title: 'Buy flour', place: 'Groceries' } });
+  assert.deepEqual(sentenceOf({ ...one, itemIds: ['i1', 'i2'] }), { code: 'app.capture.added', params: { count: '2', place: 'Groceries' } });
   assert.equal(takenBackCode(ACTS[0] as Act), 'app.undo.done');
 });
 

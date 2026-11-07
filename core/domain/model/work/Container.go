@@ -120,6 +120,11 @@ type Container struct {
 	// ticket key names it (ADR-0094). Assigned by the store when the collection is made, kept on a
 	// rename; empty on a hub.
 	Handle string
+	// KeyPrefix is the word a collection's entry keys start with - "INC" in "INC-42"
+	// (user-experience.md §5.6). Derived by the store from the name when the collection is made;
+	// empty on a hub and on a collection made before there were prefixes, whose keys read with the
+	// handle.
+	KeyPrefix string
 }
 
 // NewContainerInput is what a container is made of. A struct rather than eleven parameters,
@@ -383,6 +388,7 @@ const (
 	FieldParentID         = "parent_id"
 	FieldOrderKey         = "order_key"
 	FieldArchivedAt       = "archived_at"
+	FieldKeyPrefix        = "key_prefix"
 )
 
 // ContainerAttributes is what a rename may change: the container's own descriptive fields.
@@ -399,11 +405,13 @@ type ContainerAttributes struct {
 	Description *string
 	Icon        *string
 	ColorToken  *string
+	// KeyPrefix is a collection's key prefix; empty clears it.
+	KeyPrefix *string
 }
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a ContainerAttributes) IsEmpty() bool {
-	return a.Name == nil && a.Description == nil && a.Icon == nil && a.ColorToken == nil
+	return a.Name == nil && a.Description == nil && a.Icon == nil && a.ColorToken == nil && a.KeyPrefix == nil
 }
 
 // Renamed applies a change to the container's own fields and reports which of them moved.
@@ -479,11 +487,57 @@ func (c Container) Renamed(
 		*field.value = wanted
 	}
 
+	if attributes.KeyPrefix != nil {
+		prefix, err := c.keyPrefix(*attributes.KeyPrefix)
+		if err != nil {
+			return Container{}, nil, err
+		}
+		if prefix != c.KeyPrefix {
+			changes = append(changes, FieldChange{Field: FieldKeyPrefix, From: c.KeyPrefix, To: prefix})
+			c.KeyPrefix = prefix
+		}
+	}
+
 	if len(changes) == 0 {
 		return c, nil, nil
 	}
 	c.UpdatedAt = at
 	return c, changes, nil
+}
+
+// keyPrefix is a wanted key prefix as stored: trimmed, in capitals, a letter and then one to four
+// letters or digits of plain Latin, so a key reads and is typed alike on every keyboard. Whether
+// another collection holds it is the store's to say.
+func (c Container) keyPrefix(wanted string) (string, error) {
+	prefix := strings.ToUpper(strings.TrimSpace(wanted))
+	if prefix == "" {
+		return "", nil
+	}
+	if c.Type != ContainerCollection {
+		return "", keyPrefixRefusal("containers.key_prefix_collection_only")
+	}
+	if !ValidKeyPrefix(prefix) {
+		return "", keyPrefixRefusal("containers.key_prefix_invalid")
+	}
+	return prefix, nil
+}
+
+// ValidKeyPrefix reports whether a prefix is one a collection may carry.
+func ValidKeyPrefix(prefix string) bool {
+	if len(prefix) < 2 || len(prefix) > 5 || prefix[0] < 'A' || prefix[0] > 'Z' {
+		return false
+	}
+	for _, r := range prefix {
+		if (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func keyPrefixRefusal(code string) error {
+	return shared.ErrValidation.WithDetail(code).
+		WithFields(shared.FieldError{Path: "/" + FieldKeyPrefix, Code: code})
 }
 
 // ContainerPolicies is how a collection works, as the policies document carries it.

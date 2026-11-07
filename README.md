@@ -59,7 +59,7 @@ inbound adapter like REST or MCP and ships inside the binary
 
 ```bash
 git clone https://github.com/Jersyfi/hubtask.git && cd hubtask
-cp deploy/docker/.env.example .env      # set the secrets
+cp deploy/docker/.env.example .env      # set the secrets and HUBTASK_BASE_URL
 docker compose -f deploy/docker/compose.yaml up -d
 # API:  http://localhost:8080/api/v1
 # Meta: http://localhost:8080/api/v1/meta/capabilities
@@ -138,7 +138,7 @@ bin/hubctl backup target test "$TARGET"
 bin/hubctl backup run --target "$TARGET" --follow --wait 30m
 bin/hubctl backup ls --target "$TARGET"       # what is actually lying at the target
 bin/hubctl backup verify "$RUN" --follow      # fails the command if it does not verify
-bin/hubctl backup schedule set "$SCHEDULE" --trial   # every FULL run is followed by an INSPECT of its own archive
+bin/hubctl backup schedule set "$SCHEDULE" --trial-restore   # every FULL run is followed by an INSPECT of its own archive
 
 bin/hubctl restore inspect --target "$TARGET" --archive "$ARCHIVE"
 bin/hubctl restore run --target "$TARGET" --archive "$ARCHIVE" --mode NEW_TENANT --apply

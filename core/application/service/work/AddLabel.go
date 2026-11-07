@@ -438,7 +438,8 @@ func labelSetOutput(set ItemLabelSet) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h AddLabel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AddLabelName,
+		Permission: service.PermissionWriteItems,
+		Name:       AddLabelName,
 		Summary: "Puts a label on an entry. The label has to belong to the entry's own collection " +
 			"- a label is a vocabulary one collection agreed on - and the entry's type has to " +
 			"carry labels at all: an activity does not. Idempotent: an entry that already carries " +
@@ -484,7 +485,8 @@ func (h AddLabel) invoke(
 // Descriptor is the catalogue entry.
 func (h RemoveLabel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RemoveLabelName,
+		Permission: service.PermissionWriteItems,
+		Name:       RemoveLabelName,
 		Summary: "Takes a label off an entry. Idempotent: an entry that does not carry it succeeds " +
 			"and announces nothing. The removal is recorded either way, so that a device which " +
 			"never saw the label added still merges the decision.",

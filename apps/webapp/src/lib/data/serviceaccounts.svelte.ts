@@ -14,7 +14,7 @@
 
 import type { Account, ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const PATH = '/auth/service-accounts';
 
@@ -42,7 +42,7 @@ class ServiceAccounts {
       'POST',
       PATH,
       { display_name: displayName },
-      { idempotencyKey: crypto.randomUUID(), invalidates: [PATH] },
+      { idempotencyKey: INTENT, invalidates: [PATH] },
     );
   }
 }

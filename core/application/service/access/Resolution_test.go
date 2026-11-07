@@ -311,6 +311,26 @@ func TestRoleOfAnotherAccountKnowsAPrivateHub(t *testing.T) {
 	}
 }
 
+// RolesBy answers another account's roles along a path, the most specific first, by the same rule:
+// a workspace role counts nothing in a private hub - what a role's cost rate is priced by.
+func TestRolesByAnswersTheMostSpecificFirstAndKnowsAPrivateHub(t *testing.T) {
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000e3")
+	authorizer, store, _, _ := serviceWith([]identity.Membership{
+		{AccountID: other, Scope: identity.TenantScope(), Role: identity.RoleMember},
+		{AccountID: other, Scope: identity.HubScope(hubID), Role: identity.RoleOwner},
+	})
+	path := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
+	keys, err := authorizer.RolesBy(context.Background(), actorWithScopes(), other, path)
+	if err != nil || len(keys) != 2 || keys[0] != string(identity.RoleOwner) || keys[1] != string(identity.RoleMember) {
+		t.Fatalf("roles %v, error %v; want the hub's first", keys, err)
+	}
+	store.hubs = map[shared.ID]identityrepository.Hub{hubID: {ID: hubID, Private: true}}
+	keys, err = authorizer.RolesBy(context.Background(), actorWithScopes(), other, path)
+	if err != nil || len(keys) != 1 || keys[0] != string(identity.RoleOwner) {
+		t.Fatalf("roles %v, error %v; want only the private hub's own", keys, err)
+	}
+}
+
 // What the manifest tells the caller they hold on the workspace: the union of their memberships
 // there, and no entry in the trail for having asked - a member's every page load asks it.
 func TestHeldOnWorkspaceAnswersTheUnionAndRecordsNothing(t *testing.T) {

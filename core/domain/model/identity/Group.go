@@ -116,8 +116,9 @@ func groupName(raw string, form text.Normalizer) (string, error) {
 		return "", shared.ErrValidation.
 			WithDetail("groups.name_too_long").
 			WithParams(map[string]string{"maximum": itoa(maxGroupName)})
-	case strings.ContainsAny(name, "\n\r"):
-		// A name is a label in a list. One that spans lines breaks every list it appears in.
+	case strings.ContainsAny(name, "\n\r\x00"):
+		// A name is a label in a list. One that spans lines breaks every list it appears in; the
+		// database stores no zero byte. Other controls stay: a directory's group may carry a tab.
 		return "", shared.ErrValidation.WithDetail("groups.name_malformed")
 	}
 	return name, nil

@@ -46,6 +46,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 
 // The rule arc42 §4 states: a use case is reachable through
 // REST, through MCP and as an automation action - all three, or the build is red.
+// UC-INT-10 check 6.
 func TestEveryUseCaseIsReachableThroughEveryChannel(t *testing.T) {
 	registry := useCaseCatalogue(t)
 	served := servedRoutes(t)
@@ -78,6 +79,9 @@ func servedRoutes(t *testing.T) map[string]bool {
 
 	controller := rest.NewRestController()
 	controller.UseCases = stubCatalogue{}
+	// The health report is a catalogue entry served by a delegated door: wired without its reader
+	// it answers the defect rather than the pending 404, which is what tells served from pending.
+	controller.Meta = &rest.MetaDoor{}
 	routes := controller.Routes()
 
 	served := map[string]bool{}

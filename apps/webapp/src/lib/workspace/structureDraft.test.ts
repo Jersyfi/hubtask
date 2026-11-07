@@ -10,6 +10,7 @@ import type { Capabilities, EffectiveStructure, Preset } from '@hubtask/sync-eng
 
 import {
   changeOf,
+  chooseEntryTypesOf,
   chooseFieldsOf,
   choosePreset,
   countOf,
@@ -146,4 +147,11 @@ test('the fields checkboxes keep what they do not draw: the categories and an am
   const offered = chooseFieldsOf(fields, 'TASK', ['COMPLETION', 'NOTES', 'AMOUNT'], ['AMOUNT']);
   assert.deepEqual(offered.TASK?.capabilities, ['COMPLETION', 'AMOUNT']);
   assert.deepEqual(offered.TASK?.categories, ['l1', 'l2']);
+});
+
+test('ticking a level types narrows it, ticking all leaves it out, ticking none changes nothing', () => {
+  const inUse = ['task', 'bug', 'feature'];
+  assert.deepEqual(chooseEntryTypesOf(undefined, 'TASK', inUse, ['feature', 'bug']), { TASK: ['bug', 'feature'] });
+  assert.deepEqual(chooseEntryTypesOf({ TASK: ['bug'] } as never, 'TASK', inUse, inUse), {});
+  assert.deepEqual(chooseEntryTypesOf({ TASK: ['bug'] } as never, 'TASK', inUse, []), { TASK: ['bug'] });
 });

@@ -345,6 +345,42 @@ func TestTheMomentsTravelAsWordsAndAnswerInTheirTypes(t *testing.T) {
 	}
 }
 
+// user-experience.md §3.4: the products seen travel as the list of module keys, a null clears the
+// list, and the account answers them; an unknown key is the domain's to refuse.
+func TestTheProductsSeenTravelAsAListAndAnswerOnTheAccount(t *testing.T) {
+	registry := &catalogue{out: ownAccount()}
+	recorder := identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", `{"products_seen": ["SERVICE_DESK", "TIME"]}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	got, err := registry.in.StringList("products_seen")
+	if err != nil || strings.Join(got, ",") != "SERVICE_DESK,TIME" {
+		t.Errorf("products_seen = %v (%v), want the two keys", registry.in["products_seen"], err)
+	}
+
+	registry = &catalogue{out: ownAccount()}
+	recorder = identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", `{"products_seen": null}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if cleared, err := registry.in.StringList("products_seen"); err != nil || len(cleared) != 0 {
+		t.Errorf("a null products_seen = %v (%v), want it cleared", registry.in["products_seen"], err)
+	}
+	if _, present := registry.in["products_seen"]; !present {
+		t.Error("a null products_seen was dropped instead of clearing the list")
+	}
+
+	answered := ownAccount()
+	answered["products_seen"] = []string{"TIME"}
+	recorder = identityRequest(t, &catalogue{out: answered}, http.MethodGet, "/accounts/me")
+	var read struct {
+		ProductsSeen []string `json:"products_seen"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &read); err != nil || strings.Join(read.ProductsSeen, ",") != "TIME" {
+		t.Errorf("products_seen = %v (%v), want TIME", read.ProductsSeen, err)
+	}
+}
+
 // `me` is a reserved segment and not a possible identifier - identifiers are UUIDs - so the two
 // routes cannot collide. Asserted rather than assumed, because the day somebody widens the
 // AccountId schema to a plain string is the day this stops being true silently.
@@ -600,5 +636,28 @@ func TestSettingANotificationPreferencePassesThePairAndBothSwitches(t *testing.T
 	}
 	if written.Enabled || written.IsDefault || written.UpdatedAt == nil {
 		t.Errorf("answered %+v", written)
+	}
+}
+
+// A person whose only access is a portal is sent there (UC-SVC-05): the portals the use case
+// answered travel on GET /accounts/me, beside has_access false.
+func TestTheOwnAccountCarriesItsRequesterPortals(t *testing.T) {
+	out := ownAccount()
+	out["has_access"] = false
+	out["portals"] = []usecase.Output{{"collection_id": "0192f000-0000-7000-8000-0000000000c1", "name": "Requests"}}
+	recorder := identityRequest(t, &catalogue{out: out}, http.MethodGet, "/accounts/me")
+	var answer openapi.Account
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if answer.HasAccess == nil || *answer.HasAccess {
+		t.Errorf("has_access = %v, want false", answer.HasAccess)
+	}
+	if answer.Portals == nil || len(*answer.Portals) != 1 {
+		t.Fatalf("portals = %v, want the one portal: %s", answer.Portals, recorder.Body)
+	}
+	portal := (*answer.Portals)[0]
+	if portal.CollectionId.String() != "0192f000-0000-7000-8000-0000000000c1" || portal.Name != "Requests" {
+		t.Errorf("portal = %+v", portal)
 	}
 }

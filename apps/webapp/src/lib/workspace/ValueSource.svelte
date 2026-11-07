@@ -19,11 +19,13 @@
     lock?: string | null;
     /** The value in force, as a person reads it. */
     value: string;
+    /** Whether the value is read at a hub rather than the workspace. */
+    atHub?: boolean;
   }
 
-  const { source, lock, value }: Props = $props();
+  const { source, lock, value, atHub = false }: Props = $props();
 
-  const chip = $derived(chipCodes({ source, lock }, { operates: manifest.isInstanceReachable }));
+  const chip = $derived(chipCodes({ source, lock }, { operates: manifest.isInstanceReachable, atHub }));
 </script>
 
 {#if chip}

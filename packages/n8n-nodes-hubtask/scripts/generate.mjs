@@ -124,7 +124,8 @@ function n8nQuery(parameter) {
   const type = schema.enum ? 'options' : (N8N_TYPE[schema.type] ?? 'string');
   const property = {
     displayName: words(parameter.name),
-    name: parameter.name,
+    // n8n names a property by an identifier; OData's `$top` is sent as itself all the same.
+    name: parameter.name.replace(/\W/g, ''),
     type,
     default: type === 'boolean' ? false : type === 'number' ? 0 : type === 'options' ? schema.enum[0] : '',
     description: firstSentence(parameter.description),
@@ -259,7 +260,7 @@ export function describeCredential() {
 
 /* ── Writing ───────────────────────────────────────────────────────────────────────────── */
 
-/** The manifest of the package as it would be published; `private` until the owner does. */
+/** The manifest of the package the release publishes to npm, where n8n's registry lists it. */
 export function publishedManifest() {
   const own = require('../package.json');
   return {
@@ -267,9 +268,10 @@ export function publishedManifest() {
     // workspace's own name carries the `@hubtask` scope every member here has.
     name: 'n8n-nodes-hubtask',
     version: own.version,
-    private: true,
     description: 'The n8n community node for Hubtask, generated from the OpenAPI contract',
     license: own.license,
+    homepage: 'https://hubtask.eu',
+    repository: { type: 'git', url: 'git+https://github.com/Jersyfi/hubtask.git', directory: 'packages/n8n-nodes-hubtask' },
     keywords: ['n8n-community-node-package'],
     main: 'index.js',
     files: ['nodes', 'credentials', 'index.js', 'README.md', 'LICENSE'],

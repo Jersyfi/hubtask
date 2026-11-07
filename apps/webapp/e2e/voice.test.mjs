@@ -56,8 +56,12 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       await page.goto(`${served.origin}/administration/voice`);
       const on = page.locator('[data-voice-settings]');
       await on.waitFor({ timeout: 15_000 });
+      // The head says what is connected, from what is saved (user-experience.md §7.10).
+      const figure = page.locator('[data-voice-figure]');
+      await figure.getByText('Spoken entries off').waitFor();
+      await figure.getByText('Alexa not connected yet').waitFor();
 
-      // Checks 1 and 2: on, a default list, a name - saved together.
+      // UC-WRK-35 check 1 and UC-WRK-35 check 2: on, a default list, a name - saved together.
       await on.getByText('Take spoken entries').click();
       await on.getByLabel('Default list').selectOption({ value: COLLECTION.id });
       const names = page.locator('[data-voice-names]');
@@ -69,13 +73,14 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       assert.equal(saved?.body.enabled, true);
       assert.equal(saved?.body.default_collection_id, COLLECTION.id);
       assert.deepEqual(saved?.body.aliases, [{ phrase: 'fridge', collection_id: COLLECTION.id }]);
+      await figure.getByText('Spoken entries on').waitFor({ timeout: 5_000 });
 
-      // Check 3: a sentence tried, nothing added.
+      // UC-WRK-35 check 3: a sentence tried, nothing added.
       const trying = page.locator('[data-voice-try]');
       await trying.getByRole('button', { name: 'Try' }).click();
       await trying.locator('[data-voice-result]').getByText('2 l Milk, Eggs would go on Kitchen.').waitFor({ timeout: 5_000 });
 
-      // Check 6: the values to copy, and the linking made from the vendor ID.
+      // UC-WRK-35 check 6: the values to copy, and the linking made from the vendor ID.
       const alexa = page.locator('[data-voice-alexa]');
       await alexa.locator('[data-copy="endpoint"]').getByText(`${served.origin}/api/v1/voice/alexa`).waitFor();
       await alexa.locator('[data-copy="token"]').getByText(`${served.origin}/api/v1/oauth/token`).waitFor();
@@ -120,6 +125,29 @@ test('chromium: an Alexa request without PKCE and scope names what it lacks', { 
     await page.getByText('The permissions (scope)', { exact: false }).waitFor();
     assert.equal(await page.getByText('No app is asking', { exact: false }).count(), 0);
   } finally {
+    await browser.close();
+  }
+});
+
+// UC-WRK-35 check 6: with the operator's published skill the page says to enable and link it, and
+// asks for no vendor ID.
+test('chromium: an installation that publishes its skill says to enable and link it', { timeout: 60_000 }, async () => {
+  const browser = await chromium.launch();
+  const { context, page, failures } = await signedIn(browser, 1280, 900);
+  await context.route('**/api/v1/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/voice/settings') return route.fulfill({ json: { enabled: true, aliases: [], installation_skill: true } });
+    if (path === '/voice/alexa/model') return route.fulfill({ json: { interactionModel: { languageModel: { invocationName: 'hubtask' } } } });
+    return stub(route);
+  });
+  try {
+    await page.goto(`${served.origin}/administration/voice`);
+    const alexa = page.locator('[data-voice-alexa]');
+    await alexa.getByText('This installation publishes a Hubtask skill', { exact: false }).waitFor({ timeout: 15_000 });
+    assert.equal(await alexa.getByLabel('Vendor ID').count(), 0, 'a published skill still asks for a vendor ID');
+    assert.deepEqual(failures, []);
+  } finally {
+    await context.close();
     await browser.close();
   }
 });

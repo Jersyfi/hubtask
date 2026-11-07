@@ -12,16 +12,15 @@ import (
 	"time"
 
 	usecasemedia "github.com/Jersyfi/hubtask/core/application/service/media"
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 const (
 	requestMediaUploadUseCase = "RequestMediaUpload"
-	confirmMediaUploadUseCase = "ConfirmMediaUpload"
 	getMediaUseCase           = "GetMedia"
 	deleteMediaUseCase        = "DeleteMedia"
 
@@ -47,107 +46,15 @@ type MediaContentService interface {
 	Send(ctx context.Context, grant usecasemedia.Grant) (usecasemedia.Served, error)
 }
 
-// RequestMediaUpload answers POST /media.
-//
-// The answer carries the upload target, which is the point of the whole operation: on an
-// object-storage installation it is a presigned bucket URL and the bytes never touch this server
-// (arc42 §8.4); on a local one it is this server's own content route, with a token standing in for
-// the signature.
-func (c *RestController) RequestMediaUpload(
-	w http.ResponseWriter, r *http.Request, _ openapi.RequestMediaUploadParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	var body openapi.MediaUploadRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	in := usecase.Input{
-		"usage":        string(body.Usage),
-		"size":         int(body.Size),
-		"file_name":    optionalStringField(body.FileName),
-		"content_type": optionalStringField(body.ContentType),
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), requestMediaUploadUseCase, actor, in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	object := mediaResponse(out)
-	w.Header().Set("Location", APIBasePath+"/media/"+object.Id.String())
-	writeJSON(w, r, http.StatusCreated, object)
-}
-
-// ConfirmMediaUpload answers POST /media/{mediaId}:confirm.
-func (c *RestController) ConfirmMediaUpload(
-	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, _ openapi.ConfirmMediaUploadParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	out, err := c.UseCases.Invoke(r.Context(), confirmMediaUploadUseCase, actor,
-		usecase.Input{"media_id": mediaID.String()})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, mediaResponse(out))
-}
-
-// GetMedia answers GET /media/{mediaId}.
-//
-// The download target travels in the answer rather than as a redirect: a client that wants the
-// record and a client that wants the bytes are asking two different questions, and a 302 here
-// would force the first one to follow the second.
-func (c *RestController) GetMedia(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	out, err := c.UseCases.Invoke(r.Context(), getMediaUseCase, actor,
-		usecase.Input{"media_id": mediaID.String()})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, mediaResponse(out))
-}
-
-// DeleteMedia answers DELETE /media/{mediaId}.
-func (c *RestController) DeleteMedia(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	if _, err := c.UseCases.Invoke(r.Context(), deleteMediaUseCase, actor,
-		usecase.Input{"media_id": mediaID.String()}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+// MediaDoor serves the two content routes the contract delegates to it, which are not catalogue
+// entries: they take a stream and answer a stream, which is neither what MCP nor what an automation
+// rule could do with them (core/application/service/media.MediaContent).
+type MediaDoor struct {
+	Content MediaContentService
+	Tokens  MediaTokenValidator
+	// Clock judges an expiring capability: a port rather than time.Now, so that a test can stand
+	// at the moment a token expires.
+	Clock clock.Clock
 }
 
 // UploadMediaContent answers PUT /media/{mediaId}:content.
@@ -156,7 +63,7 @@ func (c *RestController) DeleteMedia(w http.ResponseWriter, r *http.Request, med
 // is, and the token in it is what this handler verifies. Everything after that verification is the
 // application layer's - which tenant the transaction runs as comes out of the token, and what may
 // be done with the object is decided there (ADR-0005).
-func (c *RestController) UploadMediaContent(
+func (c *MediaDoor) UploadMediaContent(
 	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, params openapi.UploadMediaContentParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -167,7 +74,7 @@ func (c *RestController) UploadMediaContent(
 		return
 	}
 
-	if err := c.MediaContent.Receive(r.Context(), grant, r.Body); err != nil {
+	if err := c.Content.Receive(r.Context(), grant, r.Body); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
@@ -179,7 +86,7 @@ func (c *RestController) UploadMediaContent(
 // A download and never a rendering path: the disposition is attachment, the type is the sniffed
 // one rather than anything the uploader claimed, and the sandboxing policy is set on the answer
 // itself - so a browser that follows this URL saves a file rather than executing one (T-11).
-func (c *RestController) DownloadMediaContent(
+func (c *MediaDoor) DownloadMediaContent(
 	w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId, params openapi.DownloadMediaContentParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -190,7 +97,7 @@ func (c *RestController) DownloadMediaContent(
 		return
 	}
 
-	served, err := c.MediaContent.Send(r.Context(), grant)
+	served, err := c.Content.Send(r.Context(), grant)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -226,10 +133,10 @@ const (
 )
 
 // grantFor verifies the capability and turns it into what the application layer takes.
-func (c *RestController) grantFor(
+func (c *MediaDoor) grantFor(
 	r *http.Request, mediaID openapi.MediaId, token string, want direction,
 ) (usecasemedia.Grant, error) {
-	if c.MediaContent == nil || c.MediaTokens == nil || c.Clock == nil {
+	if c.Content == nil || c.Tokens == nil || c.Clock == nil {
 		return usecasemedia.Grant{}, errNotWired
 	}
 
@@ -239,9 +146,9 @@ func (c *RestController) grantFor(
 	var tenantID shared.ID
 	var err error
 	if want == uploading {
-		tenantID, err = c.MediaTokens.ValidateUpload(token, id, now)
+		tenantID, err = c.Tokens.ValidateUpload(token, id, now)
 	} else {
-		tenantID, err = c.MediaTokens.ValidateDownload(token, id, now)
+		tenantID, err = c.Tokens.ValidateDownload(token, id, now)
 	}
 	if err != nil {
 		return usecasemedia.Grant{}, err

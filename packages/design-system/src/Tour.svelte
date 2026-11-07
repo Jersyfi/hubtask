@@ -61,7 +61,7 @@
     if (!element || !hole || !mark) return;
     // The cut-out first, so that the mark anchored to it comes after it in the top layer.
     const unspot = spotlightTo(element, hole);
-    const unanchor = anchorTo(hole, mark, { placement });
+    const unanchor = anchorTo(hole, mark, { placement, standalone: true });
     const handle = layers.open('dialog', onSkip);
     const onKeydown = escapeHandler();
     document.addEventListener('keydown', onKeydown);

@@ -21,54 +21,14 @@ func recurrenceGroup() group {
 		summary: "work that comes back - the rule, and what it produces",
 		commands: []command{
 			{
-				name:    "show",
-				usage:   "<item-id>",
-				summary: "read the series on an entry",
-				run:     recurrenceShow,
-			},
-			{
 				name: "set",
 				usage: "<item-id> --rule <RRULE> --zone <iana> [--mode ON_SCHEDULE|ON_COMPLETION]" +
 					" [--horizon <days>] [--until <timestamp>] [--count <n>]",
 				summary: "make an entry recur, or change how it does",
 				run:     recurrenceSet,
 			},
-			{
-				name:    "skip",
-				usage:   "<item-id>",
-				summary: "skip the next occurrence the series has not produced yet",
-				run:     recurrenceSkip,
-			},
-			{
-				name:    "rm",
-				usage:   "<item-id> [--expect-version <n>]",
-				summary: "stop an entry recurring; what it produced stays",
-				run:     recurrenceRemove,
-			},
 		},
 	}
-}
-
-func recurrenceShow(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "recur show <item-id>"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "recur", "show", "<item-id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var rule openapi.Recurrence
-	if err := client.Get(ctx, recurrencePath(item), nil, &rule); err != nil {
-		return err
-	}
-	return cli.Emit(rule, recurrenceTable([]openapi.Recurrence{rule}))
 }
 
 func recurrenceSet(ctx context.Context, cli *CLI, args []string) error {
@@ -128,53 +88,6 @@ func recurrenceSet(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(stored, recurrenceTable([]openapi.Recurrence{stored}))
-}
-
-func recurrenceSkip(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "recur skip <item-id>"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "recur", "skip", "<item-id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var skipped openapi.Recurrence
-	if err := client.Post(ctx, recurrencePath(item)+":skip", nil, &skipped); err != nil {
-		return err
-	}
-	return cli.Emit(skipped, recurrenceTable([]openapi.Recurrence{skipped}))
-}
-
-func recurrenceRemove(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "recur rm <item-id> [--expect-version <n>]"
-	item, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "recur", "rm", "<item-id> [--expect-version <n>]")
-	expected := flags.Int("expect-version", 0, "refuse unless the series is still at this version")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, recurrencePath(item), versionPrecondition(*expected)); err != nil {
-		return err
-	}
-	// What the series produced is not touched, and the confirmation says so: a person removing a
-	// rule wants to know that yesterday's occurrence is still on their list.
-	printf(cli.Err, "series removed: %s (the occurrences it produced stay)\n", item)
-	return nil
 }
 
 func recurrencePath(item openapitypes.UUID) string {

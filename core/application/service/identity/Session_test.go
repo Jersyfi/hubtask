@@ -66,6 +66,9 @@ type sessionsStore struct {
 	elevatedUntil time.Time
 	// keptByOthers is the session each "everywhere else" was asked to spare.
 	keptByOthers []shared.ID
+	// viewable are the accounts a view joins, and inPrivateHub those reaching a private hub.
+	viewable     map[shared.ID]domain.Account
+	inPrivateHub map[shared.ID]bool
 }
 
 type elevation struct {
@@ -110,6 +113,34 @@ func (s *sessionsStore) Elevate(
 	}
 	s.elevated = append(s.elevated, elevation{sessionID: sessionID, accountID: accountID, until: until})
 	s.elevatedUntil = until
+	return true, nil
+}
+
+// StartViewingAs marks the stored session as the statement does: only the holder's own, live and
+// not an app's grant. The person viewed is joined from viewable, as the query joins the account.
+func (s *sessionsStore) StartViewingAs(
+	_ context.Context, sessionID, accountID, viewed shared.ID, until, now time.Time,
+) (bool, error) {
+	credential, ok := s.sessions[sessionID]
+	if !ok || credential.Session.AccountID != accountID || !credential.Session.RevokedAt.IsZero() ||
+		!credential.Session.GrantID.IsZero() || !credential.Session.ExpiresAt.After(now) {
+		return false, nil
+	}
+	credential.Session.ViewingAs, credential.Session.ViewingAsUntil = viewed, until
+	credential.Viewed = s.viewable[viewed]
+	credential.ViewedReachesPrivateHub = s.inPrivateHub[viewed]
+	s.sessions[sessionID] = credential
+	return true, nil
+}
+
+func (s *sessionsStore) EndViewingAs(_ context.Context, sessionID, accountID shared.ID) (bool, error) {
+	credential, ok := s.sessions[sessionID]
+	if !ok || credential.Session.AccountID != accountID || credential.Session.ViewingAsUntil.IsZero() {
+		return false, nil
+	}
+	credential.Session.ViewingAs, credential.Session.ViewingAsUntil = "", time.Time{}
+	credential.Viewed, credential.ViewedReachesPrivateHub = domain.Account{}, false
+	s.sessions[sessionID] = credential
 	return true, nil
 }
 
@@ -194,6 +225,7 @@ type signInAccounts struct {
 
 	redemption    map[string]repository.RedemptionAccount
 	minted        []domain.Token
+	mintedUntil   []time.Time
 	redeemChanged bool
 	redeemedHash  string
 
@@ -238,9 +270,10 @@ func (s *signInAccounts) FindForSignIn(_ context.Context, email string) (reposit
 }
 
 func (s *signInAccounts) SetRedemptionToken(
-	_ context.Context, _ shared.ID, presented domain.Token, _, _ time.Time,
+	_ context.Context, _ shared.ID, presented domain.Token, expiresAt, _ time.Time,
 ) (bool, error) {
 	s.minted = append(s.minted, presented)
+	s.mintedUntil = append(s.mintedUntil, expiresAt)
 	return s.redeemChanged, nil
 }
 
@@ -508,6 +541,40 @@ func TestASignInSeedsTheWorkspacesRetentionSweep(t *testing.T) {
 	}
 }
 
+// UC-ID-01 check 4: a suspended account - its password right or wrong - and a service account,
+// which signs in by no password (identity.md §15), answer what a wrong password answers.
+func TestASuspendedAccountAndAServiceAccountAnswerAsAWrongPassword(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.withAccount("bert@example.org", "correct horse battery")
+	_, wrong := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+		Email: "bert@example.org", Password: secret.New("a wrong password!"),
+	})
+
+	for name, change := range map[string]func(*repository.SignInAccount){
+		"suspended":       func(a *repository.SignInAccount) { a.Account.Status = domain.AccountDisabled },
+		"service account": func(a *repository.SignInAccount) { a.Account.Kind = domain.AccountServiceAccount },
+	} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newSessionFixture(now)
+			fixture.withAccount("bert@example.org", "correct horse battery")
+			held := fixture.accounts.byEmail["bert@example.org"]
+			change(&held)
+			fixture.accounts.byEmail["bert@example.org"] = held
+
+			_, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+				Email: "bert@example.org", Password: secret.New("correct horse battery"),
+			})
+			if err == nil || wrong == nil || err.Error() != wrong.Error() {
+				t.Errorf("the right password answered %v, a wrong one %v", err, wrong)
+			}
+			if len(fixture.sessions.inserted) != 0 {
+				t.Error("a session was opened")
+			}
+		})
+	}
+}
+
+// UC-ID-01 check 4: a wrong password and an address without an account are one answer.
 func TestWrongPasswordAndNoAccountAreOneAnswer(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")
@@ -1045,6 +1112,10 @@ func TestMintRedemptionTokenAnswersOnceAndStoresAHash(t *testing.T) {
 	}
 	if len(accounts.minted) != 1 || accounts.minted[0].Secret() != token.Reveal() {
 		t.Errorf("stored %v, want the presented token handed to the adapter", accounts.minted)
+	}
+	// UC-ID-14 check 3: the mailed link works for the fourteen days the mail states.
+	if want := now.Add(14 * 24 * time.Hour).UTC(); len(accounts.mintedUntil) != 1 || !accounts.mintedUntil[0].Equal(want) {
+		t.Errorf("redeemable until %v, want %v", accounts.mintedUntil, want)
 	}
 
 	// An account no longer waiting answers the empty secret, and the mail composes the plain link.

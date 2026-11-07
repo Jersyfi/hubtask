@@ -6,6 +6,7 @@ package health
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -44,9 +45,17 @@ type Registry struct {
 	// kept for migrationKept unless it was behind.
 	embedded       []int64
 	ledger         MigrationLedger
+	floor          CompatibilityFloor
 	migrationState port.MigrationState
 	migrationAt    time.Time
 	now            func() time.Time
+
+	// backlogRead counts the queues (SetBacklogs); the last count is served, and a report finding
+	// it older than backlogsEvery starts the next in the background.
+	backlogRead     BacklogReader
+	backlogs        port.Backlogs
+	scanningOff     bool
+	backlogsRunning bool
 }
 
 func NewRegistry(version string, roles []string) *Registry {
@@ -112,14 +121,16 @@ func (r *Registry) Ready(ctx context.Context) (bool, string) {
 		if !p.Required() {
 			continue
 		}
-		if res := p.Check(ctx); res.Status != port.StatusOK {
+		// Down only: a required dependency that answers but is busy keeps the process ready,
+		// or an overload would take every pod out at once (ADR-0016).
+		if res := p.Check(ctx); res.Status == port.StatusDown {
 			return false, p.Name() + ":" + string(res.Status)
 		}
 	}
 	// After the database: a database that cannot be reached says so first, and the comparison
 	// needs it anyway.
-	if state, known := r.Migration(ctx); known && state.Status == MigrationBehind {
-		return false, "migration:" + MigrationBehind
+	if state, known := r.Migration(ctx); known && Unserviceable(state) {
+		return false, "migration:" + state.Status
 	}
 	return true, ""
 }
@@ -132,6 +143,17 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 	rep.Warnings = append([]port.Warning(nil), r.warnings...)
 	sources := append([]func(context.Context) []port.Warning(nil), r.sources...)
 	r.mu.RUnlock()
+
+	rep.Backlogs = r.lastBacklogs(ctx)
+	if rep.Backlogs.DeadLetterTotal > 0 {
+		rep.Warnings = append(rep.Warnings, port.Warning{Code: DeadLettersCode, Severity: "warn",
+			Params: map[string]string{"count": strconv.FormatInt(rep.Backlogs.DeadLetterTotal, 10)}})
+	}
+	r.mu.RLock()
+	scanningOff := r.scanningOff
+	r.mu.RUnlock()
+	rep.Warnings = append(rep.Warnings, heldUploads(rep.Backlogs, scanningOff)...)
+	rep.Warnings = append(rep.Warnings, missingBackups(rep.Backlogs)...)
 
 	for _, source := range sources {
 		rep.Warnings = append(rep.Warnings, source(ctx)...)
@@ -181,11 +203,11 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 		}
 	}
 
-	// A schema behind the binary is an outage of this process, not a degradation: it is not
+	// A schema behind the binary, or past a contract step it predates, is an outage of this process, not a degradation: it is not
 	// ready, and it does not serve (deployment.md §5).
 	if state, known := r.Migration(ctx); known {
 		rep.Migration = state
-		if state.Status == MigrationBehind {
+		if Unserviceable(state) {
 			rep.Status = port.StatusDown
 		}
 	}

@@ -75,7 +75,11 @@ func (r MembershipRepository) Along(
 			Role:      identity.Role(row.Role),
 		})
 	}
-	return memberships, nil
+	custom, err := customRolesAlong(ctx, queries, accountID, account, scopeIDs)
+	if err != nil {
+		return nil, err
+	}
+	return append(memberships, custom...), nil
 }
 
 // SharedItemsIn returns the entries of one collection the account holds a membership on, directly
@@ -119,6 +123,44 @@ func (r MembershipRepository) SharedItemsIn(
 		items = append(items, id)
 	}
 	return items, nil
+}
+
+var _ repository.SharedEntries = MembershipRepository{}
+
+// SharedAcross answers the entries shared with the account anywhere in the tenant of the running
+// transaction (row level security, ADR-0010), at most limit of them.
+func (r MembershipRepository) SharedAcross(
+	ctx context.Context, accountID shared.ID, limit int,
+) ([]repository.SharedEntry, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SharedItemsAcross(ctx, sqlc.SharedItemsAcrossParams{
+		AccountID: account, RowLimit: int32(min(max(limit, 0), 1<<20)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the entries shared across the workspace: %w", err))
+	}
+	entries := make([]repository.SharedEntry, 0, len(rows))
+	for _, row := range rows {
+		item, err := optionalID(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		collection, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, repository.SharedEntry{ItemID: item, CollectionID: collection})
+	}
+	return entries, nil
 }
 
 // administratorRoles are the roles the retention warning treats as administrators
@@ -170,6 +212,44 @@ func (r MembershipRepository) Administrators(
 		administrators = append(administrators, id)
 	}
 	return administrators, nil
+}
+
+// RoleHolders answers the accounts that hold the role - built-in or custom, by its key - anywhere
+// on the path, directly or through a group (UC-AUT-09). Candidates: whether the role counts where
+// the path ends is the authoriser's question.
+func (r MembershipRepository) RoleHolders(
+	ctx context.Context, path []identity.Scope, role string,
+) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	scopeIDs := make([]pgtype.UUID, 0, len(path))
+	for _, scope := range path {
+		if scope.ID.IsZero() {
+			continue
+		}
+		id, err := uuidOf(scope.ID)
+		if err != nil {
+			return nil, err
+		}
+		scopeIDs = append(scopeIDs, id)
+	}
+	rows, err := queries.RoleHoldersAlongPath(ctx, sqlc.RoleHoldersAlongPathParams{Role: role, ScopeIds: scopeIDs})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a role's holders: %w", err))
+	}
+	holders := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		holders = append(holders, id)
+	}
+	return holders, nil
 }
 
 // HubsOpenedFor answers, of the named hubs, those the account holds a running emergency access to.
@@ -297,4 +377,54 @@ func (r MembershipRepository) HoldsAny(ctx context.Context, accountID shared.ID)
 			WithCause(fmt.Errorf("reading whether the account holds a role: %w", err))
 	}
 	return held, nil
+}
+
+// PeopleReaching answers how many people hold a role in the transaction's tenant, or within one
+// hub when hubID is not zero.
+func (r MembershipRepository) PeopleReaching(ctx context.Context, hubID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var hub pgtype.UUID
+	if !hubID.IsZero() {
+		if hub, err = uuidOf(hubID); err != nil {
+			return 0, err
+		}
+	}
+	people, err := queries.CountPeopleReaching(ctx, hub)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the people a place reaches: %w", err))
+	}
+	return int(people), nil
+}
+
+// PortalsOf answers the collections where the account is a requester through a role of the
+// workspace's own, in the transaction's tenant.
+func (r MembershipRepository) PortalsOf(ctx context.Context, accountID shared.ID) ([]repository.RequesterPortal, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListRequesterPortals(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the account's requester portals: %w", err))
+	}
+	portals := make([]repository.RequesterPortal, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		portals = append(portals, repository.RequesterPortal{CollectionID: id, Name: row.Name})
+	}
+	return portals, nil
 }

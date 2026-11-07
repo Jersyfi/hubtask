@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -30,12 +29,6 @@ func backupGroup() group {
 				run:     backupTarget,
 			},
 			{
-				name:    "schedule",
-				usage:   "ls|set|rm …",
-				summary: "what runs on its own, and when it next will",
-				run:     backupSchedule,
-			},
-			{
 				name:    "run",
 				usage:   "--target <id> [--mode FULL|INCREMENTAL] [--no-media] [--no-audit] [--follow] [--wait <d>]",
 				summary: "start a backup now",
@@ -43,16 +36,11 @@ func backupGroup() group {
 				waits:   true,
 			},
 			{
-				name:    "ls",
-				usage:   "--target <id>",
-				summary: "the archives that are actually lying at the target",
-				run:     backupList,
-			},
-			{
-				name:    "show",
-				usage:   "<id>",
-				summary: "what one run did",
-				run:     backupShow,
+				name:    "download",
+				usage:   "--out <file> [--wait <d>]",
+				summary: "download the whole workspace as one archive (the owner, once a day)",
+				run:     backupDownload,
+				waits:   true,
 			},
 			{
 				name:    "verify",
@@ -281,95 +269,6 @@ func backupRun(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
 }
 
-// backupList reads the target rather than the database, which is the whole point of it: it is the
-// listing that still answers after the installation that wrote the archives is gone
-// (backup-restore.md §6), and it is where `hubctl restore` gets an archive to name.
-//
-// What it answers is an **archive** rather than a run: a path, what wrote it, whether it is
-// complete, whether it is encrypted. There is no run row behind it - that is the database's
-// reading - and the two are deliberately different shapes.
-func backupList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "backup", "ls", "--target <id> [--refresh]")
-	target := flags.String("target", "", "the target to look at")
-	refresh := flags.Bool("refresh", false, "read the target again rather than the cached listing")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-	if *target == "" {
-		return usagef("backup ls needs --target; `hubctl backup target ls` prints the identifiers")
-	}
-	targetID, err := cli.parseID("--target", *target)
-	if err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *refresh {
-		query.Set("refresh", "true")
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var archives []openapi.BackupArchive
-	if err := client.Get(ctx,
-		backupTargetsPath+"/"+targetID.String()+"/backups", query, &archives); err != nil {
-		return err
-	}
-	return cli.Emit(archives, archiveTable(archives))
-}
-
-func archiveTable(archives []openapi.BackupArchive) Table {
-	rows := make([][]string, 0, len(archives))
-	for _, archive := range archives {
-		rows = append(rows, []string{
-			text(archive.Path),
-			shortTime(archive.CreatedAt),
-			modeOf(archive),
-			count(archive.ItemCount),
-			byteSize(archive.SizeBytes),
-			// An archive without `checksums.txt` is not damaged: it is a run still going, or one
-			// that died. Whoever is deciding what to restore from needs that told apart.
-			yesNo(archive.Complete),
-			yesNo(archive.Encrypted),
-		})
-	}
-	return Table{
-		Columns: []string{"archive", "created", "mode", "items", "size", "complete", "encrypted"},
-		Rows:    rows,
-	}
-}
-
-func modeOf(archive openapi.BackupArchive) string {
-	if archive.Mode == nil {
-		return "-"
-	}
-	return string(*archive.Mode)
-}
-
-func backupShow(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "backup show <id>"
-	runID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "backup", "show", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var run openapi.BackupRun
-	if err := client.Get(ctx, backupsPath+"/"+runID.String(), nil, &run); err != nil {
-		return err
-	}
-	return cli.Emit(run, runTable([]openapi.BackupRun{run}))
-}
-
 func backupVerify(ctx context.Context, cli *CLI, args []string) error {
 	const usage = "backup verify <id> [--follow]"
 	runID, rest, err := cli.takeID(args, usage)
@@ -564,4 +463,25 @@ func byteSize(size *int) string {
 		value /= 1024
 	}
 	return strconv.Itoa(*size) + " B"
+}
+
+// backupTargetRemove takes a place archives go out of the configuration. The server refuses while
+// a schedule still names it, and names the schedules - so the CLI passes the refusal on rather
+// than checking first and racing with whoever writes a schedule in between.
+func backupTargetRemove(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "backup target rm <id>"
+	targetID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "backup target", "rm", "<id>")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	return client.Delete(ctx, backupTargetsPath+"/"+targetID.String(), "")
 }

@@ -199,6 +199,21 @@ func TestTheManifestReportsTheInstallation(t *testing.T) {
 	}
 }
 
+// The origins a page's embed may frame are the operator's, answered as configured so a client frames
+// exactly what the interface's policy allows; none is an empty list, never absent.
+func TestTheManifestNamesTheFramedOrigins(t *testing.T) {
+	use := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	capabilities, err := use.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil || capabilities.FrameSources == nil || len(capabilities.FrameSources) != 0 {
+		t.Fatalf("by default: %v, %v", capabilities.FrameSources, err)
+	}
+	use.Config.UI.FrameSources = []string{"https://dashboards.example.org"}
+	capabilities, err = use.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil || len(capabilities.FrameSources) != 1 || capabilities.FrameSources[0] != "https://dashboards.example.org" {
+		t.Fatalf("configured: %v, %v", capabilities.FrameSources, err)
+	}
+}
+
 // Nothing is invented when the SMTP server is absent: a client uses this to decide whether to
 // offer the action at all.
 func TestAnUnconfiguredFeatureIsReportedAsAbsent(t *testing.T) {
@@ -354,6 +369,9 @@ func TestTheManifestSaysWhetherABackupTargetCanBeConfigured(t *testing.T) {
 	if bare.Features["backup_encryption"] {
 		t.Error("an installation with no keyring says it can seal a credential")
 	}
+	if bare.Features["encryption"] {
+		t.Error("an installation with no keyring says it can keep a webhook's secret")
+	}
 	// One tenant means its owner is the operator, so there is nobody the switch could protect.
 	if !bare.Features["backup_targets"] {
 		t.Error("a single-tenant installation says its tenant may not configure a target")
@@ -367,6 +385,9 @@ func TestTheManifestSaysWhetherABackupTargetCanBeConfigured(t *testing.T) {
 	})
 	if !provider.Features["backup_encryption"] {
 		t.Error("an installation with a keyring says it cannot seal a credential")
+	}
+	if !provider.Features["encryption"] {
+		t.Error("an installation with a keyring says it cannot keep a webhook's secret")
 	}
 	if provider.Features["backup_targets"] {
 		t.Error("provider operation says a tenant may configure a target with the switch off")

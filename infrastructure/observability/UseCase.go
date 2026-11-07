@@ -86,6 +86,7 @@ func logFailure(ctx context.Context, name string, err error, domainErr *shared.E
 		return
 	}
 
+	correlation.NoteFailureLogged(ctx)
 	slog.Log(ctx, level, "the use case failed",
 		slog.String("use_case", name),
 		slog.String("error_code", domainErr.Code),

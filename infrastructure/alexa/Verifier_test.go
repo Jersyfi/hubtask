@@ -84,6 +84,7 @@ func TestAlexasSignatureIsAccepted(t *testing.T) {
 	}
 }
 
+// UC-WRK-35 check 7: a request without Alexa's signature is refused.
 func TestWhatIsNotAlexaIsRefused(t *testing.T) {
 	alexa := newSigner(t, "echo-api.amazon.com", time.Now().Add(24*time.Hour))
 	other := newSigner(t, "evil.example.com", time.Now().Add(24*time.Hour))

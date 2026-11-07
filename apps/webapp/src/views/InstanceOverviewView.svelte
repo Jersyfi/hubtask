@@ -21,7 +21,8 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { health } from '../lib/data/health.svelte.ts';
-  import { formatDateTime, formatLongDay, formatTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatLongDay, formatRelative, formatTime } from '../lib/i18n/datetime.ts';
+  import { backlogTiles, featureNameCode, instancePageOfFeature, schemaState } from '../lib/instance/health.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { rowsOf } from '../lib/instance/values.ts';
@@ -30,6 +31,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -44,6 +46,7 @@
     // rather than a list of links to go and find them.
     const stops = untrack(() => [
       instance.openOverview(),
+      instance.openNearQuota(),
       instance.openSettings(),
       instance.openOperators(),
       instance.openProviders(),
@@ -94,16 +97,12 @@
   /** The newest journal entry, as the overview's one line of "what happened". */
   const latest = $derived(instance.journal[0]);
 
-  /**
-   * The areas this level will hold and does not yet.
-   *
-   * Held open rather than left out: a reader who cannot see that a thing is coming cannot tell it
-   * apart from a thing nobody thought of (P-11). Only what is not built: a line for a screen that
-   * exists tells an operator something untrue.
-   */
-  const later = [
-    { id: 'retention', code: 'app.instance.later_retention' },
-  ];
+  const KNOWN_LIMITS = new Set([
+    'api_requests_per_minute', 'items', 'media_bytes', 'automation_runs_per_hour', 'webhook_targets',
+    'export_jobs', 'ai_tokens_per_day', 'ai_own_tokens_per_day', 'ai_arrival_proposals_per_day', 'accounts',
+    'mailboxes',
+  ]);
+  const limitName = (quota: string) => (KNOWN_LIMITS.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
 
   const reading = $derived(instance.overview);
   const census = $derived(reading.status === 'ready' ? reading.data : undefined);
@@ -111,6 +110,9 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
   const report = $derived(health.report);
+  const schema = $derived(schemaState(report));
+  const backlogs = $derived(backlogTiles(report));
+  const formatNumber = (value: number) => new Intl.NumberFormat(messages.locale, { maximumFractionDigits: 0 }).format(value);
   const fellBack = $derived(instance.ownDomains.filter((row) => row.fell_back_at));
 
   $effect(() => page.entitle(t('app.instance.overview')));
@@ -121,15 +123,89 @@
 
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="300">
+      <!-- The health report, where the reader may read it, first: what is wrong outranks the
+           counts. No bearer means no request and a refusal is silence rather than a message,
+           which is the frame's rule and not this screen's to relax. -->
+      {#if report}
+        <Stack gap="150">
+          <h2 class="section">{t('app.instance.health')}</h2>
+          <Banner tone={report.status === 'ok' ? 'success' : report.status === 'degraded' ? 'warning' : 'danger'}>
+            {t(`app.instance.health_${report.status}`)}
+          </Banner>
+          {#if report.degraded_features && report.degraded_features.length > 0}
+            <ul class="features" data-degraded>
+              {#each report.degraded_features as feature (feature.feature)}
+                {@const where = instancePageOfFeature(feature.feature)}
+                <li>
+                  <span class="feature">{featureNameCode(feature.feature) ? t(featureNameCode(feature.feature)!) : feature.feature}</span>
+                  <span>{messages.has(feature.reason_code) ? t(feature.reason_code) : feature.reason_code}</span>
+                  {#if feature.since}
+                    <span class="quiet small">{t('app.instance.health_since', { since: formatRelative(feature.since, messages.locale) })}</span>
+                  {/if}
+                  {#if where}
+                    <Button tone="subtle" size="sm" onclick={() => onnavigate(where)}>{t('app.instance.health_open')}</Button>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <!-- What the installation is missing without anything having failed - an empty register,
+               a statement nobody set - in the catalogue's words, which the operator acts on. -->
+          {#if report.warnings && report.warnings.length > 0}
+            <ul class="warnings" data-warnings>
+              {#each report.warnings as warning (warning.code + JSON.stringify(warning.params ?? {}))}
+                <li>{t(warning.code, (warning.params ?? {}) as Record<string, string>)}</li>
+              {/each}
+            </ul>
+          {/if}
+
+          <!-- The schema the instances agree on, from the report's `migration`. Whether instances
+               run different versions is not in the report, so it is not said here. -->
+          <dl class="digest">
+            <div class="entry" data-upgrade>
+              <dt>{t('app.instance.upgrade_title')}</dt>
+              <dd>
+                <span>{t('app.instance.upgrade_version', { version: report.version })}</span>
+                {#if schema}
+                  <Badge tone={schema === 'up_to_date' ? 'success' : schema === 'waiting' ? 'warning' : 'danger'}>
+                    {t(`app.instance.schema_${schema}`)}
+                  </Badge>
+                {/if}
+              </dd>
+            </div>
+          </dl>
+
+          {#if backlogs.length > 0}
+            <Stack gap="100">
+              <h3 class="subsection">{t('app.instance.backlogs_title')}</h3>
+              <dl class="counts" data-backlogs>
+                {#each backlogs as tile (tile.id)}
+                  <div class="count" data-tone={tile.isAbove ? 'warning' : undefined} data-backlog={tile.id}>
+                    <dt>{t(`app.instance.backlog.${tile.id}`)}</dt>
+                    <dd>
+                      <span class="figure">{formatNumber(tile.value)}</span>
+                      {#if tile.href}
+                        <Button tone="subtle" size="sm" onclick={() => onnavigate(tile.href!)}>{t('app.instance.backlog_open')}</Button>
+                      {/if}
+                    </dd>
+                  </div>
+                {/each}
+              </dl>
+              {#if report.backlogs?.sampled_at}
+                <p class="quiet small">{t('app.instance.backlogs_counted', { at: formatRelative(report.backlogs.sampled_at, messages.locale) })}</p>
+              {/if}
+            </Stack>
+          {/if}
+        </Stack>
+      {/if}
+
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="quiet">
           <Spinner label={t('app.instance.reading')} />
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else if census}
         {#each fellBack as row (row.domain)}
           <div data-fell-back={row.domain}>
@@ -177,6 +253,38 @@
           <!-- Not a customer, so not in the counts above; said here so the counts still add up with
                the list of workspaces (UC-INS-12 check 5). -->
           <p class="quiet">{t('app.instance.workspaces_service_only', { count: census.workspaces_service_only })}</p>
+        {/if}
+
+        <!-- Who A-18 counts: the alert names no workspace, so this says which one and at which
+             wall, before somebody there meets the refusal. -->
+        {#if instance.nearQuota.length > 0}
+          <Stack gap="100">
+            <h2 class="section">{t('app.instance.near_quota_title')}</h2>
+            <ul class="near" data-near-quota>
+              {#each instance.nearQuota as workspace (workspace.tenant_id)}
+                <li>
+                  <strong>{workspace.slug}</strong>
+                  <span>
+                    {workspace.quotas
+                      .map((standing) =>
+                        t('app.instance.near_quota_standing', {
+                          name: limitName(standing.quota),
+                          used: standing.used ?? 0,
+                          limit: standing.limit,
+                          percent: Math.round((standing.ratio ?? 0) * 100),
+                        }),
+                      )
+                      .join(' · ')}
+                  </span>
+                </li>
+              {/each}
+            </ul>
+            <div>
+              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/workspaces')}>
+                {t('app.instance.near_quota_open')}
+              </Button>
+            </div>
+          </Stack>
         {/if}
 
         <!-- The digest the concept's §5.5 draws: each area with what it currently says, and the
@@ -242,48 +350,6 @@
           </div>
         </dl>
 
-        <!-- The places this level holds open. The concept defers each of these and says
-             the place is kept; a reader who cannot see that a thing is coming
-             cannot tell it from a thing nobody thought of. -->
-        <Stack gap="100">
-          <h2 class="section">{t('app.instance.later_title')}</h2>
-          <ul class="later">
-            {#each later as row (row.id)}
-              <li>
-                <Badge tone="neutral">{t('app.instance.later_badge')}</Badge>
-                <span>{t(row.code)}</span>
-              </li>
-            {/each}
-          </ul>
-        </Stack>
-
-        <!-- The health report, where the reader may read it. No bearer means no request and a
-             refusal is silence rather than a message, which is the frame's rule and not this
-             screen's to relax. -->
-        {#if report}
-          <Stack gap="150">
-            <h2 class="section">{t('app.instance.health')}</h2>
-            <Banner tone={report.status === 'ok' ? 'success' : report.status === 'degraded' ? 'warning' : 'danger'}>
-              {t(`app.instance.health_${report.status}`)}
-            </Banner>
-            {#if report.degraded_features && report.degraded_features.length > 0}
-              <ul class="features">
-                {#each report.degraded_features as feature (feature.feature)}
-                  <li>{feature.feature}</li>
-                {/each}
-              </ul>
-            {/if}
-            <!-- What the installation is missing without anything having failed - an empty register,
-                 a statement nobody set - in the catalogue's words, which the operator acts on. -->
-            {#if report.warnings && report.warnings.length > 0}
-              <ul class="warnings" data-warnings>
-                {#each report.warnings as warning (warning.code + JSON.stringify(warning.params ?? {}))}
-                  <li>{t(warning.code, (warning.params ?? {}) as Record<string, string>)}</li>
-                {/each}
-              </ul>
-            {/if}
-          </Stack>
-        {/if}
       {/if}
     </Stack>
   </InstanceGate>
@@ -317,7 +383,23 @@
   .count dt { color: var(--text-secondary); font-size: var(--fs-100); }
   .count dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-500); font-weight: var(--fw-semibold); }
 
-  .features { margin: 0; padding-inline-start: var(--sp-200); color: var(--text-secondary); font-size: var(--fs-100); }
+  .subsection { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+  .small { font-size: var(--fs-100); }
+
+  .features { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
+  .features li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--sp-050) var(--sp-100);
+    padding-block-end: var(--sp-100);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+  }
+  .feature { font-weight: var(--fw-semibold); }
+
+  /* Above its alert's line the tile takes the warning tone, which a reader sees before the number. */
+  .count[data-tone='warning'] { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
+  .count dd { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
   .warnings { margin: 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-050); max-inline-size: 60ch; }
 
   /* Five rows of "what this says, and the way to it". A list, so it takes the region rather than a
@@ -345,6 +427,8 @@
     gap: var(--sp-100);
   }
 
-  .later { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-  .later li { display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-100); }
+  .near { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
+  .near li { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: baseline; }
+  .near span { color: var(--text-secondary); font-size: var(--fs-100); }
+
 </style>

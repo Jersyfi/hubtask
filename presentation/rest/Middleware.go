@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -107,6 +108,7 @@ func (o Observed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Which part of the system the line came from, for a reader who has role=api,worker in front
 	// of them and needs to know whether this was a request or a loop (§3.1).
 	ctx = correlation.ContextWithComponent(ctx, componentREST)
+	ctx = correlation.ContextWithFailureLog(ctx)
 
 	ctx, span := o.Tracer.Start(ctx, r.Method+" "+route,
 		trace.WithSpanKind(trace.SpanKindServer),
@@ -133,12 +135,14 @@ func (o Observed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// client a response.
 			if rec := recover(); rec != nil {
 				concurrency.Report(ctx, "rest.request", rec)
+				correlation.NoteFailureLogged(ctx)
 				if !recorder.written {
 					WriteProblem(recorder, shared.ErrInternal, requestID)
 				}
 			}
 		}
 		o.finish(ctx, span, route, r.Method, recorder.statusCode(), time.Since(started))
+		logUnlogged(ctx, route, r.Method, recorder)
 	}()
 
 	o.Router.ServeHTTP(recorder, r.WithContext(ctx))
@@ -155,6 +159,34 @@ func (o Observed) finish(ctx context.Context, span trace.Span, route, method str
 	if o.Metrics != nil {
 		o.Metrics.HTTPRequest(ctx, route, method, status, elapsed.Seconds())
 	}
+}
+
+// logUnlogged writes the one line a 5xx needs when nothing further in wrote one: a route that
+// calls its service directly (sync, SAML, SCIM, media, public forms, the stream) passes no
+// registry observer, and a user's quoted request ID must still lead to a cause. A failure the
+// registry logged is not logged twice.
+func logUnlogged(ctx context.Context, route, method string, recorder *statusRecorder) {
+	status := recorder.statusCode()
+	if status < http.StatusInternalServerError || correlation.FailureLogged(ctx) {
+		return
+	}
+	level := slog.LevelError
+	attrs := []slog.Attr{
+		slog.String("route", route),
+		slog.String("method", method),
+		slog.Int("status", status),
+	}
+	if recorder.problem != nil {
+		domainErr := shared.AsError(recorder.problem)
+		if domainErr.Category == shared.CategoryUnavailable {
+			// A dependency saying "later", as logFailure grades it.
+			level = slog.LevelWarn
+		}
+		attrs = append(attrs,
+			slog.String("error_code", domainErr.Code),
+			slog.String("error", recorder.problem.Error()))
+	}
+	slog.LogAttrs(ctx, level, "the request failed", attrs...)
 }
 
 // requestIDFrom adopts the client's request ID or mints one.
@@ -203,7 +235,11 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status  int
 	written bool
+	// problem is the error WriteProblem answered with, kept for the failure line.
+	problem error
 }
+
+func (s *statusRecorder) noteProblem(err error) { s.problem = err }
 
 // statusCode is what net/http will have sent. A handler that writes nothing at all still
 // produces a 200, and the metric has to agree with the wire rather than report a status of zero.

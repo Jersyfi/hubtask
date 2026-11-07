@@ -84,6 +84,7 @@ func operations(count int) []BulkOperation {
 
 // An operation is the single-entry operation, run through the catalogue: the same use case, with
 // the entry and the body the operation carried.
+// UC-WRK-08 check 3.
 func TestABulkRunsEachOperationThroughTheUseCaseThatOwnsIt(t *testing.T) {
 	h := newBulkHarness()
 
@@ -139,6 +140,7 @@ func TestABulkRestoresThroughTheSingleRestore(t *testing.T) {
 }
 
 // The acceptance criterion: a bulk with one invalid operation applies the rest and reports the one.
+// UC-WRK-08 check 4.
 func TestABulkAppliesWhatItCanAndReportsTheRest(t *testing.T) {
 	h := newBulkHarness()
 	h.catalogue.refuseAt = 1
@@ -251,6 +253,7 @@ func TestAnUnknownOperationFailsOnlyItself(t *testing.T) {
 }
 
 // The cap is about the request rather than about any operation in it, so it refuses the bulk.
+// UC-WRK-08 check 5.
 func TestABulkOverTheCapIsRefusedWhole(t *testing.T) {
 	h := newBulkHarness()
 
@@ -335,6 +338,7 @@ func TestTheOperationsAreReadFromTheChannelsInput(t *testing.T) {
 // A refusal travels as data rather than as an error value: the call succeeded, and this is what
 // happened inside it. The fields are the error model's own, so that a channel can rebuild the
 // answer it would have given for the same refusal outside a bulk.
+// UC-WRK-08 check 4.
 func TestARefusalTravelsAsTheErrorModelsOwnFields(t *testing.T) {
 	h := newBulkHarness()
 	h.catalogue.refuseAt = 0
@@ -364,5 +368,23 @@ func TestARefusalTravelsAsTheErrorModelsOwnFields(t *testing.T) {
 	findings, carried := problem["field_errors"].([]usecase.Output)
 	if !carried || len(findings) != 1 || findings[0]["path"] != "/title" {
 		t.Errorf("the findings are %v", problem["field_errors"])
+	}
+}
+
+// A bulk move to a status is the step route per entry (UC-FLW-03 check 7): each entry is judged by
+// its own workflow, so the refusals arrive per entry.
+func TestABulkTakesEachEntrysStep(t *testing.T) {
+	h := newBulkHarness()
+	result, err := h.handler.Execute(t.Context(), actor(), BulkUpdateWorkItemsCommand{
+		Operations: []BulkOperation{{Op: "TAKE_STEP", ItemID: bulkItemID, Payload: map[string]any{"to_status": "done"}}},
+	})
+	if err != nil {
+		t.Fatalf("the bulk was refused: %v", err)
+	}
+	if result.Applied != 1 || len(h.catalogue.invoked) != 1 || h.catalogue.invoked[0].name != TakeStepName {
+		t.Fatalf("the step ran as %+v", h.catalogue.invoked)
+	}
+	if h.catalogue.invoked[0].in["to_status"] != "done" || h.catalogue.invoked[0].in["item_id"] != bulkItemID.String() {
+		t.Errorf("the step was run with %v", h.catalogue.invoked[0].in)
 	}
 }

@@ -10,12 +10,12 @@
 -- name: InsertComment :exec
 INSERT INTO comment (
   id, tenant_id, item_id, author_id, parent_comment_id, body, created_at, version,
-  kind, system_code, system_params
+  kind, system_code, system_params, internal
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('item_id'), sqlc.arg('author_id'),
   sqlc.narg('parent_comment_id'), normalize(sqlc.arg('body')::text, NFC),
   sqlc.arg('created_at'), 1,
-  sqlc.arg('kind'), sqlc.narg('system_code'), sqlc.narg('system_params')
+  sqlc.arg('kind'), sqlc.narg('system_code'), sqlc.narg('system_params'), sqlc.arg('internal')
 );
 
 -- name: FindComment :one
@@ -28,7 +28,7 @@ INSERT INTO comment (
 -- from serving it.
 SELECT id, tenant_id, item_id, author_id, parent_comment_id,
        (CASE WHEN deleted_at IS NULL THEN body ELSE '' END)::text AS body,
-       created_at, edited_at, deleted_at, version, kind, system_code, system_params
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params, internal
 FROM comment
 WHERE id = $1;
 
@@ -44,7 +44,7 @@ WHERE id = $1;
 -- Served by comment_item_idx, whose leading columns are this ORDER BY.
 SELECT id, tenant_id, item_id, author_id, parent_comment_id,
        (CASE WHEN deleted_at IS NULL THEN body ELSE '' END)::text AS body,
-       created_at, edited_at, deleted_at, version, kind, system_code, system_params
+       created_at, edited_at, deleted_at, version, kind, system_code, system_params, internal
 FROM comment
 WHERE item_id = sqlc.arg('item_id')
   AND (

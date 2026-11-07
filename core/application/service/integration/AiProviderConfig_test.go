@@ -79,6 +79,7 @@ func TestAnAbsentKeyKeepsTheStoredOneAndAnEmptyOneClearsIt(t *testing.T) {
 
 // Nothing reaches the store unless the actor may write, which is rule 2: the check is here and not
 // in the adapter, and the adapter is never asked.
+// UC-AI-03 check 1: nobody without the right switches consent on.
 func TestAnUnauthorisedActorReachesNothing(t *testing.T) {
 	writer, store := providerWriter()
 	writer.Authorizer = providerRefuse{}
@@ -92,6 +93,7 @@ func TestAnUnauthorisedActorReachesNothing(t *testing.T) {
 	}
 }
 
+// UC-AI-02 check 2: the key is sealed on the way in and never answered again.
 func TestReadingAnswersTheConfigurationAndNeverTheKey(t *testing.T) {
 	writer, store := providerWriter()
 	if _, err := (ConfigureAiProvider{Writer: writer}).
@@ -159,6 +161,29 @@ func TestRemovingAConfiguredProviderRecordsIt(t *testing.T) {
 	}
 	if len(store.entries) != 2 || store.entries[1].Action != AiProviderRemovedAction {
 		t.Errorf("the trail records %d entries ending in %v", len(store.entries), store.entries)
+	}
+}
+
+// UC-AI-03 check 4: giving consent and withdrawing it are each an entry in the workspace's trail,
+// saying which way it went.
+func TestGivingAndWithdrawingConsentAreInTheTrail(t *testing.T) {
+	writer, store := providerWriter()
+	for _, allowed := range []bool{true, false} {
+		command := providerCommand()
+		command.ProcessingAllowed = allowed
+		if _, err := (ConfigureAiProvider{Writer: writer}).
+			Execute(context.Background(), providerActor(), command); err != nil {
+			t.Fatalf("consent %v: %v", allowed, err)
+		}
+	}
+	if len(store.entries) != 2 {
+		t.Fatalf("the trail holds %d entries, want one per decision", len(store.entries))
+	}
+	for i, want := range []string{"true", "false"} {
+		recorded, _ := store.entries[i].Changes["processing_allowed"].(map[string]any)
+		if recorded["to"] != want {
+			t.Errorf("entry %d does not record consent %s: %+v", i, want, store.entries[i].Changes)
+		}
 	}
 }
 

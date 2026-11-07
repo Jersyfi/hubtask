@@ -193,6 +193,7 @@ func TestAThousandEventsFormOneUnbrokenChain(t *testing.T) {
 // The edit is made with the trigger switched off, as the owner - which is what "an operator who
 // configured themselves too much power" looks like, and the case the hash chain exists for. The
 // application role cannot do this at all, which is what the test above it asserts.
+// UC-AUD-02 check 3: a row changed in the database is found at its own sequence number.
 func TestARowEditedInTheDatabaseIsFoundByVerification(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -441,6 +442,7 @@ func TestThePagesOfTheTrailDoNotOverlap(t *testing.T) {
 
 // The cross-tenant negative test the rules ask of every new repository method: what one tenant
 // reads is its own trail, whatever it asks for.
+// UC-AUD-01 check 4: one workspace never reads another's trail.
 func TestOneTenantCannotReadAnothersTrail(t *testing.T) {
 	ctx := context.Background()
 	mine, theirs := auditTenant(ctx, t), auditTenant(ctx, t)
@@ -930,7 +932,7 @@ func TestAnAuditorReadsTheConfigurationAndChangesNoneOfIt(t *testing.T) {
 
 // Somebody who is an auditor *and* a member holds both, which is what a union over the memberships
 // buys and what "the highest role wins" could not express: one of the two would have taken the
-// other away.
+// other away (UC-AUD-05 check 6).
 func TestAnAuditorWhoIsAlsoAMemberKeepsBoth(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -991,6 +993,7 @@ func TestAnAuditorWhoIsAlsoAMemberKeepsBoth(t *testing.T) {
 // The entries here carry deliberately *descending* timestamps, which is what a set of callers whose
 // clocks disagree looks like from the database's side, and what makes this test fail against the
 // old ordering every time rather than once in a while.
+// UC-AUD-02 check 8: concurrent writers never share a sequence number.
 func TestOverlappingWritersDoNotReuseASequenceNumber(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -1074,6 +1077,7 @@ func TestOverlappingWritersDoNotReuseASequenceNumber(t *testing.T) {
 // row, so every entry written with a clock finer than a microsecond hashed one instant and was read
 // back as another - and the chain reported tampering that never happened. AT-2 could not see it:
 // its entries are built from a fixed base plus whole seconds.
+// UC-AUD-02 check 8: an entry with nanosecond timestamps still verifies.
 func TestAnEntryWrittenWithNanosecondsStillVerifies(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -1103,6 +1107,7 @@ func TestAnEntryWrittenWithNanosecondsStillVerifies(t *testing.T) {
 // row, and that has been through JSONB and `map[string]any`. A structure marshals in field order on
 // the way in and in key order on the way out, so the two hashes differed for any entry carrying
 // one - and the trail reported tampering that never happened.
+// UC-AUD-02 check 8: an entry with a structured change still verifies.
 func TestAnEntryWhoseChangeIsAStructureStillVerifies(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -1135,6 +1140,7 @@ func TestAnEntryWhoseChangeIsAStructureStillVerifies(t *testing.T) {
 // It is stored as `{}` and read back as `{}`, and a nil map hashes as `null`: the chain broke at
 // the first such entry and nowhere else, which is how a trail could verify for forty entries and
 // then not.
+// UC-AUD-02 check 8: an entry with no change still verifies.
 func TestAnEntryThatChangedNothingStillVerifies(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)

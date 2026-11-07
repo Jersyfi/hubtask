@@ -36,7 +36,8 @@ const (
 	// (`item.member_added`) or a workspace scope (`membership.granted`). One category, because
 	// both are the same sentence to the person reading it: you are now part of this.
 	CategoryMembership Category = "MEMBERSHIP"
-	// CategoryComment is somebody writing on an entry: `comment.created`.
+	// CategoryComment is somebody writing on an entry (`comment.created`), or naming the recipient
+	// in a whiteboard's comment.
 	CategoryComment Category = "COMMENT"
 	// CategoryReminder is a moment somebody asked to be told about: a reminder firing.
 	//
@@ -73,13 +74,23 @@ const (
 	// no silent variant for anyone" (UC-ID-16), and a member's own preference would be one. Whether
 	// the mail names the hub stays the member's choice.
 	CategoryEmergencyAccess Category = "EMERGENCY_ACCESS"
+	// CategoryRequestReply is the team's public answer on a request a requester raised in the
+	// portal (UC-SVC-05): told to them, with a link into the portal they follow it in. Its own
+	// category rather than COMMENT, because the link and the switch are a requester's, not a
+	// team member's.
+	CategoryRequestReply Category = "REQUEST_REPLY"
+	// CategorySLA is what a rule's notification step tells an account, the members of a group or
+	// the holders of a role (UC-AUT-09): an overdue invoice, a request arrived. Its own switch, because
+	// what a rule announces is the workspace's arrangement rather than somebody's act.
+	CategorySLA Category = "SLA"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
 func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
-		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess,
+		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess, CategoryRequestReply,
+		CategorySLA,
 	}
 }
 
@@ -159,12 +170,18 @@ const (
 	// ReasonNoAddress is a recipient with no email address to send to. A suppression rather than a
 	// failure: nothing is going to change by trying again.
 	ReasonNoAddress = "notifications.no_address"
+	// ReasonNoMailServer is an installation that sends no email at all: the operator's decision,
+	// so a suppression - retrying would only fill the dead letters.
+	ReasonNoMailServer = "notifications.no_mail_server"
 	// ReasonSelfCaused is somebody being told about their own action. Suppressed for everybody's
 	// sanity: an assignment you made to yourself is not news.
 	ReasonSelfCaused = "notifications.self_caused"
 	// ReasonDeliveryFailed is what a delivery that used up its attempts leaves behind. The detail
 	// of which failure it was belongs in the log and the metric, not in a column a person reads.
 	ReasonDeliveryFailed = "notifications.delivery_failed"
+	// ReasonUndeliverable is an address the mail server refused for good before: a suppression
+	// until the person clears the mark, since every further try would be refused as well.
+	ReasonUndeliverable = "notifications.undeliverable"
 )
 
 // Notification is one thing somebody is to be told.
@@ -200,6 +217,36 @@ type Notification struct {
 	// MembershipID is the role the recipient was given (UC-NOT-01 check 9): the message reads the
 	// role, the scope and the place's name from the grant when it is rendered.
 	MembershipID shared.ID
+	// PageID is the page whose review fell due (UC-DOC-12 check 4): the message reads its title
+	// when it is rendered.
+	PageID shared.ID
+	// AgentID is the agent that did what its policy lets it do with its owner told (UC-AGT-02,
+	// NOTIFY): the message reads its name at delivery.
+	AgentID shared.ID
+	// WhiteboardID is the board a comment named the recipient on (UC-CNV-09 check 2): the message
+	// reads its title at delivery.
+	WhiteboardID shared.ID
+	// ApprovalID is the approval that waits for the recipient's yes, or whose level they asked for
+	// is overdue (UC-SVC-09 check 4): the message reads the entry's title at delivery.
+	ApprovalID shared.ID
+	// BaselineID is the baseline a plan slipped past by more than its time tolerance, told to whoever
+	// decided the tolerance (configuration.md §10): the message reads the plan's place at delivery.
+	BaselineID shared.ID
+	// MailboxID is the connected mailbox that has refused for over an hour, told to the
+	// workspace's administrators once when it turns failing (ADR-0094).
+	MailboxID shared.ID
+	// IdentityProviderID is the SAML provider whose certificates end within 30, 7 or 1 days, told
+	// to the workspace's administrators once per warning (identity.md §26.1).
+	IdentityProviderID shared.ID
+	// CalendarPushID is the calendar push its provider refused for good, told to its owner once
+	// when it stops (UC-INT-16).
+	CalendarPushID shared.ID
+	// ConnectorID is the CMDB connector that switched itself off after its failures, told to the
+	// workspace's and the hub's administrators once when it does.
+	ConnectorID shared.ID
+	// CodeHookID is the forge hook that switched itself off because the person it acts as may no
+	// longer write in its hub, told to the workspace's and the hub's administrators once.
+	CodeHookID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -220,13 +267,23 @@ type NewInput struct {
 	Channel     Channel
 	EventID     shared.ID
 	ItemID      shared.ID
-	// RuleID, SubscriptionID, PrivateHubAccessID or MembershipID instead of ItemID for a message
-	// about a rule, a subscription, an emergency access or a role given; naming two subjects is
-	// refused.
+	// RuleID, SubscriptionID, PrivateHubAccessID, MembershipID, PageID, AgentID, WhiteboardID,
+	// ApprovalID or BaselineID instead of ItemID for a message about one of those; naming two
+	// subjects is refused.
 	RuleID             shared.ID
 	SubscriptionID     shared.ID
 	PrivateHubAccessID shared.ID
 	MembershipID       shared.ID
+	PageID             shared.ID
+	AgentID            shared.ID
+	WhiteboardID       shared.ID
+	ApprovalID         shared.ID
+	BaselineID         shared.ID
+	MailboxID          shared.ID
+	IdentityProviderID shared.ID
+	CalendarPushID     shared.ID
+	ConnectorID        shared.ID
+	CodeHookID         shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -270,6 +327,16 @@ func New(in NewInput) (Notification, error) {
 		SubscriptionID:     in.SubscriptionID,
 		PrivateHubAccessID: in.PrivateHubAccessID,
 		MembershipID:       in.MembershipID,
+		PageID:             in.PageID,
+		AgentID:            in.AgentID,
+		WhiteboardID:       in.WhiteboardID,
+		ApprovalID:         in.ApprovalID,
+		BaselineID:         in.BaselineID,
+		MailboxID:          in.MailboxID,
+		IdentityProviderID: in.IdentityProviderID,
+		CalendarPushID:     in.CalendarPushID,
+		ConnectorID:        in.ConnectorID,
+		CodeHookID:         in.CodeHookID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -277,7 +344,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID, in.CalendarPushID, in.ConnectorID, in.CodeHookID} {
 		if !id.IsZero() {
 			named++
 		}

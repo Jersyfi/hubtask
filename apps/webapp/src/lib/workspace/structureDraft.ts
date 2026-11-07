@@ -17,8 +17,11 @@ import type { Capabilities, EffectiveStructure, Preset, StructureChange, Structu
 import { allowedChildTypes, rootTypes } from '../data/capability.ts';
 import { presetChoice, presetValue } from '../data/presetChoice.ts';
 
-/** The eight settings, in the order the panel shows them (UC-WRK-23 check 2). */
-export const SETTINGS = ['levels', 'fields', 'views', 'counts', 'completion', 'capture', 'celebration', 'automation'] as const;
+/**
+ * The nine settings, in the order the panel shows them (UC-WRK-23 check 2). `entry_types` is drawn
+ * only where the workflows module is on (UC-FLW-01 checks 3, 8).
+ */
+export const SETTINGS = ['levels', 'fields', 'views', 'counts', 'completion', 'capture', 'celebration', 'automation', 'entry_types'] as const;
 export type SettingName = (typeof SETTINGS)[number];
 
 export interface Draft {
@@ -181,6 +184,25 @@ export function renameLevel(levels: StructureSettings['levels'], type: string, n
  * rest of the level's entry - its `categories` (UX-12's grouping, chosen in its own dialog) above
  * all. *Done or open* is always carried.
  */
+/**
+ * The collection's entry types after the reader ticked `selected` of a level's `inUse` keys
+ * (UC-FLW-01 check 3): every one ticked leaves the level out - it offers every type, including one
+ * added later - and none ticked is not a choice, so the value stays as it was.
+ */
+export function chooseEntryTypesOf(
+  offered: StructureSettings['entry_types'],
+  type: string,
+  inUse: readonly string[],
+  selected: readonly string[],
+): NonNullable<StructureSettings['entry_types']> {
+  const current = { ...(offered ?? {}) } as Record<string, string[]>;
+  const kept = inUse.filter((key) => selected.includes(key));
+  if (kept.length === 0) return current as NonNullable<StructureSettings['entry_types']>;
+  if (kept.length === inUse.length) delete current[type];
+  else current[type] = kept;
+  return current as NonNullable<StructureSettings['entry_types']>;
+}
+
 export function chooseFieldsOf(
   fields: StructureSettings['fields'],
   type: string,

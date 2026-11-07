@@ -108,6 +108,7 @@ func (r MediaRepository) Seal(ctx context.Context, object media.Object) error {
 	}
 
 	affected, err := queries.SealMediaObject(ctx, sqlc.SealMediaObjectParams{
+		Status:   string(object.Status),
 		MimeType: object.ContentType,
 		ByteSize: object.ByteSize,
 		ID:       id,
@@ -119,6 +120,57 @@ func (r MediaRepository) Seal(ctx context.Context, object media.Object) error {
 	}
 	if affected == 0 {
 		return shared.ErrConflict.WithDetail("media.already_confirmed")
+	}
+	return nil
+}
+
+// Held returns up to batch objects held for a scan, oldest first.
+func (r MediaRepository) Held(ctx context.Context, batch int) ([]media.Object, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHeldMediaObjects(ctx, boundedInt32(batch))
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the media held for a scan: %w", err))
+	}
+	objects := make([]media.Object, 0, len(rows))
+	for _, row := range rows {
+		object, err := mediaObjectFrom(
+			row.ID, row.TenantID, row.StorageKey, row.FileName, row.MimeType, row.ByteSize,
+			row.Checksum, row.Usage, row.Status, row.RefCount, row.CreatedBy, row.CreatedAt,
+			row.DeletedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, object)
+	}
+	return objects, nil
+}
+
+// Settle writes a scan's verdict on a held object; one no longer held is ErrConflict.
+func (r MediaRepository) Settle(ctx context.Context, object media.Object) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(object.ID)
+	if err != nil {
+		return err
+	}
+	affected, err := queries.SettleMediaScan(ctx, sqlc.SettleMediaScanParams{
+		Status: string(object.Status), ID: id,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("settling the scan of the media object %s: %w", object.ID, err))
+	}
+	if affected == 0 {
+		return shared.ErrConflict.WithDetail("media.not_held")
 	}
 	return nil
 }
@@ -293,6 +345,60 @@ func (r MediaRepository) ReferencingItems(
 	return refs, nil
 }
 
+// ReferencingBoards returns the hubs of the boards that draw the object.
+func (r MediaRepository) ReferencingBoards(ctx context.Context, mediaID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMediaReferencingBoards(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the boards of %s: %w", mediaID, err))
+	}
+	hubs := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		hub, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		hubs = append(hubs, hub)
+	}
+	return hubs, nil
+}
+
+// ReferencingPages returns the pages that hold the object.
+func (r MediaRepository) ReferencingPages(ctx context.Context, mediaID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMediaReferencingPages(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the pages of %s: %w", mediaID, err))
+	}
+	pages := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		page, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		pages = append(pages, page)
+	}
+	return pages, nil
+}
+
 // ServesAvatar answers whether some account shows the object as its picture.
 func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)
@@ -311,6 +417,33 @@ func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (b
 			WithCause(fmt.Errorf("asking whether %s is a picture: %w", mediaID, err))
 	}
 	return serves, nil
+}
+
+// ServedDesks returns the live collections showing the object as their desk's logo.
+func (r MediaRepository) ServedDesks(ctx context.Context, mediaID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListMediaServedDesks(ctx, id)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the desks of %s: %w", mediaID, err))
+	}
+	desks := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		desk, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		desks = append(desks, desk)
+	}
+	return desks, nil
 }
 
 // ListForItem returns one page of an item's attachments as media objects.

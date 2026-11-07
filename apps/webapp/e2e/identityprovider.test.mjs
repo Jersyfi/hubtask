@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // A workspace's sign-in provider, configured as an administrator meets it (UC-ID-11 checks 1, 2,
-// 4, 5, 6): the three admission answers in plain words - in English and in German - and never the
+// 3, 4, 5, 6): the three admission answers in plain words - in English and in German - and never the
 // contract's values; the list the server reads and nothing else; *New people get* only where
 // somebody new arrives, defaulting to nothing; the redirect address in full, copied whole.
 //
@@ -139,11 +139,14 @@ for (const locale of ['en', 'de']) {
     assert.equal(await form.getByLabel(words.workspaceDomains).count(), 0);
     assert.match(await form.innerText(), words.emptyAdmitsNobody);
 
-    // The contract's values are never on screen, in any preset's form.
+    // The contract's values are never on screen, in any preset's form; and every kind offers *Only
+    // people invited here* (UC-ID-11 check 3).
     for (const each of ['GENERIC', 'MICROSOFT', 'GOOGLE']) {
       await kind.selectOption(each);
       const text = await form.innerText();
       assert.doesNotMatch(text, /\bINVITED_ONLY\b|\bDOMAINS\b|\bANY\b/, `${each}: ${text}`);
+      const offered = (await admission.locator('option').allTextContents()).map((label) => label.trim());
+      assert.ok(offered.includes(words.modes[0]), `${each} does not offer ${words.modes[0]}: ${offered}`);
     }
 
     // The redirect address in full, and the copy control hands over exactly it (check 6).

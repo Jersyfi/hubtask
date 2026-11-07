@@ -4,8 +4,12 @@
 package environment
 
 import (
+	"bytes"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -283,8 +287,12 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		{"HUBTASK_HTTP_MAX_REDIRECTS", "50", "config.redirects_invalid"},
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "https://hooks.example.org", "config.allowed_host_invalid"},
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "hooks.example.org/path", "config.allowed_host_invalid"},
+		{"HUBTASK_HTTP_CA_FILE", "/nowhere/such/roots.pem", "config.http_ca_file_unreadable"},
 		{"HUBTASK_LOAD_SHED_INFLIGHT", "-1", "config.load_shed_invalid"},
 		{"HUBTASK_LOAD_SHED_RETRY_AFTER", "0s", "config.duration_invalid"},
+		{"HUBTASK_MAILBOX_WATCH_SHARDS", "0", "config.range_invalid"},
+		{"HUBTASK_MAILBOX_WATCH_SHARDS", "65", "config.range_invalid"},
+		{"HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER", "2", "config.range_invalid"},
 	}
 
 	for _, tc := range cases {
@@ -433,6 +441,30 @@ func TestNoSMTPIsAWarningNotAnError(t *testing.T) {
 	})
 }
 
+// An address only this machine reaches - the example's localhost left in place on a server - is
+// never empty, so config.base_url_missing stays quiet while every invitation, reset mail and
+// redirect URI points at a dead link. It is warned about by name; a real host is not.
+func TestABaseURLOnlyThisMachineReachesIsAWarning(t *testing.T) {
+	withRequiredSecrets(t)
+	for address, want := range map[string]bool{
+		"http://localhost:8080":         true,
+		"http://127.0.0.1:8080":         true,
+		"http://[::1]:8080":             true,
+		"http://hubtask.localhost":      true,
+		"https://tasks.example.org":     false,
+		"https://localhost.example.org": false,
+	} {
+		t.Setenv("HUBTASK_BASE_URL", address)
+		cfg, err := load(t)
+		if err != nil {
+			t.Fatalf("%s: load failed: %v", address, err)
+		}
+		if got := hasWarning(New("v", "c").Warnings(cfg), "config.base_url_loopback"); got != want {
+			t.Errorf("%s: warned %v, want %v", address, got, want)
+		}
+	}
+}
+
 func TestConfiguredSMTPMustBeComplete(t *testing.T) {
 	withRequiredSecrets(t)
 	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")
@@ -461,6 +493,7 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 		"config.base_url_missing",         // links in emails would be wrong
 		"config.egress_allowlist_missing", // mandatory in provider operation (T-07)
 		"config.smtp_without_tls",
+		"config.encryption_keys_missing", // no webhook, target or connector secret can be kept
 	} {
 		if !hasWarning(warnings, want) {
 			t.Errorf("the warning %s is missing from %v", want, warnings)
@@ -872,5 +905,184 @@ func TestTheOperatorsVariableNamesAWorkspaceAndAnAddress(t *testing.T) {
 				t.Errorf("operators = %+v, want %+v", cfg.Operators, tc.want)
 			}
 		})
+	}
+}
+
+// HUBTASK_UI_FRAME_SOURCES is empty by default and takes complete https origins only: an http
+// frame on an https interface would be mixed content, and a wildcard frames the whole web.
+func TestTheFrameSourcesAreCompleteHTTPSOriginsOnly(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameSources) != 0 {
+		t.Fatalf("frame sources by default = %v", cfg.UI.FrameSources)
+	}
+
+	t.Setenv("HUBTASK_UI_FRAME_SOURCES", "https://dashboards.example.org, https://video.example.org:8443")
+	cfg, err = load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameSources) != 2 || cfg.UI.FrameSources[1] != "https://video.example.org:8443" {
+		t.Fatalf("frame sources = %v", cfg.UI.FrameSources)
+	}
+
+	for _, refused := range []string{"*", "https://*.example.org", "dashboards.example.org",
+		"http://dashboards.example.org", "https://dashboards.example.org/path", "https://a.example.org; script-src *"} {
+		t.Setenv("HUBTASK_UI_FRAME_SOURCES", refused)
+		if _, err := load(t); err == nil || !strings.Contains(err.Error(), "config.frame_source_invalid") {
+			t.Errorf("%q answered %v", refused, err)
+		}
+	}
+}
+
+// HUBTASK_UI_FRAME_ANCESTORS is empty by default, takes complete origins, and refuses a wildcard
+// or anything that would add a directive.
+func TestTheFrameAncestorsAreCompleteOriginsOnly(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameAncestors) != 0 {
+		t.Fatalf("frame ancestors by default = %v", cfg.UI.FrameAncestors)
+	}
+
+	t.Setenv("HUBTASK_UI_FRAME_ANCESTORS", "https://portal.example.org, https://chat.example.org:8443")
+	cfg, err = load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.UI.FrameAncestors) != 2 || cfg.UI.FrameAncestors[1] != "https://chat.example.org:8443" {
+		t.Fatalf("frame ancestors = %v", cfg.UI.FrameAncestors)
+	}
+
+	for _, refused := range []string{"*", "https://*.example.org", "portal.example.org",
+		"https://portal.example.org/path", "https://a.example.org; script-src *"} {
+		t.Setenv("HUBTASK_UI_FRAME_ANCESTORS", refused)
+		if _, err := load(t); err == nil || !strings.Contains(err.Error(), "config.frame_ancestor_invalid") {
+			t.Errorf("%q answered %v", refused, err)
+		}
+	}
+}
+
+// HUBTASK_TRUSTED_PROXIES: empty by default, a network or an address accepted, anything else a
+// startup error rather than a proxy silently not trusted.
+func TestTrustedProxiesAreValidated(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.Request.TrustedProxies) != 0 {
+		t.Errorf("trusted proxies by default = %v, want none", cfg.Request.TrustedProxies)
+	}
+
+	t.Setenv("HUBTASK_TRUSTED_PROXIES", "10.42.0.0/16, 192.0.2.1, fd00::/8")
+	if cfg, err = load(t); err != nil {
+		t.Fatalf("load failed: %v", err)
+	} else if len(cfg.Request.TrustedProxies) != 3 {
+		t.Errorf("trusted proxies = %v", cfg.Request.TrustedProxies)
+	}
+
+	t.Setenv("HUBTASK_TRUSTED_PROXIES", "10.42.0.0/16, traefik")
+	if _, err := load(t); err == nil || !strings.Contains(err.Error(), "config.trusted_proxy_invalid") {
+		t.Errorf("error = %v, want config.trusted_proxy_invalid", err)
+	}
+}
+
+// The per-workspace walls default by mode (multi-tenancy.md §4): single mode has no request wall
+// of its own and a stream cap equal to the process's, so the one company is never refused below
+// the process; multi mode keeps a wall per workspace.
+func TestTheWorkspaceWallsDefaultByMode(t *testing.T) {
+	for _, tc := range []struct {
+		mode                          string
+		token, tenant, streams, procs int
+	}{
+		{"single", 6000, 0, 1024, 1024},
+		{"multi", 600, 3000, 512, 1024},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv("HUBTASK_TENANCY_MODE", tc.mode)
+			cfg, err := load(t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := []int{cfg.RateLimit.TokenPerMinute, cfg.RateLimit.TenantPerMinute,
+				cfg.LoadShed.StreamsPerTenant, cfg.LoadShed.StreamsPerProcess}
+			want := []int{tc.token, tc.tenant, tc.streams, tc.procs}
+			if !slices.Equal(got, want) {
+				t.Errorf("token, tenant, streams per tenant, per process = %v, want %v", got, want)
+			}
+		})
+	}
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_STREAM_PER_PROCESS", "2000")
+	if cfg, err := load(t); err != nil || cfg.LoadShed.StreamsPerTenant != 2000 {
+		t.Errorf("single mode with a larger process cap: per tenant %d, %v", cfg.LoadShed.StreamsPerTenant, err)
+	}
+}
+
+// A restore-drill record named where the process cannot read it - a Compose path no volume
+// mounts - kept A-20 silent for good; it is said instead (A-14). A missing file in a directory
+// that exists is a drill not yet run, the honest absence, and says nothing.
+func TestAnUnreadableRestoreDrillRecordIsWarned(t *testing.T) {
+	withRequiredSecrets(t)
+	dir := t.TempDir()
+	cases := map[string]struct {
+		path string
+		want bool
+	}{
+		"not set":             {"", false},
+		"no drill yet":        {filepath.Join(dir, "last_success_unix"), false},
+		"directory unmounted": {filepath.Join(dir, "restore-drill", "last_success_unix"), true},
+		"a directory":         {dir, true},
+	}
+	for name, tc := range cases {
+		t.Setenv("HUBTASK_RESTORE_DRILL_RECORD_FILE", tc.path)
+		cfg, err := load(t)
+		if err != nil {
+			t.Fatalf("%s: load failed: %v", name, err)
+		}
+		if got := hasWarning(New("v", "c").Warnings(cfg), "config.restore_drill_record_unreadable"); got != tc.want {
+			t.Errorf("%s: warned %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
+// HUBTASK_HTTP_CA_FILE (security.md §10): a file without one certificate refuses the start, one
+// with a certificate is read once into the configuration, and none named adds nothing.
+func TestTheOutboundRootsFileIsReadOnceAndRefusedWithoutACertificate(t *testing.T) {
+	withRequiredSecrets(t)
+	junk := filepath.Join(t.TempDir(), "junk.pem")
+	if err := os.WriteFile(junk, []byte("not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HUBTASK_HTTP_CA_FILE", junk)
+	_, err := load(t)
+	assertCode(t, err, "config.http_ca_file_invalid")
+
+	server := httptest.NewTLSServer(http.NotFoundHandler())
+	defer server.Close()
+	roots := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	good := filepath.Join(t.TempDir(), "roots.pem")
+	if err := os.WriteFile(good, roots, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HUBTASK_HTTP_CA_FILE", good)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("a file of one certificate was refused: %v", err)
+	}
+	if !bytes.Equal(cfg.Outbound.CARoots, roots) || cfg.Outbound.CAFile != good {
+		t.Errorf("the roots were not read: %q from %q", cfg.Outbound.CARoots, cfg.Outbound.CAFile)
+	}
+
+	t.Setenv("HUBTASK_HTTP_CA_FILE", "")
+	if cfg, err = load(t); err != nil || cfg.Outbound.CARoots != nil {
+		t.Errorf("no file named still added roots: %v, %q", err, cfg.Outbound.CARoots)
 	}
 }

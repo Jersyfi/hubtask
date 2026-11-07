@@ -48,3 +48,19 @@ export function touchesOf(id: string): readonly string[] {
  * no such write changes.
  */
 export const TOUCHES_ANY_ENTRY: readonly string[] = [ENTRY_LISTS, ANY_ENTRY_DOCUMENT, ANY_ENTRY_HISTORY];
+
+/**
+ * What a write that may move an entry's status makes stale besides: in a collection a workflow
+ * runs, ticking an entry off moves it to a done status, and a step stops or starts its
+ * service-level clocks - so the open entry's steps and clocks are re-read with its document.
+ */
+export const TOUCHES_ANY_STATUS: readonly string[] = [...TOUCHES_ANY_ENTRY, '/items/*/steps', '/items/*/sla'];
+
+/** One entry's status, the steps it offers and its clocks: what a change to it may move. */
+export const entryStatus = (id: string): readonly string[] => [`/items/${id}/steps`, `/items/${id}/sla`];
+
+/**
+ * The configuration check (configuration.md §11): a write to a building block it reads - a
+ * type, a workflow, a role, a field, a rule - may add or settle a finding, so each one names it.
+ */
+export const CONFIG_CHECK = '/config/check';

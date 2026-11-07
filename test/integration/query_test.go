@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // The query language against a real database.
@@ -820,6 +822,97 @@ func TestEveryGroupableFieldAnswersItsColumnsAndCounts(t *testing.T) {
 	}
 }
 
+// The web app's board: one collection's top entries, archived ones included, grouped by column or
+// status, each column counted. The columns are found by skipping through migration 0371's indexes,
+// so this proves that path answers what numbering answered: every column a kept entry holds, in
+// order, the entries without a value last; nothing below an entry, nothing from the trash.
+func TestABoardOfOneCollectionAnswersEveryColumnItsTopEntriesHold(t *testing.T) {
+	ctx := context.Background()
+	f := queryFixture(ctx, t)
+	pool := adminPool(ctx, t)
+
+	// A second column with one living entry and one in the trash, and statuses on three entries:
+	// the trashed entry's status is a value no kept entry holds, so it must be no group.
+	second := seedBucket(ctx, t, tenantA, f.collection, "a1")
+	trashedKey, err := service.OrderKeyAfter(f.lastKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	livingKey, err := service.OrderKeyAfter(trashedKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trashed := taskIn(tenantA, authorA, f.collection, freshID(t), "Zeta trashed", trashedKey)
+	trashed.BucketID = second.ID
+	living := taskIn(tenantA, authorA, f.collection, freshID(t), "Eta living", livingKey)
+	living.BucketID = second.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, task := range []work.WorkItem{trashed, living} {
+			if _, err := itemRepo().Insert(ctx, task); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seeding the second column: %v", err)
+	}
+	for _, update := range []struct {
+		sql string
+		id  shared.ID
+	}{
+		{`UPDATE work_item SET deleted_at = now(), status = 'gone' WHERE tenant_id = $1 AND id = $2`, trashed.ID},
+		{`UPDATE work_item SET status = 'doing' WHERE tenant_id = $1 AND id = $2`, f.tasks[0].ID},
+		{`UPDATE work_item SET status = 'doing' WHERE tenant_id = $1 AND id = $2`, f.tasks[2].ID},
+		{`UPDATE work_item SET status = 'done' WHERE tenant_id = $1 AND id = $2`, living.ID},
+		{`UPDATE work_item SET status = 'doing' WHERE tenant_id = $1 AND id = $2`, f.child.ID},
+	} {
+		if _, err := pool.Exec(ctx, update.sql, tenantA.String(), update.id.String()); err != nil {
+			t.Fatalf("preparing the board: %v", err)
+		}
+	}
+
+	tests := map[string]struct {
+		field  string
+		keys   []string
+		titles [][]string
+	}{
+		"by column": {view.FieldBucketID, []string{f.bucket.ID.String(), second.ID.String(), ""}, [][]string{
+			{"Alpha milk", "Beta bread"}, {"Eta living"}, {"Gamma milk", "Delta cheese"},
+		}},
+		"by status": {view.FieldStatus, []string{"doing", "done", ""}, [][]string{
+			{"Alpha milk", "Gamma milk"}, {"Eta living"}, {"Beta bread", "Delta cheese"},
+		}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			group, err := view.ParseGroupBy(map[string]any{"field": test.field}, "/group_by")
+			if err != nil {
+				t.Fatalf("the grammar refused the grouping: %v", err)
+			}
+			search := searchIn(t, f.collection, nil, view.Spec{
+				GroupBy: group, Count: view.CountExact, IncludeArchived: true,
+			})
+			search.Anchor.IncludeDescendants = false
+
+			result := queried(ctx, t, tenantA, search)
+			if len(result.Groups) != len(test.keys) {
+				t.Fatalf("%d groups %v, want %v", len(result.Groups), result.Groups, test.keys)
+			}
+			for index, answered := range result.Groups {
+				if answered.Key != test.keys[index] {
+					t.Errorf("group %d is keyed %q, want %q", index, answered.Key, test.keys[index])
+				}
+				if got := titlesOf(answered.Items); !slices.Equal(got, test.titles[index]) {
+					t.Errorf("group %q holds %v, want %v", answered.Key, got, test.titles[index])
+				}
+				if answered.Total != len(test.titles[index]) {
+					t.Errorf("group %q counts %d, want %d", answered.Key, answered.Total, len(test.titles[index]))
+				}
+			}
+		})
+	}
+}
+
 // A group's cursor continues that group: the client sends it back with the group's key as a filter,
 // which is what the contract says and what has to actually work.
 func TestAGroupsCursorContinuesThatGroup(t *testing.T) {
@@ -967,4 +1060,73 @@ func TestAListOperatorTakesItsWholeArrayAsOneParameter(t *testing.T) {
 	if len(result.Items) != 2 {
 		t.Errorf("the query answered %v, want the two entries on the board", titlesOf(result.Items))
 	}
+}
+
+// A count that outlasts its budget leaves the board standing: the columns are answered without
+// their counts, the transaction goes on, and its own statement timeout is what it was before.
+// Without the budget a collection too large to count in time failed the whole read.
+func TestABoardWhoseCountOutlastsItsBudgetIsAnsweredWithoutIt(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	const entries = 10_000
+	// The entries carry their numbers, as a bulk load does: a drawn number rewrites the counter row
+	// per entry (migration 0296). Ten thousand still outlast a millisecond's count.
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key,
+		                       content_language, created_by, number)
+		SELECT id, $1, $2, 'TASK', '/' || id || '/', 0, 'Entry ' || g, 'a' || lpad(g::text, 6, '0'),
+		       'en', $3, g
+		FROM (SELECT gen_random_uuid() AS id, g FROM generate_series(1, $4::int) g) s`,
+		tenantA.String(), collection.String(), authorA.String(), entries); err != nil {
+		t.Fatalf("seeding the entries: %v", err)
+	}
+	group, err := view.ParseGroupBy(map[string]any{"field": view.FieldBucketID}, "/group_by")
+	if err != nil {
+		t.Fatal(err)
+	}
+	search := searchIn(t, collection, nil, view.Spec{GroupBy: group, Count: view.CountExact, IncludeArchived: true})
+	search.Anchor.IncludeDescendants = false
+
+	counting := func(items postgres.ItemRepository) (repository.ItemQueryResult, string, string) {
+		var result repository.ItemQueryResult
+		var before, after string
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			tx, err := postgres.FromContext(ctx)
+			if err != nil {
+				return err
+			}
+			if err := tx.QueryRow(ctx, `SELECT current_setting('statement_timeout')`).Scan(&before); err != nil {
+				return err
+			}
+			if result, err = items.Query(ctx, search); err != nil {
+				return err
+			}
+			return tx.QueryRow(ctx, `SELECT current_setting('statement_timeout')`).Scan(&after)
+		}); err != nil {
+			t.Fatalf("querying: %v", err)
+		}
+		return result, before, after
+	}
+
+	t.Run("within its budget", func(t *testing.T) {
+		result, before, after := counting(itemRepo())
+		if result.Uncounted || result.Total != entries || len(result.Groups) != 1 || result.Groups[0].Total != entries {
+			t.Fatalf("uncounted %v, total %d, groups %+v; want %d counted", result.Uncounted, result.Total, len(result.Groups), entries)
+		}
+		if before != after {
+			t.Errorf("statement_timeout %q before the count, %q after it", before, after)
+		}
+	})
+	t.Run("past its budget", func(t *testing.T) {
+		result, before, after := counting(itemRepo().WithCountBudget(time.Millisecond))
+		if !result.Uncounted {
+			t.Fatalf("counted %d within a millisecond; the seed is too small to outlast the budget", result.Total)
+		}
+		if len(result.Groups) != 1 || len(result.Groups[0].Items) == 0 {
+			t.Fatalf("groups %+v, want the one column with its first cards", result.Groups)
+		}
+		if before != after {
+			t.Errorf("statement_timeout %q before the count, %q after it", before, after)
+		}
+	})
 }

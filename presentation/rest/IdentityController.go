@@ -4,16 +4,13 @@
 package rest
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -21,9 +18,6 @@ import (
 // are reconciled by the parity test rather than by these constants.
 const (
 	inviteAccountUseCase               = "InviteAccount"
-	createManagedAccountUseCase        = "CreateManagedAccount"
-	issueStartPasswordUseCase          = "IssueStartPassword"
-	requestAddressUseCase              = "RequestAddress"
 	renewInvitationUseCase             = "RenewInvitation"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
@@ -34,49 +28,11 @@ const (
 	listNotificationPreferencesUseCase = "ListNotificationPreferences"
 	setNotificationPreferenceUseCase   = "SetNotificationPreference"
 	listMembershipsUseCase             = "ListMemberships"
-	grantMembershipUseCase             = "GrantMembership"
-	revokeMembershipUseCase            = "RevokeMembership"
 	listGroupsUseCase                  = "ListGroups"
 	getGroupUseCase                    = "GetGroup"
-	createGroupUseCase                 = "CreateGroup"
 	updateGroupUseCase                 = "UpdateGroup"
 	deleteGroupUseCase                 = "DeleteGroup"
 )
-
-// InviteAccount answers POST /accounts:invite.
-func (c *RestController) InviteAccount(w http.ResponseWriter, r *http.Request, _ openapi.InviteAccountParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AccountInvite
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), inviteAccountUseCase, actor, usecase.Input{
-			"email":        string(body.Email),
-			"display_name": optionalStringField(body.DisplayName),
-		})
-	}, func(out usecase.Output) {
-		invited := invitedAccountResponse(out)
-		markShownOnce(w, invited)
-		w.Header().Set("Location", APIBasePath+"/accounts/"+invited.Id.String())
-		writeJSON(w, r, http.StatusCreated, invited)
-	})
-}
-
-// RenewInvitation answers POST /accounts/{accountId}:renew-invitation, with the invitation's answer
-// and its marks.
-func (c *RestController) RenewInvitation(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, _ openapi.RenewInvitationParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), renewInvitationUseCase, actor, usecase.Input{
-			"account_id": accountID.String(),
-		})
-	}, func(out usecase.Output) {
-		invited := invitedAccountResponse(out)
-		markShownOnce(w, invited)
-		writeJSON(w, r, http.StatusOK, invited)
-	})
-}
 
 // invitedAccount is the InvitedAccount schema written as the account plus the link, so that the
 // account's own fields are mapped in one place (accountResponse) rather than twice.
@@ -94,270 +50,15 @@ func invitedAccountResponse(out usecase.Output) invitedAccount {
 	return invited
 }
 
-// markShownOnce marks an answer carrying the link - an installation that sends no mail - as the one
-// appearance of a credential: no-store for a cache, shown once for the idempotency record, so
-// neither keeps a copy (T-18).
-func markShownOnce(w http.ResponseWriter, invited invitedAccount) {
-	if invited.InvitationLink == nil {
-		return
+// managedAccountCreatedResponse maps a managed account with its membership and the one answer its start password ever appears in (T-18).
+func managedAccountCreatedResponse(out usecase.Output) openapi.ManagedAccountCreated {
+	account, _ := out["account"].(usecase.Output)
+	membership, _ := out["membership"].(usecase.Output)
+	return openapi.ManagedAccountCreated{
+		Account:       accountResponse(account),
+		Membership:    membershipResponse(membership),
+		StartPassword: out.String("start_password"),
 	}
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set(ShownOnceHeader, "invitation_link")
-}
-
-// CreateManagedAccount answers POST /accounts:create-managed.
-//
-// The answer carries the start password, once: it is marked `no-store` for a cache and as shown once
-// for the idempotency record, so neither keeps it.
-func (c *RestController) CreateManagedAccount(
-	w http.ResponseWriter, r *http.Request, params openapi.CreateManagedAccountParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.ManagedAccountCreate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), createManagedAccountUseCase, actor, usecase.Input{
-			"display_name":  body.DisplayName,
-			"sign_in_name":  body.SignInName,
-			"role":          string(body.Role),
-			"scope_type":    string(body.ScopeType),
-			"scope_id":      optionalUUIDField(body.ScopeId),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		account, _ := out["account"].(usecase.Output)
-		membership, _ := out["membership"].(usecase.Output)
-		created := openapi.ManagedAccountCreated{
-			Account:       accountResponse(account),
-			Membership:    membershipResponse(membership),
-			StartPassword: out.String("start_password"),
-		}
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set(ShownOnceHeader, "start_password")
-		w.Header().Set("Location", APIBasePath+"/accounts/"+created.Account.Id.String())
-		writeJSON(w, r, http.StatusCreated, created)
-	})
-}
-
-// IssueStartPassword answers POST /accounts/{accountId}:issue-start-password.
-//
-// The answer carries the new start password once, marked as the creation's is, so neither a cache
-// nor an idempotency record keeps it.
-func (c *RestController) IssueStartPassword(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, params openapi.IssueStartPasswordParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), issueStartPasswordUseCase, actor, usecase.Input{
-			"account_id":    accountID.String(),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		account, _ := out["account"].(usecase.Output)
-		issued := openapi.StartPasswordIssued{
-			Account:       accountResponse(account),
-			StartPassword: out.String("start_password"),
-		}
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set(ShownOnceHeader, "start_password")
-		writeJSON(w, r, http.StatusOK, issued)
-	})
-}
-
-// RequestAddress answers POST /accounts/{accountId}:add-address.
-func (c *RestController) RequestAddress(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AddressRequest
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), requestAddressUseCase, actor, usecase.Input{
-			"account_id": accountID.String(),
-			"email":      string(body.Email),
-		})
-	}, func(out usecase.Output) {
-		expires, _ := out["expires_at"].(time.Time)
-		writeJSON(w, r, http.StatusAccepted, openapi.AddressRequested{ExpiresAt: expires})
-	})
-}
-
-// GetOwnAccount answers GET /accounts/me.
-//
-// No parameter and no body: the actor is the identifier. `me` is a reserved segment rather than a
-// possible account id - identifiers are UUIDs - so this route and /accounts/{accountId} cannot
-// collide, and the specification says so where a reader will look.
-//
-// Written out rather than through the `identity` helper below, the way every other handler that
-// takes no path parameter is: the helper's closure hides the request from `contextcheck`, which
-// then cannot see that the context travels.
-func (c *RestController) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), getOwnAccountUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, accountResponse(out))
-}
-
-// UpdateOwnAccount answers PATCH /accounts/me: the caller's own display name.
-//
-// Written out like GetOwnAccount, for the reason given there. A field left out of the merge patch
-// is left out of the input, so the use case leaves it.
-func (c *RestController) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.OwnAccountUpdate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	in := usecase.Input{}
-	if body.DisplayName != nil {
-		in["display_name"] = *body.DisplayName
-	}
-	out, err := c.UseCases.Invoke(r.Context(), updateOwnAccountUseCase, actorOf(r), in)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, accountResponse(out))
-}
-
-// SetOwnAvatar answers PUT /accounts/me/avatar: the caller's own picture. Written out like
-// GetOwnAccount, for the reason given there.
-func (c *RestController) SetOwnAvatar(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.AvatarInput
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	out, err := c.UseCases.Invoke(r.Context(), setOwnAvatarUseCase, actorOf(r), usecase.Input{
-		"media_id": body.MediaId.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, accountResponse(out))
-}
-
-// RemoveOwnAvatar answers DELETE /accounts/me/avatar.
-func (c *RestController) RemoveOwnAvatar(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), removeOwnAvatarUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, accountResponse(out))
-}
-
-// GetAccount answers GET /accounts/{accountId}.
-//
-// The read that turns the identifier in an `ActivityEntry.actor`, an assignee or a member row into
-// a name. It answers `AccountSummary` rather than `Account`: a name and a kind, and none of the
-// four fields that are the account holder's own business (`data-protection.md` §9).
-func (c *RestController) GetAccount(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), getAccountUseCase, actor, usecase.Input{
-			"account_id": accountID.String(),
-		})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, accountSummaryResponse(out))
-	})
-}
-
-// UpdateAccountPreferences answers PATCH /accounts/{accountId}/preferences.
-func (c *RestController) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.AccountPreferences
-		present, err := decodeJSONWithPresence(r, &body)
-		if err != nil {
-			return nil, err
-		}
-		// The absent/empty distinction survives the mapping: a field the client omitted is absent
-		// from the input, and one it sent empty is present and empty. That is the difference
-		// between "leave my time zone" and "clear it". A null is the empty one: the contract
-		// declares it for all three, and the generated pointer cannot tell it from an omission,
-		// so presence is read from the bytes and a null is written as "".
-		in := usecase.Input{"account_id": accountID.String()}
-		if present["locale"] {
-			in["locale"] = stringOrEmpty(body.Locale)
-		}
-		if present["time_zone"] {
-			in["time_zone"] = stringOrEmpty(body.TimeZone)
-		}
-		if present["week_start"] {
-			in["week_start"] = weekStartOrEmpty(body.WeekStart)
-		}
-		// The moments travel as the words the use case reads - "true"/"false", an RFC
-		// 3339 instant - and a null as the empty one, like the three above.
-		if present["celebrations"] {
-			in["celebrations"] = boolWordOrEmpty(body.Celebrations)
-		}
-		if present["onboarding_completed_at"] {
-			in["onboarding_completed_at"] = instantOrEmpty(body.OnboardingCompletedAt)
-		}
-		return c.UseCases.Invoke(r.Context(), updateAccountPreferencesUseCase, actor, in)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, accountResponse(out))
-	})
-}
-
-// ListNotificationPreferences answers GET /accounts/{accountId}/notification-preferences.
-func (c *RestController) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
-	out, ok := c.read(w, r, listNotificationPreferencesUseCase, usecase.Input{"account_id": accountID.String()})
-	if !ok {
-		return
-	}
-
-	list := openapi.NotificationPreferenceList{Data: []openapi.NotificationPreference{}}
-	for _, row := range rowsOf(out) {
-		list.Data = append(list.Data, notificationPreferenceResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, list)
-}
-
-// SetNotificationPreference answers PUT /accounts/{accountId}/notification-preferences/{category}/{channel}.
-func (c *RestController) SetNotificationPreference(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, category string, channel string,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.NotificationPreferenceUpdate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), setNotificationPreferenceUseCase, actor, usecase.Input{
-			"account_id":    accountID.String(),
-			"category":      category,
-			"channel":       channel,
-			"enabled":       body.Enabled,
-			"include_title": body.IncludeTitle,
-		})
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, notificationPreferenceResponse(out))
-	})
 }
 
 // notificationPreferenceResponse maps one row of the settings form. The timestamp is a pointer
@@ -373,21 +74,9 @@ func notificationPreferenceResponse(out usecase.Output) openapi.NotificationPref
 	}
 }
 
-// ListMemberships answers GET /memberships.
-//
-// Through the shared read helper rather than the identity one: a list is mapped row by row from
-// the catalogue's page shape, which is what `rowsOf` and `pageResponse` exist for.
-func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request, params openapi.ListMembershipsParams) {
-	out, ok := c.read(w, r, listMembershipsUseCase, usecase.Input{
-		"scope_type": string(params.ScopeType),
-		"scope_id":   optionalUUIDField(params.ScopeId),
-		"cursor":     optionalStringField(params.Cursor),
-		"size":       optionalIntField(params.Size),
-	})
-	if !ok {
-		return
-	}
-
+// membershipPageResponse draws GET /memberships' page, the roles the caller may grant beside its
+// rows (x-hubtask-rest-list: whole).
+func membershipPageResponse(out usecase.Output) openapi.MembershipPage {
 	page := openapi.MembershipPage{
 		Data: []openapi.Membership{}, Page: pageResponse(out), GrantableRoles: []openapi.MembershipRole{},
 	}
@@ -397,139 +86,7 @@ func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request,
 	for _, row := range rowsOf(out) {
 		page.Data = append(page.Data, membershipResponse(row))
 	}
-	writeJSON(w, r, http.StatusOK, page)
-}
-
-// GrantMembership answers POST /memberships.
-func (c *RestController) GrantMembership(w http.ResponseWriter, r *http.Request, params openapi.GrantMembershipParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.MembershipGrant
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), grantMembershipUseCase, actor, usecase.Input{
-			"scope_type":    string(body.ScopeType),
-			"role":          string(body.Role),
-			"account_id":    optionalUUIDField(body.AccountId),
-			"group_id":      optionalUUIDField(body.GroupId),
-			"scope_id":      optionalUUIDField(body.ScopeId),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(out usecase.Output) {
-		membership := membershipResponse(out)
-		w.Header().Set("Location", APIBasePath+"/memberships/"+membership.Id.String())
-		writeJSON(w, r, http.StatusCreated, membership)
-	})
-}
-
-// RevokeMembership answers DELETE /memberships/{membershipId}.
-func (c *RestController) RevokeMembership(w http.ResponseWriter, r *http.Request, membershipID openapi.MembershipId, params openapi.RevokeMembershipParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), revokeMembershipUseCase, actor, usecase.Input{
-			"membership_id": membershipID.String(),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-}
-
-// ListGroups answers GET /groups.
-func (c *RestController) ListGroups(w http.ResponseWriter, r *http.Request, params openapi.ListGroupsParams) {
-	out, ok := c.read(w, r, listGroupsUseCase, usecase.Input{
-		"cursor": optionalStringField(params.Cursor),
-		"size":   optionalIntField(params.Size),
-	})
-	if !ok {
-		return
-	}
-
-	page := openapi.GroupPage{Data: []openapi.Group{}, Page: pageResponse(out)}
-	for _, row := range rowsOf(out) {
-		page.Data = append(page.Data, groupResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, page)
-}
-
-// GetGroup answers GET /groups/{groupId}.
-func (c *RestController) GetGroup(w http.ResponseWriter, r *http.Request, groupID openapi.GroupId) {
-	out, ok := c.read(w, r, getGroupUseCase, usecase.Input{"group_id": groupID.String()})
-	if !ok {
-		return
-	}
-
-	group := groupResponse(out)
-	detail := openapi.GroupDetail{
-		Id: group.Id, Name: group.Name, Description: group.Description, Version: group.Version,
-		Members: []openapi_types.UUID{},
-	}
-	detail.MembersChangeable, _ = out["members_changeable"].(bool)
-	for _, member := range stringsOf(out["members"]) {
-		detail.Members = append(detail.Members, uuidValue(member))
-	}
-	w.Header().Set("ETag", etag(group.Version))
-	writeJSON(w, r, http.StatusOK, detail)
-}
-
-// CreateGroup answers POST /groups.
-func (c *RestController) CreateGroup(w http.ResponseWriter, r *http.Request, _ openapi.CreateGroupParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.GroupCreate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), createGroupUseCase, actor, usecase.Input{
-			"name":        body.Name,
-			"description": optionalStringField(body.Description),
-			"members":     optionalUUIDList(body.Members),
-		})
-	}, func(out usecase.Output) {
-		group := groupResponse(out)
-		w.Header().Set("Location", APIBasePath+"/groups/"+group.Id.String())
-		w.Header().Set("ETag", etag(out.Int("version")))
-		writeJSON(w, r, http.StatusCreated, group)
-	})
-}
-
-// UpdateGroup answers PATCH /groups/{groupId}.
-func (c *RestController) UpdateGroup(w http.ResponseWriter, r *http.Request, groupID openapi.GroupId, params openapi.UpdateGroupParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.GroupUpdate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		input := usecase.Input{
-			"group_id":      groupID.String(),
-			"name":          optionalStringField(body.Name),
-			"description":   optionalStringField(body.Description),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		}
-		// Absent leaves the membership alone; an empty array empties the group. Setting the key
-		// only when the client sent one is what carries that distinction into the catalogue.
-		if body.Members != nil {
-			input["members"] = optionalUUIDList(body.Members)
-		}
-		if version, ok := versionFromIfMatch(params.IfMatch); ok {
-			input["expected_version"] = version
-		}
-		return c.UseCases.Invoke(r.Context(), updateGroupUseCase, actor, input)
-	}, func(out usecase.Output) {
-		w.Header().Set("ETag", etag(out.Int("version")))
-		writeJSON(w, r, http.StatusOK, groupResponse(out))
-	})
-}
-
-// DeleteGroup answers DELETE /groups/{groupId}.
-func (c *RestController) DeleteGroup(w http.ResponseWriter, r *http.Request, groupID openapi.GroupId, params openapi.DeleteGroupParams) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), deleteGroupUseCase, actor, usecase.Input{
-			"group_id":      groupID.String(),
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+	return page
 }
 
 // versionFromIfMatch reads the version out of an entity tag.
@@ -551,30 +108,37 @@ func versionFromIfMatch(header *string) (int, bool) {
 	return version, true
 }
 
-// identity is the shape every handler above shares: the catalogue has to be wired, the actor comes
-// from the context, a failure becomes a problem document, and a success is written by the caller.
-//
-// A helper rather than seven copies, because the copy that gets it wrong is the one that forgets
-// to check whether the catalogue is wired and panics on a nil interface.
-func (c *RestController) identity(
-	w http.ResponseWriter, r *http.Request,
-	invoke func(appshared.ActorContext) (usecase.Output, error),
-	respond func(usecase.Output),
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+// invitationDeliveryResponse maps how the last mail to one account went.
+func invitationDeliveryResponse(out usecase.Output) openapi.InvitationDelivery {
+	delivery := openapi.InvitationDelivery{
+		AccountId: uuidValue(out.String("account_id")),
+		State:     openapi.InvitationDeliveryState(out.String("state")),
 	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	out, err := invoke(actor)
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
+	if at, ok := out["at"].(time.Time); ok {
+		delivery.At = at
 	}
-	respond(out)
+	if code := out.String("code"); code != "" {
+		delivery.Code = &code
+	}
+	if params, ok := out["params"].(map[string]string); ok && len(params) > 0 {
+		delivery.Params = &params
+	}
+	if category := out.String("category"); category != "" {
+		value := openapi.InvitationDeliveryCategory(category)
+		delivery.Category = &value
+	}
+	return delivery
+}
+
+// signInDetailResponse maps one person's address and authenticator app.
+func signInDetailResponse(out usecase.Output) openapi.SignInDetail {
+	detail := openapi.SignInDetail{AccountId: uuidValue(out.String("account_id"))}
+	detail.AuthenticatorApp, _ = out["authenticator_app"].(bool)
+	if email := out.String("email"); email != "" {
+		address := openapi_types.Email(email)
+		detail.Email = &address
+	}
+	return detail
 }
 
 // accountSummaryResponse maps the narrower projection. Built from its own four fields rather than
@@ -638,6 +202,14 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.Celebrations = &celebrations
 	}
 	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
+	if seen, ok := out["products_seen"].([]string); ok && len(seen) > 0 {
+		modules := make([]openapi.Module, 0, len(seen))
+		for _, key := range seen {
+			modules = append(modules, openapi.Module(key))
+		}
+		account.ProductsSeen = &modules
+	}
+	account.MailUndeliverableSince = timePointer(out["mail_undeliverable_since"])
 	account.AvatarMediaId = optionalUUID(out.String("avatar_media_id"))
 	if armed, held := out["has_second_factor"].(bool); held {
 		// Answered on the caller's own account and on nothing else, which is why it is conditional
@@ -663,6 +235,16 @@ func accountResponse(out usecase.Output) openapi.Account {
 	if access, held := out["has_access"].(bool); held {
 		// The caller's own account only, for has_second_factor's reason.
 		account.HasAccess = &access
+	}
+	if rows, held := out["portals"].([]usecase.Output); held {
+		// The caller's own account only: where a requester is sent (UC-SVC-05).
+		var portals []struct {
+			CollectionId openapi_types.UUID `json:"collection_id"` //nolint:revive // var-naming: the generated type's field
+			Name         string             `json:"name"`
+		}
+		if throughJSON(rows, &portals) == nil {
+			account.Portals = &portals
+		}
 	}
 	if remaining, held := out["recovery_codes_remaining"].(int); held {
 		// Present exactly where a factor is armed, and then zero is answered as zero, because there
@@ -706,36 +288,38 @@ func groupResponse(out usecase.Output) openapi.Group {
 	return group
 }
 
-// optionalUUIDList maps a list of identifiers for the catalogue. An absent list is absent; an
-// empty one is an empty list, because emptying a group is an instruction rather than a no-op.
-func optionalUUIDList(values *[]openapi_types.UUID) any {
-	if values == nil {
-		return nil
+// groupDetailResponse is a group with its members, and whether this reader may change them.
+func groupDetailResponse(out usecase.Output) openapi.GroupDetail {
+	group := groupResponse(out)
+	detail := openapi.GroupDetail{
+		Id: group.Id, Name: group.Name, Description: group.Description, Version: group.Version,
+		Members: []openapi_types.UUID{},
 	}
-	ids := make([]any, 0, len(*values))
-	for _, value := range *values {
-		ids = append(ids, value.String())
+	detail.MembersChangeable, _ = out["members_changeable"].(bool)
+	for _, member := range stringsOf(out["members"]) {
+		detail.Members = append(detail.Members, uuidValue(member))
 	}
-	return ids
+	return detail
 }
 
-func weekStartOrEmpty(value *openapi.AccountPreferencesWeekStart) string {
-	if value == nil {
-		return ""
+// notificationPreferenceListResponse is every preference of an account, unpaged.
+func notificationPreferenceListResponse(out usecase.Output) openapi.NotificationPreferenceList {
+	list := openapi.NotificationPreferenceList{Data: []openapi.NotificationPreference{}}
+	for _, row := range rowsOf(out) {
+		list.Data = append(list.Data, notificationPreferenceResponse(row))
 	}
-	return string(*value)
+	return list
 }
 
-func boolWordOrEmpty(value *bool) string {
-	if value == nil {
-		return ""
-	}
-	return strconv.FormatBool(*value)
+// addressRequestedResponse says until when the confirmation link holds - and nothing about the
+// address.
+func addressRequestedResponse(out usecase.Output) openapi.AddressRequested {
+	expires, _ := out["expires_at"].(time.Time)
+	return openapi.AddressRequested{ExpiresAt: expires}
 }
 
-func instantOrEmpty(value *time.Time) string {
-	if value == nil {
-		return ""
-	}
-	return value.UTC().Format(time.RFC3339)
+// startPasswordIssuedResponse maps a start password issued: the account and the password, once.
+func startPasswordIssuedResponse(out usecase.Output) openapi.StartPasswordIssued {
+	account, _ := out["account"].(usecase.Output)
+	return openapi.StartPasswordIssued{Account: accountResponse(account), StartPassword: out.String("start_password")}
 }

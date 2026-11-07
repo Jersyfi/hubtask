@@ -16,6 +16,7 @@
  * assembles. The engine knows that a `POST` can be a read.
  */
 
+import { columnCards, columnRequest, reachOf, type PageReach } from './paging.ts';
 import type {
   Assignment,
   AutoAssignOutcome,
@@ -32,7 +33,7 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
-import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, touchesOf } from './touches.ts';
+import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS, touchesOf } from './touches.ts';
 
 const QUERY = '/items:query';
 
@@ -117,6 +118,8 @@ function board(containerId: string, query: ItemsQuery): { path: string; body: un
     },
   };
 }
+
+const columnKey = (containerId: string, key: string | null) => `column:${containerId}:${key ?? ''}`;
 
 const rowsOf = (state: ResourceState<ItemQueryResult> | undefined): readonly WorkItem[] =>
   state?.status === 'ready' ? (state.data.data ?? []) : [];
@@ -225,7 +228,88 @@ class Items {
 
   /** Starts the board. **From `untrack`**, like every other subscription here. */
   openBoard(containerId: string, query: ItemsQuery = {}): () => void {
-    return this.#open(`board:${containerId}`, board(containerId, query));
+    const stop = this.#open(`board:${containerId}`, board(containerId, query));
+    return () => {
+      stop();
+      this.#closeColumns(containerId);
+    };
+  }
+
+  /**
+   * One column's cards: the board's first ones for it, and those its continuation read after them.
+   * A grouped read draws the first 50 of each column; the column's own read brings the rest.
+   */
+  columnCards(containerId: string, key: string | null): readonly WorkItem[] {
+    const first = this.boardGroups(containerId).find((group) => group.key === key)?.data ?? [];
+    const more = this.#columns[columnKey(containerId, key)];
+    return columnCards(first, more?.status === 'ready' ? (more.data.data ?? []) : []);
+  }
+
+  /** Whether a column has cards after the ones it draws. */
+  columnHasMore(containerId: string, key: string | null): boolean {
+    const more = this.#columns[columnKey(containerId, key)];
+    if (more) return more.status === 'ready' && reachOf(more.data).hasMore;
+    const group = this.boardGroups(containerId).find((each) => each.key === key);
+    return reachOf(group ? { data: group.data, page: group.page } : undefined).hasMore;
+  }
+
+  /**
+   * Reads a column's next cards. The first time, the column's own read is opened from the group's
+   * cursor; after that it pages like any list. A reload of either keeps what was read.
+   */
+  async loadMoreColumn(containerId: string, key: string | null): Promise<void> {
+    const at = columnKey(containerId, key);
+    const opened = this.#columnRequests[at];
+    if (opened) {
+      await engine.loadMore<ItemQueryResult>(opened);
+      return;
+    }
+    const boardRequest = this.#requests[`board:${containerId}`];
+    const cursor = this.boardGroups(containerId).find((group) => group.key === key)?.page?.next_cursor;
+    if (!boardRequest || !cursor) return;
+    const request = {
+      path: boardRequest.path,
+      body: columnRequest(boardRequest.body as Record<string, unknown>, key, cursor),
+    };
+    this.#columnRequests[at] = request;
+    await new Promise<void>((resolve, reject) => {
+      let arrived = false;
+      const stop = engine.subscribe<ItemQueryResult>(request, (next) => {
+        if (next.status === 'failed' && !arrived) {
+          // A column whose first continuation did not arrive is asked again from its group's
+          // cursor next time; a later reload that fails keeps what the column showed.
+          this.#stopColumn(at);
+          reject(next.error);
+          return;
+        }
+        if (next.status !== 'ready' && arrived) return;
+        this.#columns = { ...this.#columns, [at]: next };
+        if (next.status === 'ready') {
+          arrived = true;
+          resolve();
+        }
+      });
+      this.#columnStops[at] = stop;
+    });
+  }
+
+  /** Each opened column continuation, by board and key, and how to stop it. */
+  #columns = $state<Record<string, ResourceState<ItemQueryResult>>>({});
+  #columnRequests: Record<string, { path: string; body: unknown }> = {};
+  #columnStops: Record<string, () => void> = {};
+
+  #stopColumn(at: string): void {
+    this.#columnStops[at]?.();
+    delete this.#columnStops[at];
+    delete this.#columnRequests[at];
+    const { [at]: _gone, ...rest } = this.#columns;
+    this.#columns = rest;
+  }
+
+  #closeColumns(containerId: string): void {
+    for (const at of Object.keys(this.#columnRequests)) {
+      if (at.startsWith(`column:${containerId}:`)) this.#stopColumn(at);
+    }
   }
 
   /**
@@ -237,7 +321,28 @@ class Items {
     return state?.status === 'ready' ? (state.data.groups ?? []) : [];
   }
 
+  /**
+   * How far a collection's list has been read: the rows held, the total where the answer counted
+   * them, and whether a next page exists. A list that stopped at its first page without saying so
+   * hid every entry after it (`page.size` is 200), so the list says how many it shows and offers
+   * the rest.
+   */
+  collectionPage(containerId: string): PageReach {
+    const state = this.#levels[`container:${containerId}`];
+    return reachOf(state?.status === 'ready' ? state.data : undefined);
+  }
+
+  /** Reads the collection's next page and appends it; nothing when there is none. */
+  async loadMoreCollection(containerId: string): Promise<void> {
+    const request = this.#requests[`container:${containerId}`];
+    if (request) await engine.loadMore<ItemQueryResult>(request);
+  }
+
+  /** The request each level was opened with, which its next page continues. */
+  #requests: Record<string, { path: string; body: unknown }> = {};
+
   #open(key: string, request: { path: string; body: unknown }): () => void {
+    this.#requests[key] = request;
     return engine.subscribe<ItemQueryResult>(request, (next) => {
       this.#levels = { ...this.#levels, [key]: next };
     });
@@ -267,6 +372,10 @@ class Items {
       due_time_zone?: string;
       assignee_id?: string;
       label_ids?: readonly string[];
+      /** The key of the entry's type, absent for its level's own (UC-FLW-01). */
+      entry_type?: string;
+      /** What the type's form asked for (UC-FLW-01 check 2), one value per custom key. */
+      custom_fields?: Readonly<Record<string, unknown>>;
     },
     idempotencyKey: string,
   ): Promise<WorkItem> {
@@ -294,6 +403,18 @@ class Items {
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {
+      ifMatch: etagFor(version),
+      invalidates: touchesOf(id),
+    });
+  }
+
+  /**
+   * Gives the entry another type of its level (UC-FLW-01 check 4). A type that would drop a value
+   * the entry holds is refused by the server, naming the fields, so nothing is written unseen.
+   */
+  async setEntryType(id: string, entryType: string, version: number, dropValues = false): Promise<WorkItem> {
+    const body = dropValues ? { entry_type: entryType, drop_values: true } : { entry_type: entryType };
+    return engine.mutate<WorkItem>('PUT', `/items/${id}/entry-type`, body, {
       ifMatch: etagFor(version),
       invalidates: touchesOf(id),
     });
@@ -470,7 +591,7 @@ class Items {
       'POST',
       `/items/${id}:${isCompleted ? 'complete' : 'reopen'}`,
       undefined,
-      { idempotencyKey, invalidates: TOUCHES_ANY_ENTRY },
+      { idempotencyKey, invalidates: TOUCHES_ANY_STATUS },
     );
   }
 
@@ -614,6 +735,21 @@ class Items {
     return engine.mutate<DuplicateResult>('POST', `/items/${id}:duplicate`, body, {
       idempotencyKey,
       invalidates: [ENTRY_LISTS],
+    });
+  }
+
+  /** Takes the entry into another that asks the same: linked as its duplicate and archived (UC-SVC-03 check 5). */
+  async merge(id: string, intoId: string): Promise<{ merged_id: string; into_id: string; link_id: string }> {
+    return engine.mutate('POST', `/items/${id}:merge`, { into_id: intoId }, {
+      invalidates: [...touchesOf(id), ...touchesOf(intoId), ENTRY_LISTS],
+    });
+  }
+
+  /** A part of the entry split off into an entry of its own, for the same requester (UC-SVC-03 check 6). */
+  async split(id: string, body: { title: string; notes?: string; link_type?: string }, idempotencyKey: string): Promise<DuplicateResult> {
+    return engine.mutate<DuplicateResult>('POST', `/items/${id}:split`, body, {
+      idempotencyKey,
+      invalidates: [...touchesOf(id), ENTRY_LISTS],
     });
   }
 

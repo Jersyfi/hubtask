@@ -10,6 +10,7 @@ import (
 	"time"
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -170,13 +171,41 @@ func TestAMailboxIsStoredOnlyOnceItSignsIn(t *testing.T) {
 
 func TestAWorkspaceConnectsAFewMailboxesAtMost(t *testing.T) {
 	b, store, _, _ := boxes(&authorizer{})
-	for index := range domain.MaxMailboxes {
+	for index := range quotaservice.DefaultMailboxes {
 		store.boxes[shared.ID(string(rune('a'+index)))] = domain.Mailbox{}
 	}
 	_, err := ConnectMailbox{Boxes: b}.Descriptor().Handler.Invoke(context.Background(), person,
 		usecase.Input{"preset": "gmx", "address": "x@gmx.de", "secret": "app-pw"})
-	if !errors.Is(err, shared.ErrConflict) {
+	var refusal *shared.Error
+	if !errors.Is(err, shared.ErrValidation) || !errors.As(err, &refusal) || refusal.DetailCode != "capacity.mailboxes" {
 		t.Errorf("a sixth mailbox answered %v", err)
+	}
+}
+
+// mailboxCeiling is the guard's answer as a resolved quota gives it.
+type mailboxCeiling struct{ refuse bool }
+
+func (c mailboxCeiling) Mailboxes(context.Context, string) error {
+	if c.refuse {
+		return quotaservice.Exceeded(quotaservice.Mailboxes, 1, 1)
+	}
+	return nil
+}
+
+func TestTheMailboxesQuotaDecidesInsteadOfTheDefault(t *testing.T) {
+	b, store, _, _ := boxes(&authorizer{})
+	for index := range quotaservice.DefaultMailboxes {
+		store.boxes[shared.ID(string(rune('a'+index)))] = domain.Mailbox{}
+	}
+	b.Quota = mailboxCeiling{}
+	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"preset": "gmx", "address": "x@gmx.de", "secret": "app-pw"}); err != nil {
+		t.Errorf("a raised quota refused a sixth mailbox: %v", err)
+	}
+	b.Quota = mailboxCeiling{refuse: true}
+	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"preset": "gmx", "address": "y@gmx.de", "secret": "app-pw"}); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a lowered quota answered %v", err)
 	}
 }
 
@@ -273,5 +302,46 @@ func TestAReadFilesWhatArrivedAndComesBackInAMinute(t *testing.T) {
 	}
 	if result, _ := poll.Run(context.Background(), queue.Job{TenantID: tenant, Payload: map[string]any{}}); result.Repeat {
 		t.Error("a malformed job repeats")
+	}
+}
+
+type movingClock struct{ at *time.Time }
+
+func (c movingClock) Now() time.Time { return *c.at }
+
+type failingNotices struct{ told []shared.ID }
+
+func (f *failingNotices) MailboxFailing(_ context.Context, _, mailboxID shared.ID) error {
+	f.told = append(f.told, mailboxID)
+	return nil
+}
+
+// A mailbox whose password expired refuses every minute; the administrators are told once, when
+// it has refused for an hour, and not again while it keeps refusing.
+func TestAMailboxRefusingForAnHourIsToldOnce(t *testing.T) {
+	b, store, server, _ := boxes(&authorizer{})
+	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"preset": "gmail", "address": "familie@gmail.com", "secret": "app-pw"}); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	b.Writer.Clock = movingClock{at: &at}
+	told := &failingNotices{}
+	poll := PollMailbox{Boxes: b, Receive: &receiver{}, Failing: told, Parse: func(raw []byte, _ string) (jumbleservice.ReceivedMail, error) {
+		return jumbleservice.ReceivedMail{Subject: string(raw)}, nil
+	}}
+	job := queue.Job{TenantID: tenant, Payload: map[string]any{"mailbox_id": boxID.String()}}
+	server.password = "expired"
+	for _, after := range []time.Duration{0, 30 * time.Minute, 61 * time.Minute, 62 * time.Minute, 3 * time.Hour} {
+		at = time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC).Add(after)
+		if _, err := poll.Run(context.Background(), job); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(told.told) != 1 || told.told[0] != boxID {
+		t.Errorf("told %v, want the mailbox once", told.told)
+	}
+	if !store.boxes[boxID].Failing(at) {
+		t.Error("the mailbox is not failing after three hours of refusals")
 	}
 }

@@ -28,11 +28,11 @@ func TestTheScheduleListingShowsTheTrialAndSetMovesIt(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "TRIAL") || !strings.Contains(out, "yes") {
+	if !strings.Contains(out, "TRIAL_RESTORE") || !strings.Contains(out, "true") {
 		t.Errorf("the listing does not show the trial: %s", out)
 	}
 
-	code, out, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "schedule", "set", itemID, "--no-trial")
+	code, out, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "schedule", "set", itemID, "--trial-restore=false")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -41,20 +41,20 @@ func TestTheScheduleListingShowsTheTrialAndSetMovesIt(t *testing.T) {
 	if sent["trial_restore"] != false || len(sent) != 1 {
 		t.Errorf("the patch carries %v, want the flag alone", sent)
 	}
-	if !strings.Contains(out, "no") {
+	if !strings.Contains(out, "false") {
 		t.Errorf("the answer does not show the flag off: %s", out)
 	}
 
-	// --off moves the state and nothing else.
-	if code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "schedule", "set", itemID, "--off"); code != exitOK {
+	// --enabled=false moves the state and nothing else.
+	if code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "schedule", "set", itemID, "--enabled=false"); code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
 	sent = nil
 	_ = json.Unmarshal([]byte(stub.body), &sent)
 	if _, moved := sent["trial_restore"]; moved || sent["enabled"] != false {
-		t.Errorf("--off sent %v", sent)
+		t.Errorf("--enabled=false sent %v", sent)
 	}
-	if code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "schedule", "set", itemID, "--trial", "--no-trial"); code == exitOK {
-		t.Errorf("--trial with --no-trial was accepted: %s", errOut)
+	if code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "", "backup", "schedule", "set", itemID, "--trial-restore=perhaps"); code == exitOK {
+		t.Errorf("--trial-restore=perhaps was accepted: %s", errOut)
 	}
 }

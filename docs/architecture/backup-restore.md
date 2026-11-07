@@ -103,8 +103,17 @@ BK-4; one is added at a major release ([versioning-release.md](./versioning-rele
   both, a new installation lists the archives at the target and restores one as a new workspace
   (§8.2). Without the key an archive names, a restore is refused before anything is read
   (`backup.archive_key_unknown`, naming the key).
-* **A passphrase is not available**: `encryption_passphrase` on a target and `decryption_passphrase`
-  on a restore are refused (`backup.encryption_passphrase_not_available`) rather than ignored.
+* **A target takes no passphrase**: `encryption_passphrase` on a target is refused
+  (`backup.encryption_passphrase_not_available`) rather than ignored.
+* **The owner's download may be encrypted to a passphrase** (UC-BAK-07 check 7,
+  [tenant-export.md](./tenant-export.md) §1): the members under a key derived with Argon2id
+  (RFC 9106's second set, `infrastructure/crypto.Passphrase`), whose salt and cost the manifest
+  carries with `kdf: argon2id` and `key_id: passphrase`. A restore of it takes `decryption_passphrase`:
+  sealed under the master key and bound to its run (`restore_run.passphrase_enc`, migration 0327),
+  held only while the run goes - the job reads the archive later, in another process - and emptied
+  by the statement that ends the run, whatever its outcome. Without it the restore is refused
+  (`backup.archive_passphrase_required`), with a wrong one too (`backup.archive_passphrase_wrong`),
+  and one given for an archive not encrypted to one (`backup.archive_passphrase_unused`).
 * The master key can be rotated; old archives stay readable (the key ID is in the manifest). An
   archive is never rewritten, so a re-seal cannot move it: the key census counts the archives still
   kept under each key ([security.md](./security.md) §8.1), and a key stays in the ring until the
@@ -155,8 +164,10 @@ bulkhead pool apart from the API path.
 
 * **The lock is the insert** (`… WHERE NOT EXISTS (… status = 'RUNNING' AND id <> …)`): a resumed
   run continues its own row (BK-7); a second run is answered "no", not an error.
-* **Consistency:** one `REPEATABLE READ` snapshot resolves the media locations; the bytes are
-  fetched by checksum after it.
+* **Consistency:** one `REPEATABLE READ` snapshot writes the data files and resolves the media
+  locations; it ends then, and the bytes are fetched by those locations after it
+  (`archive.Writer.Begin` inside, `Pending.Finish` outside). A medium removed from the object store
+  in between fails the run with `backup.archive_media_missing`, as one missing inside it would.
 * The run is **detached** from the runner's transaction; its completion is written in a short
   transaction of its own, safe because the run is repeatable.
 
@@ -201,8 +212,18 @@ data:
 * **A point-in-time restore is the one restore the journal does not cover** — the journal lives in
   the rewound database; §8.5 step 5 places the legal holds again and re-applies the erasures.
 * `include_audit` weighs evidence against longer persistence of personal metadata.
-* No route hands an archive to a caller; one that does will audit the download (`backup.downloaded`,
-  reserved).
+* One route hands an archive to a caller: the owner's download of the whole workspace
+  (`POST /backups:download-workspace`, `hubctl backup download --out <file>`; UC-BAK-07 check 7),
+  once in 24 hours, audited as `tenant.exported` with `download` as its target. `hubctl` keeps the
+  file only once its ZIP directory reads, so a cut transfer leaves nothing behind. The web app writes
+  it to a place the person picks as it arrives where the browser has a save picker, and keeps it
+  only when it ends with the ZIP's end record (`zipComplete`); a browser without one holds the whole
+  file in the tab's memory and hands it over only under the same test. MCP has no door
+  for it: a tool's answer is a message, not a stream of a whole workspace. Each download holds a
+  pool connection and its snapshot while the data files stream (the media follow after it ends),
+  so one process streams at most
+  `HUBTASK_BACKUP_CONCURRENT_DOWNLOADS` (2) at once and refuses the next with `503` and
+  `Retry-After` before the proof or the day's window is spent; a snapshot held for hours raises A-25.
 * An archive at a target is the operator's responsibility. A third-country target is a transfer
   under GDPR Chapter V; target setup says so and records the region.
 
@@ -270,7 +291,15 @@ still asked because the archive is read through the caller's own workspace's tar
   `backup.restore_foreign_archive_encrypted`, not left to fail as a decryption error.
 * **`duplicate` applies to content, not to context.** Accounts, media and webhook subscriptions fall
   back to `skip`, and the report says so. A copy gets a **derived** identity, so a resumed restore
-  produces the same identifiers and the copies point at each other.
+  produces the same identifiers and the copies point at each other. A reference is remapped only
+  to a row the workspace held before the restore; one to a row the restore wrote new, or left
+  alone, keeps pointing at it - in a resumed attempt too, which reads whether the earlier one wrote
+  the copy.
+* **A field that names its target by key is carried, never remapped** - an entry's type, a link's
+  own type, a scheme's workflow, a policy's or a hub's calendar, a live document's head
+  ([tenant-export.md](./tenant-export.md) §6). The target with that key is either copied keeping
+  it or one the workspace already holds, which its own rule keeps from being copied. A target the
+  journal says was deleted keeps out what names it, as an identity reference does (§7).
 * **A copy also changes what the schema insists is unique.** Each entity declares the columns a copy
   may not carry unchanged; an integration test compares that with the unique indexes. Today:
   * **A name is suffixed** at the top of the duplicated tree where it is not free:
@@ -279,6 +308,14 @@ still asked because the archive is read through the caller's own workspace's tar
   * **A calendar UID is dropped** (`wi_calendar_uid_uq`): the copy is not the entry the client made.
   * **A tenant-wide custom field definition is not copied** (`skip`): `work_item.custom_fields` is
     keyed by it. One inside a collection moves with the collection.
+  * **A row unique within what it belongs to is copied only with it** (`skip` otherwise): a link
+    (`entry_link_uq`) whose ends both stayed the originals, an approval's decision
+    (`approval_decision_once`) whose approval was not copied, a hub's calendar
+    (`hub_business_calendar_key_uq`) whose hub was not - each would be the same row twice. A key
+    the workspace holds (`entry_type`, `link_type`, `workflow`, `business_calendar`, the system
+    type's `entry_type_system_uq`) is never copied; what names it names the living one.
+  * **What is not duplicable declares nothing to settle**: an agent and its model fall back to
+    `skip` as a whole.
 * **`SELECTIVE`'s closure comes from the archive's reference graph**; containers need a pass of
   their own, because a sub-collection can be written before its hub.
 * **`INSTANCE` is refused**: no archive this build writes has an instance-wide scope. The scope
@@ -309,6 +346,13 @@ still asked because the archive is read through the caller's own workspace's tar
    the transaction recording its success, so devices resynchronise
    ([offline-sync.md](./offline-sync.md) §3.1); a dry run and a `NEW_TENANT` restore advance nothing.
 
+**Every column comes back or is left out by name.** The export writes the whole row; each import
+statement names the columns it writes (`db/queries/BackupImport.sql`), and a column it does not
+name would be dropped without a word. `TestARestoreWritesBackEveryColumnTheSchemaHolds` compares
+every restored table's columns in `db/schema.sql` with its import statement; a column left out is
+listed there with its reason - the installation's own state of the workspace (deletion clock,
+`sync_epoch`, plan, an operator's password opening), and values a trigger or a recount rebuilds.
+
 **A destructive restore ends sign-ins.** The archive carries no session or token tables (§8.4), so
 the credential that started a `REPLACE_TENANT` is refused part-way through following its own job;
 read `restore_run` for the result instead.
@@ -318,6 +362,14 @@ read `restore_run` for the result instead.
 * **No automation rules fire.** Restored changes produce events with `replay: true`; the dispatcher
   withholds them from the rule engine, and a subscriber added later is never handed a replay.
 * **No past reminders are caught up**; they become `LAPSED` (nobody cancelled them).
+* **No timer is copied; the clocks are armed again** from what the archive carries, once the rows
+  are written and in the workspace they landed in (`durable_timer` names its subject per purpose,
+  which no remap follows). A running SLA or OLA goal runs to the due moment its record names, at
+  once when that has passed, so it breaches through the timer pass; a paused one keeps the working
+  time its record says it had spent (none, for a record paused before 0341 kept it); a pending
+  approval's level counts from when it began, and a page's review runs to its verification date.
+  A reminder whose moment has passed - an approval's halfway or due notice, a review date - is not
+  sent late. A goal whose policy, calendar or entry is gone stays as it stands.
 * **No webhooks are re-delivered**; the archive's outbox is not imported.
 * **No tokens, sessions or sign-in providers are restored** — `identity_provider`, `auth_pending`
   and the session and token tables are not in the archive. Users sign in again; PATs are recreated.
@@ -391,7 +443,7 @@ with `hubctl` and a credential that holds `admin:tenants`.
    workspace, and whether it was released in the rewound period — that owner is told to release it
    again. A second run changes nothing.
 3. **Where the end of the archive is unusable**, the source is the workspace's newest archive that
-   includes the audit trail (`hubctl backup ls --target <target>`), read by the server, which holds
+   includes the audit trail (`hubctl backup ls <target>`), read by the server, which holds
    the archive's key:
 
    ```bash
@@ -442,7 +494,7 @@ written again with its own identifier. Each case is completed at its own moment,
 |---|---|
 | `REAPPLIED` | The erasure was carried out again. |
 | `ALREADY_COMPLETED` | The case was already completed. A second run changes nothing, and the rewound job of a case that was open finishing first is the same answer. |
-| `SUBJECT_ABSENT` | There is nothing to erase: the account was created after the point, or the case was about an address. |
+| `SUBJECT_ABSENT` | There is nothing to erase: the account was created after the point, or the case was about an address the recovered workspace no longer names anywhere. A case by address whose requester record, receipts, jumble entries or intake lines came back with the rewind is `REAPPLIED`: they are erased again. |
 | `ERASURE_BLOCKED` | The erasure itself refused, with its code. For example, an automation still runs as the person because its re-pointing was rewound too. The case stays open for its owner. |
 | `CASE_REJECTED` | The recovered workspace holds the case as rejected. A person decides. |
 
@@ -464,32 +516,87 @@ CloudNativePG operator and an S3-compatible store — it proves the path, not th
 ### 8.6 The minimal path: a dump, and what it does not give
 
 On the two-container Compose stack the system backup is a dump, with the media beside it (the
-database references objects it does not contain):
+database references objects it does not contain). Two scripts beside `compose.yaml` do it, and
+`make gate-compose` runs both against a seeded stack (`scripts/compose-restore-drill.sh`): onto a
+fresh machine and onto the running stack, asserting that a session from before still works, an
+attachment downloads byte for byte, a write after the backup is gone and the drill record is read.
+
+**What to keep**, all three, the first two on another machine:
+
+1. **The backup directory** `./backup.sh` writes: `database.dump` (`pg_dump -Fc`, taken first),
+   `media.tar` (the `media` volume, taken after, so every file the dump names is in it) and
+   `release` (the `HUBTASK_VERSION` that wrote them).
+
+   ```bash
+   ./backup.sh /srv/backups/hubtask-$(date -u +%Y%m%dT%H%M%SZ)
+   ```
+
+   With `HUBTASK_STORAGE_KIND=s3` the media are in the bucket: copy it with the bucket's own tools.
+2. **`.env`**, stored apart from the dump. It holds `HUBTASK_SECRET_KEY` - a new one ends every
+   session and token - and the keyring, `HUBTASK_ENCRYPTION_KEYS` with every
+   `HUBTASK_ENCRYPTION_KEY_<ID>`: with a new keyring every sealed secret is unreadable after the
+   restore - mailbox tokens, AI keys, backup-target credentials, webhook secrets (§4). Apart,
+   because a dump and the keys that open it in one place are one theft away from both.
+3. A compose line added by hand, such as a second key of the keyring.
+
+**Restoring**, on the same machine or a new one with Docker, `compose.yaml`, `.env` and the
+backup directory:
 
 ```bash
-docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
-  > "hubtask-$(date -u +%Y%m%dT%H%M%SZ).dump"
-docker compose cp app:/var/lib/hubtask/media ./media-backup
-# Putting it back, into a database that is empty:
-docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists \
-  < hubtask-20260907T020000Z.dump
+./restore.sh /srv/backups/hubtask-20261101T020000Z
 ```
 
-It gives a consistent snapshot of the whole installation, restorable onto the same PostgreSQL major
-version — not what §8.5 gives:
+In this order: `app` and `migrate` are stopped, so nothing writes into a half-restored schema; the
+database as it stands, if there is one, is dumped into the `upgrade-dumps` volume as
+`…-before-restore.dump`, so a restore is never the last copy; the database is dropped and created
+empty, so no object of a later release is left beside the restored ones (a `pg_restore --clean`
+leaves them, and the next upgrade's migration then fails on them); the roles the first migration
+creates are created if the cluster lacks them, as a new machine's does; the dump is restored; the
+media are put back owned by the image's non-root user (65532), which reclaims files it no longer
+needs; the stack starts, `migrate` bringing the schema up to the release `.env` names and granting
+`hubtask_app` its login again; and once `/readyz` answers, the drill record A-20 reads is written.
+Afterwards read `/meta/health` on the operations port, sign in and open one attachment.
+
+A backup of a later release than `.env` names does not start: the older binary refuses a schema
+past its compatibility floor (`config.binary_older_than_schema`, deployment.md §5). Set
+`HUBTASK_VERSION` to the backup's `release` or later.
+
+Before an upgrade the stack takes one itself: the `upgrade-dump` service dumps the database before
+`migrate` runs a release it has not run yet, into the `upgrade-dumps` volume, keeping the last three
+(`HUBTASK_UPGRADE_DUMPS_KEPT`). A dump that fails stops the upgrade. It covers the database only, not
+the media, and lies on the same host - a way back from a failed upgrade, not a backup:
+
+```bash
+docker compose run --rm --entrypoint ls upgrade-dump -1t /dumps     # newest first
+# set HUBTASK_VERSION in .env back to the release the file names, then:
+./restore.sh --upgrade-dump hubtask-20261101T020000Z-before-v1.1.0.dump
+```
+
+That restores the database alone and leaves the media as they are - a file uploaded after the dump
+is an orphan the reconciliation removes.
+
+A dump gives a consistent snapshot of the whole installation, restorable onto the same PostgreSQL
+major version — not what §8.5 gives:
 
 * **No point in time but the ones you took**: the RPO of ≤ 5 minutes in
   [observability-reliability.md §2](./observability-reliability.md#2-service-level-objectives) needs
   continuous WAL archiving.
 * **No protection against a deletion you copy** — a dump written over the previous one is a backup
   of the damage. Object lock on the target prevents that (B-3).
-* **Nothing has restored it.** The drill metric stays absent, so **A-20 never fires and never
-  reassures**. After a restore you checked yourself, write the record:
+* **Nothing has restored it until you do.** The drill metric stays absent until a restore wrote
+  it, so **A-20 neither fires nor reassures** for backups nobody restored. `restore.sh` writes the
+  record into the `restore-drill` volume, where `HUBTASK_RESTORE_DRILL_RECORD_FILE` points by
+  default, once the restored stack is ready: restoring a backup onto a second machine now and then
+  is the drill. A restore made another way records it by hand (the container's root is read-only;
+  a volume is not):
 
   ```bash
-  date -u +%s > /var/lib/hubtask/restore-drill/last_success_unix
-  # compose.yaml: HUBTASK_RESTORE_DRILL_RECORD_FILE: /var/lib/hubtask/restore-drill/last_success_unix
+  date -u +%s > last_success_unix
+  docker compose cp last_success_unix app:/var/lib/hubtask/restore-drill/last_success_unix
   ```
+
+  A record path the process cannot read, or one in a directory no volume mounts, is warned at
+  start (`config.restore_drill_record_unreadable`, A-14) instead of reading as no drill for good.
 
 * **Tenant archives are a different promise**: they hold one workspace's content, not the
   installation's database.
@@ -513,6 +620,11 @@ or, with `collection_id`, a collection of that hub the entries land in; a conver
 | Trello | A board export |
 | Google Tasks | Google Takeout's `Tasks.json` |
 | Microsoft To Do | The Graph API's JSON, **fetched by the person** (`hubctl import todo` shows the requests) — a live connection would need a token this product would have to hold. Windows zone names are mapped by CLDR's `windowsZones`; a row with an unknown zone is refused, not guessed |
+| Jira (`JIRA`) | The issue search's JSON with `names`, `schema` and `changelog` expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/` (UC-IMP-04). Each project a collection with its configuration: issue types as entry types, the statuses with their categories as a workflow (`imported_<project key>`, every status reachable from any) bound to the collection, custom fields of a kind the product has plus priority, components, versions, key, assignee and reporter as the collection's fields, the change log as `item.history_imported` steps, comments, links (`blocks`, `duplicates`, workspace link types, an epic as `implements`), attachments with their bytes. A ZIP's workflow search answer (`values` with `transitions`) makes the transitions the workflow's steps and a board's configuration (`columnConfig`) orders its statuses and becomes a `KANBAN` view of the collection by status; the sprint field becomes the collection's sprints with each issue's membership and outcome, story points the entries' estimates (UC-IMP-07). Into a collection the workflow is not carried and no imported sprint is active |
+| Confluence (`CONFLUENCE`) | A space's HTML export as a ZIP (UC-IMP-05): the pages in their breadcrumb's tree under the hub, the content as Markdown, a link between pages a `hubtask:page/` reference; it lands pages only and takes no `collection_id` (`imports.kind_takes_no_collection`); a page's attachments become its files. A ZIP holding `entities.xml` is the space's XML export (UC-IMP-06): each page's earlier versions as its history, its comments and replies with the author named in the text, the newest version of each attachment |
+| Markdown (`MARKDOWN`) | A ZIP of Markdown files (UC-IMP-05 check 6): each file a page, its folders the tree (a folder's page is the file of its name beside it, its `index.md` or `README.md`), a link to another file a page reference, a picture in the ZIP the page's file; it lands pages only |
+| HTML (`HTML`) | One HTML file or a ZIP of them, a notes app's HTML export included (UC-IMP-05 check 7): as `MARKDOWN`, each file's body read into Markdown in the wiki's grammar, its title its `<title>` |
+| DOCX (`DOCX`) | One word-processor document or a ZIP of them (UC-IMP-05 check 7): as `MARKDOWN`, each document's headings (by style name), paragraphs, lists, tables, emphasis, outside links and pictures read from its `word/document.xml` with the standard library only |
 
 Rules:
 
@@ -528,12 +640,33 @@ Rules:
   read where it landed. Its job is `import.into_collection`, a kind of its own, so that a process of
   a release without it never claims one; a collection that left the hub before the job ran fails
   the run with `imports.not_in_hub`.
+* **Into a collection, each entry is held to its type's form** before the archive is written
+  (UC-IMP-04 check 8): through the `IMPORT` channel, as the importing person, by
+  `FormGate.HoldImported`. A refused entry is taken out whole - with the work under it
+  (`imports.row_parent_refused`) and every record naming it, an attachment's object only it used
+  included - and reported by its row: `imports.row_form_refused` with the form's keys it left
+  short, or `imports.row_channel_closed`. No default or preset is filled in: what the source left
+  empty stays empty. A type the import brings has an empty form, and an import that creates its
+  collections is not held at all - holding another tool's history to rules it never knew would
+  refuse what the source accepted. A form that cannot be asked retries the job.
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
-  (`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would retry.
-* The run (`import_run`) carries the report and the refused row numbers; the file is deleted when
-  the job ends; the `sync_epoch` advances as after a `MERGE` restore, the rows landing without
+  (`containers.name_taken`, `backup.row_conflicts`), a row naming what neither the archive nor
+  the workspace holds as `backup.row_dangles`, and a row holding what no column takes - a check it
+  fails, a column it leaves empty, a value of the wrong shape - as `backup.row_refused` - never as
+  a database error the queue would retry. The converters keep a title or a name to one line and
+  take the zero byte out of every text, so that a stray one in a file does not refuse its row.
+* **A ZIP is bounded by what it yields, not what it declares**: 256 MiB a member and 1 GiB in all,
+  beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
+  digest and the applier stores them as a restore does, one object per content.
+* The run (`import_run`) carries the report and the refused rows, with their codes and form keys; the file is deleted when
+  the job ends - a job the queue gives up on closes its run `FAILED` as `imports.run_abandoned`; the `sync_epoch` advances as after a `MERGE` restore, the rows landing without
   change log entries.
+* **A dry run** (`dry_run: true`) is the same job up to the apply, which decides every record in
+  read-only transactions as a restore's dry run does: its report and refused rows are what the
+  import would do, and it writes nothing but its own run. The file is kept, so that the import that
+  follows names the same `media_id`; a file never imported is the media sweep's, as any object
+  nothing references (data-protection.md §5). The epoch does not move.
 
 **Exports are archives too.** A tenant export ([tenant-export.md](./tenant-export.md)) and a data
 subject export ([data-protection.md](./data-protection.md) §4, prefix `hubtask-dsr-`) are Hubtask
@@ -556,13 +689,14 @@ array; `config.backup_*` is about **the installation**.
 | `config.backup_unencrypted` | A target without encryption |
 | `config.backup_single_target` | Only one target a schedule writes to — a pointer to 3-2-1 |
 | `config.backup_coverage_unchecked` | The targets could not be counted (yet) — never read as "configured" |
-| A-12 | No successful backup in 24 hours, **per target**, so a healthy target cannot hide a broken one; the metric is absent, not zero, for a target that never had one ([RB-A12](../../deploy/observability/runbooks/RB-A12-backup-stale.md)) |
+| `disk.low` | The local media or backup volume has under 15 % free (`warn`) or under 5 % (`critical`), measured per report; on a Compose host the database's volume usually shares that filesystem. Where object storage holds the media, only the backup volume is measured |
+| A-12 | No successful backup within the target's own schedule - its cadence (`hubtask_backup_cadence_seconds`, the gap between its last scheduled run and the next owed) plus six hours, or 24 hours for a target no schedule has run for - **per target**, so a healthy target cannot hide a broken one and a weekly off-site copy is not late every day; the metric is absent, not zero, for a target that never had one ([RB-A12](../../deploy/observability/runbooks/RB-A12-backup-stale.md)) |
 | A-20 | The system restore drill (§8.5) is older than 90 days — a ticket, not a page. Read from `HUBTASK_RESTORE_DRILL_RECORD_FILE`; the tenant-level `NEW_TENANT` trial does not write it. No `absent()` rule, because a Compose installation records nothing; where the chart owns the database, `HubtaskRestoreDrillNeverRan` fires on the absence ([RB-A20](../../deploy/observability/runbooks/RB-A20-restore-drill-stale.md)) |
 
 The `config.backup_*` codes are emitted for a **single-tenant installation** only: there its
 workspaces' targets are its backups. A target is a workspace's row behind row level security, so the
 count is taken per workspace in the background — at start, and again when a report finds it older
-than 15 minutes — and counts enabled targets; whether a target has a schedule is not asked. In
+than 15 minutes — and counts enabled targets an enabled schedule writes to. In
 provider operation the installation is backed up by its operator at the database level (§1, §8.6),
 one workspace's target says nothing about another's, and A-12 watches each target.
 

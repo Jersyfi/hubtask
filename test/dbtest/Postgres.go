@@ -154,9 +154,52 @@ func requirePgvector(ctx context.Context, adminDSN string) error {
 }
 
 // Migrate applies db/migrations the way production does - through goose, not by loading
-// schema.sql. A migration that only works when applied by a test is not a migration.
+// schema.sql - and then runs cmd/migrate, which finishes what a file cannot: the ON ONLY indexes of
+// a partitioned table built on each partition and attached (partitionindex.go). A migration that
+// only works when applied by a test is not a migration.
 func Migrate(ctx context.Context, dsn string) error {
-	return goose(ctx, dsn, "up")
+	if err := goose(ctx, dsn, "up"); err != nil {
+		return err
+	}
+	return migrator(ctx, dsn)
+}
+
+var migratorBuild struct {
+	once   sync.Once
+	binary string
+	err    error
+}
+
+// migrator runs cmd/migrate's up against the database, built once per test binary.
+func migrator(ctx context.Context, dsn string) error {
+	root, err := RepositoryRoot()
+	if err != nil {
+		return err
+	}
+	migratorBuild.once.Do(func() {
+		dir, err := os.MkdirTemp("", "hubtask-migrate-")
+		if err != nil {
+			migratorBuild.err = err
+			return
+		}
+		migratorBuild.binary = filepath.Join(dir, "migrate")
+		//nolint:gosec // G204: the package and output path are the repository's and this process's own
+		build := exec.CommandContext(ctx, "go", "build", "-o", migratorBuild.binary, "./cmd/migrate")
+		build.Dir = root
+		if out, err := build.CombinedOutput(); err != nil {
+			migratorBuild.err = fmt.Errorf("building cmd/migrate: %w: %s", err, out)
+		}
+	})
+	if migratorBuild.err != nil {
+		return migratorBuild.err
+	}
+	//nolint:gosec // G204: the binary was built above, the DSN is this package's
+	run := exec.CommandContext(ctx, migratorBuild.binary, "up")
+	run.Env = append(os.Environ(), "HUBTASK_DB_DSN="+dsn)
+	if out, err := run.CombinedOutput(); err != nil {
+		return fmt.Errorf("cmd/migrate up: %w: %s", err, out)
+	}
+	return nil
 }
 
 // goose runs the binary `make tools` installed, on the repository's own migration directory.
@@ -246,6 +289,12 @@ func RepositoryRoot() (string, error) {
 // the server never uses.
 func openPool(ctx context.Context, t *testing.T, dsn, role string) *pgxpool.Pool {
 	t.Helper()
+	key := poolKey{test: t, dsn: dsn}
+	pools.mu.Lock()
+	defer pools.mu.Unlock()
+	if pool, ok := pools.byTest[key]; ok {
+		return pool
+	}
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		t.Fatalf("%s pool configuration: %v", role, err)
@@ -256,8 +305,27 @@ func openPool(ctx context.Context, t *testing.T, dsn, role string) *pgxpool.Pool
 	if err != nil {
 		t.Fatalf("%s pool: %v", role, err)
 	}
-	t.Cleanup(pool.Close)
+	pools.byTest[key] = pool
+	t.Cleanup(func() {
+		pools.mu.Lock()
+		delete(pools.byTest, key)
+		pools.mu.Unlock()
+		pool.Close()
+	})
 	return pool
+}
+
+// One pool per test and role, closed when the test ends. A pool per call opened a backend per
+// call, each reading the catalogue afresh; one for the whole binary would keep an earlier test's
+// goroutines writing into the next test.
+var pools = struct {
+	mu     sync.Mutex
+	byTest map[poolKey]*pgxpool.Pool
+}{byTest: map[poolKey]*pgxpool.Pool{}}
+
+type poolKey struct {
+	test *testing.T
+	dsn  string
 }
 
 // AppPool connects as the application role, the way the server does.

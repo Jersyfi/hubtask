@@ -6,7 +6,8 @@
 // Every case below hands the reader a different manifest and expects a different answer. That is
 // the acceptance criterion rather than a convenience — `domain-model.md` §2's extension example (a
 // new type `MILESTONE` is a profile entry and no code change) is only true if no answer here is
-// reachable without the manifest saying so.
+// reachable without the manifest saying so. The child types and each type's fields come from the
+// capabilities the server publishes (UC-WRK-03 check 7).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -244,7 +245,7 @@ test('every code a prediction uses is in the catalogue', async () => {
   // remembered — and it is what makes reusing the server's codes provable rather than claimed: a
   // gate that invented `capability.not_supported` beside `items.capability_not_supported` would
   // fail here, because the invented one is in no catalogue.
-  const { SOURCE } = await import('../i18n/catalogue.ts');
+  const { SOURCE } = await import('../i18n/source.ts');
   const known = new Set(Object.keys(SOURCE));
 
   const verdicts = [
@@ -300,7 +301,8 @@ test('a capability refusal reads as a sentence, not as the identifiers behind it
   // request carries them too and one sentence has to read well for both: the words are the
   // catalogue's. A type or a capability this client was built without still reads as a sentence.
   const { createMessages } = await import('../i18n/messages.ts');
-  const messages = createMessages({ locale: 'en' });
+  const { SOURCE } = await import('../i18n/source.ts');
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE] });
   const identifier = /\b[A-Z][A-Z_]+\b/;
 
   const types = ['TASK', 'WORK_PACKAGE', 'ACTIVITY', 'MILESTONE'];

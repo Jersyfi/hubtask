@@ -82,6 +82,9 @@ func (h StartProviderConnect) Execute(
 		return ProviderConnectStart{}, err
 	}
 
+	if configured.IsSAML() {
+		return ProviderConnectStart{}, samlSignInOnly()
+	}
 	state, verifier, nonce, err := drawFlow(s.Entropy, actor.TenantID)
 	if err != nil {
 		return ProviderConnectStart{}, err

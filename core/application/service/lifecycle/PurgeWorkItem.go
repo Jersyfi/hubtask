@@ -64,6 +64,9 @@ type EmptyTrash struct {
 	Purger     Purger
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Documents reaches the trashed pages and whiteboards, the one trash's other kinds; only its
+	// Trash, Changes and HLC are read. Wired without it, emptying leaves them to the period.
+	Documents DocumentSweep
 }
 
 // PurgeWorkItemCommand is the input, typed.
@@ -178,6 +181,13 @@ func (h EmptyTrash) Execute(
 		if err != nil {
 			return err
 		}
+		documents, err := sweepDocuments(ctx, h.Purger, h.Documents, documentPass{
+			tenantID: actor.TenantID, cutoff: now, now: now, reason: domain.DeletedByUser,
+		})
+		if err != nil {
+			return err
+		}
+		outcome.add(documents)
 		return h.Purger.RecordAudit(ctx, actor, TrashEmptiedAction, trashTarget, actor.TenantID,
 			outcome, domain.DeletedByUser, now)
 	})
@@ -217,7 +227,8 @@ func pathOf(collection work.Container) []identity.Scope {
 // Descriptor is the catalogue entry.
 func (h PurgeWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: PurgeWorkItemName,
+		Name:       PurgeWorkItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Removes an entry in the trash and everything under it for good, before its " +
 			"retention period is up. Irreversible: no restore brings it back, and a backup taken " +
 			"before it does not either. Refused for an entry that is not in the trash - delete it " +
@@ -247,7 +258,8 @@ func (h PurgeWorkItem) Descriptor() usecase.Descriptor {
 
 func (h EmptyTrash) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: EmptyTrashName,
+		Name:       EmptyTrashName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Removes everything in the trash for good, in one pass, without waiting out the " +
 			"retention period. Irreversible. Anything under a legal hold stays and is counted in " +
 			"the answer rather than failing the call. Needs the owner's right to delete a " +

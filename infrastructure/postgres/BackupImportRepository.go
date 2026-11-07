@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -66,6 +67,13 @@ func (r BackupImportRepository) Write(
 	if err != nil {
 		return false, err
 	}
+	if table == "work_item" {
+		// The trigger dates a restored entry's status from the restore rather than from its
+		// creation, as a stand-in the archive's history replaces where it carries one (0357, 0381).
+		if err := markRestoring(ctx); err != nil {
+			return false, err
+		}
+	}
 	written, err := entity.write(ctx, queries, payload, overwrite)
 	if err != nil {
 		if conflict := rowConflict(err, table, data); conflict != nil {
@@ -77,14 +85,52 @@ func (r BackupImportRepository) Write(
 	return written > 0, nil
 }
 
+func markRestoring(ctx context.Context) error {
+	tx, ok := txFromContext(ctx)
+	if !ok {
+		return shared.ErrInternal.WithDetail("postgres.scope_missing")
+	}
+	if _, err := tx.Exec(ctx, `SELECT set_config('hubtask.restoring', 'on', true)`); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("marking the restore: %w", err))
+	}
+	return nil
+}
+
 // rowConflict turns a unique index refusing an archive's row into the conflict it is, rather
 // than into a database error the queue retries: the next attempt meets the same row.
 // A container's name is the one collision with words of its own - the same code CreateContainer
 // answers, so that one fact has one sentence - and any other index is named by its constraint,
 // which is the schema's vocabulary and not content.
+//
+// A foreign key refusing the row is answered the same way: the row names something - by identity
+// or by key - that neither the archive nor the workspace holds, and every attempt meets that again.
+// So is a row refused for what it holds (`backup.row_refused`). The restore stops with the
+// constraint named rather than writing the row without it.
 func rowConflict(err error, table string, data map[string]any) error {
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) || pgErr.Code != uniqueViolation {
+	if !errors.As(err, &pgErr) {
+		return nil
+	}
+	if pgErr.Code == foreignKeyViolation {
+		return shared.ErrConflict.
+			WithDetail("backup.row_dangles").
+			WithParams(map[string]string{"constraint": pgErr.ConstraintName}).
+			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
+	}
+	if pgErr.Code == "23514" || pgErr.Code == "23502" || strings.HasPrefix(pgErr.Code, "22") {
+		// A check it fails, a column it leaves empty, a value no column takes (class 22, a zero
+		// byte among them): named by the constraint, or the table where there is none.
+		named := pgErr.ConstraintName
+		if named == "" {
+			named = table
+		}
+		return shared.ErrConflict.
+			WithDetail("backup.row_refused").
+			WithParams(map[string]string{"constraint": named}).
+			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
+	}
+	if pgErr.Code != uniqueViolation {
 		return nil
 	}
 	if pgErr.ConstraintName == containerNameIndex {

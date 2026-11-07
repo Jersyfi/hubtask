@@ -30,6 +30,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -62,7 +63,13 @@ const (
 	ScopeTenant     ScopeType = "TENANT"
 	ScopeHub        ScopeType = "HUB"
 	ScopeCollection ScopeType = "COLLECTION"
+	// ScopePerson is a person's own rule (configuration/model.md §1): ID is the owner's account,
+	// the rule acts as them, only they see it, and it fires on the entries they read.
+	ScopePerson ScopeType = "PERSON"
 )
+
+// Personal reports whether the scope is a person's own, which only its owner manages.
+func (s Scope) Personal() bool { return s.Type == ScopePerson }
 
 // Scope is where the rule applies.
 //
@@ -111,19 +118,31 @@ const (
 	TriggerManual TriggerKind = "MANUAL"
 	// TriggerJumbleEntry is a new arrival in the jumble.
 	TriggerJumbleEntry TriggerKind = "JUMBLE_ENTRY"
+	// TriggerStepTaken is one step of one workflow, taken (UC-FLW-04 check 4): the rule runs in
+	// the step's own change rather than after it.
+	TriggerStepTaken TriggerKind = "STEP_TAKEN"
 )
 
-// TriggerKinds is the six, in the order automation.md §1.1 lists them: what the manifest answers
+// Module is the module a kind of trigger depends on, and empty for the kinds of the base
+// product: a STEP_TAKEN rule never fires while workflows are off where it acts (UC-INS-21).
+func (k TriggerKind) Module() module.Key {
+	if k == TriggerStepTaken {
+		return module.Workflows
+	}
+	return ""
+}
+
+// TriggerKinds is the seven, in the order automation.md §1.1 lists them: what the manifest answers
 // and a rule editor offers. Read from here rather than restated, so that the kind a client may pick
 // is the kind ValidTrigger accepts.
 func TriggerKinds() []TriggerKind {
 	return []TriggerKind{
 		TriggerEvent, TriggerSchedule, TriggerRelativeDate,
-		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry,
+		TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry, TriggerStepTaken,
 	}
 }
 
-// Valid reports whether the kind is one of the six. Asked where a kind arrives from outside the
+// Valid reports whether the kind is one of the seven. Asked where a kind arrives from outside the
 // aggregate - a stored run, a job payload - rather than in ValidTrigger, which needs the switch
 // anyway to check the fields each kind carries.
 func (k TriggerKind) Valid() bool {
@@ -139,6 +158,12 @@ type DateAnchor string
 const (
 	AnchorDueDate   DateAnchor = "DUE_DATE"
 	AnchorCreatedAt DateAnchor = "CREATED_AT"
+	// AnchorCompletedAt is the moment the entry was done; an open entry has none, so a reopened
+	// one owes nothing ("close resolved incidents after a while", configuration.md §6).
+	AnchorCompletedAt DateAnchor = "COMPLETED_AT"
+	// AnchorField is a DATE or DATE_TIME custom field the trigger names by key, a contract's notice
+	// date: an entry whose field is empty, or holds no date, owes nothing.
+	AnchorField DateAnchor = "FIELD"
 )
 
 // OnError is what a failing action does to the rest of the run (automation.md §2).
@@ -175,7 +200,16 @@ type Trigger struct {
 	Timezone string
 	// Anchor and Offset are RELATIVE_DATE's, and both required there.
 	Anchor DateAnchor
-	Offset string
+	// AnchorField is the custom field's key, required with AnchorField and refused otherwise.
+	AnchorField string
+	Offset      string
+	// Calendar is RELATIVE_DATE's, and optional: the key of a business calendar whose working days
+	// the offset counts, so "P5D" is five business days. Only whole days are read on one.
+	Calendar string
+	// Workflow and Step are STEP_TAKEN's, and both required there: the workflow's key and the
+	// step's, since a step key alone would fire in every workflow that happens to use it.
+	Workflow string
+	Step     string
 }
 
 // Action is one step of a run: a use case name in SCREAMING_SNAKE_CASE, and its parameters.
@@ -200,7 +234,10 @@ type Rule struct {
 	ID       shared.ID
 	TenantID shared.ID
 	Name     string
-	Scope    Scope
+	// Key names the rule in its scope - unique there, kept by a rename - so that the
+	// configuration document names it in every workspace alike (migration 0293).
+	Key   string
+	Scope Scope
 	// Enabled is false on a rule that has just been written. Writing what a rule would do and
 	// letting it loose on the workspace are two decisions, and a rule that acted the moment it was
 	// saved would give nobody the chance to read it back first.
@@ -297,9 +334,11 @@ type NewRuleInput struct {
 	ID       shared.ID
 	TenantID shared.ID
 	Name     string
-	Scope    Scope
-	RunAs    shared.ID
-	Trigger  Trigger
+	// Key is the writer's; empty asks the store to draw one from the name.
+	Key     string
+	Scope   Scope
+	RunAs   shared.ID
+	Trigger Trigger
 	// Conditions are checked for their shape here and compiled by the application layer, which is
 	// the only side that may hold an evaluator.
 	Conditions []Condition
@@ -324,6 +363,9 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	if err != nil {
 		return Rule{}, err
 	}
+	if in.Key != "" && !shared.ValidKey(in.Key) {
+		return Rule{}, fieldError("/key", "automation.key_invalid")
+	}
 	scope, err := ValidScope(in.Scope)
 	if err != nil {
 		return Rule{}, err
@@ -334,6 +376,16 @@ func NewRule(in NewRuleInput) (Rule, error) {
 	trigger, err := ValidTrigger(in.Trigger)
 	if err != nil {
 		return Rule{}, err
+	}
+	if scope.Type == ScopePerson {
+		// Acting as anybody but the owner would be impersonation; a trigger other than an event
+		// would fire on entries nobody asked the owner's reading of.
+		if in.RunAs != scope.ID {
+			return Rule{}, fieldError("/run_as", "automation.person_rule_run_as")
+		}
+		if trigger.Kind != TriggerEvent {
+			return Rule{}, fieldError("/trigger/kind", "automation.person_rule_trigger")
+		}
 	}
 	conditions, err := ValidConditionShape(in.Conditions)
 	if err != nil {
@@ -354,7 +406,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 
 	now := in.Now.UTC()
 	return Rule{
-		ID: in.ID, TenantID: in.TenantID, Name: name, Scope: scope,
+		ID: in.ID, TenantID: in.TenantID, Name: name, Key: in.Key, Scope: scope,
 		Enabled: false,
 		RunAs:   in.RunAs, Trigger: trigger, Conditions: conditions, Actions: actions,
 		Throttle: throttle, OnError: onError,
@@ -387,7 +439,7 @@ func ValidScope(scope Scope) (Scope, error) {
 			return Scope{}, fieldError("/scope/id", "automation.scope_id_not_allowed")
 		}
 		return Scope{Type: ScopeTenant}, nil
-	case ScopeHub, ScopeCollection:
+	case ScopeHub, ScopeCollection, ScopePerson:
 		if scope.ID.IsZero() {
 			return Scope{}, fieldError("/scope/id", "automation.scope_id_required")
 		}
@@ -440,8 +492,17 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		}
 		return kept, foreign(trigger, kept)
 	case TriggerRelativeDate:
+		field := strings.TrimSpace(trigger.AnchorField)
 		switch trigger.Anchor {
-		case AnchorDueDate, AnchorCreatedAt:
+		case AnchorDueDate, AnchorCreatedAt, AnchorCompletedAt:
+			field = ""
+		case AnchorField:
+			if field == "" {
+				return Trigger{}, fieldError("/trigger/anchor_field", "automation.anchor_field_required")
+			}
+			if !fieldKey(field) {
+				return Trigger{}, fieldError("/trigger/anchor_field", "automation.anchor_field_malformed")
+			}
 		case "":
 			return Trigger{}, fieldError("/trigger/anchor", "automation.anchor_required")
 		default:
@@ -451,7 +512,30 @@ func ValidTrigger(trigger Trigger) (Trigger, error) {
 		if err != nil {
 			return Trigger{}, err
 		}
-		kept := Trigger{Kind: TriggerRelativeDate, Anchor: trigger.Anchor, Offset: offset}
+		cal := strings.TrimSpace(trigger.Calendar)
+		if cal != "" {
+			if !fieldKey(cal) {
+				return Trigger{}, fieldError("/trigger/calendar", "automation.calendar_malformed")
+			}
+			if _, err := BusinessDays(offset); err != nil {
+				return Trigger{}, err
+			}
+		}
+		kept := Trigger{
+			Kind: TriggerRelativeDate, Anchor: trigger.Anchor, AnchorField: field, Offset: offset,
+			Calendar: cal,
+		}
+		return kept, foreign(trigger, kept)
+	case TriggerStepTaken:
+		workflow := strings.TrimSpace(trigger.Workflow)
+		if workflow == "" {
+			return Trigger{}, fieldError("/trigger/workflow", "automation.workflow_required")
+		}
+		step := strings.TrimSpace(trigger.Step)
+		if step == "" {
+			return Trigger{}, fieldError("/trigger/step", "automation.step_required")
+		}
+		kept := Trigger{Kind: TriggerStepTaken, Workflow: workflow, Step: step}
 		return kept, foreign(trigger, kept)
 	case TriggerInboundWebhook, TriggerManual, TriggerJumbleEntry:
 		// Three kinds that configure nothing on the rule. The address an INBOUND_WEBHOOK answers
@@ -490,12 +574,56 @@ func ValidOffset(raw string) (string, error) {
 	return offset, nil
 }
 
+// BusinessDays reads an offset on a business calendar: a signed count of whole days, `P5D` or
+// `-P2D`. Weeks and clock parts are refused, since a business week and a business hour are not a
+// fixed number of working days.
+func BusinessDays(offset string) (int, error) {
+	text := strings.TrimSpace(offset)
+	sign := 1
+	switch {
+	case strings.HasPrefix(text, "-"):
+		sign, text = -1, text[1:]
+	case strings.HasPrefix(text, "+"):
+		text = text[1:]
+	}
+	refusal := fieldError("/trigger/offset", "automation.offset_business_days")
+	digits, whole := strings.CutPrefix(text, "P")
+	digits, days := strings.CutSuffix(digits, "D")
+	if !whole || !days || digits == "" || len(digits) > 3 {
+		return 0, refusal
+	}
+	count := 0
+	for _, r := range digits {
+		if r < '0' || r > '9' {
+			return 0, refusal
+		}
+		count = count*10 + int(r-'0')
+	}
+	if time.Duration(count)*24*time.Hour > MaxOffset {
+		return 0, refusal
+	}
+	return sign * count, nil
+}
+
 // MaxOffset is how far from its anchor a RELATIVE_DATE trigger may reach. A year is past any
 // "remind me before this is due" a person writes, and short enough that a typo of one digit cannot
 // schedule something after everyone who wrote it has left.
 const MaxOffset = 365 * 24 * time.Hour
 
-// parseOffset reads a signed ISO 8601 duration of weeks down to seconds.
+// parseOffset reads a signed ISO 8601 duration of weeks down to seconds as a length of time, a day
+// counted as 24 hours: what a flow's wait is, and what the bound is checked against.
+func parseOffset(text string) (time.Duration, error) {
+	days, clock, err := parseNominalOffset(text)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(days)*24*time.Hour + clock, nil
+}
+
+// parseNominalOffset reads a signed ISO 8601 duration of weeks down to seconds: the weeks and days
+// as a count of calendar days, the hours, minutes and seconds as a length of time. Both carry the
+// sign. A RELATIVE_DATE trigger applies the days on the calendar, so "-P1D" keeps the anchor's
+// local clock time across a clock change (ISO 8601's nominal day).
 //
 // Written here rather than taken from a library, for the reason core/domain has no libraries at all
 // (ADR-0001, rule 1) - and here rather than borrowed from the reminders, because that one is bounded
@@ -505,8 +633,8 @@ const MaxOffset = 365 * 24 * time.Hour
 // Years and months are refused rather than converted. "One month before it is due" is a different
 // instant depending on which month, and a trigger that resolved it here would be deciding a calendar
 // question in a parser.
-func parseOffset(text string) (time.Duration, error) {
-	sign := time.Duration(1)
+func parseNominalOffset(text string) (days int, clock time.Duration, err error) {
+	sign := 1
 	switch {
 	case strings.HasPrefix(text, "-"):
 		sign, text = -1, text[1:]
@@ -514,12 +642,12 @@ func parseOffset(text string) (time.Duration, error) {
 		text = text[1:]
 	}
 	if !strings.HasPrefix(text, "P") {
-		return 0, errOffsetMalformed
+		return 0, 0, errOffsetMalformed
 	}
 
-	date, clock, timed := strings.Cut(text[1:], "T")
-	if timed && clock == "" {
-		return 0, errOffsetMalformed
+	date, clockText, timed := strings.Cut(text[1:], "T")
+	if timed && clockText == "" {
+		return 0, 0, errOffsetMalformed
 	}
 
 	var total time.Duration
@@ -527,34 +655,40 @@ func parseOffset(text string) (time.Duration, error) {
 	for _, part := range []struct {
 		text  string
 		units map[byte]time.Duration
+		date  bool
 	}{
-		{date, map[byte]time.Duration{'W': 7 * 24 * time.Hour, 'D': 24 * time.Hour}},
-		{clock, map[byte]time.Duration{'H': time.Hour, 'M': time.Minute, 'S': time.Second}},
+		{date, map[byte]time.Duration{'W': 7 * 24 * time.Hour, 'D': 24 * time.Hour}, true},
+		{clockText, map[byte]time.Duration{'H': time.Hour, 'M': time.Minute, 'S': time.Second}, false},
 	} {
 		rest := part.text
 		for rest != "" {
 			count, unit, remainder, err := cutComponent(rest)
 			if err != nil {
-				return 0, err
+				return 0, 0, err
 			}
 			scale, known := part.units[unit]
 			if !known {
 				// 'M' before the T is months and after it is minutes, which is why the two halves
 				// are read against two tables rather than one.
-				return 0, errOffsetMalformed
+				return 0, 0, errOffsetMalformed
 			}
 			total += time.Duration(count) * scale
 			if total > MaxOffset {
-				return 0, errOffsetMalformed
+				return 0, 0, errOffsetMalformed
+			}
+			if part.date {
+				days += count * int(scale/(24*time.Hour))
+			} else {
+				clock += time.Duration(count) * scale
 			}
 			components++
 			rest = remainder
 		}
 	}
 	if components == 0 {
-		return 0, errOffsetMalformed
+		return 0, 0, errOffsetMalformed
 	}
-	return sign * total, nil
+	return sign * days, time.Duration(sign) * clock, nil
 }
 
 // cutComponent takes one `<digits><unit>` off the front.
@@ -571,6 +705,20 @@ func cutComponent(text string) (count int, unit byte, rest string, err error) {
 		return 0, 0, "", errOffsetMalformed
 	}
 	return count, text[digits], text[digits+1:], nil
+}
+
+// fieldKey is a custom field's key, `^[a-z][a-z0-9_]{0,49}$` - the work domain's rule, restated
+// because this package does not reach into another aggregate's.
+func fieldKey(key string) bool {
+	if len(key) == 0 || len(key) > 50 || key[0] < 'a' || key[0] > 'z' {
+		return false
+	}
+	for _, r := range key {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 // errOffsetMalformed never leaves this package: ValidOffset turns it into the coded refusal, so the
@@ -599,8 +747,20 @@ func foreign(sent, kept Trigger) error {
 	if sent.Anchor != kept.Anchor {
 		findings = append(findings, foreignField("anchor"))
 	}
+	if strings.TrimSpace(sent.AnchorField) != kept.AnchorField {
+		findings = append(findings, foreignField("anchor_field"))
+	}
 	if strings.TrimSpace(sent.Offset) != kept.Offset {
 		findings = append(findings, foreignField("offset"))
+	}
+	if strings.TrimSpace(sent.Calendar) != kept.Calendar {
+		findings = append(findings, foreignField("calendar"))
+	}
+	if strings.TrimSpace(sent.Workflow) != kept.Workflow {
+		findings = append(findings, foreignField("workflow"))
+	}
+	if strings.TrimSpace(sent.Step) != kept.Step {
+		findings = append(findings, foreignField("step"))
 	}
 	if len(findings) == 0 {
 		return nil

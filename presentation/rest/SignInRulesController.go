@@ -4,11 +4,7 @@
 package rest
 
 import (
-	"net/http"
-
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -18,30 +14,6 @@ import (
 // inwards of here, and this layer maps a request to an input and an answer to a document. The one
 // thing it contributes is the host - only the adapter has the connection, so the workspace's
 // address travels as a declared input rather than being re-derived somewhere that never saw it.
-
-const getSignInRulesUseCase = "GetSignInRules"
-
-// GetSignInRules answers GET /auth/sign-in-rules.
-//
-// Written out rather than through the identity helper: the route is public, so there is no actor
-// to resolve - the whole call exists so that somebody can produce one.
-func (c *RestController) GetSignInRules(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), getSignInRulesUseCase, actorOf(r), usecase.Input{
-		"host":          r.Host,
-		"tenant_header": r.Header.Get(TenantHeader),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, signInRulesResponse(out))
-}
 
 func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 	methods := make([]openapi.SignInMethod, 0, 2)
@@ -68,6 +40,7 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 	fallback := boolValue(out["password_fallback"])
 	names := boolValue(out["sign_in_names"])
 	return openapi.SignInRules{
+		WorkspaceName:    optionalTextField(out["workspace_name"]),
 		PasswordFallback: &fallback,
 		SignInNames:      &names,
 		WorkspaceHost:    out.String("workspace_host"),
@@ -79,6 +52,8 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 			PrivacyUrl:       optionalTextField(legal["privacy_url"]),
 			TermsUrl:         optionalTextField(legal["terms_url"]),
 			AccessibilityUrl: optionalTextField(legal["accessibility_url"]),
+			SupportUrl:       optionalTextField(legal["support_url"]),
+			DocsUrl:          optionalTextField(legal["docs_url"]),
 			TermsVersion:     optionalTextField(legal["terms_version"]),
 			TermsSetBy:       termsSetByField(legal["terms_set_by"]),
 		},
@@ -143,62 +118,6 @@ func nameList(value any) []string {
 	return names
 }
 
-const (
-	changePasswordUseCase = "ChangePassword"
-	checkPasswordUseCase  = "CheckPassword"
-)
-
-// ChangePassword answers POST /auth/password.
-func (c *RestController) ChangePassword(
-	w http.ResponseWriter, r *http.Request, params openapi.ChangePasswordParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.PasswordChange
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		return c.UseCases.Invoke(r.Context(), changePasswordUseCase, actor, usecase.Input{
-			"password":      body.Password,
-			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-}
-
-// CheckPassword answers POST /auth/password:check.
-//
-// Written out rather than through the identity helper: the route is public, because three of the
-// four proofs it accepts are the tokens of a flow that has no bearer yet.
-func (c *RestController) CheckPassword(
-	w http.ResponseWriter, r *http.Request, params openapi.CheckPasswordParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.PasswordCheck
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), checkPasswordUseCase, actorOf(r), usecase.Input{
-		"password":         body.Password,
-		"step_up_token":    stepUpHeaderField(params.XHubtaskStepUp),
-		"pending_token":    optionalStringField(body.PendingToken),
-		"invitation_token": optionalStringField(body.InvitationToken),
-		"reset_token":      optionalStringField(body.ResetToken),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, passwordCheckResponse(out))
-}
-
 func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
 	rows, _ := out["violations"].([]any)
 	violations := make([]openapi.PasswordViolation, 0, len(rows))
@@ -224,130 +143,4 @@ func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
 
 const (
 	forgetPasswordUseCase = "ForgetPassword"
-	resetPasswordUseCase  = "ResetPassword"
-	confirmAddressUseCase = "ConfirmAddress"
 )
-
-// ForgetPassword answers POST /auth/password:forgot.
-//
-// Written out rather than through the identity helper: the route is public, because the whole point
-// is that somebody who cannot sign in can reach it.
-func (c *RestController) ForgetPassword(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.PasswordForgot
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	if _, err := c.UseCases.Invoke(
-		r.Context(), forgetPasswordUseCase, actorOf(r), usecase.Input{
-			"email":         string(body.Email),
-			"host":          r.Host,
-			"tenant_header": r.Header.Get(TenantHeader),
-		}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// No body. There is nothing to say that would be true for one address and not for another.
-	w.WriteHeader(http.StatusAccepted)
-}
-
-// ConfirmAddress answers POST /auth/address:confirm: the link mailed to a managed account's new
-// address. Public, the reset's reasoning; it signs nobody in, so the answer has no body.
-func (c *RestController) ConfirmAddress(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	var body openapi.AddressConfirm
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if _, err := c.UseCases.Invoke(r.Context(), confirmAddressUseCase, actorOf(r), usecase.Input{
-		"token":         body.Token,
-		"tenant_header": r.Header.Get(TenantHeader),
-	}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// ResetPassword answers POST /auth/password:reset.
-func (c *RestController) ResetPassword(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.PasswordReset
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), resetPasswordUseCase, actorOf(r), usecase.Input{
-		"token":         body.Token,
-		"password":      body.Password,
-		"user_agent":    r.UserAgent(),
-		"remote_addr":   r.RemoteAddr,
-		"tenant_header": r.Header.Get(TenantHeader),
-		"host":          r.Host,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		// The password is set and the account's second factor is still owed (ADR-0068 §6).
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
-
-const setPasswordAndSignInUseCase = "SetPasswordAndSignIn"
-
-// SetPasswordAndSignIn answers POST /auth/sessions:set-password.
-//
-// Written out rather than through the identity helper: the route is public for the pending
-// credential's reason - the credential in the body is the whole of what authenticates the call.
-func (c *RestController) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.SignInPasswordChange
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), setPasswordAndSignInUseCase, actorOf(r), usecase.Input{
-			"pending_token": body.PendingToken,
-			"password":      body.Password,
-			"tenant_header": r.Header.Get(TenantHeader),
-		})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	if required, _ := out["mfa_required"].(bool); required {
-		// Set; the terms of use in force are still to be agreed to (UC-ID-19).
-		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}

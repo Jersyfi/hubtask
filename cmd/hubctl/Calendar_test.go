@@ -107,7 +107,7 @@ func TestRevokingSaysWhatItMeans(t *testing.T) {
 	if !strings.HasSuffix(stub.request.URL.Path, "/integrations/calendar-feeds/"+feedID) {
 		t.Errorf("called %s", stub.request.URL.Path)
 	}
-	if !strings.Contains(errOut, "answers nothing") {
+	if !strings.Contains(errOut, "answers nothing from then on "+feedID) {
 		t.Errorf("the confirmation %q does not say what changes", errOut)
 	}
 }

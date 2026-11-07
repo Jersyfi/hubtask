@@ -43,4 +43,4 @@ node or app, without anybody adding it by hand.
 
 ## Today
 
-* Check 4: not met — both packages are built and tested but marked private and not published; publishing needs accounts and reviews the owner holds.
+* Check 4: not met — both packages are built and tested, and the *Release* workflow's `integrations` job publishes the n8n node to npm and pushes the Zapier app at each tag once the owner's `NPM_TOKEN` and `ZAPIER_DEPLOY_KEY` secrets are set; neither has been published yet, and the Zapier directory listing is a review the owner applies for.

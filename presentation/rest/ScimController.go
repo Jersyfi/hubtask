@@ -1,0 +1,385 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
+
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+)
+
+// ScimDirectory is the application's side of the SCIM door (UC-ID-28). Not a catalogue entry: its
+// operations are SCIM's resource semantics, which no other door speaks; the same acts are on every
+// door as invitations and groups.
+type ScimDirectory interface {
+	ProvisionPerson(ctx context.Context, actor appshared.ActorContext, cmd identityservice.ProvisionPersonCommand) (identityservice.DirectoryPerson, error)
+	Person(ctx context.Context, actor appshared.ActorContext, id shared.ID) (identityservice.DirectoryPerson, error)
+	People(ctx context.Context, actor appshared.ActorContext, filter identityservice.DirectoryFilter, start, count int) (identityservice.DirectoryPage[identityservice.DirectoryPerson], error)
+	ChangePerson(ctx context.Context, actor appshared.ActorContext, cmd identityservice.ChangePersonCommand) (identityservice.DirectoryPerson, error)
+	Deprovision(ctx context.Context, actor appshared.ActorContext, id shared.ID) error
+	ProvisionGroup(ctx context.Context, actor appshared.ActorContext, name, externalID string, members []shared.ID) (identityservice.DirectoryGroup, error)
+	Group(ctx context.Context, actor appshared.ActorContext, id shared.ID, withMembers bool) (identityservice.DirectoryGroup, error)
+	GroupsPage(ctx context.Context, actor appshared.ActorContext, filter identityservice.DirectoryFilter, start, count int, withMembers bool) (identityservice.DirectoryPage[identityservice.DirectoryGroup], error)
+	ChangeGroup(ctx context.Context, actor appshared.ActorContext, cmd identityservice.ChangeGroupCommand) (identityservice.DirectoryGroup, error)
+	RemoveGroup(ctx context.Context, actor appshared.ActorContext, id shared.ID) error
+}
+
+// ScimDoor serves the SCIM routes the contract delegates to it (`x-hubtask-rest: delegated`):
+// SCIM's own media type, filters and error documents are no catalogue entry's answer.
+type ScimDoor struct {
+	// Directory provisions people and groups. Nil answers every SCIM route not found, in SCIM's
+	// own error document.
+	Directory ScimDirectory
+	// Links answers the workspace's main address the resources' locations are composed from
+	// (ADR-0095 §2); nil keeps them relative.
+	Links WorkspaceLinks
+}
+
+// base is the main address of the workspace the SCIM credential provisions. An address that
+// cannot be read leaves the locations relative rather than refusing the provisioning.
+func (c *ScimDoor) base(r *http.Request) string {
+	address, err := linkBaseOf(r.Context(), c.Links, actorOf(r).TenantID)
+	if err != nil {
+		return ""
+	}
+	return address
+}
+
+func writeScim(w http.ResponseWriter, r *http.Request, status int, body any) {
+	w.Header().Set("Content-Type", scimContentType)
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	if body == nil {
+		return
+	}
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		slog.WarnContext(r.Context(), "writing the response body failed", slog.String("error", err.Error()))
+	}
+}
+
+func writeScimError(w http.ResponseWriter, r *http.Request, err error) {
+	status, body := scimErrorOf(err)
+	writeScim(w, r, status, body)
+}
+
+// scimServed answers whether the door is wired, answering a SCIM 404 where it is not.
+func (c *ScimDoor) scimServed(w http.ResponseWriter, r *http.Request) bool {
+	if c.Directory == nil {
+		writeScimError(w, r, shared.ErrNotFound.WithDetail("directory.not_served"))
+		return false
+	}
+	return true
+}
+
+func scimBody(r *http.Request, into any) error {
+	raw, err := io.ReadAll(io.LimitReader(r.Body, scimMaxBody+1))
+	if err != nil {
+		return malformedScim()
+	}
+	return decodeScim(raw, into)
+}
+
+func scimPaging(start, count *int) (int, int) {
+	s, n := 1, identityservice.MaxDirectoryPage
+	if start != nil {
+		s = *start
+	}
+	if count != nil {
+		n = *count
+	}
+	return s, n
+}
+
+func membersExcluded(excluded *string) bool {
+	if excluded == nil {
+		return false
+	}
+	for _, name := range strings.Split(*excluded, ",") {
+		if strings.EqualFold(strings.TrimSpace(name), "members") {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *ScimDoor) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.Request) {
+	if c.scimServed(w, r) {
+		writeScim(w, r, http.StatusOK, scimServiceProviderConfig())
+	}
+}
+
+func (c *ScimDoor) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) {
+	if c.scimServed(w, r) {
+		types := scimResourceTypes(c.base(r))
+		writeScim(w, r, http.StatusOK, scimList(len(types), 1, types))
+	}
+}
+
+func (c *ScimDoor) ListScimSchemas(w http.ResponseWriter, r *http.Request) {
+	if c.scimServed(w, r) {
+		schemas := scimSchemas()
+		writeScim(w, r, http.StatusOK, scimList(len(schemas), 1, schemas))
+	}
+}
+
+func (c *ScimDoor) ListScimUsers(w http.ResponseWriter, r *http.Request, params openapi.ListScimUsersParams) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	raw := ""
+	if params.Filter != nil {
+		raw = *params.Filter
+	}
+	filter, err := scimFilter(raw, "userName", "externalId", "id", "emails.value")
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	start, count := scimPaging(params.StartIndex, params.Count)
+	page, err := c.Directory.People(r.Context(), actorOf(r), filter, start, count)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	resources := make([]map[string]any, 0, len(page.Items))
+	for _, person := range page.Items {
+		resources = append(resources, scimUserOut(c.base(r), person))
+	}
+	writeScim(w, r, http.StatusOK, scimList(page.Total, page.Start, resources))
+}
+
+func (c *ScimDoor) CreateScimUser(w http.ResponseWriter, r *http.Request) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	var in scimUserIn
+	if err := scimBody(r, &in); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	active, err := in.active()
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	person, err := c.Directory.ProvisionPerson(r.Context(), actorOf(r), identityservice.ProvisionPersonCommand{
+		Email: in.address(), DisplayName: in.shown(), ExternalID: in.ExternalID, Active: active,
+	})
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	out := scimUserOut(c.base(r), person)
+	w.Header().Set("Location", scimLocation(out))
+	writeScim(w, r, http.StatusCreated, out)
+}
+
+func (c *ScimDoor) GetScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	person, err := c.Directory.Person(r.Context(), actorOf(r), scimID(id))
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	writeScim(w, r, http.StatusOK, scimUserOut(c.base(r), person))
+}
+
+func (c *ScimDoor) ReplaceScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	var in scimUserIn
+	if err := scimBody(r, &in); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	active, err := in.active()
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	address, shown, external := in.address(), in.shown(), in.ExternalID
+	cmd := identityservice.ChangePersonCommand{AccountID: scimID(id), Active: &active, ExternalID: &external}
+	if strings.Contains(address, "@") {
+		cmd.Email = &address
+	}
+	if shown != "" {
+		cmd.DisplayName = &shown
+	}
+	c.changeScimUser(w, r, cmd)
+}
+
+func (c *ScimDoor) PatchScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	var patch scimPatch
+	if err := scimBody(r, &patch); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	cmd, err := userChange(scimID(id), patch)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	c.changeScimUser(w, r, cmd)
+}
+
+func (c *ScimDoor) changeScimUser(w http.ResponseWriter, r *http.Request, cmd identityservice.ChangePersonCommand) {
+	person, err := c.Directory.ChangePerson(r.Context(), actorOf(r), cmd)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	writeScim(w, r, http.StatusOK, scimUserOut(c.base(r), person))
+}
+
+func (c *ScimDoor) DeleteScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	if err := c.Directory.Deprovision(r.Context(), actorOf(r), scimID(id)); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *ScimDoor) ListScimGroups(w http.ResponseWriter, r *http.Request, params openapi.ListScimGroupsParams) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	raw := ""
+	if params.Filter != nil {
+		raw = *params.Filter
+	}
+	filter, err := scimFilter(raw, "displayName", "externalId", "id")
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	start, count := scimPaging(params.StartIndex, params.Count)
+	withMembers := !membersExcluded(params.ExcludedAttributes)
+	page, err := c.Directory.GroupsPage(r.Context(), actorOf(r), filter, start, count, withMembers)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	resources := make([]map[string]any, 0, len(page.Items))
+	for _, group := range page.Items {
+		resources = append(resources, scimGroupOut(c.base(r), group, withMembers))
+	}
+	writeScim(w, r, http.StatusOK, scimList(page.Total, page.Start, resources))
+}
+
+func (c *ScimDoor) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	var in scimGroupIn
+	if err := scimBody(r, &in); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	external := ""
+	if in.ExternalID != nil {
+		external = *in.ExternalID
+	}
+	group, err := c.Directory.ProvisionGroup(r.Context(), actorOf(r), in.DisplayName, external, memberIDs(in.Members))
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	out := scimGroupOut(c.base(r), group, true)
+	w.Header().Set("Location", scimLocation(out))
+	writeScim(w, r, http.StatusCreated, out)
+}
+
+func (c *ScimDoor) GetScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId, params openapi.GetScimGroupParams) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	withMembers := !membersExcluded(params.ExcludedAttributes)
+	group, err := c.Directory.Group(r.Context(), actorOf(r), scimID(id), withMembers)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	writeScim(w, r, http.StatusOK, scimGroupOut(c.base(r), group, withMembers))
+}
+
+func (c *ScimDoor) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	var in scimGroupIn
+	if err := scimBody(r, &in); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	members := memberIDs(in.Members)
+	cmd := identityservice.ChangeGroupCommand{GroupID: scimID(id), Replace: &members, ExternalID: in.ExternalID}
+	if in.DisplayName != "" {
+		cmd.Name = &in.DisplayName
+	}
+	c.changeScimGroup(w, r, cmd, true)
+}
+
+func (c *ScimDoor) PatchScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	var patch scimPatch
+	if err := scimBody(r, &patch); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	cmd, err := groupChange(scimID(id), patch)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	c.changeScimGroup(w, r, cmd, true)
+}
+
+func (c *ScimDoor) changeScimGroup(w http.ResponseWriter, r *http.Request, cmd identityservice.ChangeGroupCommand, withMembers bool) {
+	group, err := c.Directory.ChangeGroup(r.Context(), actorOf(r), cmd)
+	if err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	writeScim(w, r, http.StatusOK, scimGroupOut(c.base(r), group, withMembers))
+}
+
+func (c *ScimDoor) DeleteScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
+	if !c.scimServed(w, r) {
+		return
+	}
+	if err := c.Directory.RemoveGroup(r.Context(), actorOf(r), scimID(id)); err != nil {
+		writeScimError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// scimID is the path's identifier as the service reads it; one that is no identifier here is not
+// found there, as SCIM expects.
+func scimID(raw string) shared.ID {
+	id, err := shared.ParseID(raw)
+	if err != nil {
+		return shared.ID("00000000-0000-0000-0000-000000000000")
+	}
+	return id
+}

@@ -10,6 +10,8 @@
 
   import { Banner, Button, Stack } from '@hubtask/design-system/components';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import SignInCard from '../lib/signin/SignInCard.svelte';
   import { takeFragmentToken } from '../lib/signin/fragmentToken.ts';
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
@@ -32,9 +34,9 @@
 
 {#snippet notice()}
   {#if passwordApi.problem}
-    <Banner tone="danger" title={passwordApi.problem.message}>
+    <FailureNote problem={passwordApi.problem}>
       {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
-    </Banner>
+    </FailureNote>
   {/if}
 {/snippet}
 

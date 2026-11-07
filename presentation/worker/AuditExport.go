@@ -27,12 +27,16 @@ type AuditExport struct {
 }
 
 var (
-	_ queue.Handler  = AuditExport{}
-	_ queue.Detached = AuditExport{}
+	_ queue.Handler     = AuditExport{}
+	_ queue.Detached    = AuditExport{}
+	_ queue.LongRunning = AuditExport{}
 )
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
 func (h AuditExport) OwnsItsTransactions() {}
+
+// RunsLong is the declaration queue.LongRunning asks for: one pass may take hours.
+func (AuditExport) RunsLong() {}
 
 // Run writes one export.
 func (h AuditExport) Run(ctx context.Context, job queue.Job) (queue.Result, error) {

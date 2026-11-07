@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -91,6 +92,9 @@ type Page struct {
 	More       bool
 	ServerTime time.Time
 	Window     time.Duration
+	// SkippedKinds are the kinds the device does not hold yet because their read failed; a later
+	// pull walks them again.
+	SkippedKinds []string
 }
 
 const (
@@ -120,6 +124,11 @@ type PullChanges struct {
 	// Structure resolves each container's structure in force onto its record in the initial
 	// synchronisation, as every read of a container answers it (domain-model.md §2).
 	Structure workservice.StructureResolver
+	// Settings answers the installation's and the plan's say over the time policy; nil sends the
+	// workspace's row alone.
+	Settings settingrepo.Settings
+	// Signals counts a kind the walk skipped; nil counts nothing.
+	Signals WalkSignals
 }
 
 // Pull answers one page.
@@ -153,16 +162,21 @@ func (p PullChanges) Pull(
 		batch, err = p.walk(ctx, actor, from, limit, keep)
 	} else {
 		batch, err = p.Stream.page(ctx, actor, from, limit, keep)
+		if err == nil && batch.Cursor.Skipped != "" && !batch.More && len(batch.Records) < limit &&
+			p.Snapshot != nil {
+			batch, err = p.catchUp(ctx, actor, batch, limit, keep)
+		}
 	}
 	if err != nil {
 		return Page{}, err
 	}
 	return Page{
-		Records:    batch.Records,
-		Cursor:     batch.Cursor,
-		More:       batch.More,
-		ServerTime: p.Stream.Clock.Now(),
-		Window:     p.Stream.Window,
+		Records:      batch.Records,
+		Cursor:       batch.Cursor,
+		More:         batch.More,
+		ServerTime:   p.Stream.Clock.Now(),
+		Window:       p.Stream.Window,
+		SkippedKinds: kindsOf(batch.Cursor.Skipped),
 	}, nil
 }
 
@@ -196,6 +210,10 @@ func (p PullChanges) resume(
 	ctx context.Context, actor appshared.ActorContext, cursor string,
 ) (Position, error) {
 	if err := actor.RequireScope(streamScope); err != nil {
+		return Position{}, err
+	}
+	// A view as somebody is online only (UC-ID-29): no device keeps a copy of their work.
+	if err := actor.RefuseACopy(); err != nil {
 		return Position{}, err
 	}
 	if cursor != "" {

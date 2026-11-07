@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -206,6 +207,8 @@ func NewOauthClient(in NewOauthClientInput) (OauthClient, error) {
 		return OauthClient{}, fieldError("/name", "oauth.client_name_required")
 	case utf8.RuneCountInString(name) > 200:
 		return OauthClient{}, fieldError("/name", "oauth.client_name_too_long")
+	case strings.ContainsFunc(name, unicode.IsControl):
+		return OauthClient{}, fieldError("/name", "oauth.client_name_malformed")
 	}
 
 	if len(in.RedirectURIs) == 0 {

@@ -1,0 +1,33 @@
+{
+  "test": "L1 live updates in one workspace",
+  "ran_at": "2026-11-05T21:25:38.470695Z",
+  "window_seconds": 120,
+  "streams_asked": 64,
+  "streams_opened": 64,
+  "streams_refused_by_status": {},
+  "streams_ended_early": 0,
+  "writes_sent": 1200,
+  "writes_accepted": 1200,
+  "writes_failed_by_status": {},
+  "write_latency_ms": {
+    "count": 1200,
+    "p50": 20,
+    "p95": 60,
+    "p95_low": 58,
+    "p95_high": 62,
+    "p99": 69,
+    "max": 78
+  },
+  "delivery_delay_ms": {
+    "count": 76800,
+    "p50": 185,
+    "p95": 302,
+    "p95_low": 302,
+    "p95_high": 302,
+    "p99": 314,
+    "max": 329
+  },
+  "deliveries_later_than_bar_or_missing": 0,
+  "database_transactions_per_second": 1095.9559445824302,
+  "notify_queue_usage_max": 0
+}

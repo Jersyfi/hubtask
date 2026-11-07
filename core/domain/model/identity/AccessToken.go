@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -133,6 +134,8 @@ func NewAccessToken(in NewAccessTokenInput) (AccessToken, error) {
 		return AccessToken{}, fieldError("/name", "access.token_name_required")
 	case len(name) > MaxTokenNameLength:
 		return AccessToken{}, fieldError("/name", "access.token_name_too_long")
+	case strings.ContainsFunc(name, unicode.IsControl):
+		return AccessToken{}, fieldError("/name", "access.token_name_malformed")
 	}
 
 	scopes, err := normaliseScopes(in.Scopes)
@@ -274,6 +277,9 @@ type Account struct {
 	// person who has seen the tour has seen it on every screen.
 	Celebrations          *bool
 	OnboardingCompletedAt *time.Time
+	// ProductsSeen are the products whose first-visit mark the person has seen (user-experience.md
+	// §3.4), module keys in the order they were seen; the account's for the tour's reason.
+	ProductsSeen []string
 	// AvatarMediaID is the picture the person shows beside their name, zero for the initials. Every
 	// member may read it, as they may read the name (data-protection.md §9).
 	AvatarMediaID shared.ID

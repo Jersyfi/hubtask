@@ -22,6 +22,7 @@
 
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { AddressAnswer, AddressSubject } from './change.ts';
 
   interface Props {
@@ -86,7 +87,7 @@
   function problem(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
 
   async function change(): Promise<void> {
@@ -137,7 +138,7 @@
         {t(`app.instance.address_lockout_${who}_${lockout.reason}`)}
       </Banner>
     {:else if failure && !fieldError}
-      <Banner tone="danger" title={failure.message} />
+      <FailureNote problem={failure} />
     {/if}
     <form
       id="change-address"

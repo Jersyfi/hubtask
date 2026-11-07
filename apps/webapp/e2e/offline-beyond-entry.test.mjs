@@ -29,11 +29,17 @@ test.after(async () => {
 test('offline, a reminder is kept and sent when the network returns (check 6)', async () => {
   const { page, context } = await signedIn(browser, 1280, 1000);
   pushed.length = 0;
+  // The panel is a chunk of its own, held offline only once the idle precache has fetched it
+  // (precache.ts). That fetches one part at a time in `partLoaders()` order, so the request for
+  // the part after it means the reminder panel is in this tab; a loaded machine gets there late.
+  const precached = page.waitForRequest((request) => /\/assets\/CoverPanel-[^/]*\.js$/.test(new URL(request.url()).pathname), { timeout: 60_000 });
   await page.goto(`${served.origin}/items/${DATED.id}`);
   await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
   const row = page.locator('button[data-detail="reminders"]');
   await row.waitFor({ timeout: 15_000 });
+
+  await precached;
 
   let isOffline = false;
   await context.route('**/api/v1/**', (route) => (isOffline ? route.abort('internetdisconnected') : route.fallback()));

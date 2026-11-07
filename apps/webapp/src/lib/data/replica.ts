@@ -27,7 +27,8 @@
  * that without knowing the language. A board grouped by bucket is the same question in columns.
  */
 
-import { orderKeyBetween, type QueuedWrite, type ResourceRequest, type Storage, type StoredRecord } from '@hubtask/sync-engine';
+import { orderKeyBetween, type QueuedWrite, type ResourceRequest, type Storage, type StoredRecord, type VocabularyEntity } from '@hubtask/sync-engine';
+import { ticketKeyOf } from './ticket.ts';
 
 type Document = Record<string, unknown>;
 
@@ -217,6 +218,85 @@ async function one(storage: Storage, collection: string, id: string): Promise<Do
   return collection === 'items' ? (await marked(storage, [document]))[0] : document;
 }
 
+// ---------------------------------------------------------------------------------------------
+// References resolved from the copy (P-19)
+// ---------------------------------------------------------------------------------------------
+
+const REFERENCE_STORES: Readonly<Record<string, string>> = {
+  ENTRY: 'items', HUB: 'containers', COLLECTION: 'containers', PAGE: 'pages', WHITEBOARD: 'whiteboards',
+  CI: 'cis', GOAL: 'goals', DASHBOARD: 'dashboards',
+};
+
+const text = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
+
+/**
+ * What `POST /references:resolve` answers, from the device's copy: the walk delivers only what the
+ * reader may read, so an object held - live, and not hidden by its collection - is shown as the
+ * server shows it, and one not held only by its address with `available: false`, as the server
+ * answers one the reader may not see. A view is the server's alone (its query is the language's),
+ * so offline it is not resolved either.
+ */
+export async function resolveHeld(storage: Storage, body: unknown): Promise<Document[]> {
+  const asked = (body as { references?: readonly { kind?: string; id?: string; anchor?: string }[] } | undefined)?.references ?? [];
+  const out: Document[] = [];
+  for (const reference of asked.slice(0, 100)) {
+    const kind = String(reference.kind ?? '');
+    const id = String(reference.id ?? '');
+    const anchor = reference.anchor ?? null;
+    const unavailable = { kind, id, anchor, available: false };
+    const store = REFERENCE_STORES[kind];
+    const held = store ? await one(storage, store, id) : undefined;
+    if (!held || held.deleted_at || held.trashed_at) {
+      out.push(unavailable);
+      continue;
+    }
+    const target: Document = { kind, id, anchor, available: true };
+    switch (kind) {
+      case 'ENTRY': {
+        if ((held.hidden as EntryHidden | undefined)?.level) {
+          out.push(unavailable);
+          continue;
+        }
+        const collection = await one(storage, 'containers', String(held.collection_id));
+        const number = typeof held.number === 'number' && held.number > 0 ? held.number : null;
+        Object.assign(target, {
+          title: held.title, level: held.type, entry_type: text(held.entry_type) ?? String(held.type ?? '').toLowerCase(),
+          completed: (held.completion as { is_completed?: boolean } | undefined)?.is_completed === true,
+          archived: Boolean(held.archived_at), collection_id: held.collection_id, number,
+          key: ticketKeyOf({ handle: text(collection?.handle), key_prefix: text(collection?.key_prefix) }, number) ?? null,
+          start_at: held.start_at ?? null, due_at: held.due_at ?? null,
+        });
+        break;
+      }
+      case 'HUB':
+      case 'COLLECTION':
+        if (held.type !== kind) {
+          out.push(unavailable);
+          continue;
+        }
+        Object.assign(target, { title: held.name, archived: Boolean(held.archived_at), key: text(held.handle) ?? null });
+        break;
+      case 'PAGE':
+        Object.assign(target, { title: held.title, archived: Boolean(held.archived), hub_id: held.hub_id, icon: text(held.icon) ?? null });
+        break;
+      case 'WHITEBOARD':
+        Object.assign(target, { title: held.title, hub_id: held.hub_id, ...(Array.isArray(held.elements) ? { element_count: held.elements.length } : {}) });
+        break;
+      case 'CI':
+        Object.assign(target, { title: held.name, hub_id: held.hub_id, ci_class: held.class ?? held.ci_class, stage: held.stage });
+        break;
+      case 'GOAL':
+        Object.assign(target, { title: held.title, status: held.status, ...(text(held.hub_id) ? { hub_id: held.hub_id } : {}) });
+        break;
+      case 'DASHBOARD':
+        Object.assign(target, { title: held.name, ...(text(held.hub_id) ? { hub_id: held.hub_id } : {}) });
+        break;
+    }
+    out.push(target);
+  }
+  return out;
+}
+
 /**
  * The plain level question - or an entry's whole subtree, which the entry page asks for in one
  * read - or nothing for one the copy would have to understand.
@@ -287,12 +367,103 @@ function parse(path: string): { pathname: string; query: URLSearchParams } {
  *
  * Every answered path is listed here, and the test lists every one refused by design.
  */
+/** A day `YYYY-MM-DD` of an instant in a zone; an unknown zone counts in UTC. */
+function dayIn(instant: unknown, zone: string): string | undefined {
+  if (typeof instant !== 'string' || instant === '') return undefined;
+  const at = Date.parse(instant);
+  if (Number.isNaN(at)) return undefined;
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+  } catch {
+    return new Date(at).toISOString().slice(0, 10);
+  }
+}
+
+/** Monday to Friday from one day to another, both counted, as the server counts without a calendar. */
+function workdaysBetween(from: string, to: string): number {
+  const first = Date.parse(`${from}T00:00:00Z`);
+  const last = Date.parse(`${to}T00:00:00Z`);
+  let count = 0;
+  for (let at = first; at <= last; at += 86_400_000) {
+    const weekday = new Date(at).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) count++;
+  }
+  return count;
+}
+
+/** The link types that make an entry wait, and which end waits: the copy's, else the shipped ones. */
+async function waitingTypes(storage: Storage): Promise<Map<string, 'SOURCE' | 'TARGET'>> {
+  const out = new Map<string, 'SOURCE' | 'TARGET'>([['blocks', 'TARGET'], ['depends_on', 'SOURCE']]);
+  for (const row of await documents(storage, 'link_types')) {
+    if (row.waits === 'SOURCE' || row.waits === 'TARGET') out.set(String(row.key), row.waits);
+    else out.delete(String(row.key));
+  }
+  return out;
+}
+
+async function planFromCopy(storage: Storage, planId: string, zone: string): Promise<Document | undefined> {
+  const containers = await documents(storage, 'containers');
+  const place = containers.find((each) => each.id === planId);
+  if (!place) return undefined;
+  const collections = new Set(place.type === 'HUB'
+    ? containers.filter((each) => each.parent_id === planId && !each.deleted_at).map((each) => String(each.id))
+    : [planId]);
+  const items = (await documents(storage, 'items'))
+    .filter((item) => collections.has(String(item.collection_id)) && !item.deleted_at && !item.archived_at);
+  const ids = new Set(items.map((item) => String(item.id)));
+  const schedules = new Map((await documents(storage, 'entry_schedules')).map((row) => [String(row.item_id), row]));
+  const parents = new Set(items.map((item) => item.parent_id).filter((id): id is string => typeof id === 'string'));
+  const entries: Document[] = [];
+  const unscheduled: string[] = [];
+  const undated: Document[] = [];
+  let finish: string | undefined;
+  for (const item of items) {
+    const id = String(item.id);
+    const dueZone = item.due_date_only === true && typeof item.due_time_zone === 'string' ? item.due_time_zone : zone;
+    const due = dayIn(item.due_at, dueZone);
+    const start = dayIn(item.start_at, zone) ?? due;
+    if (!due || !start) {
+      unscheduled.push(id);
+      undated.push({ item_id: id, title: item.title ?? '' });
+      continue;
+    }
+    if (!finish || due > finish) finish = due;
+    const scheduling = schedules.get(id);
+    entries.push({
+      item_id: id, title: item.title ?? '', parent_id: typeof item.parent_id === 'string' && ids.has(item.parent_id) ? item.parent_id : null,
+      collection_id: item.collection_id, start, finish: due, duration_days: workdaysBetween(start, due), moved: false,
+      total_float_days: 0, free_float_days: 0, critical: false, summary: parents.has(id), external: false,
+      mode: scheduling?.mode === 'AUTOMATIC' ? 'AUTOMATIC' : 'MANUAL', milestone: scheduling?.milestone === true,
+      done: item.is_completed === true, due_only: dayIn(item.start_at, zone) === undefined,
+    });
+  }
+  const waits = await waitingTypes(storage);
+  const dependencies: Document[] = [];
+  for (const link of await documents(storage, 'entry_links')) {
+    const end = waits.get(String(link.type));
+    const source = String(link.source_id);
+    const target = String(link.target_id);
+    if (!end || !ids.has(source) || !ids.has(target)) continue;
+    const [predecessor, successor] = end === 'TARGET' ? [source, target] : [target, source];
+    dependencies.push({
+      link_id: link.id, type: link.type, predecessor_id: predecessor, successor_id: successor,
+      dependency_kind: link.dependency_kind ?? 'FS', lag_days: Number(link.lag_days ?? 0),
+    });
+  }
+  return { zone, finish: finish ?? null, entries, dependencies, conflicts: [], unscheduled, undated, critical_path: [] };
+}
+
 export async function storeFor(request: ResourceRequest, storage: Storage): Promise<unknown> {
   const { pathname, query } = parse(request.path);
+
+  if (pathname === '/references:resolve') return { data: await resolveHeld(storage, request.body) };
 
   if (pathname === '/items:query') {
     const scope = levelScope(request.body);
     if (!scope) return undefined;
+    // A container the copy does not hold - one of a hub a narrowed copy leaves to the server - is
+    // not a container with nothing in it.
+    if (scope.container_id && !(await storage.get('containers', scope.container_id))) return undefined;
     if (scope.group) return scope.container_id ? board(storage, scope.container_id) : undefined;
     const rows = await level(storage, scope);
     return { data: rows, groups: [], page: { next_cursor: null, has_more: false }, total: rows.length };
@@ -344,6 +515,349 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
     return (await documents(storage, 'recurrence_rule')).find((row) => row.item_id === itemId);
   }
 
+  // An entry's SLA goals and its approvals with their trail while the server is away (M5): as the
+  // server answers them, goals by kind and approvals newest first. Nobody may decide offline -
+  // who may is the server's question, and a decision needs it.
+  match = /^\/items\/([^/]+)\/sla$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const goals = ['FIRST_RESPONSE', 'NEXT_RESPONSE', 'RESOLUTION'];
+    const rows = (await documents(storage, 'entry_slas'))
+      .filter((row) => row.item_id === itemId)
+      .map(({ id: _id, item_id: _item, ...row }) => row)
+      .sort((a, b) => goals.indexOf(String(a.goal)) - goals.indexOf(String(b.goal)));
+    return { data: rows };
+  }
+
+  match = /^\/items\/([^/]+)\/approvals$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const rows = (await documents(storage, 'approvals'))
+      .filter((row) => row.item_id === itemId)
+      .map((row): Record<string, unknown> => ({ ...row, may_decide: false }))
+      .sort((a, b) => String(b.requested_at ?? '').localeCompare(String(a.requested_at ?? '')) || String(b.id).localeCompare(String(a.id)));
+    return { data: rows };
+  }
+
+  // An entry's files in a store while the server is away (UC-INT-14), in the order they were
+  // added as the server answers them.
+  match = /^\/items\/([^/]+)\/file-links$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const rows = (await documents(storage, 'file_links'))
+      .filter((row) => row.item_id === itemId)
+      .sort((a, b) => String(a.added_at ?? '').localeCompare(String(b.added_at ?? '')) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+
+  // An entry's commits, branches and pull requests while the server is away (UC-INT-13), the
+  // latest first as the server answers them.
+  match = /^\/items\/([^/]+)\/code-links$/.exec(pathname);
+  if (match?.[1]) {
+    const itemId = match[1];
+    const rows = (await documents(storage, 'code_links'))
+      .filter((row) => row.item_id === itemId)
+      .sort((a, b) => String(b.happened_at ?? '').localeCompare(String(a.happened_at ?? '')) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+
+  // A hub's pages and a page read while the server is away (M3): the tree without the bodies, as
+  // the server lists it, and a page with its breadcrumb walked up the copy. Nothing is writable
+  // offline - a page is written through its live document, which needs the server.
+  match = /^\/hubs\/([^/:]+)\/pages$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    const withArchived = query.get('include_archived') === 'true';
+    const templatesOnly = query.get('templates') === 'true';
+    const rows = (await documents(storage, 'pages'))
+      .filter((row) => row.hub_id === hubId && !row.trashed_at && (withArchived || !row.archived) && (!templatesOnly || row.template))
+      .map(({ body: _body, ...row }) => row)
+      .sort((a, b) => {
+        // The server's order: the top of the space first, then by position among siblings.
+        const x = `${String(a.parent_id ?? '')}\u0000${String(a.position ?? '')}`;
+        const y = `${String(b.parent_id ?? '')}\u0000${String(b.position ?? '')}`;
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+    return { data: rows };
+  }
+
+  match = /^\/pages\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const held = await documents(storage, 'pages');
+    const byId = new Map(held.map((row) => [String(row.id), row]));
+    const page = byId.get(match[1]);
+    if (!page || page.trashed_at) return undefined;
+    const ancestors: { id: string; title: string }[] = [];
+    for (let above = page.parent_id; typeof above === 'string' && ancestors.length < 16; ) {
+      const parent = byId.get(above);
+      if (!parent) break;
+      ancestors.unshift({ id: String(parent.id), title: String(parent.title) });
+      above = parent.parent_id;
+    }
+    const until = typeof page.verified_until === 'string' ? Date.parse(page.verified_until) : Number.NaN;
+    return { ...page, ancestors, writable: false, due_for_review: Number.isFinite(until) && until <= Date.now() };
+  }
+
+  // A hub's inventory read while the server is away (M6, offline-sync.md §3): the CIs in the
+  // server's order, a CI with its relations and the protection it inherits computed from the copy
+  // as the server computes it, the impact walked the same way, and the catalogue. Nothing is
+  // writable offline - a CI is written through the reconciliation, which needs the server.
+  const inventory = await cmdbFor(pathname, query, storage);
+  if (inventory !== NOT_CMDB) return inventory;
+
+  // The custom field definitions in force while the server is away: the workspace's and, named a
+  // collection, its own - a bare array in the server's order, the workspace's first, then by key.
+  if (pathname === '/custom-fields') {
+    const collectionId = query.get('collection_id');
+    const rows = (await documents(storage, 'custom_fields'))
+      .filter((row) => row.collection_id == null || (collectionId !== null && row.collection_id === collectionId))
+      .sort((a, b) => {
+        const x = `${a.collection_id == null ? '0' : `1${String(a.collection_id)}`}\u0000${String(a.key)}`;
+        const y = `${b.collection_id == null ? '0' : `1${String(b.collection_id)}`}\u0000${String(b.key)}`;
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+    return rows;
+  }
+
+  // The person's running timer and the workspace's kinds of work and policy while the server is
+  // away (M7): the copy holds the reader's own timer alone, its minutes counted here; a policy
+  // never set is the default.
+  if (pathname === '/timer') {
+    // A stop waiting in the queue leaves the timer stopped (`timerOf`).
+    const timer = (await documents(storage, 'time_timers')).find((row) => row.stopped_at === undefined);
+    if (!timer) return { running: false };
+    const started = typeof timer.started_at === 'string' ? Date.parse(timer.started_at) : Number.NaN;
+    const elapsed = Number.isFinite(started) ? Math.max(0, Math.floor((Date.now() - started) / 60000)) : 0;
+    const { account_id: _account, ...rest } = timer;
+    return { ...rest, running: true, elapsed_minutes: elapsed };
+  }
+  if (pathname === '/time-work-types') {
+    const [held] = await documents(storage, 'time_work_types');
+    return { data: Array.isArray(held?.data) ? held.data : [] };
+  }
+  if (pathname === '/time-policy') {
+    const [held] = await documents(storage, 'time_policy');
+    return held ?? { locked_through: null, visibility: 'FULL', version: 0 };
+  }
+
+  // A person's own week, capacities, the shared calendar of absences and the cost rates while the
+  // server is away (UC-TIM-02, 06, 07, 08): the copy holds the reader's own weeks and records, and
+  // the rates only for whoever manages costs. Another person's week, the approval queue and a
+  // plan's budget with its burn - summed over everybody's records - wait for the server.
+  match = /^\/timesheets\/(\d{4}-\d{2}-\d{2})$/.exec(pathname);
+  if (match && !query.has('account_id')) return weekOf(storage, mondayOf(match[1]!));
+  if (pathname === '/time-capacities' && !query.has('account_id')) {
+    const [held] = await documents(storage, 'time_capacities');
+    return { data: Array.isArray(held?.data) ? held.data : [] };
+  }
+  if (pathname === '/time-absences') {
+    const from = query.get('from') ?? '';
+    const to = query.get('to') ?? '';
+    const person = query.get('account_id');
+    const rows = (await documents(storage, 'time_absences'))
+      .filter((row) => String(row.from) <= to && String(row.to) >= from && (!person || row.account_id === person))
+      .sort((a, b) => String(a.from).localeCompare(String(b.from)) || String(a.account_id).localeCompare(String(b.account_id))
+        || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+  if (pathname === '/cost-rates') {
+    const [held] = await documents(storage, 'time_cost_rates');
+    // Without the record the reader does not manage costs, or no rate is set: the server decides.
+    return held ? { data: Array.isArray(held.data) ? held.data : [] } : undefined;
+  }
+
+  // The periods, the goals and the dashboards while the server is away (UC-GOL-01, 02, 04): the
+  // copy holds each as its definition - a private dashboard its owner's alone -, so a goal's
+  // progress, its linked entries' share and a key result's live value are the server's, and so is
+  // one goal's page, which shows its linked entries.
+  if (pathname === '/goal-periods') {
+    const rows = (await documents(storage, 'goal_periods'))
+      .sort((a, b) => String(b.start_on).localeCompare(String(a.start_on)) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+  if (pathname === '/goals') {
+    const all = await documents(storage, 'goals');
+    const wanted = (row: Document) =>
+      (!query.get('period_id') || row.period_id === query.get('period_id'))
+      && (!query.get('hub_id') || row.hub_id === query.get('hub_id'))
+      && (query.get('workspace_only') !== 'true' || !row.hub_id)
+      && (!query.get('owner_id') || row.owner_id === query.get('owner_id'))
+      && (!query.get('parent_id') || row.parent_id === query.get('parent_id'));
+    const rows = all.filter(wanted).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    return { data: rows.map((row) => goalOf(row, all)) };
+  }
+  if (pathname === '/dashboards') {
+    const hub = query.get('hub_id');
+    const rows = (await documents(storage, 'dashboards'))
+      .filter((row) => !hub || row.hub_id === hub)
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+  match = /^\/dashboards\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) return one(storage, 'dashboards', match[1]);
+
+  // The agents' registry while the server is away (UC-AGT-01 … 04): the copy holds an agent, its
+  // held acts and its runs for its owner, and every row for whoever administers agents. One agent's
+  // spending, the ledger, the jobs and the metering are the server's.
+  if (pathname === '/agents') {
+    const owner = query.get('owner_id');
+    const model = query.get('model_id');
+    const rows = (await documents(storage, 'agents'))
+      .filter((row) => (!owner || row.owner_id === owner) && (!model || row.model_id === model))
+      .sort((a, b) => (String(a.name) < String(b.name) ? -1 : String(a.name) > String(b.name) ? 1 : String(a.id).localeCompare(String(b.id))));
+    return { data: rows };
+  }
+  if (pathname === '/agent-models') {
+    const rows = (await documents(storage, 'agent_models')).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+    return { data: rows };
+  }
+  if (pathname === '/agent-requests') {
+    const status = query.get('status') ?? 'PENDING';
+    const agent = query.get('agent_id');
+    const rows = (await documents(storage, 'agent_requests'))
+      .filter((row) => row.status === status && (!agent || row.agent_id === agent))
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || String(a.id).localeCompare(String(b.id)))
+      .map(({ owner_id: _owner, ...row }) => row);
+    return { data: rows };
+  }
+  match = /^\/agents\/([^/:]+)\/(cases|evaluations)$/.exec(pathname);
+  if (match?.[1] && match[2]) {
+    const agentId = match[1];
+    if (match[2] === 'cases') {
+      const rows = (await documents(storage, 'agent_cases'))
+        .filter((row) => row.agent_id === agentId)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id)));
+      return { data: rows };
+    }
+    const rows = (await documents(storage, 'agent_runs'))
+      .filter((row) => row.agent_id === agentId)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(a.id).localeCompare(String(b.id)))
+      .map(({ owner_id: _owner, ...row }) => row);
+    return { data: rows };
+  }
+
+  // The portfolios while the server is away (UC-GOL-03): the copy holds each with the projects
+  // the reader may read, named from the reader's own copy of the containers; the roll-up - counts,
+  // progress, budgets - and the latest status update are the server's.
+  if (pathname === '/portfolios') {
+    const rows = (await documents(storage, 'portfolios'))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)) || String(a.id).localeCompare(String(b.id)));
+    return { data: await Promise.all(rows.map((row) => portfolioOf(storage, row))) };
+  }
+  match = /^\/portfolios\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const held = await one(storage, 'portfolios', match[1]);
+    return held ? { ...(await portfolioOf(storage, held)), latest_update: null } : undefined;
+  }
+
+  // A collection's sprints read while the server is away (M2), in the server's order - the latest
+  // start first. The burndown and the velocity are computed by the server and wait for it.
+  match = /^\/collections\/([^/:]+)\/sprints$/.exec(pathname);
+  if (match?.[1]) {
+    const collectionId = match[1];
+    const state = query.get('state');
+    const rows = (await documents(storage, 'sprints'))
+      .filter((row) => row.collection_id === collectionId && (!state || row.state === state))
+      .sort((a, b) => {
+        const x = String(a.start_on ?? '');
+        const y = String(b.start_on ?? '');
+        if (x !== y) return x < y ? 1 : -1;
+        return String(a.id) < String(b.id) ? -1 : 1;
+      });
+    return { data: rows };
+  }
+
+  // A plan read while the server is away (UC-PLN-02 check 9): the entries of the collection - or
+  // of every collection of the hub - with their own dates as days in the reader's zone, their mode
+  // and milestone mark, and the dependencies between them with their kind and lag. The server's
+  // scheduling stays the server's: nothing is proposed, no float or critical chain is reckoned and
+  // no dependency is judged broken, so a screen draws the plan as it stands and says so.
+  match = /^\/plans\/([^/:]+)\/schedule$/.exec(pathname);
+  if (match?.[1]) return planFromCopy(storage, match[1], query.get('zone') ?? 'UTC');
+
+  // A hub's releases and a release read while the server is away (UC-PLN-08 check 8): the list in
+  // the server's order - the latest day first - and a release with the entries the copy holds of
+  // it, each with its title, its type's name and whether it is done.
+  match = /^\/hubs\/([^/:]+)\/releases$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    const state = query.get('state');
+    const rows = (await documents(storage, 'releases'))
+      .filter((row) => row.hub_id === hubId && (!state || row.state === state))
+      .sort((a, b) => {
+        const x = String(a.release_on ?? '');
+        const y = String(b.release_on ?? '');
+        if (x !== y) return x < y ? 1 : -1;
+        return String(a.id) < String(b.id) ? -1 : 1;
+      });
+    return { data: rows };
+  }
+  match = /^\/releases\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const releaseId = match[1];
+    const held = await one(storage, 'releases', releaseId);
+    if (!held) return undefined;
+    const names = new Map((await documents(storage, 'entry_types')).map((row) => [String(row.key), String(row.name ?? '')]));
+    const entries: Document[] = [];
+    for (const member of (await documents(storage, 'release_entries')).filter((row) => row.release_id === releaseId)) {
+      const item = await one(storage, 'items', String(member.item_id));
+      if (!item) continue;
+      entries.push({
+        item_id: item.id, title: item.title, type_name: names.get(String(item.entry_type ?? '')) ?? '',
+        done: item.is_completed === true, collection_id: item.collection_id, added_at: item.created_at,
+      });
+    }
+    const done = entries.filter((entry) => entry.done).length;
+    return { ...held, entries, done_count: done, open_count: entries.length - done };
+  }
+
+  // A hub's boards and a board read while the server is away (UC-CNV-01 check 9): the list without
+  // the objects, the last changed first, and a board with its objects, never writable - a board is
+  // drawn on through its live document, which needs the server. The trash is the server's.
+  match = /^\/hubs\/([^/:]+)\/whiteboards$/.exec(pathname);
+  if (match?.[1] && query.get('trashed') !== 'true') {
+    const hubId = match[1];
+    const rows = (await documents(storage, 'whiteboards'))
+      .filter((row) => row.hub_id === hubId && !row.trashed_at)
+      .map(({ elements: _elements, ...row }) => row)
+      .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)) || String(a.id).localeCompare(String(b.id)));
+    return { data: rows };
+  }
+
+  match = /^\/whiteboards\/([^/:]+)$/.exec(pathname);
+  if (match?.[1]) {
+    const board = (await documents(storage, 'whiteboards')).find((row) => row.id === match?.[1]);
+    if (!board || board.trashed_at) return undefined;
+    return { ...board, writable: false };
+  }
+
+  if (pathname === '/entry-types') {
+    // The server's order: by level as the levels run, then position, then key.
+    const levels = ['TASK', 'WORK_PACKAGE', 'ACTIVITY'];
+    const rank = (row: Document) => levels.indexOf(String(row.level));
+    const rows = (await documents(storage, 'entry_types')).sort((a, b) =>
+      rank(a) - rank(b) || Number(a.position ?? 0) - Number(b.position ?? 0) || String(a.key).localeCompare(String(b.key)));
+    return { data: rows };
+  }
+
+  if (pathname === '/workflows') {
+    // The shipped workflow first - its stored row where it has one - then the workspace's own by
+    // key, as ListWorkflows orders them. Without the scheme the copy cannot draw a board.
+    const held = (await documents(storage, 'workflow_scheme'))[0];
+    const shipped = held?.shipped as Document | undefined;
+    if (!held || !shipped) return undefined;
+    const rows = await documents(storage, 'workflows');
+    const stored = rows.find((row) => row.key === shipped.key);
+    const own = rows.filter((row) => row.key !== shipped.key).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+    return { data: [stored ? { ...stored, system: true } : shipped, ...own], scheme: held.scheme ?? [] };
+  }
+
+  if (pathname === '/link-types') {
+    const rows = (await documents(storage, 'link_types')).sort((a, b) =>
+      Number(a.position ?? 0) - Number(b.position ?? 0) || String(a.key).localeCompare(String(b.key)));
+    return { data: rows };
+  }
+
   if (pathname === '/templates') {
     // The container's own, and the ones above it: its hub's, and the workspace's. The tree is
     // the containers', walked up by parent_id.
@@ -364,6 +878,170 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   }
 
   return undefined;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The CMDB from the copy (M6).
+// ---------------------------------------------------------------------------------------------
+
+const NOT_CMDB = Symbol('not a CMDB path');
+const LEVELS = ['NORMAL', 'HIGH', 'VERY_HIGH'];
+/** The walk's bound, the server's (`impactDepth`). */
+const IMPACT_DEPTH = 8;
+
+type Protection = { c: string | null; i: string | null; a: string | null };
+
+const higher = (x: unknown, y: unknown): string | null => {
+  const a = LEVELS.indexOf(String(x));
+  const b = LEVELS.indexOf(String(y));
+  const top = Math.max(a, b);
+  return top < 0 ? null : (LEVELS[top] ?? null);
+};
+
+/** The relation types' impact by key, split the way the server's walk reads it. */
+function suffering(catalogue: Document | undefined): { source: Set<string>; target: Set<string> } {
+  const source = new Set<string>();
+  const target = new Set<string>();
+  for (const t of (catalogue?.relation_types ?? []) as Document[]) {
+    if (t.impact === 'SOURCE' || t.impact === 'BOTH') source.add(String(t.key));
+    if (t.impact === 'TARGET' || t.impact === 'BOTH') target.add(String(t.key));
+  }
+  return { source, target };
+}
+
+/**
+ * The CIs an impact reaches, each at its nearest depth, as `WalkCmdbImpact` answers: downstream,
+ * what suffers when the CI fails; upstream, what it suffers from. Breadth first, so the first
+ * depth a CI is reached at is its nearest.
+ */
+export function walkImpact(
+  from: string, downstream: boolean, relations: readonly Document[], catalogue: Document | undefined, depth = IMPACT_DEPTH,
+): { ci: string; depth: number }[] {
+  const { source, target } = suffering(catalogue);
+  const reached = new Map<string, number>([[from, 0]]);
+  let frontier = [from];
+  for (let step = 1; step <= depth && frontier.length > 0; step++) {
+    const next: string[] = [];
+    for (const at of frontier) {
+      for (const r of relations) {
+        const type = String(r.type);
+        const towards = downstream
+          ? (r.target_ci_id === at && source.has(type) ? r.source_ci_id : r.source_ci_id === at && target.has(type) ? r.target_ci_id : undefined)
+          : (r.source_ci_id === at && source.has(type) ? r.target_ci_id : r.target_ci_id === at && target.has(type) ? r.source_ci_id : undefined);
+        if (typeof towards === 'string' && !reached.has(towards)) {
+          reached.set(towards, step);
+          next.push(towards);
+        }
+      }
+    }
+    frontier = next;
+  }
+  reached.delete(from);
+  return [...reached].map(([ci, d]) => ({ ci, depth: d })).sort((a, b) => a.depth - b.depth || (a.ci < b.ci ? -1 : a.ci > b.ci ? 1 : 0));
+}
+
+const active = (ci: Document | undefined) => ci !== undefined && ci.stage !== 'RETIRED' && ci.stage !== 'DISPOSED';
+
+/** The protection a CI inherits by the maximum principle; a dimension fixed keeps its own. */
+export function inheritedProtection(ci: Document, reached: readonly Document[]): Protection {
+  const own = (ci.protection ?? {}) as Document;
+  const effective: Protection = { c: higher(own.c, null), i: higher(own.i, null), a: higher(own.a, null) };
+  for (const other of reached) {
+    if (!active(other)) continue;
+    const p = (other.protection ?? {}) as Document;
+    effective.c = higher(effective.c, p.c);
+    effective.i = higher(effective.i, p.i);
+    effective.a = higher(effective.a, p.a);
+  }
+  for (const d of (own.fixed ?? []) as string[]) {
+    if (d === 'c' || d === 'i' || d === 'a') effective[d] = higher(own[d], null);
+  }
+  return effective;
+}
+
+async function cmdbFor(pathname: string, query: URLSearchParams, storage: Storage): Promise<unknown> {
+  if (pathname === '/cmdb/classes' || pathname === '/cmdb/relation-types') {
+    const catalogue = (await documents(storage, 'cmdb_catalogue'))[0];
+    if (!catalogue) return undefined;
+    return { data: pathname === '/cmdb/classes' ? catalogue.classes : catalogue.relation_types };
+  }
+
+  let match = /^\/hubs\/([^/:]+)\/cis$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    const wanted = query.get('class');
+    const withMerged = query.get('include_merged') === 'true';
+    const catalogue = (await documents(storage, 'cmdb_catalogue'))[0];
+    const lineage = new Map(((catalogue?.classes ?? []) as Document[]).map((c) => [String(c.key), (c.lineage ?? []) as string[]]));
+    if (wanted && catalogue && !lineage.has(wanted)) return undefined;
+    const rows = (await documents(storage, 'cis'))
+      .filter((ci) => ci.hub_id === hubId && (withMerged || !ci.merged_into))
+      .filter((ci) => !wanted || ci.class === wanted || (lineage.get(String(ci.class)) ?? []).includes(wanted))
+      .sort((a, b) => (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0));
+    return { data: rows, next: null };
+  }
+
+  // A hub's groups and asset register, and a CI's asset, as the copy holds them (UC-AST-11 check 4,
+  // UC-AST-12 check 4) in the server's order. A group's member count needs the filter run over the
+  // whole inventory, so it is left out rather than guessed; an asset the copy lacks is unknown.
+  match = /^\/hubs\/([^/:]+)\/(ci-groups|assets)$/.exec(pathname);
+  if (match?.[1]) {
+    const hubId = match[1];
+    if (match[2] === 'ci-groups') {
+      const rows = (await documents(storage, 'ci_groups')).filter((g) => g.hub_id === hubId)
+        .sort((a, b) => (String(a.key) < String(b.key) ? -1 : String(a.key) > String(b.key) ? 1 : 0));
+      return { data: rows };
+    }
+    const wanted = query.get('state');
+    const cis = new Map((await documents(storage, 'cis')).map((ci) => [String(ci.id), ci]));
+    const rows = (await documents(storage, 'ci_assets'))
+      .filter((a) => a.hub_id === hubId && (!wanted || a.state === wanted))
+      .sort((a, b) => (String(a.ci_id) < String(b.ci_id) ? -1 : String(a.ci_id) > String(b.ci_id) ? 1 : 0))
+      .map((a) => ({ ...a, name: cis.get(String(a.ci_id))?.name, class: cis.get(String(a.ci_id))?.class }));
+    return { data: rows };
+  }
+
+  match = /^\/cis\/([^/:]+)\/asset$/.exec(pathname);
+  if (match?.[1]) {
+    const id = match[1];
+    return (await documents(storage, 'ci_assets')).find((a) => a.ci_id === id);
+  }
+
+  match = /^\/cis\/([^/:]+)(\/impact)?$/.exec(pathname);
+  if (match?.[1]) {
+    const id = match[1];
+    const cis = await documents(storage, 'cis');
+    const byId = new Map(cis.map((ci) => [String(ci.id), ci]));
+    const ci = byId.get(id);
+    if (!ci) return undefined;
+    const relations = await documents(storage, 'ci_relations');
+    const catalogue = (await documents(storage, 'cmdb_catalogue'))[0];
+    if (match[2]) {
+      const downstream = query.get('direction') !== 'UPSTREAM';
+      const asked = Number(query.get('depth'));
+      const depth = asked > 0 && asked <= IMPACT_DEPTH ? asked : IMPACT_DEPTH;
+      const services = new Set(((catalogue?.classes ?? []) as Document[])
+        .filter((c) => ((c.lineage ?? []) as string[]).includes('service')).map((c) => String(c.key)));
+      const reached = walkImpact(id, downstream, relations, catalogue, depth)
+        .map(({ ci: other, depth: d }) => ({ other: byId.get(other), depth: d }))
+        .filter((r): r is { other: Document; depth: number } => r.other !== undefined);
+      return {
+        ci_id: id, direction: downstream ? 'DOWNSTREAM' : 'UPSTREAM',
+        reached: reached.map(({ other, depth: d }) => ({ ci_id: other.id, class: other.class, name: other.name, stage: other.stage, depth: d })),
+        services: reached.filter(({ other }) => services.has(String(other.class)) && active(other)).map(({ other }) => other.id),
+      };
+    }
+    const reached = walkImpact(id, true, relations, catalogue).map((r) => byId.get(r.ci)).filter((r): r is Document => r !== undefined);
+    return {
+      ...ci,
+      effective_protection: inheritedProtection(ci, reached),
+      relations: relations
+        .filter((r) => r.source_ci_id === id || r.target_ci_id === id)
+        .sort((a, b) => String(a.type).localeCompare(String(b.type)) || (String(a.id) < String(b.id) ? -1 : 1)),
+    };
+  }
+
+  return NOT_CMDB;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -390,6 +1068,9 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
  *   are their `*_CREATE`, `*_PATCH` and `*_DELETE`, the creation under an identifier the client
  *   mints; a series the copy already holds is changed rather than created again.
  * - `POST /templates/{id}:instantiate` is a `TEMPLATE_APPLY`; its entries arrive with the pull.
+ *
+ * - an entry type, a link type, a workflow's draft or a custom role created, changed or deleted,
+ *   and a link drawn or removed, are `ENTITY_*` mutations (§4.4, `vocabularyOf`).
  *
  * Everything else answers `undefined`, and the test says which and why: archiving and restoring
  * change lifecycle the server owns; the cover, a bulk and a duplicate have no mutation kind; a
@@ -517,7 +1198,139 @@ export async function mutationFor(
     return undefined;
   }
 
+  if (pathname === '/timer:start' || pathname === '/timer:stop' || pathname === '/timer') {
+    return timerOf(method, pathname, fields, helpers);
+  }
+  if (pathname === '/time-records' || pathname.startsWith('/time-records/')) {
+    return timeRecordOf(method, pathname, fields, helpers);
+  }
+
+  return vocabularyOf(method, pathname, fields, helpers);
+}
+
+/**
+ * The person's own timer started, stopped or discarded while the server is away (UC-TIM-01): an
+ * `ENTITY_*` mutation of `time_timer` carrying the device's moment, so the record a stop writes holds
+ * the minutes the timer ran, not the minutes the push waited (offline-sync.md §4.4). A stop or a
+ * discard of a timer the copy does not hold goes online.
+ */
+async function timerOf(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  pathname: string,
+  fields: Record<string, unknown>,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  const held = (await helpers.storage.all<StoredRecord<Document>>('time_timers'))
+    .find((record) => !record.tombstone && record.document.stopped_at === undefined);
+  const now = new Date().toISOString();
+  if (method === 'POST' && pathname === '/timer:start') {
+    return {
+      kind: 'ENTITY_UPSERT', entity: 'time_timer', entityKey: 'own', itemId: held?.id ?? helpers.mintId(),
+      payload: { ...fields, started_at: now },
+    };
+  }
+  if (!held) return undefined;
+  if (method === 'POST' && pathname === '/timer:stop') {
+    return { kind: 'ENTITY_PATCH', entity: 'time_timer', entityKey: 'own', itemId: held.id, payload: { ...fields, stopped_at: now } };
+  }
+  if (method === 'DELETE' && pathname === '/timer') {
+    return { kind: 'ENTITY_DELETE', entity: 'time_timer', entityKey: 'own', itemId: held.id };
+  }
   return undefined;
+}
+
+/**
+ * Time recorded, corrected, changed or deleted while the server is away (user-experience.md §5.11):
+ * an `ENTITY_*` mutation of `time_record`. A recording or a correction is keyed by an identifier
+ * minted here, which the server's answer replaces; a change or a deletion names the record the copy
+ * holds at its version, and one the copy does not hold goes online.
+ */
+async function timeRecordOf(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  pathname: string,
+  fields: Record<string, unknown>,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  if (method === 'POST' && pathname === '/time-records') {
+    const id = helpers.mintId();
+    return { kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: id, itemId: id, payload: fields };
+  }
+  const match = /^\/time-records\/([^/:]+)(:correct)?$/.exec(pathname);
+  if (!match?.[1]) return undefined;
+  const recordId = decodeURIComponent(match[1]);
+  if (match[2]) {
+    if (method !== 'POST') return undefined;
+    const id = helpers.mintId();
+    return { kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: id, itemId: id, payload: { ...fields, corrects: recordId } };
+  }
+  const held = await helpers.storage.get<StoredRecord<Document>>('time_records', recordId);
+  if (!held || held.tombstone) return undefined;
+  if (method === 'PATCH') {
+    return { kind: 'ENTITY_PATCH', entity: 'time_record', entityKey: recordId, itemId: recordId, baseVersion: held.version, payload: fields };
+  }
+  if (method === 'DELETE') {
+    return { kind: 'ENTITY_DELETE', entity: 'time_record', entityKey: recordId, itemId: recordId, baseVersion: held.version };
+  }
+  return undefined;
+}
+
+/** The vocabulary's paths, each the entity its change log names (offline-sync.md §4.4). */
+const VOCABULARY: Readonly<Record<string, { entity: VocabularyEntity; collection: string }>> = {
+  'entry-types': { entity: 'entry_type', collection: 'entry_types' },
+  'link-types': { entity: 'link_type', collection: 'link_types' },
+  workflows: { entity: 'workflow', collection: 'workflows' },
+  roles: { entity: 'custom_role', collection: 'custom_roles' },
+};
+
+/**
+ * A write of the workspace's vocabulary as an `ENTITY_*` mutation: a type, a link type, a
+ * workflow's draft or a custom role created, changed or deleted, and a link drawn or removed.
+ * A versioned entity carries the version the copy holds as `base_version`, so a change made
+ * against an older one is refused by the server rather than laid over a newer one. Publishing a
+ * workflow, setting its scheme, a type's form and a role's grants stay online: §4.4 gives them no
+ * mutation - the scheme is read from the copy, never written there.
+ */
+async function vocabularyOf(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  pathname: string,
+  fields: Record<string, unknown>,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  let match = /^\/items\/([^/:]+)\/links$/.exec(pathname);
+  if (match?.[1] && method === 'POST') {
+    const id = helpers.mintId();
+    return {
+      kind: 'ENTITY_UPSERT', entity: 'entry_link', entityKey: id, itemId: id,
+      payload: { ...fields, item_id: match[1] },
+    };
+  }
+  match = /^\/links\/([^/:]+)$/.exec(pathname);
+  if (match?.[1] && method === 'DELETE') {
+    return { kind: 'ENTITY_DELETE', entity: 'entry_link', entityKey: match[1], itemId: match[1] };
+  }
+
+  match = /^\/(entry-types|link-types|workflows|roles)(?:\/([^/:]+))?$/.exec(pathname);
+  const vocabulary = match?.[1] ? VOCABULARY[match[1]] : undefined;
+  if (!match || !vocabulary) return undefined;
+  const key = match[2] === undefined ? (typeof fields.key === 'string' ? fields.key : undefined) : decodeURIComponent(match[2]);
+  if (!key) return undefined;
+  if (match[2] === undefined && method !== 'POST') return undefined;
+  if (match[2] !== undefined && method !== 'PATCH' && method !== 'DELETE') return undefined;
+
+  const held = (await helpers.storage.all<StoredRecord<Document>>(vocabulary.collection))
+    .find((record) => record.document.key === key && !record.tombstone);
+  if (method === 'DELETE') {
+    return held ? { kind: 'ENTITY_DELETE', entity: vocabulary.entity, entityKey: key, itemId: held.id } : undefined;
+  }
+  if (method === 'POST') {
+    return { kind: 'ENTITY_UPSERT', entity: vocabulary.entity, entityKey: key, itemId: held?.id ?? helpers.mintId(), payload: fields };
+  }
+  // A change of an entity the copy does not hold names no version to be decided against.
+  if (!held) return undefined;
+  return {
+    kind: 'ENTITY_PATCH', entity: vocabulary.entity, entityKey: key, itemId: held.id,
+    baseVersion: held.version, payload: fields,
+  };
 }
 
 /**
@@ -565,4 +1378,79 @@ async function moveOf(
     return undefined;
   }
   return { kind: 'MOVE', itemId, payload: { parent_id: parentId, collection_id: collectionId, order_key: orderKey } };
+}
+
+/** The Monday of a day's week, as the server counts weeks (ISO, Monday first). */
+export function mondayOf(day: string): string {
+  const at = new Date(`${day}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() - ((at.getUTCDay() + 6) % 7));
+  return at.toISOString().slice(0, 10);
+}
+
+function dayAfter(day: string, days: number): string {
+  const at = new Date(`${day}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * The reader's week from the copy, as `ReadTimesheet` answers it: the head as last told, or an open
+ * week never handed in, the week's records placed by their entries and the days locked by the policy.
+ */
+async function weekOf(storage: Storage, start: string): Promise<unknown> {
+  const end = dayAfter(start, 6);
+  const head = (await documents(storage, 'timesheets')).find((row) => row.week_start === start);
+  const [policy] = await documents(storage, 'time_policy');
+  const lockedThrough = typeof policy?.locked_through === 'string' ? policy.locked_through : undefined;
+  const held = (await documents(storage, 'time_records'))
+    .filter((row) => String(row.day) >= start && String(row.day) <= end)
+    .sort((a, b) => String(a.day).localeCompare(String(b.day)) || String(a.id).localeCompare(String(b.id)));
+  const records: Document[] = await Promise.all(held.map(async (row) => {
+    const entry = typeof row.entry_id === 'string' ? await one(storage, 'items', row.entry_id) : undefined;
+    return {
+      ...row,
+      collection_id: entry?.collection_id ?? null,
+      hub_id: entry?.hub_id ?? null,
+      entry_title: typeof entry?.title === 'string' ? entry.title : '',
+    };
+  }));
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const day = dayAfter(start, i);
+    const minutes = records.filter((row) => row.day === day).reduce((sum, row) => sum + Number(row.minutes ?? 0), 0);
+    return { day, minutes, locked: lockedThrough !== undefined && day <= lockedThrough };
+  });
+  const sheet = head ?? {
+    week_start: start, state: 'OPEN', submitted_minutes: 0, decided_by: null, reason: '', version: 0,
+    submitted_at: null, decided_at: null,
+  };
+  return { ...sheet, records, days, minutes: days.reduce((sum, day) => sum + day.minutes, 0) };
+}
+
+/** A portfolio from the copy as `ListPortfolios` answers it: each project held named, none counted. */
+async function portfolioOf(storage: Storage, row: Document): Promise<Document> {
+  const projects = Array.isArray(row.items) ? (row.items as Document[]) : [];
+  const items: Document[] = [];
+  for (const project of projects) {
+    const container = typeof project.container_id === 'string' ? await one(storage, 'containers', project.container_id) : undefined;
+    if (!container) continue;
+    items.push({
+      container_id: project.container_id, kind: container.type, name: container.name,
+      archived: Boolean(container.effective_archived ?? container.archived_at),
+      start_on: project.start_on ?? null, end_on: project.end_on ?? null, status: project.status,
+      entries: null, done: null, progress: null,
+    });
+  }
+  return { ...row, items, progress: null };
+}
+
+/** A goal from the copy as `ListGoals` answers it, with nothing computed for its reader. */
+function goalOf(row: Document, all: readonly Document[]): Document {
+  const results = Array.isArray(row.key_results) ? (row.key_results as Document[]) : [];
+  return {
+    ...row,
+    key_results: results.map((result) => ({ ...result, progress: null, live: false })),
+    entries: null,
+    child_count: all.filter((other) => other.parent_id === row.id).length,
+    progress: null,
+  };
 }

@@ -100,8 +100,7 @@ func TestACalendarFeedsAddressFollowsTheMainRow(t *testing.T) {
 func TestAFeedsEntryLinksFollowTheMainRow(t *testing.T) {
 	links := &movingLinks{}
 	controller := NewRestController()
-	controller.Links = links
-	controller.CalendarFeeds = &feedReader{out: feedFixture()}
+	controller.Feeds = &FeedDoor{Calendar: &feedReader{out: feedFixture()}, Links: links}
 	token := wellFormedToken(t)
 	before, after := changedBetween(t, links, func() *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()

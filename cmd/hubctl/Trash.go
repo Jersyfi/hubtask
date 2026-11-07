@@ -5,8 +5,6 @@ package main
 
 import (
 	"context"
-	"net/url"
-	"strconv"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -19,12 +17,6 @@ func trashGroup() group {
 		summary: "what was deleted, and how to get it back",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "[--size <n>] [--cursor <c>]",
-				summary: "list the deletions, newest first",
-				run:     trashList,
-			},
-			{
 				name:    "restore",
 				usage:   "<id> --kind ITEM|CONTAINER",
 				summary: "take one deletion back out of the trash, whole",
@@ -32,52 +24,6 @@ func trashGroup() group {
 			},
 		},
 	}
-}
-
-func trashList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "trash", "ls", "[--size <n>] [--cursor <c>]")
-	size := flags.Int("size", 0, "how many entries per page (the server decides when unset)")
-	cursor := flags.String("cursor", "", "continue the previous page")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *size > 0 {
-		query.Set("size", strconv.Itoa(*size))
-	}
-	if *cursor != "" {
-		query.Set("cursor", *cursor)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var page openapi.TrashPage
-	if err := client.Get(ctx, trashPath, query, &page); err != nil {
-		return err
-	}
-
-	rows := make([][]string, 0, len(page.Data))
-	for _, entry := range page.Data {
-		rows = append(rows, []string{
-			entry.Id.String(),
-			string(entry.Kind),
-			entry.Subtype,
-			entry.Title,
-			shortTime(&entry.DeletedAt),
-			strconv.Itoa(entry.Version),
-		})
-	}
-	if err := cli.Emit(page, Table{
-		Columns: []string{"id", "kind", "subtype", "title", "deleted", "version"},
-		Rows:    rows,
-	}); err != nil {
-		return err
-	}
-	cli.reportMore(page.Page)
-	return nil
 }
 
 // trashRestore needs the kind because the two levels have two endpoints: the trash mixes hubs,

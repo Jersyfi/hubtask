@@ -93,6 +93,22 @@ func DefaultPolicies() []Policy {
 		// Idempotency keys. One day, the data catalogue's promise, and the day is the lower
 		// bound: api-guidelines.md §5 promises a replay for at least that long.
 		{DataKind: KindIdempotencyKey, RetainDays: 1, MinDays: 1},
+		// A live document's compacted history, thirty days (offline-sync.md §13). No lower bound:
+		// what goes is already merged into the snapshot that stays.
+		{DataKind: KindDocumentHistory, RetainDays: 30},
+		// The agents' ledger thirteen months, which is also its lower bound; their held acts and jobs
+		// ninety days (accepted.md B).
+		{DataKind: KindAgentLedger, RetainDays: 397, MinDays: 397},
+		{DataKind: KindAgentRequest, RetainDays: 90},
+		{DataKind: KindAgentJob, RetainDays: 90},
+		// Ended timers and connector runs: bookkeeping that only grew (data-retention.md §3).
+		{DataKind: KindTimer, RetainDays: 30},
+		{DataKind: KindConnectorRun, RetainDays: 90},
+		// Page versions thinned after ninety days and a requester without an account removed 24
+		// months after their last contact (accepted.md B). No lower bounds: a shorter period keeps
+		// less.
+		{DataKind: KindPageVersion, RetainDays: 90},
+		{DataKind: KindRequester, RetainDays: 730},
 	}
 }
 

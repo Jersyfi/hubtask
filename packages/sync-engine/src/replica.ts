@@ -24,12 +24,15 @@ import type { HlcReading } from './hlc.ts';
 
 /** The store's own collection: the cursor, the device, the clock. Never a server entity. */
 export const META = 'meta';
+/** The application's collection of live documents' unsent words (offline-sync.md §13). */
+export const LIVE_UNSENT = 'live_unsent';
 /**
- * The collections that are the device's rather than the server's: the store's own records, and
- * the queue's three (queue.ts). A walk over the replica's entities skips them, and emptying the
- * replica keeps them - what a device did offline is not stale because its copy is.
+ * The collections that are the device's rather than the server's: the store's own records, the
+ * queue's three (queue.ts) and a live document's unsent words. A walk over the replica's entities
+ * skips them, and emptying the replica keeps them - what a device did offline is not stale because
+ * its copy is.
  */
-export const OWN_COLLECTIONS: ReadonlySet<string> = new Set([META, 'queue', 'rejected', 'conflicts']);
+export const OWN_COLLECTIONS: ReadonlySet<string> = new Set([META, 'queue', 'rejected', 'conflicts', LIVE_UNSENT]);
 
 /** Where the delta left off, and what the server said beside it. */
 export interface SyncPosition {
@@ -59,6 +62,86 @@ export function collectionOf(entity: string): string {
       return 'labels';
     case 'comment':
       return 'comments';
+    case 'entry_type':
+      return 'entry_types';
+    case 'link_type':
+      return 'link_types';
+    case 'entry_link':
+      return 'entry_links';
+    case 'entry_schedule':
+      return 'entry_schedules';
+    case 'sprint':
+      return 'sprints';
+    case 'sprint_entry':
+      return 'sprint_entries';
+    case 'entry_estimate':
+      return 'entry_estimates';
+    case 'release':
+      return 'releases';
+    case 'release_entry':
+      return 'release_entries';
+    case 'custom_field':
+      return 'custom_fields';
+    case 'time_record':
+      return 'time_records';
+    case 'time_timer':
+      return 'time_timers';
+    case 'timesheet':
+      return 'timesheets';
+    case 'time_absence':
+      return 'time_absences';
+    case 'time_budget':
+      return 'time_budgets';
+    case 'workflow':
+      return 'workflows';
+    case 'custom_role':
+      return 'custom_roles';
+    case 'goal_period':
+      return 'goal_periods';
+    case 'goal':
+      return 'goals';
+    case 'goal_check_in':
+      return 'goal_check_ins';
+    case 'dashboard':
+      return 'dashboards';
+    case 'portfolio':
+      return 'portfolios';
+    case 'agent':
+      return 'agents';
+    case 'agent_model':
+      return 'agent_models';
+    case 'agent_request':
+      return 'agent_requests';
+    case 'agent_eval_case':
+      return 'agent_cases';
+    case 'agent_eval_run':
+      return 'agent_runs';
+    case 'role_grant':
+      return 'role_grants';
+    case 'page':
+      return 'pages';
+    case 'approval':
+      return 'approvals';
+    case 'entry_sla':
+      return 'entry_slas';
+    case 'satisfaction_rating':
+      return 'satisfaction_ratings';
+    case 'code_link':
+      return 'code_links';
+    case 'file_link':
+      return 'file_links';
+    case 'whiteboard':
+      return 'whiteboards';
+    case 'cmdb_ci':
+      return 'cis';
+    case 'cmdb_relation':
+      return 'ci_relations';
+    case 'cmdb_affected':
+      return 'ci_affected';
+    case 'cmdb_ci_group':
+      return 'ci_groups';
+    case 'cmdb_asset':
+      return 'ci_assets';
     default:
       return entity;
   }

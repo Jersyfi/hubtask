@@ -389,3 +389,55 @@ func TestParseTodoReadsTheDialect(t *testing.T) {
 		t.Error("a document without a VTODO is refused")
 	}
 }
+
+// A DATE-TIME's zone is read, never guessed: a zone named by a path whose end is a zone of the
+// database (an older Thunderbird's /mozilla.org/.../Europe/Berlin) is that zone, and one this
+// server does not know is refused rather than read as UTC - the due would land hours off.
+func TestADueInAZoneThisServerDoesNotKnowIsRefused(t *testing.T) {
+	todo := func(tzid string) []byte {
+		return []byte("BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:x\r\nSUMMARY:Call\r\nDUE;TZID=" + tzid + ":20260921T110000\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	}
+	parsed, err := ParseTodo(todo("/mozilla.org/20070129_1/Europe/Berlin"))
+	if err != nil || !parsed.Due.Equal(time.Date(2026, 9, 21, 9, 0, 0, 0, time.UTC)) {
+		t.Errorf("a path ending in a zone: %v %v", parsed.Due, err)
+	}
+	if parsed, err := ParseTodo(todo(`"Customized Time Zone"`)); err == nil {
+		t.Errorf("an unknown zone was read as %v", parsed.Due.UTC())
+	}
+	// "Local" is the client's own zone, never this server's.
+	if parsed, err := ParseTodo(todo("Local")); err == nil {
+		t.Errorf("the client's local zone was read in the server's as %v", parsed.Due.UTC())
+	}
+}
+
+// A client that names its own zone (Outlook's "W. Europe Standard Time", "Customized Time Zone")
+// sends the zone's definition along: the due is read in the offset its VTIMEZONE gives that day,
+// summer and winter, before or after the document's VTODO.
+func TestADueInAZoneTheClientDefinesIsReadByItsDefinition(t *testing.T) {
+	zone := "BEGIN:VTIMEZONE\r\nTZID:Customized Time Zone\r\n" +
+		"BEGIN:STANDARD\r\nDTSTART:16010101T030000\r\nTZOFFSETFROM:+0200\r\nTZOFFSETTO:+0100\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10\r\nEND:STANDARD\r\n" +
+		"BEGIN:DAYLIGHT\r\nDTSTART:16010101T020000\r\nTZOFFSETFROM:+0100\r\nTZOFFSETTO:+0200\r\nRRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=3\r\nEND:DAYLIGHT\r\n" +
+		"END:VTIMEZONE\r\n"
+	todo := "BEGIN:VTODO\r\nUID:x\r\nSUMMARY:Call\r\nDUE;TZID=\"Customized Time Zone\":%s\r\nEND:VTODO\r\n"
+	for _, c := range []struct {
+		local string
+		first bool
+		want  time.Time
+	}{
+		{"20260921T110000", true, time.Date(2026, 9, 21, 9, 0, 0, 0, time.UTC)},
+		{"20261221T110000", false, time.Date(2026, 12, 21, 10, 0, 0, 0, time.UTC)},
+		// The last Sunday of October 2026 is the 25th: 03:00 summer time is 02:00 winter time.
+		{"20261025T040000", true, time.Date(2026, 10, 25, 3, 0, 0, 0, time.UTC)},
+		{"20260329T010000", false, time.Date(2026, 3, 29, 0, 0, 0, 0, time.UTC)},
+	} {
+		body := strings.Replace(todo, "%s", c.local, 1)
+		doc := "BEGIN:VCALENDAR\r\n" + zone + body + "END:VCALENDAR\r\n"
+		if !c.first {
+			doc = "BEGIN:VCALENDAR\r\n" + body + zone + "END:VCALENDAR\r\n"
+		}
+		parsed, err := ParseTodo([]byte(doc))
+		if err != nil || !parsed.Due.Equal(c.want) {
+			t.Errorf("%s: %v %v, want %v", c.local, parsed.Due.UTC(), err, c.want)
+		}
+	}
+}

@@ -35,6 +35,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -106,7 +107,7 @@ func Read(path string) (map[string]any, bool, error) {
 
 	for name := range document {
 		if !areas[name] && !levelKeys[name] && name != aiModelsKey && name != plansKey && name != presetsKey &&
-			name != platformSubscriptionsKey {
+			name != platformSubscriptionsKey && name != businessCalendarsKey && name != uploadScannerKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
@@ -302,4 +303,78 @@ func PlatformSubscriptions(document map[string]any, readFile func(string) ([]byt
 		subscriptions = append(subscriptions, PlatformSubscription{TargetURL: target, Secret: value})
 	}
 	return subscriptions, true, nil
+}
+
+// businessCalendarsKey is the installation's business calendars: each in the shape
+// `PUT /calendars/{key}` takes, and the one a workspace falls back to where it holds no calendar of
+// that key. Read at every start in either mode - nothing but the file writes them.
+const businessCalendarsKey = "business_calendars"
+
+// BusinessCalendars reads the file's calendars as documents; whether each is a calendar is the
+// service desk's to check. An absent list is none.
+func BusinessCalendars(document map[string]any, source string) ([]map[string]any, error) {
+	raw, present := document[businessCalendarsKey]
+	if !present {
+		return nil, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, malformedPlans(source)
+	}
+	calendars := make([]map[string]any, 0, len(list))
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, malformedPlans(source)
+		}
+		calendars = append(calendars, fields)
+	}
+	return calendars, nil
+}
+
+// uploadScannerKey is the installation's upload scanner (security.md §4): `address` is
+// `host:port` or `unix:/path`, `timeout` a duration bounding one scan. Read at every start in
+// either mode - nothing but the file and its environment override configure it.
+const uploadScannerKey = "upload_scanner"
+
+// Scanner is the upload scanner the file names; an empty Address is none.
+type Scanner struct {
+	Address string
+	Timeout time.Duration
+}
+
+// UploadScanner reads the file's scanner. A block of another shape refuses the file: an operator
+// who wrote one believes uploads are scanned.
+func UploadScanner(document map[string]any, source string) (Scanner, error) {
+	raw, present := document[uploadScannerKey]
+	if !present {
+		return Scanner{}, nil
+	}
+	fields, isObject := raw.(map[string]any)
+	if !isObject {
+		return Scanner{}, malformedPlans(source)
+	}
+	var scanner Scanner
+	for name, value := range fields {
+		text, isText := value.(string)
+		if !isText {
+			return Scanner{}, malformedPlans(source)
+		}
+		switch name {
+		case "address":
+			scanner.Address = strings.TrimSpace(text)
+		case "timeout":
+			timeout, err := time.ParseDuration(text)
+			if err != nil || timeout <= 0 {
+				return Scanner{}, malformedPlans(source)
+			}
+			scanner.Timeout = timeout
+		default:
+			return Scanner{}, malformedPlans(source)
+		}
+	}
+	if scanner.Address == "" {
+		return Scanner{}, malformedPlans(source)
+	}
+	return scanner, nil
 }

@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 type lastChangeFake struct{ at time.Time }
@@ -96,5 +98,59 @@ func TestTheWorkspacesAddressIsItsMainRow(t *testing.T) {
 	address, _ := readWorkspace(t, registry)["address"].(usecase.Output)
 	if address["host"] != "familie-meier.tasks.example.net" {
 		t.Errorf("host %v", address["host"])
+	}
+}
+
+// nestingUnitOfWork keeps the port's promise the postgres adapter keeps: a scope opened inside a
+// running transaction joins it, and one naming another tenant - the installation's included - is
+// refused rather than run under the outer SET LOCAL.
+type nestingUnitOfWork struct{}
+
+type openScopeKey struct{}
+
+var errTenantSwitch = errors.New("tenant switch in transaction")
+
+func (nestingUnitOfWork) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	if outer, open := ctx.Value(openScopeKey{}).(persistence.Scope); open {
+		if outer.TenantID != scope.TenantID {
+			return errTenantSwitch
+		}
+		return fn(ctx)
+	}
+	return fn(context.WithValue(ctx, openScopeKey{}, scope))
+}
+
+func (u nestingUnitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	return u.Within(ctx, scope, fn)
+}
+
+// The configuration desk reads the workspace inside its own transaction (a template's plan): the
+// address's installation switch is read there too, not under a scope of its own that the running
+// transaction would refuse.
+func TestTheWorkspaceIsReadInsideARunningTransaction(t *testing.T) {
+	fixture := newWorkspaceFixture(at())
+	fixture.writer.UnitOfWork = nestingUnitOfWork{}
+	fixture.writer.Address = WorkspaceAddressReader{
+		Tenancy: env.TenancyMulti, InstallationHost: "tasks.example.net",
+		Settings: &instanceSettings{level: repository.InstanceLevel{OwnersChangeAddress: true}},
+		Changes:  lastChangeFake{}, Owners: &ownersFake{}, Clock: clock.Fixed(at()),
+	}
+	registry, err := usecase.NewRegistry(nil, ReadWorkspace{Writer: fixture.writer}.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	actor := workspaceActor()
+	var out usecase.Output
+	err = nestingUnitOfWork{}.WithinReadOnly(t.Context(), actor.PersistenceScope(), func(ctx context.Context) error {
+		read, err := registry.Invoke(ctx, ReadWorkspaceName, actor, usecase.Input{})
+		out = read
+		return err
+	})
+	if err != nil {
+		t.Fatalf("reading inside a transaction: %v", err)
+	}
+	address, _ := out["address"].(usecase.Output)
+	if address["owners_may_change"] != true {
+		t.Errorf("address %v, want the installation's switch read", address)
 	}
 }

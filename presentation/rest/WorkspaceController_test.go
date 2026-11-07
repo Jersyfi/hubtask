@@ -90,6 +90,48 @@ func TestReadingTheWorkspaceAnswersItsConfigurationAndAnETag(t *testing.T) {
 	}
 }
 
+// The first-start question opens only on starter_offered: the field travels as the use case
+// answered it, true and false alike, and stays away where the use case did not answer it.
+func TestTheWorkspaceAnswersWhetherTheStarterIsOffered(t *testing.T) {
+	for _, offered := range []bool{true, false} {
+		out := storedWorkspace()
+		out["starter_offered"] = offered
+		recorder := workspaceRequest(t, &catalogue{out: out}, http.MethodGet, "", "")
+		var body map[string]any
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decoding: %v", err)
+		}
+		if got, held := body["starter_offered"]; !held || got != offered {
+			t.Errorf("starter_offered = %v (held %v), want %v", got, held, offered)
+		}
+	}
+
+	recorder := workspaceRequest(t, &catalogue{out: storedWorkspace()}, http.MethodGet, "", "")
+	var body map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if got, held := body["starter_offered"]; held {
+		t.Errorf("an unanswered starter travelled as %v", got)
+	}
+}
+
+// A skipped first start travels as starter_skipped, so Today can offer it again.
+func TestTheWorkspaceAnswersWhetherTheStarterWasSkipped(t *testing.T) {
+	for _, skipped := range []bool{true, false} {
+		out := storedWorkspace()
+		out["starter_skipped"] = skipped
+		recorder := workspaceRequest(t, &catalogue{out: out}, http.MethodGet, "", "")
+		var body map[string]any
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decoding: %v", err)
+		}
+		if got, held := body["starter_skipped"]; !held || got != skipped {
+			t.Errorf("starter_skipped = %v (held %v), want %v", got, held, skipped)
+		}
+	}
+}
+
 // The anchoring target is read on the workspace - null where anchoring is off, the
 // identifier where it is on - and written nowhere but PUT /audit/anchoring.
 func TestTheWorkspaceAnswersItsAnchoringTarget(t *testing.T) {
@@ -139,7 +181,7 @@ func TestOnlyWhatThePatchSentReachesTheCatalogue(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != updateWorkspaceUseCase {
+	if registry.name != "UpdateWorkspace" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if registry.in["display_name"] != "Acme GmbH" {
@@ -175,9 +217,19 @@ func TestSwitchingEnforcementOffIsNotTheSameAsNotMentioningIt(t *testing.T) {
 	if value != false {
 		t.Errorf("the switch reached the catalogue as %v", value)
 	}
-	// It is a change to the sign-in rule (UC-ID-12 check 2), so the proof travels with it.
-	if _, held := registry.in["step_up_token"]; !held {
-		t.Error("the old switch reached the catalogue without the step-up it now demands")
+	// It is a change to the sign-in rule (UC-ID-12 check 2): the use case demands the proof, and
+	// the door hands on the one sent.
+	controller := NewRestController()
+	controller.UseCases = registry
+	request := httptest.NewRequestWithContext(appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID(signedInAccount),
+	}), http.MethodPatch, APIBasePath+"/tenant", strings.NewReader(`{"require_admin_totp": false}`))
+	request.Header.Set("Content-Type", "application/merge-patch+json")
+	request.Header.Set(stepUpHeader, "proof")
+	controller.Routes().ServeHTTP(httptest.NewRecorder(), request)
+	if registry.in["step_up_token"] != "proof" {
+		t.Errorf("the old switch reached the catalogue with the step-up %v", registry.in["step_up_token"])
 	}
 }
 

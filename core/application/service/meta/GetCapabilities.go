@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
@@ -159,9 +160,15 @@ type Capabilities struct {
 	// WorkspacePermissions: a client draws "Not included in your plan" in place of the controls the
 	// gate would refuse.
 	NotIncluded entitlement.LeftOut
+	// ModulesOn is the modules on at the caller's workspace (UC-INS-21 check 5), nil for an
+	// anonymous caller.
+	ModulesOn module.Set
 	// AccountLink is the provider's account link, answered only to the workspace's owners and
 	// administrators and only where one is in force (multi-tenancy.md §4.2); empty otherwise.
 	AccountLink string
+	// FrameSources are the https origins a page's embed may frame (HUBTASK_UI_FRAME_SOURCES),
+	// empty - never nil - where the operator set none.
+	FrameSources []string
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
@@ -238,6 +245,11 @@ type PrivateHubOwners interface {
 // one reads.
 type PrivateHubsRule interface {
 	PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error)
+}
+
+// ModulesOn answers the modules on at the actor's workspace, in a read of its own (UC-INS-21).
+type ModulesOn interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
 }
 
 // PlanEntitlements answers what the actor's workspace's plan leaves out, in a read of its own
@@ -335,6 +347,8 @@ type GetCapabilities struct {
 	// Entitlements reads what the caller's plan leaves out. Optional: a build without it answers
 	// every feature included.
 	Entitlements PlanEntitlements
+	// Modules reads the modules on at the caller's workspace. Optional, as Entitlements is.
+	Modules ModulesOn
 	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
 	// for the reason the field on Capabilities records.
 	Scopes []string
@@ -464,6 +478,17 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		notIncluded = append(entitlement.LeftOut{}, leftOut...)
 		actions = g.offeredActions(leftOut)
 	}
+	var modulesOn module.Set
+	if actor.IsAuthenticated() && !actor.TenantID.IsZero() {
+		modulesOn = module.Set{}
+		if g.Modules != nil {
+			on, err := g.Modules.On(ctx, actor, "")
+			if err != nil {
+				return Capabilities{}, err
+			}
+			modulesOn = on
+		}
+	}
 
 	// The provider's account link, to the workspace's owners and administrators only.
 	var accountLink string
@@ -568,6 +593,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// encryption keyring is offering a form that will be refused at the end; the manifest
 			// says so first.
 			"backup_encryption": g.Config.Encryption.ActiveKeyID() != "",
+			// The same keyring for every secret a workspace keeps: a webhook's signing secret
+			// as much as a target's credentials. Named for what it is, so a webhook form need
+			// not ask a backup's name.
+			"encryption": g.Config.Encryption.ActiveKeyID() != "",
 			// Whether the caller's tenant may configure a target of its own. Always true when
 			// this installation serves one tenant - there the owner is the operator - and the
 			// operator's switch otherwise (backup-restore.md §2).
@@ -636,7 +665,9 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		WorkspacePermissions: workspacePermissions,
 		PrivateHubOffered:    privateHubOffered,
 		NotIncluded:          notIncluded,
+		ModulesOn:            modulesOn,
 		AccountLink:          accountLink,
+		FrameSources:         append([]string{}, g.Config.UI.FrameSources...),
 	}, nil
 }
 

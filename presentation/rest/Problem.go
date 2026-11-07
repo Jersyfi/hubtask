@@ -15,9 +15,14 @@ import (
 // distinguishes an error from a payload by the media type.
 const ProblemContentType = "application/problem+json"
 
-// docsBaseURL is where the type and docs links point. It is not configurable: the URL is part of
-// the published contract, and a self-hosted installation documents the same error codes.
-const docsBaseURL = "https://docs.hubtask.dev/errors/"
+// typeBaseURL makes a problem's type, an identifier a client may already compare - so it stays as
+// published, although nothing is served there. Neither base is configurable: a self-hosted
+// installation answers the same codes.
+const typeBaseURL = "https://docs.hubtask.dev/errors/"
+
+// docsBaseURL is the website's page per code, at /errors/<code>/ with the slash its static
+// directory is served at; test/architecture/errorpages_test.go holds the pages to the wire codes.
+const docsBaseURL = "https://hubtask.eu/errors/"
 
 // Problem is the error format from api-guidelines.md §6. The field names follow the schema in
 // api/openapi.yaml; changing one is a breaking change (versioning-release.md §2).
@@ -96,14 +101,14 @@ func ProblemFrom(err error, requestID string) Problem {
 	}
 
 	problem := Problem{
-		Type:       docsBaseURL + domainErr.Code,
+		Type:       typeBaseURL + domainErr.Code,
 		Title:      domainErr.Code,
 		Status:     status,
 		Code:       domainErr.Code,
 		DetailCode: domainErr.DetailCode,
 		Params:     domainErr.Params,
 		RequestID:  requestID,
-		Docs:       docsBaseURL + domainErr.Code,
+		Docs:       docsBaseURL + domainErr.Code + "/",
 	}
 
 	// Field errors only exist below 500. Above it there is nothing to say about a field, and
@@ -135,19 +140,39 @@ func ProblemFrom(err error, requestID string) Problem {
 // WriteProblem sends the error as RFC 9457. It never fails visibly: at that point the status is
 // already written, and a broken response body is a log entry, not a second error.
 func WriteProblem(w http.ResponseWriter, err error, requestID string) {
+	noteProblem(w, err)
 	writeProblem(w, ProblemFrom(err, requestID))
+}
+
+// problemNoter is the observability middleware's writer, which logs the cause of a 5xx that no use
+// case logged.
+type problemNoter interface{ noteProblem(err error) }
+
+// noteProblem hands err to the observability writer beneath w, through any wrapper that unwraps.
+func noteProblem(w http.ResponseWriter, err error) {
+	for w != nil {
+		if noter, ok := w.(problemNoter); ok {
+			noter.noteProblem(err)
+			return
+		}
+		unwrapper, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return
+		}
+		w = unwrapper.Unwrap()
+	}
 }
 
 // WriteMethodNotAllowed answers a request that reached a route but not one of its methods. The
 // caller sets the Allow header first - without it a 405 tells a client nothing it can act on.
 func WriteMethodNotAllowed(w http.ResponseWriter, requestID string) {
 	writeProblem(w, Problem{
-		Type:      docsBaseURL + codeMethodNotAllowed,
+		Type:      typeBaseURL + codeMethodNotAllowed,
 		Title:     codeMethodNotAllowed,
 		Status:    http.StatusMethodNotAllowed,
 		Code:      codeMethodNotAllowed,
 		RequestID: requestID,
-		Docs:      docsBaseURL + codeMethodNotAllowed,
+		Docs:      docsBaseURL + codeMethodNotAllowed + "/",
 	})
 }
 
@@ -155,14 +180,14 @@ func WriteMethodNotAllowed(w http.ResponseWriter, requestID string) {
 // because a client that does not know it can only guess at a smaller request.
 func WriteTooLarge(w http.ResponseWriter, limit int64, requestID string) {
 	writeProblem(w, Problem{
-		Type:       docsBaseURL + codePayloadTooLarge,
+		Type:       typeBaseURL + codePayloadTooLarge,
 		Title:      codePayloadTooLarge,
 		Status:     http.StatusRequestEntityTooLarge,
 		Code:       codePayloadTooLarge,
 		DetailCode: "request.body_too_large",
 		Params:     map[string]string{"limit_bytes": strconv.FormatInt(limit, 10)},
 		RequestID:  requestID,
-		Docs:       docsBaseURL + codePayloadTooLarge,
+		Docs:       docsBaseURL + codePayloadTooLarge + "/",
 	})
 }
 

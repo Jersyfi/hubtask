@@ -21,7 +21,9 @@ import { archivalOf } from '../data/containers.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
 import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
-import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, type AccountAction, type SectionGroup } from '../navigation.ts';
+import { modulesHere } from '../data/modules.ts';
+import { placeTabs } from '../workspace/placeTabs.ts';
+import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type AccountAction, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
 
@@ -159,6 +161,32 @@ export function collectionOffers(
   return offers;
 }
 
+/**
+ * A hub or a collection the reader matched by name offers its views as *Go to <place> › <tab>*
+ * (user-experience.md §5.3), the tabs its strip draws. `hubOn` is the answer of the hub (a
+ * collection's own hub); before it arrives nothing is listed, because the workspace's set may be
+ * wider than the hub's (UC-INS-21 check 3, P-05). A desk's portal and a collection's sprints are
+ * left out: whether a collection acts as a desk or runs sprints needs reads the palette does not
+ * make; the collection's own screen offers both.
+ */
+export function placeTabOffers(
+  placed: Placed,
+  workspaceOn: readonly string[] | undefined,
+  hubOn: readonly string[] | undefined,
+  t: Translate,
+): readonly Offer[] {
+  const { container } = placed;
+  if (hubOn === undefined || archivalOf(container) !== 'active') return [];
+  return placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn: modulesHere(workspaceOn, hubOn) })
+    .slice(1)
+    .map((tab) => ({
+      kind: 'action' as const,
+      id: `go-to:${container.id}:${tab.id}`,
+      label: t('app.place_tabs.go_to', { place: container.name, tab: t(tab.code) }),
+      target: { kind: 'route' as const, path: tab.href },
+    }));
+}
+
 // ---------------------------------------------------------------------------------------------
 // Places and settings
 // ---------------------------------------------------------------------------------------------
@@ -173,6 +201,8 @@ export interface Reach {
   readonly isPrivateHubsReadable: boolean;
   readonly hasAnyPrivateHub: boolean;
   readonly hasSeveralPeople: boolean;
+  /** The modules switched on; a module's page is offered only where it is on. */
+  readonly modulesOn?: readonly string[];
 }
 
 function sectionOffers(groups: readonly SectionGroup[], area: Area, section: string, t: Translate): Offer[] {
@@ -183,6 +213,7 @@ function sectionOffers(groups: readonly SectionGroup[], area: Area, section: str
       kind: 'place' as const,
       id: `${area}:${row.id}`,
       label: t(row.titleCode ?? row.code),
+      ...(row.words ? { keywords: t(row.words) } : {}),
       context: section,
       area,
       target: { kind: 'route' as const, path: row.path },
@@ -196,10 +227,18 @@ function sectionOffers(groups: readonly SectionGroup[], area: Area, section: str
  */
 export function placeOffers(reach: Reach, t: Translate): readonly Offer[] {
   const offers: Offer[] = [
-    ...primary({ hasJumble: reach.hasJumble === true }).flatMap((destination): Offer[] =>
+    ...primary({ hasJumble: reach.hasJumble === true, modulesOn: reach.modulesOn }).flatMap((destination): Offer[] =>
       destination.target.kind === 'route'
-        ? [{ kind: 'place', id: destination.id, label: t(destination.code), area: destination.area, target: { kind: 'route', path: destination.target.path } }]
+        ? [{ kind: 'place', id: destination.id, label: t(destination.code), ...(destination.words ? { keywords: t(destination.words) } : {}), area: destination.area, target: { kind: 'route', path: destination.target.path } }]
         : [],
+    ),
+    // One source per product switched on (user-experience.md §5.3), found by its name and its
+    // synonyms - *SLA* finds the service desk, *wiki* the pages.
+    ...products({ modulesOn: reach.modulesOn }).map(
+      (row): Offer => ({ kind: 'place', id: `product:${row.id}`, label: t(row.code), keywords: t(row.words), context: t('app.nav.products'), target: { kind: 'route', path: row.path } }),
+    ),
+    ...workspaceBand({ isAdministrationReachable: reach.isAdministrationReachable }).map(
+      (row): Offer => ({ kind: 'place', id: row.id, label: t(row.code), area: 'administration', target: { kind: 'route', path: row.path } }),
     ),
     ...KEEPING.map((row): Offer => ({ kind: 'place', id: row.id, label: t(row.code), target: { kind: 'route', path: row.path } })),
     ...account({

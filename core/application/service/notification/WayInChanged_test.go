@@ -101,6 +101,8 @@ func TestEveryChangeIsToldInItsOwnWordsWithItsWayBack(t *testing.T) {
 		// A passkey is undone where it is listed (UC-ID-22 check 7).
 		{identity.WayInPasskeyAdded, subjectPasskeyAdded, bodyPasskeyAdded, "link=https://acme.example/profile/security"},
 		{identity.WayInPasskeyRemoved, subjectPasskeyRemoved, bodyPasskeyRemoved, "link=https://acme.example/profile/security"},
+		// A reset second factor sends the person to sign in, where the new app is set up.
+		{identity.WayInSecondFactorReset, subjectFactorReset, bodyFactorReset, "link=https://acme.example/"},
 	} {
 		mailer := &mailbox{}
 		err := wayInSender(mailer, providersHeld{}).Execute(t.Context(), tenant, WayInNotice{

@@ -21,14 +21,8 @@ func fieldGroup() group {
 		summary: "custom fields - defined once, written per entry",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "[--collection <id>]",
-				summary: "list the definitions in force",
-				run:     fieldList,
-			},
-			{
 				name: "define",
-				usage: "--key <key> --kind TEXT|NUMBER|DATE|SELECT|MULTI_SELECT|BOOL|USER|URL" +
+				usage: "--key <key> --kind <kind> [--name <name>]" +
 					" [--collection <id>] [--applies-to <types>] [--options <values>] [--required]",
 				summary: "define a custom field",
 				run:     fieldDefine,
@@ -43,43 +37,20 @@ func fieldGroup() group {
 	}
 }
 
-func fieldList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "field", "ls", "[--collection <id>]")
-	collection := flags.String("collection", "",
-		"the collection whose definitions are wanted; unset answers the workspace-wide ones alone")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *collection != "" {
-		parsed, err := cli.parseID("--collection", *collection)
-		if err != nil {
-			return err
-		}
-		query.Set("collection_id", parsed.String())
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var definitions []openapi.CustomFieldDefinition
-	if err := client.Get(ctx, customFieldsPath, query, &definitions); err != nil {
-		return err
-	}
-	return cli.Emit(definitions, fieldTable(definitions))
-}
-
 func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "field", "define",
-		"--key <key> --kind <kind> [--collection <id>] [--applies-to <types>] [--options <values>] [--required]")
+		"--key <key> --kind <kind> [--name <name>] [--collection <id>] [--applies-to <types>] [--options <values>] [--currency <code>] [--formula <expression>] [--required] [--restricted] [--read-restricted]")
 	key := flags.String("key", "", "the identifier the value is stored under; fixed once defined")
-	kind := flags.String("kind", "", "what a value looks like: TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER or URL")
+	name := flags.String("name", "", "what a person reads for the field; unset leaves it named by its key")
+	kind := flags.String("kind", "", "what a value looks like: TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED, DATE_TIME, GROUP, CASCADING_SELECT, IP_ADDRESS, FILE, LABEL or STATUS")
 	collection := flags.String("collection", "", "the collection the definition belongs to; unset defines it workspace-wide")
 	appliesTo := flags.String("applies-to", "", "comma-separated item types that carry the field; unset means TASK alone")
-	options := flags.String("options", "", "comma-separated values a SELECT or MULTI_SELECT permits")
+	options := flags.String("options", "", "comma-separated values a SELECT, MULTI_SELECT, CASCADING_SELECT or STATUS permits")
+	currency := flags.String("currency", "", "the ISO 4217 code of a MONEY field's amounts")
+	formula := flags.String("formula", "", "a CALCULATED field's expression over entry.custom_fields")
 	required := flags.Bool("required", false, "whether the field has to hold a value")
+	restricted := flags.Bool("restricted", false, "only a role carrying the field's permission writes it")
+	readRestricted := flags.Bool("read-restricted", false, "only a role carrying the field's read permission sees it; restricts writing as well")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -94,6 +65,9 @@ func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	}
 
 	body := openapi.CustomFieldDefinitionCreate{Key: *key, Kind: fieldKind}
+	if *name != "" {
+		body.Name = name
+	}
 	if *collection != "" {
 		parsed, err := cli.parseID("--collection", *collection)
 		if err != nil {
@@ -119,8 +93,20 @@ func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 		}
 		body.Options = &values
 	}
+	if *currency != "" {
+		body.Currency = currency
+	}
+	if *formula != "" {
+		body.Formula = formula
+	}
 	if *required {
 		body.IsRequired = required
+	}
+	if *restricted {
+		body.Restricted = restricted
+	}
+	if *readRestricted {
+		body.ReadRestricted = readRestricted
 	}
 
 	client, err := cli.client()

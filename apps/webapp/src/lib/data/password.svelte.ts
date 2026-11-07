@@ -122,7 +122,7 @@ class Password {
         });
         return false;
       }
-      this.#problem = { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      this.#problem = { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
       return false;
     } catch (cause) {
       this.#problem = this.#render(cause);
@@ -184,7 +184,7 @@ class Password {
   #render(cause: unknown): RenderedProblem {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
 }
 

@@ -152,6 +152,35 @@ func TestTheCSVExportIsAFixedShapeInTheCallersZone(t *testing.T) {
 	}
 }
 
+// A title or notes a spreadsheet would read as a formula is written as text, as the time export
+// writes its notes: an entry titled "=HYPERLINK(...)" must not become a live cell in the file a
+// colleague opens.
+func TestTheCSVExportWritesAFormulaAsText(t *testing.T) {
+	rows := exportedRows()
+	list := rows["rows"].([]usecase.Output)
+	list[0]["title"] = "=HYPERLINK(\"https://evil.example\",\"open\")"
+	list[1]["notes"] = "@SUM(A1:A9)"
+	list[2]["title"] = "-1 day buffer"
+	recorder := postExport(t, &catalogue{out: rows}, `{"format":"CSV"}`)
+
+	records, err := csv.NewReader(strings.NewReader(recorder.Body.String())).ReadAll()
+	if err != nil {
+		t.Fatalf("the body is not a spreadsheet: %v", err)
+	}
+	if got := records[1][2]; got != "'=HYPERLINK(\"https://evil.example\",\"open\")" {
+		t.Errorf("the formula title came out as %q", got)
+	}
+	if got := records[2][3]; got != "'@SUM(A1:A9)" {
+		t.Errorf("the formula notes came out as %q", got)
+	}
+	if got := records[3][2]; got != "'-1 day buffer" {
+		t.Errorf("a title starting with a minus came out as %q", got)
+	}
+	if got := records[1][0]; strings.HasPrefix(got, "'") {
+		t.Errorf("an identifier was quoted: %q", got)
+	}
+}
+
 // The calendar rendering: only the dated entries, the all-day one as a date in its own zone, and
 // the document delivered as a document.
 func TestTheICSExportIsTheDatedEntriesOnly(t *testing.T) {
@@ -253,16 +282,13 @@ func postItemsExport(t *testing.T, registry UseCaseRegistry, body string) *httpt
 }
 
 // A collection as it is filtered, exported without a saved view: the query reaches the use case
-// the way POST /items:query passes it, minus what the walk decides itself, and the file is the
-// view export's rendering.
+// the way POST /items:query passes it, and the file is the view export's rendering.
 func TestAQueryExportPassesTheQueryAndRendersTheRows(t *testing.T) {
 	registry := &catalogue{out: exportedRows()}
 	recorder := postItemsExport(t, registry, `{"format":"CSV","query":{
 		"scope":{"container_id":"0192f000-0000-7000-8000-00000000000b"},
 		"filter":{"field":"is_completed","op":"EQ","value":false},
-		"sort":[{"field":"due_at","dir":"ASC"}],
-		"group_by":{"field":"assignee_id"},
-		"page":{"size":10}}}`)
+		"sort":[{"field":"due_at","dir":"ASC"}]}}`)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
@@ -279,12 +305,6 @@ func TestAQueryExportPassesTheQueryAndRendersTheRows(t *testing.T) {
 	if _, ok := registry.in["sort"].([]any); !ok {
 		t.Errorf("the sort arrived as %#v", registry.in["sort"])
 	}
-	for _, part := range []string{"group_by", "size", "cursor", "count"} {
-		if _, present := registry.in[part]; present {
-			t.Errorf("the walk's own %s was passed on", part)
-		}
-	}
-
 	records, err := csv.NewReader(recorder.Body).ReadAll()
 	if err != nil {
 		t.Fatalf("the file is not CSV: %v", err)
@@ -316,5 +336,34 @@ func TestAQueryExportAsJSONSaysWhenItWasTruncated(t *testing.T) {
 	}
 	if _, named := document["view_id"]; named {
 		t.Error("an export without a view names one")
+	}
+}
+
+// A format this adapter does not write is refused before the rows are read, so no export is
+// audited that never left.
+func TestAnUnknownFormatIsRefusedBeforeAnythingIsRead(t *testing.T) {
+	cat := &catalogue{out: exportedRows()}
+	recorder := postExport(t, cat, `{"format":"PDF"}`)
+	if recorder.Code != http.StatusUnprocessableEntity || cat.invoked {
+		t.Errorf("status %d, invoked %t: %s", recorder.Code, cat.invoked, recorder.Body)
+	}
+}
+
+// The export's query is its own schema (ItemExportQuery): the walk decides the pages itself, so a
+// page, a count, a grouping or an expansion is a member the contract does not declare and is
+// refused by name rather than ignored.
+func TestAQueryExportRefusesWhatTheWalkDecides(t *testing.T) {
+	for _, part := range []string{
+		`"page":{"size":10}`, `"count":"exact"`, `"group_by":{"field":"assignee_id"}`, `"expand":["labels"]`,
+	} {
+		registry := &catalogue{out: exportedRows()}
+		recorder := postItemsExport(t, registry, `{"format":"CSV","query":{
+			"scope":{"container_id":"0192f000-0000-7000-8000-00000000000b"},`+part+`}}`)
+		if recorder.Code != http.StatusUnprocessableEntity || !strings.Contains(recorder.Body.String(), "usecase.field_unknown") {
+			t.Errorf("%s: status %d: %s", part, recorder.Code, recorder.Body)
+		}
+		if registry.name != "" {
+			t.Errorf("%s reached %q", part, registry.name)
+		}
 	}
 }

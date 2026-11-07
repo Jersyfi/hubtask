@@ -74,7 +74,9 @@ for (const role of ['MEMBER', 'CONTRIBUTOR', 'VIEWER', 'BELOW']) {
     await page.goto(`${served.origin}/`);
     const rows = await menuRows(page);
     assert.ok(rows.includes('Your settings'), `the menu did not open: ${rows}`);
-    assert.ok(!rows.includes('Workspace administration'), `the administration is offered: ${rows}`);
+    // The administration is the column's workspace band (user-experience.md §2.1), and never behind the avatar.
+    assert.ok(!rows.includes('Administration'), `the administration is offered: ${rows}`);
+    assert.equal(await page.getByRole('treeitem', { name: 'Administration', exact: true }).count(), 0, 'the column offers the administration');
 
     await page.goto(`${served.origin}/administration/workspace`);
     await page.getByRole('heading', { name: NOTHING_HERE }).waitFor();
@@ -100,7 +102,8 @@ for (const role of ['OWNER', 'AUDITOR']) {
     t.after(() => context.close());
 
     await page.goto(`${served.origin}/`);
-    assert.ok((await menuRows(page)).includes('Workspace administration'));
+    await page.getByRole('treeitem', { name: 'Administration', exact: true }).waitFor({ timeout: 10_000 });
+    assert.ok(!(await menuRows(page)).includes('Administration'), 'the administration is behind the avatar');
 
     await page.goto(`${served.origin}/administration/workspace`);
     await page.getByRole('navigation').getByText('Legal links').waitFor();
@@ -122,7 +125,7 @@ async function capturesIntoJumble(page) {
   const dialog = page.getByRole('dialog', { name: 'Capture' });
   await dialog.getByRole('textbox').fill('Call the plumber');
   await page.waitForTimeout(300);
-  const into = (await dialog.textContent()).includes('Into the jumble');
+  const into = (await dialog.textContent()).includes('Into the workspace\'s shared inbox');
   await page.keyboard.press('Escape');
   return into;
 }
@@ -144,8 +147,8 @@ for (const [role, expected] of Object.entries(JUMBLE)) {
     t.after(() => context.close());
 
     await page.goto(`${served.origin}/`);
-    await page.getByRole('heading', { name: 'In the jumble' }).waitFor();
-    assert.equal(await page.getByRole('navigation').getByText('Jumble', { exact: true }).count() > 0, expected.row);
+    await page.getByRole('heading', { name: 'In the inbox' }).waitFor();
+    assert.equal(await page.getByRole('navigation').getByText('Inbox', { exact: true }).count() > 0, expected.row);
 
     await page.goto(`${served.origin}/jumble`);
     await page.getByText('Call the plumber').waitFor();
@@ -171,8 +174,8 @@ for (const role of ['AUDITOR', 'BELOW']) {
     await page.goto(`${served.origin}/`);
     // Today has settled: its first card, whichever the reader's day draws.
     await page.locator('main section.panel').first().waitFor();
-    assert.equal(await page.getByRole('navigation').getByText('Jumble', { exact: true }).count(), 0, 'the jumble row is drawn');
-    assert.equal(await page.getByRole('heading', { name: 'In the jumble' }).count(), 0, 'Today draws the jumble');
+    assert.equal(await page.getByRole('navigation').getByText('Inbox', { exact: true }).count(), 0, 'the jumble row is drawn');
+    assert.equal(await page.getByRole('heading', { name: 'In the inbox' }).count(), 0, 'Today draws the jumble');
 
     await page.goto(`${served.origin}/jumble`);
     await page.getByRole('heading', { name: NOTHING_HERE }).waitFor();

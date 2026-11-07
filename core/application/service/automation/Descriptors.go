@@ -13,6 +13,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -24,6 +25,7 @@ import (
 // Descriptor is the catalogue entry.
 func (h CreateRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        CreateRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Writes an automation rule, switched off. Enabling it is a separate call, so " +
@@ -36,6 +38,12 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 		TokenScope:  automationScope,
 		Input: []usecase.Field{
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "What the rule is called."},
+			{
+				Name: "key", Kind: usecase.KindString,
+				Description: "The rule's stable key in its scope - lower case letters, digits and underscores, " +
+					"starting with a letter, at most 63 - by which the configuration document names it. Omitted " +
+					"draws one from the name; one its scope already holds is refused. A rename keeps it.",
+			},
 			{
 				Name: "scope", Kind: usecase.KindObject, Required: true,
 				Description: "Where it applies: {type: TENANT|HUB|COLLECTION, id}. Descendants are included.",
@@ -79,6 +87,7 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h GetRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        GetRuleName,
 		Summary:     "One automation rule, as it stands.",
 		SideEffects: "None. Reads only.",
@@ -98,7 +107,8 @@ func (h GetRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ListRules) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListRulesName,
+		Permission: service.PermissionAutomation,
+		Name:       ListRulesName,
 		Summary: "The workspace's automation rules, newest first - and only the ones the caller " +
 			"may see at their own scope. Deleted rules are not among them.",
 		SideEffects: "None. Reads only.",
@@ -120,6 +130,7 @@ func (h ListRules) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h UpdateRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        UpdateRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Changes what a rule does. An omitted field is left alone. `enabled` is not " +
@@ -160,6 +171,7 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h EnableRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        EnableRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Switches a rule on, and clears its failure count. Its own call and its own " +
@@ -185,7 +197,8 @@ func (h EnableRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h DisableRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DisableRuleName,
+		Permission: service.PermissionAutomation,
+		Name:       DisableRuleName,
 		Summary: "Switches a rule off. It stays, and stops acting. What a run of failures does " +
 			"automatically, a person can do deliberately - and the trail says which of the two " +
 			"it was. The failure count is left alone: switching a rule off by hand has not fixed " +
@@ -209,7 +222,8 @@ func (h DisableRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h DeleteRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteRuleName,
+		Permission: service.PermissionAutomation,
+		Name:       DeleteRuleName,
 		Summary: "Removes a rule. A soft delete: it stops matching anything at once and leaves " +
 			"the listing, and the runs it produced stay readable - a run log whose rule vanished " +
 			"would be a record of actions nobody can account for.",
@@ -255,7 +269,7 @@ func (h CreateRule) invoke(
 	}
 
 	rule, err := h.Execute(ctx, actor, CreateRuleCommand{
-		Name: in.String("name"), Scope: scope, RunAs: runAs, Trigger: trigger,
+		Name: in.String("name"), Key: in.String("key"), Scope: scope, RunAs: runAs, Trigger: trigger,
 		Conditions: conditions, Actions: actions,
 		Throttle: throttleFrom(in["throttle"]), OnError: domain.OnError(in.String("on_error")),
 	})
@@ -437,6 +451,7 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	out := usecase.Output{
 		"id":            rule.ID.String(),
 		"name":          rule.Name,
+		"key":           rule.Key,
 		"scope":         scope,
 		"enabled":       rule.Enabled,
 		"run_as":        rule.RunAs.String(),
@@ -490,11 +505,15 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 func triggerOutput(trigger domain.Trigger) map[string]any {
 	out := map[string]any{"kind": string(trigger.Kind)}
 	for name, value := range map[string]string{
-		"event_type": trigger.EventType.String(),
-		"rrule":      trigger.RRule,
-		"timezone":   trigger.Timezone,
-		"anchor":     string(trigger.Anchor),
-		"offset":     trigger.Offset,
+		"event_type":   trigger.EventType.String(),
+		"rrule":        trigger.RRule,
+		"timezone":     trigger.Timezone,
+		"anchor":       string(trigger.Anchor),
+		"anchor_field": trigger.AnchorField,
+		"offset":       trigger.Offset,
+		"calendar":     trigger.Calendar,
+		"workflow":     trigger.Workflow,
+		"step":         trigger.Step,
 	} {
 		if value != "" {
 			out[name] = value
@@ -549,6 +568,8 @@ func triggerFrom(value any) (domain.Trigger, error) {
 		EventType: event.Type(textOf(document["event_type"])),
 		RRule:     textOf(document["rrule"]), Timezone: textOf(document["timezone"]),
 		Anchor: domain.DateAnchor(textOf(document["anchor"])), Offset: textOf(document["offset"]),
+		AnchorField: textOf(document["anchor_field"]), Calendar: textOf(document["calendar"]),
+		Workflow: textOf(document["workflow"]), Step: textOf(document["step"]),
 	}
 	for _, field := range listOf(document["changed_fields"]) {
 		if name := textOf(field); name != "" {

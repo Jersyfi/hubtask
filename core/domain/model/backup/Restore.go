@@ -437,14 +437,15 @@ func DuplicatedName(runID shared.ID, startedAt time.Time, original string) strin
 // The slug is unique across the installation, so the copy cannot keep the source's - and a
 // technical one derived from the minted tenant identity is stable across resumed attempts (BK-7)
 // and tells whoever lists the workspaces exactly what this one is. Renaming it afterwards is an
-// ordinary edit. Twelve hex characters of the identity keep it well inside the slug's forty-char
-// bound and its `^[a-z0-9][a-z0-9-]{2,39}$` shape.
+// ordinary edit. The identity's first twelve hex digits are a UUIDv7's millisecond, so its last
+// twelve (random) follow them: two copies minted in one millisecond would collide on the first
+// alone. 34 characters stay inside the slug's `^[a-z0-9][a-z0-9-]{2,39}$` shape.
 func RestoredSlug(tenantID shared.ID) string {
 	compact := strings.ReplaceAll(tenantID.String(), "-", "")
-	if len(compact) > 12 {
-		compact = compact[:12]
+	if len(compact) < 24 {
+		return "restored-" + compact
 	}
-	return "restored-" + compact
+	return "restored-" + compact[:12] + "-" + compact[len(compact)-12:]
 }
 
 // The refusals of a restore, as codes rather than as prose.

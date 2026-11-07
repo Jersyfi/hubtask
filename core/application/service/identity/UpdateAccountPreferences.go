@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -47,6 +48,9 @@ type UpdateAccountPreferencesCommand struct {
 	// clears. Strings rather than a bool and a time so that the one rule holds for all five.
 	Celebrations          *string
 	OnboardingCompletedAt *string
+	// ProductsSeen is the whole list of products whose first-visit mark was seen; nil leaves it,
+	// an empty list - what a null arrives as - clears it.
+	ProductsSeen *[]string
 }
 
 // UpdateAccountPreferences sets how the product speaks to one account: its locale, its time zone
@@ -104,6 +108,7 @@ func (h UpdateAccountPreferences) Execute(
 			WeekStart:             valueOr(cmd.WeekStart, before.WeekStart),
 			Celebrations:          valueOr(cmd.Celebrations, celebrationsWord(before.Celebrations)),
 			OnboardingCompletedAt: valueOr(cmd.OnboardingCompletedAt, instantWord(before.OnboardingCompletedAt)),
+			ProductsSeen:          listOr(cmd.ProductsSeen, before.ProductsSeen),
 		})
 		if err != nil {
 			return err
@@ -126,6 +131,14 @@ func (h UpdateAccountPreferences) Execute(
 // valueOr resolves the pointer: absent leaves what was there, present replaces it - including with
 // an empty string, which is how a preference is cleared.
 func valueOr(given *string, current string) string {
+	if given == nil {
+		return current
+	}
+	return *given
+}
+
+// listOr is valueOr for a list: absent leaves what was there, present replaces it.
+func listOr(given *[]string, current []string) []string {
 	if given == nil {
 		return current
 	}
@@ -160,6 +173,7 @@ func (h UpdateAccountPreferences) recordAudit(
 		audit.Change{Field: "week_start", Classification: audit.Open, From: before.WeekStart, To: after.WeekStart},
 		audit.Change{Field: "celebrations", Classification: audit.Open, From: celebrationsWord(before.Celebrations), To: celebrationsWord(after.Celebrations)},
 		audit.Change{Field: "onboarding_completed_at", Classification: audit.Open, From: instantWord(before.OnboardingCompletedAt), To: instantWord(after.OnboardingCompletedAt)},
+		audit.Change{Field: "products_seen", Classification: audit.Open, From: strings.Join(before.ProductsSeen, ","), To: strings.Join(after.ProductsSeen, ",")},
 	)
 
 	return h.Audit.Append(ctx, audit.Entry{
@@ -181,7 +195,8 @@ func (h UpdateAccountPreferences) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateAccountPreferencesName,
+		Name:       UpdateAccountPreferencesName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Sets the locale, the time zone and the first day of the week for an account, " +
 			"and its moments - whether celebrations are marked, and when the first-run tour ended. " +
 			"Omitting a field leaves it; sending it empty clears it, so the default applies again.",
@@ -214,6 +229,10 @@ func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 				Name: "onboarding_completed_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
 				Description: "When the first-run tour ended or was skipped, as an RFC 3339 date and time. Empty clears it, which runs the tour again.",
 			},
+			{
+				Name: "products_seen", Kind: usecase.KindList,
+				Description: "The products whose first-visit mark was seen, as module keys such as SERVICE_DESK - the whole list. Empty clears it, which shows each product's mark again.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: AccountPreferencesChangedAction, TargetType: accountTarget,
@@ -231,6 +250,14 @@ func (h UpdateAccountPreferences) invoke(
 		return nil, err
 	}
 
+	var seen *[]string
+	if _, present := in["products_seen"]; present {
+		list, err := in.StringList("products_seen")
+		if err != nil {
+			return nil, err
+		}
+		seen = &list
+	}
 	account, err := h.Execute(ctx, actor, UpdateAccountPreferencesCommand{
 		AccountID:             accountID,
 		Locale:                in.OptionalString("locale"),
@@ -238,6 +265,7 @@ func (h UpdateAccountPreferences) invoke(
 		WeekStart:             in.OptionalString("week_start"),
 		Celebrations:          in.OptionalString("celebrations"),
 		OnboardingCompletedAt: in.OptionalString("onboarding_completed_at"),
+		ProductsSeen:          seen,
 	})
 	if err != nil {
 		return nil, err

@@ -87,6 +87,19 @@ type Eraser struct {
 	// Owners holds the erasure to the last-owner rule (domain-model.md §3.2): a person who is the
 	// workspace's only owner is not erased until somebody else is one. Nil skips the question.
 	Owners identityrepo.Owners
+	// Addresses erases what the workspace holds of an address nobody here has an account for: the
+	// requester record, the mail receipts and the jumble entries it sent (accepted.md B). Nil
+	// erases nothing for such a case, as before.
+	Addresses AddressErasure
+	// IntakeLines removes the intake's "From:" line naming the address from the entries and
+	// comments filed on the requester's behalf (third answers 2). Zero removes none.
+	IntakeLines StripIntakeLines
+}
+
+// AddressErasure is the requester record's and the intake's half of an erasure by address.
+type AddressErasure interface {
+	CountAddress(ctx context.Context, address string) (int, error)
+	EraseAddress(ctx context.Context, address string, full bool) (int, error)
 }
 
 // LastMember is the work context's answer to a person leaving: which private hubs they are a member
@@ -107,9 +120,17 @@ type Erased struct {
 	// AiDrafts are what AI drafted for the person alone and the words they asked with.
 	AiDrafts int
 	// Kudos are the acknowledgements the person gave and received.
-	Kudos       int
+	Kudos int
+	// Arrangements are the digests, private dashboards and approval delegations in the person's name.
+	Arrangements int
+	// Time is what the person's time lost of its words, and their running timer; the records,
+	// weeks, capacities, absences and their own cost rate are kept for the sums (accepted.md B).
+	Time        int
 	Assignments int
 	Comments    int
+	// Writings are what the person wrote outside entries - page and board comments, check-ins,
+	// portfolio updates, page drafts - removed in a full deletion, or blanked where others replied.
+	Writings int
 	// Intake is what the person sent in by mail or captured into the jumble: removed in a full
 	// deletion, and stripped of the address and the account in the mode that keeps the workspace's
 	// content.
@@ -122,6 +143,19 @@ type Erased struct {
 	AccountKept       bool
 	// Kept is what each legal hold kept, empty when none kept anything.
 	Kept []domain.Kept
+	// Reowned is the switched-off integrations moved to ReownedTo, another owner of the workspace.
+	Reowned   repository.IntegrationsAs
+	ReownedTo shared.ID
+}
+
+// integrationsBlock is the refusal while integrations still act as, or name, the person.
+func integrationsBlock(acting repository.IntegrationsAs) error {
+	return shared.ErrConflict.
+		WithDetail(domain.CodeErasureBlockedByIntegration).
+		WithParams(map[string]string{
+			"connectors": strconv.Itoa(acting.Connectors), "hooks": strconv.Itoa(acting.Hooks),
+			"agents": strconv.Itoa(acting.Agents),
+		})
 }
 
 // Erase carries out the case's erasure, as far as no legal hold keeps it.
@@ -144,6 +178,9 @@ func (e Eraser) erase(
 	extra ...audit.Change,
 ) (Erased, error) {
 	if request.SubjectAccountID.IsZero() {
+		if address := strings.ToLower(strings.TrimSpace(request.SubjectEmail)); address != "" && e.Addresses != nil {
+			return e.eraseAddress(ctx, actor, request, address, action, extra...)
+		}
 		// A case about an address nobody here holds. There is nothing in this workspace to erase,
 		// and saying so is the honest answer rather than an error: the person asked, and the
 		// answer is that this workspace holds nothing of theirs.
@@ -185,6 +222,36 @@ func (e Eraser) erase(
 					WithDetail(domain.CodeErasureBlockedByRule).
 					WithParams(map[string]string{"rules": strconv.Itoa(running)})
 			}
+			// The integrations that act as the person, for the same reason: none of them has a
+			// foreign key to fail on, so without this the deletion succeeds and each one fails on
+			// every run afterwards - a forge hook answering its forge as if it did not exist.
+			acting, err := e.Erasure.IntegrationsRunningAs(ctx, subject)
+			if err != nil {
+				return err
+			}
+			if acting.Any() {
+				return integrationsBlock(acting)
+			}
+			// The switched-off ones move to another owner of the workspace and stay off: deleting
+			// them is not the erasure's decision, and left pointing at nobody the foreign keys
+			// refuse the deletion (data-protection.md §4).
+			if next, found, err := otherOwner(ctx, e.Owners, subject); err != nil {
+				return err
+			} else if found {
+				if erased.Reowned, err = e.Erasure.ReownSwitchedOffIntegrations(ctx, subject, next, now); err != nil {
+					return err
+				}
+				if erased.Reowned.Any() {
+					erased.ReownedTo = next
+				}
+			}
+			left, err := e.Erasure.IntegrationsNaming(ctx, subject)
+			if err != nil {
+				return err
+			}
+			if left.Any() {
+				return integrationsBlock(left)
+			}
 		}
 
 		// The last-owner rule, asked of every erasure that ends the account - removed or anonymised.
@@ -208,6 +275,12 @@ func (e Eraser) erase(
 		}
 		erased.Credentials = credentials
 
+		// The person's own rules are their configuration, like an AI draft for them alone: they go
+		// whatever is kept. The count above is of the workspace's rules only.
+		if _, err := e.Erasure.DiscardPersonalRules(ctx, subject); err != nil {
+			return err
+		}
+
 		notifications, err := e.Erasure.DiscardNotifications(ctx, subject)
 		if err != nil {
 			return err
@@ -229,6 +302,20 @@ func (e Eraser) erase(
 		}
 		erased.Kudos = kudos
 
+		arrangements, err := e.Erasure.DiscardArrangements(ctx, subject)
+		if err != nil {
+			return err
+		}
+		erased.Arrangements = arrangements
+
+		// Time is kept, both modes: what accounting sums stays, under the account's identifier,
+		// which is the pseudonym once the account is anonymised or gone; only the words go.
+		times, err := e.Erasure.PseudonymiseTime(ctx, subject)
+		if err != nil {
+			return err
+		}
+		erased.Time = times
+
 		assignments, err := e.Erasure.ReleaseAssignmentsOn(ctx, subject, plan.ReleaseOn, now)
 		if err != nil {
 			return err
@@ -248,6 +335,12 @@ func (e Eraser) erase(
 			return err
 		}
 		erased.Comments = removed
+
+		writings, err := e.removeWritings(ctx, subject, plan.DeleteWritings, now)
+		if err != nil {
+			return err
+		}
+		erased.Writings = writings
 
 		orphaned, err = e.Erasure.OrphanedMedia(ctx, subject)
 		if err != nil {
@@ -370,6 +463,53 @@ func (e Eraser) removeComments(
 	return e.Erasure.DeleteComments(ctx, subject, ids)
 }
 
+// writingTables are the tables of what a person writes outside entries, in the words the journal
+// and the tombstone use, in the order they are removed.
+var writingTables = []struct {
+	kind  domain.RowKind
+	table string
+}{
+	{domain.RowPageComment, "page_comment"},
+	{domain.RowBoardComment, "whiteboard_comment"},
+	{domain.RowCheckIn, "goal_check_in"},
+	{domain.RowPortfolioUpdate, "portfolio_update"},
+	{domain.RowPageDraft, "page_draft"},
+}
+
+// removeWritings takes what the person wrote outside entries that the plan names, each removed row
+// with the journal entry and the tombstone it owes, so a restore does not bring it back. A blanked
+// comment keeps its row; a restore brings its words back, and the recovered case's re-application
+// blanks them again.
+func (e Eraser) removeWritings(
+	ctx context.Context, subject shared.ID, writings map[domain.RowKind][]shared.ID, now time.Time,
+) (int, error) {
+	total := 0
+	for _, of := range writingTables {
+		ids := writings[of.kind]
+		if len(ids) == 0 {
+			continue
+		}
+		gone, blanked, err := e.Erasure.DeleteWritings(
+			ctx, subject, repository.ContributionKind(of.kind), ids, now)
+		if err != nil {
+			return 0, err
+		}
+		if len(gone) > 0 {
+			removals := make([]lifecycle.Removal, 0, len(gone))
+			for _, id := range gone {
+				removals = append(removals, lifecycle.Removal{
+					Entity: of.table, EntityID: id, Reason: lifecycle.DeletedByErasure,
+				})
+			}
+			if err := e.Removals.Record(ctx, removals, now, now.Add(e.TombstoneWindow)); err != nil {
+				return 0, err
+			}
+		}
+		total += len(gone) + blanked
+	}
+	return total, nil
+}
+
 // finishAccount is the last step: the row goes, stays and loses everything of the person's, or -
 // under a hold on the person or the workspace - stays as it is and is restricted.
 func (e Eraser) finishAccount(
@@ -478,11 +618,22 @@ func (e Eraser) record(
 		{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
 		{Field: "ai_drafts", Classification: audit.Open, To: erased.AiDrafts},
 		{Field: "kudos", Classification: audit.Open, To: erased.Kudos},
+		{Field: "arrangements", Classification: audit.Open, To: erased.Arrangements},
+		{Field: "time", Classification: audit.Open, To: erased.Time},
 		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 		{Field: "comments", Classification: audit.Open, To: erased.Comments},
+		{Field: "writings", Classification: audit.Open, To: erased.Writings},
 		{Field: "intake", Classification: audit.Open, To: erased.Intake},
 		{Field: "media", Classification: audit.Open, To: erased.Media},
 		{Field: "account", Classification: audit.Open, To: accountOutcome(erased)},
+	}
+	if erased.Reowned.Any() {
+		changes = append(changes,
+			audit.Change{Field: "reowned_connectors", Classification: audit.Open, To: erased.Reowned.Connectors},
+			audit.Change{Field: "reowned_hooks", Classification: audit.Open, To: erased.Reowned.Hooks},
+			audit.Change{Field: "reowned_agents", Classification: audit.Open, To: erased.Reowned.Agents},
+			audit.Change{Field: "reowned_to", Classification: audit.Open, To: erased.ReownedTo.String()},
+		)
 	}
 	changes = append(changes, extra...)
 	if pending := pendingParts(erased.Kept); len(pending) > 0 {
@@ -559,4 +710,162 @@ func pseudonymFor(accountID shared.ID) string {
 		digest = digest[len(digest)-12:]
 	}
 	return fmt.Sprintf("%s%s", pseudonymPrefix, digest)
+}
+
+// stripRounds bounds how often the erasure passes over the lines again because a line naming the
+// address arrived while it worked.
+const stripRounds = 3
+
+// stripIntakeLines removes the intake's lines naming the address unless a hold on the workspace
+// stands. Each page commits on its own, so an erasure of thousands of lines holds no transaction
+// past its timeout, and a retry finds only the lines still left. The case completes only when a
+// final read finds no line naming the address.
+func (e Eraser) stripIntakeLines(ctx context.Context, actor appshared.ActorContext, address string) (int, error) {
+	if e.IntakeLines.Lines == nil {
+		return 0, nil
+	}
+	addresses := []string{address}
+	stripped := 0
+	for round := 0; round < stripRounds; round++ {
+		var refusal error
+		step := StripStep{More: true}
+		for step.More {
+			held := false
+			err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				holds, err := e.Holds.Active(ctx)
+				if err != nil {
+					return err
+				}
+				if _, held = holds.OnTenant(); held {
+					return nil
+				}
+				// The lines that went stay gone: one that cannot be changed now leaves the case
+				// open, and must not take the others back with it.
+				step, err = e.IntakeLines.StripPage(ctx, actor.TenantID, addresses, actor, step.Next)
+				return err
+			})
+			if err != nil {
+				return stripped, err
+			}
+			if held {
+				return stripped, nil
+			}
+			stripped += step.Changed
+			if step.Refusal != nil {
+				refusal = step.Refusal
+			}
+		}
+		if refusal != nil {
+			return stripped, refusal
+		}
+		var left bool
+		err := e.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			left, err = anyNamed(ctx, e.IntakeLines.Lines, addresses)
+			return err
+		})
+		if err != nil || !left {
+			return stripped, err
+		}
+	}
+	return stripped, shared.ErrConflict.WithDetail(domain.CodeIntakeLinesRemain)
+}
+
+// addressHeld answers whether the workspace holds anything of an address: the requester record, a
+// receipt, a jumble entry, or an intake line naming it.
+func (e Eraser) addressHeld(ctx context.Context, subjectEmail string) (bool, error) {
+	address := strings.ToLower(strings.TrimSpace(subjectEmail))
+	if address == "" || e.Addresses == nil {
+		return false, nil
+	}
+	count, err := e.Addresses.CountAddress(ctx, address)
+	if err != nil || count > 0 {
+		return count > 0, err
+	}
+	if e.IntakeLines.Lines == nil {
+		return false, nil
+	}
+	return anyNamed(ctx, e.IntakeLines.Lines, []string{address})
+}
+
+// keptOfAddress answers whether a workspace hold is in force and what it keeps of the address -
+// nothing when the address sent nothing. The one reading the erasure and its preview share.
+func (e Eraser) keptOfAddress(ctx context.Context, address string, now time.Time) (bool, []domain.Kept, error) {
+	holds, err := e.Holds.Active(ctx)
+	if err != nil {
+		return false, nil, err
+	}
+	hold, held := holds.OnTenant()
+	if !held {
+		return false, nil, nil
+	}
+	count, err := e.Addresses.CountAddress(ctx, address)
+	if err != nil || count == 0 {
+		return true, nil, err
+	}
+	return true, []domain.Kept{{
+		HoldID: hold.ID, HoldScope: hold.Scope, HoldScopeID: hold.ScopeID, Intake: count, RecordedAt: now,
+	}}, nil
+}
+
+// addressKept is the preview's half of keptOfAddress, for a case without an account.
+func (e Eraser) addressKept(ctx context.Context, request domain.Request) ([]domain.Kept, error) {
+	address := strings.ToLower(strings.TrimSpace(request.SubjectEmail))
+	if address == "" || e.Addresses == nil {
+		return nil, nil
+	}
+	_, kept, err := e.keptOfAddress(ctx, address, e.Clock.Now())
+	return kept, err
+}
+
+// eraseAddress erases a requester without an account: the record, the mail receipts and the
+// jumble entries of the address - removed in a full deletion, stripped of the address otherwise.
+// The entries an account filed on their behalf are the team's and stay. A hold on the workspace
+// keeps it all, recorded as kept, and the remainder erases it once the hold is released; no
+// narrower hold reaches what an address sent (data-protection.md §4.1).
+func (e Eraser) eraseAddress(
+	ctx context.Context, actor appshared.ActorContext, request domain.Request, address string,
+	action audit.Action, extra ...audit.Change,
+) (Erased, error) {
+	if !request.ErasureMode.Valid() {
+		return Erased{}, shared.ErrConflict.WithDetail(domain.CodeErasureModeRequired)
+	}
+	now := e.Clock.Now()
+	erased := Erased{Mode: request.ErasureMode}
+	// The lines first, each through its own edit: a refusal leaves the case open rather than
+	// reported erased while the name is still on an entry. A workspace hold keeps them.
+	stripped, err := e.stripIntakeLines(ctx, actor, address)
+	if err != nil {
+		return Erased{}, err
+	}
+	err = e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := e.Requests.Lock(ctx, request.ID)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return shared.ErrNotFound.WithDetail(domain.CodeRequestNotFound)
+		}
+		held, kept, err := e.keptOfAddress(ctx, address, now)
+		if err != nil {
+			return err
+		}
+		if held {
+			erased.Kept = kept
+			return e.Kept.RecordKept(ctx, request.ID, erased.Kept, now)
+		}
+		if erased.Intake, err = e.Addresses.EraseAddress(ctx, address, request.ErasureMode == domain.ModeFullDelete); err != nil {
+			return err
+		}
+		erased.Intake += stripped
+		// Nothing kept: a remainder that runs this marks the earlier record erased.
+		return e.Kept.RecordKept(ctx, request.ID, nil, now)
+	})
+	if err != nil {
+		return Erased{}, err
+	}
+	if err := e.record(ctx, actor, request, erased, action, now, extra...); err != nil {
+		return Erased{}, err
+	}
+	return erased, nil
 }

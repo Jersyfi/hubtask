@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-04, P-06, P-07, P-08, P-11]
 state: partial
 tasks: [E-07, G-06, G-12, F4-18, F-1484]
-checked_by: [core/application/service/lifecycle/RetentionRules_test.go, core/application/service/lifecycle/RetentionRuleLifecycle_test.go, test/integration/retention_rule_test.go, test/retention/retention_test.go, cmd/hubctl/Retention_test.go, test/retention/rule_failure_test.go, core/application/service/lifecycle/RetentionSweepSetAside_test.go, core/application/service/lifecycle/RetentionSweepCursor_test.go, test/retention/read_cursor_test.go, apps/webapp/e2e/retention.test.mjs]
+checked_by: [core/application/service/lifecycle/RetentionRules_test.go, core/application/service/lifecycle/RunRetentionWorkspaceRule_test.go, core/application/service/lifecycle/RetentionRuleLifecycle_test.go, test/integration/retention_rule_test.go, test/retention/retention_test.go, cmd/hubctl/Retention_test.go, test/retention/rule_failure_test.go, core/application/service/lifecycle/RetentionSweepSetAside_test.go, core/application/service/lifecycle/RetentionSweepCursor_test.go, test/retention/read_cursor_test.go, apps/webapp/e2e/retention.test.mjs]
 ---
 
 # Set a retention rule and see what it would do before it acts
@@ -52,6 +52,10 @@ announcement it had made.
    app, through the API, with `hubctl` and through MCP.
 10. A rule whose condition fails on an entry is shown as failing, with the reason, and announces
     and removes nothing in that pass; the workspace's other rules and its trash go on.
+11. A kind with a default period outside the entries (`DOCUMENT_HISTORY`, `PAGE_VERSION`,
+    `AGENT_*`, `REQUESTER`, …) is swept at the workspace's rule for it, never below the kind's lower
+    bound; one that only announces or is switched off removes nothing, and without one the default
+    holds.
 
 ## Where it ends
 

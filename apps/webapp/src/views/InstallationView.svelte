@@ -8,6 +8,7 @@
   import { Badge, Button, Icon, Inline, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -90,13 +91,7 @@
   {:else if problem}
     <Stack gap="150">
       <p>{t('app.installation.unread')}</p>
-      <p class="detail">{problem.message}</p>
-      {#if problem.reference}
-        <p class="reference">{t('app.error_reference', { request_id: problem.reference })}</p>
-      {/if}
-      <Inline gap="150">
-        <Button tone="secondary" icon="repeat" onclick={() => manifest.refresh()}>{t('app.retry')}</Button>
-      </Inline>
+      <FailureState {problem} onRetry={() => manifest.refresh()} />
     </Stack>
   {:else if state.status === 'ready'}
     <dl>
@@ -193,8 +188,6 @@
   dt { color: var(--text-subtle); }
   dd { margin: 0; }
 
-  .detail { color: var(--text-secondary); }
-  .reference { color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); }
 
   .about h2 {
     margin: 0 0 var(--sp-050);

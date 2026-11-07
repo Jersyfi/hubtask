@@ -25,14 +25,14 @@ func namedGroup(t *testing.T, id shared.ID, name string) domain.Group {
 	return group
 }
 
-// Any member reads the groups: no permission question is asked, only the credential's scope.
+// Any member reads the groups: the authoriser's member question, not a permission along a path.
 func TestTheGroupsAreListedForAnyMemberWithTheScope(t *testing.T) {
 	groups := newGroups(
 		namedGroup(t, groupID, "Leads"),
 		namedGroup(t, "01936f2a-7c1e-7000-8000-0000000000c2", "Backoffice"),
 	)
 
-	page, err := ListGroups{Groups: groups, UnitOfWork: &unitOfWork{}}.
+	page, err := ListGroups{Members: &authorizer{}, Groups: groups, UnitOfWork: &unitOfWork{}}.
 		Execute(t.Context(), reader(), ListGroupsQuery{Size: 500})
 	if err != nil {
 		t.Fatalf("listing: %v", err)
@@ -46,10 +46,13 @@ func TestTheGroupsAreListedForAnyMemberWithTheScope(t *testing.T) {
 	}
 }
 
+// The scope is judged by the authoriser, which records the refusal (audit.md §4), rather than
+// refused quietly before it is asked; without one the scope still refuses first.
 func TestACredentialWithoutTheScopeListsNoGroups(t *testing.T) {
 	groups := newGroups(namedGroup(t, groupID, "Leads"))
+	members := &authorizer{refuse: shared.ErrForbidden.WithDetail("access.insufficient_scope")}
 
-	_, err := ListGroups{Groups: groups, UnitOfWork: &unitOfWork{}}.
+	_, err := ListGroups{Members: members, Groups: groups, UnitOfWork: &unitOfWork{}}.
 		Execute(t.Context(), admin(), ListGroupsQuery{})
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("got %v, want the scope refusal", err)
@@ -57,13 +60,30 @@ func TestACredentialWithoutTheScopeListsNoGroups(t *testing.T) {
 	if groups.listedPage.Size != 0 {
 		t.Error("the list was read for a credential that may not read it")
 	}
+	_, err = GetGroup{Members: members, Groups: groups, UnitOfWork: &unitOfWork{}}.Execute(t.Context(), admin(), groupID)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("reading got %v, want the scope refusal", err)
+	}
+	if len(members.requests) != 2 {
+		t.Fatalf("the authoriser was asked %d times, want once per read, so it records the refusal", len(members.requests))
+	}
+	for _, request := range members.requests {
+		if request.TokenScope != membersRead || request.Action != GroupReadAction {
+			t.Errorf("asked %+v, want members:read for group.read", request)
+		}
+	}
+
+	_, err = ListGroups{Groups: groups, UnitOfWork: &unitOfWork{}}.Execute(t.Context(), admin(), ListGroupsQuery{})
+	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "access.insufficient_scope" {
+		t.Errorf("without the authoriser got %v, want the scope refusal", err)
+	}
 }
 
 func TestAGroupIsReadWithItsMembers(t *testing.T) {
 	groups := newGroups(namedGroup(t, groupID, "Leads"))
 	groups.members[groupID] = []shared.ID{invitedID, adminID}
 
-	detail, err := GetGroup{Groups: groups, UnitOfWork: &unitOfWork{}}.Execute(t.Context(), reader(), groupID)
+	detail, err := GetGroup{Members: &authorizer{}, Groups: groups, UnitOfWork: &unitOfWork{}}.Execute(t.Context(), reader(), groupID)
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}
@@ -74,7 +94,7 @@ func TestAGroupIsReadWithItsMembers(t *testing.T) {
 }
 
 func TestAGroupThatIsNotThereIsNotFoundByIdentifier(t *testing.T) {
-	_, err := GetGroup{Groups: newGroups(), UnitOfWork: &unitOfWork{}}.Execute(t.Context(), reader(), groupID)
+	_, err := GetGroup{Members: &authorizer{}, Groups: newGroups(), UnitOfWork: &unitOfWork{}}.Execute(t.Context(), reader(), groupID)
 
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("got %v, want not found", err)
@@ -84,10 +104,15 @@ func TestAGroupThatIsNotThereIsNotFoundByIdentifier(t *testing.T) {
 	}
 }
 
+// Both reads are any member's, so neither declares a permission of the catalogue: a declared
+// MANAGE_MEMBERS would tell *who may do what* that only a manager reads a group (F-7).
 func TestTheGroupReadsAreDeclaredAsReads(t *testing.T) {
 	for _, descriptor := range []usecase.Descriptor{ListGroups{}.Descriptor(), GetGroup{}.Descriptor()} {
 		if !descriptor.ReadOnly || descriptor.TokenScope != membersRead {
 			t.Errorf("%s is declared %+v", descriptor.Name, descriptor)
+		}
+		if descriptor.Permission != "" {
+			t.Errorf("%s declares %s, but any member reads it", descriptor.Name, descriptor.Permission)
 		}
 	}
 	if err := (ListGroups{}).Descriptor().ValidateInput(usecase.Input{"cursor": "abc", "size": 10}); err != nil {
@@ -104,7 +129,7 @@ func TestTheGroupOutputCarriesTheMembersAsIdentifiers(t *testing.T) {
 	groups := newGroups(namedGroup(t, groupID, "Leads"))
 	groups.members[groupID] = []shared.ID{invitedID}
 
-	out, err := GetGroup{Groups: groups, UnitOfWork: &unitOfWork{}}.
+	out, err := GetGroup{Members: &authorizer{}, Groups: groups, UnitOfWork: &unitOfWork{}}.
 		invoke(t.Context(), reader(), usecase.Input{"group_id": groupID.String()})
 	if err != nil {
 		t.Fatalf("invoking: %v", err)
@@ -159,7 +184,7 @@ func TestTheGroupSaysWhetherTheReaderMayChangeItsMembers(t *testing.T) {
 		t.Run(row.name, func(t *testing.T) {
 			groups := newGroups(namedGroup(t, groupID, "Leads"))
 			grants := newGrants(row.held...)
-			out, err := GetGroup{Groups: groups, Grants: grants, Grantable: row.reader, UnitOfWork: &unitOfWork{}}.
+			out, err := GetGroup{Members: &authorizer{}, Groups: groups, Grants: grants, Grantable: row.reader, UnitOfWork: &unitOfWork{}}.
 				invoke(t.Context(), reader(), usecase.Input{"group_id": groupID.String()})
 			if err != nil {
 				t.Fatalf("reading: %v", err)
@@ -176,9 +201,42 @@ func TestTheGroupSaysWhetherTheReaderMayChangeItsMembers(t *testing.T) {
 	}
 
 	// Wired without the answer, nothing is offered.
-	out, err := GetGroup{Groups: newGroups(namedGroup(t, groupID, "Leads")), UnitOfWork: &unitOfWork{}}.
+	out, err := GetGroup{Members: &authorizer{}, Groups: newGroups(namedGroup(t, groupID, "Leads")), UnitOfWork: &unitOfWork{}}.
 		invoke(t.Context(), reader(), usecase.Input{"group_id": groupID.String()})
 	if err != nil || out["members_changeable"] != false {
 		t.Errorf("unwired: %v (%v), want false", out["members_changeable"], err)
+	}
+}
+
+// A requester is no member: the groups, and who is in them, are refused by the authoriser's
+// member question (access.Request.AnyMember), before anything is read.
+func TestARequesterReadsNeitherTheGroupsNorTheirMembers(t *testing.T) {
+	groups := newGroups(namedGroup(t, groupID, "Leads"))
+	refusal := shared.ErrForbidden.WithDetail("access.not_permitted").WithParams(map[string]string{"permission": "READ"})
+	members := &authorizer{refuse: refusal}
+
+	if _, err := (ListGroups{Members: members, Groups: groups, UnitOfWork: &unitOfWork{}}).
+		Execute(t.Context(), reader(), ListGroupsQuery{}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("listing = %v, want the refusal", err)
+	}
+	if _, err := (GetGroup{Members: members, Groups: groups, UnitOfWork: &unitOfWork{}}).
+		Execute(t.Context(), reader(), groupID); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("reading = %v, want the refusal", err)
+	}
+	if groups.listedPage.Size != 0 {
+		t.Error("the list was read for a requester")
+	}
+	for _, request := range members.requests {
+		if !request.AnyMember || request.TokenScope != membersRead || request.Action != GroupReadAction {
+			t.Errorf("asked %+v, want any member under members:read for group.read", request)
+		}
+	}
+	if len(members.requests) != 2 {
+		t.Errorf("asked %d times, want once per read", len(members.requests))
+	}
+	// Without the authoriser, nobody reads them: the side that does not leak.
+	if _, err := (ListGroups{Groups: groups, UnitOfWork: &unitOfWork{}}).
+		Execute(t.Context(), reader(), ListGroupsQuery{}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("without the authoriser = %v, want a refusal", err)
 	}
 }

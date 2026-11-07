@@ -14,6 +14,8 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -61,6 +63,23 @@ type RelativeDates struct {
 	Jobs        Queue
 	Clock       clock.Clock
 	IDs         clock.IDGenerator
+	// Calendars finds the business calendar a trigger counts working days on. Nil, or a calendar
+	// that is gone, owes nothing for such a trigger: plain days would come earlier than promised.
+	Calendars BusinessCalendars
+	// Workspaces answers the workspace's own time zone, whose calendar days an offset's days are.
+	// Nil, or a zone this binary cannot load, counts in UTC.
+	Workspaces WorkspaceZones
+}
+
+// WorkspaceZones is the one thing the producer reads of its workspace: the zone its days are in.
+type WorkspaceZones interface {
+	Find(ctx context.Context) (identity.Workspace, error)
+}
+
+// BusinessCalendars answers the calendar of a key as the entry's hub reads it: the hub's own
+// version where it keeps one, the workspace's or the installation's otherwise.
+type BusinessCalendars interface {
+	Find(ctx context.Context, hubID shared.ID, key string) (calendar.BusinessCalendar, error)
 }
 
 var _ eventbus.Subscriber = RelativeDates{}
@@ -70,13 +89,14 @@ func (d RelativeDates) Name() string { return RelativeDatesConsumer }
 
 // Wants reports whether an event can have moved an anchor.
 //
-// The two anchors are the due date and the creation instant, so what matters is an entry appearing,
-// its deadline moving, and an entry ending. A narrow list rather than every type, because unlike
+// The anchors are the due date, the creation and the completion instant and a date field, so what
+// matters is an entry appearing, its deadline or a field moving (`item.updated` carries a field's
+// change), its completing or reopening, and an entry ending. A narrow list rather than every type, because unlike
 // MatchRules this subscriber does a read per event and a rule's existence cannot make an unrelated
 // event relevant - `comment.created` moves no anchor whatever anybody has written.
 func (d RelativeDates) Wants(eventType event.Type) bool {
 	switch eventType {
-	case event.ItemCreated, event.ItemDueChanged, event.ItemUpdated,
+	case event.ItemCreated, event.ItemDueChanged, event.ItemUpdated, event.ItemCompleted, event.ItemReopened,
 		event.ItemTrashed, event.ItemPurged, event.ItemRestored:
 		return true
 	default:
@@ -110,6 +130,11 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 		return d.Occurrences.ForgetItem(ctx, itemID)
 	}
 
+	zone, err := d.zone(ctx)
+	if err != nil {
+		return err
+	}
+
 	at := location{CollectionID: item.CollectionID}
 	if at.HubID, err = d.hubOf(ctx, item.CollectionID); err != nil {
 		return err
@@ -121,7 +146,7 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 		if !covers(rule.Scope, at) {
 			continue
 		}
-		moment, owes, err := d.settle(ctx, rule, item)
+		moment, owes, err := d.settle(ctx, rule, item, at.HubID, zone)
 		if err != nil {
 			return err
 		}
@@ -138,9 +163,28 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 // settle writes, moves or removes one rule's moment for this entry, and answers the moment when
 // there is one.
 func (d RelativeDates) settle(
-	ctx context.Context, rule domain.Rule, item anchoredItem,
+	ctx context.Context, rule domain.Rule, item anchoredItem, hubID shared.ID, zone *time.Location,
 ) (time.Time, bool, error) {
-	at, owes, err := domain.OccurrenceAt(rule.Trigger, item.anchor(rule.Trigger.Anchor))
+	var cal calendar.BusinessCalendar
+	if rule.Trigger.Calendar != "" {
+		if d.Calendars == nil {
+			return time.Time{}, false, d.Occurrences.Forget(ctx, rule.ID, item.ID)
+		}
+		found, err := d.Calendars.Find(ctx, hubID, rule.Trigger.Calendar)
+		if errors.Is(err, shared.ErrNotFound) {
+			// A rule that can no longer fire is the check's to report and switch off, so its
+			// owner hears of it rather than finding resolved tickets that never close (ADR-0060).
+			if err := d.seedCheck(ctx, rule.TenantID); err != nil {
+				return time.Time{}, false, err
+			}
+			return time.Time{}, false, d.Occurrences.Forget(ctx, rule.ID, item.ID)
+		}
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		cal = found
+	}
+	at, owes, err := domain.OccurrenceOn(rule.Trigger, item.anchor(rule.Trigger), cal, zone)
 	if err != nil {
 		// An offset this build cannot read, on a rule that was written when it could. The rule
 		// stops owing rather than firing at the anchor itself, and it stays visible and editable.
@@ -158,6 +202,23 @@ func (d RelativeDates) settle(
 	return at, err == nil, err
 }
 
+// zone answers the workspace's own time zone, read in the dispatcher's transaction.
+func (d RelativeDates) zone(ctx context.Context) (*time.Location, error) {
+	if d.Workspaces == nil {
+		return time.UTC, nil
+	}
+	workspace, err := d.Workspaces.Find(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if workspace.DefaultTimeZone != "" {
+		if loaded, err := time.LoadLocation(workspace.DefaultTimeZone); err == nil {
+			return loaded, nil
+		}
+	}
+	return time.UTC, nil
+}
+
 // wake seeds or pulls forward this tenant's poller - the same one the schedules use, because the
 // question it answers is "what does this tenant owe now" and there is one answer to it.
 func (d RelativeDates) wake(ctx context.Context, tenantID shared.ID, at time.Time) error {
@@ -173,13 +234,17 @@ func (d RelativeDates) wake(ctx context.Context, tenantID shared.ID, at time.Tim
 	return err
 }
 
-// anchoredItem is the entry as this subscriber reads it: where it sits, and the two instants a
+// anchoredItem is the entry as this subscriber reads it: where it sits, and the instants a
 // relative-date rule can measure from.
 type anchoredItem struct {
 	ID           shared.ID
 	CollectionID shared.ID
 	CreatedAt    time.Time
 	DueAt        *time.Time
+	// CompletedAt is when the entry was done, nil while it is open.
+	CompletedAt *time.Time
+	// Fields is the entry's custom field values, read for a FIELD anchor.
+	Fields map[string]any
 	// Trashed marks an entry in the trash. It has both anchors still and owes nothing: a rule that
 	// escalated a deleted entry's deadline would act on something its author had thrown away.
 	Trashed bool
@@ -188,19 +253,40 @@ type anchoredItem struct {
 // anchor answers the instant the trigger names, and nil when there is none. A cleared due date and
 // an entry in the trash are both "none", which is what makes "does not fire for an anchor that was
 // cleared" a property of this type rather than of a caller that remembered.
-func (i anchoredItem) anchor(kind domain.DateAnchor) *time.Time {
+func (i anchoredItem) anchor(trigger domain.Trigger) *time.Time {
 	if i.Trashed {
 		return nil
 	}
-	switch kind {
+	switch trigger.Anchor {
 	case domain.AnchorDueDate:
 		return i.DueAt
 	case domain.AnchorCreatedAt:
 		created := i.CreatedAt
 		return &created
+	case domain.AnchorCompletedAt:
+		return i.CompletedAt
+	case domain.AnchorField:
+		return dateValue(i.Fields[trigger.AnchorField])
 	default:
 		return nil
 	}
+}
+
+// dateValue reads a DATE field's day from its start in UTC - a day carries no zone, and the
+// offset is what places the reminder - and a DATE_TIME field's moment as it is. Anything else is
+// no anchor: a field redefined to another kind leaves values that measure nothing.
+func dateValue(value any) *time.Time {
+	text, ok := value.(string)
+	if !ok {
+		return nil
+	}
+	for _, layout := range []string{time.DateOnly, time.RFC3339} {
+		if at, err := time.Parse(layout, text); err == nil {
+			at = at.UTC()
+			return &at
+		}
+	}
+	return nil
 }
 
 func (d RelativeDates) entry(
@@ -220,11 +306,15 @@ func (d RelativeDates) entry(
 
 	anchored := anchoredItem{
 		ID: item.ID, CollectionID: item.CollectionID,
-		CreatedAt: item.CreatedAt, Trashed: item.DeletedAt != nil,
+		CreatedAt: item.CreatedAt, Trashed: item.DeletedAt != nil, Fields: item.CustomFields,
 	}
 	if item.Due != nil {
 		due := item.Due.At
 		anchored.DueAt = &due
+	}
+	if item.Completion.IsCompleted && item.Completion.CompletedAt != nil {
+		done := *item.Completion.CompletedAt
+		anchored.CompletedAt = &done
 	}
 	return anchored, true, nil
 }
@@ -246,4 +336,15 @@ func (d RelativeDates) hubOf(ctx context.Context, collectionID shared.ID) (share
 		return "", err
 	}
 	return container.ParentID, nil
+}
+
+// seedCheck writes the workspace's check job, deduplicated per tenant as a deletion's is.
+func (d RelativeDates) seedCheck(ctx context.Context, tenantID shared.ID) error {
+	if d.Jobs == nil || tenantID.IsZero() {
+		return nil
+	}
+	_, err := d.Jobs.Enqueue(ctx, queue.Request{
+		Kind: queue.KindAutomationCheck, TenantID: tenantID, DedupeKey: tenantID.String(),
+	})
+	return err
 }

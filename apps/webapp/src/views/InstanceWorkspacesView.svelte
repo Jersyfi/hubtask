@@ -27,6 +27,7 @@
   // is the installation: no *New workspace*, *Suspend* or *Delete*, which the server refuses there.
   // *Cancel deletion* stands on a row pending deletion until the removal has begun.
 
+  import { countByLimit, isBelowUse, limitStanding, narrowedByLimit, useOf, type LimitFilter } from '../lib/instance/quotause.ts';
   import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Dialog, IconButton, Input, Menu, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
@@ -37,7 +38,7 @@
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { OWN_TARGET, exportTargetChoices } from '../lib/backup/targets.ts';
-  import { instance } from '../lib/data/instance.svelte.ts';
+  import { instance, type WorkspaceFilter } from '../lib/data/instance.svelte.ts';
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { plans } from '../lib/data/plans.svelte.ts';
   import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
@@ -50,6 +51,7 @@
   import { focusFirst } from '../lib/forms/missing.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -60,6 +62,8 @@
   /** The opening's bounds, as the contract states them: a day unless said otherwise, a week at most. */
   const OPENING_DEFAULT_HOURS = 24;
   const OPENING_MAXIMUM_HOURS = 168;
+  /** A deletion's grace as the contract states it (multi-tenancy.md §5): fixed, not configured. */
+  const DELETION_GRACE_DAYS = 30;
 
   /** Which act is open, and on which workspace. One at a time: two dialogs would be two answers. */
   let acting = $state<
@@ -70,6 +74,8 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** The owner's way in, from the one answer that carries it. Held by the screen, never the store. */
   let provisioned = $state<ProvisionedTenant | undefined>(undefined);
+  /** The address the owner's invitation was mailed to, said beside the answer that has none. */
+  let mailedTo = $state('');
 
   // The new workspace's fields.
   let slug = $state('');
@@ -97,9 +103,42 @@
     if (!instance.isElevated) return;
     // The instance level too, so the limits dialog can say what an empty field actually means:
     // "the installation's default" is not a helpful sentence without the number.
-    const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
+    const stops = untrack(() => [instance.openSettings(), instance.openTargets(), instance.openNearQuota()]);
     return () => stops.forEach((stop) => stop());
   });
+
+  // The rows: a page at a time of the narrowing in force, never every workspace at once. The short
+  // name is applied a moment after the last keystroke rather than on each.
+  let findSlug = $state('');
+  let findStatus = $state('');
+  let findPlan = $state('');
+  let filter = $state<WorkspaceFilter>({});
+  $effect(() => {
+    const next: WorkspaceFilter = {
+      slug: findSlug,
+      status: (findStatus || undefined) as WorkspaceFilter['status'],
+      plan: findPlan,
+    };
+    const timer = setTimeout(() => { filter = next; }, findSlug === (untrack(() => filter.slug) ?? '') ? 0 : 300);
+    return () => clearTimeout(timer);
+  });
+  $effect(() => {
+    if (!instance.isElevated) return;
+    const narrowing = filter;
+    return untrack(() => instance.openWorkspacePage(narrowing));
+  });
+  /** Near or at a limit: narrowed on the rows read, since the list's own read has no such filter. */
+  let findLimit = $state<LimitFilter>('');
+  const isNarrowed = $derived(Boolean(filter.slug?.trim() || filter.status || filter.plan || findLimit));
+  let loadingMore = $state(false);
+  async function more(): Promise<void> {
+    loadingMore = true;
+    try {
+      await instance.loadMoreWorkspaces();
+    } finally {
+      loadingMore = false;
+    }
+  }
   // A New workspace opened before the plans were read is preset once they are, as it would have been.
   $effect(() => {
     if (acting?.kind !== 'new' || isPlanPreset || plans.state.status !== 'ready') return;
@@ -152,11 +191,18 @@
   const isOwn = $derived(acting?.tenant !== undefined && acting.tenant.id === ownId);
   const isMulti = $derived(manifest.isMultiTenant);
 
-  const reading = $derived(instance.workspacesState);
-  const workspaces = $derived(instance.workspaces);
+  const reading = $derived(instance.workspacePage);
+  const workspaces = $derived(reading.status === 'ready' ? reading.data.data : []);
   const unreadable = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
+
+  /** Each workspace near or at a limit, by its id: `/admin/quotas` names every one of them. */
+  const nearById = $derived(new Map(instance.nearQuota.map((entry) => [entry.tenant_id, entry])));
+
+  const shownWorkspaces = $derived(narrowedByLimit(workspaces, nearById, findLimit));
+  /** How many the limits filter keeps across the installation, which `/admin/quotas` answers whole. */
+  const limitedInAll = $derived(findLimit ? countByLimit(instance.nearQuota, findLimit) : 0);
 
   /** The columns, in the order the rows render their cells. */
   const columns = $derived([
@@ -178,6 +224,7 @@
     'ai_tokens_per_day',
     'ai_arrival_proposals_per_day',
     'accounts',
+    'mailboxes',
   ] as const;
 
   function open(
@@ -275,25 +322,34 @@
       failure =
         cause instanceof TransportError
           ? renderProblem(cause, messages)
-          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+          : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
     } finally {
       working = undefined;
     }
   }
 
   /**
-   * Whether the address being typed is one an existing workspace already answers at.
-   *
-   * Answered from the table this screen already holds rather than by asking the server on every
-   * keystroke: the operator is looking at every workspace on the installation, so the one fact
-   * needed is already here. The server still refuses a collision — two operators typing at once is
-   * a race no client can win — and this is the half that means nobody meets that refusal after
-   * filling in four fields.
+   * Whether the address being typed is one an existing workspace already answers at: one read by
+   * the short name, a moment after the last keystroke, so nobody meets the server's refusal after
+   * filling in four fields. The server still refuses a collision - two operators typing at once is
+   * a race no client can win.
    */
-  const slugTaken = $derived(
-    slug.trim() !== '' &&
-      workspaces.some((each) => each.slug.toLowerCase() === slug.trim().toLowerCase()),
-  );
+  let slugTaken = $state(false);
+  $effect(() => {
+    const typed = slug.trim();
+    if (typed === '' || acting?.kind !== 'new') {
+      slugTaken = false;
+      return;
+    }
+    let current = true;
+    const timer = setTimeout(() => {
+      void instance.isSlugTaken(typed).then((taken) => { if (current) slugTaken = taken; }, () => {});
+    }, 300);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  });
   /** The host as a row holds it: lower case, without the root's dot. */
   const typedHost = $derived(host.trim().toLowerCase().replace(/\.$/, ''));
   const hostTaken = $derived(
@@ -341,12 +397,16 @@
       <p class="prose">{t('app.instance.workspaces_intro')}</p>
 
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
-      {#if provisioned}
+      {#if provisioned?.owner_delivery === 'MAIL'}
+        <!-- Mailed, so nothing is shown: the mail's own way in would void a token shown beside it
+             (UC-INS-07 check 3). -->
+        <Banner tone="success" title={t('app.instance.owner_mailed_title')} dismissLabel={t('app.instance.done')} onDismiss={() => (provisioned = undefined)}>
+          {t('app.instance.owner_mailed', { email: mailedTo })}
+        </Banner>
+      {:else if provisioned?.owner_redemption_token}
         <!-- The owner's way in, once. It is not in the store and not in the listing: it exists in
              the answer that created the workspace and nowhere else. -->
         <OneTimeSecret
@@ -370,9 +430,7 @@
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else}
         {#if isMulti}
           <div>
@@ -380,11 +438,53 @@
           </div>
         {/if}
 
-        {#if workspaces.length === 0}
-          <Banner tone="info">{t('app.instance.workspaces_none')}</Banner>
+        <div class="filters">
+          <Input label={t('app.instance.find_slug')} bind:value={findSlug} />
+          <Select
+            label={t('app.instance.find_status')}
+            bind:value={findStatus}
+            options={[
+              { value: '', label: t('app.instance.find_any') },
+              { value: 'ACTIVE', label: t('app.instance.state_active') },
+              { value: 'SUSPENDED', label: t('app.instance.state_suspended') },
+              { value: 'PENDING_DELETION', label: t('app.instance.state_pending_deletion') },
+            ]}
+          />
+          {#if hasPlans}
+            <Select
+              label={t('app.instance.find_plan')}
+              bind:value={findPlan}
+              options={[
+                { value: '', label: t('app.instance.find_any') },
+                { value: '-', label: t('app.instance.plan_none') },
+                ...plans.all.map((plan) => ({ value: plan.name, label: plan.display_name })),
+              ]}
+            />
+          {/if}
+          <Select
+            label={t('app.instance.find_limit')}
+            bind:value={() => findLimit, (value) => (findLimit = value as LimitFilter)}
+            options={[
+              { value: '', label: t('app.instance.find_any') },
+              { value: 'near', label: t('app.instance.find_limit_near') },
+              { value: 'at', label: t('app.instance.limit_at') },
+            ]}
+          />
+        </div>
+        {#if findLimit && instance.hasMoreWorkspaces && shownWorkspaces.length < limitedInAll}
+          <p class="quiet-line" data-limit-more>{t('app.instance.find_limit_more', { shown: String(shownWorkspaces.length), count: String(limitedInAll) })}</p>
+        {/if}
+
+        {#if shownWorkspaces.length === 0}
+          <Banner tone="info">{t(isNarrowed ? 'app.instance.workspaces_none_found' : 'app.instance.workspaces_none')}</Banner>
+          {#if findLimit && instance.hasMoreWorkspaces}
+            <!-- The rows read so far hold none; the ones not read yet may. -->
+            <div><Button onclick={more} isBusy={loadingMore}>{t('app.instance.workspaces_more')}</Button></div>
+          {/if}
         {:else}
-          <Table label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
-            {#each workspaces as workspace (workspace.id)}
+          <Table isStacked label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
+            {#each shownWorkspaces as workspace (workspace.id)}
+              {@const standing = limitStanding(nearById.get(workspace.id))}
               <tr>
                 <td>
                   <span class="name">{workspace.display_name}</span>
@@ -405,6 +505,11 @@
                   >
                     {t(`app.instance.state_${workspace.status.toLowerCase()}`)}
                   </Badge>
+                  {#if standing}
+                    <!-- Counts only, from the installation's own answer: which limit and how far
+                         stand in the limits dialog and on the overview. -->
+                    <Badge tone={standing === 'at' ? 'danger' : 'warning'}>{t(`app.instance.limit_${standing}`)}</Badge>
+                  {/if}
                   {#if workspace.password_opening}
                     <!-- An operator's opening of the password, while it stands: until when, and for
                          whom - the facts somebody asking "why can people sign in by password there"
@@ -466,6 +571,11 @@
               </tr>
             {/each}
           </Table>
+          {#if instance.hasMoreWorkspaces}
+            <div>
+              <Button onclick={more} isBusy={loadingMore}>{t('app.instance.workspaces_more')}</Button>
+            </div>
+          {/if}
         {/if}
         <!-- UC-INS-15 check 10: below the workspaces, as the approved screen places it; absent
              where no workspace set up an own domain. -->
@@ -508,6 +618,7 @@
           return;
         }
         void run('new', async () => {
+          mailedTo = ownerEmail.trim();
           provisioned = await instance.provision({
             ...(manifest.hasAssignedHosts ? { host: host.trim() } : {}),
             ...(slug.trim() === '' ? {} : { slug: slug.trim() }),
@@ -595,7 +706,7 @@
     <!-- What it does to the people in it, before the button. -->
     <Banner tone="warning">{t('app.instance.suspend_cost')}</Banner>
     {#if isOwn}
-      <Banner tone="danger">{t('app.instance.suspend_own')}</Banner>
+      <FailureNote problem={t('app.instance.suspend_own')} />
     {/if}
   </Stack>
 </Dialog>
@@ -622,9 +733,9 @@
   {/snippet}
   <Stack gap="150">
     <!-- What it costs, before the button and not in a help page. -->
-    <Banner tone="warning">{t('app.instance.delete_cost')}</Banner>
+    <Banner tone="warning">{t('app.instance.delete_cost', { days: String(DELETION_GRACE_DAYS) })}</Banner>
     {#if isOwn}
-      <Banner tone="danger">{t('app.instance.delete_own')}</Banner>
+      <FailureNote problem={t('app.instance.delete_own')} />
     {/if}
     <Input
       label={t('app.instance.delete_confirm_label', { name: acting?.tenant?.display_name ?? '' })}
@@ -780,12 +891,25 @@
         inputmode="numeric"
         autocomplete="off"
       />
+      {@const used = useOf(nearById.get(acting?.tenant?.id ?? ''), name)}
+      {#if used !== undefined}
+        <p class="use" data-quota-use={name}>
+          {t('app.instance.quota_in_use', { used })}
+          {#if isBelowUse(quotas[name] ?? undefined, used)}
+            <span class="below">{t('app.instance.quota_below_use')}</span>
+          {/if}
+        </p>
+      {/if}
     {/each}
   </Stack>
 </Dialog>
 
 <style>
+  .use { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .below { display: block; color: var(--text-warning); }
   .prose { margin: 0; max-inline-size: 60ch; }
+  .quiet-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .filters { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: end; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }

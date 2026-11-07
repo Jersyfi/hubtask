@@ -161,16 +161,16 @@ func (w Writer) attach(ctx context.Context, attachments []shared.ID) error {
 			if errors.Is(err, shared.ErrNotFound) {
 				// Another tenant's object is invisible under row level security, so "not yours"
 				// and "not there" are deliberately one answer (T-04).
-				return shared.ErrValidation.
-					WithDetail("jumble.attachment_unknown").
-					WithParams(map[string]string{"media_id": id.String()}).
-					WithFields(shared.FieldError{
-						Path: "/attachments", Code: "jumble.attachment_unknown",
-					})
+				return attachmentUnknown(id)
 			}
 			return err
 		}
 		if err := object.Attachable(media.UsageAttachment); err != nil {
+			// An upload not yet confirmed, or on its way out, is to the jumble an upload it does
+			// not know (UC-JUM-01 check 5); an infected or misused one keeps its own code.
+			if code := shared.AsError(err).DetailCode; code == "media.not_ready" || code == "media.not_found" {
+				return attachmentUnknown(id)
+			}
 			return err
 		}
 		if err := w.Media.AdjustRefCount(ctx, id, 1); err != nil {
@@ -178,6 +178,13 @@ func (w Writer) attach(ctx context.Context, attachments []shared.ID) error {
 		}
 	}
 	return nil
+}
+
+func attachmentUnknown(id shared.ID) error {
+	return shared.ErrValidation.
+		WithDetail("jumble.attachment_unknown").
+		WithParams(map[string]string{"media_id": id.String()}).
+		WithFields(shared.FieldError{Path: "/attachments", Code: "jumble.attachment_unknown"})
 }
 
 // announceArrival publishes jumble.entry_received into the same transaction as the row, so the

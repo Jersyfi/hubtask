@@ -74,3 +74,60 @@ func NewSetupCodeHasher(installationSecret secret.Secret) InboundTokenHasher {
 	mac.Write([]byte(setupCodePepperInfo))
 	return InboundTokenHasher{pepper: mac.Sum(nil)}
 }
+
+// pageLinkPepperInfo separates a page's public link tokens from every other secret the
+// installation key protects.
+const pageLinkPepperInfo = "hubtask/page-public-link/v1"
+
+// NewPageLinkHasher is the same construction under the public page link's own purpose label: a
+// 256-bit token, looked up on every opening, so a keyed hash and no slow one.
+func NewPageLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(pageLinkPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}
+
+// publicFormPepperInfo separates a public form's link tokens from every other secret the
+// installation key protects.
+const publicFormPepperInfo = "hubtask/public-form-link/v1"
+
+// NewPublicFormHasher is the same construction under the public form link's own purpose label.
+func NewPublicFormHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(publicFormPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}
+
+// satisfactionLinkPepperInfo separates the satisfaction links of resolution mails from every other
+// secret the installation key protects.
+const satisfactionLinkPepperInfo = "hubtask/satisfaction-link/v1"
+
+// NewSatisfactionLinkHasher is the same construction under the satisfaction link's own purpose label.
+func NewSatisfactionLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(satisfactionLinkPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}
+
+// publicFormChallengePepperInfo separates the signature on a public form's proof-of-work
+// challenge from every other use of the installation key: a challenge's tag can never be a
+// stored hash of anything.
+const publicFormChallengePepperInfo = "hubtask/public-form-challenge/v1"
+
+// NewPublicFormChallengeSigner is the keyed hash a public form's challenge is signed with.
+func NewPublicFormChallengeSigner(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(publicFormChallengePepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}
+
+// roadmapLinkPepperInfo separates a portfolio roadmap's public link tokens from every other
+// secret the installation key protects.
+const roadmapLinkPepperInfo = "hubtask/roadmap-public-link/v1"
+
+// NewRoadmapLinkHasher is the same construction under the roadmap link's own purpose label.
+func NewRoadmapLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(roadmapLinkPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}

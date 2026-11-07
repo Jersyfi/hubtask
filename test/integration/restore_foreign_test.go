@@ -58,8 +58,10 @@ var foreignMilestone = time.Date(2026, 10, 20, 8, 0, 0, 0, time.UTC)
 
 // foreignWorkspace seeds a workspace with a hub, a collection with its milestone and a task, exports it to the store
 // as tenant-export.md writes an export, and answers its identifier and the archive's path there.
+// A further row takes the workspace's and the task's identities.
 func foreignWorkspace(
 	ctx context.Context, t *testing.T, store backupport.Store, title string,
+	further ...func(tenant, item shared.ID) (string, []any),
 ) (shared.ID, string) {
 	t.Helper()
 	tenant, account, hub, collection, item := freshID(t), freshID(t), freshID(t), freshID(t), freshID(t)
@@ -88,6 +90,12 @@ func foreignWorkspace(
 	} {
 		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
 			t.Fatalf("seeding the workspace: %v\n%s", err, statement.sql)
+		}
+	}
+	for _, row := range further {
+		statement, args := row(tenant, item)
+		if _, err := admin.Exec(ctx, statement, args...); err != nil {
+			t.Fatalf("seeding the workspace: %v\n%s", err, statement)
 		}
 	}
 

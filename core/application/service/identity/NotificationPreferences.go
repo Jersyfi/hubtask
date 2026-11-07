@@ -154,7 +154,8 @@ func effectivePreferences(
 // Descriptor registers the use case in all three channels.
 func (h ListNotificationPreferences) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListNotificationPreferencesName,
+		Name:       ListNotificationPreferencesName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Reads what an account wants to be told about: one row per notification category " +
 			"and channel the installation knows, with the effective value. A pair nobody has " +
 			"written is answered with the default and marked as such, because \"not stored\" and " +
@@ -338,7 +339,8 @@ func (h SetNotificationPreference) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h SetNotificationPreference) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetNotificationPreferenceName,
+		Name:       SetNotificationPreferenceName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Says what an account wants to be told about, one category and channel at a " +
 			"time: whether notifications of that kind are sent, and whether an email names the " +
 			"entry it is about. Switching a category off makes the next notification of that " +

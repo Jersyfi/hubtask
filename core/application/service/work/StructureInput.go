@@ -52,6 +52,8 @@ func structureValuesFrom(raw map[string]any) (domain.StructureValues, error) {
 			for _, behaviour := range behaviours {
 				values.Automation = append(values.Automation, domain.AutomationBehaviour(behaviour))
 			}
+		case domain.SettingEntryTypes:
+			values.EntryTypes, err = entryTypesFrom(value)
 		}
 		if err != nil {
 			return domain.StructureValues{}, err
@@ -151,6 +153,22 @@ func fieldsFrom(value any) (map[domain.ItemType]domain.LevelFields, error) {
 		}
 	}
 	return fields, nil
+}
+
+func entryTypesFrom(value any) (map[domain.ItemType][]string, error) {
+	entries, held := value.(map[string]any)
+	if !held {
+		return nil, shapeInvalid(string(domain.SettingEntryTypes))
+	}
+	offered := make(map[domain.ItemType][]string, len(entries))
+	for level, raw := range entries {
+		keys, err := textsFrom(raw, string(domain.SettingEntryTypes))
+		if err != nil {
+			return nil, err
+		}
+		offered[domain.ItemType(level)] = keys
+	}
+	return offered, nil
 }
 
 func viewsFrom(value any) (*domain.Views, error) {

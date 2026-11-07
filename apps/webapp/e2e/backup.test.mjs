@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { stub, forgetUnstubbed } from './fixture.mjs';
+import { stub, forgetUnstubbed, MANIFEST } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -175,5 +175,90 @@ test('chromium: an unprotected target is added only once its owner has accepted 
   assert.equal(body.encryption_mode, 'NONE');
   assert.equal(body.insecure_acknowledged, true);
   assert.deepEqual(body.config, { url: 'http://dav.example.invalid/backups/' });
+  assert.deepEqual(failures, []);
+});
+
+/** The backup screen with the given targets, every target and schedule the page writes recorded. */
+async function backupScreen(browser, targets, viewport = { width: 1280, height: 1000 }, features = {}) {
+  const written = [];
+  const context = await browser.newContext({ viewport });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, ...features } } });
+    if (path === '/backup-targets' && request.method() === 'GET') return route.fulfill({ json: targets });
+    if ((path === '/backup-targets' || path === '/backup-schedules') && request.method() === 'POST') {
+      written.push({ path, body: request.postDataJSON() });
+      const id = path === '/backup-targets' ? '01a0e2e0-0000-7000-8000-0000000007b1' : '01a0e2e0-0000-7000-8000-0000000007b2';
+      return route.fulfill({ status: 201, json: { id, ...request.postDataJSON() } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  forgetUnstubbed();
+  await page.goto(`${served.origin}/administration/backup`);
+  return { page, written, failures, close: () => context.close() };
+}
+
+test('chromium: an empty backup screen backs the workspace up every night with one press', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, written, failures, close } = await backupScreen(browser, []);
+  t.after(close);
+
+  const start = page.getByRole('button', { name: 'Back up this workspace every night' });
+  await start.waitFor({ timeout: 15_000 });
+  await start.click();
+  for (let waited = 0; written.length < 2 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+
+  // The target first, in the installation's volume and encrypted; then its nightly schedule, as
+  // backup-restore.md §4's example: incremental each night, full on Sunday with the trial restore.
+  assert.equal(written[0].path, '/backup-targets');
+  assert.deepEqual(
+    { kind: written[0].body.kind, config: written[0].body.config, encryption_mode: written[0].body.encryption_mode },
+    { kind: 'LOCAL', config: { path: 'workspaces' }, encryption_mode: 'AES256_GCM' },
+  );
+  assert.equal(written[1].path, '/backup-schedules');
+  const schedule = written[1].body;
+  assert.equal(schedule.target_id, '01a0e2e0-0000-7000-8000-0000000007b1');
+  assert.deepEqual(schedule.scope, { kind: 'TENANT' });
+  assert.equal(schedule.rrule, 'FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
+  assert.equal(schedule.mode, 'INCREMENTAL');
+  assert.equal(schedule.full_rrule, 'FREQ=WEEKLY;BYDAY=SU');
+  assert.equal(schedule.trial_restore, true);
+  assert.equal(schedule.retention, undefined, 'the server keeps its default retention');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: where the operator keeps the backups, the screen says so and offers no target of its own', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, written, failures, close } = await backupScreen(browser, [], undefined, { backup_targets: false });
+  t.after(close);
+
+  await page.getByText('The operator of this installation backs this workspace up.').waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByRole('button', { name: 'Back up this workspace every night' }).count(), 0);
+  assert.equal(await page.locator('form', { hasText: 'Add a target' }).count(), 0, 'no form the server refuses at its end');
+  assert.deepEqual(written, []);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: archives only on this machine suggest a target elsewhere, at phone width too', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const local = { id: '01a0e2e0-0000-7000-8000-0000000007b1', name: 'Backup volume', kind: 'LOCAL', encryption_mode: 'AES256_GCM', enabled: true };
+  const { page, failures, close } = await backupScreen(browser, [local], { width: 375, height: 812 });
+  t.after(close);
+
+  await page.getByRole('heading', { name: 'Suggested: a copy away from this machine' }).waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByRole('button', { name: 'Back up this workspace every night' }).count(), 0);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
   assert.deepEqual(failures, []);
 });

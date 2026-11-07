@@ -4,10 +4,12 @@
 package identity
 
 import (
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -225,6 +227,8 @@ type Preferences struct {
 	// so that the one rule every preference has holds for them too: empty clears.
 	Celebrations          string
 	OnboardingCompletedAt string
+	// ProductsSeen is the whole list of products whose first-visit mark was seen; empty clears it.
+	ProductsSeen []string
 }
 
 // weekStarts is the closed set. Three rather than seven: those are the ones a calendar in real use
@@ -256,10 +260,34 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+	seen, err := productsSeenOf(p.ProductsSeen)
+	if err != nil {
+		return Account{}, err
+	}
 
 	a.Locale, a.TimeZone, a.WeekStart = locale, zone, weekStart
-	a.Celebrations, a.OnboardingCompletedAt = celebrations, completedAt
+	a.Celebrations, a.OnboardingCompletedAt, a.ProductsSeen = celebrations, completedAt, seen
 	return a, nil
+}
+
+// productsSeenOf reads the products whose first-visit mark was seen: module keys, each once in the
+// order given, an empty member ignored. An unknown key is refused by name rather than kept, since
+// nothing could ever be shown for it.
+func productsSeenOf(raw []string) ([]string, error) {
+	seen := make([]string, 0, len(raw))
+	for _, value := range raw {
+		key := strings.TrimSpace(value)
+		if key == "" || slices.Contains(seen, key) {
+			continue
+		}
+		if !module.Key(key).Valid() {
+			return nil, shared.ErrValidation.
+				WithDetail("accounts.products_seen_invalid").
+				WithParams(map[string]string{"value": key})
+		}
+		seen = append(seen, key)
+	}
+	return seen, nil
 }
 
 // celebrationsOf reads the switch: "true", "false", or empty for the default (on). Anything else
@@ -323,7 +351,7 @@ func timeZone(raw string) (string, error) {
 	if zone == "" {
 		return "", nil
 	}
-	if _, err := time.LoadLocation(zone); err != nil {
+	if _, known := shared.LoadZone(zone); !known {
 		return "", shared.ErrValidation.
 			WithDetail("accounts.time_zone_invalid").
 			WithParams(map[string]string{"value": zone})

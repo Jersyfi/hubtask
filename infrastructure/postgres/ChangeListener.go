@@ -5,8 +5,12 @@ package postgres
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +29,11 @@ const ChangeChannel = "hubtask_change"
 // went. Short, because the cost of being disconnected is that every stream on this process falls
 // back to its poll interval - correct, but slow.
 const listenerReconnectDelay = time.Second
+
+// wakeCoalesce is how long a workspace's later changes wait after a wake-up: the first change
+// wakes its streams at once, and a burst of commits then costs each stream one read per window
+// rather than one per commit.
+const wakeCoalesce = 250 * time.Millisecond
 
 // ChangeListener is the wake-up for the change stream: one connection per process holding a
 // `LISTEN`, and an in-process fan-out from it (ADR-0007).
@@ -58,10 +67,89 @@ type ChangeListener struct {
 	// worth reporting, because a process that never reconnects is a process where every stream is
 	// silently slow.
 	connected bool
+	// documents are the waiters of one live document, woken by its own log (migration 0303).
+	documents map[DocumentKey]map[int64]chan struct{}
+	// origin names this process on the awareness channel, so that it skips what it sent itself;
+	// heard is where another process's awareness goes.
+	origin string
+	heard  func(tenantID shared.ID, kind string, documentID shared.ID, message []byte)
+	// peers are the other processes that announced themselves on the awareness channel, by when
+	// they last did; newPeer rings when one is heard for the first time, so that it learns of this
+	// process at once instead of at the next announcement.
+	peers   map[string]time.Time
+	newPeer chan struct{}
+	// held are the workspaces inside a coalescing window, true when a change arrived during it;
+	// coalesce is the window (wakeCoalesce), zero for none.
+	held     map[shared.ID]bool
+	coalesce time.Duration
+	// ended is where a credential's doorbell goes (migration 0339); the account is empty for a
+	// whole workspace.
+	ended func(tenantID, accountID shared.ID)
 }
 
+// DocumentKey names one live document of a workspace.
+type DocumentKey struct {
+	TenantID   shared.ID
+	Kind       string
+	DocumentID shared.ID
+}
+
+// The channels besides ChangeChannel: a document's own log (migration 0303) and the awareness
+// relayed between processes (AwarenessBus).
+const (
+	DocumentChannel   = "hubtask_document"
+	AwarenessChannel  = "hubtask_awareness"
+	CredentialChannel = "hubtask_credential" //nolint:gosec // G101: a NOTIFY channel name, not a credential
+)
+
 func NewChangeListener(pool *pgxpool.Pool) *ChangeListener {
-	return &ChangeListener{pool: pool, waiters: map[shared.ID]map[int64]chan struct{}{}}
+	origin := make([]byte, 8)
+	_, _ = rand.Read(origin)
+	return &ChangeListener{
+		pool: pool, waiters: map[shared.ID]map[int64]chan struct{}{},
+		documents: map[DocumentKey]map[int64]chan struct{}{}, origin: hex.EncodeToString(origin),
+		peers: map[string]time.Time{}, newPeer: make(chan struct{}, 1),
+		held: map[shared.ID]bool{}, coalesce: wakeCoalesce,
+	}
+}
+
+// SubscribeDocument asks to be woken when the document's log moves, as Subscribe for a workspace.
+func (l *ChangeListener) SubscribeDocument(tenantID shared.ID, kind string, documentID shared.ID) (<-chan struct{}, func()) {
+	key := DocumentKey{TenantID: tenantID, Kind: kind, DocumentID: documentID}
+	woken := make(chan struct{}, 1)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.nextID++
+	id := l.nextID
+	if l.documents[key] == nil {
+		l.documents[key] = map[int64]chan struct{}{}
+	}
+	l.documents[key][id] = woken
+	var once sync.Once
+	return woken, func() {
+		once.Do(func() {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			delete(l.documents[key], id)
+			if len(l.documents[key]) == 0 {
+				delete(l.documents, key)
+			}
+		})
+	}
+}
+
+// OnAwareness names where another process's awareness goes; set before Run.
+func (l *ChangeListener) OnAwareness(heard func(tenantID shared.ID, kind string, documentID shared.ID, message []byte)) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.heard = heard
+}
+
+// OnCredential names where a credential's doorbell goes; set before Run.
+func (l *ChangeListener) OnCredential(ended func(tenantID, accountID shared.ID)) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.ended = ended
 }
 
 // Subscribe asks to be woken when the workspace changes, and returns the channel and the way to
@@ -142,8 +230,10 @@ func (l *ChangeListener) listen(ctx context.Context) error {
 	}
 	defer conn.Release()
 
-	if _, err := conn.Exec(ctx, "LISTEN "+ChangeChannel); err != nil {
-		return err
+	for _, channel := range []string{ChangeChannel, DocumentChannel, AwarenessChannel, CredentialChannel} {
+		if _, err := conn.Exec(ctx, "LISTEN "+channel); err != nil {
+			return err
+		}
 	}
 
 	l.setConnected(true)
@@ -162,6 +252,19 @@ func (l *ChangeListener) listen(ctx context.Context) error {
 			return err
 		}
 
+		switch notification.Channel {
+		case DocumentChannel:
+			if key, ok := documentKeyOf(notification.Payload); ok {
+				l.wakeDocument(key)
+			}
+			continue
+		case AwarenessChannel:
+			l.hear(notification.Payload)
+			continue
+		case CredentialChannel:
+			l.credential(notification.Payload)
+			continue
+		}
 		tenantID, err := shared.ParseID(notification.Payload)
 		if err != nil {
 			// Something else is announcing on this channel. Ignored rather than fatal: the
@@ -178,11 +281,42 @@ func (l *ChangeListener) setConnected(connected bool) {
 	l.connected = connected
 }
 
-// wake rings the doorbell for everybody watching one workspace.
+// wake rings the doorbell for everybody watching one workspace, at once for the first change and
+// once at the end of the window for those that arrive during it.
 func (l *ChangeListener) wake(tenantID shared.ID) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if _, holding := l.held[tenantID]; holding {
+		l.held[tenantID] = true
+		return
+	}
+	l.ring(tenantID)
+	l.hold(tenantID)
+}
 
+func (l *ChangeListener) hold(tenantID shared.ID) {
+	if l.coalesce <= 0 {
+		return
+	}
+	if l.held == nil {
+		l.held = map[shared.ID]bool{}
+	}
+	l.held[tenantID] = false
+	time.AfterFunc(l.coalesce, func() { l.release(tenantID) })
+}
+
+func (l *ChangeListener) release(tenantID shared.ID) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	again := l.held[tenantID]
+	delete(l.held, tenantID)
+	if again {
+		l.ring(tenantID)
+		l.hold(tenantID)
+	}
+}
+
+func (l *ChangeListener) ring(tenantID shared.ID) {
 	for _, woken := range l.waiters[tenantID] {
 		select {
 		case woken <- struct{}{}:
@@ -191,4 +325,121 @@ func (l *ChangeListener) wake(tenantID shared.ID) {
 			// first does not, and blocking here would let one slow stream stop every other.
 		}
 	}
+}
+
+func (l *ChangeListener) wakeDocument(key DocumentKey) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, woken := range l.documents[key] {
+		select {
+		case woken <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// awarenessHello is the announcement of a process that relays awareness (AwarenessBus.Run).
+const awarenessHello = "hello"
+
+// hear hands another process's awareness to this one's relay; its own, and an entry that is not
+// the bus's framing, are skipped. A payload is `origin/` and one or more entries, each
+// `tenant/kind/document|base64` and separated by a newline, or `origin/hello`.
+func (l *ChangeListener) hear(payload string) {
+	origin, rest, _ := strings.Cut(payload, "/")
+	if origin == l.origin || origin == "" {
+		return
+	}
+	if rest == awarenessHello {
+		l.greeted(origin)
+		return
+	}
+	l.mu.Lock()
+	heard := l.heard
+	l.mu.Unlock()
+	for _, entry := range strings.Split(rest, "\n") {
+		keyText, encoded, found := strings.Cut(entry, "|")
+		key, ok := documentKeyOf(keyText)
+		if !found || !ok {
+			continue
+		}
+		message, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil || len(message) == 0 {
+			continue
+		}
+		if heard != nil {
+			heard(key.TenantID, key.Kind, key.DocumentID, message)
+		}
+	}
+}
+
+func (l *ChangeListener) greeted(origin string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.peers == nil {
+		l.peers = map[string]time.Time{}
+	}
+	if _, known := l.peers[origin]; !known && l.newPeer != nil {
+		select {
+		case l.newPeer <- struct{}{}:
+		default:
+		}
+	}
+	l.peers[origin] = time.Now()
+}
+
+// HasPeers says whether another relaying process announced itself within the window. A single
+// process has none, and its awareness then stays in its own relay without a transaction.
+func (l *ChangeListener) HasPeers(within time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	cutoff := time.Now().Add(-within)
+	for origin, seen := range l.peers {
+		if seen.After(cutoff) {
+			return true
+		}
+		delete(l.peers, origin)
+	}
+	return false
+}
+
+// NewPeer rings when a process is heard announcing itself for the first time.
+func (l *ChangeListener) NewPeer() <-chan struct{} { return l.newPeer }
+
+// credential hands `tenant` or `tenant/account`, as migration 0339 writes it, to OnCredential's
+// handler; another shape is skipped.
+func (l *ChangeListener) credential(payload string) {
+	tenantText, accountText, scoped := strings.Cut(payload, "/")
+	tenantID, err := shared.ParseID(tenantText)
+	if err != nil {
+		return
+	}
+	var accountID shared.ID
+	if scoped {
+		if accountID, err = shared.ParseID(accountText); err != nil {
+			return
+		}
+	}
+	l.mu.Lock()
+	ended := l.ended
+	l.mu.Unlock()
+	if ended != nil {
+		ended(tenantID, accountID)
+	}
+}
+
+// documentKeyOf reads `tenant/kind/document`, as migration 0303 writes it.
+func documentKeyOf(payload string) (DocumentKey, bool) {
+	parts := strings.Split(payload, "/")
+	if len(parts) != 3 || parts[1] == "" {
+		return DocumentKey{}, false
+	}
+	tenantID, err := shared.ParseID(parts[0])
+	if err != nil {
+		return DocumentKey{}, false
+	}
+	documentID, err := shared.ParseID(parts[2])
+	if err != nil {
+		return DocumentKey{}, false
+	}
+	return DocumentKey{TenantID: tenantID, Kind: parts[1], DocumentID: documentID}, true
 }

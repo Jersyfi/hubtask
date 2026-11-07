@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	"github.com/Jersyfi/hubtask/core/application/service/backup"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -44,6 +45,12 @@ type Runner struct {
 	Labels     LabelReader
 	Items      ItemOrders
 	Applier    backup.Applier
+	// Forms holds what an import into an existing collection would create to its types' forms;
+	// nil holds nothing, as a build without forms does.
+	Forms FormHolder
+	// Statuses settles each collection a landed import wrote entries into where its workflows
+	// stand: the rows carry no status of their own. Nil settles nothing.
+	Statuses   StatusSettler
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	// MaxBytes bounds the file read back: the upload limit, which the object cannot exceed, held
@@ -52,6 +59,12 @@ type Runner struct {
 	// SchemaVersion and ProductVersion stamp the archive's manifest, as a backup's are.
 	SchemaVersion  string
 	ProductVersion string
+}
+
+// StatusSettler puts a collection's entries where the workflows in force for their types stand -
+// entered where they carry no status those workflows know (work.StatusSettler).
+type StatusSettler interface {
+	Settle(ctx context.Context, actor appshared.ActorContext, collection work.Container, now time.Time) error
 }
 
 // RunInput names the import and the tenant the job runs for.
@@ -71,6 +84,7 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 	var run domain.Run
 	var object mediaObject
 	var target *repository.Target
+	var collection work.Container
 	var gone error
 	claimed := false
 	err := r.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
@@ -98,7 +112,7 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 		if run.CollectionID.IsZero() {
 			return nil
 		}
-		target, err = r.target(ctx, run)
+		target, collection, err = r.target(ctx, run)
 		if err != nil && !isTransient(err) {
 			// The collection left the hub since the import was accepted: the run's outcome.
 			gone, err = err, nil
@@ -115,7 +129,10 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 		return r.finish(ctx, scope, run, backupdomain.Report{}, nil, gone)
 	}
 
-	report, refused, applied := r.perform(ctx, in, run, object, target)
+	report, refused, landedIn, applied := r.perform(ctx, in, run, object, target, collection)
+	if applied == nil && !run.DryRun {
+		applied = r.settle(ctx, scope, run, landedIn)
+	}
 	if applied != nil && isTransient(applied) {
 		// The store or the database being away is not the file's fault: the run stays RUNNING
 		// with the progress it recorded, the job retries, and the next attempt claims the same
@@ -135,14 +152,19 @@ type mediaObject struct {
 
 // target reads the collection an import lands in, in the claim's transaction: still a live
 // collection of the run's hub, its live columns and labels, and the order keys to rank after.
-func (r Runner) target(ctx context.Context, run domain.Run) (*repository.Target, error) {
+func (r Runner) target(ctx context.Context, run domain.Run) (*repository.Target, work.Container, error) {
 	collection, err := r.Containers.Find(ctx, run.CollectionID)
 	if err != nil && !errors.Is(err, shared.ErrNotFound) {
-		return nil, err
+		return nil, work.Container{}, err
 	}
 	if err != nil || collection.Type != work.ContainerCollection || collection.ParentID != run.HubID || collection.DeletedAt != nil {
-		return nil, shared.ErrValidation.WithDetail(domain.CodeNotInHub)
+		return nil, work.Container{}, shared.ErrValidation.WithDetail(domain.CodeNotInHub)
 	}
+	target, err := r.targetOf(ctx, collection)
+	return target, collection, err
+}
+
+func (r Runner) targetOf(ctx context.Context, collection work.Container) (*repository.Target, error) {
 	target := &repository.Target{Collection: collection.ID}
 	buckets, err := r.Buckets.List(ctx, collection.ID)
 	if err != nil {
@@ -179,17 +201,19 @@ func stem(fileName string) string {
 
 // perform is the fallible middle: the file, the conversion, the archive, the apply. What it
 // answers is the outcome the run records.
-func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object mediaObject, target *repository.Target) (backupdomain.Report, []domain.Refusal, error) {
+func (r Runner) perform(
+	ctx context.Context, in RunInput, run domain.Run, object mediaObject, target *repository.Target, collection work.Container,
+) (backupdomain.Report, []domain.Refusal, []shared.ID, error) {
 	converter, ok := r.Converters[run.Kind]
 	if !ok {
-		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported)
+		return backupdomain.Report{}, nil, nil, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported)
 	}
 	if r.MaxBytes > 0 && object.size > r.MaxBytes {
-		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
+		return backupdomain.Report{}, nil, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
 	stored, err := r.Store.Get(ctx, object.key)
 	if err != nil {
-		return backupdomain.Report{}, nil, err
+		return backupdomain.Report{}, nil, nil, err
 	}
 	defer func() { _ = stored.Content.Close() }()
 	content := io.Reader(stored.Content)
@@ -201,10 +225,10 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 	// the converters parse a document rather than a stream. Bounded by the upload limit above.
 	raw, err := io.ReadAll(content)
 	if err != nil {
-		return backupdomain.Report{}, nil, err
+		return backupdomain.Report{}, nil, nil, err
 	}
 	if r.MaxBytes > 0 && int64(len(raw)) > r.MaxBytes {
-		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
+		return backupdomain.Report{}, nil, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
 	digest := sha256.Sum256(raw)
 
@@ -214,12 +238,21 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 		Mapping: run.Mapping, Now: now, Actor: run.RequestedBy, Zone: run.Zone, Language: run.Language,
 	})
 	if err != nil {
-		return backupdomain.Report{}, nil, err
+		return backupdomain.Report{}, nil, nil, err
+	}
+	if target != nil {
+		if err := r.hold(ctx, persistence.Scope{TenantID: in.TenantID}, run, collection, &result); err != nil {
+			return backupdomain.Report{}, result.Refused, nil, err
+		}
 	}
 
 	store := newMemoryStore()
 	prefix := "import-" + run.ID.String()
-	_, err = archive.NewWriter(store, r.Applier.Cipher, nil).Write(ctx, archive.Request{
+	var media archive.Media
+	if len(result.Media) > 0 {
+		media = memoryMedia(result.Media)
+	}
+	_, err = archive.NewWriter(store, r.Applier.Cipher, media).Write(ctx, archive.Request{
 		ArchiveID: run.ID, Prefix: prefix,
 		Scope:          archive.Scope{Kind: archive.ScopeTenant, ID: in.TenantID.String()},
 		Mode:           archive.ModeFull,
@@ -227,9 +260,10 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 		SchemaVersion:  r.SchemaVersion,
 		ProductVersion: r.ProductVersion,
 		Encryption:     archive.Encryption{Mode: archive.EncryptionNone},
+		IncludeMedia:   media != nil,
 	}, recordSource{records: result.Records})
 	if err != nil {
-		return backupdomain.Report{}, result.Refused, err
+		return backupdomain.Report{}, result.Refused, nil, err
 	}
 
 	report, err := r.Applier.Ingest(ctx, backup.IngestInput{
@@ -238,7 +272,7 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 			return r.Runs.RecordProgress(ctx, run.ID, report, decided)
 		},
 		Resume: backupdomain.Restore{Progress: run.Progress, Report: run.Report},
-		Report: in.Report,
+		Report: in.Report, DryRun: run.DryRun,
 	})
 	if err != nil && shared.AsError(err).DetailCode == "containers.name_taken" {
 		// A collection the file would create meets one the hub already holds, by name. The run's
@@ -257,11 +291,55 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 		}
 		report.Withheld["unmapped_"+what] += n
 	}
-	return report, result.Refused, err
+	return report, result.Refused, landedIn(result.Records["work_items"]), err
+}
+
+// settle puts the entries the import wrote where the workflows in force stand, collection by
+// collection, as the requester. Settling twice moves nothing the first time settled, so a retry
+// after a failure here is safe.
+func (r Runner) settle(ctx context.Context, scope persistence.Scope, run domain.Run, collections []shared.ID) error {
+	if r.Statuses == nil || len(collections) == 0 {
+		return nil
+	}
+	actor := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: run.TenantID, AccountID: run.RequestedBy}
+	return r.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		for _, id := range collections {
+			collection, err := r.Containers.Find(ctx, id)
+			if errors.Is(err, shared.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if err := r.Statuses.Settle(ctx, actor, collection, r.Clock.Now()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// landedIn answers the collections the converted entries name, in the order first named.
+func landedIn(records []archive.Record) []shared.ID {
+	var out []shared.ID
+	seen := map[string]bool{}
+	for _, record := range records {
+		id, _ := record.Data["collection_id"].(string)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		if parsed, err := shared.ParseID(id); err == nil {
+			out = append(out, parsed)
+		}
+	}
+	return out
 }
 
 // finish records the outcome, advances the epoch on success, and marks the file for deletion
-// either way - a file somebody imported is not a file they attached.
+// either way - a file somebody imported is not a file they attached. A dry run wrote nothing and
+// keeps the file for the import it previews; one never imported is the media sweep's, as any
+// object nothing references.
 func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.Run, report backupdomain.Report, refused []domain.Refusal, applied error) error {
 	status := domain.StatusSucceeded
 	code := ""
@@ -275,6 +353,9 @@ func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.
 		}); err != nil {
 			return err
 		}
+		if run.DryRun {
+			return nil
+		}
 		if _, err := r.Objects.MarkDeleted(ctx, run.MediaID, r.Clock.Now()); err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return err
 		}
@@ -284,6 +365,37 @@ func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.
 		return nil
 	})
 	// A failure of the file is the run's outcome, recorded above; the job is done with it.
+	return err
+}
+
+// Abandon closes a run whose job the queue has given up on: FAILED under its own code, and the
+// file marked for deletion as after any import that ran. A dry run keeps its file, as when it ends;
+// a run that ended already, or is not there, is left as it is.
+func (r Runner) Abandon(ctx context.Context, importID, tenantID shared.ID) error {
+	err := r.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+		run, err := r.Runs.Find(ctx, importID)
+		if err != nil {
+			return err
+		}
+		if run.Status == domain.StatusSucceeded || run.Status == domain.StatusFailed {
+			return nil
+		}
+		if err := r.Runs.Finish(ctx, domain.Outcome{
+			ID: run.ID, Status: domain.StatusFailed, Report: run.Report, ErrorCode: domain.CodeRunAbandoned, FinishedAt: r.Clock.Now(),
+		}); err != nil {
+			return err
+		}
+		if run.DryRun {
+			return nil
+		}
+		if _, err := r.Objects.MarkDeleted(ctx, run.MediaID, r.Clock.Now()); err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		return nil
+	})
+	if errors.Is(err, shared.ErrNotFound) || errors.Is(err, shared.ErrConflict) {
+		return nil
+	}
 	return err
 }
 
@@ -321,4 +433,15 @@ func (s recordSource) Records(_ context.Context, entity archive.Entity, _ time.T
 		}
 	}
 	return nil
+}
+
+// memoryMedia hands the writer the attachments a converter read out of the file, by digest.
+type memoryMedia map[string][]byte
+
+func (m memoryMedia) Open(_ context.Context, digest string) (io.ReadCloser, error) {
+	content, ok := m[digest]
+	if !ok {
+		return nil, shared.ErrNotFound.WithDetail(archive.CodeMediaMissing)
+	}
+	return io.NopCloser(bytes.NewReader(content)), nil
 }

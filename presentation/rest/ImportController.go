@@ -4,11 +4,9 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -17,52 +15,14 @@ import (
 // job pointer whose result_url names the import, and the import read back as the contract's
 // ImportRun.
 
-const (
-	importEntriesUseCase = "ImportEntries"
-	getImportUseCase     = "GetImport"
-)
-
-// ImportEntries answers POST /imports.
-func (c *RestController) ImportEntries(w http.ResponseWriter, r *http.Request, _ openapi.ImportEntriesParams) {
-	var body openapi.ImportRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := usecase.Input{
-		"media_id": body.MediaId.String(),
-		"kind":     string(body.Kind),
-		"hub_id":   body.HubId.String(),
-	}
-	if body.CollectionId != nil {
-		in["collection_id"] = body.CollectionId.String()
-	}
-	if body.Mapping != nil {
-		mapping := map[string]any{}
-		for key, value := range *body.Mapping {
-			mapping[key] = value
-		}
-		in["mapping"] = mapping
-	}
-	out, ok := c.read(w, r, importEntriesUseCase, in)
-	if !ok {
-		return
-	}
+// importJobResponse maps an accepted import: the job and where its report will be.
+func importJobResponse(out usecase.Output) openapi.JobRef {
 	resultURL := out.String("result_url")
-	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
+	return openapi.JobRef{
 		JobId:     uuidValue(out.String("job_id")),
 		Status:    openapi.JobStatusQUEUED,
 		ResultUrl: &resultURL,
-	})
-}
-
-// GetImport answers GET /imports/{importId}.
-func (c *RestController) GetImport(w http.ResponseWriter, r *http.Request, importID openapi.ImportId) {
-	out, ok := c.read(w, r, getImportUseCase, usecase.Input{"import_id": importID.String()})
-	if !ok {
-		return
 	}
-	writeJSON(w, r, http.StatusOK, importRunResponse(out))
 }
 
 func importRunResponse(out usecase.Output) openapi.ImportRun {
@@ -76,6 +36,9 @@ func importRunResponse(out usecase.Output) openapi.ImportRun {
 	if collection := out.String("collection_id"); collection != "" {
 		id := uuidValue(collection)
 		run.CollectionId = &id
+	}
+	if dry, ok := out["dry_run"].(bool); ok {
+		run.DryRun = &dry
 	}
 	if media := out.String("media_id"); media != "" {
 		id := uuidValue(media)
@@ -91,15 +54,18 @@ func importRunResponse(out usecase.Output) openapi.ImportRun {
 		run.Report = restoreReportResponse(report)
 	}
 	if refused, ok := out["refused"].([]usecase.Output); ok {
-		rows := make([]struct {
-			Code string `json:"code"`
-			Row  int    `json:"row"`
-		}, 0, len(refused))
+		type refusal = struct {
+			Code   string    `json:"code"`
+			Fields *[]string `json:"fields,omitempty"`
+			Row    int       `json:"row"`
+		}
+		rows := make([]refusal, 0, len(refused))
 		for _, each := range refused {
-			rows = append(rows, struct {
-				Code string `json:"code"`
-				Row  int    `json:"row"`
-			}{Code: each.String("code"), Row: each.Int("row")})
+			row := refusal{Code: each.String("code"), Row: each.Int("row")}
+			if fields, ok := each["fields"].([]string); ok && len(fields) > 0 {
+				row.Fields = &fields
+			}
+			rows = append(rows, row)
 		}
 		run.Refused = &rows
 	}

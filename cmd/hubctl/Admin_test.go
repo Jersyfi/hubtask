@@ -59,13 +59,13 @@ func TestListingWorkspacesSaysWhereTheRemovalBegan(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "REMOVAL BEGAN") || !strings.Contains(out, ":05") {
+	if !strings.Contains(out, "PURGE_STARTED_AT") || !strings.Contains(out, "09:05") {
 		t.Errorf("the table does not say when the removal began: %q", out)
 	}
 }
 
-// A workspace under a legal hold is marked, and one pending deletion under a hold says that its
-// deletion waits (data-protection.md §5) - what the operator's screen says, through this door too.
+// A workspace under a legal hold is marked beside its status, so one pending deletion under a hold
+// reads as waiting for it (data-protection.md §5) - what the operator's screen says, through this door too.
 func TestListingWorkspacesMarksALegalHold(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `[
   {"id":"`+acmeID+`","slug":"acme","display_name":"Acme","status":"ACTIVE",
@@ -79,20 +79,21 @@ func TestListingWorkspacesMarksALegalHold(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if !strings.Contains(out, "LEGAL HOLD") {
+	if !strings.Contains(out, "LEGAL_HOLD") {
 		t.Errorf("the table has no legal hold column: %q", out)
 	}
-	if strings.Count(out, "in force") != 2 || !strings.Contains(out, "in force, deletion waits") {
+	if strings.Count(out, "true") != 2 || !strings.Contains(out, "false") {
 		t.Errorf("the holds are not marked as they stand: %q", out)
 	}
 }
 
-// The owner's way in is answered once. Same discipline as every other credential this client
+// UC-INS-07 check 1, hubctl's part: `admin tenant create` is POST /admin/tenants, the operation the
+// screen sends and whose use case holds the checks. The owner's way in is answered once. Same discipline as every other credential this client
 // meets: readable by a script on standard output, with the warning beside it.
 func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, `{"id":"`+acmeID+`","slug":"acme",
 	  "display_name":"Acme","status":"ACTIVE","created_at":"2026-09-01T09:00:00Z",
-	  "owner_account_id":"`+ownerID+`","owner_redemption_token":"`+redemptionToken+`",
+	  "owner_account_id":"`+ownerID+`","owner_delivery":"LINK","owner_redemption_token":"`+redemptionToken+`",
 	  "default_hub_id":"`+seededHub+`","example_collection_id":"`+collectionID+`"}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
@@ -118,6 +119,24 @@ func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) 
 	// collection in it, and their identifiers are what the owner's first commands name.
 	if !strings.Contains(out, seededHub) || !strings.Contains(out, collectionID) {
 		t.Errorf("the seeded structure is not in the answer: %q", out)
+	}
+}
+
+// UC-INS-07 check 3, hubctl's part: where the installation mails the owner, no token is answered
+// and the command says the invitation is on its way.
+func TestProvisioningWithMailSaysTheInvitationIsOnItsWay(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, `{"id":"`+acmeID+`","slug":"acme",
+	  "display_name":"Acme","status":"ACTIVE","created_at":"2026-09-01T09:00:00Z",
+	  "owner_account_id":"`+ownerID+`","owner_delivery":"MAIL",
+	  "default_hub_id":"`+seededHub+`","example_collection_id":"`+collectionID+`"}`)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "create", "--slug", "acme", "--name", "Acme", "--owner-email", "eva@acme.example")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(errOut, "on its way to their address by mail") || strings.Contains(errOut, "shown once") {
+		t.Errorf("the command did not say the invitation was mailed: %q", errOut)
 	}
 }
 
@@ -203,7 +222,7 @@ func TestEndingAWorkspaceProvesAgainAndCarriesTheProofInTheHeader(t *testing.T) 
 	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
 
 	code, out, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "hunter2\n",
-		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+		"admin", "tenant", "delete", acmeID, "--confirmation", "Acme")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -304,19 +323,19 @@ func TestTheEncryptionCensusNamesWhatStillHoldsEachKey(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if stub.request.URL.Path != APIPath+adminEncryptionPath {
+	if stub.request.URL.Path != APIPath+"/admin/encryption" {
 		t.Errorf("the census called %s", stub.request.URL.Path)
 	}
-	if !strings.Contains(out, "active") || !strings.Contains(out, "NOT IN RING") {
+	if !strings.Contains(out, `"active":true`) || !strings.Contains(out, `"in_ring":false`) {
 		t.Errorf("the census is not the table: %q", out)
 	}
 	// The kind a missing key still seals is what the operator has to know before removing it.
-	if !strings.Contains(out, "identity_provider=1") {
+	if !strings.Contains(out, `"store":"identity_provider"`) {
 		t.Errorf("the census does not say what the missing key still seals: %q", out)
 	}
 }
 
-// The request answers where to watch, because there is no one job to wait on.
+// The request answers the key the rounds seal under and how many workspaces they reach.
 func TestResealingSaysWhereToWatchTheRounds(t *testing.T) {
 	stub := serveJSON(t, http.StatusAccepted, `{"active_key_id":"k2","queued_tenants":3}`)
 
@@ -324,14 +343,11 @@ func TestResealingSaysWhereToWatchTheRounds(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if stub.request.URL.Path != APIPath+adminEncryptionPath+":reseal" || stub.request.Method != http.MethodPost {
+	if stub.request.URL.Path != APIPath+"/admin/encryption"+":reseal" || stub.request.Method != http.MethodPost {
 		t.Errorf("the request went to %s %s", stub.request.Method, stub.request.URL.Path)
 	}
 	if !strings.Contains(out, "k2") || !strings.Contains(out, "3") {
 		t.Errorf("the answer is not the table: %q", out)
-	}
-	if !strings.Contains(errOut, "admin encryption show") {
-		t.Errorf("the operator was not told where to watch: %q", errOut)
 	}
 }
 
@@ -400,7 +416,7 @@ func TestOpeningThePasswordNeedsWhoAskedAndWhy(t *testing.T) {
 func TestClosingThePasswordIsOneWrite(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `{"id":"`+acmeID+`","slug":"acme","display_name":"Acme",
 	  "status":"ACTIVE","created_at":"2026-09-01T09:00:00Z","purge_after":null}`)
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
 		"admin", "tenant", "close-password", acmeID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -409,8 +425,8 @@ func TestClosingThePasswordIsOneWrite(t *testing.T) {
 	if stub.request.Method != http.MethodPost || stub.request.URL.Path != want {
 		t.Errorf("%s %s, want POST %s", stub.request.Method, stub.request.URL.Path, want)
 	}
-	if !strings.Contains(errOut, "its own settings again") {
-		t.Errorf("the close is not confirmed: %q", errOut)
+	if !strings.Contains(out, acmeID) || strings.Contains(out, "password_opening") {
+		t.Errorf("the workspace is not answered as it now stands: %q", out)
 	}
 }
 

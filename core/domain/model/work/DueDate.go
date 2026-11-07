@@ -58,7 +58,7 @@ func NewDueDate(at *time.Time, dateOnly bool, zone string) (*DueDate, error) {
 		// time package cannot load is a name no calculation can use (identity spells account
 		// preferences the same way). Never a fixed offset - an offset cannot represent daylight
 		// saving, and this product schedules across it.
-		if _, err := time.LoadLocation(zone); err != nil {
+		if _, known := shared.LoadZone(zone); !known {
 			return nil, shared.ErrValidation.
 				WithDetail("items.due_time_zone_invalid").
 				WithParams(map[string]string{"value": zone}).

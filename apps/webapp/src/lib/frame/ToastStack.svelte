@@ -42,11 +42,11 @@
   }
 
   /** Takes a message away, and focus with it back to where it belongs. */
-  function close(entry: ToastEntry, element: HTMLElement | null) {
+  function close(entry: ToastEntry, element: HTMLElement | null, isUndone = false) {
     const hadFocus = element?.contains(document.activeElement) ?? false;
     const back = cameFrom.get(entry.id);
     cameFrom.delete(entry.id);
-    toast.dismiss(entry.id);
+    toast.dismiss(entry.id, isUndone);
     if (!hadFocus) return;
     const target =
       (back?.isConnected ? back : undefined) ??
@@ -56,7 +56,7 @@
   }
 
   async function undo(entry: ToastEntry, element: HTMLElement | null) {
-    close(entry, element);
+    close(entry, element, true);
     await entry.undo?.();
   }
 

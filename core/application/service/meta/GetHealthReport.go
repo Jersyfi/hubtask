@@ -5,6 +5,7 @@ package meta
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -121,7 +122,8 @@ func reduced(report health.Report) health.Report {
 // Descriptor is the catalogue entry.
 func (h GetHealthReport) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetHealthReportName,
+		Name:       GetHealthReportName,
+		Permission: service.PermissionStructure,
 		Summary: "Reads the installation's deep self-diagnosis: its status, its version and the " +
 			"features it is currently not serving fully. A credential holding `admin:tenants` " +
 			"reads the whole report as well - every dependency with its latency, last error code " +
@@ -200,12 +202,16 @@ func healthOutput(report health.Report) usecase.Output {
 			"status":   report.Migration.Status,
 		}
 	}
-	out["backlogs"] = usecase.Output{
-		"outbox_pending":        report.Backlogs.OutboxPending,
-		"outbox_lag_seconds":    report.Backlogs.OutboxLagSeconds,
-		"job_queue_depth":       report.Backlogs.JobQueueDepth,
-		"dead_letter_total":     report.Backlogs.DeadLetterTotal,
-		"webhook_retry_backlog": report.Backlogs.WebhookRetryBacklog,
+	// Only once counted: a zero would read as an empty queue nobody looked at (P-11).
+	if !report.Backlogs.SampledAt.IsZero() {
+		out["backlogs"] = usecase.Output{
+			"sampled_at":            report.Backlogs.SampledAt.UTC().Format(time.RFC3339),
+			"outbox_pending":        report.Backlogs.OutboxPending,
+			"outbox_lag_seconds":    report.Backlogs.OutboxLagSeconds,
+			"job_queue_depth":       report.Backlogs.JobQueueDepth,
+			"dead_letter_total":     report.Backlogs.DeadLetterTotal,
+			"webhook_retry_backlog": report.Backlogs.WebhookRetryBacklog,
+		}
 	}
 
 	warnings := make([]usecase.Output, 0, len(report.Warnings))

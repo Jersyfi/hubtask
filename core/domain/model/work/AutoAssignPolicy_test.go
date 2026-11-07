@@ -18,6 +18,7 @@ func group(id string) work.AutoAssignCandidate {
 	return work.AutoAssignCandidate{Kind: work.CandidateGroup, ID: shared.ID(id)}
 }
 
+// UC-WRK-11 check 2.
 func TestWhatEachStrategyDemandsOfItsPool(t *testing.T) {
 	cases := []struct {
 		name       string

@@ -9,8 +9,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -302,6 +307,334 @@ func (SnapshotRepository) Templates(
 	return out, nil
 }
 
+// EntryTypes pages the workspace's type rows.
+func (SnapshotRepository) EntryTypes(ctx context.Context, after shared.ID, batch int) ([]work.EntryType, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotEntryTypes(ctx, sqlc.SnapshotEntryTypesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("entry types", err)
+	}
+	out := make([]work.EntryType, 0, len(rows))
+	for _, row := range rows {
+		entryType, err := entryTypeFrom(sqlc.EntryType(row))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, entryType)
+	}
+	return out, nil
+}
+
+// Workflows pages the workspace's workflow rows.
+func (SnapshotRepository) Workflows(ctx context.Context, after shared.ID, batch int) ([]work.Workflow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotWorkflows(ctx, sqlc.SnapshotWorkflowsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("workflows", err)
+	}
+	return mapRows(rows, workflowFrom)
+}
+
+// WorkflowSchemes reads the workspace's whole scheme.
+func (SnapshotRepository) WorkflowSchemes(ctx context.Context) ([]work.WorkflowScheme, error) {
+	return WorkflowRepository{}.Schemes(ctx)
+}
+
+// LinkTypes pages the workspace's own link type rows.
+func (SnapshotRepository) LinkTypes(ctx context.Context, after shared.ID, batch int) ([]work.LinkType, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotLinkTypes(ctx, sqlc.SnapshotLinkTypesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("link types", err)
+	}
+	return mapRows(rows, linkTypeFrom)
+}
+
+// Pages pages the workspace's living pages with their bodies.
+func (SnapshotRepository) Pages(ctx context.Context, after shared.ID, batch int) ([]knowledge.Page, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotPages(ctx, sqlc.SnapshotPagesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("pages", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotPagesRow) (knowledge.Page, error) {
+		return pageFrom(sqlc.FindPageRow(row))
+	})
+}
+
+// CIs pages the workspace's configuration items that are not merged away.
+func (SnapshotRepository) CIs(ctx context.Context, after shared.ID, batch int) ([]cmdb.CI, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbCis(ctx, sqlc.SnapshotCmdbCisParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("configuration items", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbCisRow) (cmdb.CI, error) {
+		return cmdbCIFrom(sqlc.FindCmdbCiRow(row))
+	})
+}
+
+// CmdbCatalogue reads the workspace's own classes and relation types.
+func (SnapshotRepository) CmdbCatalogue(ctx context.Context) ([]cmdb.Class, []cmdb.RelationType, error) {
+	repo := NewCmdbRepository()
+	classes, err := repo.Classes(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	types, err := repo.RelationTypes(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return classes, types, nil
+}
+
+// CIRelations pages the relations between configuration items.
+func (SnapshotRepository) CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbRelations(ctx, sqlc.SnapshotCmdbRelationsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("configuration item relations", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbRelationsRow) (cmdb.Relation, error) {
+		return cmdbRelationFrom(sqlc.FindCmdbRelationRow(row))
+	})
+}
+
+// CIAffected pages the CIs entries name as affected, each with its CI's hub (migration 0274).
+func (SnapshotRepository) CIAffected(ctx context.Context, after shared.ID, batch int) ([]repository.AffectedRow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbAffected(ctx, sqlc.SnapshotCmdbAffectedParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("affected configuration items", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbAffectedRow) (repository.AffectedRow, error) {
+		a, err := affectedFrom(row.ID, row.ItemID, row.CiID, row.AddedBy, row.AddedAt)
+		if err != nil {
+			return repository.AffectedRow{}, err
+		}
+		hub, err := idFrom(row.HubID)
+		return repository.AffectedRow{Affected: a, HubID: hub}, err
+	})
+}
+
+// CIGroups pages the workspace's CI groups.
+func (SnapshotRepository) CIGroups(ctx context.Context, after shared.ID, batch int) ([]cmdb.Group, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbGroups(ctx, sqlc.SnapshotCmdbGroupsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("configuration item groups", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbGroupsRow) (cmdb.Group, error) {
+		return groupFrom(sqlc.FindCmdbGroupRow(row))
+	})
+}
+
+// CIAssets pages the CIs' asset records.
+func (SnapshotRepository) CIAssets(ctx context.Context, after shared.ID, batch int) ([]cmdb.Asset, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCmdbAssets(ctx, sqlc.SnapshotCmdbAssetsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("asset records", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotCmdbAssetsRow) (cmdb.Asset, error) {
+		return assetFrom(sqlc.FindCmdbAssetRow(row))
+	})
+}
+
+// Whiteboards pages the workspace's boards outside the trash with their scenes.
+func (SnapshotRepository) Whiteboards(ctx context.Context, after shared.ID, batch int) ([]whiteboard.Board, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotWhiteboards(ctx, sqlc.SnapshotWhiteboardsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("whiteboards", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotWhiteboardsRow) (whiteboard.Board, error) {
+		return boardFrom(sqlc.FindWhiteboardRow(row))
+	})
+}
+
+// EntryLinks pages every link between two live entries, with the collection of each end.
+func (SnapshotRepository) EntryLinks(ctx context.Context, after shared.ID, batch int) ([]repository.LinkBetween, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotEntryLinks(ctx, sqlc.SnapshotEntryLinksParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("entry links", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotEntryLinksRow) (repository.LinkBetween, error) {
+		link, err := entryLinkFrom(sqlc.FindEntryLinkRow{
+			ID: row.ID, TenantID: row.TenantID, LinkType: row.LinkType, SourceID: row.SourceID,
+			TargetID: row.TargetID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt,
+			DependencyKind: row.DependencyKind, LagDays: row.LagDays,
+		})
+		if err != nil {
+			return repository.LinkBetween{}, err
+		}
+		source, err := idFrom(row.SourceCollectionID)
+		if err != nil {
+			return repository.LinkBetween{}, err
+		}
+		target, err := idFrom(row.TargetCollectionID)
+		if err != nil {
+			return repository.LinkBetween{}, err
+		}
+		return repository.LinkBetween{Link: link, SourceCollectionID: source, TargetCollectionID: target}, nil
+	})
+}
+
+// EntrySchedules pages the live entries' stored scheduling modes.
+func (SnapshotRepository) EntrySchedules(ctx context.Context, after shared.ID, batch int) ([]repository.ScheduleOf, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotEntrySchedules(ctx, sqlc.SnapshotEntrySchedulesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("entry schedules", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotEntrySchedulesRow) (repository.ScheduleOf, error) {
+		entry, err := idFrom(row.EntryID)
+		if err != nil {
+			return repository.ScheduleOf{}, err
+		}
+		collection, err := idFrom(row.CollectionID)
+		if err != nil {
+			return repository.ScheduleOf{}, err
+		}
+		return repository.ScheduleOf{
+			EntryID: entry, CollectionID: collection, Mode: row.Mode, Milestone: row.Milestone, Version: int(row.Version),
+		}, nil
+	})
+}
+
+// CustomRoles pages the workspace's own roles.
+func (SnapshotRepository) CustomRoles(ctx context.Context, after shared.ID, batch int) ([]identityrepo.CustomRoleRow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotCustomRoles(ctx, sqlc.SnapshotCustomRolesParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("custom roles", err)
+	}
+	return mapRows(rows, customRoleFrom)
+}
+
+// OwnRoleGrants pages the grants of custom roles the account holds itself or through a group.
+func (SnapshotRepository) OwnRoleGrants(
+	ctx context.Context, accountID, after shared.ID, batch int,
+) ([]identityrepo.CustomGrantRow, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotOwnRoleGrants(ctx, sqlc.SnapshotOwnRoleGrantsParams{
+		After: key, AccountID: account, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("role grants", err)
+	}
+	return mapRows(rows, func(row sqlc.SnapshotOwnRoleGrantsRow) (identityrepo.CustomGrantRow, error) {
+		return customGrantFrom(sqlc.ListCustomRoleGrantsRow(row))
+	})
+}
+
+// InGroup reports whether the account is a member of the group.
+func (SnapshotRepository) InGroup(ctx context.Context, accountID, groupID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	group, err := uuidOf(groupID)
+	if err != nil {
+		return false, err
+	}
+	member, err := queries.IsAccountGroupMember(ctx, sqlc.IsAccountGroupMemberParams{GroupID: group, AccountID: account})
+	if err != nil {
+		return false, snapshotFailed("group membership", err)
+	}
+	return member, nil
+}
+
+// mapRows turns a page of rows into the port's values, failing on the first that does not read.
+func mapRows[R, T any](rows []R, from func(R) (T, error)) ([]T, error) {
+	out := make([]T, 0, len(rows))
+	for _, row := range rows {
+		value, err := from(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, value)
+	}
+	return out, nil
+}
+
 // snapshotPage is the opening every method shares: the transaction's queries and the page key.
 func snapshotPage(ctx context.Context, after shared.ID) (*sqlc.Queries, pgtype.UUID, error) {
 	queries, err := queriesFrom(ctx)
@@ -329,4 +662,109 @@ func snapshotFailed(kind string, err error) error {
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("reading the %s for a synchronisation: %w", kind, err))
+}
+
+// GoalPeriods pages the workspace's goal periods.
+func (SnapshotRepository) GoalPeriods(ctx context.Context, after shared.ID, batch int) ([]goal.Period, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotGoalPeriods(ctx, sqlc.SnapshotGoalPeriodsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("goal periods", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotGoalPeriodsRow) (goal.Period, error) {
+		id, err := idFrom(r.ID)
+		if err != nil {
+			return goal.Period{}, err
+		}
+		return goal.Period{
+			ID: id, Name: r.Name, StartOn: planDay(r.StartOn), EndOn: planDay(r.EndOn),
+			State: goal.PeriodState(r.State), Version: int(r.Version),
+		}, nil
+	})
+}
+
+// Goals pages the workspace's goals.
+func (SnapshotRepository) Goals(ctx context.Context, after shared.ID, batch int) ([]goal.Goal, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotGoals(ctx, sqlc.SnapshotGoalsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("goals", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotGoalsRow) (goal.Goal, error) { return goalOf(sqlc.ListGoalsRow(r)) })
+}
+
+// GoalCheckIns pages the goals' check-ins with their goals' hubs.
+func (SnapshotRepository) GoalCheckIns(ctx context.Context, after shared.ID, batch int) ([]repository.GoalCheckIn, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotGoalCheckIns(ctx, sqlc.SnapshotGoalCheckInsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("goal check-ins", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotGoalCheckInsRow) (repository.GoalCheckIn, error) {
+		found, err := ids(r.ID, r.GoalID, r.AuthorID, r.HubID)
+		if err != nil {
+			return repository.GoalCheckIn{}, err
+		}
+		values, err := decodeValues(r.Values)
+		if err != nil {
+			return repository.GoalCheckIn{}, err
+		}
+		return repository.GoalCheckIn{HubID: found[3], CheckIn: goal.CheckIn{
+			ID: found[0], GoalID: found[1], AuthorID: found[2], Status: goal.Status(r.Status),
+			Confidence: int(r.Confidence), Note: r.Note, Values: values, At: r.CreatedAt.Time,
+		}}, nil
+	})
+}
+
+// Dashboards pages the workspace's dashboards.
+func (SnapshotRepository) Dashboards(ctx context.Context, after shared.ID, batch int) ([]goal.Dashboard, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotDashboards(ctx, sqlc.SnapshotDashboardsParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("dashboards", err)
+	}
+	return mapRows(rows, func(r sqlc.SnapshotDashboardsRow) (goal.Dashboard, error) {
+		return dashboardOf(sqlc.ListDashboardsRow(r))
+	})
+}
+
+// Portfolios pages the workspace's portfolios with their projects.
+func (SnapshotRepository) Portfolios(ctx context.Context, after shared.ID, batch int) ([]goal.Portfolio, error) {
+	queries, key, err := snapshotPage(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SnapshotPortfolios(ctx, sqlc.SnapshotPortfoliosParams{
+		After: key, Batch: int32(batch), //nolint:gosec // bounded by the contract's page maximum
+	})
+	if err != nil {
+		return nil, snapshotFailed("portfolios", err)
+	}
+	out, err := mapRows(rows, func(r sqlc.SnapshotPortfoliosRow) (goal.Portfolio, error) {
+		return portfolioOf(sqlc.ListPortfoliosRow(r))
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, withItems(ctx, queries, out)
 }

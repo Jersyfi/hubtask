@@ -204,7 +204,8 @@ func (h CreateManagedAccount) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h CreateManagedAccount) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateManagedAccountName,
+		Name:       CreateManagedAccountName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Gives somebody without a mail address an account in this workspace: a sign-in " +
 			"name instead of an address, and a role at a scope. Hubtask draws a start password " +
 			"and answers it once; the person's first sign-in with it leads into choosing their own. " +

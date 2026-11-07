@@ -57,6 +57,7 @@ async function stub(route) {
   if (path === '/containers') return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: COLLECTION });
   if (path === `/containers/${HUB.id}`) return route.fulfill({ json: HUB });
+  if (path === '/config/templates' || path === '/config/proposals') return route.fulfill({ json: { data: [] } });
   if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
   // The frame's own reads, in the shapes the API answers them, and a record of anything this
   // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.
@@ -151,9 +152,10 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   // The way out is the first row, and the row the reader is on is announced as current.
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  // Twenty-one, the overview, "Address", "Presets", "Sign-in", "Machines and apps" and "E-mail" among
-  // them: the number moves when the section gains a screen, which is what this assertion is for.
-  assert.equal(rows.length, 21, `the section holds ${rows.length} rows`);
+  // The way out, the overview and the screens of the suite's groups a workspace without its modules
+  // holds ("Link types", "Changes" and "Address" among them): the number moves when the section
+  // gains a screen, which is what this assertion is for.
+  assert.equal(rows.length, 24, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.
   assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
@@ -171,17 +173,17 @@ const SECTION = [
   ['/administration/workspace', 'Workspace'],
   ['/administration/people', 'People'],
   ['/administration/machines', 'Machines and apps'],
-  ['/administration/rules', 'Automation'],
+  ['/administration/rules', 'Rules'],
   ['/administration/rules/new', 'New rule'],
-  ['/administration/runs', 'What the rules did'],
+  ['/administration/runs', 'Rule runs'],
   ['/administration/webhooks', 'Webhooks'],
   ['/administration/quotas', 'Limits'],
   ['/administration/private-hubs', 'Private hubs'],
   ['/administration/backup', 'Backup'],
   ['/administration/retention', 'Retention and holds'],
   ['/administration/restore', 'Restore'],
-  ['/administration/audit', 'The trail'],
-  ['/administration/privacy', "People's requests"],
+  ['/administration/audit', 'Audit log'],
+  ['/administration/privacy', 'Privacy requests'],
   ['/administration/sign-in', 'Sign-in'],
   ['/administration/legal', 'Legal links'],
   ['/administration/ai', 'AI'],

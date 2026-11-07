@@ -7,8 +7,10 @@ package integration
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,7 +18,9 @@ import (
 
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	maildomain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -262,6 +266,51 @@ func TestTheDoorsFindAWorkspaceByItsRow(t *testing.T) {
 		}.Execute(ctx, state.Secret())
 		if err != nil || base != "https://"+hostOfA+":8443" {
 			t.Errorf("located (%q, %v), want A's main row", base, err)
+		}
+	})
+
+	// A mailbox's provider return, landed on the installation's host, is located at A's main row by
+	// the workspace its state names - and a state naming B is not found, B holding no such row.
+	t.Run("a connector's return", func(t *testing.T) {
+		waiting := postgres.NewMailboxAuthorizationRepository()
+		if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM mailbox_authorization WHERE tenant_id = $1`,
+			hostTenantA.String()); err != nil {
+			t.Fatalf("clearing an earlier run's connections: %v", err)
+		}
+		state := shared.ReturnState(hostTenantA, "aGFuZGxlLW9mLWEtbWFpbGJveA")
+		hash := sha256.Sum256([]byte(state))
+		preset, _ := maildomain.OAuthPresetNamed("microsoft")
+		pending := maildomain.PendingAuthorization{
+			ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000207a41"), TenantID: hostTenantA,
+			AccountID: hostAccountA, Host: "outlook.office365.com", Port: 993,
+			ExpiresAt: time.Now().UTC().Add(maildomain.PendingTTL),
+			Client: maildomain.OAuthClient{
+				Provider: "microsoft", AuthorizeURL: preset.AuthorizeURL, TokenURL: preset.TokenURL,
+				Scopes: preset.Scopes, ClientID: "inst-id", Installation: true,
+			},
+		}
+		if err := writer.UnitOfWork.Within(ctx, persistence.Scope{TenantID: hostTenantA},
+			func(ctx context.Context) error {
+				return waiting.Insert(ctx, pending, hash[:], crypto.Sealed{KeyID: "kv", Ciphertext: []byte{9}}, nil)
+			}); err != nil {
+			t.Fatalf("writing the waiting connection: %v", err)
+		}
+		locate := identityservice.LocateConnectorReturn{
+			Awaited:    map[string]identityservice.AwaitedReturns{identityservice.ConnectorMailbox: waiting},
+			UnitOfWork: writer.UnitOfWork, Clock: clockadapter.System{},
+			Address: identityservice.WorkspaceAddress{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(),
+				Hosts:      postgres.NewTenantHostRepository(),
+				BaseURL:    "https://hub.example:8443", Multi: true,
+			},
+		}
+		base, err := locate.Execute(ctx, state, identityservice.ConnectorMailbox)
+		if err != nil || base != "https://"+hostOfA+":8443" {
+			t.Errorf("located (%q, %v), want A's main row", base, err)
+		}
+		handle := strings.TrimPrefix(state, hostTenantA.String())
+		if _, err := locate.Execute(ctx, hostTenantB.String()+handle, identityservice.ConnectorMailbox); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("a state naming B answered %v, want not found", err)
 		}
 	})
 }

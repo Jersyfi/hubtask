@@ -47,7 +47,13 @@ func (r CustomFieldRepository) Insert(
 	if err != nil {
 		return err
 	}
-	collectionID, err := optionalUUID(definition.CollectionID)
+	// A hub's definition is stored where a collection's is: the column references the container
+	// (migration 0332).
+	collectionID, err := optionalUUID(definition.ScopeID())
+	if err != nil {
+		return err
+	}
+	copiedFrom, err := optionalUUID(definition.CopiedFrom)
 	if err != nil {
 		return err
 	}
@@ -57,9 +63,12 @@ func (r CustomFieldRepository) Insert(
 	}
 
 	err = queries.InsertCustomField(ctx, sqlc.InsertCustomFieldParams{
-		ID: id, CollectionID: collectionID, Key: definition.Key,
-		Kind: string(definition.Kind), Options: options, IsRequired: definition.IsRequired,
-		AppliesTo: typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
+		ID: id, CollectionID: collectionID, CopiedFrom: copiedFrom, Key: definition.Key,
+		Name: currencyOf(definition.Name), Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
+		Formula:    currencyOf(definition.Formula),
+		IsRequired: definition.IsRequired, Restricted: definition.Restricted,
+		ReadRestricted: definition.ReadRestricted,
+		AppliesTo:      typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
 	})
 	if err != nil {
 		return insertCustomFieldError(err, definition)
@@ -185,8 +194,9 @@ func (r CustomFieldRepository) SetAttributes(
 	}
 
 	affected, err := queries.UpdateCustomField(ctx, sqlc.UpdateCustomFieldParams{
-		Options: options, IsRequired: definition.IsRequired,
-		AppliesTo: typesOf(definition.AppliesTo), UpdatedAt: timestampOf(definition.UpdatedAt),
+		Name: currencyOf(definition.Name), Options: options, IsRequired: definition.IsRequired, Restricted: definition.Restricted,
+		ReadRestricted: definition.ReadRestricted,
+		AppliesTo:      typesOf(definition.AppliesTo), UpdatedAt: timestampOf(definition.UpdatedAt),
 		ID: id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
@@ -271,6 +281,14 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	if err != nil {
 		return work.CustomFieldDefinition{}, err
 	}
+	var hubID shared.ID
+	if row.AtHub {
+		hubID, collectionID = collectionID, ""
+	}
+	copiedFrom, err := optionalID(row.CopiedFrom)
+	if err != nil {
+		return work.CustomFieldDefinition{}, err
+	}
 	options, err := optionsFrom(row.Options)
 	if err != nil {
 		return work.CustomFieldDefinition{}, err
@@ -282,12 +300,56 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	}
 
 	return work.CustomFieldDefinition{
-		ID: id, TenantID: tenantID, CollectionID: collectionID,
-		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
-		IsRequired: row.IsRequired, AppliesTo: appliesTo,
+		ID: id, TenantID: tenantID, CollectionID: collectionID, HubID: hubID, CopiedFrom: copiedFrom,
+		Key: row.Key, Name: currencyFrom(row.Name), Kind: work.CustomFieldKind(row.Kind), Options: options,
+		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, Restricted: row.Restricted,
+		ReadRestricted: row.ReadRestricted, AppliesTo: appliesTo,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
 		DeletedAt: optionalTime(row.DeletedAt), Version: int(row.Version),
 	}, nil
+}
+
+// currencyOf stores an empty currency - or formula, or name - as null: the columns' CHECKs pair a
+// currency with MONEY and a formula with CALCULATED, and hold a name to at least one character.
+func currencyOf(code string) *string {
+	if code == "" {
+		return nil
+	}
+	return &code
+}
+
+func currencyFrom(code *string) string {
+	if code == nil {
+		return ""
+	}
+	return *code
+}
+
+// KindsByKey answers the kinds the live definitions under the keys have in a scope.
+func (r CustomFieldRepository) KindsByKey(
+	ctx context.Context, keys []string, scope shared.ID,
+) (map[string][]work.CustomFieldKind, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	container, err := optionalUUID(scope)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListCustomFieldKindsByKey(ctx, sqlc.ListCustomFieldKindsByKeyParams{
+		Keys: keys, Scope: container,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the custom field kinds: %w", err))
+	}
+	kinds := make(map[string][]work.CustomFieldKind, len(rows))
+	for _, row := range rows {
+		kinds[row.Key] = append(kinds[row.Key], work.CustomFieldKind(row.Kind))
+	}
+	return kinds, nil
 }
 
 // optionsFrom reads the option list back. An absent or empty document is nil rather than an empty
@@ -305,4 +367,78 @@ func optionsFrom(document []byte) ([]string, error) {
 		return nil, nil
 	}
 	return options, nil
+}
+
+// ReadRestricted answers every live definition hidden from readers (UC-ID-27 check 3).
+func (r CustomFieldRepository) ReadRestricted(ctx context.Context) ([]repository.FieldHiding, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListReadRestrictedFields(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the hidden custom fields: %w", err))
+	}
+	hidings := make([]repository.FieldHiding, 0, len(rows))
+	for _, row := range rows {
+		collectionID, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		hidings = append(hidings, repository.FieldHiding{Key: row.Key, CollectionID: collectionID, AtHub: row.AtHub})
+	}
+	return hidings, nil
+}
+
+// ReadFormulas answers the CALCULATED definitions and those a formula may read (UC-ID-27 check 3).
+func (r CustomFieldRepository) ReadFormulas(ctx context.Context) ([]repository.FieldFormula, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListFormulaFields(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the formula custom fields: %w", err))
+	}
+	formulas := make([]repository.FieldFormula, 0, len(rows))
+	for _, row := range rows {
+		collectionID, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		formula := repository.FieldFormula{
+			Key: row.Key, CollectionID: collectionID, AtHub: row.AtHub, Kind: work.CustomFieldKind(row.Kind),
+		}
+		if row.Formula != nil {
+			formula.Formula = *row.Formula
+		}
+		formulas = append(formulas, formula)
+	}
+	return formulas, nil
+}
+
+// EntriesHolding counts the live entries holding a value under the definition where it is in
+// force.
+func (r CustomFieldRepository) EntriesHolding(ctx context.Context, definition work.CustomFieldDefinition) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	collection, err := optionalUUID(definition.ScopeID())
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountEntriesHoldingCustomField(ctx, sqlc.CountEntriesHoldingCustomFieldParams{
+		Key: definition.Key, CollectionID: collection,
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the entries holding a custom field: %w", err))
+	}
+	return int(count), nil
 }

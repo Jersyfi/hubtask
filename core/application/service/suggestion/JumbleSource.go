@@ -71,6 +71,14 @@ func (s CatalogueSources) Material(
 		}
 		kept = read
 	}
+	if question.Case != nil {
+		material, err := s.caseMaterial(ctx, actor, *question.Case, kept)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Kept = kept
+		return material, nil
+	}
 	if question.TargetType == domain.TargetAccount && question.PromptID == answerPrompt {
 		material, err := s.askMaterial(ctx, actor, question, kept)
 		if err != nil {
@@ -302,6 +310,30 @@ func (s CatalogueSources) item(
 			}
 			material.Choices = append(material.Choices, set)
 		}
+	}
+	return material, nil
+}
+
+// caseMaterial is a case's title and notes with the labels of the collection it is classified
+// against - the material a triage's classifier reads of an entry, without the entry.
+func (s CatalogueSources) caseMaterial(
+	ctx context.Context, actor appshared.ActorContext, c CaseText, kept integration.KeptOut,
+) (Material, error) {
+	title, notes := kept.Scrub(c.Title), kept.Scrub(c.Notes)
+	material := Material{Digest: domain.Digest(c.Title, c.Notes)}
+	if strings.TrimSpace(title) == "" && strings.TrimSpace(notes) == "" {
+		return material, nil
+	}
+	material.Content = "Title: " + title + "\n\n" + notes
+	set, err := s.vocabulary(ctx, actor, usecase.Output{"collection_id": c.CollectionID.String()})
+	if err != nil {
+		return Material{}, err
+	}
+	if len(set.Options) > 0 {
+		for i := range set.Options {
+			set.Options[i].Name = kept.Scrub(set.Options[i].Name)
+		}
+		material.Choices = append(material.Choices, set)
 	}
 	return material, nil
 }

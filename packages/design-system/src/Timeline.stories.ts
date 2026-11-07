@@ -57,3 +57,24 @@ export const actions: Story = {
     'Each row carries the entry’s menu at the end of its title, on the axis and in the tray, in a place the title keeps for it: the columns the axis rules are the same with or without it. The row open beside the timeline (*Electrics first fix*) is announced as current and drawn with the rail a list row has. On touch, a finger held still on a row and lifted asks for the same menu; a hold that moves drags the bar instead, and the lift opens nothing else (design-system.md §11.9).',
   args: { mode: 'actions' },
 };
+
+export const dependencies: Story = {
+  name: 'Dependencies between rows',
+  about:
+    'An arrow leaves the end of the entry waited for and reaches the start of the waiting one. *Electrics first fix* starts before *Kitchen fit-out* is due, so its arrow is dashed and tinted, and each arrow is said in words below the axis (UC-PLN-01 check 6).',
+  args: { mode: 'dependencies' },
+};
+
+export const gantt: Story = {
+  name: 'As a Gantt chart',
+  about:
+    'A summary bar spans its children and is thinner, so it does not read as one more task; a milestone is a diamond on its day, a date without a duration; the critical chain is tinted, and the caller’s table says “critical” in words; a baseline is a thin lane under the bar, the agreed dates against today’s. Drag from the knob after a bar onto another row to draw a dependency: the row under the pointer is outlined, and the arrow appears when it is let go (UC-PLN-02 check 7).',
+  args: { mode: 'gantt' },
+};
+
+export const yearScale: Story = {
+  name: 'Three years, ruled by years',
+  about:
+    'The zoom runs from a day to a year: a quarter shows a year ruled by quarters, a year shows three ruled by years. Each column is still a day, at a width the scale chooses.',
+  args: { mode: 'gantt', scale: 'year' },
+};

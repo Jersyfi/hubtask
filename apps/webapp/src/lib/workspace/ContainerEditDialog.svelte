@@ -24,6 +24,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { isBuiltIn, presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
+  import { leaveGuard } from '../frame/leave.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import LookFields from './LookFields.svelte';
@@ -73,6 +74,9 @@
       preset !== presetBefore,
     ].filter(Boolean).length,
   );
+  // As a place's General section the form is a settings screen: a move away asks before it drops
+  // the draft (user-experience.md §5.4), beside the structure's own count.
+  $effect(() => (isEmbedded ? leaveGuard.hold(() => changeCount) : undefined));
 
   /** The fields as the place has them now; what was tried and not saved is gone. */
   function begin() {

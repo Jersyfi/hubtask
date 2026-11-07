@@ -5,6 +5,7 @@ package identity
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -180,6 +181,7 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 		{"a sentence is not a locale", Preferences{Locale: "German please"}, "accounts.locale_invalid"},
 		{"an empty subtag", Preferences{Locale: "de-"}, "accounts.locale_invalid"},
 		{"a zone nobody has", Preferences{TimeZone: "Europe/Atlantis"}, "accounts.time_zone_invalid"},
+		{"the server's own zone, which no browser knows", Preferences{TimeZone: "Local"}, "accounts.time_zone_invalid"},
 		{"an offset cannot represent daylight saving", Preferences{TimeZone: "+02:00"}, "accounts.time_zone_invalid"},
 		{"a day the calendar does not start on", Preferences{WeekStart: "WEDNESDAY"}, "accounts.week_start_invalid"},
 		{"celebrations off", Preferences{Celebrations: "false"}, ""},
@@ -187,6 +189,8 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 		{"a tour that ended", Preferences{OnboardingCompletedAt: "2026-09-17T10:00:00+02:00"}, ""},
 		{"a word that is not a switch must not turn a moment off", Preferences{Celebrations: "off"}, "accounts.celebrations_invalid"},
 		{"a date without a time is not an instant", Preferences{OnboardingCompletedAt: "2026-09-17"}, "accounts.onboarding_completed_at_invalid"},
+		{"products seen", Preferences{ProductsSeen: []string{"SERVICE_DESK", "TIME"}}, ""},
+		{"a product that does not exist is not kept", Preferences{ProductsSeen: []string{"SERVICE_DESK", "CHESS"}}, "accounts.products_seen_invalid"},
 	}
 
 	for _, c := range cases {
@@ -295,5 +299,19 @@ func TestLookupAddressBringsATypedAddressToTheStoredForm(t *testing.T) {
 	}
 	if got := LookupAddress("anna@müller.de", nil); got != "anna@müller.de" {
 		t.Errorf("without an encoder the address changed: %q", got)
+	}
+}
+
+// §3.4: the products seen are kept each once, in the order given; the clearing null arrives as an
+// empty member and clears the list.
+func TestProductsSeenAreKeptOnceEachAndClearedByNothing(t *testing.T) {
+	var account Account
+	updated, err := account.WithPreferences(Preferences{ProductsSeen: []string{"TIME", " SERVICE_DESK ", "TIME"}})
+	if err != nil || !slices.Equal(updated.ProductsSeen, []string{"TIME", "SERVICE_DESK"}) {
+		t.Fatalf("got %v, %v; want TIME, SERVICE_DESK", updated.ProductsSeen, err)
+	}
+	cleared, err := updated.WithPreferences(Preferences{ProductsSeen: []string{""}})
+	if err != nil || len(cleared.ProductsSeen) != 0 {
+		t.Fatalf("got %v, %v; want the list cleared", cleared.ProductsSeen, err)
 	}
 }

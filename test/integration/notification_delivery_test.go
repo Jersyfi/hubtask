@@ -8,6 +8,7 @@ package integration
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -224,6 +225,9 @@ func newNotificationStack(ctx context.Context, t *testing.T) notificationStack {
 			Queue: jobs, UnitOfWork: work, Handlers: handlers, Clock: clockadapter.System{},
 			Batch: 10, PollInterval: 50 * time.Millisecond, JobTimeout: 5 * time.Second,
 			Lease: 30 * time.Second,
+			// The kinds it has handlers for, as a role's runner claims: the package's other tests
+			// leave jobs due in the shared queue, and taking those would be this test's wait.
+			Only: []queue.Kind{queue.KindInvitationEmail, queue.KindNotificationDeliver},
 			// The production backoff in miniature. Not zero: a job's attempt budget is eight, and
 			// retrying with no wait at all would spend all eight inside a second - which would be
 			// the test proving that an instant retry loop gives up, rather than that a message
@@ -251,9 +255,10 @@ func seedPerson(ctx context.Context, t *testing.T, tenant shared.ID, name, email
 	return id
 }
 
-// theOnlyNotification returns the tenant's single record, waiting for it to appear.
-func theOnlyNotification(
-	ctx context.Context, t *testing.T, tenant shared.ID,
+// notificationFor returns the recipient's record, waiting for it to appear. By recipient, not
+// by tenant: the shared tenant holds the records other tests seed.
+func notificationFor(
+	ctx context.Context, t *testing.T, tenant, recipient shared.ID,
 ) domain.Notification {
 	t.Helper()
 
@@ -261,7 +266,8 @@ func theOnlyNotification(
 	waitFor(t, 5*time.Second, "a notification record", func() bool {
 		var found string
 		err := adminPool(ctx, t).QueryRow(ctx,
-			"SELECT id::text FROM notification WHERE tenant_id = $1", tenant.String()).Scan(&found)
+			"SELECT id::text FROM notification WHERE tenant_id = $1 AND recipient_id = $2",
+			tenant.String(), recipient.String()).Scan(&found)
 		if err != nil {
 			return false
 		}
@@ -289,9 +295,25 @@ func waitFor(t *testing.T, within time.Duration, what string, condition func() b
 	t.Fatalf("gave up waiting for %s after %v", what, within)
 }
 
+// waitSaying is waitFor for a wait whose failure must say what it last saw instead.
+func waitSaying(t *testing.T, within time.Duration, what string, condition func() (bool, string)) {
+	t.Helper()
+	deadline := time.Now().Add(within)
+	saw := "nothing"
+	for time.Now().Before(deadline) {
+		var held bool
+		if held, saw = condition(); held {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("gave up waiting for %s after %v; last saw %s", what, within, saw)
+}
+
 // The acceptance criterion in one test: with SMTP down the notification stays queued, the health
 // report says the feature is degraded, and the queue catches up on its own when the server
-// returns - without anything being restarted.
+// returns - without anything being restarted. With mail configured, the invitation arrives by mail
+// (UC-ID-14 check 3).
 func TestANotificationSurvivesAMailServerOutage(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -317,7 +339,7 @@ func TestANotificationSurvivesAMailServerOutage(t *testing.T) {
 	})
 
 	// --- The mail server is down -----------------------------------------------------------
-	record := theOnlyNotification(ctx, t, tenantA)
+	record := notificationFor(ctx, t, tenantA, invited)
 	if record.Category != domain.CategoryInvitation {
 		t.Errorf("category %q, want the invitation", record.Category)
 	}
@@ -326,13 +348,14 @@ func TestANotificationSurvivesAMailServerOutage(t *testing.T) {
 	// outage is reported rather than hidden at the same moment, because the health probe reads
 	// the breaker the failing attempts trip.
 	var report healthport.Report
-	waitFor(t, 5*time.Second, "a delivery attempt and a degraded report", func() bool {
+	waitSaying(t, 5*time.Second, "a delivery attempt and a degraded report", func() (bool, string) {
 		current, err := findNotification(ctx, t, tenantA, record.ID)
-		if err != nil || current.Attempts == 0 {
-			return false
+		if err != nil {
+			return false, fmt.Sprintf("record %s unreadable: %v", record.ID, err)
 		}
 		report = stack.registry.Report(ctx)
-		return report.Status == healthport.StatusDegraded
+		saw := fmt.Sprintf("record %s %s after %d attempts, health %s", record.ID, current.State, current.Attempts, report.Status)
+		return current.Attempts > 0 && report.Status == healthport.StatusDegraded, saw
 	})
 
 	current, err := findNotification(ctx, t, tenantA, record.ID)

@@ -72,6 +72,13 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     failures++;
     console.error('static: favicon.svg is missing or is not the design system\'s generated tab icon');
   }
+  // RFC 9116's contact file: a route under a dot directory is the kind a framework upgrade could
+  // quietly stop prerendering (security.md §14.2).
+  const contact = path.join(dist, '.well-known', 'security.txt');
+  if (!fs.existsSync(contact) || !/^Contact: /m.test(fs.readFileSync(contact, 'utf8'))) {
+    failures++;
+    console.error('static: .well-known/security.txt is missing or names no contact');
+  }
   if (failures > 0) process.exit(1);
-  console.log(`static: ${documents} document(s), plain static, the generated tab icon`);
+  console.log(`static: ${documents} document(s), plain static, the generated tab icon, security.txt`);
 }

@@ -5,6 +5,7 @@ package privacy
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -51,7 +52,8 @@ func newWithdrawal(consents *consentStore, authorizer *authorizerDouble, sink *a
 	}
 }
 
-// One's own consent is self-service, the way a preference is.
+// UC-PRV-05 check 1 and UC-PRV-05 check 3: one's own consent is self-service, the way a preference
+// is, and dsr.consent_withdrawn is written.
 func TestWithdrawingOnesOwnConsentAsksForNoPermission(t *testing.T) {
 	consents, authorizer, sink := &consentStore{endings: 1}, &authorizerDouble{}, &auditSink{}
 
@@ -80,7 +82,7 @@ func TestWithdrawingOnesOwnConsentAsksForNoPermission(t *testing.T) {
 	}
 }
 
-// Somebody else's is the administrator's, and the record says who wrote it.
+// UC-PRV-05 check 2: somebody else's is the administrator's, and the record says who wrote it.
 func TestWithdrawingSomebodyElsesConsentAsksForTheAdministratorsLine(t *testing.T) {
 	consents, authorizer, sink := &consentStore{}, &authorizerDouble{}, &auditSink{}
 
@@ -103,8 +105,23 @@ func TestWithdrawingSomebodyElsesConsentAsksForTheAdministratorsLine(t *testing.
 	}
 }
 
-// The person said no, and the record says they said no - rather than a gap where an operator has
-// to guess.
+// UC-PRV-05 check 2: whoever lacks the administrator's line records nothing for somebody else.
+func TestAMemberCannotWithdrawSomebodyElsesConsent(t *testing.T) {
+	consents, sink := &consentStore{}, &auditSink{}
+	authorizer := &authorizerDouble{refuse: shared.ErrForbidden}
+
+	_, err := newWithdrawal(consents, authorizer, sink).
+		Execute(context.Background(), actor(), WithdrawCommand{AccountID: subjectID, Purpose: "metering"})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a refused withdrawal for somebody else answered %v", err)
+	}
+	if len(consents.stored) != 0 || len(sink.entries) != 0 {
+		t.Error("a refused withdrawal left something behind")
+	}
+}
+
+// UC-PRV-05 check 1: the person said no, and the record says they said no - rather than a gap where
+// an operator has to guess.
 func TestWithdrawingSomethingNobodyGrantedIsStillRecorded(t *testing.T) {
 	consents, authorizer, sink := &consentStore{endings: 0}, &authorizerDouble{}, &auditSink{}
 
@@ -124,12 +141,15 @@ func TestWithdrawingSomethingNobodyGrantedIsStillRecorded(t *testing.T) {
 	}
 }
 
+// UC-PRV-05 check 1: a withdrawal without a purpose is refused as privacy.purpose_required.
 func TestAPurposeIsRequired(t *testing.T) {
 	consents, authorizer, sink := &consentStore{}, &authorizerDouble{}, &auditSink{}
 
-	if _, err := newWithdrawal(consents, authorizer, sink).
-		Execute(context.Background(), actor(), WithdrawCommand{Purpose: "  "}); err == nil {
-		t.Fatal("a withdrawal with no purpose was recorded")
+	_, err := newWithdrawal(consents, authorizer, sink).
+		Execute(context.Background(), actor(), WithdrawCommand{Purpose: "  "})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || !errors.Is(err, shared.ErrValidation) || refusal.DetailCode != domain.CodePurposeRequired {
+		t.Fatalf("a withdrawal with no purpose answered %v", err)
 	}
 	if len(consents.stored) != 0 || len(sink.entries) != 0 {
 		t.Error("a refused withdrawal left something behind")

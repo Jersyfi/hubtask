@@ -20,7 +20,8 @@
 
   import { engine } from '../data/engine.ts';
   import { live } from '../data/live.svelte.ts';
-  import { queue } from '../data/queue.svelte.ts';
+  import { queue, type ListedRefusal } from '../data/queue.svelte.ts';
+  import RefusedDraft from './RefusedDraft.svelte';
   import { formatDateTime, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { session } from '../session.svelte.ts';
@@ -34,8 +35,12 @@
   // The mark's three words, from the store's four states: `off` is drawn by nobody - the line is
   // only rendered with a session - and `offline` is the device's own answer, which is what the
   // struck cloud of ADR-0063 decision 5 is for.
-  const connection = $derived<Connection>(live.state === 'live' ? 'connected' : live.state === 'reconnecting' ? 'reconnecting' : 'offline');
-  const connectionLabel = $derived(t(`app.sync.${connection}`));
+  // `paused` - the server up, the stream refused at its cap - draws the reconnecting mark and says
+  // what it is.
+  const connection = $derived<Connection>(
+    live.state === 'live' ? 'connected' : live.state === 'reconnecting' || live.state === 'paused' ? 'reconnecting' : 'offline',
+  );
+  const connectionLabel = $derived(live.state === 'paused' ? t('app.sync.paused') : t(`app.sync.${connection}`));
 
   /** When the copy last synchronised: the store's position, read once per change of the queue. */
   let syncedAt = $state<number | undefined>(undefined);
@@ -47,6 +52,12 @@
     });
   });
 
+  /** The refused change opened as a draft (user-experience.md §5.11), where one is open. */
+  let drafting = $state<ListedRefusal | undefined>(undefined);
+  let isDraftOpen = $state(false);
+
+  // Every refused change that kept its mutation can be opened as a draft; one kept before that
+  // (or a device's revoked queue) is only dismissed.
   const refused = $derived<readonly RefusedChange[]>(
     queue.refused.map((change) => ({
       id: change.id,
@@ -54,6 +65,15 @@
       where: change.where,
       reason: change.reason,
       href: change.href,
+      ...(change.record.mutation
+        ? {
+            resolveLabel: t('app.sync.open_as_draft'),
+            onResolve: () => {
+              drafting = change;
+              isDraftOpen = true;
+            },
+          }
+        : {}),
     })),
   );
 
@@ -90,6 +110,7 @@
     if (conflicts.length > 0) return { headline: t('app.sync.state.conflict', { count: conflicts.length }), tone: 'warn' };
     if (refused.length > 0) return { headline: t('app.sync.state.refused', { count: refused.length }), tone: 'bad' };
     if (connection === 'offline') return { headline: t('app.sync.state.offline'), tone: 'warn' };
+    if (live.state === 'paused') return { headline: t('app.sync.state.paused'), tone: 'warn' };
     if (connection === 'reconnecting') return { headline: t('app.sync.state.reconnecting'), tone: 'warn' };
     if (queue.count > 0) return { headline: t('app.sync.state.busy'), tone: 'busy' };
     return { headline: t('app.sync.state.ok'), tone: 'ok' };
@@ -133,6 +154,7 @@
     onDismiss={(id) => (id.startsWith('conflict-') ? queue.dismissConflict(id.slice('conflict-'.length)) : queue.dismiss(id))}
     isSheet={viewport.isCompact}
   />
+  {#if drafting}<RefusedDraft refusal={drafting} bind:isOpen={isDraftOpen} />{/if}
   {#if resolving}
     <ConflictResolver
       bind:isOpen={isResolverOpen}

@@ -26,12 +26,13 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
+  import ErasureLines from '../lib/workspace/ErasureLines.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import type { ErasureKept } from '@hubtask/sync-engine';
+  import type { ErasureKept, ErasureLine } from '@hubtask/sync-engine';
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
     byDeadline,
@@ -74,6 +75,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   const MODES: readonly ErasureMode[] = ['ANONYMIZE', 'FULL_DELETE'];
 
@@ -101,13 +103,18 @@
   let confirming = $state<Request | undefined>(undefined);
   /** What the holds in force would keep of it: read when the confirmation opens (check 11). */
   let previewed = $state<'checking' | 'unknown' | readonly ErasureKept[]>('checking');
+  /** What the erasure does, kind by kind, from the eraser's own list (user-experience.md §5.9). */
+  let lines = $state<readonly ErasureLine[]>([]);
 
   function beginConfirming(request: Request): void {
     failure = undefined;
     confirming = request;
     previewed = 'checking';
+    lines = [];
     void privacy.preview(request.id, request.erasure_mode ?? 'ANONYMIZE').then((answer) => {
-      if (confirming?.id === request.id) previewed = answer ? answer.kept : 'unknown';
+      if (confirming?.id !== request.id) return;
+      previewed = answer ? answer.kept : 'unknown';
+      lines = answer?.lines ?? [];
     });
   }
 
@@ -301,16 +308,13 @@
     </Banner>
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        <Stack gap="050">
-          {#each [...failure.fields] as [path, message] (path)}
-            <span>{message}</span>
-          {/each}
-          {#if failure.reference}
-            <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-          {/if}
-        </Stack>
-      </Banner>
+      <FailureNote problem={failure}>
+        {#if failure.fields.size > 0}
+          <Stack gap="050">
+            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+          </Stack>
+        {/if}
+      </FailureNote>
     {/if}
 
     <Stack gap="150">
@@ -326,9 +330,7 @@
           <Spinner label={t('app.privacy.reading')} /> <span>{t('app.privacy.reading')}</span>
         </p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each listed as request (request.id)}
           {@const standing = standingOf(request, now)}
@@ -437,6 +439,7 @@
                   <p class="quiet small">
                     {t(`app.privacy.mode_${(request.erasure_mode ?? 'ANONYMIZE').toLowerCase()}_note`)}
                   </p>
+                  <ErasureLines requestId={request.id} mode={request.erasure_mode ?? 'ANONYMIZE'} />
                 </Stack>
               {/if}
 
@@ -573,7 +576,7 @@
             </Stack>
           </section>
         {:else}
-          <p class="quiet">{t('app.privacy.none')}</p>
+          <EmptyState kind="unused" title={t('app.privacy.none')} />
         {/each}
 
         <!-- Drawn whole while something is to be said after the last page: the live regions go
@@ -787,11 +790,7 @@
   <Stack gap="100">
     <!-- A refused start is said here: the page's own banner sits behind the dialog. -->
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}
-          <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-        {/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
     <p>
       {t(`app.privacy.confirm_erase_${(confirming?.erasure_mode ?? 'ANONYMIZE').toLowerCase()}`, {
@@ -812,6 +811,7 @@
         <p class="small">{t(line.code, line.params)}</p>
       {/each}
     {/if}
+    <ErasureLines {lines} />
   </Stack>
 </Dialog>
 

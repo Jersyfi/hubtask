@@ -121,9 +121,12 @@ func (j *jobs) Enqueue(_ context.Context, request queue.Request) (shared.ID, err
 
 func (j *jobs) Claim(context.Context, queue.Lease) ([]queue.Job, error) { return nil, nil }
 func (j *jobs) Hold(context.Context, queue.Job) error                   { return nil }
-func (j *jobs) Complete(context.Context, queue.Job, string) error       { return nil }
-func (j *jobs) Repeat(context.Context, queue.Job, time.Time) error      { return nil }
-func (j *jobs) Fail(context.Context, queue.Failure) error               { return nil }
+func (j *jobs) Extend(_ context.Context, job queue.Job, _ time.Time) (queue.Job, error) {
+	return job, nil
+}
+func (j *jobs) Complete(context.Context, queue.Job, string) error  { return nil }
+func (j *jobs) Repeat(context.Context, queue.Job, time.Time) error { return nil }
+func (j *jobs) Fail(context.Context, queue.Failure) error          { return nil }
 
 func (j *jobs) Depth(context.Context) ([]queue.Depth, error) { return nil, nil }
 
@@ -234,6 +237,7 @@ func TestStartingABackupIsAudited(t *testing.T) {
 
 // A refusal rather than a quiet promotion to a full run: a caller that asked for an incremental
 // and silently got a full one has been told nothing about how long it will take.
+// UC-BAK-03 check 2.
 func TestAnIncrementalWithNoParentIsRefused(t *testing.T) {
 	h := newHarness()
 	enabledTarget(t, h)

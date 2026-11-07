@@ -367,3 +367,78 @@ func parseEvents(t *testing.T, body string) []sseEvent {
 	}
 	return events
 }
+
+// A stream ends once its credential no longer counts: a session revoked since it opened, or a
+// view as somebody that lapsed.
+func TestARevokedCredentialEndsTheStream(t *testing.T) {
+	for name, prepare := range map[string]func(*http.Request) *http.Request{
+		"revoked": func(r *http.Request) *http.Request {
+			return r.WithContext(stream.WithReauthentication(r.Context(),
+				func(context.Context) (appshared.ActorContext, error) {
+					return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+				}))
+		},
+		"view lapsed": func(r *http.Request) *http.Request {
+			return r.WithContext(appshared.ContextWithActor(r.Context(), appshared.ActorContext{
+				TenantID: streamTenant, AccountID: streamAccount, Kind: shared.ActorUser,
+				ViewedBy: streamAccount, ViewingAsUntil: streamNow.Add(-time.Second),
+			}))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			controller, _, _ := streamController(t, &fakeStream{}, stream.Limits{PerProcess: 4})
+			var mu sync.Mutex
+			at := streamNow
+			controller.Clock = func() time.Time {
+				mu.Lock()
+				defer mu.Unlock()
+				at = at.Add(time.Minute)
+				return at
+			}
+			request := prepare(authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil)))
+			recorder, wait := serveStream(t, controller, request)
+			wait()
+			if !strings.Contains(recorder.Body.String(), ": credential") {
+				t.Errorf("the stream did not end on its credential:\n%s", recorder.Body.String())
+			}
+		})
+	}
+}
+
+// A revocation rung for the stream's account asks the credential at once, however recently it was
+// asked.
+func TestARevocationEndsTheStreamAtOnce(t *testing.T) {
+	controller, registry, _ := streamController(t, &fakeStream{}, stream.Limits{PerProcess: 4})
+	request := authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil))
+	request = request.WithContext(stream.WithReauthentication(request.Context(),
+		func(context.Context) (appshared.ActorContext, error) {
+			return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+		}))
+	recorder, wait := serveStream(t, controller, request)
+	deadline := time.Now().Add(5 * time.Second)
+	for registry.Open() == 0 && time.Now().Before(deadline) {
+		time.Sleep(2 * time.Millisecond)
+	}
+	registry.Recheck(streamTenant.String(), streamAccount.String())
+	wait()
+	if !strings.Contains(recorder.Body.String(), ": credential") {
+		t.Errorf("the stream did not end on its credential:\n%s", recorder.Body.String())
+	}
+}
+
+// The streams a draining pod ends together come back spread over seconds rather than in the same
+// one: each connection is told its own delay, and each refusal its own Retry-After.
+func TestReconnectionDelaysAreSpreadPerConnection(t *testing.T) {
+	retries, afters := map[int]bool{}, map[int]bool{}
+	for range 200 {
+		retry, after := streamRetry(), refusalRetryAfter()
+		if retry < 1000 || retry >= 10000 || after < 5 || after > 10 {
+			t.Fatalf("drew retry %d ms and Retry-After %d s, outside their bounds", retry, after)
+		}
+		retries[retry/1000] = true
+		afters[after] = true
+	}
+	if len(retries) < 5 || len(afters) < 3 {
+		t.Errorf("200 draws fell into %d seconds of retry and %d Retry-After values: not spread", len(retries), len(afters))
+	}
+}

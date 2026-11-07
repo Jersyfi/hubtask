@@ -4,13 +4,11 @@
 package rest
 
 import (
-	"net/http"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -20,164 +18,10 @@ import (
 
 const (
 	createDataSubjectRequestUseCase = "CreateDataSubjectRequest"
-	listDataSubjectRequestsUseCase  = "ListDataSubjectRequests"
 	updateDataSubjectRequestUseCase = "UpdateDataSubjectRequest"
-	extendDataSubjectRequestUseCase = "ExtendDataSubjectRequest"
-	previewErasureUseCase           = "PreviewErasure"
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
-	giveConsentUseCase              = "GiveConsent"
-	listConsentsUseCase             = "ListConsents"
-	readOwnAiPositionUseCase        = "ReadOwnAiPosition"
-	acknowledgeAiPositionUseCase    = "AcknowledgeAiPosition"
 )
-
-// ListDataSubjectRequests answers GET /privacy/requests.
-func (c *RestController) ListDataSubjectRequests(
-	w http.ResponseWriter, r *http.Request, params openapi.ListDataSubjectRequestsParams,
-) {
-	in := usecase.Input{
-		"cursor": optionalStringField(params.Cursor),
-		"size":   optionalIntField(params.Size),
-	}
-	if params.Status != nil {
-		in["status"] = string(*params.Status)
-	}
-	if params.Kind != nil {
-		in["kind"] = string(*params.Kind)
-	}
-	if params.DueWithinDays != nil {
-		in["due_within_days"] = *params.DueWithinDays
-	}
-	if params.IncludeClosed != nil {
-		in["include_closed"] = *params.IncludeClosed
-	}
-
-	out, ok := c.read(w, r, listDataSubjectRequestsUseCase, in)
-	if !ok {
-		return
-	}
-
-	page := struct {
-		Data []openapi.DataSubjectRequest `json:"data"`
-		Page openapi.PageInfo             `json:"page"`
-	}{Data: []openapi.DataSubjectRequest{}, Page: pageResponse(out)}
-	for _, row := range rowsOf(out) {
-		page.Data = append(page.Data, dataSubjectRequestResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, page)
-}
-
-// CreateDataSubjectRequest answers POST /privacy/requests.
-func (c *RestController) CreateDataSubjectRequest(
-	w http.ResponseWriter, r *http.Request, _ openapi.CreateDataSubjectRequestParams,
-) {
-	var body openapi.DataSubjectRequestCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"kind": string(body.Kind)}
-	if body.Scope != nil {
-		in["scope"] = string(*body.Scope)
-	}
-	if body.SubjectAccountId != nil {
-		in["subject_account_id"] = body.SubjectAccountId.String()
-	}
-	if body.SubjectEmail != nil {
-		in["subject_email"] = string(*body.SubjectEmail)
-	}
-	if body.ReceivedOn != nil {
-		in["received_on"] = body.ReceivedOn.String()
-	}
-	if body.DueAt != nil {
-		in["due_at"] = body.DueAt.UTC().Format(time.RFC3339Nano)
-	}
-	if body.TargetId != nil {
-		in["target_id"] = body.TargetId.String()
-	}
-	if body.Notes != nil {
-		in["notes"] = *body.Notes
-	}
-
-	out, ok := c.read(w, r, createDataSubjectRequestUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusCreated, dataSubjectRequestResponse(out))
-}
-
-// UpdateDataSubjectRequest answers PATCH /privacy/requests/{requestId}.
-func (c *RestController) UpdateDataSubjectRequest(
-	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
-) {
-	var body openapi.DataSubjectRequestUpdate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"request_id": requestID.String()}
-	if body.Status != nil {
-		in["status"] = string(*body.Status)
-	}
-	if body.ErasureMode != nil {
-		in["erasure_mode"] = string(*body.ErasureMode)
-	}
-	if body.HandledBy != nil {
-		in["handled_by"] = body.HandledBy.String()
-	}
-	if body.RejectionReason != nil {
-		in["rejection_reason"] = *body.RejectionReason
-	}
-	if body.TargetId != nil {
-		in["target_id"] = body.TargetId.String()
-	}
-	if body.Notes != nil {
-		in["notes"] = *body.Notes
-	}
-
-	out, ok := c.read(w, r, updateDataSubjectRequestUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, dataSubjectRequestResponse(out))
-}
-
-// ExtendDataSubjectRequest answers POST /privacy/requests/{requestId}:extend.
-//
-// The body's three fields are required, and the generated type carries a missing one as its zero
-// value. A field is passed on only when it is not that zero value, so a missing one reaches the
-// registry as absent and is refused there with the code every other channel answers. A malformed
-// day never gets this far: the decoder refuses it as a malformed body.
-func (c *RestController) ExtendDataSubjectRequest(
-	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
-	_ openapi.ExtendDataSubjectRequestParams,
-) {
-	var body openapi.DataSubjectRequestExtension
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"request_id": requestID.String()}
-	if !body.DueOn.IsZero() {
-		in["due_on"] = body.DueOn.Format(openapi_types.DateFormat)
-	}
-	if body.Reason != "" {
-		in["reason"] = string(body.Reason)
-	}
-	if !body.InformedOn.IsZero() {
-		in["informed_on"] = body.InformedOn.Format(openapi_types.DateFormat)
-	}
-
-	out, ok := c.read(w, r, extendDataSubjectRequestUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, dataSubjectRequestResponse(out))
-}
 
 // dataSubjectRequestResponse maps one case onto the contract's schema.
 func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
@@ -225,23 +69,23 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 	return request
 }
 
-// PreviewErasure answers GET /privacy/requests/{requestId}/erasure-preview.
-func (c *RestController) PreviewErasure(
-	w http.ResponseWriter, r *http.Request, requestID openapi_types.UUID,
-	params openapi.PreviewErasureParams,
-) {
-	in := usecase.Input{"request_id": requestID.String()}
-	if params.Mode != nil {
-		in["mode"] = string(*params.Mode)
-	}
-	out, ok := c.read(w, r, previewErasureUseCase, in)
-	if !ok {
-		return
-	}
+// erasurePreviewResponse maps what an erasure in a mode would keep.
+func erasurePreviewResponse(out usecase.Output) openapi.ErasurePreview {
 	parts, _ := out["kept"].([]map[string]any)
-	writeJSON(w, r, http.StatusOK, openapi.ErasurePreview{
-		Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts),
-	})
+	answered, _ := out["lines"].([]map[string]any)
+	lines := make([]openapi.ErasureLine, 0, len(answered))
+	for _, line := range answered {
+		kind, _ := line["kind"].(string)
+		fate, _ := line["fate"].(string)
+		mapped := openapi.ErasureLine{Kind: openapi.ErasureLineKind(kind), Fate: openapi.ErasureLineFate(fate)}
+		if count, ok := line["count"].(int); ok {
+			mapped.Count = &count
+		}
+		lines = append(lines, mapped)
+	}
+	return openapi.ErasurePreview{
+		Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts), Lines: lines,
+	}
 }
 
 // erasureKeptResponse maps what each hold kept onto the contract's schema.
@@ -294,64 +138,18 @@ func dateOrNil(value string) *openapi_types.Date {
 	return &openapi_types.Date{Time: day}
 }
 
-// RestrictProcessing answers POST /accounts/{accountId}:restrict.
-func (c *RestController) RestrictProcessing(
-	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId,
-) {
-	var body openapi.ProcessingRestriction
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"account_id": accountID.String(), "restricted": body.Restricted}
-	if body.Reason != nil {
-		in["reason"] = *body.Reason
-	}
-
-	out, ok := c.read(w, r, restrictProcessingUseCase, in)
-	if !ok {
-		return
-	}
-
-	// What the call set, rather than the person it was set on. A restriction touches nothing else
-	// about an account, and answering their name and address here would be answering more than the
-	// caller asked about.
-	writeJSON(w, r, http.StatusOK, openapi.ProcessingState{
+// processingStateResponse maps what a restriction set, rather than the person it was set on: a
+// restriction touches nothing else about an account, and their name and address would answer more
+// than the caller asked about.
+func processingStateResponse(out usecase.Output) openapi.ProcessingState {
+	return openapi.ProcessingState{
 		AccountId: uuidValue(out.String("id")),
 		Status:    openapi.ProcessingStateStatus(out.String("status")),
-	})
+	}
 }
 
-// WithdrawConsent answers POST /privacy/consents:withdraw.
-func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
-	var body openapi.ConsentWithdrawal
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-
-	in := usecase.Input{"purpose": body.Purpose}
-	if body.AccountId != nil {
-		in["account_id"] = body.AccountId.String()
-	}
-	if body.Reason != nil {
-		in["reason"] = *body.Reason
-	}
-
-	out, ok := c.read(w, r, withdrawConsentUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
-}
-
-// ListConsents answers GET /privacy/consents: the register, the one place who withdrew is listed.
-func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, params openapi.ListConsentsParams) {
-	out, ok := c.read(w, r, listConsentsUseCase, usecase.Input{"purpose": params.Purpose})
-	if !ok {
-		return
-	}
+// consentRegisterResponse maps who has given consent to a purpose, and since when.
+func consentRegisterResponse(out usecase.Output) any {
 	rows, _ := out["items"].([]usecase.Output)
 	answer := struct {
 		Data []openapi.ConsentRegisterEntry `json:"data"`
@@ -369,43 +167,7 @@ func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, pa
 		}
 		answer.Data = append(answer.Data, entry)
 	}
-	writeJSON(w, r, http.StatusOK, answer)
-}
-
-// GiveConsent answers POST /privacy/consents:give.
-func (c *RestController) GiveConsent(w http.ResponseWriter, r *http.Request) {
-	var body openapi.ConsentGrant
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
-		return
-	}
-	in := usecase.Input{"purpose": body.Purpose}
-	if body.AccountId != nil {
-		in["account_id"] = body.AccountId.String()
-	}
-	out, ok := c.read(w, r, giveConsentUseCase, in)
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
-}
-
-// ReadOwnAiPosition answers GET /privacy/ai-objection.
-func (c *RestController) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, readOwnAiPositionUseCase, usecase.Input{})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, ownAiPositionOf(out))
-}
-
-// AcknowledgeAiPosition answers POST /privacy/ai-objection:noticed.
-func (c *RestController) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
-	out, ok := c.read(w, r, acknowledgeAiPositionUseCase, usecase.Input{})
-	if !ok {
-		return
-	}
-	writeJSON(w, r, http.StatusOK, ownAiPositionOf(out))
+	return answer
 }
 
 func ownAiPositionOf(out usecase.Output) openapi.OwnAiPosition {

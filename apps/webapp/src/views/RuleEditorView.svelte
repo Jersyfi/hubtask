@@ -19,10 +19,14 @@
   // **Nothing is pre-empted.** Writing a rule needs the automation permission *and* the rights the
   // rule's own actions need, which no client can compute; the server refuses and this renders the
   // refusal at the field it names.
+  //
+  // **A person's own rule (UC-AUT-01 check 10)** - opened from Your settings (`isOwn`), or chosen as
+  // *Only for me* - is fixed to its owner: scope and runner are the reader, the trigger an event,
+  // and the reader writes it without the automation permission (`asOwn`).
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Breadcrumb, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Breadcrumb, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
 
   import type { Suggestion } from '@hubtask/sync-engine';
 
@@ -34,7 +38,7 @@
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { addRung, canPlace, emptyDraft, endsRun, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
+  import { OWN_TRIGGERS, addRung, asOwn, canPlace, emptyDraft, isOwnRule, endsRun, stepDraft, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { REFERENCE, eventWords, generatedName, kindWord, offeredKinds, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
@@ -50,6 +54,8 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
+  import { roles } from '../lib/data/roles.svelte.ts';
+  import { roleLabel, SHIPPED_ROLES } from '../lib/people/rolewords.ts';
   import { labels } from '../lib/data/labels.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { rules, type InboundToken } from '../lib/data/rules.svelte.ts';
@@ -57,19 +63,29 @@
   import { runs, type Run } from '../lib/data/runs.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
+  import { workflows } from '../lib/data/workflows.svelte.ts';
+  import { workflowChoices } from '../lib/data/workflows.ts';
   import { webhooks } from '../lib/data/webhooks.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     /** The rule's identifier, or `new`. */
     id: string;
+    /** A new rule on a step: the workflow's key and the step's, from the designer's *Then*. */
+    workflow?: string;
+    step?: string;
+    /** Opened from Your settings: a rule of the reader's own. */
+    isOwn?: boolean;
     onnavigate: (path: string) => void;
   }
 
-  const { id, onnavigate }: Props = $props();
+  const { id, workflow: onWorkflow, step: onStepKey, isOwn = false, onnavigate }: Props = $props();
+  const me = $derived(actor.account?.id);
+  const base = $derived(isOwn ? '/profile/rules' : '/administration/rules');
 
   const TENANT = { scopeType: 'TENANT' } as const;
   const isNew = $derived(id === 'new');
@@ -92,7 +108,10 @@
 
   $effect(() => untrack(() => rules.open()));
   $effect(() => untrack(() => containers.start()));
-  $effect(() => untrack(() => serviceAccounts.open()));
+  $effect(() => {
+    if (isOwn) return;
+    return untrack(() => serviceAccounts.open());
+  });
   $effect(() => {
     for (const hub of containers.hubs) untrack(() => containers.openLevel(hub.id));
   });
@@ -116,7 +135,12 @@
       // every deep link into `/rules/new` that beats the boot.
       if (manifest.state.status === 'loading' || manifest.state.status === 'idle') return;
       const first = manifest.value?.event_types?.[0] ?? '';
-      draft = emptyDraft(first);
+      if (isOwn) {
+        if (!me) return;
+        draft = asOwn(emptyDraft(first), me, first);
+      } else {
+        draft = onWorkflow && onStepKey ? stepDraft(onWorkflow, onStepKey) : emptyDraft(first);
+      }
       taken = true;
     } else if (stored) {
       draft = fromRule(stored);
@@ -125,9 +149,13 @@
   });
   let dirty = $state(false);
   const update = (change: (draft: Draft) => Draft): void => {
-    draft = change(draft);
+    const next = change(draft);
+    // *Only for me* chosen: the runner and the trigger follow, as the server would demand.
+    draft = me && isOwnRule(next, me) ? asOwn(next, me, manifest.value?.event_types?.[0] ?? '') : next;
     dirty = true;
   };
+  /** Whether the draft is a rule of the reader's own, which they write without `AUTOMATION`. */
+  const ownMode = $derived(isOwn || isOwnRule(draft, me));
 
   let selection = $state<Selection>({ kind: 'rule' });
   /** The panel's five tabs (automation.md §1.5): Rule, Blocks, Details, Probe, Runs. */
@@ -263,7 +291,14 @@
 
   /* ---------- What the manifest and the workspace offer ---------- */
 
-  const triggers = $derived(manifest.value?.automation?.triggers ?? []);
+  const triggers = $derived((manifest.value?.automation?.triggers ?? []).filter((kind) => !ownMode || OWN_TRIGGERS.includes(kind)));
+  // The workflows a rule on a step names, read only once a rule is one.
+  const onAStep = $derived(draft.trigger.kind === 'STEP_TAKEN');
+  $effect(() => {
+    if (!onAStep) return;
+    return untrack(() => workflows.open());
+  });
+  const stepChoices = $derived(onAStep ? workflowChoices(workflows.list?.data ?? [], t) : []);
   const actionKinds = $derived(offeredKinds(offeredBlocks(manifest.value?.automation?.actions ?? []), manifest.value?.features));
   const actionFields = $derived((manifest.value?.automation?.action_fields ?? {}) as Readonly<Record<string, readonly { name: string; kind: string; required: boolean; enum?: readonly string[]; description?: string }[]>>);
   const eventTypes = $derived(manifest.value?.event_types ?? []);
@@ -273,12 +308,16 @@
 
   // One row per account: a service account that also holds a membership is in both lists, and
   // the select showed the second row's words for it (the third walk).
-  const runners = $derived<Choice[]>([
+  const everyone = $derived<Choice[]>([
     ...serviceAccounts.all.map((account) => ({ value: account.id, label: t('app.rules.service_account_named', { name: account.display_name }) })),
     ...people.candidates({}).filter((accountId) => !serviceAccounts.all.some((account) => account.id === accountId)).map((accountId) => ({ value: accountId, label: accounts.nameOf(accountId) ?? t('app.people.unnamed') })),
   ]);
 
-  const scopes = $derived<Choice[]>([
+  /** Who the rule may run as: an own rule runs as its owner, and nobody else is offered. */
+  const runners = $derived<Choice[]>(ownMode && me ? [{ value: me, label: t('app.rules.runs_as_you') }] : everyone);
+
+  const ownScope = $derived<Choice[]>(me ? [{ value: `PERSON:${me}`, label: t('app.rules.scope_person') }] : []);
+  const scopes = $derived<Choice[]>(isOwn ? ownScope : [
     { value: 'TENANT', label: t('app.rules.scope_tenant') },
     ...containers.hubs.map((hub) => ({ value: `HUB:${hub.id}`, label: t('app.rules.scope_hub', { name: hub.name }) })),
     ...containers.hubs.flatMap((hub) =>
@@ -287,6 +326,7 @@
         label: t('app.rules.scope_collection', { name: `${hub.name} · ${collection.name}` }),
       })),
     ),
+    ...ownScope,
   ]);
 
   /** The collections the rule's scope sees: what a label or bucket picker draws from. */
@@ -343,6 +383,9 @@
     if (needed.has('group')) untrack(() => groups.open());
   });
   $effect(() => {
+    if (needed.has('role')) untrack(() => roles.open());
+  });
+  $effect(() => {
     if (needed.has('template')) untrack(() => templates.open());
   });
   $effect(() => {
@@ -359,15 +402,21 @@
     template: templates.of().map((template) => ({ value: template.id, label: template.name })),
     subscription: webhooks.all.map((subscription) => ({ value: subscription.id, label: subscription.target_url })),
     group: groups.all.map((group) => ({ value: group.id, label: group.name })),
-    account: runners,
+    // The built-in roles are always offered; the workspace's own once its catalogue is read.
+    role: [
+      ...SHIPPED_ROLES.map((role) => ({ value: role, label: roleLabel(role) })),
+      ...(roles.catalogue?.custom ?? []).map((role) => ({ value: role.key, label: role.name })),
+    ],
+    account: everyone,
   });
 
   /* ---------- Words ---------- */
 
   const words = { t, has: (code: string) => messages.has(code) };
   const names = $derived<Names>({
-    scope: (scope) => scopes.find((choice) => choice.value === (scope.id ? `${scope.type}:${scope.id}` : scope.type))?.label ?? scope.type,
-    account: (accountId) => runners.find((choice) => choice.value === accountId)?.label ?? accounts.nameOf(accountId) ?? t('app.rules.choose_runner'),
+    // An own rule is said as what it acts on and who it acts as, inside the sentence and on its chips.
+    scope: (scope) => scope.type === 'PERSON' ? t('app.rules.scope_person_said') : scopes.find((choice) => choice.value === (scope.id ? `${scope.type}:${scope.id}` : scope.type))?.label ?? scope.type,
+    account: (accountId) => accountId === me ? t('app.rules.runs_as_you_said') : [...runners, ...everyone].find((choice) => choice.value === accountId)?.label ?? accounts.nameOf(accountId) ?? t('app.rules.choose_runner'),
     event: (type) => eventWords(words, type).clause,
     bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
     label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
@@ -399,6 +448,11 @@
         return stored?.inbound_rotated_at ? t('app.rules.inbound_minted', { moment: formatDateTime(stored.inbound_rotated_at, messages.locale) }) : t('app.flow.no_address');
       case 'MANUAL':
         return t('app.flow.manual_hint');
+      case 'STEP_TAKEN': {
+        const workflow = stepChoices.find((choice) => choice.value === trigger.workflow);
+        const step = workflow?.steps.find((choice) => choice.value === trigger.step);
+        return [workflow?.label ?? trigger.workflow, step?.label ?? trigger.step].filter(Boolean).join(' · ') || t('app.flow.choose_step');
+      }
       default:
         return t('app.flow.jumble_hint');
     }
@@ -569,7 +623,7 @@
       if (ok && created) {
         dirty = false;
         drafted = undefined;
-        onnavigate(`/administration/rules/${created}`);
+        onnavigate(`${base}/${created}`);
       }
       return;
     }
@@ -580,7 +634,7 @@
       }, t('app.flow.saved_off_announced'));
       if (ok && created) {
         dirty = false;
-        onnavigate(`/administration/rules/${created.id}`);
+        onnavigate(`${base}/${created.id}`);
       }
       return;
     }
@@ -608,7 +662,7 @@
     if (!stored) return;
     const ok = await attempt(() => rules.remove(stored.id), t('app.rules.removed_announced'));
     isDeleting = false;
-    if (ok) onnavigate('/administration/rules');
+    if (ok) onnavigate(base);
   }
 
   async function mint(): Promise<void> {
@@ -703,6 +757,8 @@
 
   /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
   const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
+  /** Whether the reader may write this rule: their own, or any with the automation permission. */
+  const mayWrite = $derived(ownMode || mayAutomate);
   /**
    * Where the plan leaves the rules out the editor reads only: no save, no switching on, no dry run
    * and no manual start - switching off, deleting and a new inbound address stay
@@ -755,11 +811,13 @@
       <div class="row">
         <!-- The trail is the way back: *Administration › Automation › this rule* (design-system.md §11.5). -->
         <Breadcrumb
-          label={t('app.admin.trail')}
-          expandLabel={t('app.admin.expand_trail')}
+          label={isOwn ? t('app.you.trail') : t('app.admin.trail')}
+          expandLabel={isOwn ? t('app.you.expand_trail') : t('app.admin.expand_trail')}
           trail={[
-            { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-            { id: 'rules', label: t('app.rules.title'), href: '/administration/rules' },
+            isOwn
+              ? { id: 'settings', label: t('app.nav.profile'), href: '/profile' }
+              : { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+            { id: 'rules', label: isOwn ? t('app.rules.mine_title') : t('app.rules.title'), href: base },
             { id: 'rule', label: isNew ? t('app.flow.new_title') : shownName || t('app.flow.new_title') },
           ]}
         />
@@ -771,10 +829,10 @@
         {/if}
         {#if isBroken}<Badge tone="danger" icon="circle-alert">{t('app.flow.health_broken')}</Badge>{:else if findings.length > 0}<Badge tone="warning" icon="triangle-alert">{t('app.flow.health_attention')}</Badge>{/if}
         {#if dirty}<Badge tone="warning">{t('app.flow.unsaved')}</Badge>{/if}
-        {#if mayAutomate && rulesIncluded}
+        {#if mayWrite && rulesIncluded}
         <Button tone="primary" size="sm" isBusy={isWorking} busyLabel={t('app.flow.saving')} onclick={save}>{t('app.flow.save')}</Button>
         {/if}
-        {#if stored && mayAutomate}
+        {#if stored && mayWrite}
           {#if rulesIncluded || stored.enabled}
           <Button size="sm" tone={stored.enabled ? 'secondary' : 'primary'} isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={toggle} disabledReason={!stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined}>
             {stored.enabled ? t('app.flow.disable') : t('app.flow.enable')}
@@ -786,7 +844,7 @@
           <Button size="sm" tone="subtle" icon="trash" onclick={() => (isDeleting = true)}>{t('app.flow.delete')}</Button>
         {/if}
       </div>
-      <WorkspaceRefusal permission="AUTOMATION" />
+      {#if !ownMode}<WorkspaceRefusal permission="AUTOMATION" />{/if}
       {#if resting}
         <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rule_body')} />
       {/if}
@@ -839,11 +897,9 @@
         </Banner>
       {/if}
       {#if failure && !failure.fields.size}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {:else if failure}
-        <Banner tone="danger" title={failure.message} />
+        <FailureNote problem={failure} />
       {/if}
 
       {#if minted && minted.rule_id === stored?.id}
@@ -970,6 +1026,7 @@
             {runners}
             {pickers}
             {itemTypes}
+            workflowChoices={stepChoices}
             {errors}
             {marks}
             {findings}
@@ -1004,6 +1061,7 @@
             {runners}
             {pickers}
             {itemTypes}
+            workflowChoices={stepChoices}
             {errors}
             {marks}
             {findings}
@@ -1031,7 +1089,7 @@
         {:else if stored}
           <RuleRuns ruleId={stored.id} enabled={stored.enabled} findings={stored.findings ?? []} runs={ruleRuns} ondraw={drawRun} />
         {:else}
-          <p class="quiet panel">{t('app.flow.runs_none')}</p>
+          <EmptyState kind="unused" title={t('app.flow.runs_none')} />
         {/if}
     {/snippet}
 

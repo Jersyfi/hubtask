@@ -117,3 +117,22 @@ func TestWeekStartOfReadsTheRowTheTagLandsOn(t *testing.T) {
 		}
 	}
 }
+
+// The decimal separator is read from the same row: de-AT writes de's comma, a tag that lands
+// nowhere the point.
+func TestDecimalSeparatorOfReadsTheRowTheTagLandsOn(t *testing.T) {
+	embedded := directory(t, map[string]string{
+		"en.json": `{"a.one": "One"}`,
+		"de.json": `{"a.one": "Eins"}`,
+		"cy.json": `{"a.one": "Un"}`,
+	})
+	renderer, err := newRenderer(embedded, nil)
+	if err != nil {
+		t.Fatalf("building the renderer: %v", err)
+	}
+	for locale, want := range map[string]string{"de": ",", "de-AT": ",", "en": ".", "cy": ".", "": ".", "nonsense tag": "."} {
+		if got := renderer.DecimalSeparatorOf(locale); got != want {
+			t.Errorf("%q separates with %q, want %q", locale, got, want)
+		}
+	}
+}

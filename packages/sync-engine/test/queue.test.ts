@@ -23,16 +23,31 @@ import { FakeShell } from './fakeShell.ts';
 const COLLECTION = '0192f000-0000-7000-8000-0000000000c1';
 const ITEM = '0192f000-0000-7000-8000-000000000001';
 const LABEL = '0192f000-0000-7000-8000-0000000000e1';
+const ENTRY_TYPE = '0192f000-0000-7000-8000-0000000000f1';
 
 const WORKSPACE: readonly ChangeRecord[] = [
   { op: 'UPSERT', entity: 'container', entity_id: COLLECTION, container_id: null, payload: { id: COLLECTION, type: 'COLLECTION', name: 'Inbox', parent_id: null, version: 1 } } as ChangeRecord,
   { op: 'UPSERT', entity: 'item', entity_id: ITEM, container_id: COLLECTION, payload: { id: ITEM, title: 'Buy milk', collection_id: COLLECTION, version: 3, order_key: 'a0' } } as ChangeRecord,
+  { op: 'UPSERT', entity: 'entry_type', entity_id: ENTRY_TYPE, container_id: null, payload: { id: ENTRY_TYPE, key: 'bug', name: 'Bug', level: 'TASK', version: 2 } } as ChangeRecord,
 ];
 
 const pathsFor = (record: ChangeRecord) => (record.entity === 'item' ? [`/items/${record.entity_id}`, '/items'] : []);
 
 /** The application's `mutationFor`, as small as the test needs: a patch, a create, a set, a delete. */
 const mutationFor = async (method: string, path: string, body: unknown, helpers: { mintId: () => string }): Promise<QueuedWrite | undefined> => {
+  if (method === 'POST' && path === '/entry-types') {
+    const payload = body as Record<string, unknown>;
+    return { kind: 'ENTITY_UPSERT', entity: 'entry_type', entityKey: String(payload.key), itemId: helpers.mintId(), payload };
+  }
+  const type = /^\/entry-types\/([^/]+)$/.exec(path);
+  if (type?.[1] && method === 'PATCH') {
+    return { kind: 'ENTITY_PATCH', entity: 'entry_type', entityKey: type[1], itemId: ENTRY_TYPE, baseVersion: 2, payload: body as Record<string, unknown> };
+  }
+  if (type?.[1] && method === 'DELETE') return { kind: 'ENTITY_DELETE', entity: 'entry_type', entityKey: type[1], itemId: ENTRY_TYPE };
+  if (method === 'POST' && path === '/time-records') {
+    const id = helpers.mintId();
+    return { kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: id, itemId: id, payload: body as Record<string, unknown> };
+  }
   if (method === 'POST' && path === '/items') {
     return { kind: 'ITEM_CREATE', itemId: helpers.mintId(), payload: body as Record<string, unknown> };
   }
@@ -218,6 +233,47 @@ test('§9.5: a REJECTED result is kept with its code and removed only by dismiss
   assert.equal((await storage.all(REJECTED)).length, 0);
 });
 
+test('user-experience.md §5.11: a refused change opened as a draft is sent again with what the person changed', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id, error: { code: 'invalid', message_code: 'items.title_too_long' } });
+  transport.down = true;
+  await engine.mutate('PATCH', `/items/${ITEM}`, { title: 'far too long' });
+  transport.down = false;
+  await engine.push();
+  const refused = engine.queueState.rejected[0];
+  assert.ok(refused?.mutation, 'the refusal keeps the mutation it was');
+
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'APPLIED', entity_id: mutation.item_id });
+  transport.down = true;
+  assert.equal(await engine.resendRejected(refused?.id ?? '', { title: 'short' }), true);
+  assert.equal(engine.queueState.rejected.length, 0, 'the refusal leaves the list once the new write is queued');
+  assert.equal(engine.queueState.count, 1, 'the draft is queued as a new write');
+  const [queued] = await storage.all<{ id: string; mutation: { fields?: Record<string, { value: unknown }> } }>('queue');
+  assert.notEqual(queued?.id, refused?.id, 'under a new operation');
+  assert.equal(queued?.mutation.fields?.title?.value, 'short');
+  assert.equal((await item(storage))?.document.title, 'short', 'and predicted in the copy');
+
+  assert.equal(await engine.resendRejected('no-such-refusal', {}), false);
+});
+
+test('user-experience.md §5.11: a refusal keeps what it says about each field and its values', async () => {
+  const { transport, engine } = await synced();
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id,
+    error: {
+      code: 'invalid', message_code: 'items.title_too_long', params: { max: '500' },
+      field_errors: [{ path: '/title', code: 'items.title_too_long', params: { max: '500' } }],
+    },
+  });
+  transport.down = true;
+  await engine.mutate('PATCH', `/items/${ITEM}`, { title: 'far too long' });
+  transport.down = false;
+  await engine.push();
+  const refused = engine.queueState.rejected[0];
+  assert.deepEqual(refused?.params, { max: '500' });
+  assert.deepEqual(refused?.fieldErrors, [{ path: '/title', code: 'items.title_too_long', params: { max: '500' } }]);
+});
+
 // Through the port, whichever store is beneath it: the shells' too (F7-04).
 for (const [store, fresh] of STORES) {
   test(`§9.3, §7: a sync.gone is discarded, the copy goes, and the local text is offered back (${store})`, async () => {
@@ -370,4 +426,137 @@ test('a write its caller stopped is neither queued nor taken for an outage', asy
   const answer = await engine.mutate<{ title: string }>('PATCH', `/items/${ITEM}`, { title: 'Renamed' }, { invalidates: ['/items'] });
   assert.equal(answer.title, 'Renamed');
   assert.equal(engine.queueState.count, 0);
+});
+
+test('§4.4: a type changed offline is an ENTITY_PATCH under its key, predicted in the replica and replaced by the answer', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  const prediction = await engine.mutate<{ name: string }>('PATCH', '/entry-types/bug', { name: 'Defect' }, { invalidates: ['/entry-types'] });
+  assert.equal(prediction.name, 'Defect', 'the write answers its prediction');
+  const held = await storage.get<StoredRecord<Record<string, unknown>>>('entry_types', ENTRY_TYPE);
+  assert.equal(held?.document.name, 'Defect');
+  assert.equal(held?.document.level, 'TASK', 'what the change does not name is kept');
+  assert.equal(held?.pending, true);
+
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'APPLIED', entity_id: ENTRY_TYPE,
+    server_state: { id: ENTRY_TYPE, key: 'bug', name: 'Defect', level: 'TASK', version: 3 },
+  });
+  transport.down = false;
+  await engine.push();
+  const pushed = (transport.pushes[0] as { mutations: SyncMutation[] }).mutations[0];
+  assert.equal(pushed?.kind, 'ENTITY_PATCH');
+  assert.equal(pushed?.entity, 'entry_type');
+  assert.equal(pushed?.entity_key, 'bug');
+  assert.equal(pushed?.base_version, 2, 'the version the device read');
+  assert.equal(pushed?.item_id, undefined, 'an entity mutation names no entry');
+  assert.deepEqual(pushed?.payload, { name: 'Defect' });
+  const after = await storage.get<StoredRecord<Record<string, unknown>>>('entry_types', ENTRY_TYPE);
+  assert.equal(after?.version, 3);
+  assert.equal(after?.pending, undefined);
+});
+
+test('§4.4: a type created offline is predicted under a minted identifier, which the server\'s replaces', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  await engine.mutate('POST', '/entry-types', { key: 'risk', name: 'Risk', level: 'TASK' }, { invalidates: ['/entry-types'] });
+  const predicted = (await storage.all<StoredRecord<Record<string, unknown>>>('entry_types')).find((row) => row.document.key === 'risk');
+  assert.ok(predicted?.pending, 'the creation is shown pending');
+
+  const SERVER = '0192f000-0000-7000-8000-0000000000f2';
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'APPLIED', entity_id: SERVER,
+    server_state: { id: SERVER, key: 'risk', name: 'Risk', level: 'TASK', version: 1 },
+  });
+  transport.down = false;
+  await engine.push();
+  const rows = (await storage.all<StoredRecord<Record<string, unknown>>>('entry_types')).filter((row) => row.document.key === 'risk');
+  assert.deepEqual(rows.map((row) => row.id), [SERVER], 'one record, under the server\'s identifier');
+});
+
+// user-experience.md §5.11: time recorded offline shows in the copy as pending, is sent as a
+// `time_record` mutation on reconnect, and the server's record takes the prediction's place.
+test('a time record made offline is sent on reconnect under the server\'s identifier', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  await engine.mutate('POST', '/time-records', { day: '2026-11-03', minutes: 45, work_type: 'development' }, { invalidates: ['/timesheets/2026-11-02'] });
+  const predicted = await storage.all<StoredRecord<Record<string, unknown>>>('time_records');
+  assert.equal(predicted.length, 1);
+  assert.ok(predicted[0]?.pending, 'the record is shown pending');
+  assert.equal(predicted[0]?.document.minutes, 45);
+  assert.equal(transport.pushes.length, 0, 'nothing reached the server while it was away');
+
+  const SERVER = '0192f000-0000-7000-8000-0000000000a9';
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'APPLIED', entity_id: SERVER,
+    server_state: { id: SERVER, day: '2026-11-03', minutes: 45, work_type: 'development', version: 1 },
+  });
+  transport.down = false;
+  await engine.push();
+  const sent = (transport.pushes[0] as { mutations: SyncMutation[] }).mutations[0];
+  assert.equal(sent?.kind, 'ENTITY_UPSERT');
+  assert.equal(sent?.entity, 'time_record');
+  assert.equal((sent?.payload as Record<string, unknown>).minutes, 45);
+  const rows = await storage.all<StoredRecord<Record<string, unknown>>>('time_records');
+  assert.deepEqual(rows.map((row) => [row.id, Boolean(row.pending)]), [[SERVER, false]], 'one record, under the server\'s identifier');
+});
+
+test('§4.4: a type deleted offline goes from the replica and is pushed as an ENTITY_DELETE', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  await engine.mutate('DELETE', '/entry-types/bug', undefined, { invalidates: ['/entry-types'] });
+  const held = await storage.get<StoredRecord<Record<string, unknown>>>('entry_types', ENTRY_TYPE);
+  assert.ok(!held || held.tombstone, 'the copy is gone');
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'APPLIED' });
+  transport.down = false;
+  await engine.push();
+  const pushed = (transport.pushes[0] as { mutations: SyncMutation[] }).mutations[0];
+  assert.equal(pushed?.kind, 'ENTITY_DELETE');
+  assert.equal(pushed?.entity_key, 'bug');
+  assert.equal(engine.queueState.count, 0);
+});
+
+test('an entry deleted offline is queued once: a deletion predicts no document and is still queued', async () => {
+  const { transport, engine } = await synced();
+  transport.down = true;
+  await engine.mutate('DELETE', `/items/${ITEM}`, undefined, { invalidates: ['/items'] });
+  assert.equal(engine.queueState.count, 1, 'queued once, not queued and then queued again after a failed send');
+});
+
+test('§9.6: a refused credential keeps the queue, and the same account signing in again pushes it', async () => {
+  const storage = new MemoryStorage();
+  const { transport, engine } = await synced(storage);
+  transport.down = true;
+  await engine.mutate('PATCH', `/items/${ITEM}`, { title: 'Done in the field' });
+  assert.equal(engine.queueState.count, 1);
+
+  // The session ended while offline: the copy goes, what the person did stays.
+  assert.equal(await engine.release(), 1, 'one change kept');
+  assert.equal(engine.queueState.count, 0, 'nothing is shown for an account that is not signed in');
+  assert.equal(await item(storage), undefined, 'the copy is gone');
+  assert.equal((await storage.all(QUEUE)).length, 1, 'the queue is still in the account\'s store');
+  const device = await storage.get<{ id: string }>('meta', 'device');
+  assert.ok(device, 'and the device with it');
+
+  // The same account signs in again: its store is attached, and the first turn pushes the queue.
+  const again = new PushingTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-2' }).streamSessions({ open: true });
+  again.answer('/sync:pull', { changes: [], cursor: 'c-2', has_more: false });
+  const signedIn = new SyncEngine({ transport: again, clock: new FixedClock(1_700_000_100_000), mutationFor });
+  await signedIn.attach(storage, { platform: 'web', displayName: 'test' });
+  assert.equal(signedIn.queueState.count, 1, 'the kept change is waiting again');
+  const stop = signedIn.listen({ pathsFor, wait: async () => {} });
+  await settle(20);
+  stop();
+  assert.equal(again.applied.size, 1, 'the kept change was pushed');
+  const pushed = again.pushes[0] as { device_id: string; mutations: SyncMutation[] };
+  assert.equal(pushed.device_id, device.id, 'under the same device');
+  assert.equal(pushed.mutations[0]?.kind, 'ITEM_PATCH');
+  assert.equal(signedIn.queueState.count, 0);
+});
+
+test('§9.6: with nothing owed, an ended session deletes the store as sign-out does', async () => {
+  const storage = new MemoryStorage();
+  const { engine } = await synced(storage);
+  assert.equal(await engine.release(), 0);
+  assert.equal((await storage.collections()).length, 0, 'nothing is left behind');
 });

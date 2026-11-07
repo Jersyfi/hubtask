@@ -64,18 +64,23 @@ const (
 		`wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone, ` +
 		`wi.cover_kind, wi.cover_color_token, wi.cover_media_id, ` + visibleCustomFields + `, ` +
 		`wi.content_language, wi.calendar_uid, ` +
-		`wi.retention_pending_until, wi.retention_rule_id, wi.retention_action, ` +
-		`wi.retention_blocked_by, ` +
+		`rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id, ` +
+		`rt.action AS retention_action, rt.blocked_by AS retention_blocked_by, ` +
 		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
-		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
+		`wi.created_by, wi.created_at, wi.updated_at, wi.version, wi.number, wi.entry_type, wi.status`
+
+	// What a retention run marked is read from its side table (F-10, migration 0234); every
+	// statement that selects itemColumns joins it.
+	retentionJoin = ` LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes, ` +
 		`is_completed, completed_at, completed_by, completion_count, bucket_id, order_key, assignee_id, ` +
 		`start_at, due_at, due_date_only, due_time_zone, ` +
 		`cover_kind, cover_color_token, cover_media_id, custom_fields, content_language, calendar_uid, ` +
 		`retention_pending_until, retention_rule_id, retention_action, retention_blocked_by, ` +
-		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
+		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version, ` +
+		`number, entry_type, status`
 )
 
 // searchText is the expression the trigram index is built over, written here exactly as migration
@@ -98,7 +103,7 @@ const (
 func Rows(search repository.ItemSearch, boundary Boundary, probe int) (Statement, error) {
 	b := newBuilder(search)
 
-	b.write(`SELECT `, itemColumns, ` FROM work_item wi WHERE `)
+	b.write(`SELECT `, itemColumns, ` FROM work_item wi`, retentionJoin, ` WHERE `)
 	b.predicates(search)
 	if !boundary.IsZero() {
 		b.write(` AND (`)
@@ -115,30 +120,58 @@ func Rows(search repository.ItemSearch, boundary Boundary, probe int) (Statement
 
 // Groups compiles the board projection: the first entries of every distinct value of one field.
 //
-// A window function rather than a query per group, because the number of groups is data - a board
-// has as many columns as somebody made - and a query per column is a round trip per column. The
-// row number is computed in the same order the entries are returned in, so a group's page is the
-// beginning of that group in that order, and its cursor continues it.
+// One statement whatever the number of groups, because that number is data - a board has as many
+// columns as somebody made - and a query per column is a round trip per column. A field whose type
+// names its values is read per column in that statement (columns); any other is numbered by a
+// window function (numbered). Either way a group's page is the beginning of that group in the
+// order the entries are returned in, and its cursor continues it.
 func Groups(search repository.ItemSearch, probe int) (Statement, error) {
-	group, prefixed := column(search.Spec.GroupBy.Field, itemPrefix)
-	if !prefixed {
-		return Statement{}, errFieldNotCompilable(search.Spec.GroupBy.Field)
+	groupField := search.Spec.GroupBy.Field
+	_, customGroup := view.CustomField(groupField.Name)
+	group, prefixed := column(groupField, itemPrefix)
+	if !prefixed && !customGroup {
+		return Statement{}, errFieldNotCompilable(groupField)
 	}
 
 	b := newBuilder(search)
-	b.write(`SELECT `, groupedColumns, ` FROM (SELECT `, itemColumns, `, row_number() OVER (`,
-		`PARTITION BY `, group, ` ORDER BY `)
-	b.ordering(search.Spec.Sort, itemPrefix)
-	b.write(`, wi.id) AS rn FROM work_item wi WHERE `)
-	b.predicates(search)
-	b.write(`) g WHERE g.rn <= `)
-	b.param(int64(probe))
-	b.write(` ORDER BY `)
+	b.write(`SELECT `, groupedColumns, ` FROM (SELECT `, itemColumns)
+	// A custom field has no column the outer select could name, so the inner one carries its
+	// value under an alias (sortAlias, groupAlias).
+	for index, term := range search.Spec.Sort {
+		if _, custom := view.CustomField(term.Field.Name); custom {
+			b.write(`, `)
+			b.customValue(term.Field)
+			b.write(` AS `, sortAlias[index])
+		}
+		if Derived(term.Field) {
+			name, _ := column(term.Field, itemPrefix)
+			b.write(`, `, name, ` AS `, sortAlias[index])
+		}
+	}
+	if customGroup {
+		b.write(`, `)
+		b.customValue(groupField)
+		b.write(` AS `, groupAlias)
+	}
+	// Only the chosen rows are read whole; the choosing reads identifiers.
+	b.write(` FROM work_item wi`, retentionJoin, ` WHERE wi.id = ANY (ARRAY(`)
+	switch known := knownValues(groupField); {
+	case known != nil:
+		b.columns(search, group, known, probe)
+	case !customGroup && skipsThrough(search):
+		b.skipped(search, group, probe)
+	default:
+		b.numbered(search, group, customGroup, probe)
+	}
+	b.write(`))) g ORDER BY `)
 
 	// The groups come in the grouping field's own order, and the entries that have no value at all
 	// come last: a board draws that column at the end, and a client that reads the groups in order
 	// gets the same layout every time.
-	outer, _ := column(search.Spec.GroupBy.Field, groupPrefix)
+	outer, _ := column(groupField, groupPrefix)
+	if customGroup {
+		outer = groupAlias
+	}
 	b.write(outer, ` ASC NULLS LAST, `)
 	b.ordering(search.Spec.Sort, groupPrefix)
 	b.write(`, id`)
@@ -146,11 +179,125 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	return b.statement()
 }
 
+// numbered chooses each group's first rows by numbering every row the filter keeps. Numbering the
+// identifiers alone, not whole rows: whole rows of a large collection spilled their sort to disk
+// at tens of thousands of entries (observability-reliability.md §13.2).
+func (b *builder) numbered(search repository.ItemSearch, group string, customGroup bool, probe int) {
+	b.write(`SELECT r.id FROM (SELECT wi.id, row_number() OVER (PARTITION BY `)
+	if customGroup {
+		b.customValue(search.Spec.GroupBy.Field)
+	} else {
+		b.write(group)
+	}
+	b.write(` ORDER BY `)
+	b.ordering(search.Spec.Sort, itemPrefix)
+	b.write(`, wi.id) AS rn FROM work_item wi WHERE `)
+	b.predicates(search)
+	b.write(`) r WHERE r.rn <= `)
+	b.param(int64(probe))
+}
+
+// columns chooses each group's first rows one column at a time, where the field's type names every
+// value it can hold: each column is an ordered page that stops at probe, so an index on the order
+// or on the value serves it, where numbering reads and sorts every row of the scope. A value no
+// entry holds is an empty branch, and so no group, as numbering would answer.
+func (b *builder) columns(search repository.ItemSearch, group string, known []view.Value, probe int) {
+	for index, value := range known {
+		if index > 0 {
+			b.write(` UNION ALL `)
+		}
+		b.write(`(SELECT wi.id FROM work_item wi WHERE `)
+		b.predicates(search)
+		b.write(` AND `, group, ` = `)
+		b.value(search.Spec.GroupBy.Field, value)
+		b.write(` ORDER BY `)
+		b.ordering(search.Spec.Sort, itemPrefix)
+		b.write(`, wi.id LIMIT `)
+		b.param(int64(probe))
+		b.write(`)`)
+	}
+}
+
+// skipsThrough reports whether a board's columns can be found by skipping through an index rather
+// than by numbering the scope: a board column or a status, over one collection's top entries,
+// without the trash - exactly what migration 0371's indexes hold.
+func skipsThrough(search repository.ItemSearch) bool {
+	name := search.Spec.GroupBy.Field.Name
+	return (name == view.FieldBucketID || name == view.FieldStatus) &&
+		search.Anchor.Kind == repository.AnchorCollection && !search.Anchor.IncludeDescendants &&
+		!search.Spec.IncludeTrashed
+}
+
+// skipped chooses each group's first rows one column at a time where the values are data: the
+// values the collection holds are found by a recursive skip through the column's index, one seek
+// per value, and each is an ordered page that stops at probe, as columns reads them. The entries
+// without a value are a page of their own. A value no entry the filter keeps holds is an empty
+// page, and so no group, as numbering would answer.
+func (b *builder) skipped(search repository.ItemSearch, group string, probe int) {
+	held := func() {
+		b.write(`wi.tenant_id = current_tenant_id() AND wi.collection_id = `)
+		b.uuid(search.Anchor.CollectionID)
+		b.write(` AND wi.parent_id IS NULL AND wi.deleted_at IS NULL AND `)
+	}
+	page := func() {
+		b.write(` ORDER BY `)
+		b.ordering(search.Spec.Sort, itemPrefix)
+		b.write(`, wi.id LIMIT `)
+		b.param(int64(probe))
+	}
+
+	b.write(`SELECT x.id FROM (WITH RECURSIVE v(g) AS ((SELECT `, group, ` FROM work_item wi WHERE `)
+	held()
+	b.write(group, ` IS NOT NULL ORDER BY `, group, ` LIMIT 1) UNION ALL SELECT (SELECT `, group,
+		` FROM work_item wi WHERE `)
+	held()
+	b.write(group, ` > v.g ORDER BY `, group, ` LIMIT 1) FROM v WHERE v.g IS NOT NULL) `,
+		`SELECT g FROM v WHERE g IS NOT NULL) v CROSS JOIN LATERAL (SELECT wi.id FROM work_item wi WHERE `)
+	b.predicates(search)
+	b.write(` AND `, group, ` = v.g`)
+	page()
+	b.write(`) x UNION ALL (SELECT wi.id FROM work_item wi WHERE `)
+	b.predicates(search)
+	b.write(` AND `, group, ` IS NULL`)
+	page()
+	b.write(`)`)
+}
+
+// knownValues is every value a field can hold when its type alone says so - a flag, an enum that
+// is never absent - and nil for any field whose values are data.
+func knownValues(field view.Field) []view.Value {
+	if field.Nullable {
+		return nil
+	}
+	switch field.Kind {
+	case view.KindBool:
+		return []view.Value{{Kind: view.KindBool, Bool: false}, {Kind: view.KindBool, Bool: true}}
+	case view.KindEnum:
+		if len(field.Values) == 0 {
+			return nil
+		}
+		values := make([]view.Value, 0, len(field.Values))
+		for _, text := range field.Values {
+			values = append(values, view.Value{Kind: view.KindEnum, Text: text})
+		}
+		return values
+	}
+	return nil
+}
+
 // Count compiles the second pass an exact count costs: the same filter, without order, page or
 // projection.
 func Count(search repository.ItemSearch) (Statement, error) {
 	b := newBuilder(search)
 
+	if _, custom := view.CustomField(search.Spec.GroupBy.Field.Name); custom {
+		b.write(`SELECT `)
+		b.customGroupKey(search.Spec.GroupBy.Field)
+		b.write(`, count(*)::bigint FROM work_item wi WHERE `)
+		b.predicates(search)
+		b.write(` GROUP BY 1`)
+		return b.statement()
+	}
 	if group, ok := column(search.Spec.GroupBy.Field, itemPrefix); ok {
 		// The key comes back as text whatever the column holds, because a group key is text
 		// everywhere above this line: a uuid, an item type and a boolean all become the string the
@@ -193,7 +340,7 @@ func Search(
 	b.rank(search, meaning)
 	b.write(` AS rank, `)
 	b.byMeaning(search, meaning)
-	b.write(` AS by_meaning FROM work_item wi JOIN container c ON c.id = wi.collection_id`)
+	b.write(` AS by_meaning FROM work_item wi JOIN container c ON c.id = wi.collection_id`, retentionJoin)
 	b.meaningJoin(meaning)
 	b.write(` WHERE `)
 	b.searchPredicates(search, meaning)
@@ -225,7 +372,7 @@ func SearchRows(search repository.TextSearch, boundary Boundary, probe int) (Sta
 	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
 
 	b.write(`SELECT `, itemColumns, `, c.parent_id, 0::real AS rank, false AS by_meaning`)
-	b.write(` FROM work_item wi JOIN container c ON c.id = wi.collection_id WHERE `)
+	b.write(` FROM work_item wi JOIN container c ON c.id = wi.collection_id`, retentionJoin, ` WHERE `)
 	b.scope(search.Anchor)
 	b.restriction(search.RestrictTo)
 	b.lifecycle(view.Spec{
@@ -281,6 +428,7 @@ func (b *builder) rank(search repository.TextSearch, meaning string) {
 	b.write(`), ts_rank_cd(wi.search_document, `)
 	b.simpleQuery(search.Request.Words)
 	b.write(`))`)
+	b.attachedRank(search.Request.Words)
 
 	if meaning == "" {
 		return
@@ -368,6 +516,8 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 		b.prefixQuery(head, prefix)
 	}
 
+	b.attachedMatch(search.Request.Words)
+
 	// The supplement for the scripts a tsquery cannot serve. A run of characters without word
 	// boundaries is one token, so a query for part of it matches nothing - which is why this
 	// branch is decided by the *words*, in the domain, rather than by the entries (i18n-l10n.md
@@ -381,6 +531,56 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 		b.likePattern(search.Request.Words)
 	}
 }
+
+// attachedMatch writes the branches that find an entry by what is attached to it rather than by its
+// own document (F-9): a living comment on it, one of its text-valued custom fields, or the name of
+// a file attached to it. Under `simple` and written as migrations 0232 and 0233 indexed them, since
+// the planner matches an expression index by its tree. The entry is still the hit: what the actor may see is decided for entries,
+// and a comment is readable exactly where its entry is.
+func (b *builder) attachedMatch(words string) {
+	b.write(` OR EXISTS (SELECT 1 FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id`)
+	b.write(` AND cm.deleted_at IS NULL AND to_tsvector('simple'::regconfig, cm.body) @@ `)
+	b.simpleQuery(words)
+	b.write(`)`)
+	b.write(` OR EXISTS (SELECT 1 FROM entry_field_value fv JOIN custom_field_definition fd`)
+	b.write(` ON fd.tenant_id = fv.tenant_id AND fd.id = fv.definition_id`)
+	b.write(` WHERE fv.tenant_id = wi.tenant_id AND fv.entry_id = wi.id AND fv.text IS NOT NULL`)
+	b.write(` AND fd.kind IN ('TEXT', 'URL') AND fd.deleted_at IS NULL`)
+	b.write(` AND to_tsvector('simple'::regconfig, fv.text) @@ `)
+	b.simpleQuery(words)
+	b.write(`)`)
+	b.write(` OR EXISTS (SELECT 1 FROM item_attachment ia JOIN media_object mo`)
+	b.write(` ON mo.tenant_id = ia.tenant_id AND mo.id = ia.media_id`)
+	b.write(` WHERE ia.tenant_id = wi.tenant_id AND ia.item_id = wi.id`)
+	b.write(` AND mo.status = 'READY' AND mo.file_name IS NOT NULL AND mo.deleted_at IS NULL`)
+	b.write(` AND `, attachmentName, ` @@ `)
+	b.simpleQuery(words)
+	b.write(`)`)
+}
+
+// attachmentName is migration 0233's indexed expression, verbatim: a file's name with the dot, the
+// underscore and the hyphen read as spaces, so "budget_2026.pdf" holds the word "budget".
+const attachmentName = `to_tsvector('simple'::regconfig, translate(mo.file_name, '._-', '   '))`
+
+// attachedRank adds what an attached hit is worth, so an entry found by its comment or a text field
+// ranks by how well that matched rather than at zero beside every other such entry. The best
+// comment and the best field count, each at attachedWeight, below the entry's own document. Kept
+// `real` like ts_rank_cd, so the keyset still compares one real with the cursor's.
+func (b *builder) attachedRank(words string) {
+	b.write(` + `, attachedWeight, ` * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, cm.body), `)
+	b.simpleQuery(words)
+	b.write(`)) FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id AND cm.deleted_at IS NULL), 0)`)
+	b.write(` + `, attachedWeight, ` * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, fv.text), `)
+	b.simpleQuery(words)
+	b.write(`)) FROM entry_field_value fv JOIN custom_field_definition fd`)
+	b.write(` ON fd.tenant_id = fv.tenant_id AND fd.id = fv.definition_id`)
+	b.write(` WHERE fv.tenant_id = wi.tenant_id AND fv.entry_id = wi.id AND fv.text IS NOT NULL`)
+	b.write(` AND fd.kind IN ('TEXT', 'URL') AND fd.deleted_at IS NULL), 0)`)
+}
+
+// attachedWeight is what an attached hit is worth beside the entry's own: half, so the same words in
+// a title still win, while a comment that matches well outranks one that merely mentions them.
+const attachedWeight = `0.5::real`
 
 // neighbourhood is the branch that makes the search find an entry sharing no word with the query.
 //
@@ -493,6 +693,7 @@ func (b *builder) prefixQuery(head, prefix string) {
 func (b *builder) predicates(search repository.ItemSearch) {
 	b.scope(search.Anchor)
 	b.restriction(search.RestrictTo)
+	b.raisedFrom(search.RaisedFrom)
 	b.lifecycle(search.Spec)
 	if search.Spec.Filter != nil {
 		b.write(` AND (`)
@@ -547,6 +748,32 @@ func (b *builder) restriction(ids []shared.ID) {
 	b.write(`::uuid[])`)
 }
 
+// raisedFrom narrows the answer to the entries an organisation raised. The domains are a bound
+// array compared with the address's domain, lowercased, as account_mail_domain_idx keeps it.
+func (b *builder) raisedFrom(raisers *repository.Raisers) {
+	if raisers == nil {
+		return
+	}
+	domains := make([]string, 0, len(raisers.Domains))
+	domains = append(domains, raisers.Domains...)
+	b.write(` AND (wi.created_by = `)
+	b.param(raisers.Account.String())
+	b.write(`::uuid OR wi.created_by IN (SELECT a.id FROM account a WHERE a.kind = 'USER' AND a.status = 'ACTIVE'`,
+		` AND a.deleted_at IS NULL AND a.email IS NOT NULL AND lower(split_part(a.email, '@', 2)) = ANY(`)
+	b.param(domains)
+	b.write(`::text[])))`)
+}
+
+// identifiers is a set of identifiers as a bound text array; empty, never nil, so the array is
+// typed and matches nothing.
+func identifiers(ids []shared.ID) []string {
+	values := make([]string, 0, len(ids))
+	for _, id := range ids {
+		values = append(values, id.String())
+	}
+	return values
+}
+
 // scope is the anchor the use case resolved, as a predicate.
 func (b *builder) scope(anchor repository.Anchor) {
 	switch anchor.Kind {
@@ -562,6 +789,19 @@ func (b *builder) scope(anchor repository.Anchor) {
 		// tenant, and the predicate says so rather than relying on it silently: it is true whether
 		// or not a policy is in force, and it is the column a planner can use.
 		b.write(`wi.tenant_id = current_tenant_id()`)
+
+	case repository.AnchorCollections:
+		// Bound arrays, as the restriction is, so the text does not grow with the workspace. An
+		// empty set reads nothing rather than everything; the shared entries are a second array.
+		if len(anchor.CollectionIDs) == 0 && len(anchor.ItemIDs) == 0 {
+			b.write(`false`)
+			return
+		}
+		b.write(`(wi.collection_id = ANY(`)
+		b.param(identifiers(anchor.CollectionIDs))
+		b.write(`::uuid[]) OR wi.id = ANY(`)
+		b.param(identifiers(anchor.ItemIDs))
+		b.write(`::uuid[]))`)
 
 	case repository.AnchorHub:
 		// The hub's collections, as a subquery rather than a list the use case read first: the list
@@ -650,9 +890,26 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldText:
 		b.fullText(node.Values[0])
 		return
+	case view.FieldBlocked:
+		b.waitingLink(node, true)
+		return
+	case view.FieldBlocking:
+		b.waitingLink(node, false)
+		return
+	case view.FieldLinkedTo:
+		b.linkedTo(node)
+		return
+	case view.FieldGroupQueueOf:
+		b.groupQueue(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
+		if node.Op == view.OpLt || node.Op == view.OpLte || node.Op == view.OpGt ||
+			node.Op == view.OpGte || node.Op == view.OpBetween {
+			b.customRange(node, key)
+			return
+		}
 		b.customField(node, key)
 		return
 	}
@@ -715,6 +972,62 @@ func (b *builder) leaf(node view.Node) {
 	default:
 		b.fail(errOperatorNotCompilable(node.Op))
 	}
+}
+
+// waitingLink writes whether an open entry stands across a link whose type waits: for `blocked`,
+// one that holds this entry up; for `blocking`, one this entry holds up. The waiting side is the
+// target of a `blocks` link, the source of a `depends_on` link, and a workspace's own type's as
+// its `waits` says (work.LinkWaits). The value stays a parameter compared with the EXISTS, so the
+// text is the same for true and false (ADR-0026); the direction is a constant of this package.
+func (b *builder) waitingLink(node view.Node, held bool) {
+	b.write(`(EXISTS (SELECT 1 FROM entry_link bl`)
+	b.write(` LEFT JOIN link_type lt ON lt.tenant_id = bl.tenant_id AND lt.key = bl.own_type`)
+	b.write(` CROSS JOIN LATERAL (SELECT CASE bl.link_type WHEN 'blocks' THEN 'TARGET'`)
+	b.write(` WHEN 'depends_on' THEN 'SOURCE' ELSE lt.waits END AS waits) lw`)
+	b.write(` JOIN work_item bw ON bw.tenant_id = bl.tenant_id`)
+	if held {
+		// The other entry is the one waited for: the source when the target waits.
+		b.write(` AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.source_id ELSE bl.target_id END`)
+		b.write(` WHERE bl.tenant_id = wi.tenant_id`)
+		b.write(` AND ((lw.waits = 'TARGET' AND bl.target_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.source_id = wi.id))`)
+	} else {
+		// The other entry is the one waiting: the target when the target waits.
+		b.write(` AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.target_id ELSE bl.source_id END`)
+		b.write(` WHERE bl.tenant_id = wi.tenant_id`)
+		b.write(` AND ((lw.waits = 'TARGET' AND bl.source_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.target_id = wi.id))`)
+	}
+	b.write(` AND NOT bw.is_completed AND bw.deleted_at IS NULL))`)
+	if node.Op == view.OpNeq {
+		b.write(` IS DISTINCT FROM `)
+	} else {
+		b.write(` = `)
+	}
+	b.value(node.Field, node.Values[0])
+}
+
+// linkedTo writes whether a link of any type joins the entry to one of the given entries, from
+// either end. EQ and IN bind the same array, so one value is a list of one; the identifiers are
+// parameters, never text (ADR-0026).
+func (b *builder) linkedTo(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM entry_link ln WHERE ln.tenant_id = wi.tenant_id`)
+	b.write(` AND ((ln.source_id = wi.id AND ln.target_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`)) OR (ln.target_id = wi.id AND ln.source_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`))))`)
+}
+
+// groupQueue writes whether the entry's collection has an auto-assign policy naming, as a GROUP
+// candidate, a group the account belongs to. Uncorrelated, so the collections are found once per
+// statement; the account is a parameter (ADR-0026) and row level security keeps both tables to
+// the tenant.
+func (b *builder) groupQueue(node view.Node) {
+	b.write(`wi.collection_id IN (SELECT ap.scope_id FROM auto_assign_policy ap`)
+	b.write(` WHERE ap.scope_type = 'COLLECTION' AND EXISTS (SELECT 1 FROM account_group_member gm`)
+	b.write(` WHERE gm.account_id = `)
+	b.value(node.Field, node.Values[0])
+	b.write(` AND gm.tenant_id = ap.tenant_id`)
+	b.write(` AND ap.candidates @> jsonb_build_array(jsonb_build_object('kind', 'GROUP', 'id', gm.group_id::text))))`)
 }
 
 // customField writes a comparison against one key of the entry's custom field document.
@@ -785,6 +1098,31 @@ func (b *builder) customField(node view.Node, key string) {
 		b.write(`) IN lower(coalesce(`)
 		b.customText(key)
 		b.write(`, ''))) > 0) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpContainsAny, view.OpContainsAll:
+		// A set holds any or every element, one indexable containment each; the shape has
+		// already refused a field that holds one value (view.Spec.Shaped).
+		separator := ` OR `
+		if node.Op == view.OpContainsAll {
+			separator = ` AND `
+		}
+		b.write(`((`)
+		for index, value := range node.Values {
+			if index > 0 {
+				b.write(separator)
+			}
+			b.containsElement(key, value)
+		}
+		b.write(`) AND `)
+		b.liveDefinition(key)
+		b.write(`)`)
+	case view.OpStartsWith:
+		b.write(`(starts_with(lower(`)
+		b.customText(key)
+		b.write(`), lower(`)
+		b.text(node.Values[0])
+		b.write(`)) AND `)
 		b.liveDefinition(key)
 		b.write(`)`)
 	default:
@@ -931,12 +1269,10 @@ func (b *builder) ordering(sort []view.SortTerm, prefix string) {
 		if index > 0 {
 			b.write(`, `)
 		}
-		name, ok := column(term.Field, prefix)
-		if !ok {
-			b.fail(errFieldNotCompilable(term.Field))
+		if !b.sortExpression(term, index, prefix) {
 			return
 		}
-		b.write(name, collationOf(term.Field))
+		b.write(collationOf(term.Field))
 		if term.Descending {
 			b.write(` DESC`)
 		} else {
@@ -993,15 +1329,19 @@ func (b *builder) expandedKeyset(sort []view.SortTerm, boundary Boundary, index 
 	}
 
 	term := sort[index]
-	name, ok := column(term.Field, itemPrefix)
-	if !ok {
-		b.fail(errFieldNotCompilable(term.Field))
-		return
+	if _, ok := column(term.Field, itemPrefix); !ok {
+		if _, custom := view.CustomField(term.Field.Name); !custom {
+			b.fail(errFieldNotCompilable(term.Field))
+			return
+		}
 	}
+	name := func() { b.sortExpression(term, index, itemPrefix) }
 
 	b.write(`(`)
 	b.after(name, term, boundary.Keys[index])
-	b.write(` OR (`, name, ` IS NOT DISTINCT FROM `)
+	b.write(` OR (`)
+	name()
+	b.write(` IS NOT DISTINCT FROM `)
 	b.boundaryValue(term, boundary.Keys[index])
 	b.write(` AND `)
 	b.expandedKeyset(sort, boundary, index+1)
@@ -1013,13 +1353,14 @@ func (b *builder) expandedKeyset(sort []view.SortTerm, boundary Boundary, index 
 // The CASE is what a plain comparison cannot express: where the nulls sit is part of the ordering,
 // so whether a null row is after the boundary depends on which side of it the nulls were placed and
 // on whether the boundary is itself a null.
-func (b *builder) after(name string, term view.SortTerm, key string) {
+func (b *builder) after(name func(), term view.SortTerm, key string) {
 	comparison := ` > `
 	if term.Descending {
 		comparison = ` < `
 	}
 	if !term.Field.Nullable {
-		b.write(name, collationOf(term.Field), comparison)
+		name()
+		b.write(collationOf(term.Field), comparison)
 		b.boundaryValue(term, key)
 		b.write(collationOf(term.Field))
 		return
@@ -1027,17 +1368,47 @@ func (b *builder) after(name string, term view.SortTerm, key string) {
 
 	b.write(`(CASE `)
 	if term.NullsFirst {
-		b.write(`WHEN `, name, ` IS NULL THEN false WHEN `)
+		b.write(`WHEN `)
+		name()
+		b.write(` IS NULL THEN false WHEN `)
 		b.boundaryValue(term, key)
 		b.write(` IS NULL THEN true `)
 	} else {
 		b.write(`WHEN `)
 		b.boundaryValue(term, key)
-		b.write(` IS NULL THEN false WHEN `, name, ` IS NULL THEN true `)
+		b.write(` IS NULL THEN false WHEN `)
+		name()
+		b.write(` IS NULL THEN true `)
 	}
-	b.write(`ELSE `, name, collationOf(term.Field), comparison)
+	b.write(`ELSE `)
+	name()
+	b.write(collationOf(term.Field), comparison)
 	b.boundaryValue(term, key)
 	b.write(collationOf(term.Field), ` END)`)
+}
+
+// sortExpression writes what one sort term orders by: its column, a custom field's typed value,
+// or - in a grouped query's outer select - the alias the inner one carries that value under.
+func (b *builder) sortExpression(term view.SortTerm, index int, prefix string) bool {
+	if Derived(term.Field) && prefix == groupPrefix {
+		b.write(sortAlias[index])
+		return true
+	}
+	if _, custom := view.CustomField(term.Field.Name); custom {
+		if prefix == groupPrefix {
+			b.write(sortAlias[index])
+		} else {
+			b.customValue(term.Field)
+		}
+		return true
+	}
+	name, ok := column(term.Field, prefix)
+	if !ok {
+		b.fail(errFieldNotCompilable(term.Field))
+		return false
+	}
+	b.write(name)
+	return true
 }
 
 // seekable reports whether the sort can be compared as a row: every term ascending, and no term on

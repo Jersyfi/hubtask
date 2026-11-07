@@ -62,7 +62,7 @@ Compliance** context, not manual support processes.
 |---|---|---|
 | Access (Art. 15) | `CreateDataSubjectRequest(ACCESS)` | A job writes the person's data from *every* tenant they belong to as a Hubtask archive to a backup target, with media and metadata (purpose, recipients, deadline) |
 | Rectification (Art. 16) | Ordinary write operations | Appears in the audit |
-| Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | **`ANONYMIZE`** (authorship remains as "former user", the tenant's content is kept) or **`FULL_DELETE`** (the person's own contributions too), chosen by the controller. **A case that names no mode is carried out as `ANONYMIZE`** — it keeps what others depend on |
+| Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | **`ANONYMIZE`** (authorship remains as "former user", the tenant's content is kept) or **`FULL_DELETE`** (the person's own contributions too: entry, page and board comments, goal check-ins, portfolio updates and the drafts of pages they edited last, each with its journal entry; a page or board comment others replied to loses its words and author and stays as a removed comment, so the replies keep their thread), chosen by the controller. **A case that names no mode is carried out as `ANONYMIZE`** — it keeps what others depend on |
 | Restriction (Art. 18) | `RestrictProcessing` | Account status `RESTRICTED`: readable, not processed, excluded from automation and AI |
 | Portability (Art. 20) | `CreateDataSubjectRequest(PORTABILITY)` | JSON Lines + schema, not a PDF |
 | Objection (Art. 21) | `WithdrawConsent`; a formal case as `CreateDataSubjectRequest(OBJECTION)` | Affects optional processing (AI, notification channels); the core features stay usable. Metering counts a workspace's totals and names nobody, so there is no person's share in it to object to |
@@ -108,6 +108,39 @@ practice. Rules:
   between two other people. Kudos stay out of every archive an administrator reads (UC-WRK-29
   check 6); the copy is the person's own, and one without them would answer Art. 15 short. No
   restore reads the section.
+* **An erasure keeps a person's time and removes its words** (accepted.md B, 2026-10-30): their
+  time records and weeks, capacities, absences and own cost rate stay under the account's
+  identifier - the pseudonym once the account is anonymised or deleted - so the sums accounting,
+  plans and costs read are kept, in both modes; the notes on their records and a rejection's reason
+  on their weeks are cleared, and their running timer is removed. Nothing of the time is deleted.
+* **A requester without an account is erased by address** (accepted.md B): a sender with no
+  account here whose mail an account filed on their behalf is a `requester` record - address, name,
+  first and last contact, the entries they wrote on - removed 24 months after the last contact
+  (`REQUESTER`, [data-retention.md](./data-retention.md) §3). A case naming only an address erases
+  the record and the address's mail receipts in both modes, and its jumble entries in a full
+  deletion (the anonymisation keeps their text without the address); the entries filed for the
+  person are the team's and stay, without the `From:` line the intake wrote above their notes and
+  comments: it is removed through the ordinary edit and comment use cases, as the account that
+  filed it (or, refused, the owner running the erasure), so the history, the devices and the trail
+  follow; a comment holding nothing else is deleted. A page carrying the line - a copy of an
+  entry's notes, say - loses it from its body, its draft and every version that opens with it,
+  written directly since a version is history no use case edits; the body becomes the page's next
+  version, so an editor holding the old one is refused, and its live document is erased so that
+  the editor builds it again from the stripped body. Not closed: an editor open at that moment still
+  holds the old document and can write it back, since nothing tells it the document was erased. A trashed page is stripped too; the Art. 15 copy carries no page, since only the
+  line is the person's. `REQUESTER` expiry removes the line the same way, and a line nobody may
+  edit any more is logged and left. A hold on the workspace keeps it
+  all, recorded as kept, and the remainder erases it when the hold is released; no
+  narrower hold reaches what an address sent. The same person's Art. 15 copy carries, beside
+  the record and their jumble entries, the entries and comments whose `From:` line names the
+  address exactly: their own mail, though an account filed it. Their mail receipts and
+  satisfaction links are in no workspace archive (a 30-day log, a live credential), so the copy of
+  an address carries them as sections of its own, as it does kudos: `mail_receipts` (the intake's
+  log of mails from the address) and `rating_links` (each link's entry, life and answer - never its
+  token). No restore reads either.
+  The record's one other use is answering the person: a public reply on an entry filed for them is
+  mailed to the address, one mail per address (UC-SVC-12); the queued job names the comment only,
+  so an address erased while it waits is mailed nothing.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs
@@ -155,6 +188,18 @@ are built.
   Releasing the hold seeds the recorded remainder's erasure. An `ACCOUNT` hold covers the account
   and everything the person contributed to the workspace; it stops their erasure and deletion, not
   their sign-in.
+  * **What acts as the person.** A full deletion is refused while a workspace rule runs as them
+    (`privacy.erasure_blocked_by_rule`) and while a switched-on inventory connector or forge hook
+    runs as them, or an agent of theirs is not retired (`privacy.erasure_blocked_by_integration`,
+    with how many of each): none of these has a foreign key that would refuse it, and each would
+    fail on every run afterwards. They are handed over or switched off first; an agent is handed
+    over or retired, since a drafted or suspended one can be put live again on its owner's behalf.
+    What is switched off - a connector or hook switched off, an agent retired - is moved to the
+    workspace's oldest owner grant held by somebody else (`run_as`, `owner_id`), stays off, and the
+    erasure's `dsr.erased` entry counts what moved and names the new owner; with nobody to take it
+    the deletion is refused the same way. Foreign keys over `(tenant_id, run_as)` and
+    `(tenant_id, owner_id)` (migrations 0376 and 0377) refuse any deletion that would leave one
+    naming nobody.
   * **What each step keeps.** A row on an entry is kept when a hold covers the entry: the workspace,
     its hub or collection, the entry or one above it, or the account that created it - so the
     person's comments (in a full deletion), their assignments and the entries they created under it.
@@ -162,8 +207,9 @@ are built.
     comments, its attached files, the account. The intake, matched by address, is kept only by a
     hold on the workspace. Credentials, notifications, unattached uploads and what AI drafted for the
     person alone (a rule drafted from their sentence, entries proposed from their pasted text, the
-    answer to their question, the words a job still holds) go in every case:
-    no hold reaches them. Several holds over one row: the oldest names it. One function decides it, and
+    answer to their question, the words a job still holds) go in every case, as do the arrangements
+    in their name alone - the dashboard digests mailed to them, the dashboards only they see, the
+    approval delegations by and to them: no hold reaches them. Several holds over one row: the oldest names it. One function decides it, and
     the erasure and its preview both call it.
   * **The account.** Only a hold on the person or on the workspace keeps the account itself - as it
     is, `RESTRICTED`, signing in, without a pseudonym. An invited or disabled account stays in its
@@ -327,8 +373,8 @@ shortest defensible periods (Art. 25(2)).
 | Legal act | Relevance | Architectural provision |
 |---|---|---|
 | **NIS2** (Dir. 2022/2555) | Regulated operators must demonstrate security measures and reporting paths | Audit trail, access review, MFA enforcement, gate reports, the incident process ([security.md](./security.md) §14) |
-| **Cyber Resilience Act** (Reg. 2024/2847, from late 2027) | Out of scope: Apache-2.0, not monetised, donations buy nothing ([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)); a paid offering is assessed before it appears. An operator building a commercial product on Hubtask may be a manufacturer under it | In place anyway: an SBOM per release, coordinated disclosure via `SECURITY.md`, signed artefacts, secure-by-default settings |
-| **EU AI Act** (Reg. 2024/1689) | Supporting suggestions, not a high-risk system; transparency obligations apply | AI output marked as a suggestion with provenance, model and provider disclosed, the feature switchable, no automated decision with legal effect, AI use audited |
+| **Cyber Resilience Act** (Reg. 2024/2847; reporting since 2026-09-11, fully from 2027-12-11) | The project is no manufacturer: Apache-2.0, not monetised, donations buy nothing ([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)); it acts as an open-source steward would. A provider selling Hubtask or a distribution of it is a manufacturer itself | Coordinated disclosure, the Art. 14 reporting runbook and what the project supplies to a manufacturer ([security.md](./security.md) §14.1–§14.4); an SBOM per release, signed artefacts, a published support period, secure-by-default settings |
+| **EU AI Act** (Reg. 2024/1689) | Supporting suggestions, not a high-risk system; Art. 50 transparency applies where an AI talks to a person directly | AI output marked as a suggestion with provenance, model and provider disclosed, the feature switchable, no automated decision with legal effect, no AI deciding about people, AI use audited ([ai-first.md](./ai-first.md) §2.1) |
 | **eIDAS / ePrivacy** | Cookies and tracking concern the frontend | Bearer tokens, not tracking cookies; no client sets a non-essential cookie without consent |
 | **Data Act** (Reg. 2023/2854) | Switching and portability for data processing services | A complete tenant export in a documented format ([tenant-export.md](./tenant-export.md)), importers, no lock-in formats |
 | **European Accessibility Act** | Concerns the frontend | WCAG 2.2 AA ([`design-system.md` §10](../design/design-system.md#10-accessibility)). The operator's accessibility statement is a legal link on the screens before sign-in, set among the installation's defaults; the health report names a multi-tenant installation without one. The project's own is under *About Hubtask* |
@@ -359,6 +405,13 @@ tenants, data categories and period within 72 hours
 | Avatar retrieval from third-party services (Gravatar and similar) | Off (it leaks IP addresses to third parties) |
 | Full IP addresses in logs | No, truncated |
 | Email notifications containing task content | Title and link only, no full text; switchable |
+| Chat room notifications (UC-INT-12) | Title and link only, never a note or a comment; only where an administrator subscribed the room |
+| Code from a forge (UC-INT-13) | Inbound only: a commit's subject, a branch's name, a pull request's title, address and the forge's account name are kept on the entry; a description and a full message are read for keys and not kept; nothing is sent to the forge |
+| Files in a store (UC-INT-14) | A file's address and name are kept on the entry and erased with it; the file stays in its store and is never fetched; the person who linked it is a subject of the access export |
+| A calendar push (UC-INT-16) | The person's own feed written into their own calendar at Microsoft or Google: each dated entry's title, moment and link leave to the provider the person chose, nothing else; the provider account's address and the sealed grant are kept until they disconnect, never archived nor in the access export, which the person reads on *Your settings → Calendars* |
+| A file store connection (UC-INT-17) | The person's own sign-in to their own Nextcloud or Microsoft's OneDrive and SharePoint: the store's address and the person's login there, and the sealed app password or refresh token, kept until they disconnect, never archived nor in the access export, which the person reads on *Your settings → File stores*; folder names pass through to the person's screen and are not kept, a picked file's name and address become a file link (UC-INT-14) |
+| A Matrix bot (UC-INT-18) | A hub's Matrix account in one room: the homeserver, the room, the account's name and its sealed token, kept until it is removed, not archived; what the room says is read and let go, a captured title becomes an entry; an answer leaves to the room with an entry's status, title and link, never its notes |
+| A Slack, Teams or Mattermost bot (UC-INT-19) | A hub's app in one channel: the channel's identifier, the bot's own identifier on its platform and the app's sealed credentials, kept until it is removed, not archived; what a delivery says is read and let go, a captured title becomes an entry; an answer leaves to the platform with an entry's status, title and link, never its notes |
 | Visibility of profile data to other tenant members | Minimal (display name, avatar) |
 | Retention | The shortest defensible periods (§5) |
 

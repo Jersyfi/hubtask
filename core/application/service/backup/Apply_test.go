@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
 // The restore itself (backup-restore.md §8.3): what it writes, what it deliberately does not
@@ -37,6 +39,20 @@ type restoreStore struct {
 	// progress keeps every recording, oldest first, for a test that asks what a resumed
 	// attempt would have trusted at each step.
 	progress []map[string]int
+	// passphrases are the sealed passphrases held, by run.
+	passphrases map[shared.ID]crypto.Sealed
+}
+
+func (r *restoreStore) HoldPassphrase(_ context.Context, id shared.ID, sealed crypto.Sealed) error {
+	if r.passphrases == nil {
+		r.passphrases = map[shared.ID]crypto.Sealed{}
+	}
+	r.passphrases[id] = sealed
+	return nil
+}
+
+func (r *restoreStore) Passphrase(_ context.Context, id shared.ID) (crypto.Sealed, error) {
+	return r.passphrases[id], nil
 }
 
 func newRestores() *restoreStore {
@@ -1168,6 +1184,7 @@ func TestANewTenantRestoreIntoALivingTenantIsRefused(t *testing.T) {
 // An archive from a newer schema is refused before anything is read. A restore migrates upwards and
 // cannot go the other way, and guessing which columns a later migration added is how a restore
 // writes a row that is silently wrong.
+// UC-BAK-05 check 7.
 func TestAnArchiveFromANewerSchemaIsRefused(t *testing.T) {
 	h := newApplyHarness(t, containerRows)
 	applier := h.applier()
@@ -1554,5 +1571,229 @@ func TestAnArchiveWrittenBeforeSaltsStillRestoresFromItsTarget(t *testing.T) {
 	}
 	if h.imports.writes == 0 {
 		t.Fatal("nothing was restored")
+	}
+}
+
+// keyedRows is a collection whose entries and links name a type by key, a hub calendar naming the
+// workspace calendar it varies, and an approval with its decision.
+func keyedRows(export *rows) {
+	at := now.Add(-time.Hour)
+	export.byTable["container"] = []repository.Row{
+		{ID: "c1", ChangedAt: at, Data: map[string]any{"id": "c1", "name": "Desk", "parent_id": nil}},
+	}
+	export.byTable["entry_type"] = []repository.Row{
+		{ID: "et1", ChangedAt: at, Data: map[string]any{"id": "et1", "key": "bug", "level": "TASK"}},
+	}
+	export.byTable["work_item"] = []repository.Row{
+		{ID: "w1", ChangedAt: at, Data: map[string]any{"id": "w1", "collection_id": "c1", "entry_type": "bug"}},
+		{ID: "w2", ChangedAt: at, Data: map[string]any{"id": "w2", "collection_id": "c1", "entry_type": nil}},
+		{ID: "w3", ChangedAt: at, Data: map[string]any{"id": "w3", "collection_id": "c1", "entry_type": nil}},
+	}
+	export.byTable["link_type"] = []repository.Row{
+		{ID: "lt1", ChangedAt: at, Data: map[string]any{"id": "lt1", "key": "relates"}},
+	}
+	export.byTable["entry_link"] = []repository.Row{
+		{ID: "l1", ChangedAt: at, Data: map[string]any{
+			"id": "l1", "link_type": "relates", "own_type": "relates", "source_id": "w1", "target_id": "w2",
+		}},
+		{ID: "l2", ChangedAt: at, Data: map[string]any{
+			"id": "l2", "link_type": "relates", "own_type": "relates", "source_id": "w2", "target_id": "w3",
+		}},
+		{ID: "l3", ChangedAt: at, Data: map[string]any{
+			"id": "l3", "link_type": "blocks", "own_type": nil, "source_id": "w3", "target_id": "w2",
+		}},
+	}
+	export.byTable["business_calendar"] = []repository.Row{
+		{ID: "bc1", ChangedAt: at, Data: map[string]any{"id": "bc1", "key": "office"}},
+	}
+	export.byTable["hub_business_calendar"] = []repository.Row{
+		{ID: "hc1", ChangedAt: at, Data: map[string]any{"id": "hc1", "hub_id": "c1", "key": "office"}},
+	}
+	export.byTable["approval"] = []repository.Row{
+		{ID: "a1", ChangedAt: at, Data: map[string]any{"id": "a1", "item_id": "w1"}},
+	}
+	export.byTable["approval_decision"] = []repository.Row{
+		{ID: "d1", ChangedAt: at, Data: map[string]any{"id": "d1", "approval_id": "a1", "level": 1}},
+	}
+}
+
+// A field that names its target by key is carried, never remapped: the copy of an entry still
+// names the type `bug`, the copied link the type `relates`, the hub's copied calendar `office` -
+// each the type or calendar the workspace already holds, which its own rule kept from being
+// copied. Remapped as an identifier, each would be a word naming nothing. A uniqueness the copy
+// would meet is settled per row: a link whose ends were not copied, or a decision whose approval
+// was not, would be the same row twice and is left alone.
+func TestADuplicateKeepsWhatItNamesByKey(t *testing.T) {
+	h := newApplyHarness(t, keyedRows)
+	h.imports.tables = map[string]map[string]map[string]any{
+		"container":             {"c1": {"id": "c1", "name": "Desk"}},
+		"entry_type":            {"et1": {"id": "et1", "key": "bug", "level": "TASK"}},
+		"work_item":             {"w1": {"id": "w1", "collection_id": "c1", "entry_type": "bug"}},
+		"link_type":             {"lt1": {"id": "lt1", "key": "relates"}},
+		"business_calendar":     {"bc1": {"id": "bc1", "key": "office"}},
+		"hub_business_calendar": {"hc1": {"id": "hc1", "hub_id": "c1", "key": "office"}},
+		"entry_link": {
+			"l1": {"id": "l1", "link_type": "relates", "source_id": "w1", "target_id": "w2"},
+			"l2": {"id": "l2", "link_type": "relates", "source_id": "w2", "target_id": "w3"},
+		},
+		"approval":          {"a1": {"id": "a1", "item_id": "w1"}},
+		"approval_decision": {"d1": {"id": "d1", "approval_id": "a1", "level": 1}},
+	}
+	in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	copyOf := func(table, entity, id string) map[string]any {
+		return h.imports.tables[table][domain.DuplicateID(restoreID, entity, id).String()]
+	}
+	hub := domain.DuplicateID(restoreID, "containers", "c1").String()
+
+	if copied := copyOf("entry_type", "entry_types", "et1"); copied != nil {
+		t.Errorf("the type the workspace holds by its key was copied as %v", copied)
+	}
+	item := copyOf("work_item", "work_items", "w1")
+	if item == nil || item["entry_type"] != "bug" {
+		t.Errorf("the copied entry names the type %v, want the key bug carried unchanged", item)
+	}
+	link := copyOf("entry_link", "entry_links", "l1")
+	if link == nil || link["own_type"] != "relates" || link["link_type"] != "relates" {
+		t.Errorf("the copied link is %v, want it to name the type relates unchanged", link)
+	}
+	if copied := copyOf("entry_link", "entry_links", "l2"); copied != nil {
+		t.Errorf("a link whose ends were not copied was written twice as %v", copied)
+	}
+	if shipped := h.imports.tables["entry_link"]["l3"]; shipped == nil || shipped["own_type"] != nil {
+		t.Errorf("the new link of a shipped type came back as %v", shipped)
+	}
+	calendar := copyOf("hub_business_calendar", "hub_business_calendars", "hc1")
+	if calendar == nil || calendar["key"] != "office" || calendar["hub_id"] != hub {
+		t.Errorf("the hub's copied calendar is %v, want office under the hub's copy", calendar)
+	}
+	decision := copyOf("approval_decision", "approval_decisions", "d1")
+	if decision == nil ||
+		decision["approval_id"] != domain.DuplicateID(restoreID, "approvals", "a1").String() {
+		t.Errorf("the copied decision is %v, want it under the approval's copy", decision)
+	}
+}
+
+// A type the journal says was deleted since keeps out what names it by key, the way an identity
+// reference keeps a row out with its target (backup-restore.md §7) - a link written without its
+// type would be refused by the database, or worse, name a type of the same key made since.
+func TestARowNamingADeletedTypeByKeyStaysOutWithIt(t *testing.T) {
+	h := newApplyHarness(t, keyedRows)
+	h.journal.entries = []repository.Deletion{
+		{Entity: "link_type", EntityID: shared.ID("lt1"), DeletedAt: now.Add(time.Hour), Reason: "USER"},
+		{Entity: "entry_type", EntityID: shared.ID("et1"), DeletedAt: now.Add(time.Hour), Reason: "USER"},
+	}
+
+	report, err := h.applier().Apply(context.Background(), h.accept(t, func(*domain.Restore) {}))
+	if err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	for _, id := range []string{"l1", "l2"} {
+		if back := h.imports.tables["entry_link"][id]; back != nil {
+			t.Errorf("link %s came back naming the deleted type: %v", id, back)
+		}
+	}
+	if h.imports.tables["entry_link"]["l3"] == nil {
+		t.Error("the link of a shipped type stayed out with the deleted one")
+	}
+	if back := h.imports.tables["work_item"]["w1"]; back != nil {
+		t.Errorf("the entry of the deleted type came back: %v", back)
+	}
+	if h.imports.tables["work_item"]["w2"] == nil {
+		t.Error("an entry of the system type stayed out")
+	}
+	// Both types, the two links and the entry - plus what pointed at the entry by identity: the
+	// link from it was already counted, its approval and the approval's decision.
+	if report.Deleted() != 7 {
+		t.Errorf("the report says the journal kept out %d, want 7", report.Deleted())
+	}
+}
+
+// commentedRows is a collection the workspace still holds, an entry it holds and one it does not,
+// and a comment on the new one.
+func commentedRows(export *rows) {
+	containerRows(export)
+	export.byTable["comment"] = []repository.Row{
+		{ID: "k1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{"id": "k1", "item_id": "w2"}},
+	}
+}
+
+// A DUPLICATE remaps a reference to a row the workspace held before the restore. One to a row the
+// restore itself just wrote new keeps pointing at that row - asked of the tenant alone, the new
+// entry looks held, and its comment would be pointed at a copy of it nobody writes. The same
+// holds for an attempt resumed after the entry's batch committed.
+func TestADuplicateKeepsPointingAtWhatItWroteNew(t *testing.T) {
+	for _, resumed := range []bool{false, true} {
+		h := newApplyHarness(t, commentedRows)
+		h.imports.tables["container"] = map[string]map[string]any{"c1": {"id": "c1"}}
+		h.imports.tables["work_item"] = map[string]map[string]any{"w1": {"id": "w1", "collection_id": "c1"}}
+		in := h.accept(t, func(r *domain.Restore) { r.ConflictRule = domain.ConflictDuplicate })
+
+		if resumed {
+			// The container's and the entries' copies land; the comment's batch does not.
+			h.imports.failAfter = 3
+			if _, err := h.applier().Apply(context.Background(), in); err == nil {
+				t.Fatal("the first attempt did not fail")
+			}
+			restore := h.restores.stored[restoreID]
+			restore.Status = domain.RestoreRunning
+			h.restores.stored[restoreID] = restore
+			h.imports.failAfter = 0
+		}
+		if _, err := h.applier().Apply(context.Background(), in); err != nil {
+			t.Fatalf("restoring (resumed %v): %v", resumed, err)
+		}
+
+		comment := h.imports.tables["comment"]["k1"]
+		if comment == nil || comment["item_id"] != "w2" {
+			t.Errorf("resumed %v: the comment on the new entry is %v, want it on w2", resumed, comment)
+		}
+		if h.imports.tables["work_item"]["w2"]["collection_id"] != domain.DuplicateID(restoreID, "containers", "c1").String() {
+			t.Errorf("resumed %v: the new entry is not in the collection's copy", resumed)
+		}
+	}
+}
+
+// rearmDouble records the workspaces whose clocks a restore re-armed.
+type rearmDouble struct{ tenants []shared.ID }
+
+func (r *rearmDouble) Rearm(_ context.Context, tenant shared.ID) error {
+	r.tenants = append(r.tenants, tenant)
+	return nil
+}
+
+// §8.4: the archive carries no timers, so a restore that wrote rows re-arms the clocks of what it
+// brought back, in the workspace the rows landed in; a dry run and an INSPECT re-arm nothing.
+func TestARestoreThatWroteReArmsTheClocksOfWhereItWrote(t *testing.T) {
+	cases := map[string]struct {
+		change func(*domain.Restore)
+		into   []shared.ID
+	}{
+		"MERGE":          {func(r *domain.Restore) { r.Mode = domain.RestoreMerge }, []shared.ID{tenantID}},
+		"REPLACE_TENANT": {func(r *domain.Restore) { r.Mode = domain.RestoreReplaceTenant }, []shared.ID{tenantID}},
+		"NEW_TENANT": {func(r *domain.Restore) { r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant },
+			[]shared.ID{mintedTenant}},
+		"a dry run": {func(r *domain.Restore) { r.Mode, r.DryRun = domain.RestoreMerge, true }, nil},
+		"INSPECT":   {func(r *domain.Restore) { r.Mode = domain.RestoreInspect }, nil},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newApplyHarness(t, containerRows)
+			in := h.accept(t, tc.change)
+			clocks := &rearmDouble{}
+			applier := h.applier()
+			applier.Clocks = []ClockRearmer{clocks}
+			if _, err := applier.Apply(context.Background(), in); err != nil {
+				t.Fatalf("restoring: %v", err)
+			}
+			if !slices.Equal(clocks.tenants, tc.into) {
+				t.Errorf("the clocks were re-armed in %v, want %v", clocks.tenants, tc.into)
+			}
+		})
 	}
 }

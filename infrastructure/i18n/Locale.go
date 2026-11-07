@@ -17,6 +17,7 @@ type LocaleInfo = port.LocaleInfo
 
 var _ port.Locales = Renderer{}
 var _ port.WeekStarts = Renderer{}
+var _ port.DecimalSeparators = Renderer{}
 
 // The writing direction is the script's, and the script is what `language.Tag.Script()` infers
 // for a tag that does not state one - which is why this is a list of scripts and not of
@@ -104,20 +105,34 @@ func (r Renderer) LogUnknownLocales(logger *slog.Logger) {
 // matcher a message is rendered through, so that `de-AT` reads `de`'s row and `pt-BR` reads
 // `pt`'s; a tag that lands nowhere - or on a catalogue without a row - starts on Monday.
 func (r Renderer) WeekStartOf(locale string) string {
-	tag := strings.TrimSpace(locale)
-	if tag == "" {
-		return defaultWeekStart
-	}
-	parsed, err := language.Parse(tag)
-	if err != nil {
-		return defaultWeekStart
-	}
-	index, confidence := r.match(parsed)
-	if confidence == language.No {
-		return defaultWeekStart
-	}
-	if row, known := weekAndDecimal[r.Locales()[index]]; known {
+	if row, known := r.rowOf(locale); known {
 		return row.week
 	}
 	return defaultWeekStart
+}
+
+// DecimalSeparatorOf is the port's method, the same row WeekStartOf reads; `.` where none is.
+func (r Renderer) DecimalSeparatorOf(locale string) string {
+	if row, known := r.rowOf(locale); known {
+		return row.decimal
+	}
+	return defaultDecimalSeparator
+}
+
+// rowOf is the table's row for the catalogue a tag lands on.
+func (r Renderer) rowOf(locale string) (struct{ week, decimal string }, bool) {
+	tag := strings.TrimSpace(locale)
+	if tag == "" {
+		return struct{ week, decimal string }{}, false
+	}
+	parsed, err := language.Parse(tag)
+	if err != nil {
+		return struct{ week, decimal string }{}, false
+	}
+	index, confidence := r.match(parsed)
+	if confidence == language.No {
+		return struct{ week, decimal string }{}, false
+	}
+	row, known := weekAndDecimal[r.Locales()[index]]
+	return row, known
 }

@@ -140,14 +140,16 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   // No drawer over the collection: the settings are the page.
   assert.equal(await page.locator('dialog[open]').count(), 0);
   const sections = page.getByRole('navigation', { name: 'Parts of the structure' });
-  assert.deepEqual((await sections.getByRole('link').allTextContents()).map((each) => each.trim()), ['General', 'Structure', 'Labels', 'Fields', 'Templates', 'Automation', 'People']);
+  // The sections arrive with the place's modules: read them once the last one stands.
+  await sections.getByRole('link', { name: 'People' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual((await sections.getByRole('link').allTextContents()).map((each) => each.trim()), ['General', 'Templates and presets', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'People']);
   assert.equal(await sections.getByRole('link', { name: 'General' }).getAttribute('aria-current'), 'page');
   // *General* is the edit dialog's fields, in place.
   await page.getByRole('region', { name: 'General' }).getByRole('textbox', { name: 'Collection name' }).waitFor({ timeout: 5_000 });
 
-  for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Templates', 'Templates'], ['Automation', 'Policies'], ['People', 'People']]) {
+  for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Entry templates', 'Templates'], ['Rules', 'Policies'], ['People', 'People']]) {
     await sections.getByRole('link', { name: section }).click();
-    await page.getByRole('region', { name: part }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
+    await page.getByRole('region', { name: part, exact: true }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
     assert.equal(await sections.getByRole('link', { name: section }).getAttribute('aria-current'), 'page');
   }
   assert.match(page.url(), /\/settings\/people$/u);
@@ -219,6 +221,10 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   await pick.click();
   const bar = page.locator('.bar[data-active]');
   await bar.waitFor({ timeout: 5_000 });
+  // UC-WRK-08 check 1: while the mode is on, rows carry a checkbox and the bar the count and the
+  // verbs; the ways in by a long press and by Ctrl or Cmd-click are walked in entrymenu.test.mjs.
+  await bar.getByText('1 selected').waitFor({ timeout: 5_000 });
+  assert.equal(await bar.getByRole('combobox', { name: 'Do this' }).count(), 1, 'the bar offers no verbs');
   const boxes = await page.evaluate(() => {
     const bulk = document.querySelector('.bar[data-active]').getBoundingClientRect();
     const bottom = document.querySelector('nav[aria-label="Sections"]').getBoundingClientRect();
@@ -260,12 +266,14 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
   assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Change position', 'Archive', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
-  // A hub's settings are a page as a collection's are: its general fields, its default, its people.
+  // A hub's settings are a page as a collection's are: one section list (user-experience.md §5.7).
   await openSettings(page, HUB.name);
   await page.waitForURL(new RegExp(`/hubs/${HUB.id}/settings/general$`, 'u'), { timeout: 5_000 });
+  // The page is drawn once its structure is read, a moment after the address lands.
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(
     (await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').allTextContents()).map((each) => each.trim()),
-    ['General', 'Structure', 'People'],
+    ['General', 'Products', 'Templates and presets', 'Types & forms', 'Workflow', 'Views', 'Rules', 'Code', 'Chat', 'People'],
   );
   await page.goBack();
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
@@ -294,5 +302,42 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
+});
+
+// UC-WRK-17 check 12: the filter as a line - typed, it becomes the conditions and the order the
+// query sends; built from the controls, the line says them back.
+test('chromium: 1280 px — the filter as a line is read into the conditions and the order, and written back', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
+  t.after(close);
+  const sent = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.endsWith('/items:query')) sent.push(request.postDataJSON());
+  });
+
+  await page.getByRole('toolbar', { name: 'What is shown of the entries' }).getByRole('button', { name: 'Filter' }).click();
+  const panel = page.getByRole('group', { name: 'Which entries to show' });
+  await panel.waitFor({ state: 'visible', timeout: 5_000 });
+  const line = page.getByRole('textbox', { name: 'As a line' });
+  await line.fill("title ~ 'milk' ORDER BY title DESC");
+  await line.press('Enter');
+  await panel.getByRole('button', { name: 'Remove this condition' }).waitFor({ timeout: 5_000 });
+
+  const last = sent.at(-1);
+  assert.deepEqual(last?.filter, { op: 'CONTAINS', field: 'title', value: 'milk' }, `the query sent ${JSON.stringify(last)}`);
+  assert.deepEqual(last?.sort?.[0], { field: 'title', dir: 'DESC' });
+  // The line is drawn as a condition the builder can change, not kept aside.
+  assert.equal(await panel.getByRole('button', { name: 'Remove this condition' }).count(), 1, 'the line became no condition row');
+  // …and the controls write the line back as the query they send.
+  assert.equal(await line.inputValue(), "title CONTAINS 'milk' ORDER BY title DESC");
+
+  // A line that cannot be read says where and changes nothing.
+  await line.fill("title ~ 'milk");
+  await line.press('Enter');
+  await page.getByText('The line cannot be read from character 9 on.').waitFor({ timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });

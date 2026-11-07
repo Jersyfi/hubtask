@@ -1,0 +1,460 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
+)
+
+// stepUpHeader carries a fresh proof of identity (security.md §5).
+const stepUpHeader = "X-Hubtask-Step-Up"
+
+// restDoor is how the generated mapping (Doors.gen.go, tools/doors) answers one operation marked
+// `x-hubtask-rest: generated` (F-7). It translates and dispatches only: the request's members
+// reach the use case under the contract's names, as MCP's arguments do, and the use case's output
+// - which carries the contract's names already - is the answer. Nothing is decided here (rule 2).
+type restDoor struct {
+	UseCase string
+	// Status is the operation's successful answer; 204 writes no body.
+	Status int
+	// Query is the query parameters the use case reads, by the contract's names.
+	Query []string
+	// IfMatch passes the version read as `expected_version`, or as the text IfMatchAs names.
+	IfMatch   bool
+	IfMatchAs string
+	// StepUp passes the X-Hubtask-Step-Up proof as `step_up_token`; the use case decides it.
+	StepUp       bool
+	BodyRequired bool
+	// ETag is the answer's member the ETag is drawn from: `version`, or a hash; empty for none.
+	ETag string
+	// BodyAs hands the whole body on as one input - a document the domain reads, such as a
+	// form - instead of its members.
+	BodyAs string
+	// Location is the created resource's path below the API, its `{member}`s filled from the
+	// output; empty for none.
+	Location string
+	// NullClears passes a member sent as null as the empty text: the use cases that read
+	// OptionalString take "" as "clear it" and an absent or null member as "leave it".
+	NullClears bool
+	// Integers are the body's integer members, handed on as Go integers rather than JSON's
+	// float64, as a typed body hands them.
+	Integers []string
+	// ShownOnce is the member that shows a secret once: an answer carrying it is marked no-store
+	// for a cache and shown once for the idempotency record, so neither keeps it (T-18).
+	ShownOnce string
+	// QueryAs renames a query parameter to the input the use case reads.
+	QueryAs map[string]string
+	// Request is what the request itself carries that the use case reads: the host and the
+	// workspace header a sign-in is resolved by, the user agent and address a session records.
+	Request []string
+	// Empty answers the status without a body: the contract declares none (an accepted request
+	// that has nothing to say that would be true for one caller and not another).
+	Empty bool
+	// AlternateWhen is the output's boolean member that answers AlternateStatus drawn by
+	// AlternateBy instead: a sign-in's session, or the second step it still owes.
+	AlternateWhen   string
+	AlternateStatus int
+	AlternateBy     answerer
+	// NothingFound answers 204 for an empty output, where the contract declares it beside the
+	// answer (a suggestion that found nothing).
+	NothingFound bool
+	// Flatten hands a nested body member's members on as the flat inputs it names: a use case's
+	// field is one value, and MCP has no nested form for one.
+	Flatten map[string]map[string]string
+	// ReadOnly are the body's read-only members: the answer's, sent back by a client that saves
+	// what it read, and dropped rather than refused as an input nobody declares.
+	ReadOnly []string
+	// NullAs passes an explicit null member as the value it names, or leaves it out where that is
+	// nil: a bucket's null limit is the number 0.
+	NullAs map[string]any
+	// NullTo turns an explicit null member into the boolean input it names: a default sent as
+	// null clears it, an absent one leaves it.
+	NullTo map[string]string
+	// Expand turns the `expand` parameter's words into the boolean inputs they name; a word not
+	// named is refused.
+	Expand map[string]string
+	// UTC are instants that reach the use case in UTC, where it keeps the text it was sent.
+	UTC []string
+	// Words are boolean members the use case reads as their word, `true` or `false`.
+	Words []string
+	// Dropped are body members the contract declares and the use case does not: accepted and
+	// dropped, as before the door was generated, until the owner decides them.
+	Dropped []string
+	// NoStore marks the answer no-store: a read sent as a POST, made of the caller's words.
+	NoStore bool
+	// Writer chooses how the output is written - a file in the media type asked for - before
+	// the use case runs, from the request and the body members WriterMembers keeps out of the
+	// input; a format or a zone it cannot write is refused before anything is read.
+	Writer        func(*RestController, *http.Request, map[string]any) (outputWriter, error)
+	WriterMembers []string
+}
+
+// outputWriter writes a use case's output as the answer, in a shape of the writer's own.
+type outputWriter func(w http.ResponseWriter, r *http.Request, out usecase.Output)
+
+// input is the name the use case reads a query parameter by.
+func (d restDoor) input(query string) string {
+	if renamed, ok := d.QueryAs[query]; ok {
+		return renamed
+	}
+	return query
+}
+
+// door answers one generated operation. in holds the path's parameters; params is the generated
+// parameters struct (nil for none); body is a pointer to the generated request body type (nil for
+// none), decoded first so that a body the contract refuses is refused as a hand-written handler
+// refuses it - an unknown member included - before its members become the input; answer is a
+// pointer to the generated answer type (nil for none), which the output passes through, so the
+// answer holds to the contract's shape.
+func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor, in usecase.Input, params, body, answer any) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if params != nil && len(d.Query) > 0 {
+		values, err := members(params)
+		if err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		for _, name := range d.Query {
+			if name == "expand" && d.Expand != nil {
+				if err := expandInto(d, in, values[name]); err != nil {
+					WriteProblem(w, err, requestID)
+					return
+				}
+				continue
+			}
+			if value, ok := values[name]; ok && value != nil {
+				in[d.input(name)] = inUTC(d, name, whole(d, name, value))
+			}
+		}
+	}
+	toWriter := map[string]any{}
+	if body != nil {
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err), requestID)
+			return
+		}
+		if len(bytes.TrimSpace(raw)) > 0 || d.BodyRequired {
+			if err := decodeFrom(bytes.NewReader(raw), body); err != nil {
+				WriteProblem(w, err, requestID)
+				return
+			}
+			var sent map[string]any
+			if err := json.Unmarshal(raw, &sent); err != nil {
+				WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err), requestID)
+				return
+			}
+			if d.BodyAs != "" {
+				in[d.BodyAs] = sent
+				sent = nil
+			}
+			for name, value := range sent {
+				if slices.Contains(d.ReadOnly, name) || slices.Contains(d.Dropped, name) {
+					continue
+				}
+				if slices.Contains(d.WriterMembers, name) {
+					toWriter[name] = value
+					continue
+				}
+				if name == "expand" && d.Expand != nil {
+					if err := expandInto(d, in, value); err != nil {
+						WriteProblem(w, err, requestID)
+						return
+					}
+					continue
+				}
+				if inputs, flat := d.Flatten[name]; flat {
+					nested, _ := value.(map[string]any)
+					flattenInto(d, in, inputs, "", nested)
+					continue
+				}
+				// The path names the resource; a body member of the same name never moves it. An
+				// explicit null stays: in a merge patch it clears, as MCP's arguments carry it.
+				if _, taken := in[name]; !taken {
+					if input, named := d.NullTo[name]; named && value == nil {
+						in[input] = true
+						continue
+					}
+					if as, named := d.NullAs[name]; named && value == nil {
+						if as != nil {
+							in[name] = as
+						}
+						continue
+					}
+					if flag, ok := value.(bool); ok && slices.Contains(d.Words, name) {
+						value = strconv.FormatBool(flag)
+					}
+					if value == nil && d.NullClears {
+						value = ""
+					}
+					in[name] = inUTC(d, name, whole(d, name, value))
+				}
+			}
+		}
+	}
+	if d.IfMatch {
+		match := ifMatchOf(r)
+		switch {
+		case d.IfMatchAs != "" && match != nil:
+			in[d.IfMatchAs] = strings.Trim(strings.TrimPrefix(*match, "W/"), `"`)
+		case d.IfMatchAs == "":
+			if version, ok := versionFromIfMatch(match); ok {
+				in["expected_version"] = version
+			}
+		}
+	}
+	for _, name := range d.Request {
+		switch name {
+		case "host":
+			in[name] = r.Host
+		case "tenant_header":
+			in[name] = r.Header.Get(TenantHeader)
+		case "user_agent":
+			in[name] = r.UserAgent()
+		case "remote_addr":
+			in[name] = ClientAddress(r)
+		}
+	}
+	if d.StepUp {
+		if token := strings.TrimSpace(r.Header.Get(stepUpHeader)); token != "" {
+			in["step_up_token"] = token
+		}
+	}
+
+	var write outputWriter
+	if d.Writer != nil {
+		chosen, err := d.Writer(c, r, toWriter)
+		if err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		write = chosen
+	}
+
+	out, ok := c.read(w, r, d.UseCase, in)
+	if !ok {
+		return
+	}
+	if write != nil {
+		write(w, r, out)
+		return
+	}
+	if d.AlternateWhen != "" && out[d.AlternateWhen] == true {
+		writeJSON(w, r, d.AlternateStatus, d.AlternateBy(out))
+		return
+	}
+	if d.NoStore {
+		w.Header().Set("Cache-Control", "no-store")
+	}
+	if d.ShownOnce != "" && shown(out[d.ShownOnce]) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(ShownOnceHeader, d.ShownOnce)
+	}
+	if d.NothingFound && len(out) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if d.Status == http.StatusNoContent || d.Empty {
+		w.WriteHeader(d.Status)
+		return
+	}
+	var written any = out
+	if draw, ok := answer.(answerer); ok {
+		written = draw(out)
+	} else if answer != nil {
+		if err := remarshal(out, answer); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		written = answer
+	}
+	if d.Location != "" {
+		location := d.Location
+		for name, value := range out {
+			switch value := value.(type) {
+			case string:
+				location = strings.ReplaceAll(location, "{"+name+"}", value)
+			case usecase.Output:
+				// A member of a nested part: a managed account's place is its account's.
+				for member, nested := range value {
+					if text, ok := nested.(string); ok {
+						location = strings.ReplaceAll(location, "{"+name+"."+member+"}", text)
+					}
+				}
+			}
+		}
+		w.Header().Set("Location", APIBasePath+location)
+	}
+	tagged, member := out, d.ETag
+	if part, inner, nested := strings.Cut(d.ETag, "."); nested {
+		// A nested part's member: a moved entry's version is the entry's.
+		tagged, _ = out[part].(usecase.Output)
+		member = inner
+	}
+	switch value := tagged[member].(type) {
+	case string:
+		if value != "" {
+			w.Header().Set("ETag", `"`+value+`"`)
+		}
+	case int, int64, float64:
+		w.Header().Set("ETag", etag(tagged.Int(member)))
+	}
+	writeJSON(w, r, d.Status, written)
+}
+
+// expandInto turns the words of an `expand` - a query parameter's or a body member's - into the
+// boolean inputs the door names, and refuses a word it does not name.
+func expandInto(d restDoor, in usecase.Input, value any) error {
+	words, _ := value.([]any)
+	for _, word := range words {
+		text, _ := word.(string)
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		input, named := d.Expand[text]
+		if !named {
+			return expandNotSupported(text)
+		}
+		in[input] = true
+	}
+	return nil
+}
+
+// flattenInto hands a nested member's members on as the flat inputs named, a deeper one by its
+// dotted path (`scope.container_id`); a member not named is the door's to leave out.
+func flattenInto(d restDoor, in usecase.Input, inputs map[string]string, prefix string, nested map[string]any) {
+	for member, inner := range nested {
+		path := prefix + member
+		if deeper, isObject := inner.(map[string]any); isObject {
+			if _, whole := inputs[path]; !whole {
+				flattenInto(d, in, inputs, path+".", deeper)
+				continue
+			}
+		}
+		if input, named := inputs[path]; named && inner != nil {
+			if _, taken := in[input]; !taken {
+				in[input] = whole(d, input, inner)
+			}
+		}
+	}
+}
+
+// shown says whether a shown-once member carries anything: a secret, or a list of them.
+func shown(value any) bool {
+	switch value := value.(type) {
+	case string:
+		return value != ""
+	case []any:
+		return len(value) > 0
+	case []string:
+		return len(value) > 0
+	}
+	return false
+}
+
+// members reads the generated parameters struct by its JSON names - the contract's.
+func members(params any) (map[string]any, error) {
+	raw, err := json.Marshal(params)
+	if err != nil {
+		return nil, shared.ErrInternal.WithCause(err)
+	}
+	values := map[string]any{}
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, shared.ErrInternal.WithCause(err)
+	}
+	return values, nil
+}
+
+// remarshal moves a use case's output into a generated type through JSON - the contract's names.
+func remarshal(from any, into any) error {
+	raw, err := json.Marshal(from)
+	if err != nil {
+		return shared.ErrInternal.WithDetail("request.response_unwritable").WithCause(err)
+	}
+	if err := json.Unmarshal(raw, into); err != nil {
+		return shared.ErrInternal.WithDetail("request.response_unwritable").WithCause(err)
+	}
+	return nil
+}
+
+// answerer draws an answer with one of the adapter's shared mappers (x-hubtask-rest-answer).
+type answerer func(usecase.Output) any
+
+func answerBy[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any { return draw(out) }
+}
+
+// answerRows draws a bare-array answer, each of the output's rows by the shared mapper.
+func answerRows[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any {
+		rows := rowsOf(out)
+		answer := make([]T, 0, len(rows))
+		for _, row := range rows {
+			answer = append(answer, draw(row))
+		}
+		return answer
+	}
+}
+
+// answerPage draws a page: each of its rows by the shared mapper, its walk as every page's.
+func answerPage[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any {
+		rows := rowsOf(out)
+		data := make([]T, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, draw(row))
+		}
+		return map[string]any{"data": data, "page": pageResponse(out)}
+	}
+}
+
+// answerData draws an answer that is a list under `data` with no page: every row by the mapper.
+func answerData[T any](draw func(usecase.Output) T) answerer {
+	return func(out usecase.Output) any {
+		rows := rowsOf(out)
+		data := make([]T, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, draw(row))
+		}
+		return map[string]any{"data": data}
+	}
+}
+
+// inUTC hands an instant the door names on in UTC; a text that is no instant stays as sent, for
+// the use case to refuse in its own words.
+func inUTC(d restDoor, name string, value any) any {
+	text, ok := value.(string)
+	if !ok || !slices.Contains(d.UTC, name) {
+		return value
+	}
+	at, err := time.Parse(time.RFC3339Nano, text)
+	if err != nil {
+		return value
+	}
+	return at.UTC().Format(time.RFC3339Nano)
+}
+
+// whole hands an integer the contract declares on as a Go integer rather than JSON's float64.
+func whole(d restDoor, name string, value any) any {
+	if number, ok := value.(float64); ok && number == float64(int(number)) && slices.Contains(d.Integers, name) {
+		return int(number)
+	}
+	return value
+}
+
+// asWritten draws a row as the use case wrote it: a bare-array answer whose rows already carry the
+// contract's names.
+func asWritten(out usecase.Output) usecase.Output { return out }

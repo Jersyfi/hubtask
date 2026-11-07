@@ -130,3 +130,5 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0095](./ADR-0095-a-workspaces-address-resolves-through-its-hosts.md) | A workspace's address resolves through its hosts | proposed | Tenancy, identity, security |
 | [0096](./ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md) | The installed apps sign in through the system browser | accepted | Identity, clients |
 | [0097](./ADR-0097-android-stays-current-by-a-notice.md) | Android stays current by a notice | accepted | Clients, release |
+| [0098](./ADR-0098-the-suite-and-its-foundation.md) | The suite and its foundation | accepted | Product, domain, process |
+| [0099](./ADR-0099-saml-and-ldap-behind-one-adapter-each.md) | SAML and LDAP behind one adapter each | accepted | Identity, dependencies |

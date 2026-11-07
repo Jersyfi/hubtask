@@ -35,7 +35,8 @@ psql -c "SELECT pid, now() - query_start AS held, left(query, 60) FROM pg_stat_a
 
 ```promql
 sum by (pool, state) (hubtask_db_pool_connections)
-histogram_quantile(0.95, sum(rate(hubtask_db_query_duration_seconds_bucket[10m])) by (le)) # future: not yet emitted
+histogram_quantile(0.95, sum(rate(hubtask_db_query_duration_seconds_bucket[10m])) by (le, pool))
+sum by (pool, kind) (rate(hubtask_db_errors_total[10m]))
 hubtask_inflight_requests
 ```
 

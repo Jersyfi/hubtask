@@ -34,6 +34,7 @@
 //   - The use cases cite personas, deployments and principles that exist, carry the sections that
 //     make them checkable, agree with their index, and every UC-… and use case check cited
 //     anywhere exists (see usecases.go).
+//   - No subject document cites a superseded ADR as the reason for a current rule (superseded.go).
 //   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
 //     has no Delivers check a use case still lists as unmet (see milestones.go).
 //
@@ -75,6 +76,7 @@ func main() {
 	problems = append(problems, checkADRRuleLines(root)...)
 	problems = append(problems, checkCodeCitations(root)...)
 	problems = append(problems, checkADRCitations(root)...)
+	problems = append(problems, checkSupersededADRCitations(root)...)
 
 	if len(problems) > 0 {
 		sort.Strings(problems)

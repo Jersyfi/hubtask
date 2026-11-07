@@ -50,7 +50,7 @@ func TestAPlatformsTokenEndsAWorkspaceWithTheTypedNameAlone(t *testing.T) {
 
 	// No stdin: a prompt would have nothing to read, and the command must not need one.
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"admin", "tenant", "delete", acmeID, "--confirm", "Acme")
+		"admin", "tenant", "delete", acmeID, "--confirmation", "Acme")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}

@@ -23,3 +23,7 @@ test('the device losing its network is said whenever it happens; nothing is said
   assert.equal(liveAnnouncement('live', 'live', true), undefined);
   assert.equal(liveAnnouncement('live', 'off', true), undefined);
 });
+
+test('a stream refused at the server cap says live updates are paused, not lost', () => {
+  assert.equal(liveAnnouncement('live', 'paused', true), 'app.live.paused');
+});

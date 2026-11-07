@@ -121,6 +121,36 @@ const (
 	// RoleGrantedAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
 	RoleGrantedAttempts = 20
 
+	// KindPageReviewEmail sends one REMINDER notification about a page due for review (UC-DOC-12
+	// check 4), under its own kind for the same rolling update: a process of the previous release
+	// does not know the record's page and would send a reminder about nothing.
+	KindPageReviewEmail Kind = "notification.page_review"
+
+	// PageReviewAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
+	PageReviewAttempts = 20
+
+	// KindAgentNoticeEmail tells an agent's owner what it did with them told (UC-AGT-02, NOTIFY),
+	// under its own kind for the same rolling update: a process of the previous release does not
+	// know the record's agent. Its attempt budget is PageReviewAttempts.
+	KindAgentNoticeEmail Kind = "notification.agent_notice"
+
+	// KindWhiteboardMentionEmail tells a person a board's comment named them (UC-CNV-09), under its
+	// own kind for the same rolling update: a process of the previous release does not know the
+	// record's board. Its attempt budget is PageReviewAttempts.
+	KindWhiteboardMentionEmail Kind = "notification.whiteboard_mention"
+
+	// KindApprovalEmail tells a person an approval waits for their yes, reminds them, or tells the
+	// person who asked that a level is overdue (UC-SVC-09 check 4), under its own kind for the same
+	// rolling update: a process of the previous release does not know the record's approval. Its
+	// attempt budget is PageReviewAttempts.
+	KindApprovalEmail Kind = "notification.approval"
+
+	// KindPlanExceptionEmail tells whoever decided a plan's time tolerance that the plan slipped
+	// past it (configuration.md §10), under its own kind for the same rolling update: a process of the
+	// previous release does not know the record's baseline. Its attempt budget is
+	// PageReviewAttempts.
+	KindPlanExceptionEmail Kind = "notification.plan_exception"
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.
@@ -136,6 +166,16 @@ const (
 	// and completes when it owes none, which is what keeps a quiet tenant costing nothing: the
 	// next write re-seeds it.
 	KindReminderFire Kind = "reminder.fire"
+
+	// KindTimerFire fires a tenant's durable timers whose due moment has come (domain-model.md
+	// §3.7). The reminder's shape: one job per tenant, seeded by the write that armed or resumed a
+	// timer, rescheduling itself to the tenant's next due moment and completing when none runs.
+	KindTimerFire Kind = "timer.fire"
+
+	// KindFieldFill writes a new CALCULATED field on the entries defined before it, one page per
+	// job: each pass enqueues the next page's job with its cursor (FieldFill), because a repeated
+	// job keeps its payload.
+	KindFieldFill Kind = "fields.fill"
 
 	// KindMailboxPoll reads one connected mailbox into the workspace's mail intake (ADR-0094).
 	//
@@ -234,6 +274,12 @@ const (
 	// upload is the first thing that can ever need reclaiming - and a deletion pulls it forward.
 	KindMediaReconcile Kind = "media.reconcile"
 
+	// KindMediaScan scans one tenant's uploads held while the scanner could not answer
+	// (security.md §4). Seeded by the confirmation that held one, deduplicated per tenant, and
+	// repeating while anything stays held - so a scanner that comes back clears the backlog on its
+	// own, and one that stays down keeps the files held rather than served.
+	KindMediaScan Kind = "media.scan"
+
 	// KindBackupRun writes one archive to one target (backup-restore.md §5).
 	//
 	// One job per run rather than per tenant, because a run is a thing somebody asked for and can
@@ -322,6 +368,12 @@ const (
 	// records a case seeds it, each pass reschedules itself while the tenant has an open case, and
 	// a tenant that owes nothing costs a row that is not there.
 	KindPrivacyDeadlines Kind = "privacy.deadlines"
+
+	// KindSAMLCertificateWatch tells a workspace's administrators 30, 7 and 1 days before a SAML
+	// provider's last certificate ends (identity.md §26.1). The deadline watch's shape: seeded by
+	// the write that configures a SAML provider (and once by migration 0361), it reschedules
+	// itself while the workspace has one; deduplicated on the workspace.
+	KindSAMLCertificateWatch Kind = "identity.saml_certificate_watch"
 
 	// KindPrivacyExtensionEntry records an installation-wide case's extension in one workspace the
 	// person is a member of (data-protection.md §4.1). One job per workspace, enqueued with the
@@ -449,6 +501,56 @@ const (
 	// each retry and redelivery. A workspace's purge removes its jobs, never these.
 	KindPlatformDeliver Kind = "platform.deliver"
 
+	// KindCmdbConnectorPull is one connector's scheduled pull (research itsm-cmdb-ai C2): one job
+	// per connector, deduplicated by its identifier, rescheduling itself to the connector's next
+	// moment; the write that schedules a connector seeds it.
+	KindCmdbConnectorPull Kind = "cmdb.connector_pull"
+
+	// KindLdapSync is a workspace's LDAP synchronisation (UC-ID-31): one job per workspace,
+	// deduplicated by it, rescheduling itself to the directory's next run and finishing when the
+	// directory is removed or switched off; the write that configures it seeds it.
+	KindLdapSync Kind = "directory.ldap_sync"
+
+	// KindDashboardDigest is one person's digest of a dashboard by mail (UC-GOL-04): one job per
+	// digest, deduplicated by its identifier, rescheduling itself to the digest's next moment; the
+	// write that sets the digest seeds it.
+	KindDashboardDigest Kind = "dashboard.digest"
+
+	// KindFigureRecount keeps one workspace's kept figures honest (UC-WRK-29, migration 0313): it
+	// folds the recorded changes, drops what no read can be answered from, and recounts the kept
+	// counts a read may still be answered from, writing the fresh count over one that drifted. One
+	// job per workspace, scheduled by the first count a read keeps and rescheduling itself.
+	KindFigureRecount Kind = "figure.recount"
+	// KindCalendarPush is one calendar push's run (UC-INT-16): one job per push, deduplicated by
+	// its identifier, rescheduling itself every quarter hour; connecting seeds it, a push gone or
+	// refused for good ends it.
+	KindCalendarPush Kind = "calendar.push"
+	// KindChatBot is one chat bot's read of its room (UC-INT-18): one job per bot, deduplicated by
+	// its identifier, rescheduling itself every minute; seating or switching it on seeds it, a bot
+	// gone, off or refused its token ends it.
+	KindChatBot Kind = "chat.bot"
+	// KindChatApprovalCard posts one approval's card to one linked chat account (UC-SVC-09 check
+	// 6), deduplicated by the approval, its level, why and the link.
+	KindChatApprovalCard Kind = "chat.approval_card"
+
+	// KindAgentJob is one job of a shipped agent on its target (G11), deduplicated by the job's
+	// identifier; StartAgentJob stores the job and seeds it.
+	KindAgentJob Kind = "agents.job"
+
+	// KindAgentRequestCheck looks at one approved held act once its perform window has passed
+	// (agent.RequestPerformWindow): one still marked performing was interrupted between the
+	// decision and the act, and is recorded FAILED rather than left approved and never performed.
+	// Queued in the decision's transaction, deduplicated by the request.
+	KindAgentRequestCheck Kind = "agents.request_check"
+
+	// KindRequesterReply mails one public reply to the requesters an entry was filed for by mail
+	// (UC-SVC-12), deduplicated by the comment's identifier.
+	KindRequesterReply Kind = "servicedesk.requester_reply"
+
+	// KindRequesterSatisfaction mails the satisfaction question with its links to the requesters
+	// a resolved entry was filed for by mail (UC-SVC-07 check 6), deduplicated by the completion's
+	// event.
+	KindRequesterSatisfaction Kind = "servicedesk.requester_satisfaction"
 	// KindOwnDomainCheck looks at the own domains' DNS records (ADR-0095 §4): one installation job,
 	// without a tenant, seeded when a worker starts in multi mode and repeating; the dedupe key
 	// keeps it one however many workers start. Detached, so no transaction waits on a name server.
@@ -480,6 +582,19 @@ type Request struct {
 	MaxAttempts int
 }
 
+// FieldFill is the request for one page of a CALCULATED field's fill: the definition, its scope
+// (zero for the workspace) and the cursor to continue after (empty for the first page).
+func FieldFill(tenant, definition, collection shared.ID, after string) Request {
+	payload := map[string]any{"definition_id": definition.String(), "after": after}
+	if !collection.IsZero() {
+		payload["collection_id"] = collection.String()
+	}
+	return Request{
+		Kind: KindFieldFill, TenantID: tenant, Payload: payload,
+		DedupeKey: definition.String() + "/" + after,
+	}
+}
+
 // RetentionSweep is the request every write that seeds a tenant's sweep makes: a deletion that
 // starts a trash clock, a workspace provisioned, a session opened (data-retention.md §5). One
 // constructor, so the kind and the dedupe key - the tenant - are written once.
@@ -489,6 +604,12 @@ type Request struct {
 // moves an earlier run.
 func RetentionSweep(tenantID shared.ID, runAt time.Time) Request {
 	return Request{Kind: KindRetentionSweep, TenantID: tenantID, DedupeKey: tenantID.String(), RunAt: runAt}
+}
+
+// FigureRecount is the request for a workspace's recount of its kept figures, the tenant its dedupe
+// key; the enqueue keeps the earlier of a pending job's run-at and this one's.
+func FigureRecount(tenantID shared.ID, runAt time.Time) Request {
+	return Request{Kind: KindFigureRecount, TenantID: tenantID, DedupeKey: tenantID.String(), RunAt: runAt}
 }
 
 // Job is one claimed unit of work, as the runner hands it to a handler.
@@ -501,6 +622,10 @@ type Job struct {
 	// differently on a retry - a gentler timeout, a smaller batch - reads it here.
 	Attempts    int
 	MaxAttempts int
+	// Reclaimed is a claim that took the job over from an attempt nobody ended: its lease ran out
+	// while it was RUNNING, so its worker most likely died mid-run. Attempts already counts that
+	// attempt, so a reclaimed job past MaxAttempts has used its budget on crashes.
+	Reclaimed bool
 	// Lease is when this claim expires, and it is also the token that proves the claim. Every
 	// statement that ends the attempt names it, so a worker that fell so far behind that somebody
 	// else took the job over changes nothing and rolls back instead of applying its work twice.
@@ -577,6 +702,31 @@ type Detached interface {
 	OwnsItsTransactions()
 }
 
+// Perpetual is a handler whose job is a duty kept as one row - a mailbox's poll, a connector's
+// pull, a workspace's sweep - that schedules its own next round (Result.Repeat) and that nothing
+// else re-seeds reliably. Its last attempt on a transient failure (unavailable, rate-limited, an
+// untyped transport or deadline error) is its next round at the backoff's ceiling rather than a
+// dead letter: a database away for twenty minutes must not end mail intake for good. A permanent
+// answer still dead-letters it.
+type Perpetual interface {
+	Handler
+
+	// RepeatsForever is the declaration; its value is never read.
+	RepeatsForever()
+}
+
+// LongRunning is a detached handler whose one pass may take far longer than an ordinary job - a
+// backup, a restore, a workspace export, an import. The runner gives it the long budget instead of
+// the ordinary deadline and keeps its lease alive while it works, so a killed worker's pass is
+// still taken over within one lease rather than after the whole budget. Detached on purpose: a
+// pass of hours must not hold one transaction open for hours.
+type LongRunning interface {
+	Detached
+
+	// RunsLong is the declaration; its value is never read.
+	RunsLong()
+}
+
 // Releaser is a handler that holds a lock outside the job table - a run row, a claim - and has to
 // let it go when the queue gives up on the job.
 //
@@ -627,6 +777,17 @@ type Lease struct {
 	Until time.Time
 	// Batch is how many jobs are claimed at once.
 	Batch int
+	// Only, when not empty, is the kinds this claim may take; Except is kinds it never takes. A
+	// role's bulkhead (deployment.md §2.2): the automation role claims AutomationKinds, a worker
+	// beside it every other kind.
+	Only   []Kind
+	Except []Kind
+}
+
+// AutomationKinds are the jobs the automation role runs: rule runs, their HTTP calls, schedule
+// wake-ups and rule checks.
+func AutomationKinds() []Kind {
+	return []Kind{KindAutomationRun, KindAutomationHTTP, KindAutomationSchedule, KindAutomationCheck}
 }
 
 // Failure is a job that did not work out.
@@ -690,6 +851,11 @@ type Queue interface {
 	// lose by missing a pull-forward.
 	Hold(ctx context.Context, job Job) error
 
+	// Extend moves a claimed job's lease to until and answers the job carrying it, refused with
+	// queue.lease_lost - like Complete - once the lease it carries no longer holds. The runner calls
+	// it before a job of a batch starts, so that no job begins with less lease left than it may run.
+	Extend(ctx context.Context, job Job, until time.Time) (Job, error)
+
 	// Complete finishes a job for good, with the outcome its handler answered (Result.Outcome,
 	// empty for none). Called in the same transaction as the handler's effect, and refused when the
 	// job's lease no longer holds.
@@ -707,6 +873,31 @@ type Queue interface {
 	// Depth reports the backlog per kind, across every tenant. The job table has no tenant
 	// boundary to respect here, which is what makes one global gauge possible at all.
 	Depth(ctx context.Context) ([]Depth, error)
+}
+
+// OpenKey is an open job's workspace and dedupe key.
+type OpenKey struct {
+	TenantID  shared.ID
+	DedupeKey string
+}
+
+// OpenKeys lists the open jobs of one kind by workspace and key, across every tenant, within the
+// caller's unit of work. For a kind with one job per thing while it lives - a mailbox's read - it
+// answers which things live without reading a table that has a tenant boundary.
+//
+// The listing goes by turns - every workspace's oldest before any workspace's second - so that a
+// limit below the total leaves no workspace out while another is listed several times.
+type OpenKeys interface {
+	OpenKeys(ctx context.Context, kind Kind, shard Shard, limit int) ([]OpenKey, error)
+	// OpenKeyCount is how many OpenKeys could answer for the shard, beyond any limit.
+	OpenKeyCount(ctx context.Context, kind Kind, shard Shard) (int64, error)
+}
+
+// Shard is one of Count parts the workspaces are split into by a hash of their identifier, each
+// workspace wholly in one, so several workers can share what one would hold. A Count of one or
+// less is every workspace.
+type Shard struct {
+	Index, Count int
 }
 
 // Leadership is the "exactly one" of ADR-0008: the scheduler role may run in several replicas so

@@ -177,6 +177,7 @@ func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (Webh
 
 const findWebhookSubscription = `-- name: FindWebhookSubscription :one
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -192,6 +193,9 @@ type FindWebhookSubscriptionRow struct {
 	FilterExpr          *string
 	ScopeType           *string
 	ScopeID             pgtype.UUID
+	Format              string
+	ChatRoom            *string
+	ChatLocale          *string
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -220,6 +224,9 @@ func (q *Queries) FindWebhookSubscription(ctx context.Context, id pgtype.UUID) (
 		&i.FilterExpr,
 		&i.ScopeType,
 		&i.ScopeID,
+		&i.Format,
+		&i.ChatRoom,
+		&i.ChatLocale,
 		&i.SecretEnc,
 		&i.SecretKeyID,
 		&i.PreviousSecretEnc,
@@ -285,13 +292,15 @@ const insertWebhookSubscription = `-- name: InsertWebhookSubscription :exec
 
 INSERT INTO webhook_subscription (
   id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+  format, chat_room, chat_locale,
   secret_enc, secret_key_id, state, created_by, created_at, version
 )
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8,
-  $9, $10, $11, 1
+  $7, $8, $9,
+  $10, $11,
+  $12, $13, $14, 1
 )
 `
 
@@ -302,6 +311,9 @@ type InsertWebhookSubscriptionParams struct {
 	FilterExpr  *string
 	ScopeType   *string
 	ScopeID     pgtype.UUID
+	Format      string
+	ChatRoom    *string
+	ChatLocale  *string
 	SecretEnc   []byte
 	SecretKeyID *string
 	State       string
@@ -326,6 +338,9 @@ func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebho
 		arg.FilterExpr,
 		arg.ScopeType,
 		arg.ScopeID,
+		arg.Format,
+		arg.ChatRoom,
+		arg.ChatLocale,
 		arg.SecretEnc,
 		arg.SecretKeyID,
 		arg.State,
@@ -335,8 +350,32 @@ func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebho
 	return err
 }
 
+const laterWebhookDeliveryExists = `-- name: LaterWebhookDeliveryExists :one
+SELECT EXISTS (
+  SELECT 1 FROM webhook_delivery
+  WHERE subscription_id = $1 AND event_id = $2
+    AND attempt > $3
+)
+`
+
+type LaterWebhookDeliveryExistsParams struct {
+	SubscriptionID pgtype.UUID
+	EventID        pgtype.UUID
+	Attempt        int32
+}
+
+// Whether the event was attempted again after this attempt under the subscription - asked in a
+// statement of its own after the lock, so that it sees a replay committed while it waited.
+func (q *Queries) LaterWebhookDeliveryExists(ctx context.Context, arg LaterWebhookDeliveryExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, laterWebhookDeliveryExists, arg.SubscriptionID, arg.EventID, arg.Attempt)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listWebhookSubscriptions = `-- name: ListWebhookSubscriptions :many
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -352,6 +391,9 @@ type ListWebhookSubscriptionsRow struct {
 	FilterExpr          *string
 	ScopeType           *string
 	ScopeID             pgtype.UUID
+	Format              string
+	ChatRoom            *string
+	ChatLocale          *string
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -386,6 +428,9 @@ func (q *Queries) ListWebhookSubscriptions(ctx context.Context) ([]ListWebhookSu
 			&i.FilterExpr,
 			&i.ScopeType,
 			&i.ScopeID,
+			&i.Format,
+			&i.ChatRoom,
+			&i.ChatLocale,
 			&i.SecretEnc,
 			&i.SecretKeyID,
 			&i.PreviousSecretEnc,
@@ -407,6 +452,18 @@ func (q *Queries) ListWebhookSubscriptions(ctx context.Context) ([]ListWebhookSu
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockWebhookDelivery = `-- name: LockWebhookDelivery :one
+SELECT id FROM webhook_delivery WHERE id = $1 FOR UPDATE
+`
+
+// Holds one attempt for the transaction: a replay of it waits for another replay of it to commit.
+func (q *Queries) LockWebhookDelivery(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockWebhookDelivery, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const recordWebhookDeliveryOutcome = `-- name: RecordWebhookDeliveryOutcome :execrows
@@ -536,6 +593,7 @@ func (q *Queries) RotateWebhookSecret(ctx context.Context, arg RotateWebhookSecr
 
 const subscriptionsForEventType = `-- name: SubscriptionsForEventType :many
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -552,6 +610,9 @@ type SubscriptionsForEventTypeRow struct {
 	FilterExpr          *string
 	ScopeType           *string
 	ScopeID             pgtype.UUID
+	Format              string
+	ChatRoom            *string
+	ChatLocale          *string
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -588,6 +649,9 @@ func (q *Queries) SubscriptionsForEventType(ctx context.Context, eventType strin
 			&i.FilterExpr,
 			&i.ScopeType,
 			&i.ScopeID,
+			&i.Format,
+			&i.ChatRoom,
+			&i.ChatLocale,
 			&i.SecretEnc,
 			&i.SecretKeyID,
 			&i.PreviousSecretEnc,
@@ -723,6 +787,7 @@ func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesPa
 
 const webhookSubscriptionsSealedNotUnder = `-- name: WebhookSubscriptionsSealedNotUnder :many
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       format, chat_room, chat_locale,
        secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
@@ -740,6 +805,9 @@ type WebhookSubscriptionsSealedNotUnderRow struct {
 	FilterExpr          *string
 	ScopeType           *string
 	ScopeID             pgtype.UUID
+	Format              string
+	ChatRoom            *string
+	ChatLocale          *string
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -774,6 +842,9 @@ func (q *Queries) WebhookSubscriptionsSealedNotUnder(ctx context.Context, keyID 
 			&i.FilterExpr,
 			&i.ScopeType,
 			&i.ScopeID,
+			&i.Format,
+			&i.ChatRoom,
+			&i.ChatLocale,
 			&i.SecretEnc,
 			&i.SecretKeyID,
 			&i.PreviousSecretEnc,

@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -167,6 +168,33 @@ func TestAThrottleWithoutAnExpressionIsKept(t *testing.T) {
 	}
 }
 
+// A STEP_TAKEN trigger keeps the workflow and the step, and refuses what another kind carries
+// (UC-FLW-04 check 4).
+func TestAStepTriggerNamesTheWorkflowAndTheStep(t *testing.T) {
+	in := validInput()
+	in.Trigger = automation.Trigger{Kind: automation.TriggerStepTaken, Workflow: "purchase", Step: " approve "}
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("NewRule: %v", err)
+	}
+	if rule.Trigger.Workflow != "purchase" || rule.Trigger.Step != "approve" {
+		t.Errorf("trigger %+v, want the workflow and the trimmed step", rule.Trigger)
+	}
+
+	in.Trigger.RRule = "FREQ=DAILY"
+	_, err = automation.NewRule(in)
+	if code := fieldCodes(t, err)["/trigger/rrule"]; code != "automation.trigger_field_not_for_kind" {
+		t.Errorf("/trigger/rrule says %q, want the foreign field refused", code)
+	}
+
+	in = validInput()
+	in.Trigger = automation.Trigger{Kind: automation.TriggerManual, Workflow: "purchase"}
+	_, err = automation.NewRule(in)
+	if code := fieldCodes(t, err)["/trigger/workflow"]; code != "automation.trigger_field_not_for_kind" {
+		t.Errorf("/trigger/workflow says %q, want the foreign field refused", code)
+	}
+}
+
 func TestTheTriggerIsCheckedPerKind(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -209,11 +237,36 @@ func TestTheTriggerIsCheckedPerKind(t *testing.T) {
 			path:    "/trigger/anchor", code: "automation.anchor_required",
 		},
 		{
+			name: "a field anchor naming no field",
+			trigger: automation.Trigger{
+				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorField, Offset: "-P30D",
+			},
+			path: "/trigger/anchor_field", code: "automation.anchor_field_required",
+		},
+		{
+			name: "a field anchor naming no field key",
+			trigger: automation.Trigger{
+				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorField,
+				AnchorField: "Notice By", Offset: "-P30D",
+			},
+			path: "/trigger/anchor_field", code: "automation.anchor_field_malformed",
+		},
+		{
 			name: "a relative date with no offset",
 			trigger: automation.Trigger{
 				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorDueDate,
 			},
 			path: "/trigger/offset", code: "automation.offset_required",
+		},
+		{
+			name:    "a step trigger with no workflow",
+			trigger: automation.Trigger{Kind: automation.TriggerStepTaken, Step: "approve"},
+			path:    "/trigger/workflow", code: "automation.workflow_required",
+		},
+		{
+			name:    "a step trigger with no step",
+			trigger: automation.Trigger{Kind: automation.TriggerStepTaken, Workflow: "purchase"},
+			path:    "/trigger/step", code: "automation.step_required",
 		},
 		{
 			name:    "no kind at all",
@@ -267,6 +320,13 @@ func TestAFieldOfAnotherKindIsRefused(t *testing.T) {
 			trigger: automation.Trigger{Kind: automation.TriggerManual, Offset: "-PT24H"},
 			path:    "/trigger/offset",
 		},
+		"a field key on a due-date anchor": {
+			trigger: automation.Trigger{
+				Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorDueDate,
+				AnchorField: "contract_notice_by", Offset: "-P1D",
+			},
+			path: "/trigger/anchor_field",
+		},
 		"changed fields on a jumble trigger": {
 			trigger: automation.Trigger{
 				Kind: automation.TriggerJumbleEntry, ChangedFields: []string{"title"},
@@ -287,6 +347,24 @@ func TestAFieldOfAnotherKindIsRefused(t *testing.T) {
 				t.Errorf("%s says %q, want automation.trigger_field_not_for_kind", tc.path, code)
 			}
 		})
+	}
+}
+
+// A contract's notice date is a field of the register, not the entry's due date: the rule names the
+// field by its key.
+func TestARelativeDateMeasuresFromAFieldNamedByItsKey(t *testing.T) {
+	in := validInput()
+	in.Trigger = automation.Trigger{
+		Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorField,
+		AnchorField: " contract_notice_by ", Offset: "-P30D",
+	}
+
+	rule, err := automation.NewRule(in)
+	if err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	if rule.Trigger.AnchorField != "contract_notice_by" {
+		t.Errorf("anchor field %q, want contract_notice_by", rule.Trigger.AnchorField)
 	}
 }
 
@@ -634,5 +712,96 @@ func TestACheckedRuleCarriesItsFindingsAndKnowsWhetherItIsBroken(t *testing.T) {
 	}
 	if (automation.Rule{}).Broken() {
 		t.Error("a rule never checked reads as broken")
+	}
+}
+
+// A person's own rule (configuration/model.md §1): it names its owner, acts as them and nobody
+// else, and fires on events only - on the entries its owner reads, which the engine asks.
+func TestAPersonsRuleActsAsItsOwnerOnEventsOnly(t *testing.T) {
+	personal := func(edit func(*automation.NewRuleInput)) error {
+		in := validInput()
+		in.Scope = automation.Scope{Type: automation.ScopePerson, ID: runAsID}
+		edit(&in)
+		_, err := automation.NewRule(in)
+		return err
+	}
+	if err := personal(func(*automation.NewRuleInput) {}); err != nil {
+		t.Fatalf("a person's own rule was refused: %v", err)
+	}
+	for name, tc := range map[string]struct {
+		edit func(*automation.NewRuleInput)
+		path string
+		code string
+	}{
+		"no owner":              {func(in *automation.NewRuleInput) { in.Scope.ID = "" }, "/scope/id", "automation.scope_id_required"},
+		"acting as a colleague": {func(in *automation.NewRuleInput) { in.RunAs = authorID }, "/run_as", "automation.person_rule_run_as"},
+		"on a schedule": {func(in *automation.NewRuleInput) {
+			in.Trigger = automation.Trigger{Kind: automation.TriggerManual}
+		}, "/trigger/kind", "automation.person_rule_trigger"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := personal(tc.edit)
+			if !errors.Is(err, shared.ErrValidation) {
+				t.Fatalf("error %v, want ErrValidation", err)
+			}
+			if code := fieldCodes(t, err)[tc.path]; code != tc.code {
+				t.Errorf("%s says %q, want %q", tc.path, code, tc.code)
+			}
+		})
+	}
+	if path := (automation.Scope{Type: automation.ScopePerson, ID: runAsID}).Path(); len(path) != 1 || path[0] != identity.TenantScope() {
+		t.Errorf("a person's rule reads at %v, want the workspace alone", path)
+	}
+}
+
+// A business calendar on a RELATIVE_DATE trigger counts whole working days, so only an offset of
+// whole days is read on one; it is refused on any other kind.
+func TestABusinessCalendarTakesWholeDays(t *testing.T) {
+	relative := func(offset, cal string) automation.Trigger {
+		return automation.Trigger{Kind: automation.TriggerRelativeDate, Anchor: automation.AnchorCompletedAt, Offset: offset, Calendar: cal}
+	}
+	if kept, err := automation.ValidTrigger(relative("P5D", " office ")); err != nil || kept.Calendar != "office" {
+		t.Errorf("five business days: %v, %v", kept, err)
+	}
+	if _, err := automation.ValidTrigger(relative("-P2D", "office")); err != nil {
+		t.Errorf("two business days before: %v", err)
+	}
+	for offset, code := range map[string]string{"PT36H": "automation.offset_business_days", "P1W": "automation.offset_business_days", "P1DT2H": "automation.offset_business_days"} {
+		_, err := automation.ValidTrigger(relative(offset, "office"))
+		if !hasFieldCode(err, "/trigger/offset", code) {
+			t.Errorf("%s on a calendar: %v", offset, err)
+		}
+	}
+	if _, err := automation.ValidTrigger(relative("P5D", "Office Hours")); !hasFieldCode(err, "/trigger/calendar", "automation.calendar_malformed") {
+		t.Errorf("a malformed calendar key: %v", err)
+	}
+	if _, err := automation.ValidTrigger(automation.Trigger{Kind: automation.TriggerManual, Calendar: "office"}); !hasFieldCode(err, "/trigger/calendar", "automation.trigger_field_not_for_kind") {
+		t.Errorf("a calendar on a manual trigger: %v", err)
+	}
+}
+
+func hasFieldCode(err error, path, code string) bool {
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) {
+		return false
+	}
+	for _, field := range refusal.Fields {
+		if field.Path == path && field.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+// A STEP_TAKEN rule depends on workflows; every other trigger belongs to the base product.
+func TestATriggerNamesTheModuleItDependsOn(t *testing.T) {
+	for _, kind := range automation.TriggerKinds() {
+		want := module.Key("")
+		if kind == automation.TriggerStepTaken {
+			want = module.Workflows
+		}
+		if got := kind.Module(); got != want {
+			t.Errorf("%s depends on %q, want %q", kind, got, want)
+		}
 	}
 }

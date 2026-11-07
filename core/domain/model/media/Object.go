@@ -59,6 +59,9 @@ const (
 	// member of the workspace, so it is bounded tighter than an attachment and must be an image a
 	// browser renders inline.
 	UsageAvatar Usage = "AVATAR"
+	// UsageDeskLogo is a desk's own logo (PUT /containers/{id}/desk-logo): drawn on the portal for
+	// every requester of the service, so it is bounded and judged as a picture of oneself is.
+	UsageDeskLogo Usage = "DESK_LOGO"
 )
 
 // MaxAvatarBytes is the most a picture of oneself may be, whatever the installation allows for an
@@ -67,7 +70,7 @@ const MaxAvatarBytes int64 = 5_000_000
 
 func knownUsage(usage Usage) bool {
 	return usage == UsageCover || usage == UsageAttachment || usage == UsageImport ||
-		usage == UsageAvatar
+		usage == UsageAvatar || usage == UsageDeskLogo
 }
 
 // ParseUsage reads a submitted usage.
@@ -90,6 +93,15 @@ const (
 	StatusPending Status = "PENDING"
 	// StatusReady is sealed: the bytes were read back, judged and measured.
 	StatusReady Status = "READY"
+	// StatusPendingScan is sealed but held: judged and measured, and the installation's scanner
+	// has not answered for it yet. It may join an entry; its bytes are never served.
+	StatusPendingScan Status = "PENDING_SCAN"
+	// StatusInfected is what a scan of a held object found malicious: the bytes are gone and the
+	// record stays for what pointed at it.
+	StatusInfected Status = "INFECTED"
+	// StatusUnscannable is a held object the scanner refused for itself - too large for its stream
+	// limit - rather than for being down: no later pass would answer, so it is settled, never served.
+	StatusUnscannable Status = "UNSCANNABLE"
 )
 
 // MaxFileNameLength counts code points, for the reason every length here does (I-W7).
@@ -140,7 +152,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 	if input.SizeLimit > 0 && input.DeclaredSize > input.SizeLimit {
 		return Object{}, TooLarge(input.SizeLimit)
 	}
-	if input.Usage == UsageAvatar && input.DeclaredSize > MaxAvatarBytes {
+	if (input.Usage == UsageAvatar || input.Usage == UsageDeskLogo) && input.DeclaredSize > MaxAvatarBytes {
 		return Object{}, TooLarge(MaxAvatarBytes)
 	}
 	fileName, err := validFileName(input.FileName, input.Text)
@@ -177,7 +189,7 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 // Idempotent by refusal: sealing a READY object is the caller's signal to answer with what is
 // there rather than to judge again, and the ErrConflict tells it apart from success.
 func (o Object) Sealed(judgedType string, measuredSize int64) (Object, error) {
-	if o.Status == StatusReady {
+	if o.Status != StatusPending {
 		return Object{}, shared.ErrConflict.WithDetail("media.already_confirmed")
 	}
 	if o.DeletedAt != nil {
@@ -190,16 +202,54 @@ func (o Object) Sealed(judgedType string, measuredSize int64) (Object, error) {
 	return o, nil
 }
 
+// HeldForScan returns the object sealed and held for a scan: the judgement recorded, the bytes not served
+// until a scan clears them (security.md §4, T-11).
+func (o Object) HeldForScan(judgedType string, measuredSize int64) (Object, error) {
+	sealed, err := o.Sealed(judgedType, measuredSize)
+	if err != nil {
+		return Object{}, err
+	}
+	sealed.Status = StatusPendingScan
+	return sealed, nil
+}
+
+// Held reports whether the object waits for a scan.
+func (o Object) Held() bool { return o.Status == StatusPendingScan }
+
+// Scanned settles a held object by the scan's verdict: READY when clean, INFECTED when not.
+func (o Object) Scanned(malicious bool) (Object, error) {
+	if o.Status != StatusPendingScan {
+		return Object{}, shared.ErrConflict.WithDetail("media.not_held")
+	}
+	o.Status = StatusReady
+	if malicious {
+		o.Status = StatusInfected
+	}
+	return o, nil
+}
+
+// Unscannable settles a held object the scanner refused for itself; its bytes stay, unserved.
+func (o Object) Unscannable() (Object, error) {
+	if o.Status != StatusPendingScan {
+		return Object{}, shared.ErrConflict.WithDetail("media.not_held")
+	}
+	o.Status = StatusUnscannable
+	return o, nil
+}
+
 // Attachable answers whether the object may join an item right now - as a cover or an
 // attachment, which is what its usage says it was staged for.
 func (o Object) Attachable(usage Usage) error {
 	if o.DeletedAt != nil {
 		return notFound()
 	}
-	if o.Status != StatusReady {
-		return shared.ErrValidation.
-			WithDetail("media.not_ready").
-			WithFields(shared.FieldError{Path: "/media_id", Code: "media.not_ready"})
+	if o.Status == StatusInfected {
+		return Infected()
+	}
+	// A held object joins: what it is attached to serves nothing of it until a scan clears it, and
+	// refusing it would turn a scanner that is down into uploads that are down.
+	if o.Status != StatusReady && o.Status != StatusPendingScan {
+		return notReady()
 	}
 	if o.Usage != usage {
 		return shared.ErrValidation.
@@ -214,15 +264,55 @@ func (o Object) Attachable(usage Usage) error {
 // an avatar, and judged an image a browser renders without executing anything (T-11). Anything
 // else would be served as a download, and a download is not a picture.
 func (o Object) Portrayable() error {
-	if err := o.Attachable(UsageAvatar); err != nil {
+	return o.drawable(UsageAvatar, "media.avatar_not_an_image")
+}
+
+// Emblem answers whether the object may be shown as a desk's logo, by Portrayable's rules: every
+// requester's browser draws it.
+func (o Object) Emblem() error {
+	return o.drawable(UsageDeskLogo, "media.logo_not_an_image")
+}
+
+func (o Object) drawable(usage Usage, notAnImage string) error {
+	if err := o.Attachable(usage); err != nil {
 		return err
+	}
+	if o.Status != StatusReady {
+		// Drawn for others: a picture is drawn, so a held one is not one yet.
+		return notReady()
 	}
 	if DeliveryFor(o.ContentType) != DispositionInline {
 		return shared.ErrValidation.
-			WithDetail("media.avatar_not_an_image").
-			WithFields(shared.FieldError{Path: "/media_id", Code: "media.avatar_not_an_image"})
+			WithDetail(notAnImage).
+			WithFields(shared.FieldError{Path: "/media_id", Code: notAnImage})
 	}
 	return nil
+}
+
+// Infected is the refusal of a file a scan found malicious.
+func Infected() error {
+	return shared.ErrValidation.
+		WithDetail("media.infected").
+		WithFields(shared.FieldError{Path: "/media_id", Code: "media.infected"})
+}
+
+// TooLargeToScan is the scanner's refusal of one file for its size: the file, not the scanner, is
+// the cause, so it is neither held for a later pass nor passed unscanned.
+func TooLargeToScan() error {
+	return shared.ErrValidation.
+		WithDetail("media.too_large_to_scan").
+		WithFields(shared.FieldError{Path: "/media_id", Code: "media.too_large_to_scan"})
+}
+
+// IsTooLargeToScan reports whether err is TooLargeToScan.
+func IsTooLargeToScan(err error) bool {
+	return err != nil && shared.AsError(err).DetailCode == "media.too_large_to_scan"
+}
+
+func notReady() error {
+	return shared.ErrValidation.
+		WithDetail("media.not_ready").
+		WithFields(shared.FieldError{Path: "/media_id", Code: "media.not_ready"})
 }
 
 // notFound is the one answer for an object on its way out, and it carries a code because the

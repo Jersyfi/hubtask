@@ -281,6 +281,15 @@ factor and back whatever second factor the account holds.
   wherever a second factor is held.
 * Somebody with neither the app, a code, a password nor a provider is not let through
   (`NG-weaker-recovery`, §17.4).
+* **A lost app with lost codes is reset by an administrator** (`POST
+  /accounts/{accountId}:reset-second-factor`, *Reset second factor* in People on the rows whose
+  person holds an app, `POST /accounts:sign-in-details`; the owner's fifth answers 6): `MANAGE_MEMBERS`, the administrator's own step-up, the role ceiling of §13 - so an
+  owner's factor is reset only by another owner - never one's own (`accounts.factor_reset_own`)
+  and never by a rule's run. The app's enrolment and every code go (also codes a passkey would
+  back: they are what was lost), every session and unfinished sign-in of the account ends, the
+  person is mailed (`SECOND_FACTOR_RESET`, ADR-0078 §6) and the trail holds
+  `account.second_factor_reset`. Passkeys stay. No sign-in skips the factor (P-02): where the
+  workspace demands one, the next sign-in leads into enrolling a new app.
 
 ---
 
@@ -311,6 +320,16 @@ hourly (T-13, [security.md](./security.md) §4).
   `404 auth.oidc_flow_not_found`, and it names no workspace. The browser forwards to exactly the
   host the answer names, by the same scheme, and to nothing that carries credentials in its
   address.
+* **A connector's return is located the same way.** A mailbox, a calendar push and a file store
+  connected through a provider's sign-in return to their own page on the installation's address
+  (`/administration/mail/oauth`, `/profile/calendars`, `/profile/files`), while the connection began
+  on the workspace's host, where the session that completes it lives. Their `state` is
+  `<workspace id>.<handle>` (`shared.ReturnState`); the workspace part proves nothing. Before
+  anything else, the web app asks `POST /auth/connector:locate` with the state and the kind; the
+  answer is the workspace's main address, given only while a connection of that kind waits under
+  the state's hash in that workspace, and the app opens the same path and query there. Anything
+  else is one `404 auth.connector_return_not_found`. Anonymous, in the auth bucket, spending
+  nothing; the connection is completed on the workspace's host as before.
 
 ### 10.2 Providers in the plural, at two levels
 
@@ -437,7 +456,12 @@ safeguard belongs to connecting, not to the provider kind.
   delivery mints a token of its own on every attempt and would kill a handed-over link. A rule's run
   is refused there (`accounts.invitation_needs_a_person`).
 * `POST /accounts/{id}:renew-invitation` gives an invitation not yet accepted a new way to arrive -
-  the mail again, or a new link shown once; the earlier link dies. An address already invited is
+  the mail again, or a new link shown once; the earlier link dies. With `delivery: LINK` it answers
+  a link where mail is sent too, behind §16's step-up and the role ceiling: the invitation job and
+  the delivery still waiting are cancelled and the unsent notification set aside
+  (`notifications.replaced_by_link`) before the token is minted - never both. A delivery being sent
+  is detached and cannot be stopped, so the renewal is refused meanwhile
+  (`accounts.invitation_mail_sending`). An address already invited is
   `accounts.already_invited`, one already here `accounts.email_taken`.
 * The mail links `<base>/redeem#token=…`, the token in the **fragment** (§14.4);
   `POST /auth/invitations:redeem` sets the first password through `SetPassword` (§6) and activates
@@ -702,12 +726,13 @@ architecture test fails one that does not. The descriptors are the list: a works
 request (a person's; a service account whose own register row is a service account's sends the
 typed name alone, having no proof to give — [multi-tenancy.md](./multi-tenancy.md) §5), granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
 a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
-/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
+/tenant` that asks), §13's new start password, §9's reset of somebody's second factor, connecting a provider from a session (§11), adding or
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
 destructive modes and §8.5's erasures carried out again after a point-in-time recovery,
-configuring or removing one of the installation's own backup targets (backup-restore.md §2), and
-an operator's change of a workspace's address ([multi-tenancy.md](./multi-tenancy.md) §3.1).
+configuring or removing one of the installation's own backup targets (backup-restore.md §2), an
+invitation renewed as a link where mail is sent (§12), and an operator's change of a workspace's
+address ([multi-tenancy.md](./multi-tenancy.md) §3.1).
 
 ---
 
@@ -765,11 +790,11 @@ for **one named workspace** (`POST /admin/tenants/{id}:open-password`):
 
 ### 17.4 Where the ways back end
 
-* A lost second factor with lost recovery codes: an administrator removes and re-invites.
+* A lost second factor with lost recovery codes: an administrator resets it (§9), and the next sign-in enrols a new one where the workspace demands it.
 * A password switched off on purpose is honoured; a broken provider there: §17.2.
 * No address: §13. No mail server: §17.2 or the instance file (§19).
 * An installation nobody can run: a server command
-  ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)), not built.
+  ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)).
 
 ---
 
@@ -825,6 +850,10 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
   the provider is whom a person who does not agree asks, as for the installation's. The provider's
   account link (`account_url`) resolves from installation and plan only (§4.2 there): it is no link
   a workspace sets, the footer shows or the sign-in rules answer.
+* The **help links** - the support contact (`support_url`, `https` or `mailto:`) and the
+  documentation (`docs_url`) - are set, locked and resolved exactly as the four legal links, and
+  answered with them by `/auth/sign-in-rules` and `/meta/capabilities`, but the footer never draws
+  them: Help shows them ([user-experience.md](./user-experience.md) §5.8).
 * The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
   terms link: it resolves with it, from the same level and under the same lock, and a level sets
   one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that
@@ -843,7 +872,7 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
 | The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. Adding the first entry therefore adds the person adding it as well, in the same statement and under a lock, both journalled. |
 | The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
 | The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
-| The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). Where the workspace itself is locked - suspended or set for deletion, so every credential of its operators is refused - `hubtask workspace cancel-deletion --workspace <short name>` and `hubtask workspace resume --workspace <short name>` make the control plane's two edges back, with the same guards, trail and journal entries, recorded as the machine's (`SYSTEM`, label `machine`). |
+| The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). Where the workspace itself is locked - suspended or set for deletion, so every credential of its operators is refused - `hubtask workspace cancel-deletion --workspace <short name>` and `hubtask workspace resume --workspace <short name>` make the control plane's two edges back, with the same guards, trail and journal entries, recorded as the machine's (`SYSTEM`, label `machine`). Where no mail goes out, `hubtask account reset-link --workspace <short name> --email <address>` prints the reset link the mail would carry - minted by `MintResetToken`, hash stored, journalled as `instance.reset_link_issued` without the address or the token - and the no-mail sign-in text names the command. |
 | The bound on a token | A token carrying `admin:tenants` or `admin:provisioning` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
 | Who can be added | Only an active account (`admin.operator_not_active`), named by workspace and address or, for a service account, chosen from the caller's own workspace and sent by identifier. |
 | The last operator | Cannot be removed: `dismiss_operator` deletes only while more than one remains (`admin.operator_last`); an account not in the register is `admin.operator_not_registered`. |
@@ -1087,3 +1116,114 @@ A credential that once answered with UV and later without is held to the ceremon
   with the account (`CASCADE`) where it is deleted, with its tokens where it is anonymised.
 * The data catalogue names the table, its personal data (the name, the last use) and its legal basis
   in the task that creates it.
+
+---
+
+## 24. Provisioning from a directory (SCIM 2.0)
+
+A company's directory - Entra ID, Okta, Keycloak, Google - provisions the workspace's people and
+groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../usecases/identity/UC-ID-28-provision-people-from-our-directory.md)).
+
+* **The credential** is a service account's token (§13, UC-ID-17) with `members:read` and
+  `members:write`. The directory acts as that account: every act is authorised as
+  `MANAGE_MEMBERS` at the workspace, the same question an administrator's invitation asks, and
+  nothing a directory does widens what that account may.
+* **A person** is an account under the address `userName` names (or the primary address). A new
+  one is INVITED, without a password and without a mail: the first sign-in through the
+  workspace's provider activates it as an invitation is accepted (§10.4, the second proof
+  included). The people limit counts it.
+* **`active`** moves a person between ACTIVE or INVITED and DISABLED (`DirectoryStatus`). Switching
+  off ends their sessions; their content, authorship and trail stay - a directory never erases. A
+  restricted account (Art. 18) is not switched off (`directory.restricted_kept`), because switching
+  it on again would lift the restriction; an account holding `OWNER` on the workspace is not
+  switched off at all (`directory.owner_kept`), which also keeps the last owner. Provisioning a
+  switched-off address again switches the same account on.
+* **The address** is the person's way in and is not the directory's to change
+  (`directory.address_immutable`, SCIM `mutability`).
+* **`externalId`** is kept on `account.external_id` and `account_group.external_id` (migration
+  0277), unique in the workspace; it travels in the archive with its row and is cleared by an
+  anonymising erasure.
+* **Groups** are created, changed and deleted through `CreateGroup`, `UpdateGroup` and
+  `DeleteGroup` themselves: the ceiling of every role a group holds applies, and a group holding
+  `OWNER` - whose member change needs a person's step-up - is refused to a directory.
+* **Not served:** bulk, sorting, ETags, password changes; a filter is one `eq`. The service is not
+  a catalogue use case: SCIM's resource semantics are its door's own, and the acts behind it are on
+  every door already as invitations and groups. SAML is §26; LDAP synchronisation is §27.
+
+---
+
+## 25. Viewing the app as a person
+
+*View as* (UC-ID-29) is a column pair of the administrator's own session, as the elevation is (§19):
+`viewing_as` and `viewing_as_until`, half an hour that does not slide, ended with the session.
+
+| Rule | Detail |
+|---|---|
+| Who views | `MANAGE_MEMBERS` at the workspace and the ceiling of a way into the account (§13): nobody holding a role above the viewer's. Only a person's own session - a token, an app's grant, an agent and a rule view as nobody (`access.view_as_needs_a_session`). |
+| Who is viewed | An active person other than oneself, in no private hub, directly or through a group (`access.view_as_private_hub`): a private hub is opened only by the owner's emergency access (§22). |
+| What the request is | Authentication turns the session's actor into the person: their identifier, day and week, the viewer's language, only the `:read` scopes, `Present` false (no emergency access counts), `ViewedBy` the viewer. A write is refused for the scope it lacks. |
+| Online only | The sync service refuses the snapshot, the pull and the stream with `access.view_as_online_only`; the web app opens no replica while a view runs. |
+| Lapse | A view run out, a person deleted, switched off, or now in a private hub lapses: the session is its holder's own again - failing towards the holder, never towards the person viewed. |
+| Rights | On every request of a running view, after its transaction, authentication asks the start's question again (`ViewAsRights`): `MANAGE_MEMBERS` at the workspace, then the ceiling over what the person holds. A refusal - recorded by the authoriser - ends the view for good and the request is the viewer's own; a question that cannot be answered answers the viewer for that request and asks again on the next. |
+| Trail | `account.viewed_as` (warning) at each start, `account.view_as_ended` when the viewer ends it. |
+
+---
+
+## 26. Signing in through a SAML provider
+
+A SAML 2.0 provider (UC-ID-30, [ADR-0099](../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md))
+is a workspace's provider of kind `SAML`. Only how the identity is proven differs from §10: the
+start, the admission (§10.4, as `GENERIC`: `allowed_email_domains`, never authoritative), the
+arrival, the newcomers and the session are the same code.
+
+| Rule | Detail |
+|---|---|
+| Configuration | `issuer` is the provider's entity ID, an absolute URI compared exactly (`http:` and `urn:` allowed, trailing slash kept); `client_id` this workspace's entity ID, suggested as the installation's metadata address; `saml_sso_url` https; `saml_certificate` one or two PEM certificates valid now. No secret (an empty one is sealed for the column), no discovery. A workspace's own only (`identity_provider.saml_workspace_only`, and a CHECK in migration 0305). |
+| The request | `AuthnRequest` by HTTP-Redirect, unsigned, ID `_` + the flow's nonce, the assertion consumer service `<base>/api/v1/auth/saml:acs`, `ForceAuthn` where §10's `Fresh` asks; `RelayState` is the flow's state. |
+| The return | The provider posts to the assertion consumer service. It keeps the answer (at most 256 KiB) **once** on the live sign-in flow of a SAML provider the state names, unverified, with the hash of a single-use handoff code, and answers `303` to `<base>/auth/callback?code=…&state=…`; from there the web app finishes as for OpenID Connect (`oidc:locate`, `oidc:callback`). An answer it cannot keep (no live flow, a second answer, too large) goes to `<base>/auth/callback?error=<detail code>&state=…` instead, where the sign-in card says that reason. The callback refuses a code that is not the handoff, and verifies the kept answer. |
+| Verification | Only the element goxmldsig returns as verified is read. A signed response or a signed assertion, by a configured certificate, never SHA-1; exactly one assertion, none encrypted, no document type declaration; `InResponseTo` the request, `Destination` and the bearer confirmation's `Recipient` the service, issuer the entity ID, audience `client_id`, `NotBefore`/`NotOnOrAfter` with 60 s skew. Every failure is `auth.identity_token_invalid` but one: when no configured certificate is valid at the moment, the answer is refused before it is read as `auth.saml_certificate_expired`, which tells the person to ask an administrator (§26.1). |
+| The identity | Subject is the `NameID`; the address the `email`/`mail` attribute (or a `NameID` in the email format), treated as verified because the configured provider signed it; the name `displayName`, else given name and surname; `AuthnInstant` as the authentication time. |
+| Not served | Step-up and connection through a SAML provider (`identity_provider.saml_sign_in_only`), IdP-initiated sign-in, single logout, encrypted assertions, signed requests; the installation does not offer a SAML provider. |
+
+### 26.1 The certificates' end
+
+An ended certificate refuses every answer, so nobody signs in through the provider from that
+moment. The workspace's administrators are told by e-mail (category `INTEGRATION`, subject
+`notification.identity_provider_id`) 30, 7 and 1 days before the **last** configured certificate
+ends - during a rollover the newer one keeps the provider working - once per warning and end
+(`identity_provider.saml_expiry_told_for`/`_days`, migration 0361), so a new certificate is
+warned of afresh. A switched-off provider is told nothing. The watch is the per-workspace job
+`identity.saml_certificate_watch`: seeded by the save of a SAML provider (and once by migration
+0361 for the workspaces that had one), it looks again at the next warning or after a day at the
+latest, and ends when the workspace has no SAML provider. The message links `/administration/sign-in`.
+The provider's answer carries that end as `saml_certificate_expires_at`; the sign-in settings and
+the installation's provider list draw it as a warning from 30 days before and as ended after.
+Each pass of the watch also keeps the end on the row (`identity_provider.saml_certificates_end`,
+migration 0369) when it changed, and the scheduler's leader counts the enabled SAML providers across
+workspaces through `saml_certificates_ending()` into `hubtask_saml_providers` and
+`hubtask_saml_providers_ending{within="30d"|"7d"|"ended"}` - numbers, no provider and no
+workspace. A provider is counted from its watch's next pass, within a day. No alert reads them:
+a workspace's certificate is its administrators' to renew, and they are told; the numbers show the
+operator how many workspaces' SAML sign-in has stopped or is about to.
+
+---
+
+## 27. Synchronising from an LDAP directory
+
+A workspace's LDAP directory or Active Directory (UC-ID-31, [ADR-0099](../adr/ADR-0099-saml-and-ldap-behind-one-adapter-each.md))
+is read on a schedule and kept as SCIM keeps it (§24): every change goes through the same
+`Directory` service, as the configured service account, so the owner, the restriction, the people
+limit and the groups' rules hold unchanged.
+
+| Rule | Detail |
+|---|---|
+| Configuration | One per workspace (`ldap_directory`, migration 0306), set whole by `PUT /directory/ldap` with a step-up. `ldaps://`, or `ldap://` always upgraded by StartTLS before the bind - no plain bind exists; an empty password is refused. Bound to and the people's base searched once before it is stored. The password sealed to the workspace (`ldap.bind_password:<tenant>`), never answered; omitting it keeps it. Defaults: `(objectClass=person)`, `(objectClass=groupOfNames)`, `entryUUID`, `mail`, `displayName`, `cn`, `member`, every 60 minutes (15 to 1440). |
+| Acting as | An active service account of the workspace with `MANAGE_MEMBERS`, asked at the save and before every run (`directory.ldap_run_as_invalid`, `directory.ldap_run_as_refused`); its scopes are `members:read` and `members:write`. |
+| Whom it holds | A person or group whose `external_id` is `ldap:` and the identifier attribute's value (binary values, as `objectGUID`, in hex). A SCIM identifier has no prefix, so neither takes the other's. |
+| The plan | Pure (`PlanLdapSync`): invite who is new under the folded address; take over an account already here under it that holds no other identifier; rename; switch on whom it switched off; switch off whom it holds and the directory no longer answers. An entry without an address, with an address another entry has, or with an identifier over 250 characters is skipped, never guessed. Groups: created by their identifier, members those the run keeps; a group gone from the directory keeps its roles and loses its members. |
+| The guard | A run that answers nobody (`directory.ldap_answer_empty`), more than 50 000 entries (`directory.ldap_answer_too_large`), or would switch off more than `max(10, held / 5)` (`directory.ldap_switch_off_too_many`, `count`, `limit`) changes nothing. `confirm_switch_off` equal to the count, with a step-up, lets that run through; `dry_run` plans without a change. |
+| Applying | One act at a time through `Directory`; an act refused (the people limit, a group holding `OWNER`) is counted as `failed` and the run goes on (`PARTIAL`); an owner or a restricted person is `kept`. |
+| Schedule | One job per workspace (`directory.ldap_sync`, deduplicated by it), seeded by the save and rescheduling itself. A refused or failed run is recorded and the next waits twice the interval per failure in a row, at most a day; a run that works resets it. Removing the directory or switching it off ends the job; showing a directory more than a day overdue queues it again. Only a failure of the installation's own store is a job error. |
+| Trail | `directory.ldap_configured`, `directory.ldap_removed`, `directory.ldap_synced` (its outcome and counts, never a name), and the acts' own entries (`account.provisioned`, `account.directory_switched`, …). |
+| Not served | Writing to the directory, passwords from it, nested groups, `memberUid`, Active Directory's ranged `member` retrieval beyond what one read answers. |
+

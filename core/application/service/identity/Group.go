@@ -142,7 +142,8 @@ func addMembers(
 // Descriptor registers the use case in all three channels.
 func (h CreateGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateGroupName,
+		Name:       CreateGroupName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Creates a group: a named set of accounts that a role can be granted to, so that " +
 			"the people who hold it change when the group does.",
 		SideEffects: "Writes the group, its members, and an audit entry.",
@@ -240,6 +241,8 @@ type UpdateGroup struct {
 	// Platform tells a purchase platform the workspace's owners changed (UC-INS-14). Nil tells
 	// nobody.
 	Platform OwnerChanges
+	// Notices tells the devices of who joined or left of the group's custom role grants.
+	Notices GroupGrantNotices
 }
 
 // Execute applies the change and returns the group.
@@ -334,7 +337,7 @@ func (h UpdateGroup) Execute(
 				}
 				ownersMove = !sameMembers(were, cmd.Members)
 			}
-			if err := h.replaceMembers(ctx, group, cmd.Members); err != nil {
+			if err := h.replaceMembers(ctx, actor, group, cmd.Members); err != nil {
 				return err
 			}
 			if ownersMove {
@@ -535,10 +538,22 @@ func withinCeiling(
 // replaceMembers makes the group's membership exactly the list given. Additions are checked, and
 // the removals are whatever is no longer named - which is what "the complete membership" means.
 // Whoever is removed is told what the group held for them, once the removal is made.
-func (h UpdateGroup) replaceMembers(ctx context.Context, group domain.Group, members []shared.ID) error {
+func (h UpdateGroup) replaceMembers(
+	ctx context.Context, actor appshared.ActorContext, group domain.Group, members []shared.ID,
+) error {
 	current, err := h.Groups.Members(ctx, group.ID)
 	if err != nil {
 		return err
+	}
+	were := map[shared.ID]bool{}
+	for _, accountID := range current {
+		were[accountID] = true
+	}
+	var joined []shared.ID
+	for _, accountID := range members {
+		if !accountID.IsZero() && !were[accountID] {
+			joined = append(joined, accountID)
+		}
 	}
 
 	wanted := map[shared.ID]bool{}
@@ -566,7 +581,13 @@ func (h UpdateGroup) replaceMembers(ctx context.Context, group domain.Group, mem
 	if err := h.Revocations.Announce(ctx, group.TenantID, losses...); err != nil {
 		return err
 	}
-	return addMembers(ctx, h.Groups, h.Accounts, group.ID, members)
+	if err := addMembers(ctx, h.Groups, h.Accounts, group.ID, members); err != nil {
+		return err
+	}
+	if h.Notices == nil {
+		return nil
+	}
+	return h.Notices.GroupMembersMoved(ctx, actor, group.ID, joined, removed)
 }
 
 func (h UpdateGroup) recordAudit(
@@ -599,7 +620,8 @@ func (h UpdateGroup) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h UpdateGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateGroupName,
+		Name:       UpdateGroupName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Renames a group, changes its description, or replaces who is in it. The member " +
 			"list, when given, is the complete membership afterwards rather than an addition.",
 		SideEffects: "Writes the group, its members, and an audit entry.",
@@ -615,6 +637,10 @@ func (h UpdateGroup) Descriptor() usecase.Descriptor {
 			{
 				Name: "step_up_token", Kind: usecase.KindString,
 				Description: "The fresh proof a member change of a group holding OWNER demands.",
+			},
+			{
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
+				Description: "The version the change was made against.",
 			},
 		},
 		StepUp: "changing who is in a group that holds the OWNER role",
@@ -645,8 +671,9 @@ func (h UpdateGroup) invoke(
 		Members:     members,
 		// The list is only a replacement when the caller sent one at all. Absent leaves the
 		// membership alone; an empty list empties the group, which is a legitimate thing to want.
-		ReplaceMembers: in.Present("members"),
-		StepUpToken:    in.String("step_up_token"),
+		ReplaceMembers:  in.Present("members"),
+		ExpectedVersion: in.Int("expected_version"),
+		StepUpToken:     in.String("step_up_token"),
 	})
 	if err != nil {
 		return nil, err
@@ -655,6 +682,13 @@ func (h UpdateGroup) invoke(
 }
 
 // DeleteGroupCommand is the input, typed.
+// GroupGrantNotices tells a holder's devices of the custom role grants a group's change gives or
+// takes (offline-sync.md §4.3): Roles. Nil tells nobody.
+type GroupGrantNotices interface {
+	GroupMembersMoved(ctx context.Context, actor appshared.ActorContext, groupID shared.ID, joined, left []shared.ID) error
+	GroupDeleting(ctx context.Context, actor appshared.ActorContext, groupID shared.ID) error
+}
+
 type DeleteGroupCommand struct {
 	GroupID shared.ID
 	// StepUpToken is the fresh proof deleting a group holding OWNER demands.
@@ -687,6 +721,8 @@ type DeleteGroup struct {
 	// Platform tells a purchase platform the workspace's owners changed (UC-INS-14). Nil tells
 	// nobody.
 	Platform OwnerChanges
+	// Notices tells every device that the group's custom role grants go with it.
+	Notices GroupGrantNotices
 }
 
 // Execute deletes the group.
@@ -773,6 +809,11 @@ func (h DeleteGroup) Execute(
 		if err != nil {
 			return err
 		}
+		if h.Notices != nil {
+			if err := h.Notices.GroupDeleting(ctx, actor, group.ID); err != nil {
+				return err
+			}
+		}
 		if err := h.Groups.Delete(ctx, group.ID); err != nil {
 			return err
 		}
@@ -809,7 +850,8 @@ func (h DeleteGroup) Execute(
 // Descriptor registers the use case in all three channels.
 func (h DeleteGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteGroupName,
+		Name:       DeleteGroupName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Deletes a group. Whatever it granted, nobody holds afterwards; what its members " +
 			"hold in their own right is untouched.",
 		SideEffects: "Removes the group and its memberships, and writes an audit entry.",

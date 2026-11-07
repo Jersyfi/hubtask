@@ -60,11 +60,15 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 	}
 	account, err := accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName,
 		row.Status, row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
-	if err != nil || !row.AvatarMediaID.Valid {
+	if err != nil {
 		return account, err
 	}
-	// Read by Find alone: it is what every projection of an account reads through, and the other
-	// lookups serve sign-in, which draws no picture.
+	// Read by Find alone, as the picture is: it is what every projection of an account and the
+	// preferences' write read through, and the other lookups serve sign-in.
+	account.ProductsSeen = row.ProductsSeen
+	if !row.AvatarMediaID.Valid {
+		return account, nil
+	}
 	account.AvatarMediaID, err = idFrom(row.AvatarMediaID)
 	return account, err
 }
@@ -340,6 +344,47 @@ func (r AccountRepository) Restricted(
 	return restricted, nil
 }
 
+// SignInDetails answers each person's address and authenticator app, in one round trip for the
+// people list's page of rows.
+func (r AccountRepository) SignInDetails(
+	ctx context.Context, accountIDs []shared.ID,
+) ([]repository.SignInDetail, error) {
+	if len(accountIDs) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]pgtype.UUID, 0, len(accountIDs))
+	for _, accountID := range accountIDs {
+		key, err := uuidOf(accountID)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	rows, err := queries.SignInDetails(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading people's sign-in details: %w", err))
+	}
+	details := make([]repository.SignInDetail, 0, len(rows))
+	for _, row := range rows {
+		accountID, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		detail := repository.SignInDetail{AccountID: accountID, AuthenticatorApp: row.AuthenticatorApp}
+		if row.Email != nil {
+			detail.Email = *row.Email
+		}
+		details = append(details, detail)
+	}
+	return details, nil
+}
+
 func (r AccountRepository) UpdatePreferences(
 	ctx context.Context, account identity.Account, at time.Time,
 ) error {
@@ -358,6 +403,7 @@ func (r AccountRepository) UpdatePreferences(
 		WeekStart:             optionalText(account.WeekStart),
 		Celebrations:          account.Celebrations,
 		OnboardingCompletedAt: optionalTimestamp(account.OnboardingCompletedAt),
+		ProductsSeen:          productsSeenOf(account.ProductsSeen),
 		UpdatedAt:             timestampOf(at),
 		ID:                    id,
 	})
@@ -436,6 +482,14 @@ func (r AccountRepository) SetAvatar(
 		return shared.ErrNotFound.WithDetail("accounts.not_found")
 	}
 	return nil
+}
+
+// productsSeenOf is the column's value: never NULL, which the column refuses.
+func productsSeenOf(seen []string) []string {
+	if seen == nil {
+		return []string{}
+	}
+	return seen
 }
 
 // accountFrom rebuilds an account from its columns. Shared by both lookups, so the two cannot

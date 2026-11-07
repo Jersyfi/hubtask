@@ -180,7 +180,7 @@ func TestTheLocaleReachesTheActorContext(t *testing.T) {
 	}
 }
 
-// The one route with no end of its own. A stream cut off after the request timeout would look to a
+// The routes with no end of their own. A stream cut off after the request timeout would look to a
 // client like a server that drops connections on a timer, and the client would reconnect on that
 // timer forever.
 func TestTheStreamOutlivesTheRequestTimeout(t *testing.T) {
@@ -191,6 +191,11 @@ func TestTheStreamOutlivesTheRequestTimeout(t *testing.T) {
 		bounded bool
 	}{
 		{"the stream", http.MethodGet, "/api/v1/stream", false},
+		// A live document's socket is held the same way (offline-sync.md §13); cut off at the
+		// timeout, every editor would drop and reconnect every 30 s (S5 at 10⁶, test/load/PLAN.md).
+		{"a live document", http.MethodGet, "/api/v1/realtime/documents/page/0d7f9c1e-7b1a-4c55-9f61-2a8f8f3b6c10", false},
+		{"the realtime probe", http.MethodGet, "/api/v1/realtime/probe", true},
+		{"a POST to a live document", http.MethodPost, "/api/v1/realtime/documents/page/0d7f9c1e-7b1a-4c55-9f61-2a8f8f3b6c10", true},
 		// Every other route keeps the deadline, including a different method on the same path and
 		// a path that merely ends in the same word.
 		{"a POST to the same path", http.MethodPost, "/api/v1/stream", true},

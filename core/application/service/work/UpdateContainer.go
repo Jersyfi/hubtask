@@ -454,7 +454,8 @@ func ensureContainerVersion(container domain.Container, expected int) error {
 // REST, MCP and automation at once (arc42 §4).
 func (h RenameContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RenameContainerName,
+		Permission: service.PermissionStructure,
+		Name:       RenameContainerName,
 		Summary: "Changes a hub or collection's own descriptive fields: its name, description, icon " +
 			"and colour. A field that is not sent is left alone; sending one as empty clears it. The " +
 			"name stays unique among the containers at the same level. Idempotent: an update that " +
@@ -484,6 +485,12 @@ func (h RenameContainer) Descriptor() usecase.Descriptor {
 				Name: "color_token", Kind: usecase.KindString,
 				Description: "A theme token rather than a colour value, so clients render it in their " +
 					"own palette. Empty clears it, omitted leaves it as it is.",
+			},
+			{
+				Name: "key_prefix", Kind: usecase.KindString,
+				Description: "A collection's key prefix, the word its entries' keys start with (INC in " +
+					"INC-42): a letter, then one to four letters or digits, in capitals. Empty clears " +
+					"it and the keys read with the handle; omitted leaves it as it is.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
@@ -526,6 +533,7 @@ func (h RenameContainer) invoke(
 			Description: in.OptionalString("description"),
 			Icon:        in.OptionalString("icon"),
 			ColorToken:  in.OptionalString("color_token"),
+			KeyPrefix:   in.OptionalString("key_prefix"),
 		},
 		ExpectedVersion: in.Int("expected_version"),
 	}
@@ -545,7 +553,8 @@ func (h RenameContainer) invoke(
 // Descriptor is the catalogue entry.
 func (h UpdateContainerPolicies) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateContainerPoliciesName,
+		Permission: service.PermissionStructure,
+		Name:       UpdateContainerPoliciesName,
 		Summary: "Replaces a collection's policies - how it works, as opposed to what it is called. " +
 			"A key that is not sent falls back to its default rather than keeping the stored value: " +
 			"this replaces the document. A hub carries no policies and is refused. Idempotent: " +

@@ -9,7 +9,11 @@ import (
 	"testing"
 	"time"
 
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
+
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
@@ -68,12 +72,40 @@ type schedulerSignals struct {
 	platformDeadLetters []int64
 	depths              map[string]int64
 	lags                []float64
+	ticks               []time.Time
 	freshness           map[string]time.Time
+	cadence             map[string]time.Duration
 	backlogs            []int64
+	heldScans           []int64
 	purged              map[string]int64
 
 	auditHeld        []int64
 	auditDefaultAged []int64
+	oldest           []float64
+	horizon          [][3]float64
+	invalidIndexes   []int64
+	mailApps         []mail.AppHealth
+	samlEnding       []identity.SAMLCertificateCount
+}
+
+func (s *schedulerSignals) SAMLCertificatesEnding(_ context.Context, count identity.SAMLCertificateCount) {
+	s.samlEnding = append(s.samlEnding, count)
+}
+
+func (s *schedulerSignals) MailApp(_ context.Context, app string, connected, failing int64) {
+	s.mailApps = append(s.mailApps, mail.AppHealth{App: app, Connected: connected, Failing: failing})
+}
+
+func (s *schedulerSignals) InvalidIndexes(_ context.Context, count int64) {
+	s.invalidIndexes = append(s.invalidIndexes, count)
+}
+
+func (s *schedulerSignals) OldestTransaction(_ context.Context, seconds float64) {
+	s.oldest = append(s.oldest, seconds)
+}
+
+func (s *schedulerSignals) DatabaseHorizon(_ context.Context, usage float64, age, bytes int64) {
+	s.horizon = append(s.horizon, [3]float64{usage, float64(age), float64(bytes)})
 }
 
 func newSchedulerSignals() *schedulerSignals {
@@ -84,6 +116,13 @@ func (s *schedulerSignals) BackupLastSuccess(_ context.Context, targetID string,
 	s.freshness[targetID] = at
 }
 
+func (s *schedulerSignals) BackupCadence(_ context.Context, targetID string, every time.Duration) {
+	if s.cadence == nil {
+		s.cadence = map[string]time.Duration{}
+	}
+	s.cadence[targetID] = every
+}
+
 func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending int64) {
 	s.depths[kind] = pending
 }
@@ -92,12 +131,20 @@ func (s *schedulerSignals) SchedulerTickLag(_ context.Context, seconds float64) 
 	s.lags = append(s.lags, seconds)
 }
 
+func (s *schedulerSignals) SchedulerTicked(_ context.Context, at time.Time) {
+	s.ticks = append(s.ticks, at)
+}
+
 func (s *schedulerSignals) PlatformDeadLetters(_ context.Context, waiting int64) {
 	s.platformDeadLetters = append(s.platformDeadLetters, waiting)
 }
 
 func (s *schedulerSignals) WebhookRetryBacklog(_ context.Context, waiting int64) {
 	s.backlogs = append(s.backlogs, waiting)
+}
+
+func (s *schedulerSignals) MediaScanHeldWorkspaces(_ context.Context, workspaces int64) {
+	s.heldScans = append(s.heldScans, workspaces)
 }
 
 func (s *schedulerSignals) AuditPartitionsHeld(_ context.Context, months int64) {
@@ -236,6 +283,12 @@ func TestTheTickLagIsMeasuredAgainstWhenItWasDue(t *testing.T) {
 	// A tick that is early - a clock that jumped - reports no lag rather than a negative one.
 	leader.tick(t.Context(), true, now.Add(time.Second))
 
+	// And each leading tick says when it ran - what A-30 reads to see a scheduler that stopped,
+	// which a lag gauge left at its last value cannot show.
+	if len(signals.ticks) != 2 || !signals.ticks[1].Equal(now) {
+		t.Errorf("ticks = %v, want two at %v", signals.ticks, now)
+	}
+
 	want := []float64{4, 0}
 	if len(signals.lags) != len(want) {
 		t.Fatalf("%d lag readings, want %d", len(signals.lags), len(want))
@@ -334,6 +387,29 @@ func TestTheLeaderEnsuresThisMonthAndTheNext(t *testing.T) {
 	}
 }
 
+// On the 31st, a month added to the day overflows: 31 October plus a month is 1 December, and
+// November would never be ensured ahead of its first entry.
+func TestTheNextMonthOfTheLastDayIsTheCalendarsNext(t *testing.T) {
+	lastDay := time.Date(2026, time.October, 31, 12, 0, 0, 0, time.UTC)
+	audit := &auditPartitions{}
+	stream := &streamPartitions{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.AuditPartitions = audit
+	leader.StreamPartitions = stream
+	leader.Clock = clock.Fixed(lastDay)
+
+	leader.tick(t.Context(), false, lastDay)
+
+	if len(audit.asked) != 2 || audit.asked[1].Format("2006-01") != "2026-11" {
+		t.Errorf("the audit duty asked for %v, want October and November", audit.asked)
+	}
+	for _, table := range streams.Tables() {
+		if months := stream.asked[table]; len(months) != 2 || months[1].Format("2006-01") != "2026-11" {
+			t.Errorf("%s was asked for %v, want October and November", table, months)
+		}
+	}
+}
+
 // A standby does nothing, including this: a partition duty run by every replica would be a DDL
 // statement per replica per tick.
 func TestAStandbyEnsuresNoPartitions(t *testing.T) {
@@ -421,6 +497,29 @@ func TestTheLeaderSamplesTheRetryBacklog(t *testing.T) {
 
 	if len(signals.backlogs) != 1 || signals.backlogs[0] != 7 {
 		t.Errorf("the backlog was reported as %v, want [7]", signals.backlogs)
+	}
+}
+
+// unsettledDuties is an UnsettledDuties with a fixed answer per kind.
+type unsettledDuties map[queue.Kind]int
+
+func (o unsettledDuties) UnsettledDuties(_ context.Context, kind queue.Kind) (int, error) {
+	return o[kind], nil
+}
+
+// A workspace with uploads held for a scan has exactly one media.scan duty, due, parked between
+// passes or dead-lettered until its revival; the gauge counts it in each of those, so alert A-23
+// neither resets each time the job runs nor clears while a dead letter leaves the files held
+// (§4, hubtask_media_scan_held_workspaces).
+func TestTheLeaderSamplesTheWorkspacesWithHeldUploads(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Unsettled = unsettledDuties{queue.KindMediaScan: 2, queue.KindWebhookDeliver: 9}
+
+	leader.tick(t.Context(), false, now)
+
+	if len(signals.heldScans) != 1 || signals.heldScans[0] != 2 {
+		t.Errorf("the held workspaces were reported as %v, want [2]", signals.heldScans)
 	}
 }
 
@@ -553,5 +652,167 @@ func TestTheLeaderSamplesThePlatformsDeadLetters(t *testing.T) {
 	leader.tick(t.Context(), true, now.Add(time.Second))
 	if len(signals.platformDeadLetters) != 1 {
 		t.Errorf("an installation without the feed sampled %v", signals.platformDeadLetters)
+	}
+}
+
+// oldestTransaction is the database's answer, as the leader sees it.
+type oldestTransaction struct{ seconds float64 }
+
+func (o oldestTransaction) OldestTransactionSeconds(context.Context) (float64, error) {
+	return o.seconds, nil
+}
+
+// Alert A-25's number: the age of the oldest open transaction, published by the leader on every
+// tick, so a snapshot pinning vacuum for hours is seen before the tables bloat.
+func TestTheLeaderPublishesTheOldestTransaction(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Transactions = oldestTransaction{seconds: 7300}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.oldest) != 1 || signals.oldest[0] != 7300 {
+		t.Errorf("published %v, want [7300]", signals.oldest)
+	}
+}
+
+type horizon struct {
+	usage float64
+	age   int64
+	bytes int64
+}
+
+func (h horizon) DatabaseHorizon(context.Context) (float64, int64, int64, error) {
+	return h.usage, h.age, h.bytes, nil
+}
+
+// Alerts A-36, A-37 and A-42's numbers: the NOTIFY queue's use, the unfrozen transaction-ID age
+// and the database's size, published by the leader on every tick, so each limit is seen long
+// before writes stop.
+func TestTheLeaderPublishesTheDatabaseHorizon(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Horizon = horizon{usage: 0.6, age: 900_000_000, bytes: 3 << 30}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.horizon) != 1 || signals.horizon[0] != [3]float64{0.6, 900_000_000, 3 << 30} {
+		t.Errorf("published %v, want [[0.6 9e8 3GiB]]", signals.horizon)
+	}
+}
+
+// invalidIndexes is the database's count of indexes held invalid.
+type invalidIndexes struct{ count int64 }
+
+func (i invalidIndexes) InvalidIndexCount(context.Context) (int64, error) { return i.count, nil }
+
+// Alert A-28's number: the indexes left invalid, published by the leader on every tick, so an
+// interrupted concurrent build that the migrator did not repair is seen.
+func TestTheLeaderPublishesTheInvalidIndexes(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Indexes = invalidIndexes{count: 2}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.invalidIndexes) != 1 || signals.invalidIndexes[0] != 2 {
+		t.Errorf("published %v, want [2]", signals.invalidIndexes)
+	}
+}
+
+// mailApps is the installation's mail apps as the door counts them.
+type mailApps []mail.AppHealth
+
+func (m mailApps) InstallationApps(context.Context) ([]mail.AppHealth, error) { return m, nil }
+
+// Alert A-29's numbers: every installation mail app's mailboxes and failing ones, published by the
+// leader on every tick, so a shared app's secret that ran out is seen across workspaces.
+func TestTheLeaderPublishesTheInstallationMailApps(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.MailApps = mailApps{{App: "google", Connected: 4, Failing: 4}, {App: "microsoft"}}
+
+	leader.tick(t.Context(), false, now)
+	want := []mail.AppHealth{{App: "google", Connected: 4, Failing: 4}, {App: "microsoft"}}
+	if len(signals.mailApps) != 2 || signals.mailApps[0] != want[0] || signals.mailApps[1] != want[1] {
+		t.Errorf("published %v, want %v", signals.mailApps, want)
+	}
+}
+
+// samlEnds is the installation's SAML providers as the door counts them.
+type samlEnds identity.SAMLCertificateCount
+
+func (c samlEnds) SAMLCertificatesEnding(context.Context) (identity.SAMLCertificateCount, error) {
+	return identity.SAMLCertificateCount(c), nil
+}
+
+// The leader publishes how many workspaces' SAML sign-in ends soon or has ended, on every tick, so
+// the operator sees across workspaces what each workspace's administrators are told by mail.
+func TestTheLeaderPublishesTheSAMLCertificatesEnding(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.SAMLProviders = samlEnds{Providers: 5, Within30Days: 2, Within7Days: 1, Ended: 1}
+
+	leader.tick(t.Context(), false, now)
+	want := identity.SAMLCertificateCount{Providers: 5, Within30Days: 2, Within7Days: 1, Ended: 1}
+	if len(signals.samlEnding) != 1 || signals.samlEnding[0] != want {
+		t.Errorf("published %v, want %v", signals.samlEnding, want)
+	}
+}
+
+type fixedFreshness struct {
+	last    map[shared.ID]time.Time
+	cadence map[shared.ID]time.Duration
+}
+
+func (f fixedFreshness) LastSuccessPerTarget(context.Context) (map[shared.ID]time.Time, error) {
+	return f.last, nil
+}
+
+func (f fixedFreshness) CadencePerTarget(context.Context) (map[shared.ID]time.Duration, error) {
+	return f.cadence, nil
+}
+
+// A-12 measures a target against its own schedules: the sample hands out the cadence beside the
+// last success, so a weekly target is held to a week.
+func TestTheBackupSampleCarriesEachTargetsCadence(t *testing.T) {
+	weekly := shared.ID("0192a7c0-0000-7000-8000-0000000000b1")
+	signals := newSchedulerSignals()
+	s := Scheduler{Signals: signals, BackupFreshness: fixedFreshness{
+		last:    map[shared.ID]time.Time{weekly: time.Unix(1_800_000_000, 0)},
+		cadence: map[shared.ID]time.Duration{weekly: 7 * 24 * time.Hour},
+	}}
+	s.sampleBackupFreshness(t.Context())
+	if got := signals.cadence[weekly.String()]; got != 7*24*time.Hour {
+		t.Fatalf("cadence %v, want a week", got)
+	}
+	if _, ok := signals.freshness[weekly.String()]; !ok {
+		t.Fatal("the last success was not sampled")
+	}
+}
+
+type censusOf map[string]quotaservice.Band
+
+func (c censusOf) Count(context.Context) (map[string]quotaservice.Band, []quotaservice.Near, error) {
+	return c, nil, nil
+}
+
+type quotaSignals struct{ approaching, atLimit map[string]int64 }
+
+func (q *quotaSignals) QuotaWorkspaces(_ context.Context, quota string, approaching, atLimit int64) {
+	q.approaching[quota], q.atLimit[quota] = approaching, atLimit
+}
+
+// A-18's numbers are published on the first tick of each five minutes and not on the ticks between.
+func TestTheLeaderPublishesTheQuotaCensusEveryFiveMinutes(t *testing.T) {
+	signals := &quotaSignals{approaching: map[string]int64{}, atLimit: map[string]int64{}}
+	s := Scheduler{
+		Quotas: censusOf{"items": {Approaching: 2, AtLimit: 1}}, QuotaSignals: signals,
+		TickInterval: 10 * time.Second,
+	}
+	s.sampleQuotaCensus(t.Context(), time.Date(2026, 11, 1, 9, 3, 10, 0, time.UTC))
+	if len(signals.approaching) != 0 {
+		t.Fatal("the census ran between its five minutes")
+	}
+	s.sampleQuotaCensus(t.Context(), time.Date(2026, 11, 1, 9, 5, 0, 0, time.UTC))
+	if signals.approaching["items"] != 2 || signals.atLimit["items"] != 1 {
+		t.Fatalf("published %v / %v", signals.approaching, signals.atLimit)
 	}
 }

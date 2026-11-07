@@ -102,7 +102,8 @@ func TestTheNarrowingsPerRole(t *testing.T) {
 	}
 }
 
-// UC-WRK-22 check 5 read literally: an entry that was not shared is not refused but absent, and
+// UC-ID-15 checks 2 and 4: outside one's reach is not found, and a guest on one task sees that
+// task only. UC-WRK-22 check 5 read literally: an entry that was not shared is not refused but absent, and
 // absent in the words a genuinely missing entry produces (T-04).
 func TestAnEntryNothingGrantsAccessToIsInvisible(t *testing.T) {
 	// A share on one entry, asked about the entry beside it. This is the guest of the role matrix:

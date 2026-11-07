@@ -36,10 +36,22 @@
   // **The axis marks are the caller's.** A gridline is a date and a phrase, already worded: which
   // granularity to mark, where a week starts, and how a month is spelled are all questions this
   // package answers in no language (ADR-0011).
+  //
+  // **A dependency is an arrow from the end of the entry waited for to the start of the waiting
+  // one** (UC-PLN-01 check 6), measured off the cells it joins rather than computed, so it lands on
+  // the bars at every scale and direction. An arrow is not readable: each is also said in words,
+  // and one whose waiting entry starts too early is dashed as well as tinted (rule 3).
+  //
+  // **As a Gantt chart (UC-PLN-02 check 7) a row says what kind of bar it is**: a milestone is a
+  // diamond, a summary a thin bar over its children's span, a critical bar is tinted and also said
+  // by the caller's table, and a baseline is a second, thin lane under the bar. A dependency is
+  // drawn by dragging from the knob after a bar's end onto the waiting row; the keyboard path to
+  // the same link is the caller's table, as the row is for the dates.
 
-  import type { Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
 
   import { HOLD_MS, columnAt, hasLeftTheHandle } from './reorder.ts';
+  import VisuallyHidden from './VisuallyHidden.svelte';
   import { rovingIndex } from './focus.ts';
 
   /** One entry on the axis. Both dates absent means it cannot be placed and is trayed instead. */
@@ -57,12 +69,39 @@
      * a bar that can be dragged is a promise the server will accept the dates.
      */
     readonly isLocked?: boolean;
+    /** A milestone is a date without a duration; a summary spans its children. */
+    readonly kind?: 'milestone' | 'summary';
+    /** Whether it is on the chain that decides the end. Tinted; the caller says it in words too. */
+    readonly isCritical?: boolean;
+    /** The dates an agreed plan held, drawn as a thin lane under the bar. */
+    readonly baseline?: { readonly start?: string; readonly due?: string };
+    /** How deep the row sits under its parents, for the indent; 0 is the top. */
+    readonly depth?: number;
   }
 
   /** One mark on the axis: where it sits, and what it says. */
   export interface TimelineTick {
     readonly at: string;
     readonly label: string;
+  }
+
+  /** One entry waiting for another, which the axis draws as an arrow between the two rows. */
+  export interface TimelineDependency {
+    readonly id: string;
+    /** The row waited for: the arrow leaves its end. */
+    readonly from: string;
+    /** The waiting row: the arrow reaches its start. */
+    readonly to: string;
+    /** Whether the waiting entry starts before the other is due. */
+    readonly isEarly?: boolean;
+    /** The dependency in words, already worded by the caller. */
+    readonly label: string;
+  }
+
+  /** A dependency drawn by dragging: the row waited for, and the row that waits. */
+  export interface TimelineLink {
+    readonly from: string;
+    readonly to: string;
   }
 
   /** What a drag took hold of, and the columns it went from and to. */
@@ -81,7 +120,7 @@
     from: string;
     to: string;
     /** How finely the axis is ruled. It decides the column width and nothing else. */
-    scale?: 'day' | 'week' | 'month';
+    scale?: 'day' | 'week' | 'month' | 'quarter' | 'year';
     rows: readonly TimelineRow[];
     /** The dated gridlines, already worded. */
     gridlines?: readonly TimelineTick[];
@@ -112,6 +151,18 @@
      * otherwise send is not delivered, so the row does not also open.
      */
     onHold?: (id: string) => void;
+    /** Which rows wait for which. Drawn where both rows are on the axis. */
+    dependencies?: readonly TimelineDependency[];
+    /** What the list of dependencies in words is called. */
+    dependenciesLabel?: string;
+    /** A dependency drawn from one bar's knob onto another row. Without it no knob is drawn. */
+    onLink?: (link: TimelineLink) => void;
+    /** What the knob after a bar is called. */
+    linkHandleLabel?: string;
+    /** What a critical row adds to its title's name, so the chain is heard as well as seen. */
+    criticalLabel?: string;
+    /** What the grip between the titles and the axis is called. Without it no grip is drawn. */
+    resizeLabel?: string;
   }
 
   const {
@@ -132,7 +183,23 @@
     currentId,
     rowAction,
     onHold,
+    dependencies = [],
+    dependenciesLabel,
+    onLink,
+    linkHandleLabel,
+    criticalLabel,
+    resizeLabel,
   }: Props = $props();
+
+  const uid = $props.id();
+  /** The steps the title column takes, as `data-title` values the stylesheet maps to tokens. */
+  const TITLE_STEPS = 4;
+  let titleStep = $state(1);
+  /** Whether the reader set the title column's width; until then it takes the room the chart leaves. */
+  let isTitleSet = false;
+  let section = $state<HTMLElement | null>(null);
+  /** The row under the pointer or the focus: its dependencies are drawn and said more strongly. */
+  let lit = $state<string | undefined>(undefined);
 
   const DAY = 86_400_000;
 
@@ -142,6 +209,8 @@
 
   /** The drag in progress, in columns. `null` between drags, which is most of the time. */
   let carry = $state<TimelineCarry | null>(null);
+  /** The dependency being drawn: from which row, and the row under the pointer now. */
+  let linking = $state<{ from: string; over?: string } | null>(null);
 
   /** UTC, deliberately: a day index must not move because the machine is west of Greenwich. */
   const dayOf = (date: string) => Date.parse(`${date}T00:00:00Z`);
@@ -162,6 +231,14 @@
     return { first: Math.max(0, Math.min(first, last)), last: Math.min(days - 1, Math.max(first, last)) };
   }
 
+  /** Where a row's baseline lies, in the same columns, or nothing. */
+  function kept(row: TimelineRow): { first: number; last: number } | undefined {
+    return row.baseline ? placement({ id: row.id, title: row.title, ...row.baseline }) : undefined;
+  }
+
+  /** The indent step a depth is drawn at; deeper than four is drawn as four. */
+  const depthOf = (row: TimelineRow) => String(Math.min(4, Math.max(0, row.depth ?? 0)));
+
   /**
    * Where a row would be while it is being dragged.
    *
@@ -180,7 +257,7 @@
     rows
       .map((row) => ({ row, at: placement(row) }))
       .filter((entry): entry is { row: TimelineRow; at: { first: number; last: number } } => entry.at !== undefined)
-      .map((entry) => ({ row: entry.row, at: previewed(entry.row, entry.at) })),
+      .map((entry) => ({ row: entry.row, at: previewed(entry.row, entry.at), kept: kept(entry.row) })),
   );
   const undated = $derived(rows.filter((row) => placement(row) === undefined));
 
@@ -201,6 +278,67 @@
       row: undated.find((row) => row.id === held.id),
       first: Math.min(held.from, held.to),
       last: Math.max(held.from, held.to),
+    };
+  });
+
+  /** The arrows as drawn, in the scroller's own pixels; re-measured whenever what they join moves. */
+  let arrows = $state<{ id: string; from: string; to: string; d: string; isEarly: boolean }[]>([]);
+  let canvas = $state<SVGSVGElement | null>(null);
+
+  const drawn = $derived(
+    dependencies.filter(
+      (dependency) =>
+        placed.some((entry) => entry.row.id === dependency.from) && placed.some((entry) => entry.row.id === dependency.to),
+    ),
+  );
+
+  function measure() {
+    const box = canvas?.getBoundingClientRect();
+    if (!box || !list) {
+      arrows = [];
+      return;
+    }
+    const isRtl = canvas !== null && getComputedStyle(canvas).direction === 'rtl';
+    const bar = (id: string) => {
+      const cells = list?.querySelectorAll<HTMLElement>(`[data-row="${CSS.escape(id)}"] .cell[data-filled]`);
+      const head = cells?.item(0);
+      const tail = cells?.item(cells.length - 1);
+      if (!head || !tail) return undefined;
+      return { first: head.getBoundingClientRect(), last: tail.getBoundingClientRect() };
+    };
+    const next: { id: string; from: string; to: string; d: string; isEarly: boolean }[] = [];
+    for (const dependency of drawn) {
+      const from = bar(dependency.from);
+      const to = bar(dependency.to);
+      if (!from || !to) continue;
+      // A bounding box is in screen coordinates: the side is chosen by isRtl, not by the stylesheet.
+      const x1 = (isRtl ? from.last.left : from.last.right) - box.left; // design-system-lint-ignore: screen coordinates.
+      const y1 = from.last.top + from.last.height / 2 - box.top;
+      const x2 = (isRtl ? to.first.right : to.first.left) - box.left; // design-system-lint-ignore: screen coordinates.
+      const y2 = to.first.top + to.first.height / 2 - box.top;
+      // The bend is as deep as a bar is tall, so the curve scales with the row and no length is
+      // invented here.
+      const bend = (isRtl ? -1 : 1) * Math.max(from.last.height, to.first.height) * 2;
+      next.push({ id: dependency.id, from: dependency.from, to: dependency.to, d: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`, isEarly: dependency.isEarly === true });
+    }
+    arrows = next;
+  }
+
+  $effect(() => {
+    // Read so the effect runs again when the bars or the arrows asked for change.
+    void placed;
+    void drawn;
+    void scale;
+    let isLive = true;
+    void tick().then(() => {
+      if (isLive) measure();
+    });
+    const observed = list;
+    const observer = typeof ResizeObserver === 'undefined' || !observed ? undefined : new ResizeObserver(() => measure());
+    if (observed) observer?.observe(observed);
+    return () => {
+      isLive = false;
+      observer?.disconnect();
     };
   });
 
@@ -243,6 +381,12 @@
       const target = event.target as Element | null;
       // The row's action is a control of its own, and a press on it is that control's.
       if (target?.closest?.('[data-action]')) return;
+      const knob = target?.closest?.('[data-knob]');
+      if (knob instanceof HTMLElement) {
+        const from = knob.closest<HTMLElement>('[data-row]')?.dataset.row;
+        if (from !== undefined) beginLink(event, from);
+        return;
+      }
       const end = target?.closest?.('[data-end]');
       const surface =
         end ?? target?.closest?.('[data-track]') ?? target?.closest?.('[data-tray]') ?? target?.closest?.('[data-hold]');
@@ -273,6 +417,112 @@
     window.addEventListener('click', swallow, { capture: true, once: true });
     // A lift that sends no click (the finger left the row) must not eat the next real one.
     setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), HOLD_MS);
+  }
+
+  /** Drawing a dependency: the knob is followed to the row it is let go over. */
+  function beginLink(event: PointerEvent, id: string) {
+    if (event.button !== 0 || !onLink) return;
+    event.preventDefault();
+    const rowAt = (x: number, y: number) =>
+      document.elementFromPoint(x, y)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
+    linking = { from: id };
+    const onMove = (move: PointerEvent) => {
+      const over = rowAt(move.clientX, move.clientY);
+      linking = { from: id, over: over === id ? undefined : over };
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      const to = linking?.over;
+      linking = null;
+      if (to !== undefined && to !== id) onLink({ from: id, to });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  /** The ids of the words that say a row's dependencies, for its title's description. */
+  const saidOf = (id: string) =>
+    drawn.filter((dependency) => dependency.from === id || dependency.to === id).map((dependency) => `${uid}-dep-${dependency.id}`).join(' ') ||
+    undefined;
+
+  function stepBy(delta: number) {
+    isTitleSet = true;
+    titleStep = Math.min(TITLE_STEPS - 1, Math.max(0, titleStep + delta));
+  }
+
+  /*
+   * The titles take the room the chart leaves: the widest step at which the chart still does not
+   * scroll, never narrower than the default, until the reader sets the column. Measured by drawing
+   * each step, as the grip does, because only the layout knows the steps' pixels.
+   */
+  $effect(() => {
+    void [placed.length, undated.length, from, to, scale];
+    const root = section;
+    if (!root || isTitleSet) return;
+    const scroller = root.querySelector<HTMLElement>('.scroller');
+    if (!scroller) return;
+    let fitting = 1;
+    for (let step = TITLE_STEPS - 1; step > 1; step -= 1) {
+      root.dataset.title = String(step);
+      if (scroller.scrollWidth <= scroller.clientWidth) {
+        fitting = step;
+        break;
+      }
+    }
+    root.dataset.title = String(untrack(() => titleStep));
+    titleStep = fitting;
+  });
+
+  function onResizeKey(event: KeyboardEvent) {
+    const isRtl = section !== null && getComputedStyle(section).direction === 'rtl';
+    const wider = isRtl ? 'ArrowLeft' : 'ArrowRight';
+    const narrower = isRtl ? 'ArrowRight' : 'ArrowLeft';
+    if (event.key === wider || event.key === 'ArrowUp') stepBy(1);
+    else if (event.key === narrower || event.key === 'ArrowDown') stepBy(-1);
+    else if (event.key === 'Home') { isTitleSet = true; titleStep = 0; }
+    else if (event.key === 'End') { isTitleSet = true; titleStep = TITLE_STEPS - 1; }
+    else return;
+    event.preventDefault();
+  }
+
+  /**
+   * The grip carried: the column snaps to the step nearest the pointer. Each step's width is read
+   * once, on the press, by drawing it - the steps are tokens, and only the layout knows their pixels.
+   */
+  function beginResize(event: PointerEvent) {
+    if (event.button !== 0 || !section) return;
+    const root = section;
+    const lead = root.querySelector<HTMLElement>('.lead');
+    if (!lead) return;
+    const isRtl = getComputedStyle(root).direction === 'rtl';
+    const was = titleStep;
+    const edges: number[] = [];
+    for (let step = 0; step < TITLE_STEPS; step += 1) {
+      root.dataset.title = String(step);
+      const box = lead.getBoundingClientRect();
+      edges.push(isRtl ? box.left : box.right); // design-system-lint-ignore: screen coordinates.
+    }
+    root.dataset.title = String(was);
+    event.preventDefault();
+    const onMove = (move: PointerEvent) => {
+      let nearest = 0;
+      for (let step = 1; step < TITLE_STEPS; step += 1) {
+        if (Math.abs((edges[step] ?? 0) - move.clientX) < Math.abs((edges[nearest] ?? 0) - move.clientX)) nearest = step;
+      }
+      isTitleSet = true;
+      titleStep = nearest;
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
   }
 
   function begin(event: PointerEvent, id: string, grab: TimelineCarry['grab'], isHoldOnly = false) {
@@ -343,14 +593,57 @@
   }
 </script>
 
-<section class="timeline" aria-label={label} data-scale={scale} {@attach attach}>
+<section class="timeline" aria-label={label} data-scale={scale} data-title={String(titleStep)} bind:this={section} {@attach attach}>
   {#if placed.length === 0 && undated.length === 0}
     <p class="empty">{emptyLabel}</p>
   {:else}
     <!-- The scroller is what a left or right arrow moves through, and it scrolls in the writing
          direction by itself: `overflow-x` follows `direction`, so a right-to-left timeline starts
-         at its own beginning without a second rule. -->
-    <div class="scroller">
+         at its own beginning without a second rule. It takes focus, so a keyboard reaches what
+         is scrolled out of view where no bar inside is a control (WCAG 2.1.1). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="scroller" tabindex="0">
+      {#if drawn.length > 0}
+        <!-- Unsized and overflowing: it draws in the scroller's coordinates from its own corner. -->
+        <svg class="arrows" bind:this={canvas} aria-hidden="true" focusable="false">
+          <defs>
+            <marker id="timeline-arrow" class="head" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+            <marker id="timeline-arrow-early" class="head" data-early viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+          </defs>
+          {#each arrows as arrow (arrow.id)}
+            <path
+              class="arrow"
+              data-dependency={arrow.id}
+              data-early={arrow.isEarly ? '' : undefined}
+              data-lit={lit !== undefined && (arrow.from === lit || arrow.to === lit) ? '' : undefined}
+              d={arrow.d}
+              marker-end={arrow.isEarly ? 'url(#timeline-arrow-early)' : 'url(#timeline-arrow)'}
+            />
+          {/each}
+        </svg>
+      {/if}
+      {#if resizeLabel}
+        <!-- The keyboard's way is the arrows on the focused grip; a press carried snaps to a step.
+             A focusable separator is a widget in WAI-ARIA, which the compiler's list does not know. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div
+          class="grip"
+          role="separator"
+          tabindex="0"
+          aria-label={resizeLabel}
+          aria-orientation="vertical"
+          aria-valuemin={0}
+          aria-valuemax={TITLE_STEPS - 1}
+          aria-valuenow={titleStep}
+          data-grip
+          onkeydown={onResizeKey}
+          onpointerdown={beginResize}
+        ></div>
+      {/if}
       <div class="axis" bind:this={axis}>
         {#each columns as column (column)}
           <span
@@ -370,8 +663,13 @@
             data-row={entry.row.id}
             data-carrying={carry?.id === entry.row.id ? '' : undefined}
             data-locked={entry.row.isLocked ? '' : undefined}
+            data-link-target={linking?.over === entry.row.id ? '' : undefined}
+            onpointerenter={() => (lit = entry.row.id)}
+            onpointerleave={() => { if (lit === entry.row.id) lit = undefined; }}
+            onfocusin={() => (lit = entry.row.id)}
+            onfocusout={() => { if (lit === entry.row.id) lit = undefined; }}
           >
-            <span class="lead">
+            <span class="lead" data-depth={depthOf(entry.row)}>
               <button
                 type="button"
                 class="title"
@@ -379,6 +677,7 @@
                 data-hold
                 data-current={entry.row.id === currentId ? '' : undefined}
                 aria-current={entry.row.id === currentId ? 'true' : undefined}
+                aria-describedby={saidOf(entry.row.id)}
                 tabindex={index === active ? 0 : -1}
                 onkeydown={onKeydown}
                 onclick={() => {
@@ -386,12 +685,13 @@
                   onSelect?.(entry.row.id);
                 }}
               >
-                {entry.row.title}
+                {entry.row.title}{#if entry.row.isCritical && criticalLabel}<VisuallyHidden>, {criticalLabel}</VisuallyHidden>{/if}
               </button>
               {#if rowAction}<span class="action" data-action>{@render rowAction(entry.row.id)}</span>{/if}
             </span>
             <!-- The track is the drag surface and not a control: the row's control is its title,
                  which opens the entry and is where a keyboard reaches the dates. -->
+            <div class="lanes">
             <div class="track" data-track>
               {#each columns as column (column)}
                 {@const isFilled = column >= entry.at.first && column <= entry.at.last}
@@ -405,6 +705,9 @@
                   data-point={entry.at.first === entry.at.last && column === entry.at.first && !entry.row.start
                     ? ''
                     : undefined}
+                  data-milestone={isFilled && entry.row.kind === 'milestone' ? '' : undefined}
+                  data-summary={isFilled && entry.row.kind === 'summary' ? '' : undefined}
+                  data-critical={isFilled && entry.row.isCritical ? '' : undefined}
                 >
                   {#if !entry.row.isLocked && hasEnds(entry.at) && isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
                     <!-- `tabindex="-1"`: the keyboard path to a date is the entry's own editor, not
@@ -416,8 +719,22 @@
                     <button type="button" class="end" data-end="due" aria-label={dueHandleLabel} tabindex="-1"
                     ></button>
                   {/if}
+                  {#if onLink && linkHandleLabel && !entry.row.isLocked && column === entry.at.last + 1}
+                    <!-- `tabindex="-1"` for the reason the ends give: the keyboard path to a
+                         dependency is the caller's table, not a knob with key bindings of its own. -->
+                    <button type="button" class="knob" data-knob aria-label={linkHandleLabel} tabindex="-1"></button>
+                  {/if}
                 </span>
               {/each}
+            </div>
+            {#if entry.kept}
+              {@const baseline = entry.kept}
+              <div class="track kept" aria-hidden="true">
+                {#each columns as column (column)}
+                  <span class="lane" data-kept={column >= baseline.first && column <= baseline.last ? '' : undefined}></span>
+                {/each}
+              </div>
+            {/if}
             </div>
           </li>
         {/each}
@@ -463,6 +780,19 @@
       </details>
     {/if}
   {/if}
+  {#if drawn.length > 0}
+    <!-- The arrows in words: the picture is for the eye, this is what it says. -->
+    <ul class="dependencies" aria-label={dependenciesLabel}>
+      {#each drawn as dependency (dependency.id)}
+        <li
+          id={`${uid}-dep-${dependency.id}`}
+          data-dependency-said={dependency.id}
+          data-early={dependency.isEarly ? '' : undefined}
+          data-lit={lit !== undefined && (dependency.from === lit || dependency.to === lit) ? '' : undefined}
+        >{dependency.label}</li>
+      {/each}
+    </ul>
+  {/if}
   {#if today !== undefined && todayLabel !== undefined && todayColumn >= 0 && todayColumn < days}
     <!-- The mark is a line, and a line is not readable. The day it stands on is said once. -->
     <p class="said">{todayLabel}</p>
@@ -481,13 +811,22 @@
     --title: var(--sp-1600);
   }
 
+  /* The title column's steps, carried by the grip. */
+  .timeline[data-title='0'] { --title: var(--sp-1000); }
+  .timeline[data-title='1'] { --title: var(--sp-1600); }
+  .timeline[data-title='2'] { --title: calc(var(--sp-1600) + var(--sp-800)); }
+  .timeline[data-title='3'] { --title: calc(var(--sp-1600) + var(--sp-1600)); }
+
   .timeline[data-scale='day'] { --column: var(--sp-300); }
   .timeline[data-scale='week'] { --column: var(--sp-100); }
   .timeline[data-scale='month'] { --column: var(--sp-050); }
+  .timeline[data-scale='quarter'] { --column: var(--sp-025); }
+  .timeline[data-scale='year'] { --column: var(--bw-hairline); }
 
   /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
      descendant of an unpositioned scroller overflows the page instead. */
-  .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); }
+  .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); container-type: inline-size; }
+  .scroller:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   /* `max-content`, so the box is exactly as wide as the columns in it. A grid that filled its
      container would leave the tracks at their own width inside a wider box, and every measurement
@@ -563,6 +902,83 @@
   }
 
   .action { display: inline-flex; flex: none; }
+
+  /* A child is indented under its parent, out of the title's width, so the axis keeps its columns. */
+  .lead[data-depth='1'] { padding-inline-start: var(--sp-150); }
+  .lead[data-depth='2'] { padding-inline-start: var(--sp-300); }
+  .lead[data-depth='3'] { padding-inline-start: var(--sp-400); }
+  .lead[data-depth='4'] { padding-inline-start: var(--sp-500); }
+
+  .lanes { display: flex; flex-direction: column; }
+
+  /* The baseline: a thin lane under the bar, the agreed dates against today's. */
+  .lane { block-size: var(--sp-050); }
+  .lane[data-kept] { background: var(--border-strong); }
+
+  /* A summary spans its children: thinner and darker, so it does not read as one more task. */
+  .cell[data-filled][data-summary] { block-size: var(--sp-050); background: var(--text-secondary); }
+
+  /* The chain that decides the end, by more than its tint (SC 1.4.1, 1.4.11): a hatch of the
+     surface's colour across the bar, and "critical" in the row's name. */
+  .cell[data-filled][data-critical] {
+    background-color: var(--status-danger-accent);
+    background-image: repeating-linear-gradient(
+      135deg,
+      transparent 0 var(--sp-050),
+      var(--bg-surface) var(--sp-050) var(--sp-100)
+    );
+  }
+
+  /* A milestone is a diamond on its day, not a one-day bar: a date without a duration. */
+  .cell[data-filled][data-milestone] {
+    justify-content: center;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .cell[data-filled][data-milestone]::before {
+    content: '';
+    flex: none;
+    inline-size: var(--sp-150);
+    block-size: var(--sp-150);
+    background: var(--text-primary);
+    rotate: 45deg;
+  }
+
+  .cell[data-filled][data-milestone][data-critical]::before { background: var(--status-danger-accent); }
+
+  /* The knob after a bar's end, which a dependency is drawn from. */
+  .knob {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: crosshair;
+  }
+
+  .knob::before {
+    content: '';
+    inline-size: var(--sp-100);
+    block-size: var(--sp-100);
+    border: var(--bw-ring) solid var(--accent-primary);
+    border-radius: var(--r-full);
+    background: var(--bg-surface);
+  }
+
+  .knob:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
+
+  /* The row a dependency would be drawn onto, outlined as well as tinted. */
+  .row[data-link-target] {
+    outline: var(--bw-ring) dashed var(--accent-primary);
+    background: var(--bg-surface-hover);
+  }
 
   .title {
     flex: 1 1 auto;
@@ -698,5 +1114,102 @@
 
   .said { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
 
+  /* Above the rows and taking no pointer, so a bar under an arrow still drags. */
+  .arrows {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .arrow {
+    fill: none;
+    stroke: var(--text-secondary);
+    stroke-width: var(--bw-thick);
+  }
+
+  /* An arrow is a line with no surface to stand on, so its dashes say "too early" and its tint only
+     strengthens them; the danger status is drawn in the words below (design-system.md §6 rule 3). */
+  .arrow[data-early] {
+    stroke: var(--text-primary);
+    stroke-dasharray: var(--sp-050) var(--sp-025);
+  }
+
+  /* The dependencies of the row under the pointer or the focus, drawn and said more strongly. */
+  .arrow[data-lit] { stroke: var(--accent-primary); stroke-width: var(--bw-ring); }
+  .dependencies [data-lit] { color: var(--text-primary); }
+
+  /* The grip: a target as wide as the floor (SC 2.5.8) over the gap between titles and axis. */
+  .grip {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: 0;
+    inset-inline-start: calc(var(--title) + var(--sp-050) - var(--sp-150));
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .grip::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(50% - var(--bw-hairline));
+    inline-size: var(--bw-thick);
+    border-radius: var(--r-sm);
+    background: var(--border-strong);
+  }
+
+  .grip:hover::after,
+  .grip:focus-visible::after { background: var(--accent-primary); }
+
+  .grip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-hairline); }
+
+  .head path { fill: var(--text-secondary); }
+  .head[data-early] path { fill: var(--text-primary); }
+
+  .dependencies {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-025);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  .dependencies [data-early] {
+    align-self: flex-start;
+    padding: 0 var(--sp-050);
+    border-radius: var(--r-sm);
+    background: var(--status-danger-surface);
+    color: var(--status-danger-text);
+  }
+
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* Narrow - a phone, a narrow pane - the chart comes first (user-experience.md §7.5): a column of
+     titles would leave the bars a sliver, so each title stands on its own line above its bar, as
+     wide as what is visible and kept in view while the chart scrolls within itself. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .axis { margin-inline-start: 0; }
+    .rows { inline-size: max-content; min-inline-size: 100%; }
+    .row { flex-direction: column; align-items: flex-start; gap: 0; }
+    .lead {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+      box-sizing: border-box;
+      inline-size: 100cqi;
+      background: var(--bg-canvas);
+    }
+    .lanes { flex: none; }
+    .grip { display: none; }
+  }
 </style>

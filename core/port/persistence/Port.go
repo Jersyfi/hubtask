@@ -139,6 +139,13 @@ type Writable interface {
 	WithinWritable(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
 }
 
+// Savepoint undoes one step of a running transaction without the rest: fn runs under a savepoint,
+// which is released when it returns nil and rolled back to when it fails, while the transaction
+// goes on either way. For a pass over many rows where one bad row must degrade only itself.
+type Savepoint interface {
+	WithinSavepoint(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 // Independent is a unit of work whose transaction is always its own: beside whatever transaction
 // the caller's context carries, on another connection, committed when fn returns whatever the
 // caller's transaction does afterwards.

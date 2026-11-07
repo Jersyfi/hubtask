@@ -261,3 +261,23 @@ func TestTheExportAnswersRowsThroughTheCatalogue(t *testing.T) {
 		t.Error("a token without the scope exported a view")
 	}
 }
+
+// A summary over the whole workspace has no rows: its export is refused by name, not by the row
+// query's query.scope_required for a field the caller never sent (S-11).
+func TestAWorkspaceSummaryViewIsNotExportable(t *testing.T) {
+	h := newExportHarness(t)
+	saved := h.withCollectionView(accountID)
+	delete(saved.Query, "scope_container_id")
+	saved.Query["scope_workspace"] = true
+	saved.Query["aggregate"] = map[string]any{"function": "COUNT"}
+	h.views.stored[saved.ID] = saved
+
+	_, err := h.export.Execute(t.Context(), feedActor(), saved.ID)
+	if refusal := shared.AsError(err); refusal == nil ||
+		refusal.DetailCode != "views.summary_not_exportable" {
+		t.Fatalf("refused as %v", err)
+	}
+	if len(h.items.searched) != 0 || len(h.audit.entries) != 0 {
+		t.Error("a refused export read rows or was recorded")
+	}
+}

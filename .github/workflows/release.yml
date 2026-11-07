@@ -171,6 +171,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Name the previous release's image
+        # Its content-hashed interface assets go into this image (deployment.md §5). The tag
+        # before this one, whose image the registry holds; none for the first release.
+        run: |
+          previous="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "${previous}" ] && docker manifest inspect "ghcr.io/${IMAGE_NAME}:${previous}" >/dev/null 2>&1; then
+            echo "PREVIOUS_IMAGE=ghcr.io/${IMAGE_NAME}:${previous}" >> "$GITHUB_ENV"
+          else
+            echo "PREVIOUS_IMAGE=scratch" >> "$GITHUB_ENV"
+          fi
+
       - name: Build and push the image
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -185,6 +196,7 @@ jobs:
           build-args: |
             VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
+            PREVIOUS_IMAGE=${{ env.PREVIOUS_IMAGE }}
 
       - name: Produce the SBOM (CycloneDX)
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
@@ -221,10 +233,40 @@ jobs:
         # this build actually links (ADR-0080, licensing-editions.md).
         run: make licenses
 
+      - name: The machine-readable advisories (CSAF 2.0, VEX)
+        # security.md §14.2: one document per advisory in security/advisories/, each signed keyless
+        # beside its hashes; with no advisory nothing is written and nothing attached.
+        run: |
+          make csaf CSAF_OUT=dist/csaf
+          if [ -d dist/csaf ]; then
+            find dist/csaf -name '*.json' -print0 | xargs -0 -I{} cosign sign-blob --yes --bundle {}.sigstore.json {}
+            tar -czf csaf.tar.gz -C dist csaf
+          fi
+
+      - name: The release record
+        # versioning-release.md §3: what this release is, named by hash and address, signed.
+        run: |
+          go run ./tools/releaserecord -version "${GITHUB_REF_NAME}" -commit "${GITHUB_SHA}" \
+            -image "ghcr.io/${{ env.IMAGE_NAME }}:${GITHUB_REF_NAME}" -digest "${{ steps.build.outputs.digest }}" \
+            -run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            -at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" -go "$(go env GOVERSION)" \
+            sbom.cdx.json THIRD-PARTY-LICENSES.md > release-record.json
+          cosign sign-blob --yes --bundle release-record.json.sigstore.json release-record.json
+
       - name: Package the Helm chart
         run: |
           .tools/helm package k8s --version "${GITHUB_REF_NAME#v}" --app-version "${GITHUB_REF_NAME#v}" -d dist/
           .tools/helm push dist/*.tgz "oci://ghcr.io/${{ env.OWNER }}/charts"
+
+      - name: The Compose files of this release
+        # A self-hoster starts from these, so the example names this release, never a floating tag
+        # (deployment.md §1); compose.yaml refuses an unset HUBTASK_VERSION.
+        run: |
+          mkdir -p dist/compose
+          cp deploy/docker/compose.yaml deploy/docker/backup.sh deploy/docker/restore.sh dist/compose/
+          sed "s/^HUBTASK_VERSION=.*/HUBTASK_VERSION=${GITHUB_REF_NAME}/" deploy/docker/.env.example > dist/compose/.env.example
+          grep -qx "HUBTASK_VERSION=${GITHUB_REF_NAME}" dist/compose/.env.example
+          tar -czf compose.tar.gz -C dist/compose compose.yaml .env.example backup.sh restore.sh
 
       # The apps beside the image (UC-SYN-07 check 1): signed with the project's two keys, which
       # live as secrets of this environment only (F7 Decision 10, versioning-release.md §9), and
@@ -287,7 +329,8 @@ jobs:
 
       - name: One checksum file over everything the release publishes
         run: |
-          cp sbom.cdx.json THIRD-PARTY-LICENSES.md dist/*.tgz release/
+          cp sbom.cdx.json THIRD-PARTY-LICENSES.md dist/*.tgz release-record.json release-record.json.sigstore.json \
+            csaf.tar.gz compose.tar.gz release/
           node apps/webapp/build/release-apps.js checksums release
           node apps/webapp/build/release-apps.js check release
           (cd release && sha256sum --check --strict SHA256SUMS)
@@ -300,3 +343,48 @@ jobs:
           # version, which is the same mistake as the `latest` tag in a second place.
           prerelease: ${{ env.PRERELEASE }}
           files: release/*
+
+  integrations:
+    # The n8n node and the Zapier app, generated from the contract at this tag (UC-INT-11 check 4).
+    # Each step runs only when the owner's account secret is set, so a fork's tag publishes nothing.
+    name: Publish the n8n node and the Zapier app
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      id-token: write                # npm provenance
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      ZAPIER_DEPLOY_KEY: ${{ secrets.ZAPIER_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - run: make tools-node
+      - run: echo "$PWD/.tools" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - name: Version the packages as the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for dir in packages/n8n-nodes-hubtask packages/zapier-app; do
+            (cd "$dir" && npm pkg set version="$version")
+          done
+      - run: pnpm --filter @hubtask/api-client --filter @hubtask/n8n-nodes-hubtask --filter @hubtask/zapier-app build
+      - run: pnpm --filter @hubtask/n8n-nodes-hubtask --filter @hubtask/zapier-app typecheck
+      - name: Publish the n8n node to npm
+        if: env.NPM_TOKEN != ''
+        working-directory: packages/n8n-nodes-hubtask/dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+      - name: Push the Zapier app
+        if: env.ZAPIER_DEPLOY_KEY != ''
+        working-directory: packages/zapier-app/dist
+        run: |
+          npm install --no-save --ignore-scripts
+          version="$(node -p "require('./package.json').zapier.convertedByCLIVersion")"
+          npx --yes "zapier-platform-cli@${version}" push

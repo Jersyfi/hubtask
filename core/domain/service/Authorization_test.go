@@ -27,6 +27,7 @@ func grant(scope identity.Scope, role identity.Role) identity.Membership {
 
 // The matrix of domain-model.md §3.2, read as a table. The row that matters most is the
 // administrator's: it ranks above a member and still may not delete a container.
+// UC-ID-15 check 4: a viewer reads and does not change.
 func TestTheRoleMatrix(t *testing.T) {
 	cases := []struct {
 		role       identity.Role
@@ -38,6 +39,7 @@ func TestTheRoleMatrix(t *testing.T) {
 		{identity.RoleAdmin, service.PermissionStructure, true},
 		{identity.RoleAdmin, service.PermissionManageMembers, true},
 		{identity.RoleMember, service.PermissionStructure, false},
+		{identity.RoleMember, service.PermissionManageMembers, false}, // UC-PRV-01 check 8
 		{identity.RoleMember, service.PermissionWriteItems, true},
 		{identity.RoleMember, service.PermissionAutomation, true},
 		{identity.RoleContributor, service.PermissionAutomation, false},

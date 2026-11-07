@@ -63,6 +63,8 @@
     /** What a tick means, and what its absence means. Announced, never drawn. */
     carriedLabel: string;
     notCarriedLabel: string;
+    /** Below `medium`, one card per role, so the matrix never scrolls sideways (§5.12). */
+    isStacked?: boolean;
   }
 
   const {
@@ -75,6 +77,7 @@
     accessLabels = {},
     carriedLabel,
     notCarriedLabel,
+    isStacked = false,
   }: Props = $props();
 
   const columns = $derived<readonly Column[]>([
@@ -86,7 +89,7 @@
   const carries = (role: MatrixRole, permission: string) => role.permissions.includes(permission);
 </script>
 
-<Table {label} {isLabelHidden} {columns}>
+<Table {label} {isLabelHidden} {columns} {isStacked}>
   {#each roles as role (role.id)}
     <tr>
       <!-- `scope="row"`: reading across a row of ticks is the whole use of this table, and a cell

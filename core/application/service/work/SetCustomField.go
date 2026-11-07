@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,11 +20,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -71,6 +74,24 @@ type SetCustomField struct {
 	HLC        clock.HLCSource
 	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Compiler recomputes the entry's CALCULATED fields after each write of a value; without it
+	// they are left as they are.
+	Compiler expression.Compiler
+	// Groups answers whether a GROUP value names a group of the workspace, and Attachments
+	// whether a FILE value names one the entry carries. Without them neither kind is written:
+	// a value nothing checked is one nobody could trust.
+	Groups      FieldGroups
+	Attachments FieldAttachments
+}
+
+// FieldGroups is the one question a GROUP value asks of the workspace's groups.
+type FieldGroups interface {
+	Find(ctx context.Context, groupID shared.ID) (identity.Group, error)
+}
+
+// FieldAttachments is the one question a FILE value asks of the entry's attachments.
+type FieldAttachments interface {
+	MediaIDs(ctx context.Context, itemID shared.ID) ([]shared.ID, error)
 }
 
 // SetCustomFieldCommand is the input, typed.
@@ -169,6 +190,9 @@ func (h SetCustomField) Execute(
 		if err := ensureFieldCount(wanted); err != nil {
 			return err
 		}
+		if err := h.Gate.Forms.checkEdit(ctx, actor, collection, item, wanted); err != nil {
+			return err
+		}
 
 		stored, err := h.write(ctx, actor, item, wanted, cmd, definition, profile, now)
 		written = stored
@@ -260,34 +284,101 @@ func (h SetCustomField) judge(
 	if err != nil {
 		return none, nil, err
 	}
-	if definition.Kind == domain.CustomFieldUser && value != nil {
-		if err := h.ensureAccountReachable(ctx, actor, value, collection); err != nil {
+	for _, account := range definition.Accounts(value) {
+		if err := ensureAccountCanSee(ctx, h.Visibility, actor, account, collection); err != nil {
 			return none, nil, err
 		}
+	}
+	if definition.Kind == domain.CustomFieldReference && value != nil {
+		if err := h.ensureEntryReachable(ctx, actor, definition, value); err != nil {
+			return none, nil, err
+		}
+	}
+	if err := h.ensureTargetHeld(ctx, item, definition, value); err != nil {
+		return none, nil, err
 	}
 	return definition, value, nil
 }
 
-// ensureAccountReachable refuses a USER value naming somebody who cannot see the entry.
-//
-// The same question an assignment asks and the same refusal, for the same reason: a field pointing
-// at an account that gets a 404 on the entry names a person who cannot act on it, and the three
-// situations behind it - no membership, another workspace's account, no such account - come back
-// as one answer so that the field cannot be used to discover which identifiers exist (T-04).
-func (h SetCustomField) ensureAccountReachable(
-	ctx context.Context, actor appshared.ActorContext, value any, collection domain.Container,
+// ensureTargetHeld refuses a GROUP that is not the workspace's and a FILE the entry does not carry.
+// A missing group, another workspace's and a lookup with nothing to ask are one answer, so the
+// field cannot be used to discover which identifiers exist (T-04).
+func (h SetCustomField) ensureTargetHeld(
+	ctx context.Context, item domain.WorkItem, definition domain.CustomFieldDefinition, value any,
 ) error {
-	text, isText := value.(string)
-	if !isText {
-		// The domain already judged the shape. Reaching this is a defect rather than input
-		// (security.md §9).
-		return shared.ErrInternal.WithDetail("fields.value_not_an_account")
+	refused := func(code string) error {
+		return shared.ErrValidation.WithDetail(code).
+			WithParams(map[string]string{"key": definition.Key}).
+			WithFields(shared.FieldError{Path: "/value", Code: code})
 	}
-	named, err := shared.ParseID(text)
+	if group, named := definition.GroupOf(value); named {
+		if h.Groups == nil {
+			return refused("fields.value_not_a_group")
+		}
+		found, err := h.Groups.Find(ctx, group)
+		if errors.Is(err, shared.ErrNotFound) || (err == nil && found.TenantID != item.TenantID) {
+			return refused("fields.value_not_a_group")
+		}
+		return err
+	}
+	if media, named := definition.AttachmentOf(value); named {
+		if h.Attachments == nil {
+			return refused("fields.value_not_an_attachment")
+		}
+		carried, err := h.Attachments.MediaIDs(ctx, item.ID)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(carried, media) {
+			return refused("fields.value_not_an_attachment")
+		}
+	}
+	return nil
+}
+
+// ensureEntryReachable refuses a REFERENCE to an entry the writer cannot see. A missing entry, a
+// trashed one, another workspace's and one out of the writer's reach are one answer, so that the
+// field cannot be used to discover which identifiers exist (T-04). Asked as visibility rather than
+// as an authorisation, because the entry being written is what the permission was asked about;
+// the referenced one is a value.
+func (h SetCustomField) ensureEntryReachable(
+	ctx context.Context, actor appshared.ActorContext,
+	definition domain.CustomFieldDefinition, value any,
+) error {
+	refused := shared.ErrValidation.WithDetail("fields.value_not_an_entry").
+		WithParams(map[string]string{"key": definition.Key}).
+		WithFields(shared.FieldError{Path: "/value", Code: "fields.value_not_an_entry"})
+
+	text, _ := value.(string)
+	id, err := shared.ParseID(text)
 	if err != nil {
-		return shared.ErrInternal.WithDetail("fields.value_not_an_account")
+		return shared.ErrInternal.WithDetail("fields.value_not_an_entry")
 	}
-	return ensureAccountCanSee(ctx, h.Visibility, actor, named, collection)
+	target, err := h.Items.Find(ctx, id)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return refused
+		}
+		return err
+	}
+	if target.IsTrashed() {
+		return refused
+	}
+	place, err := h.Containers.Find(ctx, target.CollectionID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return refused
+		}
+		return err
+	}
+	permitted, err := h.Visibility.CanSee(ctx, actor, actor.AccountID, containerPath(place))
+	if err != nil {
+		return err
+	}
+	if !permitted {
+		return refused
+	}
+	return nil
 }
 
 // ensureFieldCount bounds how many keys one entry carries. The column is one document that every
@@ -356,7 +447,57 @@ func (h SetCustomField) write(
 	if err := h.recordActivity(ctx, after, actor, change, profile, now); err != nil {
 		return domain.WorkItem{}, err
 	}
-	return after, nil
+	if definition.Kind == domain.CustomFieldCalculated {
+		// A formula reads no CALCULATED field, so its own write moves no other.
+		return after, nil
+	}
+	return h.recalculate(ctx, actor, after, profile, now)
+}
+
+// recalculate writes each CALCULATED field whose value the write just made moved, each key as its
+// own write with its own records, as every key is (offline-sync.md §4.2): the person who changed an
+// input is who changed the result, and a device merges the result's key like any other.
+func (h SetCustomField) recalculate(
+	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
+	profile domain.CapabilityProfile, now time.Time,
+) (domain.WorkItem, error) {
+	if h.Compiler == nil {
+		return item, nil
+	}
+	inScope, err := h.Fields.ListInScope(ctx, item.CollectionID)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	for _, calculated := range calculate(ctx, h.Compiler, effectiveDefinitions(inScope), item) {
+		wanted, moved := item.WithCustomField(calculated.definition.Key, calculated.value, now)
+		if !moved {
+			continue
+		}
+		cmd := SetCustomFieldCommand{ItemID: item.ID, Key: calculated.definition.Key, ExpectedVersion: item.Version}
+		if item, err = h.write(ctx, actor, item, wanted, cmd, calculated.definition, profile, now); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+	return item, nil
+}
+
+// effectiveDefinitions keeps, per key, the definition a collection's entry is judged by: its own
+// over the workspace-wide one (FindInScope's rule), given the list in ListInScope's order.
+func effectiveDefinitions(inScope []domain.CustomFieldDefinition) []domain.CustomFieldDefinition {
+	byKey := make(map[string]int, len(inScope))
+	effective := make([]domain.CustomFieldDefinition, 0, len(inScope))
+	for _, definition := range inScope {
+		if at, seen := byKey[definition.Key]; seen {
+			// The nearest wins: a collection's over its hub's over the workspace's.
+			if definition.Nearness() >= effective[at].Nearness() {
+				effective[at] = definition
+			}
+			continue
+		}
+		byKey[definition.Key] = len(effective)
+		effective = append(effective, definition)
+	}
+	return effective
 }
 
 // recordChange writes what an offline client has to be told.
@@ -474,7 +615,8 @@ func customValueLabel(value any) string {
 // Descriptor is the catalogue entry.
 func (h SetCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetCustomFieldName,
+		Name:       SetCustomFieldName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Writes one custom field on an entry. The value is validated against the " +
 			"definition in force for the entry's collection - its own, or the workspace-wide one " +
 			"under the same key - and a SELECT value outside its options, a NUMBER arriving as a " +

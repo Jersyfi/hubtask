@@ -16,7 +16,7 @@
 
 import type { OwnAiPosition, ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const PATH = '/privacy/ai-objection';
 const PURPOSE = 'ai_processing';
@@ -53,7 +53,7 @@ class AiObjection {
   /** Keeps the person's own content out: a withdrawal of `ai_processing`, recorded. */
   async keepOut(): Promise<unknown> {
     return engine.mutate<unknown>('POST', '/privacy/consents:withdraw', { purpose: PURPOSE }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHES,
     });
   }
@@ -61,7 +61,7 @@ class AiObjection {
   /** Lets the person's own content back in: their agreement, recorded. */
   async letIn(): Promise<unknown> {
     return engine.mutate<unknown>('POST', '/privacy/consents:give', { purpose: PURPOSE }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHES,
     });
   }
@@ -69,7 +69,7 @@ class AiObjection {
   /** Records that the person read the notice. */
   async acknowledge(): Promise<OwnAiPosition> {
     return engine.mutate<OwnAiPosition>('POST', `${PATH}:noticed`, undefined, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [PATH],
     });
   }

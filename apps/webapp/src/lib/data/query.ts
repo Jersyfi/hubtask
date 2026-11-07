@@ -106,12 +106,20 @@ export function offeredByProfile<T extends { field: string }>(fields: readonly T
   });
 }
 
-export function sortableFields(manifest: Capabilities | undefined): readonly QueryField[] {
-  return queryFields(manifest).filter((field) => field.sortable);
+/** The fields entries may be ordered by: the installation's, then the custom fields handed in. */
+export function sortableFields(
+  manifest: Capabilities | undefined,
+  extra: readonly FilterField[] = [],
+): readonly FilterField[] {
+  return allFields(manifest, extra).filter((field) => field.sortable);
 }
 
-export function groupableFields(manifest: Capabilities | undefined): readonly QueryField[] {
-  return queryFields(manifest).filter((field) => field.groupable);
+/** The fields a board may be cut into columns by, from the same two sources. */
+export function groupableFields(
+  manifest: Capabilities | undefined,
+  extra: readonly FilterField[] = [],
+): readonly FilterField[] {
+  return allFields(manifest, extra).filter((field) => field.groupable);
 }
 
 /** The languages this installation can index text in, and what a `content_language` picker offers. */
@@ -246,8 +254,9 @@ export function sortOf(
   manifest: Capabilities | undefined,
   field: string,
   dir: 'ASC' | 'DESC',
+  extra: readonly FilterField[] = [],
 ): readonly { field: string; dir: 'ASC' | 'DESC'; nulls?: 'FIRST' | 'LAST' }[] | undefined {
-  const declared = fieldNamed(manifest, field);
+  const declared = fieldNamed(manifest, field, extra);
   if (!declared?.sortable) return undefined;
   // `nulls` is stated for a field that can be absent, and stated as what the server already
   // defaults to. Sorting by due date is the case that makes it worth saying: the undated are not
@@ -260,8 +269,9 @@ export function sortOf(
 export function groupOf(
   manifest: Capabilities | undefined,
   field: string,
+  extra: readonly FilterField[] = [],
 ): { field: string; limit_per_group: number } | undefined {
-  const declared = fieldNamed(manifest, field);
+  const declared = fieldNamed(manifest, field, extra);
   return declared?.groupable ? { field, limit_per_group: 50 } : undefined;
 }
 

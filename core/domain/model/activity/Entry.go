@@ -111,6 +111,25 @@ const (
 	// performed, which is why the gate reports rather than refuses them.
 	ItemMerged     Verb = "item.merged"
 	ItemChangeLost Verb = "item.change_lost"
+
+	// The workflow pair (UC-FLW-03 check 6, UC-FLW-05 check 4): a step somebody took, from which
+	// status to which; and a status a publish or a change of scheme moved the entry to, which took
+	// no step.
+	ItemStepTaken       Verb = "item.step_taken"
+	ItemWorkflowChanged Verb = "item.workflow_changed"
+
+	// The link pair: a link drawn or removed is in the history of both its ends, naming the link
+	// type only - the other end may be out of a reader's reach.
+	ItemLinked   Verb = "item.linked"
+	ItemUnlinked Verb = "item.unlinked"
+
+	// ItemEntryTypeChanged is an entry given another type, from which to which.
+	ItemEntryTypeChanged Verb = "item.entry_type_changed"
+
+	// ItemHistoryImported is a change another system recorded before the entry was imported
+	// (D-10): the change set names the fields with both sides and, as `changed_by`, the name the
+	// source gave its author - who is no account here.
+	ItemHistoryImported Verb = "item.history_imported"
 )
 
 var verbs = [...]Verb{
@@ -120,7 +139,8 @@ var verbs = [...]Verb{
 	ItemAssigned, ItemUnassigned, ItemMemberAdded, ItemMemberRemoved,
 	ItemAttachmentAdded, ItemAttachmentRemoved, ItemCoverSet, ItemCoverCleared,
 	ItemCustomFieldSet, ItemDueSet, ItemDueCleared, ItemCommented, ItemDuplicated,
-	ItemMerged, ItemChangeLost,
+	ItemMerged, ItemChangeLost, ItemStepTaken, ItemWorkflowChanged,
+	ItemLinked, ItemUnlinked, ItemEntryTypeChanged, ItemHistoryImported,
 }
 
 // Verbs returns every verb the history knows, in a stable order.

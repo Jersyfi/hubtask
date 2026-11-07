@@ -19,7 +19,7 @@ func TestListingFieldDefinitionsPassesTheCollectionOn(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `[`+oneDefinition+`]`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"field", "ls", "--collection", collectionID)
+		"field", "ls", "--collection-id", collectionID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -44,6 +44,52 @@ func TestDefiningAFieldSendsTheDocumentedPayload(t *testing.T) {
 		`"key":"effort"`, `"kind":"NUMBER"`,
 		`"collection_id":"` + collectionID + `"`, `"applies_to":["TASK","WORK_PACKAGE"]`,
 	} {
+		if !strings.Contains(stub.body, fragment) {
+			t.Errorf("the body %q is missing %s", stub.body, fragment)
+		}
+	}
+}
+
+// UC-WRK-12 check 1 on hubctl: an amount names its currency.
+func TestDefiningAMoneyFieldSendsItsCurrency(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneDefinition)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"field", "define", "--key", "budget", "--kind", "MONEY", "--currency", "EUR")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	for _, fragment := range []string{`"kind":"MONEY"`, `"currency":"EUR"`} {
+		if !strings.Contains(stub.body, fragment) {
+			t.Errorf("the body %q is missing %s", stub.body, fragment)
+		}
+	}
+}
+
+// A field defined from the command line carries the name a person reads beside its key.
+func TestDefiningAFieldSendsItsName(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneDefinition)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"field", "define", "--key", "budget", "--name", "Budget planned", "--kind", "NUMBER")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"name":"Budget planned"`) {
+		t.Errorf("the body %q is missing the name", stub.body)
+	}
+}
+
+// UC-ID-27 on hubctl: a field restricted for writing, and one hidden from readers.
+func TestDefiningARestrictedFieldSendsTheRestriction(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneDefinition)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"field", "define", "--key", "salary", "--kind", "MONEY", "--currency", "EUR", "--restricted", "--read-restricted")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	for _, fragment := range []string{`"restricted":true`, `"read_restricted":true`} {
 		if !strings.Contains(stub.body, fragment) {
 			t.Errorf("the body %q is missing %s", stub.body, fragment)
 		}

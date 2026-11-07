@@ -57,6 +57,9 @@ config:
   # An installation that answers Alexa (ADR-0093) adds s3.amazonaws.com: Amazon's signing
   # certificate is fetched from there, and without it every Alexa request is refused.
   egressAllowedHosts: []
+  # The ingress controller's pod network, as CIDRs: without it every sign-in behind the ingress
+  # shares one rate limit (security.md §9). Set by the operator.
+  trustedProxies: []
   extraEnv:
     # Exactly the origin the browser sends, scheme included: the chart refuses a bare host name
     # rather than silently matching nothing (security.md §9). Set by the operator.

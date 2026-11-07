@@ -9,7 +9,9 @@
   // The plan it is on is not offered: a move there changes nothing. The move carries the version
   // the list read, so a workspace somebody changed meanwhile is refused rather than moved over.
 
-  import { Banner, Button, Dialog, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Select, Spinner, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { AdminTenant, TenantPlanMoved } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -54,7 +56,7 @@
   function problem(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
 
   async function choose(value: string): Promise<void> {
@@ -127,7 +129,7 @@
       onchange={(event) => void choose((event.currentTarget as HTMLSelectElement).value)}
     />
     {#if failure}
-      <Banner tone="danger" title={failure.message} />
+      <FailureNote problem={failure} />
     {:else if isPreviewing}
       <p class="quiet"><Spinner label={t('app.instance.move_reading')} /> <span>{t('app.instance.move_reading')}</span></p>
     {:else if preview}

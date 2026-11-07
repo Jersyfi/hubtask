@@ -214,7 +214,8 @@ func pathOfNeighbour(candidate workrepo.Neighbour) []identity.Scope {
 // Descriptor registers the read in all three channels.
 func (h FindDuplicatesByTitle) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: FindDuplicatesByTitleName,
+		Name:       FindDuplicatesByTitleName,
+		Permission: service.PermissionRead,
 		Summary: "Answers the entries whose meaning sits near the words of a title that is not an " +
 			"entry yet - at most five, nearest first, at or above the duplicate threshold, each " +
 			"narrowed to what the caller may read along its own path. The words are embedded the " +

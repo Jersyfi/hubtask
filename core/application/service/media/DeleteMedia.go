@@ -192,7 +192,8 @@ func (h DeleteMedia) recordAudit(
 // Descriptor is the catalogue entry.
 func (h DeleteMedia) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DeleteMediaName,
+		Name:       DeleteMediaName,
+		Permission: service.PermissionStructure,
 		Summary: "Removes a media object nothing points at: the record now, the bytes through the " +
 			"reconciliation job, which is what writes the deletion journal entry. Refused while " +
 			"anything references it - detach it or clear the cover first. Only the account that " +

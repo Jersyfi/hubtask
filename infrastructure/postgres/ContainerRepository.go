@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -38,6 +39,9 @@ var _ repository.Containers = ContainerRepository{}
 // uniqueViolation is PostgreSQL's SQLSTATE for a broken unique constraint.
 const uniqueViolation = "23505"
 
+// foreignKeyViolation is PostgreSQL's SQLSTATE for a row naming something that is not there.
+const foreignKeyViolation = "23503"
+
 // identifierTaken is the conflict for an insert whose primary key is already held, or nil for any
 // other error. The key is global, so the holder may be another tenant's row: the insert never
 // reaches it, and a device that minted the identifier (offline-sync.md §9 rule 1) gets a refusal
@@ -56,6 +60,10 @@ func identifierTaken(err error, primaryKey, code string) error {
 // explicitly, so that a different unique violation - one added by a later migration - is not
 // reported to the client as a duplicate name.
 const containerNameIndex = "container_name_uq"
+
+// containerKeyPrefixIndex is the key prefix's: the index (0378) and the trigger that stands in for
+// it, which also refuses a prefix another collection holds as its handle (0377).
+const containerKeyPrefixIndex = "container_key_prefix_uq"
 
 // Find returns the container as it is stored, including a trashed or an archived one. What that
 // state means is the domain's decision (I-C2, I-C3); a query that filtered here would turn "it is
@@ -141,6 +149,41 @@ func (r ContainerRepository) List(
 	return page, nil
 }
 
+// CollectionsOfHubs reads the collections each hub's figure counts, at most perHub of each, in one
+// statement (ListHubCollections).
+func (r ContainerRepository) CollectionsOfHubs(
+	ctx context.Context, hubIDs []shared.ID, perHub int,
+) (map[shared.ID][]work.Container, error) {
+	found := map[shared.ID][]work.Container{}
+	if len(hubIDs) == 0 || perHub <= 0 {
+		return found, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hubs, err := optionalUUIDs(hubIDs...)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHubCollections(ctx, sqlc.ListHubCollectionsParams{
+		HubIds: hubs, PerHub: int32(min(perHub, math.MaxInt32)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the hubs' collections: %w", err))
+	}
+	for _, row := range rows {
+		container, err := containerFrom(sqlc.FindContainerRow(row))
+		if err != nil {
+			return nil, err
+		}
+		found[container.ParentID] = append(found[container.ParentID], container)
+	}
+	return found, nil
+}
+
 // LastOrderKey returns the highest rank at one level, or the empty string when the level is empty.
 func (r ContainerRepository) LastOrderKey(ctx context.Context, parentID shared.ID) (string, error) {
 	queries, err := queriesFrom(ctx)
@@ -204,7 +247,7 @@ func (r ContainerRepository) insert(ctx context.Context, container *work.Contain
 		return err
 	}
 
-	handle, err := queries.InsertContainer(ctx, sqlc.InsertContainerParams{
+	given, err := queries.InsertContainer(ctx, sqlc.InsertContainerParams{
 		Structure:        structure,
 		CompletionPolicy: completion,
 		ID:               id,
@@ -220,7 +263,8 @@ func (r ContainerRepository) insert(ctx context.Context, container *work.Contain
 		Private:          container.Private,
 	})
 	if err == nil {
-		container.Handle = stringFrom(handle)
+		container.Handle = stringFrom(given.Handle)
+		container.KeyPrefix = stringFrom(given.KeyPrefix)
 		return nil
 	}
 
@@ -256,6 +300,7 @@ func (r ContainerRepository) SetAttributes(
 		Description: optionalText(container.Description),
 		Icon:        optionalText(container.Icon),
 		ColorToken:  optionalText(container.ColorToken),
+		KeyPrefix:   optionalText(container.KeyPrefix),
 		UpdatedAt:   timestampOf(container.UpdatedAt),
 		ID:          id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
@@ -456,6 +501,12 @@ func containerWriteError(err error, container work.Container, what string) error
 			WithDetail("containers.name_taken").
 			WithParams(map[string]string{"name": container.Name})
 	}
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == containerKeyPrefixIndex {
+		return shared.ErrConflict.
+			WithDetail("containers.key_prefix_taken").
+			WithFields(shared.FieldError{Path: "/key_prefix", Code: "containers.key_prefix_taken"}).
+			WithParams(map[string]string{"key_prefix": container.KeyPrefix})
+	}
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("%s of %s: %w", what, container.ID, err))
@@ -541,6 +592,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		Version:          int(row.Version),
 		Private:          row.Private,
 		Handle:           stringFrom(row.Handle),
+		KeyPrefix:        stringFrom(row.KeyPrefix),
 	}, nil
 }
 

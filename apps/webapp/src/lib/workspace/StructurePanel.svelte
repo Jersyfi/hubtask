@@ -4,7 +4,8 @@
   // A hub's or a collection's settings page (UC-WRK-23 checks 1-3, 7; design-system.md §11.8):
   // the sections as a list at the start, the open one beside it - the shape of the administration,
   // so setting something up looks the same everywhere. Its *Structure* section is a preset to start
-  // from and the eight settings, each with where its value comes from, its lock and a reset.
+  // from and the nine settings, each with where its value comes from, its lock and a reset; the
+  // entry types only where the workflows module is on (UC-FLW-01 check 8).
   //
   // Drawn only for a reader who may change the shape (check 9, P-05): the caller leaves the
   // way in out for anybody else. One save per sitting, through the save bar - every setting is
@@ -20,23 +21,31 @@
   import { untrack, type Snippet } from 'svelte';
 
   import { Button, CheckboxGroup, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
-  import type { Container, StructureChange, StructurePreview, StructureSettings } from '@hubtask/sync-engine';
+  import type { Container, CustomFieldDefinition, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
+  import { fieldName, fieldsAtHub } from '../data/customfields.ts';
+  import { copyKeyFor, entryTypes, offeredTypes as typesOfLevel, typesAtHub, typesShown } from '../data/entrytypes.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
+  import { shippedCopy, workflowCopyKey, workflowFor, workflows, workflowsAtHub } from '../data/workflows.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import NarrowingDialog from './NarrowingDialog.svelte';
+  import { reachOf } from '../settings/reach.ts';
   import SavePresetDialog from './SavePresetDialog.svelte';
+  import { GROUP_CODES, STRUCTURE_GROUPS, groupOf, isGroup, orderSections, sectionOf, type StructureGroup } from './placeSections.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
+  import SettingsPage from '../settings/SettingsPage.svelte';
+  import { placePart } from '../settings/asFile.ts';
   import {
     SETTINGS,
     changeOf,
@@ -47,6 +56,7 @@
     lockOf,
     renameLevel,
     resetSetting,
+    chooseEntryTypesOf,
     chooseFieldsOf,
     setValue,
     startDraft,
@@ -68,6 +78,8 @@
     container: Container;
     /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
     mayShapeWorkspace?: boolean;
+    /** Whether the reader holds STRUCTURE here: a hub's *Make a copy here* is offered only then. */
+    mayShapeHere?: boolean;
     /** The sections before the structure (its general fields) and after it, in the list's order. */
     before?: readonly StructureTab[];
     tabs?: readonly StructureTab[];
@@ -78,21 +90,28 @@
     onsection: (section: string) => void;
   }
 
-  const { isOpen, container, mayShapeWorkspace = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
+  const { isOpen, container, mayShapeWorkspace = false, mayShapeHere = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
 
   /** On a phone the sections are one row that scrolls: the open one is always brought into it. */
-  let sectionList = $state<HTMLElement | null>(null);
+  let shell = $state<HTMLElement | null>(null);
   $effect(() => {
     void tab;
-    const list = sectionList;
-    if (!list) return;
-    queueMicrotask(() => list.querySelector<HTMLElement>('a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+    const root = shell;
+    if (!root) return;
+    queueMicrotask(() => root.querySelector<HTMLElement>('[data-settings-sections] a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
   });
-  const sections = $derived([...before, { id: 'structure', label: t('app.settings.section_structure') }, ...tabs]);
+  // One section list for every place (user-experience.md §5.7): the structure's settings spread over
+  // the sections they belong to, in the level's fixed order; one draft and one save bar hold them.
+  const groups = $derived((Object.keys(STRUCTURE_GROUPS) as StructureGroup[]).map((id) => ({ id, label: t(GROUP_CODES[id]) })));
+  const sections = $derived(orderSections(container.type === 'HUB' ? 'HUB' : 'COLLECTION', [...before, ...groups, ...tabs]));
+  const openSection = $derived(sectionOf(tab));
   let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
   const isHub = $derived(container.type === 'HUB');
+  // A10: the hub's document holds the hub's own blocks and, by handle, its collections'; a
+  // collection without a handle has no blocks there to show.
+  const fileHub = $derived(isHub ? container.id : container.handle ? (container.parent_id ?? undefined) : undefined);
 
   // The presets, the accounts that set a lock, and the number fields a sum may name.
   // From `untrack`: subscribing delivers at once and writes the store this effect would read.
@@ -100,8 +119,9 @@
     if (!isOpen) return;
     const id = container.id;
     const hub = isHub;
+    const flows = typesShown(manifest.value);
     return untrack(() => {
-      const stops = [presets.open(), customFields.open(), ...(hub ? [] : [customFields.open(id)])];
+      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [workflows.open(), customFields.openHub(id)] : [customFields.open(id), ...(flows ? [workflows.open()] : [])])];
       return () => {
         for (const stop of stops) stop();
       };
@@ -137,6 +157,33 @@
   const chosen = $derived(draft?.preset ? presets.find(draft.preset) : undefined);
   const change = $derived(draft && structure ? changeOf(draft, structure, chosen) : undefined);
   const changeCount = $derived(countOf(change));
+
+  /**
+   * What the change in the draft reaches, asked once the person pauses (configuration/ui.md A3):
+   * the save bar says it before the save, and *Show plan* opens it in full. A preview that fails
+   * leaves the bar without the line; the save asks again and reports it.
+   */
+  const PREVIEW_PAUSE_MS = 400;
+  let reach = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+  $effect(() => {
+    const asked = change;
+    const id = container.id;
+    reach = undefined;
+    if (!asked) return;
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      containers.previewStructure(id, asked).then(
+        (preview) => {
+          if (isCurrent) reach = { change: asked, preview };
+        },
+        () => {},
+      );
+    }, PREVIEW_PAUSE_MS);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  });
   const values = $derived<StructureSettings>(draft?.values ?? structure?.settings ?? {});
 
   // ---------------------------------------------------------------------------------------------
@@ -205,7 +252,79 @@
         return t(`app.structure.celebration.${settings.celebration ?? 'ALL'}`);
       case 'automation':
         return (settings.automation ?? []).map((behaviour) => t(`app.structure.automation.${behaviour}`)).join(', ') || t('app.structure.nothing');
+      case 'entry_types': {
+        const narrowed = Object.keys(settings.entry_types ?? {});
+        return narrowed.length === 0
+          ? t('app.structure.entry_types_all')
+          : narrowed.map((type) => levelWords(settings, type, t).label).join(', ');
+      }
     }
+  }
+
+  /** The settings this reader is shown: the entry types only where types are shown at all. */
+  const workflowInForce = $derived(
+    !isHub && typesShown(manifest.value) ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
+  );
+  const shownSettings = $derived(SETTINGS.filter((setting) => setting !== 'entry_types' || typesShown(manifest.value)));
+
+  /** A level's types in use, as the entry types setting offers them for ticking. */
+  const typeOptionsOf = (type: string) =>
+    typesOfLevel(entryTypes.all, type, undefined, fileHub).map((each) => ({ value: each.key, label: each.name ?? levelName(type), disabledReason: lockReason('entry_types') }));
+
+  /** The key of the type being copied here, while the copy is on its way. */
+  let copying = $state<string | undefined>(undefined);
+
+  /** A shared type made the hub's own (UC-FLW-01 check 10), named as its source and keyed freely. */
+  async function copyHere(type: { key: string; level: string; name?: string | null }) {
+    if (copying !== undefined) return;
+    copying = type.key;
+    failure = undefined;
+    try {
+      await entryTypes.copyHere(type.key, container.id, copyKeyFor(entryTypes.all, type.key), type.name ?? levelName(type.level));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    } finally {
+      copying = undefined;
+    }
+  }
+
+  /** A shared field made the hub's own under its key (UC-WRK-12 check 9). */
+  async function copyFieldHere(definition: CustomFieldDefinition) {
+    if (copying !== undefined) return;
+    copying = `field:${definition.id}`;
+    failure = undefined;
+    try {
+      await customFields.copyHere(definition.id, container.id);
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    } finally {
+      copying = undefined;
+    }
+  }
+
+  /** A shared workflow made the hub's own (UC-FLW-02 check 9); the shipped one with the client's words. */
+  async function copyWorkflowHere(workflow: Workflow) {
+    if (copying !== undefined) return;
+    copying = `workflow:${workflow.key}`;
+    failure = undefined;
+    const key = workflowCopyKey(workflows.list?.data ?? [], workflow.key);
+    try {
+      if (workflow.system) {
+        await workflows.create(key, workflow.name ?? t('workflows.default_name'), shippedCopy(workflow.published, t), container.id);
+      } else {
+        await workflows.copyHere(workflow.key, container.id, key);
+      }
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    } finally {
+      copying = undefined;
+    }
+  }
+
+  function chooseEntryTypes(type: string, selected: readonly string[]) {
+    if (!draft) return;
+    const inUse = typesOfLevel(entryTypes.all, type, undefined, fileHub).map((each) => each.key);
+    draft = setValue(draft, 'entry_types', chooseEntryTypesOf(values.entry_types, type, inUse, selected));
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -321,8 +440,8 @@
   }
 
   const CAPTURE = ['LINES', 'AMOUNT', 'DATE', 'PERSON', 'LABEL'] as const;
-  /** What a collection may apply by itself; the server keeps it (UC-WRK-31 check 2). */
-  const AUTOMATION = ['REQUIRED_BEYOND_FIRST_COLUMN'] as const;
+  /** What a collection may apply by itself; the server keeps it (UC-WRK-31 check 2, user-experience.md §7.5). */
+  const AUTOMATION = ['REQUIRED_BEYOND_FIRST_COLUMN', 'NEW_INTO_FIRST_COLUMN'] as const;
 
   // ---------------------------------------------------------------------------------------------
   // The preset, the resets, the save
@@ -415,11 +534,12 @@
   const titleOf = (setting: SettingName): string => t(`app.structure.setting.${setting}`);
 </script>
 
-<!-- The eight settings: the panel's first tab, or the whole panel where it has no other. -->
-{#snippet settingsBody()}
+<!-- The nine settings: the panel's first tab, or the whole panel where it has no other. -->
+{#snippet settingsBody(group: StructureGroup)}
   {#if structure && draft}
     <form class="panel" data-structure-panel onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="300">
+        {#if group === 'template'}
         <p class="hint">{t(isHub ? 'app.structure.intro_hub' : 'app.structure.intro')}</p>
 
         <section class="setting" data-setting="preset">
@@ -446,8 +566,17 @@
           </Button>
           </div>
         </section>
+        {/if}
 
-        {#each SETTINGS as setting (setting)}
+        <!-- A collection's Workflow section names the workflow its tasks run, as its head does. -->
+        {#if group === 'workflow' && !isHub && workflowInForce}
+          <p class="hint" data-collection-workflow={workflowInForce.key}>
+            {t('app.workflows.runs_here')}
+            <a href="/administration/workflows">{workflowInForce.name ?? t('workflows.default_name')}</a>
+          </p>
+        {/if}
+
+        {#each shownSettings.filter((setting) => groupOf(setting) === group) as setting (setting)}
           {@const chip = chipOf(setting)}
           <section class="setting" data-setting={setting} aria-labelledby="structure-{setting}">
             <div class="head">
@@ -579,9 +708,89 @@
                 selected={(values.automation ?? []) as readonly string[]}
                 onChange={(selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour))))}
               />
+            {:else if setting === 'entry_types'}
+              <p class="hint">{t('app.structure.entry_types_hint')}</p>
+              {#each offeredTypes as type (type)}
+                <CheckboxGroup
+                  label={t('app.structure.entry_types_of', { level: levelName(type) })}
+                  options={typeOptionsOf(type)}
+                  selected={typesOfLevel(entryTypes.all, type, values.entry_types?.[type], fileHub).map((each) => each.key)}
+                  onChange={(selected) => chooseEntryTypes(type, selected)}
+                />
+              {/each}
+              {#if isHub}
+                {@const atHub = typesAtHub(entryTypes.all, container.id)}
+                <div class="hub-types">
+                  <p class="hint">{t('app.structure.hub_types_hint')}</p>
+                  <ul>
+                    {#each atHub.shared.filter((each) => !each.archived) as type (type.key)}
+                      <li>
+                        <span>{type.name ?? levelName(type.level)}</span>
+                        <span class="source">{t('app.structure.hub_types_shared')}</span>
+                        {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === type.key} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyHere(type)}>
+                          {t('app.structure.hub_types_copy')}
+                        </Button>{/if}
+                      </li>
+                    {/each}
+                    {#each atHub.own as type (type.key)}
+                      <li>
+                        <span>{type.name ?? levelName(type.level)}</span>
+                        <span class="source">{type.copied_from ? t('app.structure.hub_types_copied', { from: type.copied_from }) : t('app.structure.hub_types_own')}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+                {@const fieldsHere = fieldsAtHub(customFields.atHub(container.id), container.id)}
+                {#if fieldsHere.shared.length + fieldsHere.own.length > 0}
+                  <div class="hub-types" data-hub-fields>
+                    <p class="hint">{t('app.structure.hub_fields_hint')}</p>
+                    <ul>
+                      {#each fieldsHere.shared as definition (definition.id)}
+                        <li>
+                          <span>{fieldName(definition)}</span>
+                          <span class="source">{t('app.structure.hub_types_shared')}</span>
+                          {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `field:${definition.id}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyFieldHere(definition)}>
+                            {t('app.structure.hub_types_copy')}
+                          </Button>{/if}
+                        </li>
+                      {/each}
+                      {#each fieldsHere.own as definition (definition.id)}
+                        <li>
+                          <span>{fieldName(definition)}</span>
+                          <span class="source">{definition.copied_from ? t('app.structure.hub_fields_copied') : t('app.structure.hub_types_own')}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/if}
+              {/if}
             {/if}
           </section>
         {/each}
+
+        {#if group === 'workflow' && isHub && workflows.list}
+          {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
+          <div class="hub-types" data-hub-workflows>
+            <p class="hint">{t('app.structure.hub_workflows_hint')}</p>
+            <ul>
+              {#each flowsHere.shared as workflow (workflow.key)}
+                <li>
+                  <span>{workflow.name ?? t('workflows.default_name')}</span>
+                  <span class="source">{t('app.structure.hub_types_shared')}</span>
+                  {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `workflow:${workflow.key}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyWorkflowHere(workflow)}>
+                    {t('app.structure.hub_types_copy')}
+                  </Button>{/if}
+                </li>
+              {/each}
+              {#each flowsHere.own as workflow (workflow.key)}
+                <li>
+                  <span>{workflow.name ?? workflow.key}</span>
+                  <span class="source">{workflow.copied_from ? t('app.structure.hub_types_copied', { from: workflow.copied_from }) : t('app.structure.hub_types_own')}</span>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       </Stack>
@@ -595,35 +804,30 @@
         savingLabel={t('app.workspace.saving')}
         onDiscard={discard}
         onSave={() => void save()}
+        reachLabel={reach ? reachOf(reach.preview, t) : undefined}
+        planLabel={t('app.settings.show_plan')}
+        onPlan={reach?.preview.narrows ? () => (narrowing = reach) : undefined}
       />
     </form>
   {/if}
 {/snippet}
 
-<div class="page" data-structure-tabs>
-  <nav class="sections" aria-label={t('app.structure.tabs_label')}>
-    <ul bind:this={sectionList}>
-      {#each sections as each (each.id)}
-        <li>
-          <a
-            href={hrefOf(each.id)}
-            aria-current={tab === each.id ? 'page' : undefined}
-            onclick={(event) => {
-              event.preventDefault();
-              onsection(each.id);
-            }}>{each.label}</a
-          >
-        </li>
-      {/each}
-    </ul>
-  </nav>
-  <div class="section">
-    {#if tab === 'structure'}
-      {@render settingsBody()}
-    {:else}
-      {@render [...before, ...tabs].find((each) => each.id === tab)?.body()}
+<!-- The one settings shell (user-experience.md §5.4, §5.7): the place's sections one at a time,
+     each at its own address, and the leave guard holding the structure's unsaved draft. -->
+<div data-structure-tabs bind:this={shell}>
+  <SettingsPage
+    label={t('app.structure.tabs_label')}
+    sections={sections.map((each) => ({ id: each.id, label: each.label, href: hrefOf(each.id) }))}
+    selected={openSection}
+    onselect={onsection}
+    changes={changeCount}
+  >
+    {#if fileHub}<div class="file"><ViewSectionsAsFile {...placePart(isHub, container.handle ?? undefined)} hubId={fileHub} /></div>{/if}
+    {#if isGroup(openSection)}
+      {@render settingsBody(openSection)}
     {/if}
-  </div>
+    {@render [...before, ...tabs].find((each) => each.id === openSection)?.body()}
+  </SettingsPage>
 </div>
 
 {#if narrowing}
@@ -657,60 +861,9 @@
   .save-as { align-self: flex-start; }
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
+  .hub-types ul { list-style: none; margin: var(--sp-100) 0 0; padding: 0; display: grid; gap: var(--sp-100); }
+  .hub-types li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
+  .hub-types .source { color: var(--text-secondary); font-size: var(--fs-100); margin-inline-end: auto; }
 
-  /* The sections at the start and the open one beside them, as the administration draws its
-     areas. On a phone they are tabs above the section: one line that scrolls sideways, the open
-     one underlined - the way the capture dialog's tabs look - never buttons wrapping into rows. */
-  .page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-300); }
-  .sections { min-width: 0; }
-  .sections ul {
-    display: flex;
-    gap: var(--sp-050);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    overflow-x: auto;
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    scrollbar-width: none;
-  }
-  .sections li { flex: none; }
-  .sections a {
-    display: flex;
-    align-items: center;
-    padding: var(--sp-100) var(--sp-150);
-    border-block-end: var(--bw-ring) solid transparent;
-    color: var(--text-secondary);
-    font-size: var(--fs-100);
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .sections a:hover { color: var(--text-primary); }
-  .sections a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(var(--sp-025) * -1); }
-  /* Rule 3: the open section is announced by `aria-current` and marked, not by colour alone. */
-  .sections a[aria-current='page'] {
-    border-block-end-color: var(--accent-primary);
-    color: var(--text-primary);
-    font-weight: var(--fw-semibold);
-  }
-  .section { min-width: 0; }
-
-  /* From `medium` the list stands at the start as rows of the navigation column, as the
-     administration's areas do (§13 G2). */
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width >= 600px) {
-    .page { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
-    .sections ul { flex-direction: column; overflow-x: visible; border-block-end: 0; }
-    .sections a {
-      padding-block: var(--density-row-block);
-      border-block-end: 0;
-      border-radius: var(--r-md);
-    }
-    .sections a:hover { background: var(--bg-surface-hover); }
-    .sections a[aria-current='page'] {
-      background: var(--bg-surface-pressed);
-      font-weight: var(--fw-medium);
-      box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
-    }
-    :global([dir='rtl']) .sections a[aria-current='page'] { box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary); }
-  }
+  .file { display: flex; justify-content: flex-end; }
 </style>

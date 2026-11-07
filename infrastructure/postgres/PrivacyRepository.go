@@ -639,7 +639,8 @@ func (r PrivacyRepository) RevokeCredentials(
 	return int(removed + rows), nil
 }
 
-// DiscardNotifications removes what was sent to them and what was about to be.
+// DiscardNotifications removes what was sent to them and what was about to be, and the mark of an
+// address the mail server refused. The count is of the notifications.
 func (r PrivacyRepository) DiscardNotifications(
 	ctx context.Context, accountID shared.ID,
 ) (int, error) {
@@ -651,6 +652,22 @@ func (r PrivacyRepository) DiscardNotifications(
 	rows, err := queries.DeleteNotificationsOfAccount(ctx, id)
 	if err != nil {
 		return 0, erasureFailed("removing the notifications of an account", err)
+	}
+	if _, err := queries.DeleteMailUndeliverableOfAccount(ctx, id); err != nil {
+		return 0, erasureFailed("removing the undeliverable mark of an account", err)
+	}
+	return int(rows), nil
+}
+
+// DiscardPersonalRules removes the person's own rules, and their runs by the cascade.
+func (r PrivacyRepository) DiscardPersonalRules(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := queries.DeletePersonalRulesOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the own rules of an account", err)
 	}
 	return int(rows), nil
 }
@@ -683,6 +700,47 @@ func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID
 		return 0, erasureFailed("removing the kudos of an account", err)
 	}
 	return int(rows), nil
+}
+
+// DiscardArrangements removes the person's digests, private dashboards, delegations, chat links and
+// own settings.
+func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	removed := int64(0)
+	for what, remove := range map[string]func(context.Context, pgtype.UUID) (int64, error){
+		"the digests":            queries.DeleteDigestsOfAccount,
+		"the private dashboards": queries.DeletePrivateDashboardsOfAccount,
+		"the delegations":        queries.DeleteDelegationsOfAccount,
+		"the chat links":         queries.DeleteChatLinksOfAccount,
+		"the own settings":       queries.DeletePersonSettingsOfAccount,
+	} {
+		rows, err := remove(ctx, id)
+		if err != nil {
+			return 0, erasureFailed("removing "+what+" of an account", err)
+		}
+		removed += rows
+	}
+	return int(removed), nil
+}
+
+// PseudonymiseTime clears the words on the person's time and removes their running timer.
+func (r PrivacyRepository) PseudonymiseTime(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	cleared, err := queries.ClearTimeNotesOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("clearing the notes on an account's time", err)
+	}
+	timers, err := queries.DeleteTimerOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing an account's running timer", err)
+	}
+	return int(cleared + timers), nil
 }
 
 // kudosPage bounds one read of a person's kudos; the copy pages through all of them.
@@ -747,7 +805,11 @@ func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.I
 	if err != nil {
 		return 0, erasureFailed("removing the intake of an account", err)
 	}
-	return int(rows), nil
+	receipts, err := queries.DeleteMailReceiptsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the mail receipts of an account", err)
+	}
+	return int(rows + receipts), nil
 }
 
 // ReleaseIntake keeps the text and takes the person's address and account off it.
@@ -761,7 +823,11 @@ func (r PrivacyRepository) ReleaseIntake(ctx context.Context, accountID shared.I
 	if err != nil {
 		return 0, erasureFailed("releasing the intake of an account", err)
 	}
-	return int(rows), nil
+	receipts, err := queries.DeleteMailReceiptsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the mail receipts of an account", err)
+	}
+	return int(rows + receipts), nil
 }
 
 // AutomationsRunningAs counts the rules that act as the person.
@@ -778,6 +844,63 @@ func (r PrivacyRepository) AutomationsRunningAs(
 		return 0, erasureFailed("counting the rules that act as an account", err)
 	}
 	return int(count), nil
+}
+
+// IntegrationsRunningAs counts the switched-on integrations that act as the person.
+func (r PrivacyRepository) IntegrationsRunningAs(
+	ctx context.Context, accountID shared.ID,
+) (repository.IntegrationsAs, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	row, err := queries.IntegrationsRunningAs(ctx, id)
+	if err != nil {
+		return repository.IntegrationsAs{}, erasureFailed("counting the integrations that act as an account", err)
+	}
+	return repository.IntegrationsAs{
+		Connectors: int(row.Connectors), Hooks: int(row.Hooks), Agents: int(row.Agents),
+	}, nil
+}
+
+// ReownSwitchedOffIntegrations moves the switched-off integrations of one account to another.
+func (r PrivacyRepository) ReownSwitchedOffIntegrations(
+	ctx context.Context, from, to shared.ID, at time.Time,
+) (repository.IntegrationsAs, error) {
+	queries, fromID, err := r.accountQuery(ctx, from)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	toID, err := uuidOf(to)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	row, err := queries.ReownSwitchedOffIntegrations(ctx, sqlc.ReownSwitchedOffIntegrationsParams{
+		ToAccount: toID, FromAccount: fromID, Now: timestampOf(at),
+	})
+	if err != nil {
+		return repository.IntegrationsAs{}, erasureFailed("moving the switched-off integrations of an account", err)
+	}
+	return repository.IntegrationsAs{
+		Connectors: int(row.Connectors), Hooks: int(row.Hooks), Agents: int(row.Agents),
+	}, nil
+}
+
+// IntegrationsNaming counts every integration that still names the account.
+func (r PrivacyRepository) IntegrationsNaming(
+	ctx context.Context, accountID shared.ID,
+) (repository.IntegrationsAs, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	row, err := queries.IntegrationsNamingAccount(ctx, id)
+	if err != nil {
+		return repository.IntegrationsAs{}, erasureFailed("counting the integrations that name an account", err)
+	}
+	return repository.IntegrationsAs{
+		Connectors: int(row.Connectors), Hooks: int(row.Hooks), Agents: int(row.Agents),
+	}, nil
 }
 
 // OrphanedMedia answers the uploads nothing points at any more.

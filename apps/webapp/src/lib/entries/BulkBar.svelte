@@ -53,6 +53,7 @@
   import { renderProblem } from '../problem.ts';
   import { focusFirst } from '../forms/missing.ts';
   import { offerUndo, restoreOrder } from './undo.svelte.ts';
+  import { statusLabel, workflowFor, workflows } from '../data/workflows.svelte.ts';
 
   interface Props {
     /**
@@ -80,6 +81,7 @@
   let accountId = $state('');
   let targetCollectionId = $state('');
   let bucketId = $state('');
+  let toStatus = $state('');
   let titles = $state('');
   let atomic = $state(false);
   let isApplying = $state(false);
@@ -98,6 +100,8 @@
    * and inventing one from what happens to be cached would offer a different set on every screen.
    */
   const collections = $derived(path?.hubId ? containers.collectionsOf(path.hubId) : []);
+  /** The workflow the collection runs, where it runs one: a bulk then moves each entry by its step. */
+  const flow = $derived(collectionId ? workflowFor(workflows.list, collectionId, path?.hubId, 'task') : undefined);
   /**
    * The operations offered: one that needs a value from a list is not offered while the list is
    * empty - a label to add where the collection has none - since nothing could ever be chosen.
@@ -118,6 +122,7 @@
       if (each === 'ASSIGN') return carried('ASSIGNMENT');
       if (each === 'UPDATE_ITEM') return collectionBuckets.length > 0 && carried('BUCKET');
       if (each === 'MOVE_ITEM') return collections.length > 0;
+      if (each === 'TAKE_STEP') return flow !== undefined;
       return true;
     }),
   );
@@ -142,6 +147,8 @@
         return targetCollectionId !== '';
       case 'UPDATE_ITEM':
         return bucketId !== '';
+      case 'TAKE_STEP':
+        return toStatus !== '';
       case 'CREATE_ITEM':
         return titles.trim() !== '';
       default:
@@ -161,6 +168,9 @@
         return { target_collection_id: targetCollectionId, target_parent_id: null };
       case 'UPDATE_ITEM':
         return { bucket_id: bucketId };
+      case 'TAKE_STEP':
+        // Each entry takes its own step to the status, under its own rules (UC-FLW-03 check 7).
+        return { to_status: toStatus };
       default:
         return {};
     }
@@ -291,6 +301,15 @@
             accountId = ids[0] ?? '';
             isValueMissing = false;
           }}
+        />
+      {:else if op === 'TAKE_STEP' && flow}
+        <Select
+          label={t('app.bulk.to_status')}
+          size="sm"
+          bind:value={toStatus}
+          error={isValueMissing && toStatus === '' ? t('app.bulk.needs_value') : undefined}
+          onchange={() => (isValueMissing = false)}
+          options={flow.published.statuses.map((status) => ({ value: status.key, label: statusLabel(status, t) }))}
         />
       {:else if op === 'MOVE_ITEM'}
         <Select

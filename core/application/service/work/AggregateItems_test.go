@@ -1,0 +1,323 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package work
+
+import (
+	"context"
+	"errors"
+	"slices"
+	"testing"
+
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/clock"
+)
+
+// aggregates records the search a summary handed to the adapter.
+type aggregates struct {
+	asked       repository.ItemSearch
+	aggregation view.Aggregation
+}
+
+func (a *aggregates) Aggregate(
+	_ context.Context, search repository.ItemSearch, aggregation view.Aggregation, _ string,
+) (repository.ItemAggregateResult, error) {
+	a.asked, a.aggregation = search, aggregation
+	return repository.ItemAggregateResult{Rows: []repository.ItemAggregateRow{{Count: 3}}}, nil
+}
+
+func summaryActor() appshared.ActorContext {
+	actor := actorFixture()
+	actor.Scopes = []string{itemsRead}
+	return actor
+}
+
+func aggregateFixture(permits *reader) (AggregateItems, *aggregates, *authorizer) {
+	store, _, _ := destinationsFixture()
+	adapter, guard := &aggregates{}, &authorizer{}
+	return AggregateItems{
+		Query:      QueryItems{Authorizer: guard, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now)},
+		Aggregates: adapter, Collections: store, Reader: permits,
+	}, adapter, guard
+}
+
+// A workspace summary reads the collections the actor may read, as one bound list, and asks no
+// single anchor's permission (S-11).
+func TestAWorkspaceSummaryIsNarrowedToTheReadableCollections(t *testing.T) {
+	_, open, closed := destinationsFixture()
+	permits := &reader{permit: map[shared.ID]bool{open: true}}
+	h, adapter, guard := aggregateFixture(permits)
+
+	registry, err := usecase.NewRegistry(nil, h.Descriptor())
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	out, err := registry.Invoke(t.Context(), AggregateItemsName, summaryActor(), usecase.Input{
+		"scope_workspace": true,
+		"aggregate":       map[string]any{"function": "AVG", "field": "lead_time"},
+	})
+	if err != nil {
+		t.Fatalf("summarising: %v", err)
+	}
+
+	anchor := adapter.asked.Anchor
+	if anchor.Kind != repository.AnchorCollections || !slices.Equal(anchor.CollectionIDs, []shared.ID{open}) {
+		t.Errorf("the statement reads %+v, want only %s", anchor, open)
+	}
+	if slices.Contains(anchor.CollectionIDs, closed) {
+		t.Error("a collection the actor may not read is counted")
+	}
+	if string(permits.request.Permission) != "READ" || permits.request.Action != ItemReadAction {
+		t.Errorf("each collection was asked %+v, want a read", permits.request)
+	}
+	if len(guard.requests) != 0 {
+		t.Errorf("a workspace summary asked an anchor's permission: %+v", guard.requests)
+	}
+	if data, _ := out["data"].([]usecase.Output); len(data) != 1 {
+		t.Errorf("the answer is %v", out)
+	}
+}
+
+// A workspace summary nobody reads anything of counts nothing rather than everything.
+func TestAWorkspaceSummaryOfNothingReadableReadsNoCollection(t *testing.T) {
+	h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{}})
+	_, err := h.Execute(t.Context(), summaryActor(),
+		view.Spec{Scope: view.Scope{Workspace: true}}, view.Aggregation{Function: view.AggregateCount})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adapter.asked.Anchor.Kind != repository.AnchorCollections || len(adapter.asked.Anchor.CollectionIDs) != 0 {
+		t.Errorf("the statement reads %+v", adapter.asked.Anchor)
+	}
+}
+
+// A summary that names neither an anchor nor the workspace is refused, as a query is.
+func TestASummaryWithoutAScopeIsRefused(t *testing.T) {
+	h, adapter, _ := aggregateFixture(&reader{})
+	registry, err := usecase.NewRegistry(nil, h.Descriptor())
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
+	_, err = registry.Invoke(t.Context(), AggregateItemsName, actorFixture(), usecase.Input{
+		"aggregate": map[string]any{"function": "COUNT"},
+	})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "query.scope_required" {
+		t.Fatalf("got %v, want query.scope_required", err)
+	}
+	if adapter.asked.Anchor.Kind != "" {
+		t.Error("an unscoped summary reached the adapter")
+	}
+}
+
+// sharedEntries answers what was shared with the actor alone.
+type sharedEntries struct{ entries []identityrepo.SharedEntry }
+
+func (s sharedEntries) SharedAcross(
+	_ context.Context, _ shared.ID, _ int,
+) ([]identityrepo.SharedEntry, error) {
+	return s.entries, nil
+}
+
+// An entry shared with the actor alone, in a collection they do not read, is counted as a second
+// bound list; one in a readable collection is counted already, and one the authoriser refuses at
+// its own path is not (S-11).
+func TestAWorkspaceSummaryCountsAnEntrySharedAlone(t *testing.T) {
+	store, open, closed := destinationsFixture()
+	sharedHere := shared.MustParseID("0192f000-0000-7000-8000-000000000401")
+	sharedThere := shared.MustParseID("0192f000-0000-7000-8000-000000000402")
+	refused := shared.MustParseID("0192f000-0000-7000-8000-000000000403")
+	permits := &reader{permit: map[shared.ID]bool{open: true, sharedThere: true}}
+	adapter := &aggregates{}
+	h := AggregateItems{
+		Query:      QueryItems{Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now)},
+		Aggregates: adapter, Collections: store, Reader: permits,
+		Shared: sharedEntries{entries: []identityrepo.SharedEntry{
+			{ItemID: sharedHere, CollectionID: open},
+			{ItemID: sharedThere, CollectionID: closed},
+			{ItemID: refused, CollectionID: closed},
+		}},
+	}
+	_, err := h.Execute(t.Context(), summaryActor(),
+		view.Spec{Scope: view.Scope{Workspace: true}, IncludeArchived: true},
+		view.Aggregation{Function: view.AggregateCount})
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor := adapter.asked.Anchor
+	if !slices.Equal(anchor.CollectionIDs, []shared.ID{open}) ||
+		!slices.Equal(anchor.ItemIDs, []shared.ID{sharedThere}) {
+		t.Errorf("the statement reads %+v", anchor)
+	}
+	if permits.request.TargetType != itemTarget {
+		t.Errorf("the shared entries were asked %+v", permits.request)
+	}
+	if !store.asked.IncludeArchived {
+		t.Error("a summary over archived entries left the archived collections out")
+	}
+}
+
+// UC-GOL-04 check 11: a flow quantity is handed the started statuses of the workspace's workflows
+// and the moment of asking, from the clock.
+func TestAFlowQuantityIsHandedTheStartedStatusesAndTheMoment(t *testing.T) {
+	_, open, _ := destinationsFixture()
+	h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+	h.Workflows = &workflowStore{rows: []domain.Workflow{{Key: "support", Published: domain.WorkflowShape{
+		Statuses: []domain.WorkflowStatus{{Key: "triage", Category: domain.CategoryInProgress}},
+	}}}}
+	_, err := h.Execute(t.Context(), summaryActor(), view.Spec{Scope: view.Scope{Workspace: true}},
+		view.Aggregation{Function: view.AggregateAvg, Quantity: view.QuantityWipAge})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := adapter.aggregation; !slices.Equal(got.Started, []string{"in_progress", "triage"}) || !got.Now.Equal(now) {
+		t.Fatalf("the adapter was handed %v at %v", got.Started, got.Now)
+	}
+}
+
+// timeReach answers the time module's sight, recording the collections it was asked about.
+type timeReach struct {
+	shown    map[shared.ID]bool
+	sumsOnly bool
+	asked    []shared.ID
+}
+
+func (r *timeReach) Reach(
+	_ context.Context, _ appshared.ActorContext, collections []domain.Container,
+) ([]bool, bool, error) {
+	out := make([]bool, len(collections))
+	for i, c := range collections {
+		r.asked = append(r.asked, c.ID)
+		out[i] = r.shown[c.ID]
+	}
+	return out, r.sumsOnly, nil
+}
+
+// A time summary counts the reader's own records and other people's where the time module says the
+// reader sees them; where the workspace shows sums only, a grouping by person is refused and a
+// small group withheld (UC-TIM-04 check 4, F-9).
+func TestATimeSummaryCountsWhatTheReaderSeesOfOtherPeoplesTime(t *testing.T) {
+	_, open, closed := destinationsFixture()
+	workspace := view.Spec{Scope: view.Scope{Workspace: true}}
+	minutes := view.Aggregation{Source: view.SourceTime, Function: view.AggregateSum, Minutes: true}
+
+	t.Run("the shown collections are bound", func(t *testing.T) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true, closed: true}})
+		reach := &timeReach{shown: map[shared.ID]bool{open: true}}
+		h.Time = reach
+		if _, err := h.Execute(t.Context(), summaryActor(), workspace, minutes); err != nil {
+			t.Fatal(err)
+		}
+		sight := adapter.aggregation.Sight
+		if sight.Reader != summaryActor().AccountID || !slices.Equal(sight.Shown, []shared.ID{open}) || sight.Withhold {
+			t.Errorf("the sight is %+v", sight)
+		}
+		if !slices.Contains(reach.asked, closed) {
+			t.Errorf("the time module was not asked about %s: %v", closed, reach.asked)
+		}
+	})
+	t.Run("unwired, the reader's own alone", func(t *testing.T) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+		if _, err := h.Execute(t.Context(), summaryActor(), workspace, minutes); err != nil {
+			t.Fatal(err)
+		}
+		if sight := adapter.aggregation.Sight; len(sight.Shown) != 0 || sight.Reader.IsZero() {
+			t.Errorf("the sight is %+v", sight)
+		}
+	})
+	t.Run("sums only withholds a small group", func(t *testing.T) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+		h.Time = &timeReach{shown: map[shared.ID]bool{open: true}, sumsOnly: true}
+		if _, err := h.Execute(t.Context(), summaryActor(), workspace, minutes); err != nil {
+			t.Fatal(err)
+		}
+		if !adapter.aggregation.Sight.Withhold {
+			t.Error("a small group is not withheld")
+		}
+	})
+	t.Run("sums only refuses a person", func(t *testing.T) {
+		h, _, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{open: true}})
+		h.Time = &timeReach{shown: map[shared.ID]bool{open: true}, sumsOnly: true}
+		byPerson := minutes
+		byPerson.TimeGroup = view.TimeByPerson
+		_, err := h.Execute(t.Context(), summaryActor(), workspace, byPerson)
+		var refusal *shared.Error
+		if !errors.As(err, &refusal) || refusal.DetailCode != "time.aggregated_only" {
+			t.Fatalf("got %v, want time.aggregated_only", err)
+		}
+	})
+}
+
+// pageReach answers the readable spaces, recording what it was asked.
+type pageReach struct {
+	readable map[shared.ID]bool
+	asked    []shared.ID
+	named    bool
+}
+
+func (r *pageReach) Readable(_ context.Context, _ appshared.ActorContext, hubs []shared.ID, named bool) ([]shared.ID, error) {
+	r.asked, r.named = hubs, named
+	var out []shared.ID
+	for _, hub := range hubs {
+		if r.readable[hub] {
+			out = append(out, hub)
+		}
+	}
+	return out, nil
+}
+
+// A pages summary counts the spaces the reader may read pages in; a page is no entry, so the
+// entries' filter and a collection's scope are refused rather than ignored (F-9).
+func TestAPagesSummaryCountsTheReadableSpaces(t *testing.T) {
+	open := shared.MustParseID("0192f000-0000-7000-8000-000000000311")
+	closed := shared.MustParseID("0192f000-0000-7000-8000-000000000312")
+	list := shared.MustParseID("0192f000-0000-7000-8000-000000000313")
+	store := &containers{stored: map[shared.ID]domain.Container{
+		open: {ID: open, Type: domain.ContainerHub},
+		list: {ID: list, Type: domain.ContainerCollection, ParentID: open},
+	}, page: repository.ContainerPage{Containers: []domain.Container{
+		{ID: open, Type: domain.ContainerHub}, {ID: closed, Type: domain.ContainerHub},
+	}}}
+	count := view.Aggregation{Source: view.SourcePages, Function: view.AggregateCount}
+	fixture := func() (AggregateItems, *aggregates, *pageReach) {
+		h, adapter, _ := aggregateFixture(&reader{permit: map[shared.ID]bool{}})
+		h.Query.Containers = store
+		reach := &pageReach{readable: map[shared.ID]bool{open: true}}
+		h.Pages = reach
+		return h, adapter, reach
+	}
+
+	h, adapter, reach := fixture()
+	if _, err := h.Execute(t.Context(), summaryActor(), view.Spec{Scope: view.Scope{Workspace: true}}, count); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(adapter.aggregation.Hubs, []shared.ID{open}) || reach.named || len(reach.asked) != 2 {
+		t.Errorf("the workspace counted %v after asking %v (named %v)", adapter.aggregation.Hubs, reach.asked, reach.named)
+	}
+
+	h, _, reach = fixture()
+	if _, err := h.Execute(t.Context(), summaryActor(), view.Spec{Scope: view.Scope{ContainerID: open}}, count); err != nil {
+		t.Fatal(err)
+	}
+	if !reach.named || !slices.Equal(reach.asked, []shared.ID{open}) {
+		t.Errorf("a named hub was asked %v (named %v)", reach.asked, reach.named)
+	}
+
+	refused := func(spec view.Spec, code string) {
+		t.Helper()
+		h, _, _ := fixture()
+		_, err := h.Execute(t.Context(), summaryActor(), spec, count)
+		var refusal *shared.Error
+		if !errors.As(err, &refusal) || refusal.DetailCode != code {
+			t.Errorf("got %v, want %s", err, code)
+		}
+	}
+	refused(view.Spec{Scope: view.Scope{ContainerID: list}}, "query.aggregate_pages_hub_scope")
+	refused(view.Spec{Scope: view.Scope{Workspace: true}, Filter: &view.Node{Op: view.OpAnd}}, "query.aggregate_pages_unfiltered")
+}

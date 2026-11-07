@@ -59,4 +59,4 @@ See [backup-restore.md](../../architecture/backup-restore.md) §5–6.
 ## Today
 
 * Check 7: not met — expiry removes archives with log lines only; no trail entry is written.
-* Check 8: not met in part — `hubctl` cannot create a schedule, and the web form sets the rule, the zone and the floor only, not the full-backup days, the generation plan or the trial restore.
+* Check 8: not met in part — `hubctl` cannot create a schedule, and the web form sets the rule, the zone and the floor only, not the full-backup days, the generation plan or the trial restore. The empty backup screen's one act, *Back up this workspace every night*, adds a target in the installation's backup volume with a nightly schedule that is full on Sundays with the trial restore and the server's default plan (`apps/webapp/e2e/backup.test.mjs`); a schedule added by hand still cannot choose them.

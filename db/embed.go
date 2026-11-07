@@ -24,6 +24,12 @@ import (
 //go:embed migrations/*.sql
 var Migrations embed.FS
 
+// UpgradeFrom is the oldest newest-migration a database may have for this build to migrate it: the
+// newest migration of the previous major's first release, set when a major is tagged
+// (versioning-release.md §5, §7). A database further behind is two majors back and goes through
+// the intermediate release first. Zero while no major has been released.
+const UpgradeFrom int64 = 0
+
 // Versions answers the version of every embedded migration, ascending - the set a database must
 // hold all of before this binary may serve against it (deployment.md §5). The set rather than the
 // highest, because migrations are applied out of order.

@@ -6,6 +6,7 @@ package automation
 import (
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -27,18 +28,20 @@ type Occurrence struct {
 	FireAt time.Time
 }
 
-// OccurrenceAt works out when a rule owes an entry, given the instant its anchor names.
+// OccurrenceAt works out when a rule owes an entry, given the instant its anchor names. The offset's
+// weeks and days are calendar days in zone (the workspace's; nil is UTC), keeping the anchor's local
+// clock time across a clock change; its hours, minutes and seconds are lengths of time.
 //
 // The anchor is a pointer because "there is no due date" and "the due date is the zero time" are
 // two different facts, and only the first of them means the rule owes nothing. A cleared anchor
 // answers false, which is what makes "does not fire for an anchor that was cleared" a property of
 // this function rather than of a caller that remembered to check.
-func OccurrenceAt(trigger Trigger, anchor *time.Time) (time.Time, bool, error) {
+func OccurrenceAt(trigger Trigger, anchor *time.Time, zone *time.Location) (time.Time, bool, error) {
 	if trigger.Kind != TriggerRelativeDate || anchor == nil || anchor.IsZero() {
 		return time.Time{}, false, nil
 	}
 
-	offset, err := parseOffset(trigger.Offset)
+	days, clock, err := parseNominalOffset(trigger.Offset)
 	if err != nil {
 		// Unreachable through the aggregate, which parses the same text when the rule is written.
 		// Reported rather than swallowed all the same: a rule stored before an offset grammar
@@ -47,5 +50,29 @@ func OccurrenceAt(trigger Trigger, anchor *time.Time) (time.Time, bool, error) {
 			WithDetail("automation.offset_invalid").
 			WithParams(map[string]string{"offset": trigger.Offset})
 	}
-	return anchor.Add(offset).UTC(), true, nil
+	if zone == nil {
+		zone = time.UTC
+	}
+	return anchor.In(zone).AddDate(0, 0, days).Add(clock).UTC(), true, nil
+}
+
+// OccurrenceOn is OccurrenceAt for a trigger that names a business calendar: its offset counts
+// cal's working days, at the anchor's local clock time. A trigger without one ignores cal and counts
+// calendar days in zone.
+func OccurrenceOn(
+	trigger Trigger, anchor *time.Time, cal calendar.BusinessCalendar, zone *time.Location,
+) (time.Time, bool, error) {
+	if trigger.Calendar == "" {
+		return OccurrenceAt(trigger, anchor, zone)
+	}
+	if trigger.Kind != TriggerRelativeDate || anchor == nil || anchor.IsZero() {
+		return time.Time{}, false, nil
+	}
+	days, err := BusinessDays(trigger.Offset)
+	if err != nil {
+		return time.Time{}, false, shared.ErrValidation.
+			WithDetail("automation.offset_invalid").
+			WithParams(map[string]string{"offset": trigger.Offset})
+	}
+	return cal.AddWorkingDays(*anchor, days).UTC(), true, nil
 }

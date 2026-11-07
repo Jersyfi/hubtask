@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-08, P-12, P-13, P-14]
 state: built
 tasks: [C-08, J-09, J-10, M-09, F3-18, F10-05, F10-18]
-checked_by: [test/integration/search_test.go, test/integration/hybrid_search_test.go, test/integration/search_model_test.go, core/application/service/work/SearchItems_test.go, apps/webapp/e2e/search.test.mjs]
+checked_by: [test/integration/search_test.go, test/integration/hybrid_search_test.go, test/integration/search_model_test.go, core/application/service/work/SearchItems_test.go, apps/webapp/e2e/search.test.mjs, test/security/search_test.go]
 ---
 
 # Find an entry again by searching
@@ -47,7 +47,8 @@ lets the search also match by meaning ("heating" finds "boiler"); the words stil
 ## Where it ends
 
 * No search across workspaces ([P-01](../../vision/principles.md)).
-* No search inside attachments' content.
+* No search inside attachments' content: an attachment is found by the name it arrived under,
+  never by its text, because reading a file's text needs an extractor the product does not carry.
 * No saved searches separate from saved views
   ([UC-WRK-17](./UC-WRK-17-filter-sort-and-save-a-view-of-my-work.md)).
 * Rebuilding the index after a language configuration changed is an administrator's action and

@@ -35,6 +35,7 @@ export interface PaletteSource {
 class Palette {
   #isOpen = $state(false);
   #opener: HTMLElement | null = null;
+  #summons = $state(0);
   #sources = $state<Record<string, PaletteSource>>({});
 
   get isOpen(): boolean {
@@ -54,6 +55,15 @@ class Palette {
     const active = document.activeElement;
     this.#opener = active instanceof HTMLElement && active !== document.body ? active : null;
     this.#isOpen = true;
+    this.#summons += 1;
+  }
+
+  /**
+   * Counts the times it was summoned. The words left from the last question are selected then,
+   * so what is typed next replaces them instead of being appended to them.
+   */
+  get summons(): number {
+    return this.#summons;
   }
 
   /** Opened from its own field: nothing to return to but the field. */

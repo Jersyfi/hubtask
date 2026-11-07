@@ -13,7 +13,37 @@ import (
 )
 
 func accountHandler(accounts *accountStore, work *unitOfWork) GetAccount {
-	return GetAccount{Accounts: accounts, UnitOfWork: work}
+	return GetAccount{Members: &authorizer{}, Accounts: accounts, UnitOfWork: work}
+}
+
+// The name is a member's to read: a requester, who learns of the team only as "the team" in the
+// portal, is refused another account's name by the authoriser's member question, and still reads
+// their own - so a screen naming its reader works for everybody.
+func TestARequesterReadsTheirOwnNameAndNobodyElses(t *testing.T) {
+	other, own := settled(t), settled(t)
+	own.ID = serviceID
+	refusal := shared.ErrForbidden.WithDetail("access.not_permitted").WithParams(map[string]string{"permission": "READ"})
+	members := &authorizer{refuse: refusal}
+	handler := GetAccount{Members: members, Accounts: newAccounts(other, own), UnitOfWork: &unitOfWork{}}
+
+	if _, err := handler.Execute(t.Context(), self(serviceID), other.ID); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("another account = %v, want the refusal", err)
+	}
+	if len(members.requests) != 1 || !members.requests[0].AnyMember || members.requests[0].TargetID != other.ID ||
+		members.requests[0].Action != AccountReadAction {
+		t.Errorf("asked %+v, want any member about the account read", members.requests)
+	}
+	if got, err := handler.Execute(t.Context(), self(serviceID), serviceID); err != nil || got.ID != serviceID {
+		t.Errorf("their own = %v, %v, want it answered", got.ID, err)
+	}
+	if len(members.requests) != 1 {
+		t.Error("reading their own asked the member question")
+	}
+	// Without the authoriser, another account's name is nobody's.
+	if _, err := (GetAccount{Accounts: newAccounts(other), UnitOfWork: &unitOfWork{}}).
+		Execute(t.Context(), self(serviceID), other.ID); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("without the authoriser = %v, want a refusal", err)
+	}
 }
 
 // The whole point: a client holding an identifier from a record it was allowed to read learns the

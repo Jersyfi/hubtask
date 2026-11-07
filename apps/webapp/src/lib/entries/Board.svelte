@@ -6,10 +6,9 @@
   // The collection as a board: one grouped query, one column per bucket.
   //
   // It is not a list fetched and then sorted in the browser. `group_by` is what turns the read into
-  // columns — "one group per distinct value, each with its own rows and its own cursor" — and that
-  // is also why a column with two hundred cards pages **on its own**: a grouped result has no
-  // single walk, so continuing a column is a different question rather than a later page of the
-  // same one.
+  // columns — "one group per distinct value, each with its own rows and its own cursor". A column
+  // draws its first 50 cards and offers the rest: continuing it asks for that group again, its key
+  // as a filter and its cursor as the cursor (`items.loadMoreColumn`).
   //
   // **`BUCKET` is a `TASK` capability only.** Buckets apply to the entries directly in the
   // collection, so a board shows tasks; what a work package or an activity does on a board is
@@ -25,21 +24,23 @@
     Checkbox,
     Dialog,
     EmptyState,
-    ErrorState,
     IconButton,
     Icon,
     LabelChip,
+    LoadMore,
     Menu,
     Skeleton,
     ViewSwitcher,
     VisuallyHidden,
     WorkItemCard,
+    flip,
     rankIntent,
     rankTarget,
     type RankCommand,
     type View,
   } from '@hubtask/design-system/components';
-  import type { Bucket, BulkResult, WorkItem } from '@hubtask/sync-engine';
+  import FailureState from '../frame/FailureState.svelte';
+  import type { Bucket, BulkResult, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
@@ -53,17 +54,22 @@
   import { supports } from '../data/capability.svelte.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { isSwipe, swipeThreshold } from './swipe.ts';
+  import { goesOverLimit } from './wip.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
   import CelebrationSlot from './CelebrationSlot.svelte';
   import { buckets } from '../data/buckets.svelte.ts';
   import { items } from '../data/items.svelte.ts';
+  import { statusLabel, workflows } from '../data/workflows.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
+  import { entryTypes, typeNameOf } from '../data/entrytypes.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
+  import EntryKey from './EntryKey.svelte';
+  import { containers } from '../data/containers.svelte.ts';
   import { outcomeOf } from '../data/bulk.ts';
   import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -104,6 +110,11 @@
     /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
     mayShare?: boolean;
     /**
+     * Whether a card draws its key (user-experience.md §5.6): what the list's *Fields* say, so a
+     * card holding nothing else stays a title alone where nobody asked for keys.
+     */
+    showsKey?: boolean;
+    /**
      * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
      * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
      * a copy where the reader may create one.
@@ -113,6 +124,12 @@
     mayCreate: boolean;
     /** Whether the reader may change the board's columns, which are the collection's shape (`STRUCTURE`). */
     mayShape: boolean;
+    /**
+     * The workflow the collection runs, where it runs one: the board is then one column per status
+     * (UC-FLW-03 check 2), a card carried into another column takes the step to that status - the
+     * server decides, as on every door - and the buckets stay out of it.
+     */
+    statuses?: WorkflowShape;
   }
 
   const {
@@ -127,7 +144,11 @@
     changeRefusal,
     mayCreate,
     mayShape,
+    statuses,
+    showsKey = false,
   }: Props = $props();
+  // The collection the cards' keys are read from (ticket.ts).
+  const keyedCollection = $derived(containers.find(collectionId));
 
   /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
   const isMovable = (card: WorkItem) => !isReadOnly && changeRefusal(card) === undefined;
@@ -147,12 +168,15 @@
 
   $effect(() => {
     const wanted = collectionId;
-    const asked = query;
+    const byStatus = statuses !== undefined;
+    const asked = byStatus ? { ...query, group: { field: 'status', limit_per_group: query?.group?.limit_per_group ?? 50 } } : query;
     return untrack(() => {
       const stops = [
         buckets.open(wanted),
         items.openBoard(wanted, asked),
         labels.open(wanted),
+        // A board grouped by type heads its columns by the types' names, so it reads them.
+        ...(asked?.group?.field === 'entry_type' ? [entryTypes.open()] : []),
       ];
       return () => {
         for (const stop of stops) stop();
@@ -190,18 +214,30 @@
    * the query grouped on rather than the collection's buckets, because a `wip_limit` and a done
    * column are properties of a bucket and mean nothing about a title or a type.
    */
-  const isBucketBoard = $derived((query?.group?.field ?? 'bucket_id') === 'bucket_id');
+  const isStatusBoard = $derived(statuses !== undefined);
+  const isBucketBoard = $derived(!isStatusBoard && (query?.group?.field ?? 'bucket_id') === 'bucket_id');
 
   const columns = $derived(
-    isBucketBoard
+    statuses
+      ? statuses.statuses.map((status) => ({
+          id: status.key,
+          name: statusLabel(status, t),
+          wip_limit: null,
+          is_done_bucket: status.category === 'DONE',
+          version: 0,
+        }))
+      : isBucketBoard
       ? buckets.of(collectionId)
       : // A column per value the result came back grouped by, named by the value itself: the
-        // grouping field is the installation's and this client has no vocabulary for its values.
+        // grouping field is the installation's and this client has no vocabulary for its values -
+        // except a type, whose key the workspace names (S-03), as the list names it.
         groups
           .filter((group) => group.key !== null)
           .map((group) => ({
             id: group.key as string,
-            name: group.key as string,
+            name: query?.group?.field === 'entry_type'
+              ? typeNameOf(entryTypes.all, group.key as string, (level) => t('app.entry_types.level', { level }))
+              : (group.key as string),
             wip_limit: null,
             is_done_bucket: false,
             version: 0,
@@ -273,7 +309,26 @@
     };
   });
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
-    return groups.find((group) => group.key === bucketId)?.data ?? [];
+    void groups;
+    return items.columnCards(collectionId, bucketId);
+  }
+
+  /** The columns reading their next cards, and the ones whose next cards did not arrive. */
+  let columnsLoading = $state<Record<string, boolean>>({});
+  let columnsFailed = $state<Record<string, boolean>>({});
+
+  async function loadMoreOf(bucketId: string | null) {
+    const at = bucketId ?? 'none';
+    if (columnsLoading[at]) return;
+    columnsLoading = { ...columnsLoading, [at]: true };
+    columnsFailed = { ...columnsFailed, [at]: false };
+    try {
+      await items.loadMoreColumn(collectionId, bucketId);
+    } catch {
+      columnsFailed = { ...columnsFailed, [at]: true };
+    } finally {
+      columnsLoading = { ...columnsLoading, [at]: false };
+    }
   }
 
   function countOf(bucketId: string | null): number | null {
@@ -371,7 +426,7 @@
     const target = columns.find((column) => column.id === bucketId);
     // A limit is advice: the move goes ahead, and is announced as going over it (UC-WRK-31 check 3).
     const isOverLimit =
-      target?.wip_limit != null && item.bucket_id !== bucketId && (countOf(bucketId) ?? 0) + 1 > target.wip_limit;
+      item.bucket_id !== bucketId && goesOverLimit(target?.wip_limit, countOf(bucketId), cardsOf(bucketId).length);
     try {
       let moved = await items.setBucket(item.id, bucketId, item.version);
 
@@ -391,6 +446,45 @@
       // The card as it now stands, version included. A drag ranks it straight afterwards, and a
       // version guessed rather than read is a precondition that fails for no reason the reader
       // can act on — the completion above may have bumped it a second time.
+      return moved;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+      return undefined;
+    }
+  }
+
+  /**
+   * The converse of `moveTo`'s done column (user-experience.md §7.5): a card marked as done on a
+   * board of buckets moves to the done column, so the board and the tick never disagree. The
+   * client's reaction for the same reason the drop's is; the completion first, so a refused one
+   * moves nothing.
+   */
+  async function completeInto(item: WorkItem, bucketId: string) {
+    writeFailure = undefined;
+    try {
+      const completed = await items.setCompleted(item.id, true, crypto.randomUUID());
+      void celebration.celebrate(completed);
+      await items.setBucket(completed.id, bucketId, completed.version);
+      announcer.say(t('app.entries.completed_announced', { title: item.title }));
+      refocusId = item.id;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /**
+   * Takes the step into a status column (UC-FLW-03 check 2): the same call the status control
+   * makes, so the same rules hold. A refusal names what the step still needs, and the card stays
+   * where the server has it.
+   */
+  async function stepTo(item: WorkItem, status: string): Promise<WorkItem | undefined> {
+    writeFailure = undefined;
+    const target = columns.find((column) => column.id === status);
+    try {
+      const moved = await workflows.take(item, { to_status: status });
+      if (moved.completion?.is_completed && !item.completion?.is_completed) void celebration.celebrate(moved);
+      announcer.say(t('app.board.moved', { title: item.title, name: target?.name ?? status, limit: '' }));
+      refocusId = item.id;
       return moved;
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
@@ -462,7 +556,12 @@
         mayShare,
         carries: (capability) => supports(card.type, capability).status === 'permitted',
         level: level && { ...level, outReason: level.outReason },
-        extras: isBucketBoard
+        extras: isStatusBoard
+          ? columns.filter((target) => target.id !== card.status).map((target) => ({
+              id: `status:${target.id}`,
+              label: t('app.board.move_to', { title: card.title, name: target.name }),
+            }))
+          : isBucketBoard
           ? [...columns, null].map((target) => ({
               id: `bucket:${target?.id ?? 'none'}`,
               label: t('app.board.move_to', { title: card.title, name: target?.name ?? t('app.board.unbucketed') }),
@@ -491,9 +590,18 @@
       void rank(card, cards, id);
       return;
     }
+    if (id.startsWith('status:')) {
+      void stepTo(card, id.slice('status:'.length));
+      return;
+    }
     if (id.startsWith('bucket:')) {
       const bucketId = id.slice('bucket:'.length);
       void moveTo(card, bucketId === 'none' ? null : bucketId);
+      return;
+    }
+    const done = isBucketBoard ? columns.find((column) => column.is_done_bucket) : undefined;
+    if (id === 'complete' && done && !columns.find((column) => column.id === card.bucket_id)?.is_done_bucket) {
+      void completeInto(card, done.id);
       return;
     }
     void actions?.run(card, id, cards);
@@ -552,6 +660,12 @@
     // Across columns is a column change only where a column is a bucket. On any other grouping the
     // drag ranks within the column it was dropped in and changes nothing else, because the value
     // it was grouped by is not a place an entry can be put.
+    if (isStatusBoard && from !== to && to !== 'none') {
+      const cards = cardsOf(to);
+      const moved = await stepTo(card, to);
+      if (moved) await items.reorder(card.id, anchorFor(cards, card.id, position), moved.version, crypto.randomUUID());
+      return;
+    }
     if (!isBucketBoard) {
       await rankTo(card, cardsOf(to === 'none' ? null : to), position);
       return;
@@ -759,13 +873,7 @@
 {#if boardState === undefined || boardState.status === 'loading' || boardState.status === 'idle'}
   <div aria-busy="true"><Skeleton lines={3} shape="block" /></div>
 {:else if failure}
-  <ErrorState
-    title={failure.message}
-    reference={failure.reference}
-    referenceLabel={t('app.reference')}
-    retryLabel={t('app.retry')}
-    onRetry={() => items.openBoard(collectionId, query)()}
-  />
+  <FailureState problem={failure} onRetry={() => items.openBoard(collectionId, query)()} />
 {:else if columns.length === 0 && cardsOf(null).length === 0}
   <ReplicaMark state={boardState} />
   <!-- §4.1: say what this place is for, and offer the one action. A board with no columns that
@@ -843,8 +951,10 @@
             {#each cards as card (card.id)}
               <!-- `data-card` is how a key press finds its way back from the focused control to the
                    card, and `data-column` says which column's cards it is ranked among. -->
+              <!-- A card moved by a drop or a rank command travels to its new place (motion.reorder). -->
               <div
                 class="card"
+                animate:flip
                 data-card={card.id}
                 data-column={bucket?.id ?? 'none'}
                 data-celebrating={moment && moment.item.id === card.id ? '' : undefined}
@@ -901,6 +1011,7 @@
                     {/if}
                   {/snippet}
                   {#snippet footer()}
+                    {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}
                       <span class="count"><Icon name="square-check" size="sm" /><span aria-hidden="true">{card.counts.parts_done}/{card.counts.parts}</span><VisuallyHidden>{t('app.board.parts_done', { done: String(card.counts.parts_done), count: String(card.counts.parts) })}</VisuallyHidden></span>
@@ -933,6 +1044,21 @@
                 {/if}
               </div>
             {/each}
+            <!-- A grouped read draws a column's first 50 cards; the rest are said and offered,
+                 never silently left out. -->
+            {#if items.columnHasMore(collectionId, bucketId)}
+              {@const total = countOf(bucketId)}
+              <LoadMore
+                label={total === null
+                  ? t('app.entries.load_more', { shown: String(cards.length) })
+                  : t('app.entries.load_more_of', { shown: String(cards.length), total: String(total) })}
+                busyLabel={t('app.entries.loading_more')}
+                hasMore
+                isBusy={columnsLoading[bucketId ?? 'none'] ?? false}
+                {...(columnsFailed[bucketId ?? 'none'] ? { failedLabel: t('app.entries.load_more_failed') } : {})}
+                onLoadMore={() => void loadMoreOf(bucketId)}
+              />
+            {/if}
             <!-- The column's own door to capture: pointed at this column, so an entry lands where it
                  is added (design-system.md §11.8). The same field as everywhere else. -->
             {#if mayCreate && !isReadOnly && isBucketBoard}

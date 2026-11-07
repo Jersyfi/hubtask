@@ -16,7 +16,7 @@
 import type { Storage } from './ports.ts';
 import { collectionOf, Replica, META } from './replica.ts';
 import type {
-  ChangeRecord, ConflictRecord, MutationKind, PendingMutation, QueuedKind, QueuedWrite, RejectedMutation, StoredRecord,
+  ChangeRecord, ConflictRecord, MutationKind, PendingMutation, QueuedKind, QueuedWrite, RefusedField, RejectedMutation, StoredRecord,
   SyncMutation, SyncMutationResult,
 } from './schema.ts';
 
@@ -40,7 +40,8 @@ export function familyOf(kind: QueuedKind): { entity: string; shape: 'CREATE' | 
 }
 
 /** The entity and identifier a queued write's prediction and answer are filed under. */
-export function subjectOf(write: { kind: QueuedKind; itemId: string; entityId?: string; payload?: Readonly<Record<string, unknown>> }, opId: string): { entity: string; id: string } {
+export function subjectOf(write: { kind: QueuedKind; itemId: string; entityId?: string; entity?: unknown; payload?: Readonly<Record<string, unknown>> }, opId: string): { entity: string; id: string } {
+  if (onEntity(write.kind)) return { entity: String(write.entity ?? ''), id: write.itemId };
   const family = familyOf(write.kind);
   if (family) return { entity: family.entity, id: write.entityId ?? '' };
   if (write.kind === 'COMMENT_ADD') return { entity: 'comment', id: String(write.payload?.id ?? opId) };
@@ -57,10 +58,16 @@ async function nextSeq(storage: Storage): Promise<number> {
 
 /** The wire shape of a queued write, its fields stamped: one clock per field (§4.2). */
 export function mutationOf(write: QueuedWrite, opId: string, stamp: () => string): SyncMutation {
-  const mutation: Record<string, unknown> = { op_id: opId, kind: write.kind };
-  if (write.itemId) mutation.item_id = write.itemId;
-  if (write.entityId) mutation.entity_id = write.entityId;
-  if (write.containerId) mutation.container_id = write.containerId;
+  // An entity mutation names no entry: its `item_id` would be the replica's identifier of the
+  // record, which is no entry's, and the contract reads it as one.
+  const mutation: Record<string, unknown> = onEntity(write.kind)
+    ? { op_id: opId, kind: write.kind, entity: write.entity, entity_key: write.entityKey }
+    : { op_id: opId, kind: write.kind };
+  if (!onEntity(write.kind)) {
+    if (write.itemId) mutation.item_id = write.itemId;
+    if (write.entityId) mutation.entity_id = write.entityId;
+    if (write.containerId) mutation.container_id = write.containerId;
+  }
   if (write.baseVersion !== undefined) mutation.base_version = write.baseVersion;
   const family = familyOf(write.kind);
   if (family?.shape === 'PATCH') {
@@ -94,14 +101,28 @@ export function mutationOf(write: QueuedWrite, opId: string, stamp: () => string
     case 'ITEM_CREATE':
     case 'COMMENT_ADD':
     case 'MOVE':
+    case 'ENTITY_UPSERT':
+    case 'ENTITY_PATCH':
       mutation.payload = { ...(write.payload ?? {}) };
       mutation.hlc = stamp();
       break;
     case 'ITEM_DELETE':
+    case 'ENTITY_DELETE':
       mutation.hlc = stamp();
       break;
   }
   return mutation as SyncMutation;
+}
+
+/** Whether a kind writes the workspace's vocabulary rather than an entry (§4.4). */
+export function onEntity(kind: QueuedKind): boolean {
+  return kind === 'ENTITY_UPSERT' || kind === 'ENTITY_PATCH' || kind === 'ENTITY_DELETE';
+}
+
+/** The replica's entity a pending mutation's prediction sits in: the entry, a comment or the vocabulary's. */
+export function entityOf(pending: Pick<PendingMutation, 'kind' | 'mutation'>): string {
+  if (onEntity(pending.kind)) return String(pending.mutation.entity ?? '');
+  return pending.kind === 'COMMENT_ADD' ? 'comment' : 'item';
 }
 
 export class Queue {
@@ -212,6 +233,20 @@ export class Queue {
         }));
         return mark('comments', id);
       }
+      case 'ENTITY_UPSERT':
+      case 'ENTITY_PATCH': {
+        // Versioned entities are decided whole by the server (§4.4); the prediction is the
+        // payload over the held copy, which the answer replaces.
+        const entity = String(write.entity);
+        const held = await this.#storage.get<StoredRecord<Record<string, unknown>>>(collectionOf(entity), write.itemId);
+        const keyed = entity === 'entry_link' ? {} : { key: write.entityKey };
+        await this.#replica.apply(record('UPSERT', entity, write.itemId, held
+          ? { ...(write.payload ?? {}), ...keyed }
+          : { ...(write.payload ?? {}), ...keyed, id: write.itemId, version: 0 }));
+        return mark(collectionOf(entity), write.itemId);
+      }
+      case 'ENTITY_DELETE':
+        return this.#replica.apply(record('DELETE', String(write.entity), write.itemId));
     }
   }
 
@@ -222,13 +257,20 @@ export class Queue {
   async settle(pending: PendingMutation, result: SyncMutationResult, at: number): Promise<void> {
     await this.#storage.delete(QUEUE, pending.id);
     await this.#storage.delete(FILES, pending.id);
-    const subject = subjectOf({ ...pending, payload: pending.mutation.payload as Record<string, unknown> | undefined }, pending.id);
+    const subject = subjectOf({
+      ...pending, entity: pending.mutation.entity, payload: pending.mutation.payload as Record<string, unknown> | undefined,
+    }, pending.id);
     const entity = subject.entity;
     const entityId = result.entity_id ?? subject.id;
     if (pending.kind === 'TEMPLATE_APPLY' && result.result !== 'REJECTED') {
       // Nothing was predicted, and the answer names the stamp rather than a document: the entries
       // arrive as ordinary creations with the next pull.
       return;
+    }
+    if (onEntity(pending.kind) && entityId !== pending.itemId) {
+      // A vocabulary entry created offline was predicted under an identifier minted here; the
+      // server names it by its own, so the prediction goes and the answer takes its place.
+      await this.#storage.delete(collectionOf(entity), pending.itemId);
     }
 
     switch (result.result) {
@@ -250,11 +292,17 @@ export class Queue {
       case 'REJECTED': {
         const code = result.error?.code ?? 'rejected';
         const messageCode = result.error?.message_code;
+        const params = textParams(result.error?.params);
+        const fieldErrors = refusedFields(result.error?.field_errors);
         await this.#storage.put<RejectedMutation>(REJECTED, pending.id, {
           id: pending.id, kind: pending.kind, itemId: pending.itemId, code,
           ...(messageCode ? { messageCode } : {}),
+          ...(params ? { params } : {}),
+          ...(fieldErrors.length > 0 ? { fieldErrors } : {}),
           local: localOf(pending.mutation),
           at,
+          mutation: pending.mutation,
+          ...(pending.invalidates ? { invalidates: pending.invalidates } : {}),
         });
         // The server answers the category as `code` (`gone`) and the message code beside it
         // (`sync.gone`); either names §7's purge.
@@ -279,7 +327,7 @@ export class Queue {
   async #adopt(entity: string, entityId: string, state: Record<string, unknown> | null, pending: PendingMutation): Promise<void> {
     if (state) {
       await this.#replica.apply(record('UPSERT', entity, entityId, { ...state, id: entityId }));
-    } else if (pending.kind === 'ITEM_DELETE' || familyOf(pending.kind)?.shape === 'DELETE') {
+    } else if (pending.kind === 'ITEM_DELETE' || pending.kind === 'ENTITY_DELETE' || familyOf(pending.kind)?.shape === 'DELETE') {
       await this.#replica.apply(record('DELETE', entity, entityId));
       return;
     }
@@ -396,6 +444,27 @@ function record(op: 'UPSERT' | 'DELETE', entity: string, id: string, payload?: R
   return { op, entity, entity_id: id, container_id: null, ...(payload ? { payload } : {}) } as ChangeRecord;
 }
 
+/**
+ * The write a refused mutation was, with the values a person changed in its draft: what
+ * `mutationOf` makes a new mutation of. Undefined for a record kept without its mutation.
+ */
+export function rewriteOf(rejected: RejectedMutation, values: Readonly<Record<string, unknown>>): QueuedWrite | undefined {
+  const sent = rejected.mutation;
+  if (!sent) return undefined;
+  const write: Record<string, unknown> = { kind: rejected.kind, itemId: rejected.itemId };
+  if (sent.entity) write.entity = sent.entity;
+  if (sent.entity_key) write.entityKey = sent.entity_key;
+  if (sent.base_version !== undefined) write.baseVersion = sent.base_version;
+  if (sent.fields) write.fields = { ...(localOf(sent) as Record<string, unknown>), ...values };
+  else if (sent.payload) write.payload = { ...sent.payload, ...values };
+  if (sent.set) {
+    write.set = sent.set;
+    write.element = sent.element;
+  }
+  if (rejected.invalidates) write.invalidates = rejected.invalidates;
+  return write as unknown as QueuedWrite;
+}
+
 /** What a mutation carried, for a rejected one to offer back: its fields or its payload. */
 function localOf(mutation: SyncMutation): unknown {
   if (mutation.fields) {
@@ -409,3 +478,20 @@ function localOf(mutation: SyncMutation): unknown {
 }
 
 export type { MutationKind };
+
+/** A message's values as text, the only kind the server sends (ADR-0011); anything else is left out. */
+function textParams(raw: Record<string, unknown> | null | undefined): Record<string, string> | undefined {
+  if (!raw) return undefined;
+  const params = Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  return Object.keys(params).length > 0 ? params : undefined;
+}
+
+function refusedFields(raw: readonly { path?: string; code?: string; params?: Record<string, unknown> }[] | null | undefined): RefusedField[] {
+  const fields: RefusedField[] = [];
+  for (const field of raw ?? []) {
+    if (!field.path || !field.code) continue;
+    const params = textParams(field.params);
+    fields.push({ path: field.path, code: field.code, ...(params ? { params } : {}) });
+  }
+  return fields;
+}

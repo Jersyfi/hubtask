@@ -28,16 +28,28 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Button, Checkbox, Dialog, Disclosure, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { keepsSecrets } from '../lib/administration/gaps.ts';
   import {
     webhooks,
     type Delivery,
     type Subscription,
     type SubscriptionWithSecret,
   } from '../lib/data/webhooks.svelte.ts';
-  import { scopeChoiceOf, subscriptionBody } from '../lib/data/webhooks.ts';
+  import {
+    WEBHOOK_FORMATS,
+    eventGroups,
+    eventKey,
+    isChat,
+    webhookFigure,
+    scopeChoiceOf,
+    subscriptionBody,
+    type WebhookFormat,
+  } from '../lib/data/webhooks.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -50,6 +62,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** The outcomes the contract lets a caller narrow to. `DEAD_LETTER` is the one operators want. */
   const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'FILTER_FAILED'];
@@ -58,15 +71,27 @@
   const GRACE_CHOICES = ['3600', '86400', '604800', '0'];
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  const failureShown = $derived(failure);
   let isWorking = $state(false);
 
   // The one place a secret exists in this client, for as long as its panel is open.
   let secret = $state<SubscriptionWithSecret | undefined>(undefined);
+  /** The add form is a dialog opened from the head's primary (user-experience.md §5.2). */
+  let isAdding = $state(false);
 
   let draftUrl = $state('');
   let draftTypes = $state<readonly string[]>([]);
   let draftCondition = $state('');
   let draftScope = $state('TENANT');
+  let draftFormat = $state<WebhookFormat>('CLOUDEVENTS');
+  let draftRoom = $state('');
+  let draftCredential = $state('');
+  let draftLocale = $state('');
+
+  // What a target receives (UC-INT-12), each with the words the target field needs for it.
+  const formats = $derived(
+    WEBHOOK_FORMATS.map((format) => ({ value: format, label: t(`app.webhooks.format_${format.toLowerCase()}`) })),
+  );
 
   let opened = $state('');
   let outcome = $state('');
@@ -144,6 +169,17 @@
   const sentence = (code: string | null | undefined) =>
     code ? (messages.has(code) ? t(code) : code) : undefined;
 
+  /** An event type in words (user-experience.md §5.4, pickers never keys); a type without words keeps its name. */
+  const eventWord = (type: string) => {
+    const code = `app.webhooks.event.${eventKey(type)}`;
+    return messages.has(code) ? t(code) : type;
+  };
+  const groups = $derived(eventGroups(eventTypes));
+
+  function toggleGroup(types: readonly string[], wanted: boolean): void {
+    draftTypes = wanted ? [...new Set([...draftTypes, ...types])] : draftTypes.filter((declared) => !types.includes(declared));
+  }
+
   const stateWord = (subscription: Subscription) =>
     t(`app.webhooks.state_${subscription.state.toLowerCase()}`);
 
@@ -191,18 +227,29 @@
     ]);
     if (!isComplete(missing)) return;
     await attempt(async () => {
-      secret = await webhooks.subscribe(
+      const created = await webhooks.subscribe(
         subscriptionBody({
           target_url: draftUrl,
           event_types: draftTypes,
           condition: draftCondition,
           scope: draftScope,
+          format: draftFormat,
+          room: draftRoom,
+          credential: draftCredential,
+          locale: draftLocale,
         }),
       );
+      // A chat room signs nothing, so there is no secret to show it once.
+      secret = created.secret ? created : undefined;
+      draftCredential = '';
+      draftRoom = '';
       draftUrl = '';
       draftTypes = [];
       draftCondition = '';
       draftScope = 'TENANT';
+      draftFormat = 'CLOUDEVENTS';
+      draftLocale = '';
+      isAdding = false;
     }, t('app.webhooks.subscribed_announced'));
   }
 
@@ -226,12 +273,27 @@
    */
   const webhooksIncluded = $derived(includedHere('WEBHOOKS') === true);
   const resting = $derived(includedHere('WEBHOOKS') === false);
+  const mayAdd = $derived(mayAutomate && !resting && keepsSecrets(manifest.value?.features));
+  function openAdding(): void {
+    failure = undefined;
+    isAdding = true;
+  }
+  const figureText = $derived.by(() => {
+    if (listed.length === 0) return '';
+    const counts = webhookFigure(listed);
+    return [
+      t('app.webhooks.figure_active', { count: String(counts.active) }),
+      ...(counts.paused > 0 ? [t('app.webhooks.figure_paused', { count: String(counts.paused) })] : []),
+      ...(counts.disabled > 0 ? [t('app.webhooks.figure_disabled', { count: String(counts.disabled) })] : []),
+    ].join(' · ');
+  });
 </script>
 
 <Stack gap="300">
   <PageHeader
     title={t('app.webhooks.title')}
     isTitleInBar={viewport.isCompact}
+    primary={mayAdd ? { label: t('app.webhooks.add'), icon: 'plus', onclick: openAdding } : undefined}
     breadcrumb={{
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
@@ -240,7 +302,9 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet figure()}{#if figureText}<span class="figure" data-webhooks-figure>{figureText}</span>{/if}{/snippet}
+  </PageHeader>
 
     <Stack gap="300">
     <p class="quiet">{t('app.webhooks.intro')}</p>
@@ -267,27 +331,16 @@
       />
     {/if}
 
-    {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        <Stack gap="050">
-          {#each [...failure.fields] as [path, message] (path)}
-            <span>{message}</span>
-          {/each}
-          {#if failure.reference}
-            <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-          {/if}
-        </Stack>
-      </Banner>
-    {/if}
+    {#if failureShown && !isAdding}{@render failureBanner(failureShown)}{/if}
 
+    <!-- One part, so the shell draws no list of sections: the webhooks are the screen. -->
+    <SettingsPage label={t('app.settings_page.sections', { name: t('app.webhooks.title') })} sections={[]}>
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting">
         <Spinner label={t('app.webhooks.reading')} /> <span>{t('app.webhooks.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       {#each listed as subscription (subscription.id)}
         <section class="panel">
@@ -295,7 +348,13 @@
             <div class="row">
               <span class="mono target">{subscription.target_url}</span>
               <Badge tone={stateTone(subscription)}>{stateWord(subscription)}</Badge>
+              {#if isChat(subscription.format)}
+                <Badge>{t(`app.webhooks.format_${(subscription.format ?? '').toLowerCase()}`)}</Badge>
+              {/if}
             </div>
+            {#if subscription.room}
+              <p class="quiet small">{t('app.webhooks.room_named', { room: subscription.room })}</p>
+            {/if}
 
             <p class="quiet small">
               {t('app.webhooks.subscribed_since', { at: when(subscription.created_at) ?? '' })}
@@ -303,7 +362,7 @@
 
             <div class="row">
               {#each subscription.event_types as type (type)}
-                <Badge>{type}</Badge>
+                <Badge>{eventWord(type)}</Badge>
               {/each}
             </div>
 
@@ -368,6 +427,7 @@
                   : t('app.webhooks.show_deliveries')}
               </Button>
               {#if mayAutomate}
+              {#if !isChat(subscription.format)}
               <Button
                 size="sm"
                 tone="secondary"
@@ -375,6 +435,7 @@
               >
                 {t('app.webhooks.rotate')}
               </Button>
+              {/if}
               <Button
                 size="sm"
                 tone="danger"
@@ -566,23 +627,87 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.webhooks.none')}</p>
+        <EmptyState kind="unused" icon="send" title={t('app.webhooks.empty_title')} description={t('app.webhooks.empty_body')} action={mayAdd ? addAct : undefined} />
       {/each}
     {/if}
+    </SettingsPage>
 
-    {#if !resting}
-    <WorkspaceGate permission="AUTOMATION">
-      {#snippet actions()}
-      <form class="panel" onsubmit={subscribe}>
+    {#if !resting && !keepsSecrets(manifest.value?.features)}
+      <!-- Each subscription's secret is sealed under the installation's key; without one the
+           server refuses at the end, so the form is not offered and the reason is said first. -->
+      <Banner tone="warning" title={t('app.webhooks.no_key_title')}>{t('app.webhooks.no_key_body')}</Banner>
+    {:else if !resting}
+    <!-- A reader without AUTOMATION is told once why nothing here can be added (P-05). -->
+    <WorkspaceGate permission="AUTOMATION" />
+    {/if}
+    </Stack>
+</Stack>
+
+{#snippet failureBanner(failure: NonNullable<typeof failureShown>)}
+  <FailureNote problem={failure}>
+    {#if failure.fields.size > 0}
+      <Stack gap="050">
+        {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+      </Stack>
+    {/if}
+  </FailureNote>
+{/snippet}
+
+{#snippet addAct()}
+  <Button tone="primary" icon="plus" onclick={openAdding}>{t('app.webhooks.add')}</Button>
+{/snippet}
+
+{#if isAdding && mayAdd}
+  <Dialog bind:isOpen={isAdding} title={t('app.webhooks.add')} dismissLabel={t('app.webhooks.cancel')} isWide>
+      <form class="form" onsubmit={subscribe}>
         <Stack gap="150">
-          <h2 class="section">{t('app.webhooks.add_title')}</h2>
+          {#if failureShown}{@render failureBanner(failureShown)}{/if}
+          <Select
+            label={t('app.webhooks.format')}
+            hint={t('app.webhooks.format_hint')}
+            error={failure?.fields.get('/format')}
+            bind:value={draftFormat}
+            options={formats}
+          />
           <Input
             label={t('app.webhooks.target_url')}
-            hint={t('app.webhooks.target_url_hint')}
+            hint={draftFormat === 'MATRIX'
+              ? t('app.webhooks.target_url_hint_matrix')
+              : isChat(draftFormat)
+                ? t('app.webhooks.target_url_hint_room')
+                : t('app.webhooks.target_url_hint')}
             bind:value={draftUrl}
             isRequired
-            error={missing.url && !draftUrl.trim() ? t(missing.url) : undefined}
+            error={missing.url && !draftUrl.trim() ? t(missing.url) : failure?.fields.get('/target_url')}
           />
+          {#if draftFormat === 'MATRIX'}
+            <Input
+              label={t('app.webhooks.room')}
+              hint={t('app.webhooks.room_hint')}
+              bind:value={draftRoom}
+              error={failure?.fields.get('/room')}
+              spellcheck="false"
+            />
+            <Input
+              type="password"
+              label={t('app.webhooks.credential')}
+              hint={t('app.webhooks.credential_hint')}
+              revealLabel={t('app.webhooks.reveal')}
+              hideLabel={t('app.webhooks.hide')}
+              bind:value={draftCredential}
+              error={failure?.fields.get('/credential')}
+              autocomplete="off"
+            />
+          {/if}
+          {#if isChat(draftFormat)}
+            <Input
+              label={t('app.webhooks.locale')}
+              hint={t('app.webhooks.locale_hint')}
+              bind:value={draftLocale}
+              error={failure?.fields.get('/locale')}
+              spellcheck="false"
+            />
+          {/if}
 
           <fieldset
             class="types"
@@ -596,16 +721,32 @@
                    server refuses at the end. -->
               <p class="quiet small">{t('app.webhooks.types_unknown')}</p>
             {:else}
-              <div class="type-grid">
-                {#each eventTypes as type (type)}
+              {#each groups as group (group.id)}
+                {@const chosen = group.types.filter((type) => draftTypes.includes(type)).length}
+                <div class="group">
                   <Checkbox
-                    label={type}
-                    checked={draftTypes.includes(type)}
-                    onchange={(event) =>
-                      toggleType(type, (event.currentTarget as HTMLInputElement).checked)}
+                    label={t('app.webhooks.group_all', { group: t(`app.webhooks.group.${group.id}`) })}
+                    checked={chosen === group.types.length}
+                    isIndeterminate={chosen > 0 && chosen < group.types.length}
+                    onchange={(event) => toggleGroup(group.types, (event.currentTarget as HTMLInputElement).checked)}
                   />
-                {/each}
-              </div>
+                  <!-- A group of many is folded (§1 UX-4): its one box chooses all of it, the list one by one. -->
+                  <Disclosure tone="quiet" label={t('app.webhooks.group_choose')}
+                    description={t('app.webhooks.group_chosen', { chosen: String(chosen), count: String(group.types.length) })}
+                    isOpen={group.types.length <= 3}>
+                    <div class="type-grid">
+                      {#each group.types as type (type)}
+                        <Checkbox
+                          label={eventWord(type)}
+                          checked={draftTypes.includes(type)}
+                          onchange={(event) =>
+                            toggleType(type, (event.currentTarget as HTMLInputElement).checked)}
+                        />
+                      {/each}
+                    </div>
+                  </Disclosure>
+                </div>
+              {/each}
             {/if}
           </fieldset>
           <p class="quiet small">{t('app.webhooks.types_note')}</p>
@@ -639,24 +780,17 @@
           </div>
         </Stack>
       </form>
-      {/snippet}
-    </WorkspaceGate>
-    {/if}
-    </Stack>
-</Stack>
+  </Dialog>
+{/if}
 
 <style>
+  .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .group { display: grid; gap: var(--sp-050); padding-block: var(--sp-050); }
+  .form { min-width: 0; }
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
      around a screen that is not a document. */
-
-  .section {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-  }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
@@ -675,7 +809,6 @@
   /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
      the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
      say so themselves - they are a grid of their own. */
-  form.panel { max-inline-size: 52ch; }
 
   .panel {
     padding: var(--sp-200);

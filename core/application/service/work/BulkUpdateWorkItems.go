@@ -56,6 +56,9 @@ var bulkOperations = map[string]string{
 	"ADD_LABEL":     AddLabelName,
 	"REMOVE_LABEL":  RemoveLabelName,
 	"ASSIGN":        AssignWorkItemName,
+	// A step by key or by the status it leads to, each entry through its own workflow's rules
+	// (UC-FLW-03 check 7).
+	"TAKE_STEP": TakeStepName,
 }
 
 // BulkOperationNames are the operations a bulk accepts, in a stable order. The catalogue declares

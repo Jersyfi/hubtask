@@ -6,7 +6,7 @@ import { IndexedDbStorage, databaseNameFor } from '@hubtask/sync-engine';
 import type { Platform } from './index.ts';
 import { pageLanguages, saveByLink } from './page.ts';
 import { API_PATH } from './server.ts';
-import { browserStorage, tokenStore } from './tokenStore.ts';
+import { browserStorage, heldUnsent, lastingStorage, tokenStore } from './tokenStore.ts';
 import {
   HOP_PATH,
   addressOf,
@@ -30,6 +30,7 @@ import {
  * that has to change for that (ADR-0031).
  */
 const store = tokenStore(browserStorage());
+const held = heldUnsent(lastingStorage());
 
 /**
  * The browser's name, from what it says about itself. Coarse on purpose: this is a label a person
@@ -105,6 +106,7 @@ const workspaces: DeviceWorkspaces = {
 export const platform: Platform = {
   target: 'browser',
 
+  replicaEntries: 100_000,
   // Relative: the bundle and the API come from one origin (ADR-0028), so there is no host to name.
   apiBase: API_PATH,
   webOrigin: globalThis.location?.origin ?? '',
@@ -147,7 +149,17 @@ export const platform: Platform = {
   firstSynchronisation: 'snapshot',
   forgetCopy: async () => {},
 
-  rememberAccount: (id) => store.rememberAccount(id),
+  rememberAccount: (id) => {
+    const previous = held.takeHeldUnsent();
+    if (previous && previous !== id) {
+      // Somebody else signs in on this browser: the changes the last one left unsent are theirs,
+      // and they go with their store rather than waiting in it for a sign-in that is not coming.
+      void new IndexedDbStorage(databaseNameFor(window.location.origin, previous)).clear().catch(() => {});
+    }
+    store.rememberAccount(id);
+  },
+
+  holdUnsentOf: (id) => held.holdUnsentOf(id),
 
   rememberElevation: (until) => store.rememberElevatedUntil(until),
 
@@ -161,4 +173,24 @@ export const platform: Platform = {
   workspaces,
 
   saveFile: saveByLink,
+
+  saveStream: async (fileName) => {
+    // The File System Access picker, where the browser has one; the DOM library does not type it.
+    const picker = (window as { showSaveFilePicker?: (options: { suggestedName: string }) => Promise<SavePick> })
+      .showSaveFilePicker;
+    if (typeof picker !== 'function') return undefined;
+    try {
+      const handle = await picker.call(window, { suggestedName: fileName });
+      return await handle.createWritable();
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return null;
+      // Refused for another reason (no press left, a policy): the file is still owed, by saveFile.
+      return undefined;
+    }
+  },
 };
+
+/** The part of a picked file handle this seam uses. */
+interface SavePick {
+  createWritable(): Promise<WritableStream<Uint8Array>>;
+}

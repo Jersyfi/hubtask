@@ -12,9 +12,11 @@
   interface Props {
     address: string;
     lead?: string;
+    /** The line under the address; a mailbox's subject rule unless the intake is not a mailbox. */
+    hint?: string;
   }
 
-  let { address, lead }: Props = $props();
+  let { address, lead, hint }: Props = $props();
 
   async function copy() {
     try {
@@ -31,7 +33,7 @@
   <code>{address}</code>
   <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: address })} onclick={() => void copy()} />
 </div>
-<p class="hint">{t('app.mail.subject_hint')}</p>
+<p class="hint">{hint ?? t('app.mail.subject_hint')}</p>
 
 <style>
   .lead, .hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }

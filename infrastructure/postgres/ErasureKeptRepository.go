@@ -139,6 +139,60 @@ func (r PrivacyRepository) DeleteComments(
 	return int(rows), nil
 }
 
+// DeleteWritings removes what the person wrote outside entries, of one kind; a page or board comment
+// others replied to is blanked instead.
+func (r PrivacyRepository) DeleteWritings(
+	ctx context.Context, accountID shared.ID, kind repository.ContributionKind, ids []shared.ID, at time.Time,
+) ([]shared.ID, int, error) {
+	if len(ids) == 0 {
+		return nil, 0, nil
+	}
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return nil, 0, err
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	var (
+		removed []pgtype.UUID
+		blanked int64
+	)
+	switch kind {
+	case repository.ContributedPageComment:
+		removed, err = queries.DeletePageCommentsOf(ctx, sqlc.DeletePageCommentsOfParams{AuthorID: id, Ids: keys})
+		if err == nil {
+			blanked, err = queries.BlankPageCommentsOf(ctx, sqlc.BlankPageCommentsOfParams{
+				At: timestampOf(at), AuthorID: id, Ids: keys,
+			})
+		}
+	case repository.ContributedBoardComment:
+		removed, err = queries.DeleteWhiteboardCommentsOf(ctx, sqlc.DeleteWhiteboardCommentsOfParams{AuthorID: id, Ids: keys})
+		if err == nil {
+			blanked, err = queries.BlankWhiteboardCommentsOf(ctx, sqlc.BlankWhiteboardCommentsOfParams{
+				At: timestampOf(at), AuthorID: id, Ids: keys,
+			})
+		}
+	case repository.ContributedCheckIn:
+		removed, err = queries.DeleteCheckInsOf(ctx, sqlc.DeleteCheckInsOfParams{AuthorID: id, Ids: keys})
+	case repository.ContributedPortfolioUpdate:
+		removed, err = queries.DeletePortfolioUpdatesOf(ctx, sqlc.DeletePortfolioUpdatesOfParams{AuthorID: id, Ids: keys})
+	case repository.ContributedPageDraft:
+		removed, err = queries.DeletePageDraftsOf(ctx, sqlc.DeletePageDraftsOfParams{AuthorID: id, Ids: keys})
+	default:
+		return nil, 0, shared.Internalf("postgres: no erasure for contributions of kind %q", kind)
+	}
+	if err != nil {
+		return nil, 0, erasureFailed("removing what an account wrote", err)
+	}
+	gone, err := idsFrom(removed)
+	if err != nil {
+		return nil, 0, err
+	}
+	return gone, int(blanked), nil
+}
+
 // ReleaseAssignmentsOn hands the entries named back to nobody.
 func (r PrivacyRepository) ReleaseAssignmentsOn(
 	ctx context.Context, accountID shared.ID, itemIDs []shared.ID, at time.Time,

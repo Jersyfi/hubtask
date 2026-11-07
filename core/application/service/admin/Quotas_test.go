@@ -65,7 +65,9 @@ type quotaUsageFake struct{}
 func (quotaUsageFake) Items(context.Context) (int64, error)                 { return 3, nil }
 func (quotaUsageFake) MediaBytes(context.Context) (int64, error)            { return 0, nil }
 func (quotaUsageFake) WebhookTargets(context.Context) (int64, error)        { return 0, nil }
+func (quotaUsageFake) Mailboxes(context.Context) (int64, error)             { return 0, nil }
 func (quotaUsageFake) LiveExports(context.Context) (int64, error)           { return 0, nil }
+func (quotaUsageFake) Kept(context.Context, string) (int64, bool, error)    { return 0, false, nil }
 func (quotaUsageFake) Accounts(context.Context) (int64, error)              { return 0, nil }
 func (quotaUsageFake) LockPeople(context.Context) error                     { return nil }
 func (quotaUsageFake) InvitationOpen(context.Context, string) (bool, error) { return false, nil }
@@ -144,6 +146,24 @@ func TestTheQuotaWriteIsPartialAndAudited(t *testing.T) {
 
 	if len(f.audit.entries) != 1 || f.audit.entries[0].Action != TenantQuotasChangedAction {
 		t.Fatalf("audit %+v", f.audit.entries)
+	}
+}
+
+// UC-INS-10 check 4: a workspace's administrator - a credential without the installation's scope -
+// cannot change a limit, and nothing is opened or written.
+func TestAWorkspaceAdministratorCannotChangeALimit(t *testing.T) {
+	f := newQuotasFixture()
+	actor := operator()
+	actor.Scopes = []string{"items:read", "items:write"}
+
+	_, err := f.handler.Execute(t.Context(), actor, UpdateTenantQuotasCommand{
+		TenantID: lifecycleTenant, Changes: []QuotaChange{{Quota: quotaservice.Items, Value: hold(200)}},
+	})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("answer %v, want forbidden", err)
+	}
+	if len(f.store.versions) != 0 || len(f.audit.entries) != 0 {
+		t.Error("a refused write reached the store or the trail")
 	}
 }
 

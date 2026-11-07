@@ -185,6 +185,8 @@ func NewRule(in NewRuleInput) (Rule, error) {
 		return Rule{}, invalidRule(CodeScopeInvalid, "/scope")
 	case (in.Scope.Kind == ScopeTenant) != in.Scope.ID.IsZero():
 		return Rule{}, invalidRule(CodeScopeIDMismatch, "/scope")
+	case kind.WorkspaceOnly && in.Scope.Kind != ScopeTenant:
+		return Rule{}, invalidRule(CodeScopeWorkspaceOnly, "/scope")
 	case !in.Action.Valid():
 		return Rule{}, invalidRule(CodeActionInvalid, "/action")
 	case !kind.Performs(in.Action):
@@ -455,11 +457,14 @@ func invalidRule(code, field string) error {
 
 // The refusals of the rule model, as codes rather than as prose.
 const (
-	CodeRuleIncomplete     = "lifecycle.rule_incomplete"
-	CodeKindUnknown        = "lifecycle.data_kind_unknown"
-	CodeKindNotSwept       = "lifecycle.data_kind_not_swept"
-	CodeScopeInvalid       = "lifecycle.scope_invalid"
-	CodeScopeIDMismatch    = "lifecycle.scope_id_mismatch"
+	CodeRuleIncomplete  = "lifecycle.rule_incomplete"
+	CodeKindUnknown     = "lifecycle.data_kind_unknown"
+	CodeKindNotSwept    = "lifecycle.data_kind_not_swept"
+	CodeScopeInvalid    = "lifecycle.scope_invalid"
+	CodeScopeIDMismatch = "lifecycle.scope_id_mismatch"
+	// CodeScopeWorkspaceOnly refuses a hub's or a collection's rule for a kind whose rows sit in
+	// no collection (Kind.WorkspaceOnly).
+	CodeScopeWorkspaceOnly = "lifecycle.scope_workspace_only"
 	CodeActionInvalid      = "lifecycle.action_invalid"
 	CodeActionNotPerformed = "lifecycle.action_not_performed"
 	CodeRetainDaysInvalid  = "lifecycle.retain_days_invalid"

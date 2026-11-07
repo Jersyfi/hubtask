@@ -447,3 +447,15 @@ func (q *Queries) ResolveSingleOperatorAccount(ctx context.Context, email string
 	err := row.Scan(&resolve_single_operator_account)
 	return resolve_single_operator_account, err
 }
+
+const schemaCompatibilityFloor = `-- name: SchemaCompatibilityFloor :one
+SELECT schema_compatibility_floor()::bigint AS floor
+`
+
+// The oldest binary, by its newest migration, that works on this schema (deployment.md §5).
+func (q *Queries) SchemaCompatibilityFloor(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, schemaCompatibilityFloor)
+	var floor int64
+	err := row.Scan(&floor)
+	return floor, err
+}

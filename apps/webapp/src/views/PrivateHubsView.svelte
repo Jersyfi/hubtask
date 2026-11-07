@@ -17,7 +17,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, Button, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import PrivateHubsAllowed from '../lib/workspace/PrivateHubsAllowed.svelte';
   import EmergencyAccessDialog from '../lib/workspace/EmergencyAccessDialog.svelte';
@@ -29,6 +29,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate?: (path: string) => void;
@@ -106,13 +107,11 @@
         <span>{t('app.private_hubs.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else if privateHubs.hubs.length === 0}
-      <p class="quiet">{t('app.private_hubs.empty')}</p>
+      <EmptyState kind="unused" title={t('app.private_hubs.empty')} />
     {:else}
-      <Table label={t('app.private_hubs.title')} isLabelHidden {columns}>
+      <Table isStacked label={t('app.private_hubs.title')} isLabelHidden {columns}>
         {#each privateHubs.hubs as hub (hub.id)}
           <tr>
             <th scope="row" class="owners">{ownersOf(hub.owners)}</th>

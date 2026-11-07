@@ -47,12 +47,14 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { certificateState } from '../lib/signin/certificate.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { focusFirst } from '../lib/forms/missing.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -188,7 +190,7 @@
       failure =
         cause instanceof TransportError
           ? renderProblem(cause, messages)
-          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+          : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
     } finally {
       working = undefined;
     }
@@ -210,9 +212,7 @@
       <p class="prose">{t('app.instance.providers_intro')}</p>
 
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -221,9 +221,7 @@
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else}
         <div>
           <Button tone="primary" onclick={() => open('add')}>{t('app.instance.provider_add')}</Button>
@@ -253,6 +251,11 @@
                     <Badge tone="warning">{t('app.instance.provider_withdrawing', { date: when(provider.withdraw_at) })}</Badge>
                   {:else}
                     <Badge tone="neutral">{t('app.instance.provider_withdrawn')}</Badge>
+                  {/if}
+                  {#if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ended'}
+                    <Badge tone="danger">{t('app.identity_provider.certificate_ended', { date: when(provider.saml_certificate_expires_at) })}</Badge>
+                  {:else if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ending'}
+                    <Badge tone="warning">{t('app.identity_provider.certificate_ending', { date: when(provider.saml_certificate_expires_at) })}</Badge>
                   {/if}
                   <span class="slug">{t('app.instance.provider_in_use', { count: String(usedBy(provider)) })}</span>
                   {#if lockSays(provider)}<span class="slug" data-lock>{lockSays(provider)}</span>{/if}
@@ -363,9 +366,7 @@
     <!-- A refusal inside the dialog, where it is read: the page behind a modal is not. One that
          names the count lands at the count's field instead. -->
     {#if failure && !failure.fields.has('/confirm_count')}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
     <!-- The number first: it is what the withdrawal costs, and the reason to choose the day well. -->
     <Banner tone="info" title={t('app.instance.provider_in_use', { count: String(usedBy(acting?.provider)) })}>

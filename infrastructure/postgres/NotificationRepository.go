@@ -80,6 +80,46 @@ func (r NotificationRepository) Insert(
 	if err != nil {
 		return false, err
 	}
+	pageID, err := optionalUUID(record.PageID)
+	if err != nil {
+		return false, err
+	}
+	agentID, err := optionalUUID(record.AgentID)
+	if err != nil {
+		return false, err
+	}
+	boardID, err := optionalUUID(record.WhiteboardID)
+	if err != nil {
+		return false, err
+	}
+	approvalID, err := optionalUUID(record.ApprovalID)
+	if err != nil {
+		return false, err
+	}
+	baselineID, err := optionalUUID(record.BaselineID)
+	if err != nil {
+		return false, err
+	}
+	mailboxID, err := optionalUUID(record.MailboxID)
+	if err != nil {
+		return false, err
+	}
+	providerID, err := optionalUUID(record.IdentityProviderID)
+	if err != nil {
+		return false, err
+	}
+	pushID, err := optionalUUID(record.CalendarPushID)
+	if err != nil {
+		return false, err
+	}
+	connectorID, err := optionalUUID(record.ConnectorID)
+	if err != nil {
+		return false, err
+	}
+	hookID, err := optionalUUID(record.CodeHookID)
+	if err != nil {
+		return false, err
+	}
 
 	written, err := queries.InsertNotification(ctx, sqlc.InsertNotificationParams{
 		ID:                 id,
@@ -94,6 +134,16 @@ func (r NotificationRepository) Insert(
 		SubscriptionID:     subscriptionID,
 		PrivateHubAccessID: accessID,
 		MembershipID:       membershipID,
+		PageID:             pageID,
+		AgentID:            agentID,
+		WhiteboardID:       boardID,
+		ApprovalID:         approvalID,
+		BaselineID:         baselineID,
+		MailboxID:          mailboxID,
+		IdentityProviderID: providerID,
+		CalendarPushID:     pushID,
+		CmdbConnectorID:    connectorID,
+		CodeHookID:         hookID,
 		ActorID:            actorID,
 		CreatedAt:          timestampOf(record.CreatedAt),
 	})
@@ -338,6 +388,46 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 	if err != nil {
 		return domain.Notification{}, err
 	}
+	pageID, err := optionalID(row.PageID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	agentID, err := optionalID(row.AgentID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	boardID, err := optionalID(row.WhiteboardID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	approvalID, err := optionalID(row.ApprovalID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	baselineID, err := optionalID(row.BaselineID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	mailboxID, err := optionalID(row.MailboxID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	providerID, err := optionalID(row.IdentityProviderID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	pushID, err := optionalID(row.CalendarPushID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	connectorID, err := optionalID(row.CmdbConnectorID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	hookID, err := optionalID(row.CodeHookID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
 
 	var reason string
 	if row.Reason != nil {
@@ -357,6 +447,16 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 		SubscriptionID:     subscriptionID,
 		PrivateHubAccessID: accessID,
 		MembershipID:       membershipID,
+		PageID:             pageID,
+		AgentID:            agentID,
+		WhiteboardID:       boardID,
+		ApprovalID:         approvalID,
+		BaselineID:         baselineID,
+		MailboxID:          mailboxID,
+		IdentityProviderID: providerID,
+		CalendarPushID:     pushID,
+		ConnectorID:        connectorID,
+		CodeHookID:         hookID,
 		ActorID:            actorID,
 		CreatedAt:          row.CreatedAt.Time.UTC(),
 		SentAt:             optionalTime(row.SentAt),
@@ -395,5 +495,17 @@ func boundedInt32(value int) int32 {
 		return math.MaxInt32
 	default:
 		return int32(value)
+	}
+}
+
+// boundedInt16 keeps a value inside a smallint column, as boundedInt32 keeps one inside an integer.
+func boundedInt16(value int) int16 {
+	switch {
+	case value < math.MinInt16:
+		return math.MinInt16
+	case value > math.MaxInt16:
+		return math.MaxInt16
+	default:
+		return int16(value)
 	}
 }

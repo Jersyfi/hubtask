@@ -412,7 +412,8 @@ func (h HttpRequest) record(
 // Descriptor is the catalogue entry - and the automation action HTTP_REQUEST with it.
 func (h HttpRequest) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: HTTPRequestName,
+		Name:       HTTPRequestName,
+		Permission: service.PermissionAutomation,
 		Summary: "Calls an external HTTP address, through the guarded client: private and " +
 			"link-local ranges are refused unless the installation released them, the response " +
 			"is bounded in size and time, and it is discarded - a rule cannot read an answer. " +

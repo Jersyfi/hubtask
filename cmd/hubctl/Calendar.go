@@ -25,12 +25,6 @@ func calendarGroup() group {
 		summary: "subscriptions - a view, as a calendar",
 		commands: []command{
 			{
-				name:    "ls",
-				usage:   "",
-				summary: "list the caller's own feeds",
-				run:     calendarList,
-			},
-			{
 				name:    "mint",
 				usage:   "--view <id>",
 				summary: "mint a feed over a view, and print its URL once",
@@ -42,31 +36,8 @@ func calendarGroup() group {
 				summary: "fetch a feed the way a calendar client would",
 				run:     calendarFetch,
 			},
-			{
-				name:    "revoke",
-				usage:   "<feed-id>",
-				summary: "stop a feed; every fetch after this answers nothing",
-				run:     calendarRevoke,
-			},
 		},
 	}
-}
-
-func calendarList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "calendar", "ls", "")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var feeds []openapi.CalendarFeed
-	if err := client.Get(ctx, calendarFeedsPath, nil, &feeds); err != nil {
-		return err
-	}
-	return cli.Emit(feeds, calendarTable(feeds))
 }
 
 func calendarMint(ctx context.Context, cli *CLI, args []string) error {
@@ -145,28 +116,6 @@ func calendarFetch(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	printf(cli.Err, "written: %s (%d bytes)\n", *out, len(document))
-	return nil
-}
-
-func calendarRevoke(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "calendar revoke <feed-id>"
-	feed, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "calendar", "revoke", "<feed-id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	if err := client.Delete(ctx, calendarFeedsPath+"/"+feed.String(), ""); err != nil {
-		return err
-	}
-	printf(cli.Err, "feed revoked: %s (every fetch from now on answers nothing)\n", feed)
 	return nil
 }
 

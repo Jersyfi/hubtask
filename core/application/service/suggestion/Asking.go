@@ -322,7 +322,8 @@ var aiUnavailable = shared.ErrUnavailable.WithDetail("ai.unavailable")
 // Descriptor is the catalogue entry.
 func (h SuggestDecomposition) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SuggestDecompositionName,
+		Permission: service.PermissionWriteItems,
+		Name:       SuggestDecompositionName,
 		Summary: "Asks the workspace's AI provider what work sits under one entry: the work " +
 			"packages and the activities that would carry it. It proposes and changes nothing - " +
 			"the breakdown is read through the suggestions and is created only when somebody " +

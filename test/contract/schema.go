@@ -65,6 +65,7 @@ var httpMethods = []string{"get", "put", "post", "delete", "options", "head", "p
 // the document-wide requirement in force (OpenAPI 3.1 §4.8.2).
 type operation struct {
 	OperationID string       `yaml:"operationId"`
+	Deprecated  bool         `yaml:"deprecated"`
 	Security    *[]any       `yaml:"security"`
 	Parameters  []*parameter `yaml:"parameters"`
 	RequestBody *requestBody `yaml:"requestBody"`
@@ -73,10 +74,11 @@ type operation struct {
 // parameter is one declared input outside the body. It carries a $ref of its own, because most of
 // them are declared once under components.parameters and referenced from every path that takes one.
 type parameter struct {
-	Ref    string  `yaml:"$ref"`
-	Name   string  `yaml:"name"`
-	In     string  `yaml:"in"`
-	Schema *schema `yaml:"schema"`
+	Ref        string  `yaml:"$ref"`
+	Name       string  `yaml:"name"`
+	In         string  `yaml:"in"`
+	Deprecated bool    `yaml:"deprecated"`
+	Schema     *schema `yaml:"schema"`
 }
 
 // requestBody is the body an operation reads. Only the schema per media type is needed: what the

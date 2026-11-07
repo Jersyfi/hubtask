@@ -347,7 +347,8 @@ func (w ContainerWriter) recordTrashAudit(
 // Descriptor is the catalogue entry.
 func (h TrashContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TrashContainerName,
+		Permission: service.PermissionDeleteContainer,
+		Name:       TrashContainerName,
 		Summary: "Moves a hub or a collection and everything under it into the trash: a hub takes " +
 			"its collections, and every collection takes its entries. A soft delete - it all stays " +
 			"for the tenant's retention period and comes back as one act until the retention job " +
@@ -375,7 +376,8 @@ func (h TrashContainer) Descriptor() usecase.Descriptor {
 
 func (h RestoreContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RestoreContainerName,
+		Permission: service.PermissionDeleteContainer,
+		Name:       RestoreContainerName,
 		Summary: "Takes one container deletion back out of the trash, whole. Exactly what went in " +
 			"together comes back: a separate, younger deletion inside the same subtree stays where " +
 			"it is. A container archived when it was deleted comes back archived. Needs the same " +

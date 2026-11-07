@@ -1,0 +1,1319 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package identity
+
+import (
+	"cmp"
+	"context"
+	"errors"
+	"slices"
+	"strconv"
+	"time"
+
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
+)
+
+const (
+	ListRolesName       = "ListRoles"
+	CreateRoleName      = "CreateRole"
+	ChangeRoleName      = "ChangeRole"
+	DeleteRoleName      = "DeleteRole"
+	GrantRoleName       = "GrantRole"
+	RevokeRoleGrantName = "RevokeRoleGrant"
+	ExplainAccessName   = "ExplainAccess"
+	roleTarget          = "custom_role"
+	// RoleGrantEntity is a grant of a custom role in its holder's replica (offline-sync.md §4.3).
+	RoleGrantEntity = "role_grant"
+
+	RoleCreatedAction audit.Action = "role.created"
+	RoleChangedAction audit.Action = "role.changed"
+	RoleDeletedAction audit.Action = "role.deleted"
+	// RoleReadAction names the reads in a refusal's entry.
+	RoleReadAction audit.Action = "role.read"
+
+	// roleGrantsPage is how many grants one read of the store answers; the reads page to the end.
+	roleGrantsPage = 1000
+	// maxRoleGrants bounds the grants ListRoles holds in one answer. Past it the listing is refused
+	// rather than cut short: a partial list would let the people screen, the plan's reach and the
+	// configuration's role_groups section build on wrong rows.
+	maxRoleGrants = 100_000
+)
+
+// RoleGrantsTooManyCode refuses a listing of more grants than one answer holds.
+const RoleGrantsTooManyCode = "roles.too_many_grants"
+
+// Roles is what the role use cases share: the store, the decision point, the trail.
+type Roles struct {
+	Store      repository.CustomRoles
+	Authorizer Authorizer
+	// Reach answers, without a record, whether the caller reaches a place: what narrows the reads
+	// to the places they may see, a private hub they hold nothing in left out (ADR-0073 §1).
+	Reach       Permitter
+	Held        HeldReader
+	Revocations Revoker
+	Audit       audit.Sink
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
+	IDs         clock.IDGenerator
+	// Changes and HLC tell offline devices of a role defined, changed or removed. A nil Changes
+	// records nothing, a test's convenience.
+	Changes changelog.ChangeLog
+	HLC     clock.HLCSource
+	// Rules counts the switched-on rules whose NOTIFY_ROLE step addresses a role, so that its
+	// deletion is refused rather than leaving the rule failing at run time; nil counts none.
+	Rules RuleNames
+}
+
+// announce files a role for offline devices: workspace-wide, as the walk hands it out.
+func (r Roles) announce(ctx context.Context, actor appshared.ActorContext, row repository.CustomRoleRow, op changelog.Operation) error {
+	if r.Changes == nil {
+		return nil
+	}
+	var payload map[string]any
+	if op != changelog.Delete {
+		payload = CustomRoleOutput(row)
+	}
+	return r.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: roleTarget, EntityID: row.Role.ID, Op: op,
+		ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
+	})
+}
+
+// announceGrant files a grant for its holder's devices: an upsert reaches the account it names or
+// the members of its group, a removal every device, since it names only an identifier. A removal
+// addressed to one account - its holder leaving a group - names that account and reaches it alone.
+func (r Roles) announceGrant(
+	ctx context.Context, actor appshared.ActorContext, row repository.CustomGrantRow, op changelog.Operation,
+	addressedTo shared.ID,
+) error {
+	if r.Changes == nil {
+		return nil
+	}
+	var payload map[string]any
+	switch {
+	case op != changelog.Delete:
+		payload = CustomGrantOutput(row)
+	case !addressedTo.IsZero():
+		payload = map[string]any{"account_id": addressedTo.String()}
+	}
+	return r.Changes.Record(ctx, changelog.Change{
+		TenantID: actor.TenantID, Entity: RoleGrantEntity, EntityID: row.Grant.ID, Op: op,
+		ActorID: actor.AccountID, HLC: r.HLC.Next(), Payload: payload,
+	})
+}
+
+// GroupMembersMoved tells the devices of the people who joined a group of its grants, and those
+// of the people who left it that they hold them no more. UpdateGroup calls it in its transaction.
+func (r Roles) GroupMembersMoved(
+	ctx context.Context, actor appshared.ActorContext, groupID shared.ID, joined, left []shared.ID,
+) error {
+	if r.Changes == nil || (len(joined) == 0 && len(left) == 0) {
+		return nil
+	}
+	grants, err := r.groupGrants(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	for _, grant := range grants {
+		if len(joined) > 0 {
+			if err := r.announceGrant(ctx, actor, grant, changelog.Upsert, ""); err != nil {
+				return err
+			}
+		}
+		for _, accountID := range left {
+			if err := r.announceGrant(ctx, actor, grant, changelog.Delete, accountID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// GroupDeleting tells every device that the group's grants go with it; DeleteGroup calls it in its
+// transaction before the rows cascade away.
+func (r Roles) GroupDeleting(ctx context.Context, actor appshared.ActorContext, groupID shared.ID) error {
+	if r.Changes == nil {
+		return nil
+	}
+	grants, err := r.groupGrants(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	for _, grant := range grants {
+		if err := r.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r Roles) groupGrants(ctx context.Context, groupID shared.ID) ([]repository.CustomGrantRow, error) {
+	return r.allGrants(ctx, repository.GrantFilter{GroupID: groupID}, 0)
+}
+
+// allGrants pages through every grant the filter names, refusing past bound (0: no bound) rather
+// than answering part of them.
+func (r Roles) allGrants(ctx context.Context, filter repository.GrantFilter, bound int) ([]repository.CustomGrantRow, error) {
+	var out []repository.CustomGrantRow
+	var after shared.ID
+	for {
+		page, err := r.Store.Grants(ctx, filter, after, roleGrantsPage)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, page...)
+		if bound > 0 && len(out) > bound {
+			return nil, shared.ErrConflict.WithDetail(RoleGrantsTooManyCode).
+				WithParams(map[string]string{"limit": strconv.Itoa(bound)})
+		}
+		if len(page) < roleGrantsPage {
+			return out, nil
+		}
+		after = page[len(page)-1].Grant.ID
+	}
+}
+
+// HeldReader answers what an account holds along a path: the authorisation service's HeldBy.
+type HeldReader interface {
+	HeldBy(ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []domain.Scope) (access.Held, error)
+}
+
+// ShippedRole is one of the seven, with what it carries.
+type ShippedRole struct {
+	Role        domain.Role
+	Permissions []service.Permission
+}
+
+// RuleNames counts the switched-on automation rules that address a custom role by its key.
+type RuleNames interface {
+	Role(ctx context.Context, key string) (int, error)
+}
+
+// RoleCatalogue is what the *Roles* screen and *who may do what* read (A11): the catalogue, the
+// shipped scheme, the workspace's own roles and where they are held.
+type RoleCatalogue struct {
+	Catalogue []service.CatalogueEntry
+	Shipped   []ShippedRole
+	Custom    []repository.CustomRoleRow
+	Grants    []repository.CustomGrantRow
+}
+
+// ListRoles answers the catalogue, the shipped scheme and the workspace's own roles.
+type ListRoles struct{ Roles Roles }
+
+func (h ListRoles) Execute(ctx context.Context, actor appshared.ActorContext) (RoleCatalogue, error) {
+	if err := h.Roles.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission:  service.PermissionManageMembers,
+		Alternative: service.PermissionReadConfiguration,
+		Path:        []domain.Scope{domain.TenantScope()},
+		Action:      RoleReadAction,
+		TokenScope:  membersRead,
+		TargetType:  roleTarget,
+	}); err != nil {
+		return RoleCatalogue{}, err
+	}
+	out := RoleCatalogue{Catalogue: service.PermissionCatalogue()}
+	for _, role := range domain.Roles() {
+		out.Shipped = append(out.Shipped, ShippedRole{Role: role, Permissions: service.PermissionsOf(role)})
+	}
+	err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		if out.Custom, err = h.Roles.Store.List(ctx); err != nil {
+			return err
+		}
+		if out.Grants, err = h.Roles.allGrants(ctx, repository.GrantFilter{}, maxRoleGrants); err != nil {
+			return err
+		}
+		slices.SortFunc(out.Grants, func(a, b repository.CustomGrantRow) int {
+			return cmp.Or(cmp.Compare(a.RoleKey, b.RoleKey),
+				cmp.Compare(a.Grant.Scope.Type, b.Grant.Scope.Type), cmp.Compare(a.Grant.ID, b.Grant.ID))
+		})
+		return nil
+	})
+	if err != nil {
+		return RoleCatalogue{}, err
+	}
+	if out.Grants, err = h.Roles.reachable(ctx, actor, out.Grants); err != nil {
+		return RoleCatalogue{}, err
+	}
+	return out, nil
+}
+
+// reachable leaves out the grants at a place the caller does not reach. The workspace right
+// ListRoles asks for is not READ inside a private hub (ADR-0073 §1), so each place is asked on its
+// own path, as ListMemberships asks, and once however many grants it holds.
+func (r Roles) reachable(
+	ctx context.Context, actor appshared.ActorContext, grants []repository.CustomGrantRow,
+) ([]repository.CustomGrantRow, error) {
+	reached := map[domain.Scope]bool{domain.TenantScope(): true}
+	out := make([]repository.CustomGrantRow, 0, len(grants))
+	for _, row := range grants {
+		scope := row.Grant.Scope
+		ok, asked := reached[scope]
+		if !asked {
+			var err error
+			if ok, err = r.reaches(ctx, actor, scope); err != nil {
+				return nil, err
+			}
+			reached[scope] = ok
+		}
+		if ok {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
+// reaches asks READ on the scope's path without a record: a place left out of an answer is nobody
+// refused anything (audit.md §4).
+func (r Roles) reaches(ctx context.Context, actor appshared.ActorContext, scope domain.Scope) (bool, error) {
+	return r.Reach.Permits(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Path:       pathTo(scope),
+		Action:     RoleReadAction,
+		TokenScope: membersRead,
+		TargetType: roleTarget,
+		TargetID:   scope.ID,
+	})
+}
+
+func (h ListRoles) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ListRolesName,
+		Summary: "Lists the permission catalogue, the seven shipped roles with what each carries, the " +
+			"workspace's own roles, and where its own roles are held. What the roles screen and the " +
+			"who-may-do-what matrix are drawn from.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  membersRead,
+		ReadOnly:    true,
+		Permission:  service.PermissionManageMembers,
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
+			catalogue, err := h.Execute(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			return RoleCatalogueOutput(catalogue), nil
+		}),
+	}
+}
+
+// RoleCatalogueOutput is the answer every door shares.
+func RoleCatalogueOutput(c RoleCatalogue) usecase.Output {
+	catalogue := make([]map[string]any, 0, len(c.Catalogue))
+	for _, entry := range c.Catalogue {
+		catalogue = append(catalogue, map[string]any{
+			"permission": string(entry.Permission), "kind": string(entry.Kind), "group": entry.Group,
+			"shipped": roleStrings(entry.Shipped),
+		})
+	}
+	shipped := make([]map[string]any, 0, len(c.Shipped))
+	for _, role := range c.Shipped {
+		shipped = append(shipped, map[string]any{"role": string(role.Role), "permissions": permissionStrings(role.Permissions)})
+	}
+	custom := make([]map[string]any, 0, len(c.Custom))
+	for _, row := range c.Custom {
+		custom = append(custom, CustomRoleOutput(row))
+	}
+	grants := make([]map[string]any, 0, len(c.Grants))
+	for _, row := range c.Grants {
+		grants = append(grants, CustomGrantOutput(row))
+	}
+	return usecase.Output{"catalogue": catalogue, "shipped": shipped, "custom": custom, "grants": grants}
+}
+
+// CustomRoleOutput is one custom role as every door answers it.
+func CustomRoleOutput(row repository.CustomRoleRow) map[string]any {
+	return map[string]any{
+		"id": row.Role.ID.String(), "key": row.Role.Key, "name": row.Role.Name,
+		"permissions": slices.Clone(row.Role.Permissions), "version": row.Version,
+		"created_at": row.CreatedAt, "updated_at": row.UpdatedAt,
+	}
+}
+
+// CustomGrantOutput is one grant of a custom role as every door, and a holder's replica, has it.
+func CustomGrantOutput(row repository.CustomGrantRow) map[string]any {
+	out := map[string]any{
+		"id": row.Grant.ID.String(), "role": row.RoleKey, "scope_type": string(row.Grant.Scope.Type),
+	}
+	if !row.Grant.AccountID.IsZero() {
+		out["account_id"] = row.Grant.AccountID.String()
+	}
+	if !row.Grant.GroupID.IsZero() {
+		out["group_id"] = row.Grant.GroupID.String()
+	}
+	if !row.Grant.Scope.ID.IsZero() {
+		out["scope_id"] = row.Grant.Scope.ID.String()
+	}
+	return out
+}
+
+// RoleCommand is a role as a writer names it.
+type RoleCommand struct {
+	Key         string
+	Name        string
+	Permissions []string
+	// ExpectedVersion is the version a change was made against; ignored on create.
+	ExpectedVersion int
+}
+
+// CreateRole defines a role from the catalogue (UC-ID-26 check 1). Whoever defines it must hold
+// every permission it carries on the workspace (UC-ID-26).
+type CreateRole struct{ Roles Roles }
+
+func (h CreateRole) Execute(ctx context.Context, actor appshared.ActorContext, cmd RoleCommand) (repository.CustomRoleRow, error) {
+	if slices.Contains(roleNames(), cmd.Key) {
+		return repository.CustomRoleRow{}, shared.ErrValidation.WithDetail("roles.key_invalid").
+			WithParams(map[string]string{"key": cmd.Key})
+	}
+	role, err := service.DefineRole(h.Roles.IDs.NewID(), actor.TenantID, cmd.Key, cmd.Name, cmd.Permissions)
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	if err := h.Roles.authorizeDefinition(ctx, actor, RoleCreatedAction, role.ID, role.Permissions); err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	now := h.Roles.Clock.Now()
+	err = h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Roles.Store.Insert(ctx, role, now); err != nil {
+			return err
+		}
+		row := repository.CustomRoleRow{Role: role, CreatedAt: now, UpdatedAt: now, Version: 1}
+		if err := h.Roles.announce(ctx, actor, row, changelog.Upsert); err != nil {
+			return err
+		}
+		return h.Roles.recordRole(ctx, actor, RoleCreatedAction, role, nil, now)
+	})
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	return repository.CustomRoleRow{Role: role, CreatedAt: now, UpdatedAt: now, Version: 1}, nil
+}
+
+func (h CreateRole) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: CreateRoleName,
+		Summary: "Defines a role of the workspace's own from the permission catalogue: a lower-case key " +
+			"that never spells a shipped role, a name, and the permissions it carries. Whoever " +
+			"defines it must hold every one of them on the workspace.",
+		SideEffects: "Writes the role and an audit entry.",
+		TokenScope:  membersWrite,
+		Permission:  service.PermissionManageMembers,
+		Input:       roleInput(false),
+		Audit: usecase.AuditDeclaration{
+			Action: RoleCreatedAction, TargetType: roleTarget, Severity: audit.SeverityNotice, Required: true,
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			cmd, err := roleCommand(in)
+			if err != nil {
+				return nil, err
+			}
+			row, err := h.Execute(ctx, actor, cmd)
+			if err != nil {
+				return nil, err
+			}
+			return CustomRoleOutput(row), nil
+		}),
+	}
+}
+
+// ChangeRole renames a role and changes what it carries. Every permission added or taken away must
+// be one the writer holds: taking a permission away from its holders is handing it out undone.
+type ChangeRole struct{ Roles Roles }
+
+func (h ChangeRole) Execute(ctx context.Context, actor appshared.ActorContext, cmd RoleCommand) (repository.CustomRoleRow, error) {
+	current, err := h.Roles.find(ctx, actor, cmd.Key)
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	role, err := service.DefineRole(current.Role.ID, actor.TenantID, cmd.Key, cmd.Name, cmd.Permissions)
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	if err := h.Roles.authorizeDefinition(ctx, actor, RoleChangedAction, role.ID,
+		changedPermissions(current.Role.Permissions, role.Permissions)); err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	version := cmd.ExpectedVersion
+	if version == 0 {
+		version = current.Version
+	}
+	now := h.Roles.Clock.Now()
+	err = h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		written, err := h.Roles.Store.Update(ctx, role, version, now)
+		if err != nil {
+			return err
+		}
+		if !written {
+			return shared.ErrVersionConflict.WithDetail("roles.version_conflict").
+				WithParams(map[string]string{"key": role.Key})
+		}
+		row := repository.CustomRoleRow{Role: role, CreatedAt: current.CreatedAt, UpdatedAt: now, Version: version + 1}
+		if err := h.Roles.announce(ctx, actor, row, changelog.Upsert); err != nil {
+			return err
+		}
+		return h.Roles.recordRole(ctx, actor, RoleChangedAction, role, current.Role.Permissions, now)
+	})
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	return repository.CustomRoleRow{Role: role, CreatedAt: current.CreatedAt, UpdatedAt: now, Version: version + 1}, nil
+}
+
+func (h ChangeRole) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ChangeRoleName,
+		Summary: "Renames one of the workspace's own roles and changes what it carries; it applies to " +
+			"everybody who holds it from the next request. Every permission added or taken away " +
+			"must be one the writer holds on the workspace.",
+		SideEffects: "Writes the role and an audit entry.",
+		TokenScope:  membersWrite,
+		Permission:  service.PermissionManageMembers,
+		Input:       roleInput(true),
+		Audit: usecase.AuditDeclaration{
+			Action: RoleChangedAction, TargetType: roleTarget, Severity: audit.SeverityNotice, Required: true,
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			cmd, err := roleCommand(in)
+			if err != nil {
+				return nil, err
+			}
+			row, err := h.Execute(ctx, actor, cmd)
+			if err != nil {
+				return nil, err
+			}
+			return CustomRoleOutput(row), nil
+		}),
+	}
+}
+
+// DeleteRole removes a role nobody holds and no switched-on rule addresses. One in use is refused
+// with its counts rather than taking its grants along: a rollback recreates a role, never who held
+// it where, so a deletion of a block in use is refused (configuration.md §2).
+type DeleteRole struct{ Roles Roles }
+
+func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
+	current, err := h.Roles.find(ctx, actor, key)
+	if err != nil {
+		return err
+	}
+	if err := h.Roles.authorizeDefinition(ctx, actor, RoleDeletedAction, current.Role.ID, current.Role.Permissions); err != nil {
+		return err
+	}
+	now := h.Roles.Clock.Now()
+	return h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Held before counting: a grant committed meanwhile would otherwise go by cascade, and a rule
+		// write naming the role holds it too (automation Writer.holdRoles).
+		if _, err := h.Roles.Store.Lock(ctx, current.Role.ID); err != nil {
+			return err
+		}
+		grants, err := h.Roles.allGrants(ctx, repository.GrantFilter{RoleID: current.Role.ID}, 0)
+		if err != nil {
+			return err
+		}
+		rules := 0
+		if h.Roles.Rules != nil {
+			if rules, err = h.Roles.Rules.Role(ctx, key); err != nil {
+				return err
+			}
+		}
+		if len(grants) > 0 || rules > 0 {
+			return shared.ErrConflict.WithDetail("roles.in_use").WithParams(map[string]string{
+				"key": key, "grants": strconv.Itoa(len(grants)), "rules": strconv.Itoa(rules),
+			})
+		}
+		removed, err := h.Roles.Store.Delete(ctx, current.Role.ID)
+		if err != nil {
+			return err
+		}
+		if !removed {
+			return shared.ErrNotFound.WithDetail("roles.not_found").WithParams(map[string]string{"key": key})
+		}
+		if err := h.Roles.announce(ctx, actor, current, changelog.Delete); err != nil {
+			return err
+		}
+		return h.Roles.recordRole(ctx, actor, RoleDeletedAction, current.Role, current.Role.Permissions, now)
+	})
+}
+
+func (h DeleteRole) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: DeleteRoleName,
+		Summary: "Removes one of the workspace's own roles that nobody holds and no switched-on rule " +
+			"addresses; one in use is refused with roles.in_use and the counts of its grants and rules.",
+		SideEffects: "Removes the role, tells the devices, and writes an audit entry.",
+		TokenScope:  membersWrite,
+		Destructive: true,
+		Permission:  service.PermissionManageMembers,
+		Input: []usecase.Field{
+			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The role's key."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: RoleDeletedAction, TargetType: roleTarget, Severity: audit.SeverityNotice, Required: true,
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			if err := h.Execute(ctx, actor, in.String("key")); err != nil {
+				return nil, err
+			}
+			return usecase.Output{}, nil
+		}),
+	}
+}
+
+// GrantRoleCommand is the input, typed.
+type GrantRoleCommand struct {
+	Role      string
+	AccountID shared.ID
+	GroupID   shared.ID
+	Scope     domain.Scope
+}
+
+// GrantRole gives an account or a group one of the workspace's own roles at a place (UC-ID-26
+// check 2). The granter must hold MANAGE_MEMBERS there and every permission the role carries.
+type GrantRole struct {
+	Roles Roles
+	// Grants checks the subject and the private hub as a built-in grant does.
+	Grants GrantMembership
+}
+
+func (h GrantRole) Execute(ctx context.Context, actor appshared.ActorContext, cmd GrantRoleCommand) (repository.CustomGrantRow, error) {
+	role, err := h.Roles.find(ctx, actor, cmd.Role)
+	if err != nil {
+		return repository.CustomGrantRow{}, err
+	}
+	grant, err := domain.NewCustomGrant(h.Roles.IDs.NewID(), actor.TenantID, cmd.AccountID, cmd.GroupID, cmd.Scope, role.Role.ID)
+	if err != nil {
+		return repository.CustomGrantRow{}, err
+	}
+	request := access.Request{
+		Permission: service.PermissionManageMembers,
+		Path:       pathTo(grant.Scope),
+		Action:     MembershipGrantedAction,
+		TokenScope: membersWrite,
+		TargetType: membershipTarget,
+		TargetID:   grant.Scope.ID,
+		HandsOut:   role.Role.Permissions,
+	}
+	if err := h.Roles.Authorizer.Authorize(ctx, actor, request); err != nil {
+		return repository.CustomGrantRow{}, err
+	}
+	now := h.Roles.Clock.Now()
+	err = h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The role as it stands while held: deleted meanwhile is not found, and permissions
+		// changed meanwhile are what the grant hands out and the ceiling is asked about.
+		held, err := h.Roles.Store.Lock(ctx, role.Role.ID)
+		if err != nil {
+			return err
+		}
+		if !slices.Equal(held.Role.Permissions, role.Role.Permissions) {
+			request.HandsOut = held.Role.Permissions
+			if err := h.Roles.Authorizer.Authorize(ctx, actor, request); err != nil {
+				return err
+			}
+		}
+		like := asGrant(grant)
+		if err := h.Grants.subjectExists(ctx, like); err != nil {
+			return err
+		}
+		if err := h.Grants.noGroupInPrivateHub(ctx, like); err != nil {
+			return err
+		}
+		created, err := h.Roles.Store.Grant(ctx, grant, now)
+		if err != nil || !created {
+			return err
+		}
+		row := repository.CustomGrantRow{Grant: grant, RoleKey: role.Role.Key}
+		if err := h.Roles.announceGrant(ctx, actor, row, changelog.Upsert, ""); err != nil {
+			return err
+		}
+		return h.Roles.Audit.Append(ctx, customGrantEntry(ctx, MembershipGrantedAction, grant, role.Role.Key, actor, now))
+	})
+	if err != nil {
+		return repository.CustomGrantRow{}, err
+	}
+	return repository.CustomGrantRow{Grant: grant, RoleKey: role.Role.Key}, nil
+}
+
+func (h GrantRole) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: GrantRoleName,
+		Summary: "Gives an account or a group one of the workspace's own roles at the workspace, a hub " +
+			"or a collection. It applies downwards as a shipped role does. The granter must hold " +
+			"every permission the role carries there.",
+		SideEffects: "Writes the grant and an audit entry.",
+		TokenScope:  membersWrite,
+		Permission:  service.PermissionManageMembers,
+		Input: []usecase.Field{
+			{Name: "role", Kind: usecase.KindString, Required: true, Description: "The custom role's key."},
+			{
+				Name: "scope_type", Kind: usecase.KindString, Required: true,
+				Enum:        []string{string(domain.ScopeTenant), string(domain.ScopeHub), string(domain.ScopeCollection)},
+				Description: "TENANT for the whole workspace; otherwise the level the scope identifier names.",
+			},
+			{Name: "scope_id", Kind: usecase.KindID, Description: "The hub or collection. Omitted for the workspace."},
+			{Name: "account_id", Kind: usecase.KindID, Description: "Who gets the role. Exactly one of account_id and group_id."},
+			{Name: "group_id", Kind: usecase.KindID, Description: "The group that gets it. Exactly one of account_id and group_id."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: MembershipGrantedAction, TargetType: membershipTarget, Severity: audit.SeverityNotice, Required: true,
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			cmd := GrantRoleCommand{Role: in.String("role")}
+			var err error
+			if cmd.AccountID, err = in.ID("account_id"); err != nil {
+				return nil, err
+			}
+			if cmd.GroupID, err = in.ID("group_id"); err != nil {
+				return nil, err
+			}
+			scopeID, err := in.ID("scope_id")
+			if err != nil {
+				return nil, err
+			}
+			cmd.Scope = domain.Scope{Type: domain.ScopeType(in.String("scope_type")), ID: scopeID}
+			row, err := h.Execute(ctx, actor, cmd)
+			if err != nil {
+				return nil, err
+			}
+			return CustomGrantOutput(row), nil
+		}),
+	}
+}
+
+// RevokeRoleGrant takes one grant of a custom role away; it needs what giving it needed.
+type RevokeRoleGrant struct{ Roles Roles }
+
+func (h RevokeRoleGrant) Execute(ctx context.Context, actor appshared.ActorContext, grantID shared.ID) error {
+	if grantID.IsZero() {
+		return shared.ErrValidation.WithDetail("memberships.identifier_required")
+	}
+	var grant repository.CustomGrantRow
+	var role repository.CustomRoleRow
+	err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		if grant, err = h.Roles.Store.FindGrant(ctx, grantID); err != nil {
+			return err
+		}
+		role, err = h.Roles.Store.Find(ctx, grant.RoleKey)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if err := h.Roles.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionManageMembers,
+		Path:       pathTo(grant.Grant.Scope),
+		Action:     MembershipRevokedAction,
+		TokenScope: membersWrite,
+		TargetType: membershipTarget,
+		TargetID:   grant.Grant.ID,
+		HandsOut:   role.Role.Permissions,
+	}); err != nil {
+		return err
+	}
+	now := h.Roles.Clock.Now()
+	return h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var loss access.Loss
+		if h.Roles.Revocations != nil {
+			if loss, err = h.Roles.Revocations.AfterGrantRevoked(ctx, asGrant(grant.Grant)); err != nil {
+				return err
+			}
+		}
+		removed, err := h.Roles.Store.Revoke(ctx, grant.Grant.ID)
+		if err != nil {
+			return err
+		}
+		if !removed {
+			return shared.ErrNotFound.WithDetail("memberships.not_found").
+				WithParams(map[string]string{"membership_id": grant.Grant.ID.String()})
+		}
+		if h.Roles.Revocations != nil {
+			if err := h.Roles.Revocations.Announce(ctx, actor.TenantID, loss); err != nil {
+				return err
+			}
+		}
+		if err := h.Roles.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
+			return err
+		}
+		return h.Roles.Audit.Append(ctx, customGrantEntry(ctx, MembershipRevokedAction, grant.Grant, grant.RoleKey, actor, now))
+	})
+}
+
+func (h RevokeRoleGrant) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        RevokeRoleGrantName,
+		Summary:     "Takes one grant of a workspace's own role away. It stops applying on the next request.",
+		SideEffects: "Removes the grant, tells the holder's devices, and writes an audit entry.",
+		TokenScope:  membersWrite,
+		Destructive: true,
+		Permission:  service.PermissionManageMembers,
+		Input: []usecase.Field{
+			{Name: "grant_id", Kind: usecase.KindID, Required: true, Description: "The grant to remove."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: MembershipRevokedAction, TargetType: membershipTarget, Severity: audit.SeverityNotice, Required: true,
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("grant_id")
+			if err != nil {
+				return nil, err
+			}
+			if err := h.Execute(ctx, actor, id); err != nil {
+				return nil, err
+			}
+			return usecase.Output{}, nil
+		}),
+	}
+}
+
+// AccessExplained is what *view as* and *who may do what* show for one person at one place (A6,
+// A11): the roles that count there and where each is held, the permissions they carry, and - when
+// one is asked about - whether the person holds it.
+type AccessExplained struct {
+	AccountID   shared.ID
+	Scope       domain.Scope
+	Held        access.Held
+	Asked       service.Permission
+	Holds       bool
+	HeldThrough []access.Source
+	// Entry is the per-entry decision, where the scope is an entry.
+	Entry *access.EntryExplained
+	// Administrators names up to three people who administer the place, for whom to ask.
+	Administrators []NamedAccount
+}
+
+// NamedAccount is a person by identifier and display name.
+type NamedAccount struct {
+	ID   shared.ID
+	Name string
+}
+
+// administratorsNamed is how many administrators an explanation names: "Anna Keller or another
+// administrator" needs one, a short list three.
+const administratorsNamed = 3
+
+// AdministratorReader answers who administers anywhere on a path (repository.Memberships).
+type AdministratorReader interface {
+	Administrators(ctx context.Context, path []domain.Scope) ([]shared.ID, error)
+}
+
+// AccountReader reads one account, for its display name.
+type AccountReader interface {
+	Find(ctx context.Context, accountID shared.ID) (domain.Account, error)
+}
+
+// ExplainAccess answers what a person holds at a place and why (A6, A11). A person may always ask
+// about themselves; about somebody else, it takes MANAGE_MEMBERS or READ_CONFIGURATION on the
+// workspace, as reading who holds what does, and READ at the place itself.
+//
+// At an entry it answers the decision Authorize makes there - through a share, as the assignee, or
+// refused because the person is not - from the authoriser's own resolution (EntryExplainer), so the
+// explanation is the refusal the person meets.
+type ExplainAccess struct {
+	Roles Roles
+	// Containers, Items and Entries answer an entry; nil refuses the entry scope as invalid.
+	Containers ContainerFinder
+	Items      ItemFinder
+	Entries    EntryExplainer
+	// Agents names the person an agent's account acts for, so its entry decision is also asked of
+	// them (G2); nil explains every account by its own decision alone.
+	Agents AgentFinder
+	// Administration and Accounts name who administers the workspace, a hub or a collection, on a question about
+	// oneself (user-experience.md §5.5), to a member of the workspace (Members) - never to a
+	// requester, who knows the team only as "the team" (UC-SVC-05); any nil names nobody.
+	Administration AdministratorReader
+	Accounts       AccountReader
+	Members        MemberReader
+}
+
+// MemberReader answers the authoriser's member question (access.Request.AnyMember) without
+// recording anything (access.Service.Permits).
+type MemberReader interface {
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
+}
+
+// AgentFinder answers the agent acting as an account, ErrNotFound for any other account.
+type AgentFinder interface {
+	FindAgentByAccount(ctx context.Context, account shared.ID) (agentdomain.Agent, error)
+}
+
+// EntryExplainer is the authoriser's per-entry decision for an account, recorded nowhere
+// (access.Service.ExplainEntry).
+type EntryExplainer interface {
+	ExplainEntry(ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []domain.Scope,
+		on access.ItemSubject) (access.EntryExplained, error)
+}
+
+func (h ExplainAccess) Execute(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope, asked string,
+	does service.ItemAction,
+) (AccessExplained, error) {
+	if accountID.IsZero() {
+		accountID = actor.AccountID
+	}
+	if !scope.Valid() || (scope.Type == domain.ScopeItem && h.Entries == nil) {
+		return AccessExplained{}, shared.ErrValidation.WithDetail("memberships.scope_invalid").
+			WithParams(map[string]string{"value": string(scope.Type)})
+	}
+	if does == "" {
+		does = service.ItemRead
+	}
+	var permission service.Permission
+	if asked != "" {
+		var err error
+		if permission, err = service.ParsePermission(asked); err != nil {
+			return AccessExplained{}, err
+		}
+	}
+	if accountID != actor.AccountID {
+		if err := h.Roles.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission:  service.PermissionManageMembers,
+			Alternative: service.PermissionReadConfiguration,
+			Path:        []domain.Scope{domain.TenantScope()},
+			Action:      RoleReadAction,
+			TokenScope:  membersRead,
+			TargetType:  "account",
+			TargetID:    accountID,
+		}); err != nil {
+			return AccessExplained{}, err
+		}
+		// What somebody else holds at a place the caller does not reach is not theirs to read: a
+		// private hub they hold nothing in is not found, in the words a missing one produces (T-04).
+		if scope.Type != domain.ScopeTenant && scope.Type != domain.ScopeItem {
+			reached, err := h.Roles.reaches(ctx, actor, scope)
+			if err != nil {
+				return AccessExplained{}, err
+			}
+			if !reached {
+				return AccessExplained{}, notReachable(scope)
+			}
+		}
+	} else if !actor.IsAuthenticated() {
+		return AccessExplained{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	var held access.Held
+	var entry *access.EntryExplained
+	if scope.Type == domain.ScopeItem {
+		explained, err := h.explainEntry(ctx, actor, accountID, scope, does)
+		if err != nil {
+			return AccessExplained{}, err
+		}
+		held, entry = explained.Held, &explained
+	}
+	var administrators []NamedAccount
+	if err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if scope.Type != domain.ScopeItem {
+			var err error
+			if held, err = h.Roles.Held.HeldBy(ctx, actor, accountID, pathTo(scope)); err != nil {
+				return err
+			}
+		}
+		var err error
+		administrators, err = h.administrators(ctx, actor, accountID, scope)
+		return err
+	}); err != nil {
+		return AccessExplained{}, err
+	}
+	out := AccessExplained{
+		AccountID: accountID, Scope: scope, Held: held, Asked: permission, Entry: entry, Administrators: administrators,
+	}
+	if permission != "" {
+		for _, source := range held.Sources {
+			if source.Carries(permission) {
+				out.HeldThrough = append(out.HeldThrough, source)
+			}
+		}
+		out.Holds = len(out.HeldThrough) > 0
+	}
+	return out, nil
+}
+
+// administrators names who administers the workspace, a hub or a collection, owners and administrators along its
+// path, active ones only, at most administratorsNamed - only to a person asking about themselves.
+func (h ExplainAccess) administrators(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope,
+) ([]NamedAccount, error) {
+	if h.Administration == nil || h.Accounts == nil || h.Members == nil || accountID != actor.AccountID ||
+		scope.Type == domain.ScopeItem {
+		return nil, nil
+	}
+	if isMember, err := h.Members.Permits(ctx, actor, access.Request{AnyMember: true}); err != nil || !isMember {
+		return nil, err
+	}
+	path := pathTo(scope)
+	if scope.Type == domain.ScopeCollection && h.Containers != nil {
+		collection, err := h.Containers.Find(ctx, scope.ID)
+		if err != nil {
+			return nil, notReachableOr(err, scope)
+		}
+		path = service.ContainerScopes(collection)
+	}
+	ids, err := h.Administration.Administrators(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	named := []NamedAccount{}
+	for _, id := range ids {
+		if len(named) == administratorsNamed {
+			break
+		}
+		account, err := h.Accounts.Find(ctx, id)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !account.Status.MayAct() || account.DisplayName == "" {
+			continue
+		}
+		named = append(named, NamedAccount{ID: id, Name: account.DisplayName})
+	}
+	slices.SortFunc(named, func(a, b NamedAccount) int { return cmp.Compare(a.Name, b.Name) })
+	return named, nil
+}
+
+// explainEntry reads the entry's path and assignee and asks the authoriser's decision there. The
+// caller has to reach the entry - asking about oneself included -, or it is not found, so the
+// explanation discloses no entry a guessed identifier names (T-04).
+func (h ExplainAccess) explainEntry(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope, does service.ItemAction,
+) (access.EntryExplained, error) {
+	var item work.WorkItem
+	var path []domain.Scope
+	if err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := h.Items.Find(ctx, scope.ID)
+		if err != nil {
+			return notReachableOr(err, scope)
+		}
+		collection, err := h.Containers.Find(ctx, found.CollectionID)
+		if err != nil {
+			return notReachableOr(err, scope)
+		}
+		item, path = found, service.ContainerScopes(collection)
+		return nil
+	}); err != nil {
+		return access.EntryExplained{}, err
+	}
+	if item.DeletedAt != nil {
+		return access.EntryExplained{}, notReachable(scope)
+	}
+	reached, err := h.Roles.Reach.Permits(ctx, actor, access.Request{
+		Permission: service.PermissionRead, Path: append(slices.Clone(path), domain.ItemScope(item.ID)),
+		Action: RoleReadAction, TokenScope: membersRead, TargetType: "item", TargetID: item.ID,
+		On: access.ItemSubject{Does: service.ItemRead, ID: item.ID, Assignee: item.AssigneeID},
+	})
+	if err != nil {
+		return access.EntryExplained{}, err
+	}
+	if !reached {
+		return access.EntryExplained{}, notReachable(scope)
+	}
+	subject := access.ItemSubject{Does: does, ID: item.ID, Assignee: item.AssigneeID}
+	explained, err := h.Entries.ExplainEntry(ctx, actor, accountID, path, subject)
+	if err != nil || !explained.Permitted || h.Agents == nil {
+		return explained, err
+	}
+	owner, err := h.ownerOf(ctx, actor, accountID)
+	if err != nil || owner.IsZero() {
+		return explained, err
+	}
+	// The second question Authorize asks of an agent's request (delegatorAllows), here by name.
+	byOwner, err := h.Entries.ExplainEntry(ctx, actor, owner, path, subject)
+	if err != nil {
+		return access.EntryExplained{}, err
+	}
+	if !byOwner.Permitted {
+		explained.Permitted, explained.Reason = false, access.OwnerRefuses
+	}
+	return explained, nil
+}
+
+// ownerOf is the person the account acts for when it is an agent's, zero for anybody else.
+func (h ExplainAccess) ownerOf(ctx context.Context, actor appshared.ActorContext, accountID shared.ID) (shared.ID, error) {
+	var owner shared.ID
+	err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := h.Agents.FindAgentByAccount(ctx, accountID)
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		owner = found.OwnerID
+		return err
+	})
+	return owner, err
+}
+
+func (h ExplainAccess) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ExplainAccessName,
+		Summary: "Answers what a person holds at the workspace, a hub, a collection or an entry: the roles " +
+			"that count there and where each is held, and every permission they carry. Given a permission, " +
+			"also whether the person holds it and through which role. At an entry, also whether the person " +
+			"may do the action asked about to it - through a role, a share or as its assignee - or why not, " +
+			"by the decision a request meets there. A person may ask about " +
+			"themselves; about somebody else it takes MANAGE_MEMBERS or READ_CONFIGURATION at the " +
+			"workspace and, for a hub or a collection, READ at that place.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  membersRead,
+		ReadOnly:    true,
+		Permission:  service.PermissionManageMembers,
+		Input: []usecase.Field{
+			{Name: "account_id", Kind: usecase.KindID, Description: "The person; omitted for the caller."},
+			{
+				Name: "scope_type", Kind: usecase.KindString, Required: true,
+				Enum: []string{string(domain.ScopeTenant), string(domain.ScopeHub), string(domain.ScopeCollection),
+					string(domain.ScopeItem)},
+				Description: "TENANT for the workspace; otherwise the level the scope identifier names.",
+			},
+			{Name: "scope_id", Kind: usecase.KindID, Description: "The hub, collection or entry. Omitted for the workspace."},
+			{Name: "permission", Kind: usecase.KindString, Description: "A permission of the catalogue to ask about."},
+			{
+				Name: "action", Kind: usecase.KindString,
+				Enum:        []string{string(service.ItemRead), string(service.ItemChange), string(service.ItemComment)},
+				Description: "At an entry, what to do to it: READ (the default), CHANGE or COMMENT.",
+			},
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			accountID, err := in.ID("account_id")
+			if err != nil {
+				return nil, err
+			}
+			scopeID, err := in.ID("scope_id")
+			if err != nil {
+				return nil, err
+			}
+			scope := domain.Scope{Type: domain.ScopeType(in.String("scope_type")), ID: scopeID}
+			explained, err := h.Execute(ctx, actor, accountID, scope, in.String("permission"),
+				service.ItemAction(in.String("action")))
+			if err != nil {
+				return nil, err
+			}
+			return AccessExplainedOutput(explained), nil
+		}),
+	}
+}
+
+// AccessExplainedOutput is the answer every door shares.
+func AccessExplainedOutput(e AccessExplained) usecase.Output {
+	sources := func(list []access.Source) []map[string]any {
+		out := make([]map[string]any, 0, len(list))
+		for _, source := range list {
+			one := map[string]any{"role": source.Role, "custom": source.Custom, "scope_type": string(source.Scope.Type)}
+			if !source.Scope.ID.IsZero() {
+				one["scope_id"] = source.Scope.ID.String()
+			}
+			out = append(out, one)
+		}
+		return out
+	}
+	out := usecase.Output{
+		"account_id":  e.AccountID.String(),
+		"scope_type":  string(e.Scope.Type),
+		"roles":       slices.Clone(e.Held.Roles),
+		"permissions": permissionStrings(e.Held.Permissions),
+		"sources":     sources(e.Held.Sources),
+		"requester":   e.Held.Requester,
+	}
+	if !e.Scope.ID.IsZero() {
+		out["scope_id"] = e.Scope.ID.String()
+	}
+	if e.Asked != "" {
+		out["asked"] = string(e.Asked)
+		out["holds"] = e.Holds
+		out["held_through"] = sources(e.HeldThrough)
+	}
+	if len(e.Administrators) > 0 {
+		named := make([]map[string]any, 0, len(e.Administrators))
+		for _, one := range e.Administrators {
+			named = append(named, map[string]any{"account_id": one.ID.String(), "name": one.Name})
+		}
+		out["administrators"] = named
+	}
+	if e.Entry != nil {
+		out["entry"] = map[string]any{
+			"action": string(e.Entry.Does), "permitted": e.Entry.Permitted, "reason": string(e.Entry.Reason),
+		}
+	}
+	return out
+}
+
+func (r Roles) find(ctx context.Context, actor appshared.ActorContext, key string) (repository.CustomRoleRow, error) {
+	var row repository.CustomRoleRow
+	err := r.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		row, err = r.Store.Find(ctx, key)
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) {
+		return repository.CustomRoleRow{}, shared.ErrNotFound.WithDetail("roles.not_found").
+			WithParams(map[string]string{"key": key})
+	}
+	return row, err
+}
+
+// authorizeDefinition asks MANAGE_MEMBERS on the workspace and every permission handed out or
+// taken back (UC-ID-26).
+func (r Roles) authorizeDefinition(
+	ctx context.Context, actor appshared.ActorContext, action audit.Action, roleID shared.ID, permissions []string,
+) error {
+	return r.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionManageMembers,
+		Path:       []domain.Scope{domain.TenantScope()},
+		Action:     action,
+		TokenScope: membersWrite,
+		TargetType: roleTarget,
+		TargetID:   roleID,
+		HandsOut:   permissions,
+	})
+}
+
+// recordRole writes the trail's entry. The key and the permissions are codes; the name is user
+// content and stays out (rule 10).
+func (r Roles) recordRole(
+	ctx context.Context, actor appshared.ActorContext, action audit.Action, role domain.CustomRole,
+	before []string, at time.Time,
+) error {
+	changes := []audit.Change{
+		{Field: "key", Classification: audit.Open, To: role.Key},
+		{Field: "permissions", Classification: audit.Open, From: nilIfEmpty(before), To: slices.Clone(role.Permissions)},
+	}
+	if action == RoleDeletedAction {
+		changes[1] = audit.Change{Field: "permissions", Classification: audit.Open, From: slices.Clone(before)}
+	}
+	return r.Audit.Append(ctx, audit.Entry{
+		TenantID:   actor.TenantID,
+		OccurredAt: at,
+		Action:     action,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityNotice,
+		ActorKind:  actor.Kind,
+		ActorID:    actor.AccountID,
+		ActorLabel: actor.AccountName,
+		TargetType: roleTarget,
+		TargetID:   role.ID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes:    audit.Changes(changes...),
+	})
+}
+
+func customGrantEntry(
+	ctx context.Context, action audit.Action, grant domain.CustomGrant, key string, actor appshared.ActorContext, at time.Time,
+) audit.Entry {
+	subject, subjectID := "account", grant.AccountID
+	if grant.AccountID.IsZero() {
+		subject, subjectID = "group", grant.GroupID
+	}
+	var scopeID any
+	if !grant.Scope.ID.IsZero() {
+		scopeID = grant.Scope.ID.String()
+	}
+	// The fields of a built-in grant's entry, so an access review reads both as one shape; the
+	// role is the custom role's key.
+	changes := audit.Changes(
+		audit.Change{Field: "subject_type", Classification: audit.Open, To: subject},
+		audit.Change{Field: "subject_id", Classification: audit.Open, To: subjectID.String()},
+		audit.Change{Field: "scope_type", Classification: audit.Open, To: string(grant.Scope.Type)},
+		audit.Change{Field: "scope_id", Classification: audit.Open, To: scopeID},
+		audit.Change{Field: "role", Classification: audit.Open, To: key},
+		audit.Change{Field: "custom_role", Classification: audit.Open, To: true},
+	)
+	return audit.Entry{
+		TenantID:   grant.TenantID,
+		OccurredAt: at,
+		Action:     action,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityNotice,
+		ActorKind:  actor.Kind,
+		ActorID:    actor.AccountID,
+		ActorLabel: actor.AccountName,
+		TargetType: membershipTarget,
+		TargetID:   grant.ID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		Changes:    changes,
+	}
+}
+
+// asGrant is a custom grant in the shape the subject checks and the revocation read: they ask who
+// and where, never which role.
+func asGrant(grant domain.CustomGrant) domain.Grant {
+	return domain.Grant{
+		ID: grant.ID, TenantID: grant.TenantID, AccountID: grant.AccountID, GroupID: grant.GroupID, Scope: grant.Scope,
+	}
+}
+
+// changedPermissions is every permission added or taken away.
+func changedPermissions(before, after []string) []string {
+	changed := []string{}
+	for _, p := range after {
+		if !slices.Contains(before, p) {
+			changed = append(changed, p)
+		}
+	}
+	for _, p := range before {
+		if !slices.Contains(after, p) {
+			changed = append(changed, p)
+		}
+	}
+	return changed
+}
+
+func roleInput(change bool) []usecase.Field {
+	fields := []usecase.Field{
+		{Name: "key", Kind: usecase.KindString, Required: true, Description: "Lower case, `^[a-z][a-z0-9_]{1,62}$`; fixed once defined."},
+		{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
+		{Name: "permissions", Kind: usecase.KindList, Required: true, Description: "Names from the permission catalogue."},
+	}
+	if change {
+		fields = append(fields, usecase.Field{
+			Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version the change was made against.",
+		})
+	}
+	return fields
+}
+
+func roleCommand(in usecase.Input) (RoleCommand, error) {
+	permissions, err := in.StringList("permissions")
+	if err != nil {
+		return RoleCommand{}, err
+	}
+	return RoleCommand{
+		Key: in.String("key"), Name: in.String("name"), Permissions: permissions,
+		ExpectedVersion: in.Int("expected_version"),
+	}, nil
+}
+
+func roleStrings(roles []domain.Role) []string {
+	out := make([]string, 0, len(roles))
+	for _, role := range roles {
+		out = append(out, string(role))
+	}
+	return out
+}
+
+func permissionStrings(permissions []service.Permission) []string {
+	out := make([]string, 0, len(permissions))
+	for _, permission := range permissions {
+		out = append(out, string(permission))
+	}
+	return out
+}
+
+func nilIfEmpty(list []string) any {
+	if len(list) == 0 {
+		return nil
+	}
+	return slices.Clone(list)
+}

@@ -54,6 +54,13 @@ type Reader interface {
 	) ([]bool, error)
 }
 
+// PageReader is the knowledge module's answer to whether a reader reads one of some pages - a
+// page's readers are decided by its hub, its restrictions and its shares, which only that module
+// knows.
+type PageReader interface {
+	ReadsAny(ctx context.Context, actor appshared.ActorContext, pageIDs []shared.ID) (bool, error)
+}
+
 // GetMedia reads one media object's record.
 //
 // Who may read it is not a question about the object - an object is a file, and a file has no
@@ -68,6 +75,9 @@ type Reader interface {
 type GetMedia struct {
 	Objects    repository.Objects
 	Containers workrepo.Containers
+	// Pages answers whether a reader reads one of the pages holding an object (UC-DOC-14); nil
+	// serves no page's pictures beyond their uploader.
+	Pages      PageReader
 	Transfers  storage.TransferIssuer
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
@@ -122,6 +132,10 @@ func (h GetMedia) Execute(
 type reach struct {
 	paths    [][]identity.Scope
 	portrait bool
+	// desks are the paths of the collections showing the object as their logo.
+	desks [][]identity.Scope
+	// pages are the live pages holding the object.
+	pages []shared.ID
 }
 
 // read reads the object together with the entries it serves and the collections those sit in - one
@@ -142,6 +156,20 @@ func (h GetMedia) read(
 		}
 		object = found
 
+		if found.Usage == media.UsageDeskLogo {
+			collections, err := h.Objects.ServedDesks(ctx, mediaID)
+			if err != nil {
+				return err
+			}
+			for _, id := range collections {
+				collection, err := h.Containers.Find(ctx, id)
+				if err != nil {
+					return err
+				}
+				served.desks = append(served.desks, containerPath(collection))
+			}
+			return nil
+		}
 		if found.Usage == media.UsageAvatar {
 			// Whoever is in the workspace: the transaction's tenant already bounds the question,
 			// so a picture of another workspace's member does not resolve here.
@@ -153,7 +181,21 @@ func (h GetMedia) read(
 		if err != nil {
 			return err
 		}
-		served.paths, err = h.pathsOf(ctx, items)
+		if served.paths, err = h.pathsOf(ctx, items); err != nil {
+			return err
+		}
+		// A board's picture or file is read by whoever may read the board, judged at its hub as
+		// the board is (UC-CNV-08).
+		hubs, err := h.Objects.ReferencingBoards(ctx, mediaID)
+		if err != nil {
+			return err
+		}
+		for _, hub := range hubs {
+			served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		if h.Pages != nil {
+			served.pages, err = h.Objects.ReferencingPages(ctx, mediaID)
+		}
 		return err
 	})
 	if err != nil {
@@ -217,9 +259,12 @@ func (h GetMedia) ensureReadable(
 	if object.CreatedBy == actor.AccountID || served.portrait {
 		return nil
 	}
+	if len(served.desks) > 0 {
+		return h.ensureRequests(ctx, actor, object, served.desks)
+	}
 	paths := served.paths
 	if len(paths) == 0 {
-		return mediaNotFound(object.ID)
+		return h.ensureReadsPage(ctx, actor, object, served)
 	}
 
 	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
@@ -237,7 +282,46 @@ func (h GetMedia) ensureReadable(
 			return nil
 		}
 	}
+	return h.ensureReadsPage(ctx, actor, object, served)
+}
+
+// ensureRequests answers for a desk's logo: whoever may raise a request at the collection - the
+// portal's own question - or read it, as the team does, reads the logo the portal draws.
+func (h GetMedia) ensureRequests(
+	ctx context.Context, actor appshared.ActorContext, object media.Object, desks [][]identity.Scope,
+) error {
+	allowed, err := h.Reader.Permitted(ctx, actor, access.Request{
+		Permission:  service.PermissionRequest,
+		Alternative: service.PermissionRead,
+		Action:      MediaReadAction,
+		TokenScope:  mediaRead,
+		TargetType:  mediaTarget,
+		TargetID:    object.ID,
+	}, desks)
+	if err != nil {
+		return err
+	}
+	for _, may := range allowed {
+		if may {
+			return nil
+		}
+	}
 	return mediaNotFound(object.ID)
+}
+
+// ensureReadsPage is the last answer: a reader of a page holding the object reads it (UC-DOC-14).
+func (h GetMedia) ensureReadsPage(ctx context.Context, actor appshared.ActorContext, object media.Object, served reach) error {
+	if h.Pages == nil || len(served.pages) == 0 {
+		return mediaNotFound(object.ID)
+	}
+	reads, err := h.Pages.ReadsAny(ctx, actor, served.pages)
+	if err != nil {
+		return err
+	}
+	if !reads {
+		return mediaNotFound(object.ID)
+	}
+	return nil
 }
 
 // containerPath is the path a membership is resolved along, from the tenant down to the container
@@ -279,10 +363,11 @@ func viewedOutput(viewed ViewedMedia) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h GetMedia) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetMediaName,
+		Name:       GetMediaName,
+		Permission: service.PermissionRead,
 		Summary: "Reads one media object's record, with a download target when it is READY. " +
 			"Readable by whoever staged it, and by anybody who may read an entry it covers or is " +
-			"attached to - an object nobody may reach is reported missing rather than forbidden. " +
+			"attached to, or a whiteboard it is placed on - an object nobody may reach is reported missing rather than forbidden. " +
 			"The download target is a short-lived capability: a presigned object-storage URL, or " +
 			"this server's token-protected content route on a local-storage installation.",
 		SideEffects: "None. Reads only, and mints an expiring download target.",

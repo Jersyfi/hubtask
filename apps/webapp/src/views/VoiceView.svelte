@@ -13,11 +13,17 @@
   //
   // **Where the installation publishes a skill**, all of that is the operator's: the page says to
   // enable it in the Alexa app and link the account.
+  //
+  // **The head says what is connected** (user-experience.md §7.10), from what is saved rather
+  // than the draft: spoken entries on or off, and whether a skill answers. Nothing here fails on
+  // its own - a skill that stops answering is Alexa's to say - so nothing is counted in the column.
 
   import { untrack } from 'svelte';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import {
-    Banner,
+    Badge,
     Button,
     IconButton,
     Input,
@@ -47,6 +53,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
 
   interface DraftAlias {
@@ -57,6 +64,7 @@
   }
 
   let loaded = $state<VoiceSettings | undefined>(undefined);
+  const isSkillConnected = $derived(loaded?.installation_skill === true || Boolean(loaded?.skill_id));
   let readFailure = $state<string | undefined>(undefined);
   let enabled = $state(false);
   let defaultList = $state('');
@@ -73,20 +81,43 @@
     if (!mayShape) return;
     untrack(() => {
       void readVoiceSettings()
-        .then((settings) => {
-          if (!settings) return;
-          loaded = { ...settings, aliases: settings.aliases ?? [] };
-          enabled = settings.enabled === true;
-          defaultList = settings.default_collection_id ?? '';
-          skillId = settings.skill_id ?? '';
-          invocation = settings.invocation_name ?? '';
-          aliases = (settings.aliases ?? []).map((alias) => ({
-            key: crypto.randomUUID(), phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '',
-          }));
-        })
+        .then((settings) => settings && take(settings))
         .catch((error) => (readFailure = renderProblem(error as never, messages).message));
     });
   });
+
+  function take(settings: VoiceSettings) {
+    loaded = { ...settings, aliases: settings.aliases ?? [] };
+    enabled = settings.enabled === true;
+    defaultList = settings.default_collection_id ?? '';
+    skillId = settings.skill_id ?? '';
+    invocation = settings.invocation_name ?? '';
+    aliases = (settings.aliases ?? []).map((alias) => ({
+      key: crypto.randomUUID(), phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '',
+    }));
+  }
+
+  /** How many of the settings differ from what is saved: the save bar's count and the leave guard's. */
+  const changes = $derived.by(() => {
+    const held = loaded;
+    if (!held) return 0;
+    const aliasesOf = (rows: readonly { phrase: string; collection: string; label: string }[]) =>
+      rows.filter((row) => row.phrase.trim() !== '').map((row) => `${row.phrase.trim()}\u0000${row.collection}\u0000${row.label}`).join('\n');
+    return [
+      enabled !== (held.enabled === true),
+      defaultList !== (held.default_collection_id ?? ''),
+      skillId.trim() !== (held.skill_id ?? ''),
+      invocation.trim().toLowerCase() !== (held.invocation_name ?? ''),
+      aliasesOf(aliases) !== aliasesOf((held.aliases ?? []).map((alias) => ({ phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '' }))),
+    ].filter(Boolean).length;
+  });
+
+  const sections = $derived([
+    { id: 'voice-part-on', label: t('app.voice.section_on') },
+    { id: 'voice-part-names', label: t('app.voice.section_names') },
+    { id: 'voice-part-try', label: t('app.voice.section_try') },
+    { id: 'voice-part-alexa', label: t('app.voice.section_alexa') },
+  ]);
 
   // The tree is not drawn in the administration, so the lists are read here.
   $effect(() => untrack(() => containers.start()));
@@ -123,7 +154,7 @@
     saveFailure = undefined;
     isSaving = true;
     try {
-      loaded = await saveVoiceSettings({
+      take(await saveVoiceSettings({
         enabled,
         default_collection_id: defaultList || null,
         skill_id: skillId.trim() || null,
@@ -131,7 +162,7 @@
         aliases: aliases
           .filter((alias) => alias.phrase.trim() !== '')
           .map((alias) => ({ phrase: alias.phrase.trim(), collection_id: alias.collection, ...(alias.label ? { label_id: alias.label } : {}) })),
-      });
+      }));
       announcer.say(t('app.voice.saved'));
     } catch (error) {
       saveFailure = renderProblem(error as never, messages).message;
@@ -241,18 +272,42 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet figure()}
+      {#if loaded}
+        <span class="figure" data-voice-figure>
+          <Badge tone={loaded.enabled ? 'success' : 'neutral'}>{t(loaded.enabled ? 'app.voice.state_on' : 'app.voice.state_off')}</Badge>
+          <Badge tone={isSkillConnected ? 'success' : 'neutral'}>{t(isSkillConnected ? 'app.voice.state_skill' : 'app.voice.state_no_skill')}</Badge>
+        </span>
+      {/if}
+    {/snippet}
+  </PageHeader>
   <p class="quiet">{t('app.voice.intro')}</p>
 
   <WorkspaceGate permission="AUTOMATION">
     {#snippet actions()}
       {#if readFailure}
-        <Banner tone="danger">{readFailure}</Banner>
+        <FailureNote problem={readFailure} />
       {:else if !loaded}
         <p class="quiet"><Spinner label={t('app.voice.reading')} /> {t('app.voice.reading')}</p>
       {:else}
-        <Stack gap="400">
-          <section class="panel" aria-labelledby="voice-on" data-voice-settings>
+        <SettingsPage
+          label={t('app.settings_page.sections', { name: t('app.voice.title') })}
+          {sections}
+          {changes}
+          save={{
+            label: t('app.voice.save'),
+            savingLabel: t('app.voice.saving'),
+            isSaving,
+            onSave: () => void save(),
+            onDiscard: () => {
+              saveFailure = undefined;
+              if (loaded) take(loaded);
+            },
+          }}
+        >
+          {#if saveFailure}<FailureNote problem={saveFailure} />{/if}
+          <section id="voice-part-on" class="panel" aria-labelledby="voice-on" data-voice-settings>
             <Stack gap="150">
               <h2 class="section" id="voice-on">{t('app.voice.section_on')}</h2>
               <Switch label={t('app.voice.enabled')} hint={t('app.voice.enabled_hint')} bind:checked={enabled} />
@@ -262,7 +317,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="voice-names" data-voice-names>
+          <section id="voice-part-names" class="panel" aria-labelledby="voice-names" data-voice-names>
             <Stack gap="150">
               <h2 class="section" id="voice-names">{t('app.voice.section_names')}</h2>
               <p class="quiet small">{t('app.voice.names_hint')}</p>
@@ -274,14 +329,11 @@
                   <IconButton icon="trash" label={t('app.voice.alias_remove', { name: alias.phrase || '…' })} onclick={() => removeAlias(alias.key)} />
                 </div>
               {/each}
-              <div><Button tone="secondary" size="sm" icon="plus" onclick={addAlias}>{t('app.voice.alias_add')}</Button></div>
+              <div><Button data-list-add tone="secondary" size="sm" icon="plus" onclick={addAlias}>{t('app.voice.alias_add')}</Button></div>
             </Stack>
           </section>
 
-          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
-          <div><Button tone="primary" isBusy={isSaving} busyLabel={t('app.voice.saving')} onclick={() => void save()}>{t('app.voice.save')}</Button></div>
-
-          <section class="panel" aria-labelledby="voice-try" data-voice-try>
+          <section id="voice-part-try" class="panel" aria-labelledby="voice-try" data-voice-try>
             <Stack gap="150">
               <h2 class="section" id="voice-try">{t('app.voice.section_try')}</h2>
               <p class="quiet small">{t('app.voice.try_hint')}</p>
@@ -290,7 +342,7 @@
                 <Select label={t('app.voice.try_language')} options={locales} bind:value={() => locale, (next) => (chosenLocale = next)} />
                 <Button tone="secondary" onclick={() => void tryIt()}>{t('app.voice.try')}</Button>
               </div>
-              {#if tryFailure}<Banner tone="danger">{tryFailure}</Banner>{/if}
+              {#if tryFailure}<FailureNote problem={tryFailure} />{/if}
               {#if tried}
                 <p class="result" role="status" data-voice-result>
                   {#if tried.found && tried.place}
@@ -305,7 +357,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="voice-alexa" data-voice-alexa>
+          <section id="voice-part-alexa" class="panel" aria-labelledby="voice-alexa" data-voice-alexa>
             <Stack gap="200">
               <h2 class="section" id="voice-alexa">{t('app.voice.section_alexa')}</h2>
               {#if loaded.installation_skill}
@@ -329,7 +381,7 @@
                       <Select label={t('app.voice.try_language')} options={locales} bind:value={() => modelLocale, (next) => (chosenModelLocale = next)} />
                       <Button tone="secondary" icon={copied === 'model' ? 'check' : 'copy'} onclick={() => void copyModel()}>{t('app.voice.copy_model')}</Button>
                     </div>
-                    {#if modelFailure}<Banner tone="danger">{modelFailure}</Banner>{/if}
+                    {#if modelFailure}<FailureNote problem={modelFailure} />{/if}
                   </li>
                   <li>
                     <h3>{t('app.voice.step_endpoint')}</h3>
@@ -343,7 +395,7 @@
                       <Input label={t('app.voice.vendor_id')} hint={t('app.voice.vendor_id_hint')} bind:value={vendorId} />
                       <Button tone="secondary" isBusy={isLinking} busyLabel={t('app.voice.making_linking')} disabledReason={vendorId.trim() ? undefined : t('app.voice.vendor_first')} onclick={() => void makeLinking()}>{t('app.voice.make_linking')}</Button>
                     </div>
-                    {#if linkFailure}<Banner tone="danger">{linkFailure}</Banner>{/if}
+                    {#if linkFailure}<FailureNote problem={linkFailure} />{/if}
                     {@render value('authorization', t('app.voice.authorization_uri'), authorizationUri)}
                     {@render value('token', t('app.voice.token_uri'), tokenUri)}
                     {@render value('scheme', t('app.voice.auth_scheme'), 'HTTP Basic')}
@@ -381,13 +433,15 @@
               {/if}
             </Stack>
           </section>
-        </Stack>
+        </SettingsPage>
       {/if}
     {/snippet}
   </WorkspaceGate>
 </Stack>
 
 <style>
+  .figure { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); }
+
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   h3 { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }

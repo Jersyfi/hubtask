@@ -13,7 +13,7 @@ export interface Crumb {
   readonly id: string;
   /** Resolved text (ADR-0011), never a code. */
   readonly label: string;
-  /** Where it goes. Absent on the current level, which is not a link. */
+  /** Where it goes. Absent on the current level, which is not a link, and on a level with no page. */
   readonly href?: string;
 }
 

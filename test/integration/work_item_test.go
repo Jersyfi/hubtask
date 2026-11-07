@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -539,6 +540,46 @@ func TestFindManyAnswersOnlyTheCallersEntries(t *testing.T) {
 	}
 	if found[0].Title != "B's" || found[0].TenantID != tenantB {
 		t.Errorf("the entry came back as %q of tenant %s", found[0].Title, found[0].TenantID)
+	}
+}
+
+// The cross-tenant negative test for IDsAfter, the walk that fills a new calculated field: tenant B
+// walking the whole workspace meets its own entry and nothing of A's, and a collection narrows the
+// walk to it.
+func TestIDsAfterWalksOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	collectionA := collectionFor(ctx, t, tenantA, authorA)
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := itemRepo()
+
+	inA, inB := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0")))
+	}); err != nil {
+		t.Fatalf("writing A's task: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return insertErr(repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0")))
+	}); err != nil {
+		t.Fatalf("writing B's task: %v", err)
+	}
+
+	var whole, narrowed []shared.ID
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		if whole, err = repo.IDsAfter(ctx, "", "", 1000); err != nil {
+			return err
+		}
+		narrowed, err = repo.IDsAfter(ctx, collectionA, "", 1000)
+		return err
+	}); err != nil {
+		t.Fatalf("B walking: %v", err)
+	}
+	if !slices.Contains(whole, inB) || slices.Contains(whole, inA) {
+		t.Fatalf("tenant B walked %v", whole)
+	}
+	if len(narrowed) != 0 {
+		t.Fatalf("tenant B walked A's collection: %v", narrowed)
 	}
 }
 

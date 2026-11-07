@@ -131,7 +131,11 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		return err
 	}
 
-	if err := queries.InsertAutomationRule(ctx, sqlc.InsertAutomationRuleParams{
+	var key *string
+	if rule.Key != "" {
+		key = &rule.Key
+	}
+	_, err = queries.InsertAutomationRule(ctx, sqlc.InsertAutomationRuleParams{
 		ID:         id,
 		ScopeType:  string(rule.Scope.Type),
 		ScopeID:    scopeID,
@@ -146,7 +150,12 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		CreatedBy:  createdBy,
 		CreatedAt:  timestampOf(rule.CreatedAt),
 		NextRunAt:  scheduleMoment(rule.NextRunAt),
-	}); err != nil {
+		Key:        key,
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return fieldConflict("/key", "automation.key_taken")
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("inserting automation rule %s: %w", rule.ID, err))
@@ -321,6 +330,10 @@ func (r AutomationRuleRepository) Update(
 		ExpectedVersion: int32(expectedVersion),
 	})
 	if err != nil {
+		if isUniqueViolation(err) {
+			// Moved to a scope that already holds the rule's key.
+			return fieldConflict("/scope", "automation.key_taken")
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("updating automation rule %s: %w", rule.ID, err))
@@ -483,7 +496,11 @@ type triggerDocument struct {
 	RRule         string   `json:"rrule,omitempty"`
 	Timezone      string   `json:"timezone,omitempty"`
 	Anchor        string   `json:"anchor,omitempty"`
+	AnchorField   string   `json:"anchor_field,omitempty"`
 	Offset        string   `json:"offset,omitempty"`
+	Calendar      string   `json:"calendar,omitempty"`
+	Workflow      string   `json:"workflow,omitempty"`
+	Step          string   `json:"step,omitempty"`
 }
 
 type conditionDocument struct {
@@ -513,7 +530,9 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 		Kind: string(rule.Trigger.Kind), EventType: rule.Trigger.EventType.String(),
 		ChangedFields: rule.Trigger.ChangedFields,
 		RRule:         rule.Trigger.RRule, Timezone: rule.Trigger.Timezone,
-		Anchor: string(rule.Trigger.Anchor), Offset: rule.Trigger.Offset,
+		Anchor: string(rule.Trigger.Anchor), AnchorField: rule.Trigger.AnchorField,
+		Offset: rule.Trigger.Offset, Calendar: rule.Trigger.Calendar,
+		Workflow: rule.Trigger.Workflow, Step: rule.Trigger.Step,
 	}
 
 	// Empty slices rather than nil, so that a column holds `[]` and not `null`: what is read back
@@ -556,11 +575,6 @@ func documentsOf(rule domain.Rule) (ruleDocuments, error) {
 	return documents, nil
 }
 
-// automationRuleFrom reads a row back.
-//
-// Defensively, although every document in the column was written by a validated aggregate: the row
-// outlives the release that wrote it, and a shape this build cannot read has to be an error a log
-// names rather than a zero value that quietly changes what a rule does.
 // Due answers this tenant's rules whose moment has come.
 //
 // The tenant is the transaction's, never a parameter: the pass is opened under one tenant's scope
@@ -651,6 +665,11 @@ func scheduleMoment(at time.Time) pgtype.Timestamptz {
 	return timestampOf(at)
 }
 
+// automationRuleFrom reads a row back.
+//
+// Defensively, although every document in the column was written by a validated aggregate: the row
+// outlives the release that wrote it, and a shape this build cannot read has to be an error a log
+// names rather than a zero value that quietly changes what a rule does.
 func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {
@@ -715,7 +734,9 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 			Kind: domain.TriggerKind(trigger.Kind), EventType: event.Type(trigger.EventType),
 			ChangedFields: trigger.ChangedFields,
 			RRule:         trigger.RRule, Timezone: trigger.Timezone,
-			Anchor: domain.DateAnchor(trigger.Anchor), Offset: trigger.Offset,
+			Anchor: domain.DateAnchor(trigger.Anchor), AnchorField: trigger.AnchorField,
+			Offset: trigger.Offset, Calendar: trigger.Calendar,
+			Workflow: trigger.Workflow, Step: trigger.Step,
 		},
 		Conditions: make([]domain.Condition, 0, len(conditions)),
 		Actions:    make([]domain.Action, 0, len(actions)),
@@ -732,6 +753,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 		CreatedAt:        timeFrom(row.CreatedAt),
 		UpdatedAt:        timeFrom(row.UpdatedAt),
 		Version:          int(row.Version),
+		Key:              stringFrom(row.Key),
 	}
 	for _, condition := range conditions {
 		rule.Conditions = append(rule.Conditions, domain.Condition{Expr: condition.Expr})

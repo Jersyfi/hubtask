@@ -252,3 +252,31 @@ func TestABlockedTargetIsDistinguishableFromAnOutage(t *testing.T) {
 		t.Error("an untyped error was reported as a blocked target")
 	}
 }
+
+// The service the operator named is reachable through an allowlist that does not list it: naming
+// the scanner is the operator's word for that one host, and no other host gains anything. With no
+// allowlist nothing is added, which would otherwise close every other public host.
+func TestTheOperatorsNamedServiceIsAllowedBesideTheAllowlist(t *testing.T) {
+	g := guard(t, env.OutboundConfig{AllowedHosts: []string{"api.mistral.ai"}}).ForOperatorService("ClamAV")
+
+	if err := g.CheckHost("clamav"); err != nil {
+		t.Errorf("the named service was refused: %v", err)
+	}
+	if err := g.CheckHost("api.mistral.ai"); err != nil {
+		t.Errorf("the allowlist lost a host: %v", err)
+	}
+	if err := g.CheckHost("evil.example.org"); err == nil {
+		t.Error("a host neither listed nor named passed")
+	}
+	if !g.AllowsPrivateNetworks() {
+		t.Error("the operator's service is not open to private networks")
+	}
+
+	open := guard(t, env.OutboundConfig{}).ForOperatorService("clamav")
+	if err := open.CheckHost("hooks.example.org"); err != nil {
+		t.Errorf("naming a service closed an open allowlist: %v", err)
+	}
+	if err := guard(t, env.OutboundConfig{AllowedHosts: []string{"api.mistral.ai"}}).CheckHost("clamav"); err == nil {
+		t.Error("the base guard gained the service's host")
+	}
+}

@@ -131,6 +131,7 @@ export const DECLARED = {
     'user-minus', // remove a member, unassign
     'columns-3', // a bucket
     'folder-plus', // a hub or collection
+    'folder', // a folder in a file store
     'layout-template', // a template
     'skip-forward', // skip an occurrence
     'sliders-horizontal', // a custom field
@@ -181,6 +182,23 @@ export const DECLARED = {
     'paw-print',
     'utensils',
     'gift',
+  ],
+  'The whiteboard': [
+    // The canvas's own tools and side sheets (user-experience.md §7.2): a tool bar of icon buttons
+    // reads only where each tool has a glyph of its own, so no two tools share one.
+    'mouse-pointer-2',
+    'sticky-note',
+    'shapes',
+    'type',
+    'move-up-right', // a connector: an arrow from one object to another
+    'frame',
+    'eraser',
+    'undo-2',
+    'redo-2',
+    'map',
+    'timer',
+    'vote',
+    'rotate-ccw-clock', // the board's history: back to an earlier time
   ],
   'Staying current': [
     // The installed apps' offer of a newer release: its download, on Android and for the `.deb`

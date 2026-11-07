@@ -94,7 +94,7 @@ func TestALegalLinkIsCheckedBeforeItIsStored(t *testing.T) {
 
 	for _, refused := range []string{
 		"javascript:alert(1)", "data:text/html,x", "file:///etc/passwd", "not a url at all",
-		"//acme.example/imprint",
+		"//acme.example/imprint", "https://:8443/imprint", "https://\x00acme.example/imprint",
 	} {
 		err := mustRefuse(t, refused)
 		if !strings.HasPrefix(err.Fields[0].Path, "/sign_in_policy/") {

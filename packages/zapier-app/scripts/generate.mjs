@@ -400,14 +400,14 @@ ${searches.map((key) => line('searches', key)).join('\n')}
 `;
 }
 
-/** The manifest of the app as it would be pushed with the Zapier CLI; `private` until the owner does. */
+/** The manifest of the app the release pushes with the Zapier CLI. */
 export function publishedManifest(version) {
   return {
     name: 'hubtask-zapier',
     version,
-    private: true,
     description: 'The Zapier app for Hubtask, generated from the OpenAPI contract',
     license: 'Apache-2.0',
+    repository: { type: 'git', url: 'git+https://github.com/Jersyfi/hubtask.git', directory: 'packages/zapier-app' },
     main: 'index.js',
     // `zapier-platform-core` is a dependency of a Zapier app by the CLI's own rule, at the exact
     // version the platform pins; it is named here, in the manifest the CLI reads, and not in the

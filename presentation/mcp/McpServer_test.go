@@ -394,3 +394,33 @@ func TestEveryCallThroughThisDoorIsAnAgents(t *testing.T) {
 		}
 	}
 }
+
+// A tool carries an outputSchema only where its use case declares its answer: required members
+// typed, the others nullable, and members beyond them allowed.
+func TestAToolDeclaresItsOutputOnlyWhereTheUseCaseDoes(t *testing.T) {
+	tools := ToolsOf([]usecase.Descriptor{
+		{Name: "PlanThing", Output: []usecase.Field{
+			{Name: "hash", Kind: usecase.KindString, Required: true},
+			{Name: "next", Kind: usecase.KindString},
+		}},
+		{Name: "ReadThing"},
+	})
+	schema := tools[0].OutputSchema
+	properties, _ := schema["properties"].(map[string]any)
+	hash, _ := properties["hash"].(map[string]any)
+	next, _ := properties["next"].(map[string]any)
+	required, _ := schema["required"].([]string)
+	if hash["type"] != "string" || len(required) != 1 || required[0] != "hash" || schema["additionalProperties"] != true {
+		t.Fatalf("schema %v", schema)
+	}
+	if kinds, _ := next["type"].([]string); len(kinds) != 2 || kinds[1] != "null" {
+		t.Fatalf("an optional member is not nullable: %v", next)
+	}
+	listed, err := json.Marshal(tools[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(listed), "outputSchema") {
+		t.Fatalf("a tool without a declared answer lists an outputSchema: %s", listed)
+	}
+}

@@ -108,7 +108,7 @@
         class="tab"
         data-index={position}
         id={`${group}-tab-${tab.id}`}
-        aria-controls={`${group}-panel`}
+        aria-controls={children ? `${group}-panel` : undefined}
         aria-selected={tab.id === selected}
         aria-disabled={tab.disabledReason === undefined ? undefined : true}
         aria-describedby={tab.disabledReason === undefined ? undefined : reasonId(tab.id)}

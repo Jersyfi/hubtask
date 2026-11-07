@@ -129,7 +129,7 @@ func (h AuthorizeMailbox) invoke(ctx context.Context, actor appshared.ActorConte
 	}
 	clientSecret := secret.New(in.String("client_secret"))
 	// The installation's app, where there is one and the administrator brought none of their own.
-	app, installed := b.OAuth.Apps[request.Provider]
+	app, installed := b.OAuth.Apps[domain.InstallationApp(request.Provider)]
 	if installed && request.ClientID == "" {
 		request.ClientID, request.Installation = app.ClientID, true
 		clientSecret = secret.Secret{}
@@ -143,10 +143,11 @@ func (h AuthorizeMailbox) invoke(ctx context.Context, actor appshared.ActorConte
 		ID: b.IDs.NewID(), TenantID: actor.TenantID, AccountID: actor.AccountID, Client: client,
 		Host: host, Port: port, LoginHint: in.String("address"), ExpiresAt: now.Add(domain.PendingTTL),
 	}
-	state, err := b.draw(stateBytes)
+	handle, err := b.draw(stateBytes)
 	if err != nil {
 		return nil, err
 	}
+	state := shared.ReturnState(actor.TenantID, handle)
 	verifier, err := b.draw(verifierBytes)
 	if err != nil {
 		return nil, err
@@ -169,12 +170,8 @@ func (h AuthorizeMailbox) invoke(ctx context.Context, actor appshared.ActorConte
 		if _, err := b.OAuth.Authorizations.DeleteExpired(ctx, now); err != nil {
 			return err
 		}
-		count, err := b.Mailboxes.Count(ctx)
-		if err != nil {
+		if err := b.room(ctx, actor); err != nil {
 			return err
-		}
-		if count >= domain.MaxMailboxes {
-			return shared.ErrConflict.WithDetail("mail.mailboxes_full")
 		}
 		return b.OAuth.Authorizations.Insert(ctx, pending, stateHash(state), sealedVerifier, sealedClientSecret)
 	})
@@ -271,7 +268,7 @@ func (h CompleteMailboxAuthorization) invoke(ctx context.Context, actor appshare
 		preset = "gmail"
 	}
 	box, err := domain.NewMailbox(domain.NewMailboxInput{
-		ID: b.IDs.NewID(), TenantID: actor.TenantID, Preset: preset, Protocol: domain.ProtocolIMAP,
+		ID: b.IDs.NewID(), TenantID: actor.TenantID, Preset: preset, Protocol: domain.ProtocolOf(pending.Client.Provider),
 		Address: address, Host: pending.Host, Port: pending.Port, Now: now,
 	})
 	if err != nil {
@@ -292,12 +289,8 @@ func (h CompleteMailboxAuthorization) invoke(ctx context.Context, actor appshare
 		return nil, err
 	}
 	err = b.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		count, err := b.Mailboxes.Count(ctx)
-		if err != nil {
+		if err := b.room(ctx, actor); err != nil {
 			return err
-		}
-		if count >= domain.MaxMailboxes {
-			return shared.ErrConflict.WithDetail("mail.mailboxes_full")
 		}
 		if err := b.Mailboxes.Insert(ctx, box, sealed, actor.AccountID); err != nil {
 			return err
@@ -318,7 +311,7 @@ func (h CompleteMailboxAuthorization) invoke(ctx context.Context, actor appshare
 // the administrator entered, or none for a public client.
 func (b Boxes) pendingClientSecret(ctx context.Context, pending domain.PendingAuthorization, sealed *crypto.Sealed) (secret.Secret, error) {
 	if pending.Client.Installation {
-		app, ok := b.OAuth.Apps[pending.Client.Provider]
+		app, ok := b.OAuth.Apps[domain.InstallationApp(pending.Client.Provider)]
 		if !ok {
 			return secret.Secret{}, shared.ErrUnavailable.WithDetail("mail.oauth_app_missing")
 		}
@@ -354,7 +347,7 @@ func (b Boxes) credential(ctx context.Context, scope persistence.Scope, box doma
 	}
 	clientSecret := secret.New(kept.ClientSecret)
 	if box.OAuth.Installation {
-		app, ok := b.OAuth.Apps[box.OAuth.Provider]
+		app, ok := b.OAuth.Apps[domain.InstallationApp(box.OAuth.Provider)]
 		if !ok {
 			// The operator took the app out of the configuration.
 			return secret.Secret{}, shared.ErrUnavailable.WithDetail("mail.oauth_app_missing")
@@ -389,7 +382,7 @@ func (b Boxes) oauthProviders() []any {
 	}
 	out := make([]any, 0, len(domain.OAuthPresets))
 	for _, preset := range domain.OAuthPresets {
-		_, installed := b.OAuth.Apps[preset.Key]
+		_, installed := b.OAuth.Apps[domain.InstallationApp(preset.Key)]
 		out = append(out, map[string]any{"key": preset.Key, "installation": installed, "hint": preset.Hint})
 	}
 	return out

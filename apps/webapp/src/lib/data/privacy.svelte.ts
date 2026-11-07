@@ -26,7 +26,7 @@ import type {
   ResourceState,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import type { ErasureMode, Extension, Request } from './privacy.ts';
 
 export {
@@ -35,6 +35,7 @@ export {
   canExtend,
   canStart,
   confirmsStart,
+  erasureLinePhrase,
   keptPartPhrase,
   keptPhrase,
   deadlineOfDay,
@@ -128,7 +129,7 @@ class Privacy {
    */
   async record(draft: Omit<DataSubjectRequestCreate, 'scope'>): Promise<Request> {
     return engine.mutate<Request>('POST', REQUESTS, { scope: 'TENANT', ...draft }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [REQUESTS],
     });
   }
@@ -166,7 +167,7 @@ class Privacy {
    */
   async extend(requestId: string, extension: Extension): Promise<Request> {
     return engine.mutate<Request>('POST', `${REQUESTS}/${requestId}:extend`, extension, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [REQUESTS],
     });
   }
@@ -182,7 +183,7 @@ class Privacy {
       'POST',
       `/accounts/${accountId}:restrict`,
       { restricted, ...(reason ? { reason } : {}) },
-      { idempotencyKey: crypto.randomUUID(), invalidates: ['/accounts'] },
+      { idempotencyKey: INTENT, invalidates: ['/accounts'] },
     );
   }
 
@@ -192,7 +193,7 @@ class Privacy {
       'POST',
       WITHDRAW,
       { purpose, ...(accountId ? { account_id: accountId } : {}), ...(reason ? { reason } : {}) },
-      { idempotencyKey: crypto.randomUUID() },
+      { idempotencyKey: INTENT },
     );
   }
 }

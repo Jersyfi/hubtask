@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -144,6 +145,17 @@ func (h ReplayWebhookDelivery) Execute(
 		if err != nil {
 			return err
 		}
+		// The dead letter stays one after its replay; a second replay of it would put a second
+		// attempt of the event in flight beside the first.
+		superseded, err := w.Deliveries.Superseded(ctx, previous)
+		if err != nil {
+			return err
+		}
+		if superseded {
+			return shared.ErrConflict.
+				WithDetail("webhooks.delivery_replayed_already").
+				WithParams(map[string]string{"delivery_id": deliveryID.String()})
+		}
 		attempt.TenantID = actor.TenantID
 		if err := w.Deliveries.Insert(ctx, attempt); err != nil {
 			return err
@@ -201,6 +213,11 @@ func (h RotateWebhookSecret) Execute(
 			return err
 		}
 
+		if stored.Subscription.Format.IsChat() {
+			// A chat room's sealed value is its credential, not a signing secret: a drawn one in
+			// its place would stop every delivery (UC-INT-12).
+			return shared.ErrValidation.WithDetail("webhooks.chat_not_signed")
+		}
 		now := w.Clock.Now()
 		after, err := stored.Subscription.Rotated(now, grace)
 		if err != nil {
@@ -327,7 +344,8 @@ func deliveryOutput(delivery domain.WebhookDelivery) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h ListWebhookDeliveries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListWebhookDeliveriesName,
+		Permission: service.PermissionAutomation,
+		Name:       ListWebhookDeliveriesName,
 		Summary: "One subscription's delivery attempts, newest first, with the status, the " +
 			"response the target gave and when the next attempt is due. A run of eight failures " +
 			"ends in DEAD_LETTER, which is where an operator looks and what a replay acts on.",
@@ -388,6 +406,7 @@ func (h ListWebhookDeliveries) invoke(
 // Descriptor is the catalogue entry.
 func (h ReplayWebhookDelivery) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ReplayWebhookDeliveryName,
 		Entitlement: entitlement.Webhooks,
 		Summary: "Sends a dead-lettered delivery again, after whatever made it fail has been " +
@@ -434,7 +453,8 @@ func (h ReplayWebhookDelivery) invoke(
 // Descriptor is the catalogue entry.
 func (h RotateWebhookSecret) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RotateWebhookSecretName,
+		Permission: service.PermissionAutomation,
+		Name:       RotateWebhookSecretName,
 		Summary: "Issues a new signing secret and answers it once, keeping the old one verifying " +
 			"for a grace period. That overlap is the point: a subscriber cannot deploy " +
 			"atomically, and a rotation taking effect instantly would drop every event arriving " +

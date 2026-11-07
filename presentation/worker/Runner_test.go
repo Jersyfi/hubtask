@@ -29,11 +29,14 @@ var (
 // unitOfWork records the scope every transaction was opened under, because that is where the
 // tenant boundary of a job lives: the job names a tenant, and the work happens inside it.
 type unitOfWork struct {
+	mu     sync.Mutex
 	scopes []persistence.Scope
 }
 
 func (u *unitOfWork) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	u.mu.Lock()
 	u.scopes = append(u.scopes, scope)
+	u.mu.Unlock()
 	return fn(ctx)
 }
 
@@ -48,16 +51,19 @@ type queueDouble struct {
 	outcomes  []string
 	repeated  map[shared.ID]time.Time
 	failures  []queue.Failure
+	extended  []shared.ID
+	// taken marks jobs another worker claimed after their lease ran out.
+	taken map[shared.ID]bool
 
-	// mu and claimed exist for the two loop tests, which read the double from the test goroutine
-	// while the runner writes it from its own. Every other test here is single-goroutine and pays
-	// only an uncontended lock for it.
+	// mu exists for the loop tests, which read the double from the test goroutine while the
+	// runner's jobs write it from theirs. Every other test here is single-goroutine and pays only
+	// an uncontended lock for it.
 	mu      sync.Mutex
 	claimed int
 }
 
 func newQueue(jobs ...queue.Job) *queueDouble {
-	return &queueDouble{claimable: jobs, repeated: map[shared.ID]time.Time{}}
+	return &queueDouble{claimable: jobs, repeated: map[shared.ID]time.Time{}, taken: map[shared.ID]bool{}}
 }
 
 func (q *queueDouble) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
@@ -70,14 +76,14 @@ func (q *queueDouble) claims() int {
 
 func (q *queueDouble) Claim(_ context.Context, lease queue.Lease) ([]queue.Job, error) {
 	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.claimed++
-	q.mu.Unlock()
 
 	claimed := q.claimable
 	if len(claimed) > lease.Batch {
 		claimed = claimed[:lease.Batch]
 	}
-	q.claimable = nil
+	q.claimable = q.claimable[len(claimed):]
 	return claimed, nil
 }
 
@@ -86,18 +92,35 @@ func (q *queueDouble) Hold(_ context.Context, job queue.Job) error {
 	return nil
 }
 
+func (q *queueDouble) Extend(_ context.Context, job queue.Job, until time.Time) (queue.Job, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.taken[job.ID] {
+		return job, shared.ErrConflict.WithDetail(leaseLost)
+	}
+	q.extended = append(q.extended, job.ID)
+	job.Lease = until
+	return job, nil
+}
+
 func (q *queueDouble) Complete(_ context.Context, job queue.Job, outcome string) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.completed = append(q.completed, job.ID)
 	q.outcomes = append(q.outcomes, outcome)
 	return nil
 }
 
 func (q *queueDouble) Repeat(_ context.Context, job queue.Job, runAt time.Time) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.repeated[job.ID] = runAt
 	return nil
 }
 
 func (q *queueDouble) Fail(_ context.Context, failure queue.Failure) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.failures = append(q.failures, failure)
 	return nil
 }
@@ -111,9 +134,14 @@ func (h handlerFunc) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 }
 
 type signalsDouble struct {
-	finished    []string
-	failed      []string
-	deadLetters []string
+	finished     []string
+	failed       []string
+	deadLetters  []string
+	leaseExpired []string
+}
+
+func (s *signalsDouble) JobLeaseExpired(_ context.Context, kind string) {
+	s.leaseExpired = append(s.leaseExpired, kind)
 }
 
 func (s *signalsDouble) JobFinished(_ context.Context, kind string, _ float64) {
@@ -288,6 +316,62 @@ func TestADeadLetteredJobReleasesWhatItHolds(t *testing.T) {
 
 		if len(handler.released) != 0 {
 			t.Errorf("released %d times on an attempt that will be retried", len(handler.released))
+		}
+	})
+}
+
+// A job whose worker died mid-run - killed for its memory, say - comes back once its lease runs out.
+// Each time is counted, so the first crash is visible; and once the crashes have used up its
+// attempts it goes to the dead letter without its handler running again, rather than killing
+// worker after worker for ever.
+func TestAJobThatKeepsKillingItsWorkerEndsInTheDeadLetter(t *testing.T) {
+	t.Run("attempts left: it runs again, and the expiry is counted", func(t *testing.T) {
+		ran := 0
+		handler := &releasingHandler{handlerFunc: func(context.Context, queue.Job) (queue.Result, error) {
+			ran++
+			return queue.Result{}, nil
+		}}
+		signals := &signalsDouble{}
+		reclaimed := job(3)
+		reclaimed.Reclaimed = true
+
+		runner(newQueue(), &unitOfWork{}, handler, signals).start(t.Context(), reclaimed)
+
+		if ran != 1 {
+			t.Errorf("the handler ran %d times, want once", ran)
+		}
+		if len(signals.leaseExpired) != 1 {
+			t.Errorf("lease expiries counted = %v, want one", signals.leaseExpired)
+		}
+	})
+
+	t.Run("attempts used up: the dead letter, without running", func(t *testing.T) {
+		ran := 0
+		handler := &releasingHandler{handlerFunc: func(context.Context, queue.Job) (queue.Result, error) {
+			ran++
+			return queue.Result{}, nil
+		}}
+		signals := &signalsDouble{}
+		jobs := newQueue()
+		exhausted := job(4)
+		exhausted.Reclaimed = true
+
+		runner(jobs, &unitOfWork{}, handler, signals).start(t.Context(), exhausted)
+
+		if ran != 0 {
+			t.Errorf("the handler ran %d times on a job whose crashes used up its attempts", ran)
+		}
+		if len(jobs.failures) != 1 || !jobs.failures[0].RetryAt.IsZero() {
+			t.Fatalf("failures = %+v, want one dead letter", jobs.failures)
+		}
+		if jobs.failures[0].Code != "queue.lease_expired_exhausted" {
+			t.Errorf("code = %q, want queue.lease_expired_exhausted", jobs.failures[0].Code)
+		}
+		if len(signals.deadLetters) != 1 || len(signals.leaseExpired) != 1 {
+			t.Errorf("dead letters %v, lease expiries %v, want one each", signals.deadLetters, signals.leaseExpired)
+		}
+		if len(handler.released) != 1 {
+			t.Errorf("released %d times, want once", len(handler.released))
 		}
 	})
 }
@@ -786,6 +870,254 @@ func TestAJobNoLongerHeldEndsQuietly(t *testing.T) {
 			}
 			if len(signals.failed) != 0 || len(signals.deadLetters) != 0 || len(signals.finished) != 0 {
 				t.Errorf("a stop was counted: %v %v %v", signals.failed, signals.deadLetters, signals.finished)
+			}
+		})
+	}
+}
+
+// steppedClock is a clock a handler moves forward, as a job that runs to its timeout does.
+type steppedClock struct{ at time.Time }
+
+func (c *steppedClock) Now() time.Time { return c.at }
+
+// A batch of three on one lease, the first two each running to the job timeout: without a lease
+// of its own the third would start after the batch's lease ran out, while another worker may
+// already be running it. Each later job starts with its timeout of lease left, and one another
+// worker took over meanwhile does not start at all.
+func TestNoJobOfABatchStartsAfterItsLeaseRanOut(t *testing.T) {
+	const timeout = time.Minute
+	ids := []shared.ID{
+		"018f3a1c-0000-7000-8000-000000000011",
+		"018f3a1c-0000-7000-8000-000000000012",
+		"018f3a1c-0000-7000-8000-000000000013",
+	}
+	for _, takenOver := range []bool{false, true} {
+		clk := &steppedClock{at: now}
+		lease := now.Add(timeout + 30*time.Second)
+		batch := make([]queue.Job, 0, len(ids))
+		for _, id := range ids {
+			batch = append(batch, queue.Job{ID: id, TenantID: tenantID, Kind: queue.KindOutboxDispatch, Attempts: 1, MaxAttempts: 3, Lease: lease})
+		}
+		jobs := newQueue(batch...)
+		if takenOver {
+			jobs.taken[ids[2]] = true
+		}
+		var started []shared.ID
+		handler := handlerFunc(func(_ context.Context, job queue.Job) (queue.Result, error) {
+			if job.Lease.Sub(clk.Now()) < timeout {
+				t.Errorf("job %s started at %v with its lease ending %v, less than the timeout away", job.ID, clk.Now(), job.Lease)
+			}
+			started = append(started, job.ID)
+			clk.at = clk.at.Add(timeout)
+			return queue.Result{}, nil
+		})
+		r := runner(jobs, &unitOfWork{}, handler, nil)
+		r.Clock, r.JobTimeout, r.Lease, r.Batch = clk, timeout, timeout+30*time.Second, 3
+
+		r.round(t.Context())
+
+		want := 3
+		if takenOver {
+			want = 2
+		}
+		if len(started) != want {
+			t.Errorf("taken over %v: started %v, want %d jobs", takenOver, started, want)
+		}
+		if takenOver && len(started) == 3 {
+			t.Error("a job another worker took over ran here too")
+		}
+		if !takenOver && len(jobs.extended) != 2 {
+			t.Errorf("extended = %v, want the second and the third job", jobs.extended)
+		}
+	}
+}
+
+func (q *queueDouble) completedIDs() []shared.ID {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return append([]shared.ID(nil), q.completed...)
+}
+
+// A long job holds one slot, not the jobs behind it: with two slots, the second job claimed is
+// finished while the first is still running, and the loop waits for the first before it returns.
+func TestALongJobDoesNotHoldTheJobsBehindIt(t *testing.T) {
+	long, short := job(1), job(1)
+	short.ID = shared.ID("018f3a1c-0000-7000-8000-000000000002")
+	jobs := newQueue(long, short)
+
+	release := make(chan struct{})
+	handler := handlerFunc(func(_ context.Context, j queue.Job) (queue.Result, error) {
+		if j.ID == long.ID {
+			<-release
+		}
+		return queue.Result{}, nil
+	})
+	loop := runner(jobs, &unitOfWork{}, handler, nil)
+	loop.Concurrency = 2
+
+	ctx, cancel := context.WithCancel(t.Context())
+	stopped := make(chan struct{})
+	concurrency.Go(ctx, "test.worker.slots", func(context.Context) {
+		loop.Run(ctx)
+		close(stopped)
+	})
+
+	deadline := time.After(2 * time.Second)
+	for len(jobs.completedIDs()) == 0 {
+		select {
+		case <-deadline:
+			close(release)
+			cancel()
+			t.Fatal("the short job waited for the long one")
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+	if done := jobs.completedIDs(); len(done) != 1 || done[0] != short.ID {
+		t.Fatalf("completed %v while the long job runs, want only the short one", done)
+	}
+
+	cancel()
+	select {
+	case <-stopped:
+		t.Fatal("the loop returned while a job was still running")
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case <-stopped:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the loop did not return after its last job")
+	}
+	if done := jobs.completedIDs(); len(done) != 2 {
+		t.Errorf("completed %v, want both", done)
+	}
+}
+
+// A round asks for no more jobs than there are free slots, so no claimed job waits on its lease.
+func TestARoundClaimsNoMoreThanTheFreeSlots(t *testing.T) {
+	var batches []int
+	var mu sync.Mutex
+	jobs := &batchRecorder{queueDouble: newQueue(), record: func(n int) {
+		mu.Lock()
+		batches = append(batches, n)
+		mu.Unlock()
+	}}
+	held := make(chan struct{})
+	slots := newSlots(3)
+	slots.run(t.Context(), "test.worker.slot", func(context.Context) { <-held })
+	defer func() { close(held); slots.drain() }()
+
+	loop := runner(jobs.queueDouble, &unitOfWork{}, handlerFunc(nil), nil)
+	loop.Queue = jobs
+	loop.claimAndRun(t.Context(), min(loop.Batch, slots.free()), slots)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(batches) != 1 || batches[0] != 2 {
+		t.Errorf("claimed batches %v, want one of 2 with one of 3 slots taken", batches)
+	}
+}
+
+type batchRecorder struct {
+	*queueDouble
+	record func(int)
+}
+
+func (b *batchRecorder) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error) {
+	b.record(lease.Batch)
+	return b.queueDouble.Claim(ctx, lease)
+}
+
+type longHandler struct{ detachedHandler }
+
+func (longHandler) RunsLong() {}
+
+// A backup or an export runs past the ordinary job deadline: a long-running handler gets the long
+// budget, and its lease is kept alive while it works, so it succeeds instead of being cut off at
+// the minute and dead-lettered after eight attempts.
+func TestALongRunningJobOutlastsTheOrdinaryDeadline(t *testing.T) {
+	jobs := newQueue()
+	var cut bool
+	handler := longHandler{detachedHandler{handlerFunc(func(ctx context.Context, _ queue.Job) (queue.Result, error) {
+		select {
+		case <-ctx.Done():
+			cut = true
+			return queue.Result{}, ctx.Err()
+		case <-time.After(250 * time.Millisecond):
+			return queue.Result{}, nil
+		}
+	})}}
+	r := runner(jobs, &unitOfWork{}, handler, nil)
+	r.JobTimeout, r.Lease, r.LongJobTimeout = 20*time.Millisecond, 60*time.Millisecond, 5*time.Second
+
+	r.execute(t.Context(), job(1))
+
+	if cut {
+		t.Fatal("the long job was cut off at the ordinary deadline")
+	}
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+	if len(jobs.completed) != 1 || len(jobs.failures) != 0 {
+		t.Fatalf("completed %v, failures %v - want the job completed", jobs.completed, jobs.failures)
+	}
+	if len(jobs.extended) < 2 {
+		t.Errorf("the lease was extended %d times while the job ran, want it kept alive", len(jobs.extended))
+	}
+}
+
+// An ordinary detached handler keeps the ordinary deadline: the long budget is declared, not
+// inherited.
+func TestAnOrdinaryDetachedJobKeepsTheOrdinaryDeadline(t *testing.T) {
+	jobs := newQueue()
+	handler := detachedHandler{handlerFunc(func(ctx context.Context, _ queue.Job) (queue.Result, error) {
+		<-ctx.Done()
+		return queue.Result{}, ctx.Err()
+	})}
+	r := runner(jobs, &unitOfWork{}, handler, nil)
+	r.JobTimeout, r.Lease, r.LongJobTimeout = 20*time.Millisecond, 60*time.Millisecond, 5*time.Second
+
+	r.execute(t.Context(), job(1))
+
+	if len(jobs.failures) != 1 {
+		t.Fatalf("failures %v, want the job cut off at its deadline", jobs.failures)
+	}
+}
+
+type dutyHandler struct{ handlerFunc }
+
+func (dutyHandler) RepeatsForever() {}
+
+// A duty kept as one row - a mailbox's poll, a connector's pull - does not die of a database that
+// was away for twenty minutes: its last attempt on a transient failure is its next round at the
+// backoff's ceiling, not a dead letter nothing re-seeds. A permanent answer still ends it.
+func TestADutyIsNotDeadLetteredByATransientFailure(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err        error
+		repeated   bool
+		deadLetter bool
+	}{
+		"unavailable": {err: shared.ErrUnavailable.WithDetail("postgres.query_failed"), repeated: true},
+		"untyped":     {err: context.DeadlineExceeded, repeated: true},
+		"permanent":   {err: shared.ErrValidation.WithDetail("cmdb.connector_kind_unknown"), deadLetter: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			jobs := newQueue()
+			signals := &signalsDouble{}
+			handler := dutyHandler{handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+				return queue.Result{}, tc.err
+			})}
+
+			runner(jobs, &unitOfWork{}, handler, signals).execute(t.Context(), job(3))
+
+			_, repeated := jobs.repeated[jobID]
+			if repeated != tc.repeated {
+				t.Errorf("repeated = %v, want %v", repeated, tc.repeated)
+			}
+			if got := len(signals.deadLetters) == 1; got != tc.deadLetter {
+				t.Errorf("dead letters %v, want dead-lettered = %v", signals.deadLetters, tc.deadLetter)
+			}
+			if tc.repeated && len(jobs.failures) != 0 {
+				t.Errorf("failures %v recorded for a duty that comes back", jobs.failures)
 			}
 		})
 	}

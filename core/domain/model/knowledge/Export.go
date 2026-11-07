@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package knowledge
+
+import (
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+// File is one exported page: where it stands in the exported tree and its content.
+type File struct {
+	PageID  string
+	Path    string
+	Content string
+}
+
+// MarkdownFile writes a page as a Markdown file with front matter: its identifier, its title and
+// its parent, so that an import elsewhere - or here again - rebuilds the tree (UC-DOC-09). The body
+// is the page's projection as stored; a reference stays its `hubtask:` address.
+func MarkdownFile(page Page) string {
+	var out strings.Builder
+	out.WriteString("---\n")
+	out.WriteString("id: " + page.ID.String() + "\n")
+	out.WriteString("title: " + strconv.Quote(page.Title) + "\n")
+	if !page.ParentID.IsZero() {
+		out.WriteString("parent: " + page.ParentID.String() + "\n")
+	}
+	if page.Template {
+		out.WriteString("template: true\n")
+	}
+	if page.ContentLanguage != "" {
+		out.WriteString("language: " + page.ContentLanguage + "\n")
+	}
+	out.WriteString("---\n\n")
+	out.WriteString(page.Body)
+	if page.Body != "" && !strings.HasSuffix(page.Body, "\n") {
+		out.WriteString("\n")
+	}
+	return out.String()
+}
+
+// Tree writes a page and the pages under it as Markdown files, each under a folder named after its
+// parent: `Handbook.md`, `Handbook/Onboarding.md`. pages is the subtree, root first; a page whose
+// parent is not among them is left out. Two siblings of one name are told apart by a number.
+func Tree(pages []Page, rootID string) []File {
+	files, _ := TreeIn(pages, rootID, FormatMarkdown)
+	return files
+}
+
+// TreeIn writes the tree as Tree does, each page in the format asked; a DOCX document's content is
+// base64 (Format.Binary).
+func TreeIn(pages []Page, rootID string, format Format) ([]File, error) {
+	files := tree(pages, rootID, format.Extension())
+	byID := map[string]Page{}
+	for _, page := range pages {
+		byID[page.ID.String()] = page
+	}
+	for i := range files {
+		page := byID[files[i].PageID]
+		switch format {
+		case FormatHTML:
+			files[i].Content = HTMLFile(page)
+		case FormatDOCX:
+			content, err := DOCXFile(page)
+			if err != nil {
+				return nil, err
+			}
+			files[i].Content = content
+		}
+	}
+	return files, nil
+}
+
+func tree(pages []Page, rootID, extension string) []File {
+	byParent := map[string][]Page{}
+	var root *Page
+	for i := range pages {
+		if pages[i].ID.String() == rootID {
+			root = &pages[i]
+			continue
+		}
+		parent := pages[i].ParentID.String()
+		byParent[parent] = append(byParent[parent], pages[i])
+	}
+	if root == nil {
+		return nil
+	}
+	var files []File
+	var walk func(page Page, folder string, taken map[string]bool)
+	walk = func(page Page, folder string, taken map[string]bool) {
+		base := FileName(page.Title)
+		name := base
+		// Numbered on until free: a sibling may itself be titled like a numbered twin.
+		for n := 2; taken[strings.ToLower(name)]; n++ {
+			name = base + "-" + strconv.Itoa(n)
+		}
+		taken[strings.ToLower(name)] = true
+		files = append(files, File{PageID: page.ID.String(), Path: folder + name + extension, Content: MarkdownFile(page)})
+		children := map[string]bool{}
+		for _, child := range byParent[page.ID.String()] {
+			walk(child, folder+name+"/", children)
+		}
+	}
+	walk(*root, "", map[string]bool{})
+	return files
+}
+
+// FileName is a title as a file name every file system takes: letters, digits, spaces, dashes and
+// underscores, bounded, never empty and never a name a file system reserves.
+func FileName(title string) string {
+	var out strings.Builder
+	for _, r := range title {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r), r == '-', r == '_':
+			out.WriteRune(r)
+		case r == ' ', r == '.':
+			out.WriteRune(' ')
+		}
+		if out.Len() >= 80 {
+			break
+		}
+	}
+	name := strings.Join(strings.Fields(out.String()), " ")
+	if name == "" {
+		return "page"
+	}
+	if reservedName(name) {
+		return name + "_"
+	}
+	return name
+}
+
+// reservedName reports a name Windows refuses for a file whatever its extension.
+func reservedName(name string) bool {
+	switch upper := strings.ToUpper(name); upper {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	default:
+		return len(upper) == 4 && (strings.HasPrefix(upper, "COM") || strings.HasPrefix(upper, "LPT")) &&
+			upper[3] >= '1' && upper[3] <= '9'
+	}
+}

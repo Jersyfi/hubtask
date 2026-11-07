@@ -14,6 +14,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -46,8 +47,10 @@ type TestRule struct {
 	Containers Containers
 	// Labels and Members are the entry's sets beside it, for a condition on `item.labels` or
 	// `item.members`. Optional, as in condition.Values.
-	Labels     condition.Sets
-	Members    condition.Sets
+	Labels  condition.Sets
+	Members condition.Sets
+	// Links answers `item.links` (UC-PLN-01 check 8). Optional, as in condition.Values.
+	Links      condition.Links
 	Authorizer Authorizer
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -119,8 +122,8 @@ func (h TestRule) Execute(
 	// The plain permission at the rule's own scope, TriggerRuleManually's reason inverted: a dry
 	// run performs nothing, so the composition check writing a rule needs would refuse people the
 	// test exists for - somebody probing what a rule they may manage would do.
-	if err := h.Authorizer.Authorize(
-		ctx, actor, runRequest(rule.Scope, RuleTestedAction, rule.ID)); err != nil {
+	if err := askRun(ctx, h.Authorizer, actor, rule.Scope,
+		runRequest(rule.Scope, RuleTestedAction, rule.ID)); err != nil {
 		return TestOutcome{}, err
 	}
 
@@ -136,7 +139,7 @@ func (h TestRule) Execute(
 	}
 	values := condition.Values{
 		Envelope: envelope, Now: h.Clock.Now(), Payload: cmd.Payload,
-		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members,
+		Entries: h.Entries, Containers: h.Containers, Labels: h.Labels, Members: h.Members, Links: h.Links,
 	}
 
 	outcome := TestOutcome{}
@@ -306,6 +309,7 @@ func (p *planner) answer(ctx context.Context, expr string) (bool, string) {
 // Descriptor is the catalogue entry.
 func (h TestRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        TestRuleName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Dry-runs a rule against a sample event: which conditions matched, and which " +

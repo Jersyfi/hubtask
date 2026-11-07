@@ -133,6 +133,24 @@ func (r SessionRepository) FindForAuth(
 		}
 	}
 
+	// The person a view shows, only where their row was joined: one deleted since has no row, and
+	// the view lapses with it.
+	var viewedID shared.ID
+	var viewed identity.Account
+	if row.ViewingAs.Valid && row.ViewingAsStatus != "" {
+		if viewedID, err = idFrom(row.ViewingAs); err != nil {
+			return repository.SessionCredential{}, err
+		}
+		viewed = identity.Account{
+			ID: viewedID, TenantID: tenantID,
+			Kind:        identity.AccountKind(row.ViewingAsKind),
+			DisplayName: stringFrom(row.ViewingAsDisplayName),
+			Status:      identity.AccountStatus(row.ViewingAsStatus),
+			TimeZone:    stringFrom(row.ViewingAsTimeZone),
+			WeekStart:   stringFrom(row.ViewingAsWeekStart),
+		}
+	}
+
 	return repository.SessionCredential{
 		ClientID: clientID,
 		Session: identity.Session{
@@ -144,11 +162,15 @@ func (r SessionRepository) FindForAuth(
 			GrantID:    grantID,
 			Scopes:     row.Scopes,
 			// The two comparisons Session.Verify makes beyond revocation and expiry.
-			HardExpiresAt: timeFrom(row.HardExpiresAt),
-			IdleMinutes:   intFrom(row.IdleMinutes),
-			SignedInWith:  stringFrom(row.SignedInWith),
-			ElevatedUntil: timeFrom(row.ElevatedUntil),
+			HardExpiresAt:  timeFrom(row.HardExpiresAt),
+			IdleMinutes:    intFrom(row.IdleMinutes),
+			SignedInWith:   stringFrom(row.SignedInWith),
+			ElevatedUntil:  timeFrom(row.ElevatedUntil),
+			ViewingAs:      viewedID,
+			ViewingAsUntil: timeFrom(row.ViewingAsUntil),
 		},
+		Viewed:                  viewed,
+		ViewedReachesPrivateHub: row.ViewingAsPrivateHub,
 		Account: identity.Account{
 			ID:          accountID,
 			TenantID:    tenantID,
@@ -293,6 +315,62 @@ func (r SessionRepository) Elevate(
 		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("elevating the session: %w", err))
+	}
+	return rows > 0, nil
+}
+
+// StartViewingAs makes one of the account's own live sessions show the app as another person.
+func (r SessionRepository) StartViewingAs(
+	ctx context.Context, sessionID, accountID, viewed shared.ID, until, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	person, err := uuidOf(viewed)
+	if err != nil {
+		return false, err
+	}
+	rows, err := queries.StartViewingAs(ctx, sqlc.StartViewingAsParams{
+		ID: id, AccountID: account, ViewingAs: person,
+		ViewingAsUntil: pgtype.Timestamptz{Time: until.UTC(), Valid: true},
+		Now:            pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("starting a view: %w", err))
+	}
+	return rows > 0, nil
+}
+
+// EndViewingAs ends the view one of the account's sessions runs.
+func (r SessionRepository) EndViewingAs(ctx context.Context, sessionID, accountID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(sessionID)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	rows, err := queries.EndViewingAs(ctx, sqlc.EndViewingAsParams{ID: id, AccountID: account})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("ending a view: %w", err))
 	}
 	return rows > 0, nil
 }

@@ -17,12 +17,14 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Input, PageHeader, SaveBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Input, PageHeader, SaveBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { isModuleOn } from '../lib/frame/moduleroute.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { WEEK_STARTS, localesOf, zoneOptions } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, localesOf } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -32,8 +34,15 @@
   import ValueSource from '../lib/workspace/ValueSource.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
+  import PublicLinksSwitch from '../lib/pages/PublicLinksSwitch.svelte';
+  import PublicFormsSwitch from '../lib/servicedesk/PublicFormsSwitch.svelte';
+  import PublicRoadmapsSwitch from '../lib/goals/PublicRoadmapsSwitch.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   let displayName = $state('');
   let locale = $state('');
@@ -51,9 +60,6 @@
   const reading = $derived(workspace.state);
   const current = $derived(workspace.workspace);
   const locales = $derived(localesOf(manifest.value));
-  // The workspace's own zone has to be among them, or the control shows nothing selected and
-  // the screen says "no zone set" about a workspace that has one.
-  const zones = $derived(zoneOptions(current?.default_time_zone));
 
   const refusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
@@ -125,7 +131,7 @@
       failure =
         cause instanceof TransportError
           ? renderProblem(cause, messages)
-          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+          : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
     } finally {
       isWorking = false;
     }
@@ -148,6 +154,7 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/workspace')} /></div>
 
     <Stack gap="300">
 
@@ -157,17 +164,16 @@
         <span>{t('app.workspace.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else if current}
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       <WorkspaceGate permission="STRUCTURE">
+        <!-- One part, and the form keeps its own save bar inside it, where Enter submits: the shell
+             adds the leave guard. -->
+        <SettingsPage label={t('app.settings_page.sections', { name: t('app.workspace.title') })} sections={[]} changes={changedCount}>
         <form class="panel" bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="200">
             <Input
@@ -199,23 +205,15 @@
               />
             {/if}
 
-            {#if zones.length > 0}
-              <Select
-                label={t('app.workspace.zone')}
-                hint={above.time_zone
-                  ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
-                  : t('app.workspace.zone_hint')}
-                bind:value={zone}
-                options={zones.map((each) => ({ value: each, label: each }))}
-              />
-            {:else}
-              <Input
-                label={t('app.workspace.zone')}
-                hint={t('app.workspace.zone_free')}
-                bind:value={zone}
-                error={failure?.fields.get('default_time_zone')}
-              />
-            {/if}
+            <ZonePicker
+              label={t('app.workspace.zone')}
+              hint={above.time_zone
+                ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
+                : t('app.workspace.zone_hint')}
+              freeHint={t('app.workspace.zone_free')}
+              bind:value={zone}
+              error={failure?.fields.get('default_time_zone')}
+            />
 
             <Select
               label={t('app.workspace.week_start')}
@@ -251,6 +249,11 @@
             />
           </WriteOnly>
         </form>
+        <!-- Each switch is its product's: read while the module is off, its policy is refused. -->
+        {#if isModuleOn('KNOWLEDGE', manifest.value?.modules_on)}<PublicLinksSwitch />{/if}
+        {#if isModuleOn('SERVICE_DESK', manifest.value?.modules_on)}<PublicFormsSwitch />{/if}
+        {#if isModuleOn('GOALS', manifest.value?.modules_on)}<PublicRoadmapsSwitch />{/if}
+        </SettingsPage>
       </WorkspaceGate>
     {/if}
     </Stack>
@@ -287,4 +290,5 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
   }
+  .file { display: flex; justify-content: flex-end; }
 </style>

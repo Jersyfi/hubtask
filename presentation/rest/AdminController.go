@@ -12,79 +12,10 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// The use case names of the control plane. All four are written out longhand for
-// ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace
-// the context through.
-const (
-	listTenantsUseCase           = "ListTenants"
-	provisionTenantUseCase       = "ProvisionTenant"
-	suspendTenantUseCase         = "SuspendTenant"
-	resumeTenantUseCase          = "ResumeTenant"
-	cancelTenantDeletionUseCase  = "CancelTenantDeletion"
-	requestTenantDeletionUseCase = "RequestTenantDeletion"
-	exportTenantUseCase          = "ExportTenant"
-	openTenantPasswordUseCase    = "OpenTenantPassword"
-	changeTenantAddressUseCase   = "ChangeTenantAddress"
-	closeTenantPasswordUseCase   = "CloseTenantPassword"
-	readEncryptionStatusUseCase  = "ReadEncryptionStatus"
-	resealSecretsUseCase         = "ResealSecrets"
-)
-
-// ListTenants answers GET /admin/tenants.
-func (c *RestController) ListTenants(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listTenantsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	rows, _ := out["data"].([]usecase.Output)
-	tenants := make([]openapi.AdminTenant, 0, len(rows))
-	for _, row := range rows {
-		tenants = append(tenants, adminTenantResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, tenants)
-}
-
-// ProvisionTenant answers POST /admin/tenants.
-func (c *RestController) ProvisionTenant(
-	w http.ResponseWriter, r *http.Request, _ openapi.ProvisionTenantParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TenantProvision
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), provisionTenantUseCase, actorOf(r), usecase.Input{
-		"slug":               optionalStringField(body.Slug),
-		"host":               optionalStringField(body.Host),
-		"display_name":       body.DisplayName,
-		"default_locale":     optionalStringField(body.DefaultLocale),
-		"default_time_zone":  optionalStringField(body.DefaultTimeZone),
-		"owner_email":        string(body.OwnerEmail),
-		"owner_display_name": optionalStringField(body.OwnerDisplayName),
-		"plan":               optionalStringField(body.Plan),
-		"external_reference": optionalStringField(body.ExternalReference),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
+// provisionedTenantResponse maps a new workspace with the one answer the owner's way in ever appears in (T-18's shown once).
+func provisionedTenantResponse(out usecase.Output) openapi.ProvisionedTenant {
 	tenant := adminTenantResponse(out)
-	provisioned := openapi.ProvisionedTenant{
+	answer := openapi.ProvisionedTenant{
 		Id: tenant.Id, Slug: tenant.Slug, DisplayName: tenant.DisplayName,
 		Status:        openapi.ProvisionedTenantStatus(tenant.Status),
 		DefaultLocale: tenant.DefaultLocale, DefaultTimeZone: tenant.DefaultTimeZone,
@@ -92,51 +23,13 @@ func (c *RestController) ProvisionTenant(
 		OwnerAccountId:      uuidValue(out.String("owner_account_id")),
 		DefaultHubId:        uuidValue(out.String("default_hub_id")),
 		ExampleCollectionId: uuidValue(out.String("example_collection_id")),
-		// The one response the owner's way in ever appears in (T-18's "shown once").
-		OwnerRedemptionToken: out.String("owner_redemption_token"),
+		OwnerDelivery:       openapi.ProvisionedTenantOwnerDelivery(out.String("owner_delivery")),
 	}
-	w.Header().Set("Location", APIBasePath+"/admin/tenants")
-	writeJSON(w, r, http.StatusCreated, provisioned)
-}
-
-// SuspendTenant answers POST /admin/tenants/{tenantId}:suspend.
-func (c *RestController) SuspendTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	c.lifecycleShift(w, r, suspendTenantUseCase, tenantID)
-}
-
-// ResumeTenant answers POST /admin/tenants/{tenantId}:resume.
-func (c *RestController) ResumeTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	c.lifecycleShift(w, r, resumeTenantUseCase, tenantID)
-}
-
-// CancelTenantDeletion answers POST /admin/tenants/{tenantId}:cancel-deletion.
-func (c *RestController) CancelTenantDeletion(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	c.lifecycleShift(w, r, cancelTenantDeletionUseCase, tenantID)
-}
-
-func (c *RestController) lifecycleShift(
-	w http.ResponseWriter, r *http.Request, useCase string, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+	// Only where no mail carries the way in (UC-INS-07 check 3).
+	if token := out.String("owner_redemption_token"); token != "" {
+		answer.OwnerRedemptionToken = &token
 	}
-
-	_, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	return answer
 }
 
 func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
@@ -185,248 +78,65 @@ func passwordOpeningResponse(opening usecase.Output) *openapi.PasswordOpening {
 	}
 }
 
-// OpenTenantPassword answers POST /admin/tenants/{tenantId}:open-password. Written out longhand for
-// the same reason as its siblings above.
-func (c *RestController) OpenTenantPassword(
-	w http.ResponseWriter, r *http.Request,
-	tenantID openapi.AdminTenantId, params openapi.OpenTenantPasswordParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.PasswordOpeningRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), openTenantPasswordUseCase, actorOf(r), usecase.Input{
-		"tenant_id":     tenantID.String(),
-		"hours":         optionalIntField(body.Hours),
-		"requester":     body.Requester,
-		"reason":        body.Reason,
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, adminTenantResponse(out))
-}
-
-// CloseTenantPassword answers POST /admin/tenants/{tenantId}:close-password. Written out longhand
-// for the same reason as its siblings above.
-func (c *RestController) CloseTenantPassword(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), closeTenantPasswordUseCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, adminTenantResponse(out))
-}
-
-// RequestTenantDeletion answers POST /admin/tenants/{tenantId}:delete. Written out longhand for
-// the same reason as its siblings above.
-func (c *RestController) RequestTenantDeletion(
-	w http.ResponseWriter, r *http.Request,
-	tenantID openapi.AdminTenantId, params openapi.RequestTenantDeletionParams,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TenantDeletionRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), requestTenantDeletionUseCase, actorOf(r), usecase.Input{
-		"tenant_id":     tenantID.String(),
-		"confirmation":  body.Confirmation,
-		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusAccepted, openapi.TenantDeletionScheduled{
-		TenantId:   uuidValue(out.String("tenant_id")),
-		PurgeAfter: timeValue(out["purge_after"]),
-	})
-}
-
-// ExportTenant answers POST /admin/tenants/{tenantId}:export. Written out longhand for the same
-// reason as its siblings above.
-func (c *RestController) ExportTenant(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body openapi.TenantExportRequest
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), exportTenantUseCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-		"target_id": body.TargetId.String(),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	// No result_url: the archive is at somebody else's machine (the audit export's reasoning).
-	writeJSON(w, r, http.StatusAccepted, openapi.JobRef{
-		JobId:  uuidValue(out.String("job_id")),
-		Status: openapi.JobStatusQUEUED,
-	})
-}
-
-// UpdateTenantQuotas answers PATCH /admin/tenants/{tenantId}/quotas. The body is read as a raw
-// document rather than the generated struct: "absent", "null" and "0" are three different
-// instructions, and a Go pointer can only carry two of them.
-func (c *RestController) UpdateTenantQuotas(
-	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	var body map[string]any
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), updateTenantQuotasUseCase, actorOf(r), usecase.Input{
-		"tenant_id": tenantID.String(),
-		"quotas":    body,
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	writeJSON(w, r, http.StatusOK, quotaStandingsResponse(out))
-}
-
 func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
 	rows, _ := out["data"].([]usecase.Output)
 	standings := make([]openapi.QuotaStanding, 0, len(rows))
 	for _, row := range rows {
-		standing := openapi.QuotaStanding{
-			Quota: openapi.QuotaStandingQuota(row.String("quota")),
-		}
-		if limit, held := row["limit"].(int64); held {
-			standing.Limit = limit
-		}
-		if configured, _ := row["configured"].(bool); configured {
-			standing.Configured = &configured
-		}
-		if locked, _ := row["locked"].(bool); locked {
-			standing.Locked = &locked
-		}
-		if source := row.String("source"); source != "" {
-			answered := openapi.QuotaSource(source)
-			standing.Source = &answered
-		}
-		if lock := row.String("lock"); lock != "" {
-			answered := openapi.PolicyLock(lock)
-			standing.Lock = &answered
-		}
-		if used, held := row["used"].(int64); held {
-			standing.Used = &used
-		}
-		if ratio, held := row["ratio"].(float64); held {
-			float := float32(ratio)
-			standing.Ratio = &float
-		}
-		standings = append(standings, standing)
+		standings = append(standings, quotaStandingResponse(row))
 	}
 	return standings
 }
 
-// ReadEncryptionStatus answers GET /admin/encryption: the keyring and the census over it
-// (ADR-0045, security.md §8.1).
-func (c *RestController) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+// workspaceNearQuotaResponse maps one workspace the census found near a quota.
+func workspaceNearQuotaResponse(out usecase.Output) openapi.WorkspaceNearQuota {
+	answer := openapi.WorkspaceNearQuota{
+		TenantId: uuidValue(out.String("tenant_id")), Slug: out.String("slug"),
+		Quotas: []openapi.QuotaStanding{},
 	}
-
-	out, err := c.UseCases.Invoke(r.Context(), readEncryptionStatusUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	rows, _ := out["keys"].([]usecase.Output)
-	keys := make([]openapi.EncryptionKeyUsage, 0, len(rows))
+	rows, _ := out["quotas"].([]usecase.Output)
 	for _, row := range rows {
-		active, _ := row["active"].(bool)
-		inRing, _ := row["in_ring"].(bool)
-		count, _ := row["sealed_values"].(int64)
-		listed, _ := row["stores"].([]usecase.Output)
-		stores := make([]openapi.EncryptionStoreCount, 0, len(listed))
-		for _, store := range listed {
-			n, _ := store["sealed_values"].(int64)
-			stores = append(stores, openapi.EncryptionStoreCount{
-				Store: openapi.EncryptionStoreCountStore(store.String("store")), SealedValues: n,
-			})
-		}
-		keys = append(keys, openapi.EncryptionKeyUsage{
-			KeyId: row.String("key_id"), Active: active, InRing: inRing, SealedValues: count,
-			Stores: stores,
-		})
+		answer.Quotas = append(answer.Quotas, quotaStandingResponse(row))
 	}
-	writeJSON(w, r, http.StatusOK, openapi.EncryptionStatus{
-		ActiveKeyId: out.String("active_key_id"), Keys: keys,
-	})
+	return answer
 }
 
-// ResealSecrets answers POST /admin/encryption:reseal with 202: the rounds are queued, and the
-// status route is where their progress is read.
-func (c *RestController) ResealSecrets(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+func quotaStandingResponse(row usecase.Output) openapi.QuotaStanding {
+	standing := openapi.QuotaStanding{
+		Quota: openapi.QuotaStandingQuota(row.String("quota")),
 	}
-
-	out, err := c.UseCases.Invoke(r.Context(), resealSecretsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
+	if limit, held := row["limit"].(int64); held {
+		standing.Limit = limit
 	}
-	writeJSON(w, r, http.StatusAccepted, openapi.ResealAccepted{
-		ActiveKeyId: out.String("active_key_id"), QueuedTenants: out.Int("queued_tenants"),
-	})
+	if configured, _ := row["configured"].(bool); configured {
+		standing.Configured = &configured
+	}
+	if locked, _ := row["locked"].(bool); locked {
+		standing.Locked = &locked
+	}
+	if source := row.String("source"); source != "" {
+		answered := openapi.QuotaSource(source)
+		standing.Source = &answered
+	}
+	if lock := row.String("lock"); lock != "" {
+		answered := openapi.PolicyLock(lock)
+		standing.Lock = &answered
+	}
+	if used, held := row["used"].(int64); held {
+		standing.Used = &used
+	}
+	if ratio, held := row["ratio"].(float64); held {
+		float := float32(ratio)
+		standing.Ratio = &float
+	}
+	return standing
 }
 
-// ChangeTenantAddress answers POST /admin/tenants/{tenantId}:change-address. Written out longhand
-// for the same reason as its siblings above.
+// changeTenantAddressUseCase is ChangeTenantAddress's use case, written out longhand for
+// ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace the
+// context through.
+const changeTenantAddressUseCase = "ChangeTenantAddress"
+
+// ChangeTenantAddress answers POST /admin/tenants/{tenantId}:change-address.
 func (c *RestController) ChangeTenantAddress(
 	w http.ResponseWriter, r *http.Request,
 	tenantID openapi.AdminTenantId, params openapi.ChangeTenantAddressParams,

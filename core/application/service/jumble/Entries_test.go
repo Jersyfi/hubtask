@@ -6,6 +6,8 @@ package jumble
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,8 +181,9 @@ func TestASubmissionLandsAndAnnounces(t *testing.T) {
 
 	entry, err := (SubmitJumbleEntry{Writer: h.writer}).Execute(context.Background(), actor(),
 		SubmitCommand{
-			Channel: domain.ChannelQuickCapture,
-			RawBody: "Call the customer back", Attachments: []shared.ID{mediaID},
+			Channel:    domain.ChannelQuickCapture,
+			RawSubject: "Customer call", RawBody: "Call the customer back",
+			Attachments: []shared.ID{mediaID},
 		})
 	if err != nil {
 		t.Fatalf("submitting: %v", err)
@@ -213,13 +216,18 @@ func TestASubmissionLandsAndAnnounces(t *testing.T) {
 		t.Errorf("the attachment's count moved by %d", h.media.adjusted[mediaID])
 	}
 
-	// The trail names the channel and never the content.
+	// The trail names the channel and never the content (UC-JUM-01 check 8).
 	if len(h.sink.entries) != 1 || h.sink.entries[0].Action != EntrySubmittedAction {
 		t.Fatalf("audited %+v", h.sink.entries)
 	}
-	for _, value := range h.sink.entries[0].Changes {
-		if text, ok := value.(string); ok && text == "Call the customer back" {
-			t.Error("the audit entry carries the content")
+	changes := h.sink.entries[0].Changes
+	if channel, _ := changes["channel"].(map[string]any); channel["to"] != domain.ChannelQuickCapture.String() {
+		t.Errorf("the audit entry does not name the channel: %+v", changes)
+	}
+	trail := fmt.Sprint(changes)
+	for _, content := range []string{"Call the customer back", "Customer call"} {
+		if strings.Contains(trail, content) {
+			t.Errorf("the audit entry carries the content %q: %s", content, trail)
 		}
 	}
 }
@@ -233,6 +241,8 @@ func TestTheFarChannelsCannotBeClaimed(t *testing.T) {
 			SubmitCommand{Channel: channel, RawBody: "forged"})
 		if !errors.Is(err, shared.ErrValidation) {
 			t.Errorf("%s: error %v, want a validation refusal", channel, err)
+		} else if code := shared.AsError(err).DetailCode; code != "jumble.channel_reserved" {
+			t.Errorf("%s: detail code %s, want jumble.channel_reserved", channel, code)
 		}
 	}
 	if len(h.store.rows) != 0 {
@@ -240,15 +250,19 @@ func TestTheFarChannelsCannotBeClaimed(t *testing.T) {
 	}
 }
 
-// An attachment has to exist and be sealed, and one that is not is refused at the door.
+// An attachment has to exist and be confirmed, and one that is not is refused at the door with
+// one code either way (UC-JUM-01 check 5).
 func TestAnUnsealedAttachmentIsRefused(t *testing.T) {
 	h := newHarness()
 	h.media.rows[mediaID] = media.Object{ID: mediaID, TenantID: tenant, Status: media.StatusPending, Usage: media.UsageAttachment}
 
 	_, err := (SubmitJumbleEntry{Writer: h.writer}).Execute(context.Background(), actor(),
 		SubmitCommand{RawBody: "with a staging", Attachments: []shared.ID{mediaID}})
-	if err == nil {
-		t.Fatal("a PENDING staging was accepted as an attachment")
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a PENDING staging: error %v, want a validation refusal", err)
+	}
+	if code := shared.AsError(err).DetailCode; code != "jumble.attachment_unknown" {
+		t.Errorf("a PENDING staging: detail code %s, want jumble.attachment_unknown", code)
 	}
 
 	missing := shared.ID("01936f2a-7c1e-7000-8000-000000001005")

@@ -17,21 +17,32 @@
   // and the subdomain became the main address by itself, or the operator blocked it. It stays until
   // the owner makes the domain main again or removes it, so it is not dismissed here.
 
+  import { featureNameCode } from '../lib/instance/health.ts';
   import { untrack } from 'svelte';
 
   import { Badge, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { fallBackOf } from '../lib/address/owndomain.ts';
-  import { workspace } from '../lib/data/workspace.svelte.ts';
 
-  import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, ruleLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import type { ConfigCheck, ConfigProposalList, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
+
+  import { backupState, limitAmount, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import { gapsOf } from '../lib/administration/gaps.ts';
+  import FirstStepsCard from '../lib/administration/FirstSteps.svelte';
+  import { firstSteps, isOwed } from '../lib/administration/firststeps.ts';
+  import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
+  import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { config } from '../lib/data/config.svelte.ts';
+  import { readMailboxes, type Mailbox } from '../lib/data/mailintake.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { health } from '../lib/data/health.svelte.ts';
   import { privacy, standingOf, deadlinePhrase } from '../lib/data/privacy.svelte.ts';
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
-  import { formatBytes } from '../lib/i18n/bytes.ts';
   import { formatDateTime, formatLongDay, formatTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -42,6 +53,7 @@
   const mayReadRules = $derived(holdsHere('AUTOMATION') === true || mayReadConfiguration);
   const mayReadBackup = $derived(holdsHere('STRUCTURE') === true || mayReadConfiguration);
   const mayReadRequests = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  const mayReadMail = $derived(holdsHere('AUTOMATION') === true);
 
   interface Props {
     onnavigate?: (path: string) => void;
@@ -54,6 +66,39 @@
   const fallBack = $derived(fallBackOf(address?.own_domain ?? undefined));
 
   $effect(() => untrack(() => quotas.open()));
+
+  // The configuration check (configuration.md §11, UC-CFG-01 check 10): what the configuration
+  // in force would strand people on, found before they meet it.
+  const mayCheck = $derived(holdsHere('STRUCTURE') === true || mayReadConfiguration);
+  let check = $state<{ status: string; data?: ConfigCheck }>({ status: 'idle' });
+  $effect(() => {
+    if (!mayCheck) return;
+    return untrack(() => engine.subscribe<ConfigCheck>({ path: '/config/check' }, (next) => {
+      check = next.status === 'ready' ? { status: 'ready', data: next.data } : { status: next.status };
+    }));
+  });
+  const findings = $derived(check.data?.findings ?? []);
+
+  // What waits for a person's word (configuration.md §3, §8): plans an agent proposed and the
+  // templates the workspace took that have a newer version - the same reads *Changes* and
+  // *Templates* make.
+  let proposals = $state<ResourceState<ConfigProposalList> | undefined>(undefined);
+  let offered = $state<ResourceState<ConfigTemplateList> | undefined>(undefined);
+  $effect(() => {
+    if (!mayCheck) return;
+    return untrack(() => {
+      const stopProposals = config.waiting((next) => (proposals = next));
+      const stopTemplates = config.templates((next) => (offered = next));
+      return () => {
+        stopProposals();
+        stopTemplates();
+      };
+    });
+  });
+  const waiting = $derived(waitingLines(
+    proposals?.status === 'ready' ? proposals.data.data : [],
+    offered?.status === 'ready' ? offered.data.data : [],
+  ));
   $effect(() => {
     if (mayReadRules) return untrack(() => rules.open());
   });
@@ -63,6 +108,20 @@
   $effect(() => {
     if (mayReadBackup) return untrack(() => backup.open());
   });
+
+  // The connected mailboxes (ADR-0094): one refusing for over an hour is mail that stops reaching
+  // the desk, said here rather than only on the mail page nobody opens while it works.
+  let mail = $state<{ status: string; boxes: readonly Mailbox[] }>({ status: 'idle', boxes: [] });
+  $effect(() => {
+    if (!mayReadMail) return;
+    untrack(() => {
+      mail = { status: 'loading', boxes: [] };
+      void readMailboxes()
+        .then((read) => (mail = { status: 'ready', boxes: read.mailboxes }))
+        .catch(() => (mail = { status: 'failed', boxes: [] }));
+    });
+  });
+  const mailFailing = $derived(mailboxLines(mail.boxes));
 
   // The archives of every enabled target, read once each, and the newest one's run - the half that
   // says whether it was opened since. Not every run: the overview asks about one backup.
@@ -92,18 +151,76 @@
   });
   const lastBackup = $derived(newest ? { ...newest, state: backupState(newest.archive, backup.runOf(newest.archive.archive_id)) } : undefined);
 
-  const limits = $derived(limitLines(quotas.standings));
+  // The first steps (user-experience.md §8.5). Sign-in is read only for whoever may set it up, the
+  // step's own permission; the other facts are reads this page or the frame already makes.
+  const maySetUpSignIn = $derived(holdsHere('STRUCTURE') === true);
+  $effect(() => {
+    if (!maySetUpSignIn) return;
+    return untrack(() => {
+      const stopPolicy = signInPolicy.open();
+      const stopProviders = identityProvider.open();
+      return () => {
+        stopPolicy();
+        stopProviders();
+      };
+    });
+  });
+  const factOf = (status: string | undefined, value: () => boolean): boolean | null | undefined =>
+    status === 'ready' ? value() : status === 'failed' ? null : undefined;
+  const steps = $derived(firstSteps({
+    holds: (permission) => holdsHere(permission) === true,
+    isDeskOn: (manifest.value?.modules_on ?? []).includes('SERVICE_DESK'),
+    hasSeveralPeople: workspace.workspace === undefined ? undefined : workspace.workspace.several_people === true,
+    hasModuleOn: manifest.value === undefined ? undefined : (manifest.value.modules_on ?? []).length > 0,
+    hasMailbox: factOf(mail.status, () => mail.boxes.length > 0),
+    hasSignIn: factOf(
+      signInPolicy.state.status === 'failed' || identityProvider.state.status === 'failed'
+        ? 'failed'
+        : signInPolicy.policy !== undefined && identityProvider.state.status === 'ready' ? 'ready' : undefined,
+      () => identityProvider.own.length > 0 || signInPolicy.policy?.mfa_required_for.value !== 'NONE',
+    ),
+    hasNightlyBackup: factOf(backup.schedules.status, () =>
+      backup.schedules.status === 'ready' && backup.schedules.data.some((schedule) => schedule.enabled !== false)),
+    hasBackupTarget: factOf(backup.targets.status, () => targets.length > 0),
+    mayAddBackupTarget: manifest.value?.features?.backup_targets === true,
+    hasSupportContact: manifest.value === undefined ? undefined : Boolean(manifest.value.legal?.support_url),
+  }));
+  // Put away by one reader in one browser - a convenience, so kept there and not on the server.
+  const HIDDEN_KEY = 'hubtask.first-steps.hidden';
+  const readHidden = (): boolean => {
+    try {
+      return globalThis.localStorage?.getItem(HIDDEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  };
+  let isHidden = $state(readHidden());
+  const hide = (hidden: boolean) => {
+    isHidden = hidden;
+    try {
+      if (hidden) globalThis.localStorage?.setItem(HIDDEN_KEY, '1');
+      else globalThis.localStorage?.removeItem(HIDDEN_KEY);
+    } catch {
+      // A browser that keeps nothing hides the card for this visit only.
+    }
+  };
+  const isStepsOwed = $derived(isOwed(steps));
+
+  const limits = $derived(limitLines(quotas.standings, { aiOn: manifest.value?.features?.ai_suggestions === true }));
   const failing = $derived(ruleLines(rules.all));
   const now = Date.now();
   const owed = $derived(owedSoon(privacy.of(false), (request) => standingOf(request, now)));
   const degraded = $derived(health.degradations);
+  // What the installation is not set up for, which the health report counts as no fault.
+  const gaps = $derived(gapsOf(manifest.value?.features));
 
   const KNOWN_LIMITS = new Set([
     'api_requests_per_minute', 'items', 'media_bytes', 'automation_runs_per_hour', 'webhook_targets',
     'export_jobs', 'ai_tokens_per_day', 'ai_own_tokens_per_day', 'ai_arrival_proposals_per_day', 'accounts',
+    'mailboxes',
   ]);
   const limitName = (quota: string) => (KNOWN_LIMITS.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
-  const amount = (quota: string, value: number) => (quota === 'media_bytes' ? formatBytes(value, messages.locale) : String(value));
+  const amount = (quota: string, value: number) => limitAmount(quota, value, messages.locale);
   const at = (iso: string) => formatDateTime(iso, messages.locale);
 
   const LIMIT_TONE = { reached: 'danger', near: 'warning', room: 'neutral' } as const;
@@ -120,9 +237,12 @@
     [
       { id: 'limits', shown: true, needs: limits.some((line) => line.state !== 'room') },
       { id: 'rules', shown: mayReadRules, needs: failing.length > 0 },
+      { id: 'mail', shown: mayReadMail && (mail.boxes.length > 0 || mail.status !== 'ready'), needs: mailFailing.length > 0 },
       { id: 'backup', shown: mayReadBackup, needs: lastBackup === undefined ? targets.length > 0 : lastBackup.state !== 'opened' },
       { id: 'requests', shown: mayReadRequests, needs: owed.length > 0 },
-      { id: 'health', shown: true, needs: degraded.length > 0 },
+      { id: 'health', shown: true, needs: degraded.length > 0 || gaps.length > 0 },
+      { id: 'check', shown: mayCheck, needs: findings.length > 0 },
+      { id: 'waiting', shown: mayCheck, needs: waiting.needs },
     ]
       .filter((card) => card.shown)
       .sort((a, b) => Number(b.needs) - Number(a.needs)),
@@ -135,12 +255,19 @@
   <PageHeader
     title={t('app.admin_overview.title')}
     isTitleInBar={viewport.isCompact}
+    menu={isStepsOwed && isHidden
+      ? { label: t('app.admin_overview.menu'), items: [{ id: 'show-first-steps', label: t('app.first_steps.show') }], onselect: () => hide(false) }
+      : undefined}
     breadcrumb={{
       trail: [{ id: 'administration', label: t('app.admin.title') }],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+
+  {#if isStepsOwed && !isHidden}
+    <FirstStepsCard {steps} onhide={() => hide(true)} />
+  {/if}
 
   {#if fallBack && address?.own_domain}
     <div data-fell-back={fallBack.cause}>
@@ -200,6 +327,25 @@
             </ul>
           {/if}
           <a class="go" href="/administration/rules">{t('app.admin_overview.open_rules')}</a>
+        {:else if card.id === 'mail'}
+          <h2 id="card-mail">{t('app.admin_overview.mail')}</h2>
+          {#if reading(mail.status)}
+            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
+          {:else if mail.status === 'failed'}
+            <p class="quiet">{t('app.admin_overview.mail_unread')}</p>
+          {:else if mailFailing.length === 0}
+            <p class="quiet">{t('app.admin_overview.mail_none')}</p>
+          {:else}
+            <ul class="lines">
+              {#each mailFailing.slice(0, 5) as box (box.id)}
+                <li>
+                  <span>{box.address}</span>
+                  <Badge tone="danger">{t('app.admin_overview.mail_failing')}</Badge>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <a class="go" href="/administration/mail">{t('app.admin_overview.open_mail')}</a>
         {:else if card.id === 'backup'}
           <h2 id="card-backup">{t('app.admin_overview.backup')}</h2>
           {#if reading(backup.targets.status) || !archivesSettled}
@@ -235,16 +381,62 @@
             </ul>
           {/if}
           <a class="go" href="/administration/privacy">{t('app.admin_overview.open_requests')}</a>
+        {:else if card.id === 'check'}
+          <h2 id="card-check">{t('app.admin.check_title')}</h2>
+          {#if reading(check.status)}
+            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
+          {:else if findings.length === 0}
+            <p class="quiet">{t('app.admin.check_none')}</p>
+          {:else}
+            <ul class="lines" data-testid="config-findings">
+              {#each findings.slice(0, 8) as finding, index (index)}
+                {@const where = pageOfFinding(finding.path)}
+                <li>
+                  {#if where}
+                    <a href={where} title={t('app.admin.check_open', { path: finding.path })}>{t(finding.code, finding.params ?? {})}</a>
+                  {:else}
+                    <span>{t(finding.code, finding.params ?? {})}</span>
+                  {/if}
+                  <Badge tone={finding.severity === 'ERROR' ? 'danger' : 'warning'}>
+                    {t(finding.severity === 'ERROR' ? 'app.admin.check_error' : 'app.admin.check_warning')}
+                  </Badge>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        {:else if card.id === 'waiting'}
+          <h2 id="card-waiting">{t('app.admin_overview.waiting')}</h2>
+          {#if reading(proposals?.status ?? 'idle') || reading(offered?.status ?? 'idle')}
+            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
+          {:else if !waiting.needs}
+            <p class="quiet">{t('app.admin_overview.waiting_none')}</p>
+          {:else}
+            <ul class="lines" data-testid="admin-waiting">
+              {#if waiting.proposals > 0}
+                <li><a href="/administration/changes">{t('app.admin_overview.waiting_proposals', { count: waiting.proposals })}</a></li>
+              {/if}
+              {#each waiting.updates.slice(0, 5) as update (update.key)}
+                <li><a href="/administration/presets">{t('app.admin_overview.waiting_update', { name: update.name })}</a></li>
+              {/each}
+            </ul>
+          {/if}
+          <a class="go" href="/administration/changes">{t('app.admin_overview.open_changes')}</a>
         {:else if card.id === 'health'}
           <h2 id="card-health">{t('app.admin_overview.health')}</h2>
-          {#if degraded.length === 0}
+          {#if degraded.length === 0 && gaps.length === 0}
             <p class="quiet">{t('app.admin_overview.health_fine')}</p>
           {:else}
-            <ul class="lines">
+            <ul class="lines" data-testid="admin-health">
+              {#each gaps as gap (gap.feature)}
+                <li>
+                  <span>{t(gap.messageCode)}</span>
+                  {#if gap.page}<a href={gap.page}>{t('app.admin_overview.open_feature')}</a>{/if}
+                </li>
+              {/each}
               {#each degraded as degradation (degradation.feature)}
                 {@const where = pageOfFeature(degradation.feature)}
                 <li>
-                  <span>{t('app.health.feature', { feature: degradation.feature, reason: t(degradation.reasonCode) })}</span>
+                  <span>{t('app.health.feature', { feature: featureNameCode(degradation.feature) ? t(featureNameCode(degradation.feature)!) : degradation.feature, reason: t(degradation.reasonCode) })}</span>
                   {#if where}<a href={where}>{t('app.admin_overview.open_feature')}</a>{/if}
                 </li>
               {/each}

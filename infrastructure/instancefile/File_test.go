@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -241,5 +242,58 @@ func TestPresetsAreReadAsTheDocumentsTheAPITakes(t *testing.T) {
 	}
 	if _, _, err := Presets(map[string]any{"presets": []any{map[string]any{"preset": "LIST"}}}, path); !errors.Is(err, shared.ErrValidation) {
 		t.Errorf("a preset without a name answered %v", err)
+	}
+}
+
+// UC-SVC-01 check 6: `business_calendars` is a block the file may hold, read as documents; a block
+// that is no list of objects refuses the file.
+func TestTheFileOffersBusinessCalendars(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	const document = `{"business_calendars": [{"key": "federal", "name": "Federal", "zone": "Europe/Berlin",
+	  "hours": [{"day": "MONDAY", "from": "08:00", "to": "16:00"}]}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, found, err := Read(path)
+	if err != nil || !found {
+		t.Fatalf("the file answered %v (found %v)", err, found)
+	}
+	calendars, err := BusinessCalendars(body, path)
+	if err != nil || len(calendars) != 1 || calendars[0]["key"] != "federal" {
+		t.Fatalf("calendars = %v, %v", calendars, err)
+	}
+	if none, err := BusinessCalendars(map[string]any{}, path); err != nil || none != nil {
+		t.Fatalf("a file without the block answered %v, %v", none, err)
+	}
+	for _, malformed := range []any{"federal", []any{"federal"}} {
+		if _, err := BusinessCalendars(map[string]any{"business_calendars": malformed}, path); err == nil {
+			t.Errorf("%v was accepted", malformed)
+		}
+	}
+}
+
+// The upload scanner is configured in the file (security.md §4): an address and an optional
+// timeout; a block that is not that shape refuses the file rather than scanning nothing.
+func TestTheFileNamesTheUploadScanner(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	if err := os.WriteFile(path, []byte(`{"upload_scanner": {"address": "clamav:3310", "timeout": "90s"}}`), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, found, err := Read(path)
+	if err != nil || !found {
+		t.Fatalf("the file answered %v (found %v)", err, found)
+	}
+	scanner, err := UploadScanner(body, path)
+	if err != nil || scanner.Address != "clamav:3310" || scanner.Timeout != 90*time.Second {
+		t.Fatalf("scanner = %+v, %v", scanner, err)
+	}
+	if none, err := UploadScanner(map[string]any{}, path); err != nil || none.Address != "" {
+		t.Fatalf("a file without the block answered %+v, %v", none, err)
+	}
+	for _, malformed := range []any{"clamav:3310", map[string]any{"address": 3310},
+		map[string]any{"address": "clamav:3310", "timeout": "soon"}, map[string]any{"address": "clamav:3310", "port": 1}} {
+		if _, err := UploadScanner(map[string]any{"upload_scanner": malformed}, path); err == nil {
+			t.Errorf("%v was accepted", malformed)
+		}
 	}
 }

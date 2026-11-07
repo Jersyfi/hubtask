@@ -60,7 +60,10 @@ type Report struct {
 type MigrationState struct {
 	Applied  int
 	Expected int
-	Status   string // ok | behind | ahead
+	// CompatibleFrom is the schema's compatibility floor: the oldest binary, by its newest
+	// migration, that still works on it. 0 where no contract step raised it.
+	CompatibleFrom int
+	Status         string // ok | behind | ahead | too_old
 }
 
 type DependencyReport struct {
@@ -75,13 +78,29 @@ type DegradedFeature struct {
 	Since      time.Time
 }
 
+// Backlogs is the installation's queues as last counted. A zero SampledAt is no count yet: the
+// figures are then not served at all, never as zeros (P-11).
 type Backlogs struct {
+	SampledAt           time.Time
 	OutboxPending       int64
 	OutboxLagSeconds    float64
 	JobQueueDepth       int64
 	DeadLetterTotal     int64
 	WebhookRetryBacklog int64
+	// HeldUploadWorkspaces counts the workspaces whose uploads are held for a scan, and
+	// HeldUploadOldestSeconds how long the oldest of them has been - a warning, not a figure.
+	HeldUploadWorkspaces    int64
+	HeldUploadOldestSeconds float64
+	// BackupWithoutTarget counts the active workspaces no enabled backup target covers, and
+	// BackupWithoutRecent those with no successful backup in BackupStaleDays - a warning, not a
+	// figure (UC-BAK-01).
+	BackupWithoutTarget int64
+	BackupWithoutRecent int64
 }
+
+// BackupStaleDays is how long a workspace may go without a successful backup before the health
+// report warns.
+const BackupStaleDays = 7
 
 type Warning struct {
 	Code     string

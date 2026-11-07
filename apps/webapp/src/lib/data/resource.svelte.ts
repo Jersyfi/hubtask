@@ -13,6 +13,8 @@
  * learns that a Transport exists. With a queue and a local store behind `SyncEngine`, this
  * file does not change and neither does any component.
  */
+import { untrack } from 'svelte';
+
 import type { ResourceRequest, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
@@ -57,6 +59,43 @@ export function resource<T>(request: string | ResourceRequest): Resource<T> {
     },
     async loadMore() {
       await engine.loadMore<T>(asked);
+    },
+  };
+}
+
+/**
+ * resourceWhen is `resource` for what only some readers may read: `request` answers nothing while
+ * the reader may not (or it is not yet known), and nothing is asked then - a request the server
+ * would refuse is a failure in the reader's console, not a quiet absence. The state is `idle`
+ * until a request is answered, and follows a change of request.
+ */
+export function resourceWhen<T>(request: () => string | ResourceRequest | undefined): Resource<T> {
+  const asked = $derived.by(() => {
+    const wanted = request();
+    return wanted === undefined ? undefined : typeof wanted === 'string' ? { path: wanted } : wanted;
+  });
+  const key = $derived(asked === undefined ? '' : JSON.stringify(asked));
+  let state = $state<ResourceState<T>>({ status: 'idle' });
+
+  $effect(() => {
+    void key;
+    const wanted = untrack(() => asked);
+    if (wanted === undefined) {
+      state = { status: 'idle' };
+      return;
+    }
+    return engine.subscribe<T>(wanted, (next) => (state = next));
+  });
+
+  return {
+    get state() {
+      return state;
+    },
+    async refresh() {
+      if (asked !== undefined) await engine.refresh<T>(asked);
+    },
+    async loadMore() {
+      if (asked !== undefined) await engine.loadMore<T>(asked);
     },
   };
 }

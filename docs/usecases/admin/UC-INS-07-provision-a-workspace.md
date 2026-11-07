@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-05, P-08, P-15]
 state: built
 tasks: [H-06, SI-17, SC-08, CD-01]
-checked_by: [core/application/service/admin/Provision_test.go, test/integration/assigned_host_test.go, core/application/service/admin/ReservedShortNames_test.go, core/domain/model/identity/ReservedShortName_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, docs/evidence/SC-15-D1-2026-10-13.md]
+checked_by: [core/application/service/admin/Provision_test.go, test/integration/assigned_host_test.go, core/application/service/admin/ReservedShortNames_test.go, core/domain/model/identity/ReservedShortName_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, docs/evidence/SC-15-D1-2026-10-13.md, cmd/hubctl/Admin_test.go]
 ---
 
 # Create a workspace for a customer
@@ -28,7 +28,10 @@ that deliver it themselves.
 1. The screen, `hubctl admin tenant create` and `POST /admin/tenants` create the same workspace with
    the same checks.
 2. A short name that is taken, reserved or not a valid address label is refused at the field.
-3. The owner's way in is delivered by mail and, once, as a link to copy.
+3. Where the installation sends mail, the owner's invitation is queued to their address and the
+   answer says so (`owner_delivery: MAIL`) with no token; where it does not, the owner's way in is
+   shown once to copy (`LINK`). Never both, since the mail's own way in voids any other (by the
+   owner's seventh answers, item 11).
 4. On a single-tenant installation, *New workspace* is not offered anywhere.
 5. The creation is in the instance journal and in the new workspace's own trail.
 

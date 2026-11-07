@@ -11,6 +11,17 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// LandingColumn is the column a new task starts in where its collection lands new tasks in the
+// first column: the board's first, or none on a board with none left.
+func LandingColumn(board []Bucket) shared.ID {
+	for _, bucket := range board {
+		if !bucket.IsDeleted() {
+			return bucket.ID
+		}
+	}
+	return ""
+}
+
 // FirstColumn answers whether a column is the first of its board: the leftmost one that is not
 // deleted. A board is answered left to right (repository.Buckets.List), so it is the first of the
 // list. An empty board has no first column, and no column is past one.
@@ -25,8 +36,8 @@ func FirstColumn(board []Bucket, bucketID shared.ID) bool {
 
 // MissingRequiredFields answers the keys of the required custom fields an entry carries no value
 // for, sorted (UC-WRK-31 check 2). Only the definitions in force for its collection count -
-// deleted ones and those for other types do not - and a collection's own definition wins over a
-// workspace-wide one under the same key, as everywhere a key is resolved (domain-model.md §3.5).
+// deleted ones and those for other types do not - and the nearest definition under a key wins, a
+// collection's over its hub's over the workspace's, as everywhere a key is resolved (domain-model.md §3.5).
 //
 // A value is the entry's visible one: a read answers only values whose definition still lives, so
 // a key recreated after deletion starts empty and counts as missing.
@@ -36,7 +47,7 @@ func MissingRequiredFields(definitions []CustomFieldDefinition, item WorkItem) [
 		if definition.DeletedAt != nil {
 			continue
 		}
-		if held, seen := inForce[definition.Key]; seen && !held.CollectionID.IsZero() {
+		if held, seen := inForce[definition.Key]; seen && held.Nearness() >= definition.Nearness() {
 			continue
 		}
 		inForce[definition.Key] = definition

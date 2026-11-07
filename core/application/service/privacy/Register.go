@@ -69,7 +69,8 @@ func (h ListConsents) Execute(
 // Descriptor registers the register in every channel.
 func (h ListConsents) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListConsentsName,
+		Name:       ListConsentsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The consent register: for one purpose - `ai_processing` for who keeps their " +
 			"own content out of AI - every person whose newest record is a withdrawal, with " +
 			"since when and whether they or an administrator recorded it. For the people who " +

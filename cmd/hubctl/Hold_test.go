@@ -90,8 +90,8 @@ func TestReleasingAHoldWithoutAReasonNeverReachesTheServer(t *testing.T) {
 	if called {
 		t.Error("a release with no reason was sent anyway")
 	}
-	if !strings.Contains(errOut, "deletable") {
-		t.Errorf("the complaint does not say why the reason matters: %q", errOut)
+	if !strings.Contains(errOut, "needs --reason") {
+		t.Errorf("the complaint does not name the reason: %q", errOut)
 	}
 }
 

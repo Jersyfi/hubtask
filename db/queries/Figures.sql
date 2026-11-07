@@ -9,6 +9,8 @@
 -- **Hidden entries count nowhere.** An entry is hidden when its type is not offered, or when an
 -- ancestor's is not (the shared predicate of domain-model.md §2, "Narrowing hides"). The ancestors
 -- are the identifiers of the entry's path, which holds the entry itself last; at most two of them.
+-- Where a collection offers every type nothing can be hidden, and `narrowed` spares each row the
+-- lookup of its path - at tens of thousands of entries per collection, most of the statement.
 --
 -- No statement names a tenant: row level security binds each to the transaction's, so another
 -- workspace's collection counts nothing.
@@ -24,7 +26,8 @@ WITH wanted AS (
            SELECT 1 FROM custom_field_definition cfd
             WHERE cfd.deleted_at IS NULL AND cfd.kind = 'NUMBER' AND cfd.key = w.field_key
               AND 'TASK'::item_type = ANY (cfd.applies_to)
-              AND (cfd.collection_id = w.collection_id OR cfd.collection_id IS NULL)
+              AND (cfd.collection_id IS NULL OR cfd.collection_id = w.collection_id
+                   OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = w.collection_id))
          ) AS live
     FROM (
       SELECT (sqlc.arg('collection_ids')::uuid[])[i] AS collection_id,
@@ -44,7 +47,8 @@ SELECT w.collection_id::uuid AS collection_id,
              SELECT 1 FROM custom_field_definition cfd
               WHERE cfd.deleted_at IS NULL AND cfd.kind = 'NUMBER'
                 AND cfd.id = (wi.custom_field_refs ->> w.field_key)::uuid
-                AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+                AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+                     OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
            ) AS summable,
            CASE WHEN jsonb_typeof(wi.custom_fields -> w.field_key) = 'number'
                 THEN (wi.custom_fields ->> w.field_key)::numeric END AS amount
@@ -64,18 +68,20 @@ SELECT wi.collection_id::uuid AS collection_id, count(*)::int AS due
   FROM (
     SELECT (sqlc.arg('collection_ids')::uuid[])[i] AS collection_id,
            (sqlc.arg('offered')::text[])[i] AS offered,
-           (sqlc.arg('dated')::text[])[i] AS dated
+           (sqlc.arg('dated')::text[])[i] AS dated,
+           NOT (enum_range(NULL::item_type)::text[]
+                <@ string_to_array((sqlc.arg('offered')::text[])[i], ',')) AS narrowed
       FROM generate_series(1, cardinality(sqlc.arg('collection_ids')::uuid[])) AS i
   ) w
   JOIN work_item wi ON wi.collection_id = w.collection_id
  WHERE wi.deleted_at IS NULL AND wi.archived_at IS NULL AND wi.is_completed = false
    AND wi.due_at IS NOT NULL
    AND wi.type::text = ANY (string_to_array(w.dated, ','))
-   AND NOT EXISTS (
+   AND (NOT w.narrowed OR NOT EXISTS (
      SELECT 1 FROM unnest(string_to_array(btrim(wi.path, '/'), '/')::uuid[]) AS line(id)
        JOIN work_item a ON a.tenant_id = wi.tenant_id AND a.id = line.id
       WHERE NOT (a.type::text = ANY (string_to_array(w.offered, ',')))
-   )
+   ))
    AND CASE WHEN wi.due_date_only
             THEN (wi.due_at AT TIME ZONE coalesce(wi.due_time_zone, 'UTC'))::date
                  <= (sqlc.arg('today')::text)::date
@@ -91,44 +97,52 @@ SELECT wi.collection_id::uuid AS collection_id,
        array_agg(DISTINCT to_char(wi.completed_at AT TIME ZONE sqlc.arg('zone')::text, 'YYYY-MM-DD'))::text[] AS days
   FROM (
     SELECT (sqlc.arg('collection_ids')::uuid[])[i] AS collection_id,
-           (sqlc.arg('offered')::text[])[i] AS offered
+           (sqlc.arg('offered')::text[])[i] AS offered,
+           NOT (enum_range(NULL::item_type)::text[]
+                <@ string_to_array((sqlc.arg('offered')::text[])[i], ',')) AS narrowed
       FROM generate_series(1, cardinality(sqlc.arg('collection_ids')::uuid[])) AS i
   ) w
   JOIN work_item wi ON wi.collection_id = w.collection_id
  WHERE wi.is_completed = true AND wi.deleted_at IS NULL
    AND wi.completed_at >= sqlc.arg('week_start')::timestamptz
    AND wi.completed_at <= sqlc.arg('now')::timestamptz
-   AND NOT EXISTS (
+   AND (NOT w.narrowed OR NOT EXISTS (
      SELECT 1 FROM unnest(string_to_array(btrim(wi.path, '/'), '/')::uuid[]) AS line(id)
        JOIN work_item a ON a.tenant_id = wi.tenant_id AND a.id = line.id
       WHERE NOT (a.type::text = ANY (string_to_array(w.offered, ',')))
-   )
+   ))
  GROUP BY wi.collection_id;
 
 -- name: CountFigureProgress :many
 -- PROGRESS: the visible leaves of each collection - rows with no visible, untrashed child - and how
 -- many are completed. Archived leaves count as they stand, as the roll-up counts every child
--- (I-W5): archiving what is done does not lower the share.
+-- (I-W5): archiving what is done does not lower the share. The parents are gathered once per
+-- collection and anti-joined, rather than probed once per row.
+WITH w AS MATERIALIZED (
+  SELECT (sqlc.arg('collection_ids')::uuid[])[i] AS collection_id,
+         (sqlc.arg('offered')::text[])[i] AS offered,
+         NOT (enum_range(NULL::item_type)::text[]
+              <@ string_to_array((sqlc.arg('offered')::text[])[i], ',')) AS narrowed
+    FROM generate_series(1, cardinality(sqlc.arg('collection_ids')::uuid[])) AS i
+), parents AS MATERIALIZED (
+  SELECT DISTINCT c.collection_id, c.parent_id
+    FROM w JOIN work_item c ON c.collection_id = w.collection_id
+   WHERE c.parent_id IS NOT NULL AND c.deleted_at IS NULL
+     AND (NOT w.narrowed OR c.type::text = ANY (string_to_array(w.offered, ',')))
+)
 SELECT wi.collection_id::uuid AS collection_id,
        count(*)::int AS total,
        count(*) FILTER (WHERE wi.is_completed)::int AS done
-  FROM (
-    SELECT (sqlc.arg('collection_ids')::uuid[])[i] AS collection_id,
-           (sqlc.arg('offered')::text[])[i] AS offered
-      FROM generate_series(1, cardinality(sqlc.arg('collection_ids')::uuid[])) AS i
-  ) w
+  FROM w
   JOIN work_item wi ON wi.collection_id = w.collection_id
  WHERE wi.deleted_at IS NULL
-   AND NOT EXISTS (
+   AND (NOT w.narrowed OR NOT EXISTS (
      SELECT 1 FROM unnest(string_to_array(btrim(wi.path, '/'), '/')::uuid[]) AS line(id)
        JOIN work_item a ON a.tenant_id = wi.tenant_id AND a.id = line.id
       WHERE NOT (a.type::text = ANY (string_to_array(w.offered, ',')))
-   )
+   ))
    AND NOT EXISTS (
-     SELECT 1 FROM work_item c
-      WHERE c.tenant_id = wi.tenant_id AND c.collection_id = wi.collection_id
-        AND c.parent_id = wi.id AND c.deleted_at IS NULL
-        AND c.type::text = ANY (string_to_array(w.offered, ','))
+     SELECT 1 FROM parents p WHERE p.collection_id = wi.collection_id AND p.parent_id = wi.id
    )
  GROUP BY wi.collection_id;
 
@@ -164,10 +178,12 @@ SELECT w.collection_id::uuid AS collection_id,
   ) w
   LEFT JOIN LATERAL (
     SELECT count(*) AS completed,
-           count(*) FILTER (WHERE wi.flow_finished_at >= wi.flow_started_at) AS timed,
-           avg(extract(epoch FROM wi.flow_finished_at - wi.flow_started_at))
-             FILTER (WHERE wi.flow_finished_at >= wi.flow_started_at) AS average_seconds
+           count(*) FILTER (WHERE fl.flow_finished_at >= fl.flow_started_at) AS timed,
+           avg(extract(epoch FROM fl.flow_finished_at - fl.flow_started_at))
+             FILTER (WHERE fl.flow_finished_at >= fl.flow_started_at) AS average_seconds
       FROM work_item wi
+      -- The moments from the side table (F-10, 0234), which the trigger keeps equal to the columns.
+      LEFT JOIN work_item_flow fl ON fl.tenant_id = wi.tenant_id AND fl.item_id = wi.id
      WHERE wi.collection_id = w.collection_id AND wi.parent_id IS NULL
        AND wi.is_completed = true AND wi.deleted_at IS NULL
        AND wi.completed_at >= sqlc.arg('since')::timestamptz

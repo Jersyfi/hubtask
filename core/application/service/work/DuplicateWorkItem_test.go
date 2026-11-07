@@ -4,10 +4,14 @@
 package work
 
 import (
+	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -219,6 +223,7 @@ func TestACopyWritesTheRowTheEventTheChangeAndTheHistory(t *testing.T) {
 
 // The completion is the one piece of state a copy deliberately does not take over: it names a
 // person and a moment, and the copy was never completed by anybody.
+// UC-WRK-07 check 6.
 func TestACopyOfACompletedEntryIsOpen(t *testing.T) {
 	h := newDuplicateHarness(t)
 	original := h.withTask()
@@ -233,6 +238,54 @@ func TestACopyOfACompletedEntryIsOpen(t *testing.T) {
 	}
 	if result.Item.Completion.IsCompleted || !result.Item.Completion.CompletedBy.IsZero() {
 		t.Errorf("the copy claims a completion nobody performed: %+v", result.Item.Completion)
+	}
+}
+
+// A copy stands where the workflow in force at its destination puts an open entry: a copy of a
+// done entry is open, so it re-enters at the start rather than sitting in a done column; a status
+// the destination's workflow knows is kept; and where no workflow runs it carries none - a board
+// by status otherwise draws it in the wrong column or in none (UC-FLW-03, UC-FLW-05 check 6).
+func TestACopyStandsWhereTheDestinationsWorkflowPutsAnOpenEntry(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    string
+		completed bool
+		into      shared.ID
+		want      string
+	}{
+		{"a done entry's copy re-enters", "done", true, collectionID, "todo"},
+		{"an open status the workflow knows is kept", "review", false, collectionID, "review"},
+		{"a status the workflow does not know enters", "triage", false, collectionID, "todo"},
+		{"no workflow at the destination, no status", "review", false, farCollectionID, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newDuplicateHarness(t)
+			h.handler.Workflow = WorkflowGate{Workflows: &workflowStore{
+				rows:    []domain.Workflow{reviewWorkflow()},
+				schemes: []domain.WorkflowScheme{{ContainerID: collectionID, WorkflowKey: "review"}},
+			}}
+			original := h.withTask()
+			original.Status = c.status
+			if c.completed {
+				stamp := now
+				original.Completion = domain.Completion{IsCompleted: true, CompletedAt: &stamp, CompletedBy: accountID}
+			}
+			h.items.stored[original.ID] = original
+
+			result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+				ItemID: original.ID, TargetCollectionID: c.into,
+			})
+			if err != nil {
+				t.Fatalf("the copy was refused: %v", err)
+			}
+			if result.Item.Status != c.want {
+				t.Errorf("the copy stands in %q, want %q", result.Item.Status, c.want)
+			}
+			if stored := h.items.stored[result.Item.ID]; stored.Status != c.want {
+				t.Errorf("the stored copy stands in %q, want %q", stored.Status, c.want)
+			}
+		})
 	}
 }
 
@@ -294,6 +347,7 @@ func TestACopyCarriesTheLabelsTheMembersAndTheFiles(t *testing.T) {
 
 // The acceptance criterion: a subtree of depth 3 produces a subtree of depth 3, with new
 // identifiers and fresh ranks.
+// UC-WRK-07 check 4.
 func TestACopyOfASubtreeKeepsItsShapeAndTakesNewIdentifiers(t *testing.T) {
 	h := newDuplicateHarness(t)
 	original := h.withTask()
@@ -346,6 +400,7 @@ func TestACopyOfASubtreeKeepsItsShapeAndTakesNewIdentifiers(t *testing.T) {
 }
 
 // Without the subtree the entry is copied alone, and its children stay where they are.
+// UC-WRK-07 check 4.
 func TestACopyWithoutTheSubtreeCopiesTheEntryAlone(t *testing.T) {
 	h := newDuplicateHarness(t)
 	original := h.withTask()
@@ -598,6 +653,36 @@ func TestACopyAsksToReadTheSourceAndToWriteTheDestination(t *testing.T) {
 	}
 }
 
+// UC-WRK-07 check 7: whoever may read the entry but not create entries in the destination is
+// refused, and nothing is written - no row, no event, no change, no history.
+func TestACopyWithoutTheRightToCreateThereWritesNothing(t *testing.T) {
+	h := newDuplicateHarness(t)
+	permission := &authorizer{}
+	h.handler.Authorizer = writeRefused{permission}
+	original := h.withTask()
+
+	_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+		ItemID: original.ID, TargetCollectionID: farCollectionID, ParentGiven: true,
+	})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the copy answered %v, want forbidden", err)
+	}
+	if len(h.items.copies) != 0 || len(h.events.appended) != 0 || len(h.changes.recorded) != 0 || len(h.history.entries) != 0 {
+		t.Errorf("a refused copy wrote %d rows, %d events, %d changes, %d history steps",
+			len(h.items.copies), len(h.events.appended), len(h.changes.recorded), len(h.history.entries))
+	}
+}
+
+// writeRefused permits every question but writing entries.
+type writeRefused struct{ *authorizer }
+
+func (w writeRefused) Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error {
+	if request.Permission == service.PermissionWriteItems {
+		return shared.ErrForbidden
+	}
+	return w.authorizer.Authorize(ctx, actor, request)
+}
+
 // A role that writes only what is assigned to it copies onto itself: the entries the copy produces
 // would otherwise be out of its reach the moment they existed, which is the decision the
 // create path takes for the same reason.
@@ -644,5 +729,56 @@ func TestACopyByAnAssignedOnlyRoleIsRefusedForATypeThatCannotBeOwned(t *testing.
 	}
 	if len(h.items.copies) != 0 {
 		t.Error("something was copied all the same")
+	}
+}
+
+// A copy's title is a title like any other: one line, at most 500 code points, trimmed. The MCP
+// and CLI doors bring it in without the REST schema's bounds, so the use case holds them.
+func TestACopysTitleIsCheckedAsAnyTitleIs(t *testing.T) {
+	for _, testCase := range []struct{ title, detail string }{
+		{"two\nlines", "items.title_malformed"},
+		{strings.Repeat("x", 501), "items.title_too_long"},
+	} {
+		h := newDuplicateHarness(t)
+		original := h.withTask()
+		_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID, Title: testCase.title})
+		if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != testCase.detail {
+			t.Errorf("a copy titled %.20q answered %v, want %s", testCase.title, err, testCase.detail)
+		}
+		if len(h.items.copies) != 0 {
+			t.Error("something was copied all the same")
+		}
+	}
+	h := newDuplicateHarness(t)
+	original := h.withTask()
+	result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID, Title: "  Plan again  "})
+	if err != nil || result.Item.Title != "Plan again" {
+		t.Errorf("a padded title gave %q, %v; want it trimmed", result.Item.Title, err)
+	}
+}
+
+// UC-FLW-01 check 9: a copy is a create, so a copy placed under a parent whose type leaves the
+// entry's type out of its allowed children is refused by name and writes nothing.
+func TestACopyUnderAParentThatDoesNotAllowTheTypeIsRefused(t *testing.T) {
+	h := newDuplicateHarness(t)
+	task := h.withTask()
+	pack, _ := h.withSubtree(task)
+	h.handler.Gate.EntryTypes = &entryTypes{rows: []domain.EntryType{
+		{Key: "change", Level: domain.ItemTask, AllowedChildren: []string{"risk"}},
+		{Key: "risk", Level: domain.ItemWorkPackage},
+	}}
+	task.EntryType = "change"
+	h.items.stored[task.ID] = task
+
+	_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+		ItemID: pack.ID, TargetParentID: task.ID, ParentGiven: true,
+	})
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "entry_types.not_allowed_here" ||
+		refusal.Params["item_id"] != pack.ID.String() {
+		t.Fatalf("a work package was copied under a change allowing only risks: %v", err)
+	}
+	if len(h.items.copies) != 0 || len(h.events.appended) != 0 {
+		t.Error("a refused copy wrote something")
 	}
 }

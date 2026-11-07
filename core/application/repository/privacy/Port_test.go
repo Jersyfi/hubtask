@@ -244,3 +244,21 @@ func (d *double) Standing(_ context.Context, purpose string) ([]Objector, error)
 	}
 	return standing, nil
 }
+
+func TestAnIntakeCursorStandsJustPastItsLine(t *testing.T) {
+	line := IntakeLine{ID: "01LINE", Comment: true}
+	if got := line.After(); got != (IntakeCursor{Started: true, Comment: true, ID: "01LINE"}) {
+		t.Errorf("after %+v", got)
+	}
+}
+
+func TestAnAccountIsActedAsWhereOneIntegrationNamesIt(t *testing.T) {
+	for _, as := range []IntegrationsAs{{Connectors: 1}, {Hooks: 2}, {Agents: 1}} {
+		if !as.Any() {
+			t.Errorf("%+v acts as nobody", as)
+		}
+	}
+	if (IntegrationsAs{}).Any() {
+		t.Error("no integration acts as the account")
+	}
+}

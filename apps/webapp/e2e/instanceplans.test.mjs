@@ -103,6 +103,7 @@ async function openInstance(browser, { manifest = MULTI, level = LEVEL, answer =
     if (path === '/meta/capabilities') return route.fulfill({ json: manifest });
     if (path === '/admin/plans' && request.method() === 'GET') return route.fulfill({ json: { data: PLANS } });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: TENANTS });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: (TENANTS).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     if (path === '/admin/settings' && request.method() === 'GET') return route.fulfill({ json: level });
     if (path === '/admin/backup-targets' && request.method() === 'GET') return route.fulfill({ json: [] });
     return stub(route);
@@ -698,6 +699,7 @@ test('chromium: a workspace read without a version moves without guessing one', 
   const { page, sent, close } = await openInstance(browser, {
     answer: (route, request, path, sent) => {
       if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [TENANTS[0], unversioned] });
+      if (path === '/admin/tenants:query') return route.fulfill({ json: { data: ([TENANTS[0], unversioned]).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
       if (path === `/admin/tenants/${unversioned.id}:move-plan`) {
         sent.push(request.postDataJSON());
         return route.fulfill({ json: { tenant: { ...unversioned, plan: 'business' }, features_resting: [], exceptions_kept: [] } });

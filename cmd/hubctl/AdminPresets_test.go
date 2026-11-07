@@ -24,10 +24,10 @@ func TestTheInstallationsPresetsAreListed(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	if stub.request.URL.Path != APIPath+adminPresetsPath {
+	if stub.request.URL.Path != APIPath+"/admin/presets" {
 		t.Errorf("the read called %s", stub.request.URL.Path)
 	}
-	for _, expected := range []string{"Craft order", "default", "views"} {
+	for _, expected := range []string{"Craft order", "true", "views"} {
 		if !strings.Contains(out, expected) {
 			t.Errorf("%s is missing from %q", expected, out)
 		}
@@ -37,7 +37,7 @@ func TestTheInstallationsPresetsAreListed(t *testing.T) {
 func TestAnInstallationPresetIsCreatedFromHubtasksWithItsLocks(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, craftOrder)
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "presets", "create",
-		"--name", "Craft order", "--from", "flow", "--default", "--lock", "views, fields.TASK.DUE_DATE",
+		"--name", "Craft order", "--preset", "FLOW", "--is-default", "--locks", "views, fields.TASK.DUE_DATE",
 		"--settings", `{"levels": [{"type": "TASK", "name": "Order"}]}`)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -57,7 +57,7 @@ func TestAnInstallationPresetIsCreatedFromHubtasksWithItsLocks(t *testing.T) {
 func TestAnInstallationPresetIsChangedWithTheVersionNamed(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, craftOrder)
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "presets", "set",
-		"--default", "no", "--expected-version", "2", "018f0000-0000-7000-8000-00000000c0de")
+		"018f0000-0000-7000-8000-00000000c0de", "--is-default=false", "--expect-version", "2")
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
@@ -71,8 +71,8 @@ func TestAnInstallationPresetIsChangedWithTheVersionNamed(t *testing.T) {
 	if sent["is_default"] != false || sent["locks"] != nil || sent["name"] != nil {
 		t.Errorf("a change of the default alone sent %s", stub.body)
 	}
-	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "presets", "set", "--default", "maybe", "x"); code == exitOK {
-		t.Error("--default maybe was accepted")
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "presets", "set", "018f0000-0000-7000-8000-00000000c0de", "--is-default=maybe"); code == exitOK {
+		t.Error("--is-default=maybe was accepted")
 	}
 }
 

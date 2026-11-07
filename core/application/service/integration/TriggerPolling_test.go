@@ -159,12 +159,13 @@ func newPollHarness(rows ...event.Envelope) *pollHarness {
 		handler: PollTriggerEvents{
 			Events:   log,
 			Policies: policies{policy: lifecycle.Policy{DataKind: lifecycle.KindOutboxEvent, RetainDays: 7}},
-			Cursors:  plainCursors{}, Rendering: rendering{},
+			Cursors:  plainCursors{}, Rendering: rendering{}, Members: &authorizer{},
 			UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), Lag: pollLag,
 		},
 	}
 }
 
+// UC-INT-04 check 1.
 func TestAPollAnswersTheTypeItWasAskedFor(t *testing.T) {
 	wanted := emitted(now.Add(-2*time.Hour), "01936f2a-0000-7000-8000-000000000001", event.ItemCreated)
 	other := emitted(now.Add(-2*time.Hour), "01936f2a-0000-7000-8000-000000000002", event.ItemCompleted)
@@ -217,6 +218,7 @@ func TestTheCursorOfAQuietStreamDoesNotFallBehindTheWindow(t *testing.T) {
 
 // The window's near end. Rows younger than the lag are withheld from the page, and the cursor is
 // withheld with them - a cursor that had moved past an event still in flight would step over it.
+// UC-INT-04 check 6.
 func TestAPollWithholdsWhatIsYoungerThanTheLag(t *testing.T) {
 	settled := emitted(now.Add(-2*pollLag), "01936f2a-0000-7000-8000-000000000001", event.ItemCreated)
 	fresh := emitted(now.Add(-pollLag/2), "01936f2a-0000-7000-8000-000000000002", event.ItemCreated)
@@ -246,6 +248,7 @@ func TestAPollWithholdsWhatIsYoungerThanTheLag(t *testing.T) {
 }
 
 // Two polls with the returned cursor neither repeat an event nor step over one.
+// UC-INT-04 check 6.
 func TestTwoPollsWithTheCursorNeitherRepeatNorSkip(t *testing.T) {
 	var rows []event.Envelope
 	for i := range 5 {
@@ -339,6 +342,7 @@ func TestAFullPageLeavesTheCursorOnItsLastRow(t *testing.T) {
 
 // The far end of the window. A poller that missed more than the retention period has to be told
 // that it missed, or it reports a completeness it does not have.
+// UC-INT-04 check 3.
 func TestACursorOlderThanTheRetentionIsRefused(t *testing.T) {
 	h := newPollHarness()
 
@@ -370,6 +374,7 @@ func TestACursorOlderThanTheRetentionIsRefused(t *testing.T) {
 
 // Without a cursor the walk starts at the oldest event the window still covers, never at the
 // present: a caller that lost its cursor needs what is there, not a gap it cannot see.
+// UC-INT-04 check 2.
 func TestAPollWithNoCursorStartsAtTheWindow(t *testing.T) {
 	h := newPollHarness()
 
@@ -410,6 +415,7 @@ func TestTheOutboxDefaultIsReadOffTheCatalogue(t *testing.T) {
 
 // The acceptance criterion: scope enforcement is per event type, and a token holding the wrong one
 // is refused.
+// UC-INT-04 check 5.
 func TestPollingIsRefusedWithoutTheEventsOwnScope(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -461,8 +467,37 @@ func TestPollingIsRefusedWithoutTheEventsOwnScope(t *testing.T) {
 	}
 }
 
+// The events are the workspace's own, entries' notes and all: a requester is no member and polls
+// none of them (access.Request.AnyMember), refused before the log is read; a build without the
+// authoriser refuses everybody.
+func TestARequesterPollsNoEvents(t *testing.T) {
+	h := newPollHarness(emitted(now.Add(-2*time.Hour), "01936f2a-0000-7000-8000-000000000001", event.ItemCreated))
+	members := &authorizer{refuse: shared.ErrForbidden.WithDetail("access.not_permitted")}
+	h.handler.Members = members
+
+	_, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated)})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want the refusal", err)
+	}
+	if len(h.log.asked) != 0 {
+		t.Error("the log was read for a requester")
+	}
+	if len(members.requests) != 1 || !members.requests[0].AnyMember ||
+		members.requests[0].Action != TriggerPolledAction || members.requests[0].TokenScope != automationScope {
+		t.Errorf("asked %+v, want any member under %s", members.requests, automationScope)
+	}
+
+	h.handler.Members = nil
+	if _, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated)}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("without the authoriser = %v, want a refusal", err)
+	}
+}
+
 // A type nobody declares is refused by name. A trigger configured against a typo would otherwise
 // poll forever and report nothing wrong.
+// UC-INT-04 check 4.
 func TestAnUnknownEventTypeIsRefusedByName(t *testing.T) {
 	h := newPollHarness()
 
@@ -521,6 +556,7 @@ func TestThePageSizeIsBounded(t *testing.T) {
 }
 
 // A cursor that does not decode is the caller's mistake, and the log is not read for it.
+// UC-INT-04 check 3.
 func TestAnInvalidCursorIsRefused(t *testing.T) {
 	h := newPollHarness()
 	h.handler.Cursors = plainCursors{refuse: true}
@@ -575,5 +611,21 @@ func TestThePollOutputCarriesTheCursorAndThePage(t *testing.T) {
 	}
 	if page["has_more"] != false {
 		t.Errorf("has_more is %v, want false", page["has_more"])
+	}
+}
+
+// A cursor dated after the present - an installation clock set back, or a forged one - would
+// leave the poller seeing nothing until that moment; it is refused, so the poller starts again.
+func TestACursorDatedAfterThePresentIsRefused(t *testing.T) {
+	h := newPollHarness()
+	ahead := outbox.Position{OccurredAt: now.Add(48 * time.Hour), ID: shared.ID("01936f2a-0000-7000-8000-000000000001")}
+	_, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated), Cursor: plainCursors{}.Encode(ahead)})
+	var coded *shared.Error
+	if !errors.As(err, &coded) || coded.DetailCode != "triggers.cursor_invalid" || !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("error %v, want triggers.cursor_invalid", err)
+	}
+	if len(h.log.asked) != 0 {
+		t.Error("the log was read with a cursor from the future")
 	}
 }

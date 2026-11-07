@@ -46,11 +46,21 @@ func legacyArchivePurpose(targetID shared.ID) crypto.Purpose {
 // database is lost.
 func archiveKeysOf(
 	ctx context.Context, keys crypto.KeyMaterialiser, chain []archive.Description, targetID shared.ID,
+	given ArchivePassphrase,
 ) (archive.Keys, error) {
 	out := archive.Keys{}
+	used := false
 	for _, description := range chain {
 		encryption := description.Manifest.Encryption
 		if !encryption.IsEncrypted() {
+			continue
+		}
+		if encryption.FromPassphrase() {
+			key, err := given.keyOf(encryption)
+			if err != nil {
+				return nil, err
+			}
+			out[description.Manifest.ArchiveID], used = key, true
 			continue
 		}
 		purpose, salt := legacyArchivePurpose(targetID), []byte(nil)
@@ -74,6 +84,9 @@ func archiveKeysOf(
 		}
 		out[description.Manifest.ArchiveID] = key
 	}
+	if given.Given() && !used {
+		return nil, shared.ErrValidation.WithDetail(archive.CodeArchivePassphraseUnused)
+	}
 	return out, nil
 }
 
@@ -82,14 +95,20 @@ func archiveKeysOf(
 // error halfway through a restore (UC-BAK-04 check 5).
 func openableKeys(
 	ctx context.Context, keys crypto.KeyMaterialiser, reader *archive.Reader,
-	chain []archive.Description, targetID shared.ID,
+	chain []archive.Description, targetID shared.ID, given ArchivePassphrase,
 ) (archive.Keys, error) {
-	derived, err := archiveKeysOf(ctx, keys, chain, targetID)
+	derived, err := archiveKeysOf(ctx, keys, chain, targetID, given)
 	if err != nil {
 		return nil, err
 	}
 	for _, description := range chain {
-		if err := reader.Probe(ctx, description, derived.Of(description)); err != nil {
+		err := reader.Probe(ctx, description, derived.Of(description))
+		if err != nil && description.Manifest.Encryption.FromPassphrase() &&
+			shared.AsError(err) != nil && shared.AsError(err).DetailCode == archive.CodeArchiveKeyUnknown {
+			// No master key to bring back: the passphrase is what was wrong.
+			return nil, shared.ErrValidation.WithDetail(archive.CodeArchivePassphraseWrong).WithCause(err)
+		}
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -101,7 +120,7 @@ func openableKeys(
 func boundToATarget(chain []archive.Description) bool {
 	for _, description := range chain {
 		encryption := description.Manifest.Encryption
-		if encryption.IsEncrypted() && encryption.ArchiveSalt == "" {
+		if encryption.IsEncrypted() && encryption.ArchiveSalt == "" && !encryption.FromPassphrase() {
 			return true
 		}
 	}
@@ -323,11 +342,12 @@ func (p Performer) chainOf(ctx context.Context, parent domain.Run) ([]string, er
 // a row whose parent points at itself becoming a loop.
 const maxChainLength = 512
 
-// write is the export: the snapshot, and the archive that comes out of it.
+// write is the export: the snapshot, and the archive that comes out of it. The snapshot ends after
+// the data files; the media are transferred after it.
 func (p Performer) write(
 	ctx context.Context, in PerformInput, ready prepared,
 ) (archive.Manifest, time.Time, error) {
-	var manifest archive.Manifest
+	var pending archive.Pending
 	var snapshotAt time.Time
 
 	err := p.Snapshot.WithinSnapshot(ctx, persistence.Scope{TenantID: in.TenantID},
@@ -353,14 +373,16 @@ func (p Performer) write(
 				IncludeAudit:   in.IncludeAudit,
 			}
 
-			written, err := archive.NewWriter(ready.store, p.Cipher, media).
-				Write(snapshotCtx, request, newProgress(source, in.Report))
-			if err != nil {
-				return err
-			}
-			manifest = written
-			return nil
+			begun, err := archive.NewWriter(ready.store, p.Cipher, media).
+				Begin(snapshotCtx, request, newProgress(source, in.Report))
+			pending = begun
+			return err
 		})
+	if err != nil {
+		return archive.Manifest{}, time.Time{}, err
+	}
+	// Outside the snapshot: the media's keys were fixed inside it, and their bytes need none.
+	manifest, err := pending.Finish(ctx)
 	if err != nil {
 		return archive.Manifest{}, time.Time{}, err
 	}

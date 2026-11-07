@@ -12,6 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
@@ -186,6 +188,180 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
+	// Alert A-29's numbers: the installation's mail app counted across both workspaces - one
+	// mailbox failing for two hours, one for ten minutes (inside the grace), one on the
+	// administrator's own app and one switched off, neither of which is the installation's.
+	t.Run("the installation's mail apps are counted across workspaces", func(t *testing.T) {
+		mailbox := func(id, tenant, provider string, installation, enabled bool, failingFor string) string {
+			failing := "NULL"
+			if failingFor != "" {
+				failing = "now() - interval '" + failingFor + "'"
+			}
+			return `INSERT INTO mailbox (id, tenant_id, protocol, address, host, port, username, folder,
+				done_folder, enabled, secret_enc, secret_key_id, failing_since, auth, oauth_provider,
+				oauth_token_url, oauth_installation, created_at)
+				VALUES ('` + id + `', '` + tenant + `', 'IMAP', '` + id[len(id)-4:] + `@door.example',
+				'imap.door.example', 993, 'u', 'INBOX', 'Hubtask', ` + boolSQL(enabled) + `, '\x00', 'k',
+				` + failing + `, 'OAUTH', '` + provider + `', 'https://door.example/token', ` +
+				boolSQL(installation) + `, now())`
+		}
+		for _, statement := range []string{
+			mailbox("01936f2a-7c1e-7000-8000-000000145651", tenantA, "google", true, true, "2 hours"),
+			mailbox("01936f2a-7c1e-7000-8000-000000145652", tenantB, "google", true, true, "10 minutes"),
+			mailbox("01936f2a-7c1e-7000-8000-000000145653", tenantB, "google", false, true, "2 hours"),
+			mailbox("01936f2a-7c1e-7000-8000-000000145654", tenantA, "microsoft", true, false, "2 hours"),
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding a mailbox: %v", err)
+			}
+		}
+		rows, err := app.Query(ctx, `SELECT provider, connected, failing FROM installation_mail_apps()`)
+		if err != nil {
+			t.Fatalf("installation_mail_apps: %v", err)
+		}
+		defer rows.Close()
+		answered := map[string][2]int64{}
+		for rows.Next() {
+			var provider string
+			var connected, failing int64
+			if err := rows.Scan(&provider, &connected, &failing); err != nil {
+				t.Fatalf("reading: %v", err)
+			}
+			answered[provider] = [2]int64{connected, failing}
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		if len(answered) != 1 || answered["google"] != [2]int64{2, 1} {
+			t.Errorf("installation_mail_apps answered %v, want google connected 2, failing 1", answered)
+		}
+		var direct int
+		one(t, `SELECT count(*) FROM mailbox`, &direct)
+		if direct != 0 {
+			t.Errorf("without a workspace the application read %d mailboxes", direct)
+		}
+	})
+
+	// The SAML providers' certificate ends across both workspaces (identity.md §26.1): ended, within
+	// a week, within the month, far off, and one switched off that nobody signs in through.
+	t.Run("the SAML providers' certificate ends are counted across workspaces", func(t *testing.T) {
+		saml := func(id, tenant, enabled, end string) string {
+			return `INSERT INTO identity_provider (id, tenant_id, kind, issuer, client_id, client_secret_enc,
+				client_secret_key_id, saml_sso_url, saml_certificate, enabled, saml_certificates_end, created_at)
+				VALUES ('` + id + `', '` + tenant + `', 'SAML', 'https://idp.door.example/` + id[len(id)-4:] + `',
+				'hubtask', '\x00', 'k', 'https://idp.door.example/sso', 'pem', ` + enabled + `, now() + interval '` + end + `', now())`
+		}
+		for _, statement := range []string{
+			saml("01936f2a-7c1e-7000-8000-000000145671", tenantA, "true", "-1 day"),
+			saml("01936f2a-7c1e-7000-8000-000000145672", tenantB, "true", "3 days"),
+			saml("01936f2a-7c1e-7000-8000-000000145673", tenantB, "true", "20 days"),
+			saml("01936f2a-7c1e-7000-8000-000000145674", tenantA, "true", "200 days"),
+			saml("01936f2a-7c1e-7000-8000-000000145675", tenantA, "false", "-1 day"),
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding a SAML provider: %v", err)
+			}
+		}
+		var providers, within30, within7, ended int64
+		if err := app.QueryRow(ctx, `SELECT providers, within_30_days, within_7_days, ended FROM saml_certificates_ending()`).
+			Scan(&providers, &within30, &within7, &ended); err != nil {
+			t.Fatalf("saml_certificates_ending: %v", err)
+		}
+		if providers != 4 || within30 != 2 || within7 != 1 || ended != 1 {
+			t.Errorf("saml_certificates_ending answered %d, %d, %d, %d; want 4, 2, 1, 1", providers, within30, within7, ended)
+		}
+	})
+
+	// The health report's backlogs (P-11): the outbox counted across workspaces through its door,
+	// and a dead-lettered job among the figures, as the application role reads them.
+	t.Run("the health report's backlogs count every workspace and the dead letters", func(t *testing.T) {
+		event := func(id, tenant, dispatched string) string {
+			return `INSERT INTO outbox_event (id, tenant_id, event_type, payload, actor_type, occurred_at, dispatched_at)
+				VALUES ('` + id + `', '` + tenant + `', 'de.hubtask.test.v1', '{}', 'SYSTEM',
+				now() - interval '30 seconds', ` + dispatched + `)`
+		}
+		for _, statement := range []string{
+			event("01936f2a-7c1e-7000-8000-000000145671", tenantA, "NULL"),
+			event("01936f2a-7c1e-7000-8000-000000145672", tenantB, "NULL"),
+			event("01936f2a-7c1e-7000-8000-000000145673", tenantB, "now()"),
+			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, finished_at, last_error)
+			 VALUES ('01936f2a-7c1e-7000-8000-000000145681', '` + tenantA + `', 'backup.run', 'DEAD_LETTER',
+			 3, 3, now(), 'queue.lease_expired_exhausted')`,
+			// Held uploads: one workspace's pass waiting two hours, another's dead-lettered.
+			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, dedupe_key, created_at)
+			 VALUES ('01936f2a-7c1e-7000-8000-000000145682', '` + tenantA + `', 'media.scan', 'PENDING',
+			 0, 8, 'media.scan:` + tenantA + `', now() - interval '2 hours')`,
+			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, dedupe_key, finished_at, last_error)
+			 VALUES ('01936f2a-7c1e-7000-8000-000000145683', '` + tenantB + `', 'media.scan', 'DEAD_LETTER',
+			 8, 8, 'media.scan:` + tenantB + `', now(), 'postgres.query_failed')`,
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding: %v", err)
+			}
+		}
+
+		read := postgres.Backlogs{UnitOfWork: postgres.NewUnitOfWork(app), Clock: clockadapter.System{}}.Read
+		got, err := read(ctx)
+		if err != nil {
+			t.Fatalf("counting the backlogs: %v", err)
+		}
+		if got.OutboxPending != 2 || got.OutboxLagSeconds < 25 {
+			t.Errorf("outbox pending %d, lag %.1fs; want 2 across both workspaces, about 30s",
+				got.OutboxPending, got.OutboxLagSeconds)
+		}
+		if got.DeadLetterTotal != 2 {
+			t.Errorf("dead letters = %d, want the two", got.DeadLetterTotal)
+		}
+		if got.HeldUploadWorkspaces != 2 || got.HeldUploadOldestSeconds < 7100 {
+			t.Errorf("held uploads in %d workspaces, oldest %.0fs; want 2, about 7200s",
+				got.HeldUploadWorkspaces, got.HeldUploadOldestSeconds)
+		}
+		var direct int
+		one(t, `SELECT count(*) FROM outbox_event`, &direct)
+		if direct != 0 {
+			t.Errorf("without a workspace the application read %d outbox events", direct)
+		}
+	})
+
+	// The backup warning (UC-BAK-01 check 11): workspaces without a target or a recent backup are
+	// counted across workspaces through the door (0375), as the application role reads them.
+	t.Run("the backup gaps count every workspace", func(t *testing.T) {
+		gaps := func() (withoutTarget, withoutRecent int64) {
+			t.Helper()
+			if err := app.QueryRow(ctx, `SELECT without_target, without_recent FROM installation_backup_gaps(7)`).
+				Scan(&withoutTarget, &withoutRecent); err != nil {
+				t.Fatalf("installation_backup_gaps: %v", err)
+			}
+			return withoutTarget, withoutRecent
+		}
+		targetBefore, recentBefore := gaps()
+		if targetBefore < 2 || recentBefore < 2 {
+			t.Fatalf("before any backup %d without a target, %d without a recent backup; want both workspaces", targetBefore, recentBefore)
+		}
+		for _, statement := range []string{
+			`INSERT INTO backup_target (id, tenant_id, name, kind) VALUES
+			 ('01936f2a-7c1e-7000-8000-000000145691', '` + tenantA + `', 'Door A folder', 'LOCAL')`,
+			`INSERT INTO backup_run (id, target_id, tenant_id, trigger, mode, status, finished_at) VALUES
+			 ('01936f2a-7c1e-7000-8000-000000145692', '01936f2a-7c1e-7000-8000-000000145691', '` + tenantA + `',
+			  'MANUAL', 'FULL', 'SUCCEEDED', now() - interval '2 days'),
+			 ('01936f2a-7c1e-7000-8000-000000145693', '01936f2a-7c1e-7000-8000-000000145691', '` + tenantA + `',
+			  'MANUAL', 'FULL', 'SUCCEEDED', now() - interval '9 days')`,
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding: %v", err)
+			}
+		}
+		if target, recent := gaps(); target != targetBefore-1 || recent != recentBefore-1 {
+			t.Errorf("after A's backup %d without a target, %d without a recent backup; want %d and %d",
+				target, recent, targetBefore-1, recentBefore-1)
+		}
+		var direct int
+		one(t, `SELECT count(*) FROM backup_target`, &direct)
+		if direct != 0 {
+			t.Errorf("without a workspace the application read %d backup targets", direct)
+		}
+	})
+
 	// The owner's policies name the owner and nobody else: the application, reading the same tables
 	// directly with no workspace set, still sees nothing.
 	t.Run("the application role is still bounded", func(t *testing.T) {
@@ -199,4 +375,12 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 				tenants, accounts, memberships, providers)
 		}
 	})
+}
+
+// boolSQL is a boolean as an SQL literal, for a seeding statement.
+func boolSQL(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }

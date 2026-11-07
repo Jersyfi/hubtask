@@ -1,0 +1,189 @@
+{
+  "key": "facility_requests",
+  "version": 4,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "facility_category": {
+        "name": "Category",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Repair",
+          "Cleaning",
+          "Room booking",
+          "Move",
+          "Safety"
+        ]
+      },
+      "facility_location": {
+        "name": "Location",
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "facility_request": {
+        "level": "TASK",
+        "name": "Facility request",
+        "icon": "hammer",
+        "color_token": "amber",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "request",
+              "name": "Request"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "request",
+              "required": true
+            },
+            {
+              "key": "notes",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.facility_category",
+              "section": "request"
+            },
+            {
+              "key": "custom_fields.facility_location",
+              "section": "request",
+              "required": true
+            }
+          ],
+          "channels": [
+            {
+              "channel": "PORTAL"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "facility_request": {
+        "name": "Facility request",
+        "shape": {
+          "initial": "new",
+          "statuses": [
+            {
+              "key": "new",
+              "name": "New",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "in_progress",
+              "name": "In progress",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "waiting",
+              "name": "Waiting",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "resolved",
+              "name": "Resolved",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "start",
+              "name": "Start",
+              "from": [
+                "new"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "wait",
+              "name": "Wait for requester",
+              "from": [
+                "in_progress"
+              ],
+              "to": "waiting"
+            },
+            {
+              "key": "resume",
+              "name": "Resume",
+              "from": [
+                "waiting"
+              ],
+              "to": "in_progress"
+            },
+            {
+              "key": "resolve",
+              "name": "Resolve",
+              "from": [
+                "new",
+                "in_progress",
+                "waiting"
+              ],
+              "to": "resolved"
+            },
+            {
+              "key": "reopen",
+              "name": "Reopen",
+              "from": [
+                "resolved"
+              ],
+              "to": "in_progress"
+            }
+          ]
+        }
+      }
+    },
+    "roles": {
+      "requester": {
+        "name": "Requester",
+        "permissions": [
+          "REQUEST"
+        ]
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      },
+      "service_desk": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "facility_request": {
+        "workflow": "facility_request"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "facility_request"
+          ]
+        }
+      }
+    }
+  }
+}

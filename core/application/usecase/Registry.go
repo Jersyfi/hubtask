@@ -23,7 +23,9 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -96,6 +98,9 @@ type Descriptor struct {
 	// so that an agent client can ask for confirmation before the dangerous ones (ai-first.md).
 	ReadOnly    bool
 	Destructive bool
+	// EndsAView admits an operation that writes during a view as somebody (UC-ID-29): only the
+	// one that ends the view. Every other write is refused there, whatever its token scope.
+	EndsAView bool
 	// StepUp says when this operation demands a fresh re-authentication (security.md §5),
 	// in prose, the way Activity.Exempt gives a reason: "always", or the condition - "granting
 	// or revoking the OWNER role". Empty for the operations that never do. The declaration is
@@ -108,8 +113,23 @@ type Descriptor struct {
 	// not offered it as an action there. Empty for every operation a plan cannot reach, which is
 	// every read and every act that stops or removes.
 	Entitlement entitlement.Feature
+	// Module is the module of the suite this operation belongs to (UC-INS-21). The registry's
+	// middleware refuses it with `module.off` where the module is off at the hub the input names
+	// (a hub, a collection or an entry in it) or, naming none, at the workspace, through every
+	// door alike. Empty for every operation of the base product.
+	Module module.Key
+	// Permission is the catalogue's permission the use case asks for at the place it acts on
+	// (F-7): what *who may do what* and *view as* read (A6, A11). The handler still asks it, at
+	// the path the input names - an answer that depends on the entry or the place stays there.
+	// Empty where the use case asks none of the catalogue: a person's own, the installation's,
+	// or one decided by the entry alone.
+	Permission service.Permission
 
-	Input    []Field
+	Input []Field
+	// Output names the members every answer carries, for a client that reads them by schema (an
+	// MCP tool's outputSchema). Declared only where a test holds the answers to it
+	// (OutputMismatch); empty declares nothing.
+	Output   []Field
 	Audit    AuditDeclaration
 	Activity ActivityDeclaration
 	Handler  Handler
@@ -192,6 +212,10 @@ func check(d Descriptor) error {
 		return incomplete("activity verb " + string(d.Activity.Verb))
 	case d.Entitlement != "" && !d.Entitlement.Valid():
 		return incomplete("entitlement " + string(d.Entitlement))
+	case d.Module != "" && !d.Module.Valid():
+		return incomplete("module " + string(d.Module))
+	case d.Permission != "" && !declarable(d.Permission):
+		return incomplete("permission " + string(d.Permission))
 	}
 
 	seen := make(map[string]bool, len(d.Input))
@@ -251,6 +275,9 @@ func (r *Registry) Invoke(ctx context.Context, name string, actor appshared.Acto
 	if err := descriptor.PermitAgent(actor); err != nil {
 		return nil, err
 	}
+	if err := descriptor.PermitViewer(actor); err != nil {
+		return nil, err
+	}
 	if err := descriptor.ValidateInput(in); err != nil {
 		return nil, err
 	}
@@ -299,6 +326,17 @@ func (d Descriptor) PermitAgent(actor appshared.ActorContext) error {
 		})
 }
 
+// PermitViewer refuses every write during a view as somebody (UC-ID-29 check 2): a view only reads.
+// The view's reading scopes refuse a write too; this holds for an operation whose scope reads but
+// which records something all the same, and for the next one somebody declares so.
+func (d Descriptor) PermitViewer(actor appshared.ActorContext) error {
+	if d.ReadOnly || d.EndsAView || !actor.IsViewingAs() {
+		return nil
+	}
+	return shared.ErrForbidden.WithDetail("access.view_as_read_only").
+		WithParams(map[string]string{"use_case": d.Name})
+}
+
 func lowerFirst(name string) string {
 	if name == "" {
 		return ""
@@ -337,4 +375,11 @@ func isPascalCase(name string) bool {
 		}
 	}
 	return true
+}
+
+// declarable is whether a descriptor may declare the permission: one of the catalogue's
+// permissions over a place. A field or step permission names an object no descriptor knows.
+func declarable(permission service.Permission) bool {
+	_, err := service.ParsePermission(string(permission))
+	return err == nil && permission.Kind() == service.KindBase
 }

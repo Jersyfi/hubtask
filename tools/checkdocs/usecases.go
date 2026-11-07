@@ -50,6 +50,16 @@ var ucContexts = map[string]string{
 	"suggestion":   "AI",
 	"sync":         "SYN",
 	"importer":     "IMP",
+	"workflow":     "FLW",
+	"planning":     "PLN",
+	"knowledge":    "DOC",
+	"whiteboard":   "CNV",
+	"assets":       "AST",
+	"servicedesk":  "SVC",
+	"timekeeping":  "TIM",
+	"goal":         "GOL",
+	"agent":        "AGT",
+	"config":       "CFG",
 }
 
 var ucStates = map[string]bool{
@@ -104,6 +114,8 @@ func checkUseCases(root string) []string {
 		problems = append(problems, checkUseCase(root, uc, personas, deployments, principles)...)
 	}
 
+	problems = append(problems, checkVerifiedCitations(root, cases)...)
+	problems = append(problems, checkBuiltCitations(root, cases)...)
 	problems = append(problems, checkUseCaseIndex(root, cases)...)
 	problems = append(problems, checkUseCaseReferences(root, seen, useCaseChecks(cases))...)
 	problems = append(problems, checkMilestones(root, cases)...)
@@ -242,6 +254,7 @@ func checkUseCase(root string, uc useCase, personas, deployments, principles map
 	}
 
 	sections := sectionsOf(uc.body)
+
 	if state == "retired" {
 		return problems
 	}
@@ -346,8 +359,33 @@ func checkUseCaseIndex(root string, cases []useCase) []string {
 	return problems
 }
 
-// ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`.
-var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,? check (\d+)\b)`)
+// ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`, the words
+// wrapped onto the next comment line or not.
+var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,?` + wrap + `check (\d+)\b)`)
+
+// wrap is the space between a use case and its check: one, or a line break into the next line of
+// the same comment.
+const wrap = `(?: |\n[ \t]*(?://|\*|#) ?)`
+
+// ucChecksReference is a citation of several checks in one list: `UC-WRK-32 checks 2, 3 and 6`,
+// or `UC-WRK-30 checks 1-4`.
+var ucChecksReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3}):?,?` + wrap + `checks (\d+(?:[-–]\d+)?(?:(?:,| and|, and) \d+(?:[-–]\d+)?)*)\b`)
+
+// listedChecks answers the check numbers a list names, a range counted whole.
+func listedChecks(list string) []int {
+	var numbers []int
+	for _, item := range regexp.MustCompile(`(\d+)(?:[-–](\d+))?`).FindAllStringSubmatch(list, -1) {
+		from, _ := strconv.Atoi(item[1])
+		to := from
+		if item[2] != "" {
+			to, _ = strconv.Atoi(item[2])
+		}
+		for n := from; n <= to && n-from < 100; n++ {
+			numbers = append(numbers, n)
+		}
+	}
+	return numbers
+}
 
 // checkUseCaseReferences makes sure a UC-… cited anywhere resolves, the way checkADRReferences does
 // for decisions: a task, a pull request template or a code comment pointing at a use case that does
@@ -383,6 +421,15 @@ func checkUseCaseReferences(root string, known map[string]string, checks map[str
 			if n, _ := strconv.Atoi(number); ok && !uc.checks[n] {
 				key := m[1] + " check " + number
 				missingChecks[key] = append(missingChecks[key], relative)
+			}
+		}
+		for _, m := range ucChecksReference.FindAllStringSubmatch(string(content), -1) {
+			uc, ok := checks[m[1]]
+			for _, n := range listedChecks(m[2]) {
+				if ok && !uc.checks[n] {
+					key := m[1] + " check " + strconv.Itoa(n)
+					missingChecks[key] = append(missingChecks[key], relative)
+				}
 			}
 		}
 		return nil
@@ -424,4 +471,99 @@ func setOf(matches [][]string) map[string]bool {
 		set[match[1]] = true
 	}
 	return set
+}
+
+// uncitedVerifiedAtMost bounds the checks of verified use cases that no file in their checked_by
+// cites as `UC-XX-nn check n`, `UC-XX-nn/n` or in a list of checks. Zero: verified means every
+// check is cited.
+const uncitedVerifiedAtMost = 0
+
+// checkVerifiedCitations holds `verified` to its meaning: every check proven, by a test that says
+// which check it proves (docs/usecases/README.md).
+func checkVerifiedCitations(root string, cases []useCase) []string {
+	var uncited []string
+	for _, uc := range cases {
+		if uc.fields["state"] != "verified" {
+			continue
+		}
+		checks := numberedChecks(sectionsOf(uc.body)["How to check"])
+		for _, n := range uncitedChecks(root, uc.id, checks, uc.lists["checked_by"]) {
+			uncited = append(uncited, fmt.Sprintf("%s: verified, but check %d is cited (%s check %d, or %s/%d) by no file in checked_by", uc.path, n, uc.id, n, uc.id, n))
+		}
+	}
+	if len(uncited) <= uncitedVerifiedAtMost {
+		return nil
+	}
+	return append([]string{fmt.Sprintf("%d checks of verified use cases are cited by no test, at most %d may be", len(uncited), uncitedVerifiedAtMost)}, uncited...)
+}
+
+// uncitedBuiltAtMost bounds the checks of built use cases that no file in their checked_by cites.
+// `built` allows them (docs/usecases/README.md), but the number only falls: a use case whose last
+// check gets cited moves to verified, and the bound is lowered with it.
+const uncitedBuiltAtMost = 321
+
+// checkBuiltCitations holds the uncited checks of built use cases to uncitedBuiltAtMost exactly.
+func checkBuiltCitations(root string, cases []useCase) []string {
+	uncited := 0
+	for _, uc := range cases {
+		if uc.fields["state"] != "built" {
+			continue
+		}
+		checks := numberedChecks(sectionsOf(uc.body)["How to check"])
+		uncited += len(uncitedChecks(root, uc.id, checks, uc.lists["checked_by"]))
+	}
+	return builtCitationProblems(uncited, uncitedBuiltAtMost)
+}
+
+// builtCitationProblems is the ratchet: above the bound fails, and so does below it, until the
+// bound is lowered to what was reached.
+func builtCitationProblems(uncited, bound int) []string {
+	switch {
+	case uncited > bound:
+		return []string{fmt.Sprintf("%d checks of built use cases are cited by no test, at most %d may be - cite the test that proves a check, or name it in checked_by", uncited, bound)}
+	case uncited < bound:
+		return []string{fmt.Sprintf("%d checks of built use cases are cited by no test, fewer than the bound: lower uncitedBuiltAtMost to %d in tools/checkdocs/usecases.go", uncited, uncited)}
+	}
+	return nil
+}
+
+// uncitedChecks answers the checks of a use case that no file in checked_by cites, in order:
+// `verified` means every check is proven, and a check no test names is one nobody can find the
+// proof of (docs/usecases/README.md).
+func uncitedChecks(root, id string, checks map[int]bool, evidence []string) []int {
+	cited := map[int]bool{}
+	for _, file := range evidence {
+		content, err := os.ReadFile(filepath.Join(root, file)) //nolint:gosec // G304: a file of this repository a use case cites
+		if err != nil {
+			continue
+		}
+		for _, m := range ucCheckReference.FindAllStringSubmatch(string(content), -1) {
+			if m[1] != id {
+				continue
+			}
+			number := m[2]
+			if number == "" {
+				number = m[3]
+			}
+			if n, err := strconv.Atoi(number); err == nil {
+				cited[n] = true
+			}
+		}
+		for _, m := range ucChecksReference.FindAllStringSubmatch(string(content), -1) {
+			if m[1] != id {
+				continue
+			}
+			for _, n := range listedChecks(m[2]) {
+				cited[n] = true
+			}
+		}
+	}
+	var missing []int
+	for n := range checks {
+		if !cited[n] {
+			missing = append(missing, n)
+		}
+	}
+	sort.Ints(missing)
+	return missing
 }

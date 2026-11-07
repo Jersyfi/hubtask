@@ -23,7 +23,10 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, EmptyState, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import FrequencyPicker from '../lib/forms/FrequencyPicker.svelte';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
+  import { deviceZone } from '../lib/i18n/zone.ts';
 
   import { backup, type Archive, type Schedule } from '../lib/data/backup.svelte.ts';
   import { generations, readRule } from '../lib/data/backup.ts';
@@ -40,7 +43,13 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { stepUp } from '../lib/data/stepup.svelte.ts';
+  import { platform } from '../lib/platform/index.ts';
+  import { assertZipComplete, zipComplete } from '../lib/data/zipComplete.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
@@ -51,7 +60,7 @@
   // binding whose initial value is undefined (`props_invalid_value`).
   let scheduleTarget = $state('');
   let scheduleRule = $state('FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
-  let scheduleZone = $state(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  let scheduleZone = $state(deviceZone());
   let scheduleMinKeep = $state('3');
 
   // What is on screen rather than what exists: a target whose archives somebody opened, the run
@@ -178,7 +187,49 @@
         ...(Number.isFinite(floor) && floor > 0 ? { retention: { min_keep: floor } } : {}),
       }), t('app.backup.schedule_added_announced')
     );
+    // Added: the form is empty again, so a second schedule starts from nothing and the leave
+    // guard holds nothing that is already saved.
+    if (failure === undefined) scheduleTarget = '';
   }
+
+
+  /**
+   * The empty screen's one act (user-experience.md §8.3): a target in the installation's backup
+   * volume and a nightly schedule on it, as `backup-restore.md` §4's example - incremental each
+   * night, full on Sunday with the trial restore, the server's default retention. The path is the
+   * same for every workspace: an archive's name carries its workspace, and a target lists only its
+   * own workspace's archives. A schedule refused after the target was added leaves the target on
+   * screen with the schedule form under it, which is the hand-made way the rest of the page offers.
+   */
+  let isGuiding = $state(false);
+  async function backUpNightly(): Promise<void> {
+    isGuiding = true;
+    await attempt(async () => {
+      const target = await backup.createTarget({
+        name: t('app.backup.guided_target_name'),
+        kind: 'LOCAL',
+        config: { path: GUIDED_PATH },
+        encryption_mode: 'AES256_GCM',
+      });
+      await backup.createSchedule({
+        target_id: target.id,
+        scope: { kind: 'TENANT' },
+        rrule: 'FREQ=DAILY;BYHOUR=3;BYMINUTE=0',
+        timezone: deviceZone(),
+        mode: 'INCREMENTAL',
+        full_rrule: 'FREQ=WEEKLY;BYDAY=SU',
+        trial_restore: true,
+        notify_on: ['FAILURE', 'FIRST_SUCCESS_AFTER_FAILURE'],
+      });
+    }, t('app.backup.guided_done_announced'));
+    isGuiding = false;
+  }
+
+  /** Where the guided target writes inside the installation's backup volume. */
+  const GUIDED_PATH = 'workspaces';
+
+  /** Every target on this machine's disk: one failure takes the archives with the data. */
+  const onlyHere = $derived(targets.length > 0 && targets.every((target) => target.kind === 'LOCAL'));
 
   async function start(targetId: string): Promise<void> {
     await attempt(async () => {
@@ -223,8 +274,59 @@
    */
   const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
   const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
+  /** Whether this workspace may add a target at all: in provider operation the operator's switch
+   * (backup-restore.md §2). Where it is off, a form or a one-press start would only be refused. */
+  const mayAddTarget = $derived(manifest.value?.features?.backup_targets === true);
+
+  const sections = $derived([
+    { id: 'backup-part-targets', label: t('app.backup.targets_title') },
+    { id: 'backup-part-schedules', label: t('app.backup.schedules_title') },
+    ...(mayOwn ? [{ id: 'backup-part-download', label: t('app.backup.download_title') }] : []),
+  ]);
+
   /** Why a schedule's switch is off for this reader, where it is. */
   const ownRefusal = $derived(workspaceRefusal('DELETE_CONTAINER'));
+
+  /**
+   * The owner's way out without a target (UC-BAK-07 check 7): the whole workspace as one file, once
+   * in 24 hours, behind a fresh proof - `stepUp.around` turns the refusal into the prompt.
+   */
+  let isDownloading = $state(false);
+  /** Encrypts the file to it when given; stored nowhere, so it is the one key to the file. */
+  let downloadPassphrase = $state('');
+  /**
+   * What is chosen or typed and not yet sent, for the leave guard: every act here is its own write,
+   * so there is no save bar. The schedule form counts once a target is chosen in it.
+   */
+  const changes = $derived([scheduleTarget !== '', downloadPassphrase !== ''].filter(Boolean).length);
+  async function downloadWorkspace(): Promise<void> {
+    // The picker first, while the press still counts: a whole workspace goes to the disk as it
+    // arrives where the browser offers that, and through memory only where it does not.
+    const target = await platform.saveStream('hubtask-export.zip');
+    if (target === null) return;
+    isDownloading = true;
+    await attempt(async () => {
+      if (target === undefined) {
+        const file = await stepUp.around((token) => backup.downloadWorkspace(token, downloadPassphrase));
+        downloadPassphrase = '';
+        await assertZipComplete(file.body);
+        platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
+        return;
+      }
+      // Kept only when whole: an archive the server broke off is discarded, not left looking saved.
+      const sink = zipComplete(target);
+      let isWritten = false;
+      try {
+        await stepUp.around((token) => backup.downloadWorkspaceTo(sink, token, downloadPassphrase));
+        isWritten = true;
+        downloadPassphrase = '';
+      } finally {
+        // A refusal or a closed proof prompt never touched the file; it is discarded all the same.
+        if (!isWritten) await sink.abort().catch(() => undefined);
+      }
+    }, t('app.backup.download_done'));
+    isDownloading = false;
+  }
 </script>
 
 <Stack gap="300">
@@ -246,9 +348,7 @@
     <WorkspaceRefusal permission="STRUCTURE" />
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     {#if watched}
@@ -304,17 +404,17 @@
       </section>
     {/if}
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.backup.targets_title')}</h2>
+
+    <SettingsPage label={t('app.settings_page.sections', { name: t('app.backup.title') })} {sections} {changes}>
+    <section id="backup-part-targets" class="part" aria-labelledby="backup-targets">
+      <h2 class="section" id="backup-targets">{t('app.backup.targets_title')}</h2>
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="waiting">
           <Spinner label={t('app.backup.reading')} /> <span>{t('app.backup.reading')}</span>
         </p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each targets as target (target.id)}
           {@const probe = backup.probeOf(target.id)}
@@ -323,7 +423,7 @@
             <Stack gap="100">
               <div class="row">
                 <span class="name">{target.name}</span>
-                <Badge>{target.kind}</Badge>
+                <Badge>{t(`app.backup.kind_${target.kind}`)}</Badge>
                 {#if target.encryption_mode === 'NONE'}
                   <Badge tone="warning">{t('backup.target_unencrypted')}</Badge>
                 {/if}
@@ -418,7 +518,7 @@
                         <Stack gap="025">
                           <div class="row">
                             <span class="mono">{archive.path}</span>
-                            <Badge>{archive.mode}</Badge>
+                            <Badge>{t(`app.backup.mode_${archive.mode}`)}</Badge>
                             {#if !archive.complete}
                               <!-- Not damaged: a run still going, or one that died. -->
                               <Badge tone="warning">{t('app.backup.archive_incomplete')}</Badge>
@@ -466,10 +566,32 @@
             </Stack>
           </section>
         {:else}
-          <p class="quiet">{t('app.backup.no_targets')}</p>
+          {#if !mayAddTarget}
+            <EmptyState kind="unused" icon="archive" title={t('app.backup.operator_keeps_title')} description={t('app.backup.operator_keeps_description')} />
+          {:else if mayOwn}
+            <EmptyState kind="unused" icon="archive" title={t('app.backup.guided_title')} description={t('app.backup.guided_description')}>
+              {#snippet action()}
+                <Button tone="primary" isBusy={isGuiding} busyLabel={t('app.backup.guided_working')} onclick={() => void backUpNightly()}>
+                  {t('app.backup.guided_start')}
+                </Button>
+              {/snippet}
+              {#snippet footnote()}{t('app.backup.guided_footnote')}{/snippet}
+            </EmptyState>
+          {:else}
+            <EmptyState kind="unused" icon="archive" title={t('app.backup.no_targets')} />
+          {/if}
         {/each}
+        {#if onlyHere && mayOwn && mayAddTarget}
+          <aside class="panel suggestion" aria-labelledby="backup-offsite">
+            <Stack gap="050">
+              <h3 class="section" id="backup-offsite">{t('app.backup.offsite_title')}</h3>
+              <p class="quiet small">{t('app.backup.offsite_note')}</p>
+            </Stack>
+          </aside>
+        {/if}
       {/if}
 
+      {#if mayAddTarget}
       <WorkspaceGate permission="DELETE_CONTAINER">
         {#snippet actions()}
         <TargetForm
@@ -486,10 +608,11 @@
         />
         {/snippet}
       </WorkspaceGate>
-    </Stack>
+      {/if}
+    </section>
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.backup.schedules_title')}</h2>
+    <section id="backup-part-schedules" class="part" aria-labelledby="backup-schedules">
+      <h2 class="section" id="backup-schedules">{t('app.backup.schedules_title')}</h2>
       <p class="quiet small">{t('app.backup.schedules_intro')}</p>
 
       {#each schedules as schedule (schedule.id)}
@@ -587,12 +710,12 @@
                 options={targets.map((target) => ({ value: target.id, label: target.name }))}
                 error={scheduleMissing.target && !scheduleTarget ? t(scheduleMissing.target) : undefined}
               />
-              <Input
+              <FrequencyPicker
                 label={t('app.backup.schedule_rule')}
-                hint={t('app.backup.schedule_rule_hint')}
-                bind:value={scheduleRule}
+                rawHint={t('app.backup.schedule_rule_hint')}
+                bind:rule={scheduleRule}
               />
-              <Input label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
+              <ZonePicker label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
               <Input
                 label={t('app.backup.schedule_min_keep')}
                 hint={t('app.backup.schedule_min_keep_hint')}
@@ -615,7 +738,31 @@
           {/snippet}
         </WorkspaceGate>
       {/if}
-    </Stack>
+    </section>
+
+    {#if mayOwn}
+      <section id="backup-part-download" class="panel" aria-labelledby="backup-download">
+        <Stack gap="100">
+          <h2 class="section" id="backup-download">{t('app.backup.download_title')}</h2>
+          <p class="quiet">{t('app.backup.download_intro')}</p>
+          <Input
+            label={t('app.backup.download_passphrase')}
+            hint={t('app.backup.download_passphrase_hint')}
+            type="password"
+            autocomplete="new-password"
+            revealLabel={t('app.backup.download_passphrase_show')}
+            hideLabel={t('app.backup.download_passphrase_hide')}
+            bind:value={downloadPassphrase}
+          />
+          <div>
+            <Button tone="secondary" isBusy={isDownloading} busyLabel={t('app.backup.downloading')} onclick={() => void downloadWorkspace()}>
+              {t('app.backup.download')}
+            </Button>
+          </div>
+        </Stack>
+      </section>
+    {/if}
+    </SettingsPage>
     </Stack>
 </Stack>
 
@@ -689,6 +836,8 @@
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
      around a screen that is not a document. */
 
+  .part { display: flex; flex-direction: column; gap: var(--sp-150); }
+
   .section {
     margin: 0;
     font-family: var(--font-display);
@@ -730,6 +879,9 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
   }
+
+  /* A suggestion, not a warning: nothing is wrong yet, so the mark is the accent, not a tone. */
+  .suggestion { border-inline-start: var(--bw-thick) solid var(--accent-primary); }
 
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 

@@ -3,7 +3,8 @@
 <script lang="ts">
   // A collection's or hub's milestone, in its head (UC-WRK-29 check 4): the day everything in it
   // was last done. Mounted only where `showsMilestone` says so - never with celebrations off
-  // (check 7). It stays when entries are added afterwards: what it says stays true.
+  // (check 7). It stays when entries are added afterwards - what it says stays true - and counts
+  // those still open beside it.
 
   import type { ContainerMilestone } from '@hubtask/sync-engine';
   import { Icon } from '@hubtask/design-system/components';
@@ -19,7 +20,7 @@
 </script>
 
 <span class="milestone" data-milestone>
-  <Icon name="circle-check" size="sm" />{t('app.milestone.reached', { date: formatDay(milestone.reached_at, messages.locale) })}
+  <Icon name="circle-check" size="sm" />{t('app.milestone.reached', { date: formatDay(milestone.reached_at, messages.locale) })}{#if milestone.open_since}{' · '}{t('app.milestone.open_since', { count: milestone.open_since })}{/if}
 </span>
 
 <style>

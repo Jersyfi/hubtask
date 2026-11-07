@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery } from './today.ts';
+import { bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -86,4 +86,97 @@ test('the greeting follows the hour where the person is, not where the device is
   assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 4, 59)), 'evening');
   assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 11, 0)), 'day');
   assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 18, 0)), 'evening');
+});
+
+test('a product band stands only where its module is on, and none before the modules are known', () => {
+  assert.deepEqual(productBandsOf(undefined), []);
+  assert.deepEqual(productBandsOf([]), []);
+  assert.deepEqual(productBandsOf(['GOALS']), []);
+  assert.deepEqual(productBandsOf(['TIME']), ['time']);
+  assert.deepEqual(productBandsOf(['KNOWLEDGE']), ['reviews']);
+  assert.deepEqual(productBandsOf(['PLANNING']), ['sprint']);
+  assert.deepEqual(productBandsOf(['TIME', 'SERVICE_DESK', 'PLANNING']), ['desk', 'approvals', 'time', 'sprint']);
+  assert.deepEqual(productBandsOf(['AGENTS', 'TIME', 'SERVICE_DESK', 'KNOWLEDGE']), ['desk', 'approvals', 'agent_acts', 'reviews', 'time']);
+  assert.deepEqual(productBandsOf(['AGENTS']), ['agent_acts']);
+});
+
+test('Needs your answer asks a hub for the open entries on the reader or their groups\' queue with an SLA running, the nearest first', () => {
+  assert.deepEqual(deskAnswerQuery('h-1', 5), {
+    scope: { container_id: 'h-1', include_descendants: true },
+    filter: {
+      op: 'AND',
+      nodes: [
+        { op: 'EQ', field: 'is_completed', value: false },
+        {
+          op: 'OR',
+          nodes: [
+            { op: 'EQ', field: 'assignee_id', value: '@me' },
+            { op: 'AND', nodes: [{ op: 'IS_NULL', field: 'assignee_id' }, { op: 'EQ', field: 'group_queue_of', value: '@me' }] },
+          ],
+        },
+        { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'sla_due' }] },
+      ],
+    },
+    sort: [{ field: 'sla_due', dir: 'ASC', nulls: 'LAST' }],
+    page: { size: 5 },
+  });
+});
+
+test('a sprint has the days left counted with today, none once its last day is past', () => {
+  assert.equal(sprintDaysLeft('2026-11-13', '2026-11-04'), 10);
+  assert.equal(sprintDaysLeft('2026-11-04', '2026-11-04'), 1);
+  assert.equal(sprintDaysLeft('2026-11-03', '2026-11-04'), 0);
+  assert.equal(sprintDaysLeft('2026-11-30', '2026-10-31'), 31);
+});
+
+test('time today is the day\'s recorded minutes against the week, with the running timer beside', () => {
+  const week = { minutes: 600, days: [{ day: '2026-11-02', minutes: 240, locked: false }, { day: '2026-11-03', minutes: 360, locked: false }] };
+  assert.deepEqual(timeTodayOf(week, '2026-11-03', { running: false }), { today: 360, week: 600, running: undefined });
+  assert.deepEqual(timeTodayOf(week, '2026-11-04', { running: true, elapsed_minutes: 25, entry_id: 'e1' }), { today: 0, week: 600, running: { minutes: 25, entryId: 'e1' } });
+  // The timer's entry by name, where the server answers it (user-experience.md §7.6).
+  assert.deepEqual(timeTodayOf(week, '2026-11-04', { running: true, elapsed_minutes: 25, entry_id: 'e1', entry_title: 'Checkout form' })?.running, { minutes: 25, entryId: 'e1', entryTitle: 'Checkout form' });
+  assert.equal(timeTodayOf(undefined, '2026-11-04', { running: false }), undefined, 'not drawn before the week is read');
+});
+
+// user-experience.md §3.3: the products' bands carry their count on the Today row.
+test('the Today row counts the approvals and held acts waiting for the reader\'s yes, and nothing before they are known', () => {
+  assert.equal(todayRowCountOf(undefined), undefined, 'not drawn before the approvals are read');
+  assert.equal(todayRowCountOf([]), undefined, 'nothing waiting draws no count');
+  assert.equal(todayRowCountOf([{ state: 'PENDING' }, { state: 'APPROVED' }, { state: 'PENDING' }]), 2);
+  assert.equal(todayRowCountOf([{ state: 'DECLINED' }]), undefined);
+  assert.equal(todayRowCountOf(undefined, [{ status: 'PENDING' }]), 1, 'an agent\'s held act waits too');
+  assert.equal(todayRowCountOf([{ state: 'PENDING' }], [{ status: 'PENDING' }, { status: 'FAILED' }]), 2);
+  assert.equal(todayRowCountOf([], [], false, 1), 1, 'a page waiting for review waits too');
+  assert.equal(todayRowCountOf([{ state: 'PENDING' }], undefined, false, 2), 3);
+  // The reader's approvals come a page at a time: a first page with more behind it is a floor.
+  const page = Array.from({ length: 50 }, () => ({ state: 'PENDING' }));
+  assert.equal(todayRowCountOf(page, undefined, true), '50+', 'a first page was counted as all');
+  assert.equal(todayRowCountOf([], undefined, true), undefined, 'nothing pending on the first page says nothing');
+});
+
+// An irreversible act is approved where its preview is read, never from a row on Today.
+test('a held act is approved at Today\'s row only where it can be undone', () => {
+  const acts = [
+    { id: 'r1', agent_id: 'a1', class: 'REVERSIBLE', status: 'PENDING', created_at: '2026-11-03T08:00:00Z' },
+    { id: 'r2', agent_id: 'a2', class: 'IRREVERSIBLE', status: 'PENDING', created_at: '2026-11-03T09:00:00Z' },
+    { id: 'r3', agent_id: 'a1', class: 'REVERSIBLE', status: 'APPROVED', created_at: '2026-11-03T10:00:00Z' },
+  ];
+  const agents = [{ id: 'a1', name: 'Request sorter', owner_id: 'me' }, { id: 'a2', name: 'Duplicate finder', owner_id: 'other' }];
+  assert.deepEqual(heldActRows(acts, agents, 'me', true), [
+    { id: 'r1', name: 'Request sorter', at: '2026-11-03T08:00:00Z', mayApproveHere: true, path: '/agents?tab=requests&agent=a1' },
+    { id: 'r2', name: 'Duplicate finder', at: '2026-11-03T09:00:00Z', mayApproveHere: false, path: '/agents?tab=requests&agent=a2' },
+  ]);
+  assert.deepEqual(heldActRows(acts, [], 'me', false).map((row) => [row.name, row.path]), [['', undefined], ['', undefined]], 'an agent not read yet has no name and no way there');
+  assert.deepEqual(heldActRows(undefined, agents, 'me', true), []);
+});
+
+// §3.3: *Needs your answer* across hubs is nearest first - the due moment the server sorts by is the
+// earliest of the goals still running, and an entry not read yet keeps its place behind the rest.
+test('Needs your answer merges the hubs by the moment each entry is due', () => {
+  const goal = (standing: string, due_at: string | null) => ({ standing, due_at }) as never;
+  assert.equal(runningDue([goal('RUNNING', '2026-11-05T12:00:00Z'), goal('RUNNING', '2026-11-05T10:00:00Z'), goal('BREACHED', '2026-11-04T10:00:00Z')]), Date.parse('2026-11-05T10:00:00Z'));
+  assert.equal(runningDue([goal('PAUSED', '2026-11-05T10:00:00Z'), goal('RUNNING', null)]), undefined);
+  const rows = [{ id: 'a1' }, { id: 'a2' }, { id: 'b1' }, { id: 'b2' }];
+  assert.deepEqual(nearestFirst(rows, { a1: 30, a2: 40, b1: 10 }).map((row) => row.id), ['b1', 'a1', 'a2', 'b2']);
+  assert.deepEqual(nearestFirst(rows, {}).map((row) => row.id), ['a1', 'a2', 'b1', 'b2']);
 });

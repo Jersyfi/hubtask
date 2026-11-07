@@ -12,6 +12,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -70,8 +71,8 @@ func (h ReplayRuleRun) Execute(
 		return TriggerRuleResult{}, err
 	}
 
-	if err := h.Authorizer.Authorize(
-		ctx, actor, runRequest(rule.Scope, RunReplayedAction, run.ID)); err != nil {
+	if err := askRun(ctx, h.Authorizer, actor, rule.Scope,
+		runRequest(rule.Scope, RunReplayedAction, run.ID)); err != nil {
 		return TriggerRuleResult{}, err
 	}
 
@@ -189,6 +190,7 @@ func (h ReplayRuleRun) record(
 // Descriptor is the catalogue entry.
 func (h ReplayRuleRun) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
+		Permission:  service.PermissionAutomation,
 		Name:        ReplayRuleRunName,
 		Entitlement: entitlement.AutomationRules,
 		Summary: "Completes a failed run: re-executes its remaining actions under the same " +

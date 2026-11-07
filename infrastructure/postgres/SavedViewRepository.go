@@ -125,13 +125,20 @@ func (r SavedViewRepository) Insert(ctx context.Context, saved view.SavedView) e
 		return err
 	}
 
-	err = queries.InsertSavedView(ctx, sqlc.InsertSavedViewParams{
+	var key *string
+	if saved.Key != "" {
+		key = &saved.Key
+	}
+	_, err = queries.InsertSavedView(ctx, sqlc.InsertSavedViewParams{
 		ID: id, ScopeType: string(saved.ScopeType), ScopeID: scopeID, OwnerID: owner,
 		Name: saved.Name, Layout: string(saved.Layout), Query: query, Grouping: grouping,
 		VisibleFields: saved.VisibleFields, Sharing: string(saved.Sharing),
-		CreatedAt: timestampOf(saved.CreatedAt),
+		CreatedAt: timestampOf(saved.CreatedAt), Key: key,
 	})
 	if err != nil {
+		if isUniqueViolation(err) {
+			return fieldConflict("/key", "views.key_taken")
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the view: %w", err))
@@ -309,6 +316,7 @@ func savedViewFrom(row sqlc.SavedView) (view.SavedView, error) {
 		ScopeID:       scopeID,
 		OwnerID:       ownerID,
 		Name:          row.Name,
+		Key:           stringFrom(row.Key),
 		Layout:        view.Layout(row.Layout),
 		Query:         query,
 		Grouping:      grouping,
@@ -317,4 +325,10 @@ func savedViewFrom(row sqlc.SavedView) (view.SavedView, error) {
 		CreatedAt:     timeFrom(row.CreatedAt),
 		Version:       int(row.Version),
 	}, nil
+}
+
+// fieldConflict is a unique key refused where the writer named it: the field and its code, so a
+// plan names the block whose key is taken.
+func fieldConflict(path, code string) error {
+	return shared.ErrConflict.WithDetail(code).WithFields(shared.FieldError{Path: path, Code: code})
 }

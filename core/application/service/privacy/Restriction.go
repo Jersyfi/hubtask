@@ -185,7 +185,8 @@ func (h RestrictProcessing) Execute(
 // Descriptor registers the restriction in all three channels.
 func (h RestrictProcessing) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RestrictProcessingName,
+		Name:       RestrictProcessingName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Puts an account under a restriction of processing, or lifts one. The account " +
 			"stays readable and the person keeps working; what stops is this system deciding " +
 			"anything about them by machine - the assignment policy leaves them out of its draw, " +

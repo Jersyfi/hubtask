@@ -30,6 +30,12 @@ SELECT mail_workspace_name_taken(sqlc.arg('name')::text, current_tenant_id())::b
 -- Before any tenant is known: the function reads past row level security, and only an enabled row.
 SELECT resolve_mail_workspace(sqlc.arg('name')::text)::uuid AS tenant_id;
 
+-- name: InstallationMailApps :many
+-- Alert A-29's numbers, across workspaces through the door (0351): per provider preset, the enabled
+-- mailboxes on the installation's own app and those failing for over an hour. Numbers, no rows.
+SELECT provider::text AS provider, connected::bigint AS connected, failing::bigint AS failing
+FROM installation_mail_apps();
+
 -- name: MailReceiptExists :one
 SELECT EXISTS (SELECT 1 FROM mail_receipt WHERE message_id = sqlc.arg('message_id'))::boolean AS seen;
 
@@ -81,11 +87,17 @@ WHERE c.handle = sqlc.arg('handle') AND c.type = 'COLLECTION'
   AND hub.deleted_at IS NULL AND hub.archived_at IS NULL;
 
 -- name: ItemByKey :one
+-- A key names its collection by the key prefix or by the handle (migration 0363); the word is
+-- given in lower case, as the handle is written. 0363 keeps a prefix from being another
+-- collection's handle, and the prefix is preferred should two writers have raced past that.
 SELECT wi.id
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
-WHERE c.handle = sqlc.arg('handle') AND wi.number = sqlc.arg('number')::bigint
-  AND wi.deleted_at IS NULL AND c.deleted_at IS NULL;
+WHERE (c.handle = sqlc.arg('handle') OR c.key_prefix = upper(sqlc.arg('handle')))
+  AND wi.number = sqlc.arg('number')::bigint
+  AND wi.deleted_at IS NULL AND c.deleted_at IS NULL
+ORDER BY (c.key_prefix IS NOT NULL AND c.key_prefix = upper(sqlc.arg('handle'))) DESC
+LIMIT 1;
 
 -- name: SetCollectionHandle :execrows
 UPDATE container SET handle = sqlc.arg('handle')
@@ -93,7 +105,7 @@ WHERE id = sqlc.arg('id') AND type = 'COLLECTION';
 
 -- name: ItemKey :one
 -- An entry's ticket key, for the Reply-To of a notification about it.
-SELECT c.handle, wi.number
+SELECT c.handle, c.key_prefix, wi.number
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
 WHERE wi.id = sqlc.arg('id') AND wi.deleted_at IS NULL;
@@ -149,6 +161,13 @@ INSERT INTO mailbox_authorization (
 DELETE FROM mailbox_authorization WHERE state_hash = sqlc.arg('state_hash')
 RETURNING id, account_id, provider, authorize_url, token_url, scopes, client_id, installation, host,
           port, login_hint, verifier_enc, verifier_key_id, client_secret_enc, client_secret_key_id, expires_at;
+
+-- name: MailboxAuthorizationIsLive :one
+-- Whether a provider's return is still awaited, read without spending it (locating the return).
+SELECT EXISTS (
+  SELECT 1 FROM mailbox_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = sqlc.arg('state_hash') AND expires_at > sqlc.arg('now')
+);
 
 -- name: DeleteExpiredMailboxAuthorizations :execrows
 DELETE FROM mailbox_authorization WHERE expires_at <= sqlc.arg('now');

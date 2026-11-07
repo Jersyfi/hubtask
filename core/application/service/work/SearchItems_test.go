@@ -29,7 +29,7 @@ func searchHarness(hits ...repository.ItemHit) (SearchItems, *items, *authorizer
 	permission, permitted := &authorizer{}, &reader{}
 
 	return SearchItems{
-		Items: store, Containers: &containers{stored: map[shared.ID]domain.Container{}},
+		Searcher: store, Containers: &containers{stored: map[shared.ID]domain.Container{}},
 		Authorizer: permission, Anchored: permission, Reader: permitted,
 		UnitOfWork: &unitOfWork{},
 	}, store, permission, permitted

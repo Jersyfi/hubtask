@@ -47,6 +47,18 @@ export function formatLongDay(iso: string, locale: string): string {
 }
 
 /**
+ * A calendar day (`2026-11-03`) as the reader writes one, or `—` for none. A plain date has no
+ * zone, so it is read on UTC's clock: on the device's, its midnight is the day before west of
+ * Greenwich. No ISO text reaches a person (user-experience.md §5.10).
+ */
+export function formatPlainDay(date: string | null | undefined, locale: string): string {
+  if (!date) return '—';
+  const at = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(at)) return date;
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(at);
+}
+
+/**
  * The reader's day as a heading says it - "Friday, 23 October" - on the clock of their own zone,
  * which is where *Today* is today. A zone the platform does not know falls back to the device's.
  */

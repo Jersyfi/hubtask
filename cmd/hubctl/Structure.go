@@ -152,7 +152,7 @@ func containerStructure(ctx context.Context, cli *CLI, args []string) error {
 		for _, name := range reset {
 			setting := openapi.StructureSettingName(name)
 			if !setting.Valid() {
-				return usagef("--reset takes a setting: levels, fields, views, counts, completion, capture, celebration or automation")
+				return usagef("--reset takes a setting: levels, fields, views, counts, completion, capture, celebration, automation or entry_types")
 			}
 			names = append(names, setting)
 		}
@@ -181,7 +181,7 @@ func structureTable(structure *openapi.EffectiveStructure) Table {
 	if encoded, err := json.Marshal(structure.Settings); err == nil {
 		_ = json.Unmarshal(encoded, &values)
 	}
-	for _, setting := range []string{"levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation"} {
+	for _, setting := range []string{"levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation", "entry_types"} {
 		locked := ""
 		for key, lock := range structure.Locks {
 			if key == setting || strings.HasPrefix(key, setting+".") {

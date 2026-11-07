@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -138,4 +139,48 @@ func retryAfterOf(err error) string {
 		return ""
 	}
 	return seconds
+}
+
+// TenantShedder decides whether one workspace's deferrable call may run while that workspace
+// already holds so many. Release is never nil, as with Shedder.
+type TenantShedder func(tenant string) (release func(), err error)
+
+// TenantShedding is the second stage of admission control, behind authentication: a workspace
+// whose deferrable calls already hold its share of the threshold is refused, so that its flood
+// cannot keep the process above the threshold and shed every other workspace's search and export
+// (observability-reliability.md §6). Interactive calls and unauthenticated ones pass.
+type TenantShedding struct {
+	Next   http.Handler
+	Routes Router
+	// Admit is nil when shedding is switched off.
+	Admit   TenantShedder
+	Signals LimitSignals
+}
+
+func (s TenantShedding) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if s.Admit == nil {
+		s.Next.ServeHTTP(w, r)
+		return
+	}
+	_, route := s.Routes.Handler(r)
+	actor, ok := appshared.ActorFrom(r.Context())
+	if !DeferrableRoutes[route] || !ok || !actor.IsAuthenticated() {
+		s.Next.ServeHTTP(w, r)
+		return
+	}
+	release, err := s.Admit(actor.TenantID.String())
+	if release != nil {
+		defer release()
+	}
+	if err != nil {
+		if s.Signals != nil {
+			s.Signals.RateLimited(r.Context(), "load_shed_tenant")
+		}
+		if seconds := retryAfterOf(err); seconds != "" {
+			w.Header().Set("Retry-After", seconds)
+		}
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	s.Next.ServeHTTP(w, r)
 }

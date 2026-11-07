@@ -14,11 +14,11 @@
     Button,
     Dialog,
     EmptyState,
-    ErrorState,
     Skeleton,
     Stack,
     Table,
   } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
@@ -107,15 +107,11 @@
       {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
         <div aria-busy="true"><Skeleton lines={2} /></div>
       {:else if held.status === 'failed'}
-        <ErrorState
-          title={renderProblem(held.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => devices.open()}
-        />
+        <FailureState problem={renderProblem(held.error, messages)} onRetry={() => devices.open()} />
       {:else if shown.length === 0}
-        <p class="quiet">{t('app.devices.none')}</p>
+        <EmptyState kind="unused" title={t('app.devices.none')} />
       {:else}
-        <Table
+        <Table isStacked
           label={t('app.devices.title')}
           isLabelHidden
           {columns}

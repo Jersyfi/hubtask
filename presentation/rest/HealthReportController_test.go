@@ -33,7 +33,7 @@ func (h healthReader) Execute(
 func serveHealthReport(t *testing.T, reader HealthReportReader) *httptest.ResponseRecorder {
 	t.Helper()
 	controller := NewRestController()
-	controller.HealthReport = reader
+	controller.Meta = &MetaDoor{HealthReport: reader}
 
 	response := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(response,

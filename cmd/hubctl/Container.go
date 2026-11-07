@@ -5,8 +5,6 @@ package main
 
 import (
 	"context"
-	"net/url"
-	"strconv"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -18,12 +16,6 @@ func containerGroup() group {
 		name:    "container",
 		summary: "hubs and collections - the structure work sits in",
 		commands: []command{
-			{
-				name:    "ls",
-				usage:   "[--parent <id>] [--type HUB|COLLECTION]",
-				summary: "list hubs and collections",
-				run:     containerList,
-			},
 			{
 				name:    "create",
 				usage:   "--type HUB|COLLECTION --name <name> [--parent <id>] [--preset LIST|TASKS|PROJECT|FLOW]",
@@ -44,58 +36,6 @@ func containerGroup() group {
 			},
 		},
 	}
-}
-
-func containerList(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "container", "ls", "[--parent <id>] [--type HUB|COLLECTION]")
-	parent := flags.String("parent", "", "list what sits directly in this hub")
-	kind := flags.String("type", "", "HUB or COLLECTION")
-	includeArchived := flags.Bool("include-archived", false, "include archived entries")
-	size := flags.Int("size", 0, "how many entries per page (the server decides when unset)")
-	cursor := flags.String("cursor", "", "continue the previous page")
-	if err := parseCommand(flags, args); err != nil {
-		return err
-	}
-
-	query := url.Values{}
-	if *parent != "" {
-		parsed, err := cli.parseID("--parent", *parent)
-		if err != nil {
-			return err
-		}
-		query.Set("parent_id", parsed.String())
-	}
-	if *kind != "" {
-		containerType, err := cli.containerType(*kind)
-		if err != nil {
-			return err
-		}
-		query.Set("type", string(containerType))
-	}
-	if *includeArchived {
-		query.Set("include_archived", "true")
-	}
-	if *size > 0 {
-		query.Set("size", strconv.Itoa(*size))
-	}
-	if *cursor != "" {
-		query.Set("cursor", *cursor)
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var page openapi.ContainerPage
-	if err := client.Get(ctx, containersPath, query, &page); err != nil {
-		return err
-	}
-
-	if err := cli.Emit(page, containerTable(page.Data)); err != nil {
-		return err
-	}
-	cli.reportMore(page.Page)
-	return nil
 }
 
 func containerCreate(ctx context.Context, cli *CLI, args []string) error {

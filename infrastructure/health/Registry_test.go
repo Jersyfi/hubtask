@@ -130,6 +130,21 @@ func TestAMandatoryDependencyDownStaysDown(t *testing.T) {
 	}
 }
 
+// A database that answers but whose pool is busy is degraded, not down: readiness stays, so an
+// overload sheds a share of requests (the load shedder) instead of taking every pod out at once.
+func TestABusyDatabaseKeepsTheProcessReady(t *testing.T) {
+	registry := startedRegistry(
+		&probe{name: "postgres", required: true, status: port.StatusDegraded, code: "postgres.pool_busy"},
+	)
+
+	if ok, reason := registry.Ready(context.Background()); !ok {
+		t.Errorf("a busy database took the process out of readiness: %s", reason)
+	}
+	if report := registry.Report(context.Background()); report.Status != port.StatusDegraded {
+		t.Errorf("status = %q, want degraded", report.Status)
+	}
+}
+
 // A dependency nobody configured is not a fault. Reporting an unconfigured AI provider as down
 // would put a permanent red on a dashboard that is working exactly as intended.
 func TestADisabledDependencyIsNotAnOutage(t *testing.T) {

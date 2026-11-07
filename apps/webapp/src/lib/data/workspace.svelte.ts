@@ -16,6 +16,7 @@
  */
 
 import type {
+  Container,
   MainAddressSwitch,
   OwnDomain,
   ResourceState,
@@ -26,10 +27,30 @@ import type {
   WorkspaceStructureChange,
 } from '@hubtask/sync-engine';
 
+import { TOUCHED } from './config.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/tenant';
+
+/**
+ * The first start's set, as `StarterSet` takes it: names in the reader's language. With
+ * `template` the set is built on that template, its preset left to the workspace's default.
+ */
+export interface StarterSetBody {
+  readonly hub_name: string;
+  readonly hub_preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
+  readonly collections: readonly {
+    readonly name: string;
+    readonly preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
+    /** Titles of sample entries made in it, marked as the hub's samples. */
+    readonly samples?: readonly string[];
+  }[];
+  readonly template?: string;
+  readonly answers?: Readonly<Record<string, string>>;
+  readonly samples?: boolean;
+  readonly acknowledge?: boolean;
+}
 
 /** The workspace, as `Workspace` answers it. */
 export interface Workspace {
@@ -67,6 +88,8 @@ export interface Workspace {
   readonly structure?: WorkspaceStructure;
   /** Whether to ask this reader, once, what the workspace is used for (UC-WRK-30 check 5). */
   readonly starter_offered?: boolean;
+  /** Whether the first start was skipped while nothing was made since: Today offers it again (§3.3). */
+  readonly starter_skipped?: boolean;
   /** The main address, and whether this reader may change it now (UC-INS-19 check 3). */
   readonly address?: WorkspaceAddress;
 }
@@ -128,6 +151,19 @@ class WorkspaceStore {
    */
   async closeStarter(): Promise<void> {
     await engine.mutate<void>('POST', `${PATH}/starter:close`, undefined, { invalidates: [PATH] });
+  }
+
+  /**
+   * The first start answered with its set (UC-WRK-30 check 5): the hub, its collections and the
+   * close land in one transaction or not at all. The same key on a retry replays the hub rather
+   * than making a second set; the answer is the hub.
+   */
+  async applyStarter(body: StarterSetBody, idempotencyKey: string): Promise<Container> {
+    // A template's set changes the configuration too: what any apply of it changes is read anew.
+    return engine.mutate<Container>('POST', `${PATH}/starter:apply`, body, {
+      idempotencyKey,
+      invalidates: body.template ? [...new Set([PATH, '/containers', ...TOUCHED])] : [PATH, '/containers'],
+    });
   }
 
   /**

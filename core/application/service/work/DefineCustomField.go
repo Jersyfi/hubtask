@@ -19,7 +19,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -45,19 +47,17 @@ const (
 	CustomFieldReadAction audit.Action = "custom_field.read"
 )
 
-// A definition announces nothing and syncs nothing, unlike a label.
-//
-// No event: the catalogue in domain-model.md §4 names none, and a rule that fired on a field being
-// defined would be reacting to configuration rather than to work. No change log entry either: a
-// definition is what a client needs in order to *render* a form, which it reads when it opens one,
-// and a device that never learned of a key could not display it whether it had merged the
-// definition or not. What does merge is the value on the entry, per key (SetCustomField).
+// A definition announces nothing: the catalogue in domain-model.md §4 names no event, and a rule
+// that fired on a field being defined would be reacting to configuration rather than to work. It
+// reaches the change log whole (CustomFieldEntity), so a device draws a form offline; what merges
+// is the value on the entry, per key (SetCustomField).
 
-// DefineCustomField adds a field to a workspace's or a collection's vocabulary.
+// DefineCustomField adds a field to a workspace's, a hub's or a collection's vocabulary.
 //
-// Two scopes and no more. A field every collection defines separately is a field nobody can filter
-// across; a field only ever defined workspace-wide is one team's vocabulary imposed on every other
-// (domain-model.md §3.5). Which of the two applies is the presence of a collection in the command.
+// Three scopes, the nearest winning under a key. A field every collection defines separately is a
+// field nobody can filter across; a field only ever defined workspace-wide is one team's
+// vocabulary imposed on every other (domain-model.md §3.5). Which applies is the collection or the
+// hub the command names, or neither.
 type DefineCustomField struct {
 	Fields     repository.CustomFields
 	Containers repository.Containers
@@ -69,16 +69,36 @@ type DefineCustomField struct {
 	IDs        clock.IDGenerator
 	// Text brings the options and a TEXT value to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Compiler holds a CALCULATED field's formula to the fields it may read; without it such a
+	// field is refused.
+	Compiler expression.Compiler
+	// Jobs seeds the fill of a new CALCULATED field on the entries defined before it
+	// (FillCalculatedFields); without it they fill on their next write of an input.
+	Jobs queue.Queue
+	// Changes tells offline devices of the definition.
+	Changes FieldChanges
 }
 
 // DefineCustomFieldCommand is the input, typed.
 type DefineCustomFieldCommand struct {
-	// CollectionID is the collection the field belongs to, zero for the whole workspace.
+	// CollectionID is the collection the field belongs to, HubID the hub; neither is the whole
+	// workspace, both are refused.
 	CollectionID shared.ID
+	HubID        shared.ID
 	Key          string
-	Kind         domain.CustomFieldKind
-	Options      []string
-	IsRequired   bool
+	// Name is what a person reads for the field; empty leaves it unnamed.
+	Name    string
+	Kind    domain.CustomFieldKind
+	Options []string
+	// Currency is a MONEY field's ISO 4217 code, empty for every other kind.
+	Currency string
+	// Formula is a CALCULATED field's expression, empty for every other kind.
+	Formula    string
+	IsRequired bool
+	// Restricted leaves the field to the holders of its permission (UC-ID-27).
+	Restricted bool
+	// ReadRestricted hides the field from readers without its permission as well (UC-ID-27).
+	ReadRestricted bool
 	// AppliesTo are the item types that carry the field. Empty means the column's default, which
 	// is a task alone.
 	AppliesTo []domain.ItemType
@@ -88,7 +108,14 @@ type DefineCustomFieldCommand struct {
 func (h DefineCustomField) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd DefineCustomFieldCommand,
 ) (domain.CustomFieldDefinition, error) {
-	path, err := h.scopeOf(ctx, actor, cmd.CollectionID)
+	if !cmd.CollectionID.IsZero() && !cmd.HubID.IsZero() {
+		return domain.CustomFieldDefinition{}, fieldScopeAmbiguous()
+	}
+	scope := cmd.CollectionID
+	if !cmd.HubID.IsZero() {
+		scope = cmd.HubID
+	}
+	path, err := h.scopeOf(ctx, actor, cmd.CollectionID, cmd.HubID)
 	if err != nil {
 		return domain.CustomFieldDefinition{}, err
 	}
@@ -103,7 +130,7 @@ func (h DefineCustomField) Execute(
 		TargetType: customFieldTarget,
 		// The definition does not exist yet, so the refusal names the scope it would have joined.
 		// Zero for a workspace-wide one, which is the scope itself.
-		TargetID: cmd.CollectionID,
+		TargetID: scope,
 	}); err != nil {
 		return domain.CustomFieldDefinition{}, err
 	}
@@ -128,20 +155,43 @@ func (h DefineCustomField) Execute(
 				return err
 			}
 		}
+		if !cmd.HubID.IsZero() {
+			if _, err := liveHub(ctx, h.Containers, cmd.HubID); err != nil {
+				return err
+			}
+		}
 		if err := ensureTypesCarryFields(ctx, h.Profiles, appliesTo); err != nil {
 			return err
 		}
 
 		now := h.Clock.Now()
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
-			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID,
-			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options,
-			IsRequired: cmd.IsRequired, AppliesTo: appliesTo, Now: now, Text: h.Text,
+			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID, HubID: cmd.HubID,
+			Key: cmd.Key, Name: cmd.Name, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency, Formula: cmd.Formula,
+			IsRequired: cmd.IsRequired, Restricted: cmd.Restricted, ReadRestricted: cmd.ReadRestricted,
+			AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
 		if err != nil {
 			return err
 		}
+		if definition.Kind == domain.CustomFieldCalculated {
+			// What the formula may read is what an entry of this scope carries: the collection's
+			// or the hub's own fields and those above them.
+			inScope, err := h.Fields.ListInScope(ctx, scope)
+			if err != nil {
+				return err
+			}
+			if err := compileFormula(h.Compiler, definition.Formula, effectiveDefinitions(inScope)); err != nil {
+				return err
+			}
+		}
 		if err := h.Fields.Insert(ctx, definition); err != nil {
+			return err
+		}
+		if err := h.seedFill(ctx, definition); err != nil {
+			return err
+		}
+		if err := h.Changes.record(ctx, actor, definition); err != nil {
 			return err
 		}
 
@@ -154,15 +204,18 @@ func (h DefineCustomField) Execute(
 	return defined, nil
 }
 
-// scopeOf is the path the permission is resolved along: the collection's when the field belongs to
-// one, and the workspace's when it does not.
+// scopeOf is the path the permission is resolved along: the collection's or the hub's when the
+// field belongs to one, and the workspace's when it does not.
 //
 // The workspace scope refuses everybody whose membership sits on a hub or a collection, and that is
 // the intended answer: a field every entry in the workspace carries is a decision about the
 // workspace, and somebody who administers one hub does not get to make it.
 func (h DefineCustomField) scopeOf(
-	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, collectionID, hubID shared.ID,
 ) ([]identity.Scope, error) {
+	if !hubID.IsZero() {
+		return hubPath(ctx, h.UnitOfWork, actor, h.Containers, hubID)
+	}
 	if collectionID.IsZero() {
 		return []identity.Scope{identity.TenantScope()}, nil
 	}
@@ -232,10 +285,12 @@ func (h DefineCustomField) recordAudit(
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes: audit.Changes(
 			audit.Change{Field: "key", Classification: audit.Open, To: definition.Key},
+			// The name is a person's words for the field, so it is held as user content (rule 10).
+			audit.Change{Field: domain.FieldName, Classification: audit.Sensitive, To: definition.Name},
 			audit.Change{Field: "kind", Classification: audit.Open, To: string(definition.Kind)},
 			audit.Change{
 				Field: "collection_id", Classification: audit.Open,
-				To: scopeLabel(definition.CollectionID),
+				To: scopeLabel(definition.ScopeID()),
 			},
 			audit.Change{
 				Field: domain.FieldAppliesTo, Classification: audit.Open,
@@ -245,8 +300,8 @@ func (h DefineCustomField) recordAudit(
 	})
 }
 
-// scopeLabel is how the scope reaches a trail: the collection, or the word for the whole
-// workspace. An empty string would read as "not recorded" rather than as "everywhere".
+// scopeLabel is how the scope reaches a trail: the collection or the hub, or the word for the
+// whole workspace. An empty string would read as "not recorded" rather than as "everywhere".
 func scopeLabel(collectionID shared.ID) string {
 	if collectionID.IsZero() {
 		return "TENANT"
@@ -278,16 +333,24 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 		// Always present, as null for a workspace-wide field: absent would say this server does
 		// not know about scopes, which is a different statement from "this one is everywhere".
 		"collection_id": idOrNil(definition.CollectionID),
+		"hub_id":        idOrNil(definition.HubID),
+		"copied_from":   idOrNil(definition.CopiedFrom),
 		"key":           definition.Key,
+		"name":          stringOrNil(definition.Name),
 		"kind":          string(definition.Kind),
 		// An empty array rather than null for a kind with no choices: a client renders the option
 		// editor from this, and null would make it special-case the eight kinds.
-		"options":     options,
-		"is_required": definition.IsRequired,
-		"applies_to":  appliesTo,
-		"created_at":  definition.CreatedAt,
-		"updated_at":  definition.UpdatedAt,
-		"version":     definition.Version,
+		"options": options,
+		// Null for every kind but MONEY, for the reason collection_id is always present.
+		"currency":        stringOrNil(definition.Currency),
+		"formula":         stringOrNil(definition.Formula),
+		"is_required":     definition.IsRequired,
+		"restricted":      definition.Restricted,
+		"read_restricted": definition.ReadRestricted,
+		"applies_to":      appliesTo,
+		"created_at":      definition.CreatedAt,
+		"updated_at":      definition.UpdatedAt,
+		"version":         definition.Version,
 	}
 }
 
@@ -295,8 +358,11 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 // REST, MCP and automation at once (arc42 §4).
 func (h DefineCustomField) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: DefineCustomFieldName,
-		Summary: "Defines a custom field, for one collection or for the whole workspace. The key " +
+		Name:       DefineCustomFieldName,
+		Permission: service.PermissionStructure,
+		Summary: "Defines a custom field, for one collection, one hub's collections or the whole " +
+			"workspace; the nearest under a key wins, a collection's over its hub's over the " +
+			"workspace's. The key " +
 			"has to be free in its scope and is an identifier rather than a label - lower case, " +
 			"digits and underscores - and it never changes afterwards: it appears in a " +
 			"custom_fields.<key> filter, and a key that could be renamed would orphan every value " +
@@ -312,26 +378,60 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 					"^[a-z][a-z0-9_]{0,49}$ and free in its scope.",
 			},
 			{
+				Name: "name", Kind: usecase.KindString,
+				Description: "What a person reads for the field, at most 100 characters; omitted " +
+					"or blank leaves it unnamed, and a client shows the key.",
+			},
+			{
 				Name: "kind", Kind: usecase.KindString, Required: true,
-				Description: "TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER or URL. Fixed " +
+				Description: "TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, " +
+					"DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED, DATE_TIME, GROUP, " +
+					"CASCADING_SELECT, IP_ADDRESS, FILE, LABEL or STATUS. Fixed " +
 					"once defined: a kind that changed would reinterpret every value already " +
 					"stored under the key.",
 			},
 			{
 				Name: "collection_id", Kind: usecase.KindID,
-				Description: "The collection the field belongs to. Omitted defines it for the " +
-					"whole workspace, which is a decision about the workspace and asks for a " +
-					"permission held there.",
+				Description: "The collection the field belongs to. Omitted, with no hub, defines it " +
+					"for the whole workspace, which is a decision about the workspace and asks for " +
+					"a permission held there.",
+			},
+			{
+				Name: "hub_id", Kind: usecase.KindID,
+				Description: "The hub whose collections carry the field; needs STRUCTURE at the hub. " +
+					"Not together with collection_id.",
 			},
 			{
 				Name: "options", Kind: usecase.KindList,
-				Description: "The values a SELECT or a MULTI_SELECT may hold. Required for those " +
-					"two and refused for every other kind.",
+				Description: "The values a SELECT, MULTI_SELECT, CASCADING_SELECT or STATUS may " +
+					"hold. Required for those four and refused for every other kind; a " +
+					"CASCADING_SELECT's are written Parent and Parent/Child.",
+			},
+			{
+				Name: "currency", Kind: usecase.KindString,
+				Description: "The ISO 4217 code of a MONEY field's amounts. Required for MONEY " +
+					"and refused for every other kind; fixed once defined.",
+			},
+			{
+				Name: "formula", Kind: usecase.KindString,
+				Description: "A CALCULATED field's expression over entry.custom_fields - the number " +
+					"and boolean fields of the scope - producing a number. Required for CALCULATED " +
+					"and refused for every other kind; fixed once defined.",
 			},
 			{
 				Name: "is_required", Kind: usecase.KindBool,
 				Description: "Whether the field has to hold a value. Enforced when the field is " +
 					"written and never retroactively: the entries that predate it stay valid.",
+			},
+			{
+				Name: "restricted", Kind: usecase.KindBool,
+				Description: "Whether only holders of the field's permission FIELD_WRITE:<key> may " +
+					"write it; the owner and the administrators hold every one.",
+			},
+			{
+				Name: "read_restricted", Kind: usecase.KindBool,
+				Description: "Whether the field is hidden from readers who hold neither FIELD_READ:<key> " +
+					"nor FIELD_WRITE:<key>; true restricts it too.",
 			},
 			{
 				Name: "applies_to", Kind: usecase.KindList,
@@ -362,6 +462,10 @@ func (h DefineCustomField) invoke(
 	if err != nil {
 		return nil, err
 	}
+	hubID, err := optionalIDField(in, "hub_id")
+	if err != nil {
+		return nil, err
+	}
 	rawTypes, err := in.StringList("applies_to")
 	if err != nil {
 		return nil, err
@@ -376,12 +480,18 @@ func (h DefineCustomField) invoke(
 	}
 
 	definition, err := h.Execute(ctx, actor, DefineCustomFieldCommand{
-		CollectionID: collectionID,
-		Key:          in.String("key"),
-		Kind:         kind,
-		Options:      options,
-		IsRequired:   in.Bool("is_required"),
-		AppliesTo:    appliesTo,
+		CollectionID:   collectionID,
+		HubID:          hubID,
+		Key:            in.String("key"),
+		Name:           in.String("name"),
+		Kind:           kind,
+		Options:        options,
+		Currency:       in.String("currency"),
+		Formula:        in.String("formula"),
+		IsRequired:     in.Bool("is_required"),
+		Restricted:     in.Bool("restricted"),
+		ReadRestricted: in.Bool("read_restricted"),
+		AppliesTo:      appliesTo,
 	})
 	if err != nil {
 		return nil, err
@@ -425,9 +535,11 @@ type ListCustomFields struct {
 
 // ListCustomFieldsQuery is the input, typed.
 type ListCustomFieldsQuery struct {
-	// CollectionID is the collection whose definitions are wanted, together with the
-	// workspace-wide ones above it. Zero answers the workspace-wide ones alone.
+	// CollectionID is the collection whose definitions are wanted, together with those of its hub
+	// and the workspace above it; HubID a hub's, with the workspace's. Neither answers the
+	// workspace-wide ones alone; both are refused.
 	CollectionID shared.ID
+	HubID        shared.ID
 }
 
 // Execute returns the definitions.
@@ -438,7 +550,19 @@ type ListCustomFieldsQuery struct {
 func (h ListCustomFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListCustomFieldsQuery,
 ) ([]domain.CustomFieldDefinition, error) {
+	if !query.CollectionID.IsZero() && !query.HubID.IsZero() {
+		return nil, fieldScopeAmbiguous()
+	}
+	scope := query.CollectionID
 	path := []identity.Scope{identity.TenantScope()}
+	if !query.HubID.IsZero() {
+		scope = query.HubID
+		hub, err := hubPath(ctx, h.UnitOfWork, actor, h.Containers, query.HubID)
+		if err != nil {
+			return nil, err
+		}
+		path = hub
+	}
 	if !query.CollectionID.IsZero() {
 		var collection domain.Container
 		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -458,7 +582,7 @@ func (h ListCustomFields) Execute(
 		Action:     CustomFieldReadAction,
 		TokenScope: customFieldsRead,
 		TargetType: customFieldTarget,
-		TargetID:   query.CollectionID,
+		TargetID:   scope,
 	}); err != nil {
 		return nil, err
 	}
@@ -466,7 +590,7 @@ func (h ListCustomFields) Execute(
 	var definitions []domain.CustomFieldDefinition
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		definitions, err = h.Fields.ListInScope(ctx, query.CollectionID)
+		definitions, err = h.Fields.ListInScope(ctx, scope)
 		return err
 	})
 	if err != nil {
@@ -478,9 +602,11 @@ func (h ListCustomFields) Execute(
 // Descriptor is the catalogue entry.
 func (h ListCustomFields) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListCustomFieldsName,
+		Name:       ListCustomFieldsName,
+		Permission: service.PermissionRead,
 		Summary: "The custom field definitions in force, by key. Naming a collection answers the " +
-			"ones that apply inside it: its own, and the workspace-wide ones above it. Naming none " +
+			"ones that apply inside it: its own, its hub's and the workspace-wide ones above them. " +
+			"Naming a hub answers its own and the workspace-wide ones. Naming none " +
 			"answers the workspace-wide ones alone. Deleted definitions are not in the answer - " +
 			"their values stay in the entries and stop being visible.",
 		SideEffects: "None. Reads only.",
@@ -491,6 +617,11 @@ func (h ListCustomFields) Descriptor() usecase.Descriptor {
 				Name: "collection_id", Kind: usecase.KindID,
 				Description: "The collection whose definitions are wanted, together with the " +
 					"workspace-wide ones. Omitted answers the workspace-wide ones alone.",
+			},
+			{
+				Name: "hub_id", Kind: usecase.KindID,
+				Description: "The hub whose own definitions are wanted, together with the " +
+					"workspace-wide ones. Not together with collection_id.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -509,7 +640,11 @@ func (h ListCustomFields) invoke(
 		return nil, err
 	}
 
-	definitions, err := h.Execute(ctx, actor, ListCustomFieldsQuery{CollectionID: collectionID})
+	hubID, err := optionalIDField(in, "hub_id")
+	if err != nil {
+		return nil, err
+	}
+	definitions, err := h.Execute(ctx, actor, ListCustomFieldsQuery{CollectionID: collectionID, HubID: hubID})
 	if err != nil {
 		return nil, err
 	}
@@ -521,4 +656,14 @@ func (h ListCustomFields) invoke(
 	// A bare list rather than a page: the contract answers an array here, because a workspace's
 	// vocabulary is not something a client walks.
 	return usecase.Output{"data": rows}, nil
+}
+
+// seedFill enqueues the fill of a new CALCULATED field inside the definition's transaction, so a
+// definition that rolls back seeds nothing.
+func (h DefineCustomField) seedFill(ctx context.Context, definition domain.CustomFieldDefinition) error {
+	if h.Jobs == nil || definition.Kind != domain.CustomFieldCalculated {
+		return nil
+	}
+	_, err := h.Jobs.Enqueue(ctx, queue.FieldFill(definition.TenantID, definition.ID, definition.ScopeID(), ""))
+	return err
 }

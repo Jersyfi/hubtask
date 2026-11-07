@@ -33,6 +33,10 @@ type SavedView struct {
 	// PRIVATE view is visible to its owner alone, whatever its scope.
 	OwnerID shared.ID
 	Name    string
+	// Key names the view where it lives - unique in its scope, kept by a rename - so that the
+	// configuration document names it in every workspace alike. Empty until the store drew one
+	// from the name (migration 0293).
+	Key string
 	// Layout is one of the declared set, stored and never consulted.
 	Layout Layout
 	// Query is the document of POST /items:query, exactly as sent. Validated at write against
@@ -147,7 +151,9 @@ type NewSavedViewInput struct {
 	ScopeID   shared.ID
 	OwnerID   shared.ID
 
-	Name          string
+	Name string
+	// Key is the writer's; empty asks the store to draw one from the name.
+	Key           string
 	Layout        string
 	Query         map[string]any
 	Grouping      map[string]any
@@ -188,6 +194,11 @@ func NewSavedView(in NewSavedViewInput) (SavedView, error) {
 	if err != nil {
 		return SavedView{}, err
 	}
+	if in.Key != "" && !shared.ValidKey(in.Key) {
+		return SavedView{}, shared.ErrValidation.
+			WithDetail("views.key_invalid").
+			WithFields(shared.FieldError{Path: "/key", Code: "views.key_invalid"})
+	}
 	layout, err := viewLayout(in.Layout)
 	if err != nil {
 		return SavedView{}, err
@@ -221,6 +232,7 @@ func NewSavedView(in NewSavedViewInput) (SavedView, error) {
 		ScopeID:       in.ScopeID,
 		OwnerID:       in.OwnerID,
 		Name:          name,
+		Key:           in.Key,
 		Layout:        layout,
 		Query:         query,
 		Grouping:      grouping,
@@ -364,7 +376,20 @@ func ValidatedViewQuery(raw map[string]any) (map[string]any, error) {
 			return nil, err
 		}
 	}
+	// A summary view (S-11): the aggregation `POST /views/{id}:aggregate` runs, read by the
+	// grammar `POST /items:aggregate` reads it with.
+	if rawAggregate, present := raw["aggregate"]; present && rawAggregate != nil {
+		if _, err := ParseAggregation(rawAggregate, "/query/aggregate"); err != nil {
+			return nil, err
+		}
+	}
 	return raw, nil
+}
+
+// IsSummary reports whether the view stores an aggregation.
+func (v SavedView) IsSummary() bool {
+	raw, present := v.Query["aggregate"]
+	return present && raw != nil
 }
 
 // validatedQueryScope checks the document's anchor, parsed by the rule the execution applies.
@@ -394,7 +419,12 @@ func validatedQueryScope(document map[string]any) error {
 		include, _ = raw.(bool)
 	}
 
-	_, err = ParseScope(containerID, itemID, include, "/query")
+	// The whole workspace is a summary's scope only: a view that lists rows needs an anchor.
+	workspace, _ := document["scope_workspace"].(bool)
+	if aggregate, present := document["aggregate"]; workspace && (!present || aggregate == nil) {
+		return fieldError("/query/scope_workspace", "views.workspace_needs_aggregate", nil)
+	}
+	_, err = ParseSummaryScope(containerID, itemID, include, workspace, "/query")
 	return err
 }
 

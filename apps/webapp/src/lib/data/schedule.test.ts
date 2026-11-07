@@ -4,15 +4,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { anchorOf, daysMoved, draggedTo, gridOf, placedBetween, scaleOf, windowOf } from './schedule.ts';
+import { anchorOf, daysMoved, draggedTo, gridOf, lineAtOrBefore, placedBetween, scaleOf, windowOf } from './schedule.ts';
 
 /** Monday, as `firstWeekday` answers for an account that says nothing. */
 const MONDAY = 1;
 
-test('a scale is one of three, and anything else is the middle one', () => {
+test('a scale is one of five, and anything else is the week', () => {
   assert.equal(scaleOf('day'), 'day');
   assert.equal(scaleOf('month'), 'month');
-  assert.equal(scaleOf('quarter'), 'week');
+  assert.equal(scaleOf('quarter'), 'quarter');
+  assert.equal(scaleOf('year'), 'year');
+  assert.equal(scaleOf('decade'), 'week');
   assert.equal(scaleOf(undefined), 'week');
 });
 
@@ -23,6 +25,15 @@ test('each scale draws its own length, and each begins before the anchor', () =>
   assert.deepEqual(windowOf('2026-09-22', 'week', MONDAY), { from: '2026-09-14', to: '2026-11-08' });
   // Six months, beginning with the one before.
   assert.deepEqual(windowOf('2026-09-22', 'month', MONDAY), { from: '2026-08-01', to: '2027-01-31' });
+});
+
+// UC-PLN-02 check 7: the Gantt screen zooms from a day to a year.
+test('a quarter shows a year from the quarter before, and a year shows three from its first day', () => {
+  assert.deepEqual(windowOf('2026-09-22', 'quarter', MONDAY), { from: '2026-04-01', to: '2027-03-31' });
+  assert.deepEqual(windowOf('2026-02-10', 'quarter', MONDAY), { from: '2025-10-01', to: '2026-09-30' });
+  assert.deepEqual(windowOf('2026-09-22', 'year', MONDAY), { from: '2026-01-01', to: '2028-12-31' });
+  assert.deepEqual(gridOf({ from: '2026-04-01', to: '2027-03-31' }, 'quarter', MONDAY), ['2026-04-01', '2026-07-01', '2026-10-01', '2027-01-01']);
+  assert.deepEqual(gridOf({ from: '2026-01-01', to: '2028-12-31' }, 'year', MONDAY), ['2026-01-01', '2027-01-01', '2028-01-01']);
 });
 
 test('six months over a year end is still six months', () => {
@@ -115,4 +126,14 @@ test('a drag across the axis gives an undated entry both dates, either way round
   assert.deepEqual(placedBetween('2026-09-20', '2026-09-25'), { start: '2026-09-20', due: '2026-09-25' });
   assert.deepEqual(placedBetween('2026-09-25', '2026-09-20'), { start: '2026-09-20', due: '2026-09-25' });
   assert.deepEqual(placedBetween('2026-09-20', '2026-09-20'), { start: '2026-09-20', due: '2026-09-20' });
+});
+
+// user-experience.md §7.5: a fitted window starts on its scale's own line, so the first mark is
+// not drawn over the next one.
+test('the line at or before a day is the start of its week, month, quarter or year', () => {
+  assert.equal(lineAtOrBefore('2026-11-04', 'day', MONDAY), '2026-11-04');
+  assert.equal(lineAtOrBefore('2026-11-04', 'week', MONDAY), '2026-11-02');
+  assert.equal(lineAtOrBefore('2026-11-04', 'month', MONDAY), '2026-11-01');
+  assert.equal(lineAtOrBefore('2026-11-04', 'quarter', MONDAY), '2026-10-01');
+  assert.equal(lineAtOrBefore('2026-11-04', 'year', MONDAY), '2026-01-01');
 });

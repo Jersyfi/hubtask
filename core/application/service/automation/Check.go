@@ -15,7 +15,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/expression"
@@ -93,7 +95,13 @@ func ReferenceFields() map[string]repository.ReferenceKind {
 type CheckRules struct {
 	Rules      repository.Rules
 	References repository.References
-	Catalogue  Catalogue
+	// CustomRoles resolves a NOTIFY_ROLE step's key: a role is a key, not an identifier the
+	// reference table resolves. Nil leaves the question unasked.
+	CustomRoles RoleKeys
+	// Calendars resolves a RELATIVE_DATE trigger's business calendar as the run does. Nil leaves
+	// the question unasked.
+	Calendars BusinessCalendars
+	Catalogue Catalogue
 	// Conditions compiles every condition and every branch's, as the write does (ADR-0009).
 	Conditions expression.Compiler
 	Authorizer Authorizer
@@ -262,6 +270,24 @@ func (h CheckRules) inspect(
 		})
 	}
 
+	// The trigger's calendar: gone, the rule never fires again.
+	if h.Calendars != nil && rule.Trigger.Kind == domain.TriggerRelativeDate && rule.Trigger.Calendar != "" {
+		hubID := shared.ID("")
+		if rule.Scope.Type == domain.ScopeHub {
+			hubID = rule.Scope.ID
+		}
+		_, err := h.Calendars.Find(ctx, hubID, rule.Trigger.Calendar)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return nil, err
+		}
+		if err != nil {
+			findings = append(findings, domain.Finding{
+				Level: domain.FindingBroken, Path: "/trigger/calendar", Code: FindingReferenceGone,
+				Params: map[string]string{"kind": "calendar", "id": rule.Trigger.Calendar},
+			})
+		}
+	}
+
 	// The account it runs as: gone, or unable to act, is a rule that can do nothing.
 	exists, err := h.References.Exists(ctx, repository.ReferenceAccount, rule.RunAs)
 	if err != nil {
@@ -395,8 +421,34 @@ func (h CheckRules) inspectActions(
 				})
 			}
 		}
+		finding, err := h.goneRole(ctx, action, at)
+		if err != nil {
+			return nil, err
+		}
+		if finding != nil {
+			findings = append(findings, *finding)
+		}
 	}
 	return findings, nil
+}
+
+// goneRole finds a NOTIFY_ROLE step whose custom role was removed after the save.
+func (h CheckRules) goneRole(ctx context.Context, action domain.Action, at string) (*domain.Finding, error) {
+	if h.CustomRoles == nil || action.Kind != "NOTIFY_ROLE" {
+		return nil, nil
+	}
+	key, named := action.Params["role"].(string)
+	if !named || identity.Role(key).Valid() {
+		return nil, nil
+	}
+	_, err := h.CustomRoles.Find(ctx, key)
+	if errors.Is(err, shared.ErrNotFound) {
+		return &domain.Finding{
+			Level: domain.FindingAttention, Path: at + "/params/role", Code: FindingReferenceGone,
+			Params: map[string]string{"kind": "role", "id": key},
+		}, nil
+	}
+	return nil, err
 }
 
 // conditionFinding carries the compiler's own code and parameters - a line and a column - under
@@ -417,7 +469,8 @@ func conditionFinding(path string, err error) domain.Finding {
 // Descriptor is the catalogue entry.
 func (h CheckRules) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CheckRulesName,
+		Permission: service.PermissionAutomation,
+		Name:       CheckRulesName,
 		Summary: "Checks every rule of the workspace the caller may read against what exists " +
 			"now - the trigger's event type, each action's kind and parameters, each condition, " +
 			"the account it runs as, and every identifier a parameter names - and writes what it " +

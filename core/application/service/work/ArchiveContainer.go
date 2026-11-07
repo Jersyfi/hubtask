@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
@@ -97,7 +98,8 @@ func (h UnarchiveContainer) Execute(
 // Descriptor is the catalogue entry.
 func (h ArchiveContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ArchiveContainerName,
+		Permission: service.PermissionStructure,
+		Name:       ArchiveContainerName,
 		Summary: "Archives a hub or a collection: it becomes read-only, and everything under it " +
 			"inherits that. A collection in an archived hub refuses writes without being archived " +
 			"itself, and reports effective_archived to say so. Idempotent: archiving an archived " +
@@ -146,7 +148,8 @@ func (h ArchiveContainer) invoke(
 // Descriptor is the catalogue entry.
 func (h UnarchiveContainer) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UnarchiveContainerName,
+		Permission: service.PermissionStructure,
+		Name:       UnarchiveContainerName,
 		Summary: "Makes an archived hub or collection writable again. Only its own archiving is " +
 			"lifted: a collection archived in its own right stays archived when its hub is " +
 			"unarchived, because unarchiving restores what was archived and not what was merely " +

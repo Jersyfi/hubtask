@@ -261,12 +261,19 @@ export const shellPlatform: Platform = {
   // The webview hands a navigation to an attachment to the system's download.
   openDownload: (url) => window.location.assign(url),
   saveFile: saveByLink,
+  // No picker the page can write into as bytes arrive: the caller falls back to saveFile.
+  saveStream: async () => undefined,
   preferredLanguages: pageLanguages,
   storageFor: copyOf,
+  // The shells' copy is the offline promise: whole at every size (offline-sync.md §1).
+  replicaEntries: undefined,
   holdsFiles: true,
   firstSynchronisation: 'pages',
   forgetCopy: (accountId) => copyOf(accountId).forget(),
   rememberAccount: (id) => store.rememberAccount(id),
+  // Each account's copy is its own database under its own key, so an unsent queue waits in it
+  // for that account and no other account's sign-in reaches it: nothing to mark.
+  holdUnsentOf: () => {},
   lastAccount: () => store.readAccount(),
   rememberElevation: (until) => store.rememberElevatedUntil(until),
   elevatedUntil: () => store.readElevatedUntil(),

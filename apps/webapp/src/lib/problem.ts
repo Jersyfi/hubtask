@@ -25,20 +25,35 @@
 
 import type { TransportError } from '@hubtask/sync-engine';
 
-import { formatDateTime } from './i18n/datetime.ts';
+import { formatDateTime, formatRelative } from './i18n/datetime.ts';
 import type { MessageParams } from './i18n/format.ts';
 import type { Messages } from './i18n/messages.ts';
+import { rememberReference } from './support.ts';
 
 export interface RenderedProblem {
   /** The one sentence to show. Never empty: every branch below ends in a message. */
   readonly message: string;
+  /**
+   * The reason without the reference: for a screen that folds the reference behind *Details for
+   * support* (`FailureNote`, user-experience.md §5.8) rather than saying it in the sentence.
+   */
+  readonly sentence?: string;
+  /** The catalogue code the sentence was chosen by, for the same fold. */
+  readonly code?: string;
   /** Path from `field_errors[]` to the sentence for it, for a form to put beside its inputs. */
   readonly fields: ReadonlyMap<string, string>;
+  /**
+   * The sentences of field errors that name no field - a step's failing checks - each one, in the
+   * server's order: they are about the whole, and dropping them would hide what is still missing.
+   */
+  readonly wholes?: readonly string[];
   /**
    * The request id, when there is one that is not already in the sentence. Shown where a person
    * can copy it - an internal error without its reference is a support thread nobody can trace.
    */
   readonly reference?: string;
+  /** The request id whenever there is one, in the sentence or not: what a copy control copies. */
+  readonly requestId?: string;
   /** Whether this is the server's fault. What decides whether a retry is offered as the answer. */
   readonly isServerFault: boolean;
 }
@@ -75,39 +90,76 @@ function candidates(error: TransportError): string[] {
 /**
  * The parameters as a reader reads them. A parameter named `*_at` is a moment - a spent AI budget's
  * `renews_at`, a running access's `ends_at` - and a message cannot format one, so it is written in
- * the reader's locale here, before the sentence takes it. A value that is not a moment stays as it
- * arrived.
+ * the reader's locale here, before the sentence takes it. A `permission` is named as the role editor
+ * names it, a rate limit's `level` by what it guards (user-experience.md §5.8); a key this build has
+ * no name for stays as it arrived, which is still truer than nothing.
  */
-function readable(params: Readonly<Record<string, string>> | undefined, locale: string): MessageParams {
+function readable(params: Readonly<Record<string, string>> | undefined, messages: Messages): MessageParams {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(params ?? {})) {
-    out[name] = name.endsWith('_at') ? formatDateTime(value, locale) : value;
+    out[name] = name.endsWith('_at') ? formatDateTime(value, messages.locale)
+      : name === 'permission' ? named(messages, `app.permissions.name.${value.toLowerCase()}`, value)
+      : name === 'level' ? named(messages, `app.limit_level.${value}`, value)
+      : value;
   }
   return out;
 }
 
-export function renderProblem(error: TransportError, messages: Messages): RenderedProblem {
+function named(messages: Messages, code: string, fallback: string): string {
+  return messages.has(code) ? messages.t(code) : fallback;
+}
+
+/**
+ * When to try again, from `Retry-After`: "in 2 minutes", or "in a moment" when the server said
+ * nothing - a sentence that asks the reader to wait carries `{retry_at}` and must never show it.
+ */
+function retryAt(error: TransportError, messages: Messages, now: number): string {
+  if (error.retryAfterMs === undefined) return messages.t('app.retry_soon');
+  return formatRelative(new Date(now + Math.max(error.retryAfterMs, 60_000)).toISOString(), messages.locale, now);
+}
+
+/** The statuses whose answer is worth quoting: a refusal (audited as denied), a conflict or quota, a server fault. */
+function quotable(status: number | undefined): boolean {
+  return status === 403 || (status ?? 0) >= 409;
+}
+
+export function renderProblem(error: TransportError, messages: Messages, now: number = Date.now()): RenderedProblem {
   // The request id travels as a parameter as well as a field, because `errors.internal` renders it
   // inside its own sentence. Where it does, showing it again beneath would say it twice.
   const params: MessageParams = {
-    ...readable(error.params, messages.locale),
+    retry_at: retryAt(error, messages, now),
+    ...readable(error.params, messages),
     ...(error.requestId ? { request_id: error.requestId } : {}),
   };
 
   const code = candidates(error).find((candidate) => messages.has(candidate)) ?? 'errors.internal';
-  const message = messages.t(code, params);
+  let message = messages.t(code, params);
+  // `errors.internal` says its reference inside its own sentence; the fold says it instead.
+  const sentence = code === 'errors.internal' ? messages.t('app.something_went_wrong') : message;
+  // A refusal or a failure the person may take to an administrator carries its reference in the
+  // sentence, so every screen shows it whether or not it renders `reference`: the administrator
+  // finds the request's entries by it (`GET /audit?request_id=`). A 404 or a plain 400 is not one.
+  if (error.requestId && quotable(error.status) && !message.includes(error.requestId)) {
+    message = messages.t('app.problem_with_reference', { message, request_id: error.requestId });
+  }
 
   const fields = new Map<string, string>();
+  const wholes: string[] = [];
   for (const field of error.fieldErrors) {
-    if (!field.path) continue;
     const fieldCode = field.code ?? 'usecase.input_invalid';
+    if (!field.path) {
+      if (field.code) wholes.push(messages.t(fieldCode, field.params ?? {}));
+      continue;
+    }
     fields.set(field.path, messages.t(fieldCode, field.params ?? {}));
   }
 
   const isServerFault = error.kind !== 'problem' || (error.status ?? 0) >= 500;
+  // Kept for *Help*'s *Copy details*: the reference a support thread is traced by.
+  rememberReference(error.requestId);
   const reference = error.requestId && !message.includes(error.requestId) ? error.requestId : undefined;
 
-  return { message, fields, reference, isServerFault };
+  return { message, sentence, code, fields, wholes, reference, requestId: error.requestId, isServerFault };
 }
 
 /** A refusal a job ended with: the code and parameters `GET /jobs/{id}` answers. */
@@ -123,5 +175,21 @@ export interface Refusal {
  */
 export function renderRefusal(refusal: Refusal, messages: Messages): string {
   const code = messages.has(refusal.code) ? refusal.code : 'app.something_went_wrong';
-  return messages.t(code, readable(refusal.params, messages.locale));
+  return messages.t(code, readable(refusal.params, messages));
+}
+
+/**
+ * Whether a read failed because the address names no object: the server's not-found, or a
+ * parameter in no id's shape (`request.parameter_invalid`). A screen shows that as "not here",
+ * with a way back - never as an answer this build cannot read.
+ */
+export function isNoSuchObject(error: TransportError): boolean {
+  return error.kind === 'problem' && (error.status === 404 || error.detailCode === 'request.parameter_invalid');
+}
+
+const OBJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/** Whether an address's id has an object id's shape, so a screen need not ask the server first. */
+export function isObjectId(id: string): boolean {
+  return OBJECT_ID.test(id);
 }

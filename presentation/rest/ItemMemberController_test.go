@@ -45,7 +45,7 @@ func TestAddingAMemberAnswersWithTheSetTheEntryNowCarries(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != addMemberUseCase {
+	if registry.name != "AddMember" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if registry.in["item_id"] != itemID || registry.in["account_id"] != assigneeID {
@@ -75,7 +75,7 @@ func TestRemovingAMemberAnswersWithTheSetTheEntryNowCarries(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != removeMemberUseCase {
+	if registry.name != "RemoveMember" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 

@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-03, P-04, P-15]
 state: verified
 tasks: [H-06, SI-17, PH-10, SC-08, PL-10]
-checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/admin/Deletion_test.go, core/application/service/admin/Cancel_test.go, core/application/service/admin/SingleMode_test.go, test/integration/tenant_deletion_test.go, test/integration/tenant_cancel_test.go, test/integration/tenant_cancel_acceptance_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, test/integration/admin_test.go, docs/evidence/SC-15-D5-2026-10-13.md, test/integration/workspace_recovery_test.go, test/security/provisioning_scope_test.go, cmd/hubctl/AdminProvisioning_test.go]
+checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/identity/AuthenticateToken_test.go, core/application/service/admin/Export_test.go, core/application/service/admin/Deletion_test.go, core/application/service/admin/Cancel_test.go, core/application/service/admin/SingleMode_test.go, test/integration/tenant_deletion_test.go, test/integration/tenant_cancel_test.go, test/integration/tenant_cancel_acceptance_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, test/integration/admin_test.go, docs/evidence/SC-15-D5-2026-10-13.md, test/integration/workspace_recovery_test.go, test/security/provisioning_scope_test.go, cmd/hubctl/AdminProvisioning_test.go]
 ---
 
 # Suspend, resume and delete a workspace

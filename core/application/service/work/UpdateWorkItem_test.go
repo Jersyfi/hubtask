@@ -697,6 +697,8 @@ func TestADeletedColumnCannotTakeAnEntry(t *testing.T) {
 // The history keeps what the audit trail deliberately does not. A rename means nothing without both
 // titles, and the trail records them as hashes because it outlives the item; the history is deleted
 // with the item and can therefore say what a person opening it wants to read (audit.md §1).
+// UC-WRK-02 check 5.
+// UC-WRK-19 check 7.
 func TestTheHistoryKeepsBothTitlesAndOnlyThatTheNoteChanged(t *testing.T) {
 	h := newUpdateHarness()
 
@@ -732,6 +734,7 @@ func TestTheHistoryKeepsBothTitlesAndOnlyThatTheNoteChanged(t *testing.T) {
 // "Compact history for activities" (the capability matrix, domain-model.md §2): the verb, the actor
 // and the time, without the fields that moved. An activity carries none of the fields a diff would
 // be about, so its history says what happened and leaves the reading of it to the entry itself.
+// UC-WRK-19 check 7.
 func TestAnActivitysHistoryIsCompact(t *testing.T) {
 	h := newUpdateHarness()
 

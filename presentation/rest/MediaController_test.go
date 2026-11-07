@@ -83,9 +83,7 @@ func (m *mediaContent) Send(_ context.Context, grant usecasemedia.Grant) (usecas
 func mediaController(cat *catalogue, content *mediaContent, tokens *mediaTokens) *RestController {
 	controller := NewRestController()
 	controller.UseCases = cat
-	controller.MediaContent = content
-	controller.MediaTokens = tokens
-	controller.Clock = clock.Fixed(mediaNow)
+	controller.Media = &MediaDoor{Content: content, Tokens: tokens, Clock: clock.Fixed(mediaNow)}
 	return controller
 }
 
@@ -245,6 +243,7 @@ func TestADownloadWithoutAName(t *testing.T) {
 // composition root forgot one of the three fields they need.
 func TestTheContentRoutesRefuseWhenTheyAreNotWired(t *testing.T) {
 	controller := NewRestController()
+	controller.Media = &MediaDoor{}
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPut,
 		APIBasePath+"/media/"+mediaID.String()+":content?token=secret", strings.NewReader("x"))

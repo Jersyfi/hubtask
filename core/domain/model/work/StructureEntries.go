@@ -20,6 +20,8 @@ type Offered struct {
 	bound  StructureBound
 	levels map[ItemType]bool
 	fields map[ItemType][]Capability
+	// entryTypes are the type keys each level offers; a level absent offers every type.
+	entryTypes map[ItemType][]string
 }
 
 // NewOffered reads the levels and fields out of a collection's structure in force.
@@ -35,7 +37,13 @@ func NewOffered(bound StructureBound, effective EffectiveStructure) Offered {
 	for itemType, level := range effective.Values.Fields {
 		offered.fields[itemType] = slices.Clone(level.Capabilities)
 	}
+	offered.entryTypes = cloneEntryTypes(effective.Values.EntryTypes)
 	return offered
+}
+
+// EntryTypesOn answers the type keys a level offers, in order, or nil where it offers every type.
+func (o Offered) EntryTypesOn(level ItemType) []string {
+	return slices.Clone(o.entryTypes[level])
 }
 
 // OfferedByBound offers everything the bound holds: Hubtask's default, the behaviour from before

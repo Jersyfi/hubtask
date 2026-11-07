@@ -60,12 +60,60 @@ config:
   # The deadline for one background job. terminationGracePeriodSeconds is derived from it:
   # no job is cut off mid-work (deployment.md §5).
   jobTimeout: 60s
+  # One pass of a backup, restore, export or import; its lease is kept alive while it runs.
+  longJobTimeout: 6h
+  # How many jobs one worker process runs at once (deployment.md §6); each holds a background
+  # pool connection, so it stays below the pool's size minus three.
+  queueConcurrency: 4
   # The egress allowlist for outbound calls - webhooks, AI, OIDC. Mandatory in provider
   # operation (T-07); empty raises a warning in /meta/health rather than failing the start.
   egressAllowedHosts: []
+  # The networks of the ingress or reverse proxy in front, as CIDRs: X-Forwarded-For is believed
+  # only from a peer inside them. Empty, and every request behind the ingress shares one rate
+  # limit and records the proxy as where it signed in from; /meta/health warns once a forwarded
+  # header arrives (security.md §9).
+  trustedProxies: []
   # Anything HUBTASK_* this chart does not model yet. A map, so that a new variable is a value
-  # rather than a template change.
+  # rather than a template change. It renders into the ConfigMap, which anyone allowed to read
+  # ConfigMaps reads: a name ending in _KEY, _SECRET, _PASSWORD or _TOKEN refuses the render - put
+  # it in extraSecretEnv.
   extraEnv: {}
+  # Variables read from a Secret, as VARIABLE: { secret: <name>, key: <key> } - rendered as a
+  # secretKeyRef, never into the ConfigMap. An instance file's `api_key_env` names one of these.
+  extraSecretEnv: {}
+
+# Mail into the jumble (ADR-0092) and connected mailboxes through the provider's sign-in
+# (ADR-0094). The domain and the client IDs are configuration; the inbound bearer key and the
+# client secrets are read from Secrets by key.
+mail:
+  inbound:
+    domain: ""
+    existingSecret: ""         # key: inbound-key
+  oauth:
+    google:
+      clientId: ""
+      existingSecret: ""       # key: client-secret
+    microsoft:
+      clientId: ""
+      existingSecret: ""       # key: client-secret
+
+# The instance file (deployment.md §6.1, ADR-0070): business calendars, the upload scanner,
+# presets, plans, offered AI models. Mounted from a ConfigMap, or from a Secret when it names
+# something sensitive; one of the two. `mode` is seed (written once) or enforce (at every start).
+instanceFile:
+  configMap: ""
+  secret: ""
+  key: instance.json
+  mode: seed
+
+# The instance file checked by `hubtask instance check` before every upgrade (a pre-upgrade hook,
+# job-instance-check.yaml): a file the new pods would refuse to start on stops the upgrade instead.
+# Only where an instance file is named.
+instanceCheck:
+  enabled: true
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
 
 # Files the process needs and the chart does not know about, mounted into every role: a private
 # certificate authority behind an internal mail relay, most likely, read through Go's own
@@ -192,6 +240,9 @@ migration:
   # connections; whether the sync waited for it is the platform's knowledge, so the migrator does
   # not depend on it (deployment.md §2.2). Empty: one attempt, as before.
   connectWait: 5m
+  # The bound on one migration run. `helm upgrade --timeout` (or a sync's own) must allow at least
+  # this much, or it kills a long backfill the migrator would have finished.
+  timeout: 30m
   # The key holding the password for hubtask_app. Set it and the migrator grants that role its
   # login after migrating, so the application never has to connect as the owner
   # (multi-tenancy.md §2.1). Leave it
@@ -345,6 +396,10 @@ prometheusRules:
     # A-12's point-in-time recovery half. Reads the database operator's metrics, so it is rendered
     # only where this chart owns the database.
     pitr: true
+  # A-42's budget in bytes: the size the database's plan or volume allows. Recorded as
+  # hubtask:db_size_budget_bytes beside the release's namespace (which scopes A-41 to this
+  # release's volumes); 0 records none, and A-42 stays silent.
+  databaseSizeBudget: 0
 
 # The Grafana dashboards, as ConfigMaps a sidecar imports. One per dashboard, so that a change to
 # one does not re-import the others. Never hand-edited in a user interface: the file is the source.

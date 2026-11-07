@@ -68,6 +68,9 @@ type Field struct {
 	Nullable  bool
 	Sortable  bool
 	Groupable bool
+	// Custom is what the definitions say about a `custom_fields.<key>` field, put there by the
+	// use case (Spec.Shaped); zero for every other field.
+	Custom CustomShape
 }
 
 // Permits reports whether the field accepts the operator.
@@ -79,10 +82,16 @@ func (f Field) Permits(op Operator) bool { return slices.Contains(f.Operators, o
 // because a filter on a column nothing fills would match nothing, and a client could not tell that
 // from a collection in which nothing is due.
 const (
-	FieldType        = "type"
-	FieldParentID    = "parent_id"
-	FieldCollection  = "collection_id"
-	FieldBucketID    = "bucket_id"
+	FieldType = "type"
+	// FieldEntryType is the key of the entry's type (UC-FLW-01): a workspace's own, or its level's
+	// system type when it has none, so the field is never absent.
+	FieldEntryType  = "entry_type"
+	FieldParentID   = "parent_id"
+	FieldCollection = "collection_id"
+	FieldBucketID   = "bucket_id"
+	// FieldStatus is the key of the entry's status in its workflow (UC-FLW-03); absent where no
+	// workflow runs, which is what IS_NULL asks.
+	FieldStatus      = "status"
 	FieldIsCompleted = "is_completed"
 	FieldTitle       = "title"
 	FieldNotes       = "notes"
@@ -103,6 +112,31 @@ const (
 	// because the vector covers both and a client that searched `title` and matched a word in the
 	// notes would be reading a lie about which field it asked for.
 	FieldText = "text"
+	// FieldBlocked is the first field answered by traversing links (F-9): whether an open entry
+	// holds this one up over a link whose type waits (work.LinkWaits).
+	// Virtual, like text: it is a question about other rows, not a column of this one.
+	FieldBlocked = "blocked"
+	// FieldBlocking is blocked's other direction: whether this entry holds up an open one over a
+	// link whose type waits - the question "what should I finish first".
+	FieldBlocking = "blocking"
+	// FieldLinkedTo is whether a link of any type joins the entry to one of the given entries, in
+	// either direction - the entries related to the one on screen.
+	FieldLinkedTo = "linked_to"
+	// FieldSLADue is the moment the entry's next running SLA goal runs out (UC-SVC-02): the
+	// earliest due moment of its goals that still run, absent when none does. A queue sorts by it
+	// ascending, so the entry about to breach comes first.
+	FieldSLADue = "sla_due"
+	// FieldSLAStanding is the worst standing of the entry's SLA goals, from MET up to BREACHED;
+	// AT_RISK is a goal still running past its warning. Absent when no policy holds the entry.
+	FieldSLAStanding = "sla_standing"
+	// FieldSatisfaction is the requester's score of the resolved entry, 1 to 5, absent while none
+	// was given (UC-SVC-07). A queue keeps the unhappy ones with LTE 2.
+	FieldSatisfaction = "satisfaction"
+	// FieldGroupQueueOf is a group's queue (user-experience.md §3.3): whether the entry's
+	// collection has an auto-assign policy naming a group the given account belongs to. Only the
+	// asker's own queue may be asked - a value other than the actor is refused at Resolve, because
+	// the answer would say which groups somebody else is in.
+	FieldGroupQueueOf = "group_queue_of"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -116,12 +150,15 @@ const (
 
 // customFieldOperators are what may be asked of a custom field.
 //
-// Narrower than a typed column's, and deliberately: the kind is not known when the filter is
-// validated - it is the definition's, which is data - so only the comparisons that mean the same
-// thing for every kind are offered. Ordering comparisons are absent for that reason: `LT` over a
-// jsonb value would compare a NUMBER as text on one entry and as a number on the next.
+// The kind is not known when the filter is parsed - it is the definition's, which is data - so the
+// ordering comparisons are accepted here by shape and held to the kind once the use case has read
+// the definitions (Spec.Shaped): they compare the typed value of the side table (F-2), a NUMBER as
+// a number and a DATE as a day, never the jsonb document's text. The set and prefix operators
+// (S-11) are held the same way: CONTAINS_ANY and CONTAINS_ALL to a field holding several values,
+// STARTS_WITH to one holding text.
 var customFieldOperators = []Operator{
-	OpEq, OpNeq, OpIn, OpNotIn, OpIsNull, OpContains,
+	OpEq, OpNeq, OpIn, OpNotIn, OpIsNull, OpContains, OpLt, OpLte, OpGt, OpGte, OpBetween,
+	OpContainsAny, OpContainsAll, OpStartsWith,
 }
 
 // CustomField reports whether the name belongs to the family, and answers with the key.
@@ -149,6 +186,8 @@ func CustomField(name string) (string, bool) {
 func customFieldEntry(name string) Field {
 	return Field{
 		Name: name, Kind: KindCustom, Operators: customFieldOperators, Nullable: true,
+		// By shape, like the operators; Spec.Shaped refuses a kind that has no single order.
+		Sortable: true, Groupable: true,
 	}
 }
 
@@ -164,6 +203,13 @@ var catalogue = []Field{
 		Sortable: true, Groupable: true,
 	},
 	{
+		// A string rather than an enum: the keys are the workspace's, so the catalogue cannot list
+		// them. `/entry-types` does, and a key nothing names matches nothing.
+		Name: FieldEntryType, Kind: KindString,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn},
+		Groupable: true,
+	},
+	{
 		Name: FieldParentID, Kind: KindID,
 		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
 		Nullable:  true,
@@ -175,6 +221,12 @@ var catalogue = []Field{
 	},
 	{
 		Name: FieldBucketID, Kind: KindID,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Nullable:  true, Groupable: true,
+	},
+	{
+		// A string for the reason entry_type is one: the keys are the workflow's, not the catalogue's.
+		Name: FieldStatus, Kind: KindString,
 		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
 		Nullable:  true, Groupable: true,
 	},
@@ -270,6 +322,45 @@ var catalogue = []Field{
 		Name: FieldText, Kind: KindText,
 		Operators: []Operator{OpMatches},
 	},
+	{
+		Name: FieldBlocked, Kind: KindBool,
+		Operators: []Operator{OpEq, OpNeq},
+	},
+	{
+		Name: FieldBlocking, Kind: KindBool,
+		Operators: []Operator{OpEq, OpNeq},
+	},
+	{
+		Name: FieldLinkedTo, Kind: KindID,
+		Operators: []Operator{OpEq, OpIn},
+	},
+	{
+		Name: FieldSLADue, Kind: KindTimestamp,
+		Operators: []Operator{OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
+		Nullable:  true, Sortable: true,
+	},
+	{
+		Name: FieldSLAStanding, Kind: KindEnum,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
+		Values:    SLAStandings(),
+		Nullable:  true,
+	},
+	{
+		Name: FieldGroupQueueOf, Kind: KindID,
+		Operators: []Operator{OpEq},
+	},
+	{
+		Name: FieldSatisfaction, Kind: KindInt,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
+		Nullable:  true,
+	},
+}
+
+// SLAStandings are the values of sla_standing, from the best to the worst: the servicedesk
+// standings with AT_RISK between running and breached. Spelled here because the view package
+// imports no product's model.
+func SLAStandings() []string {
+	return []string{"MET", "PAUSED", "RUNNING", "AT_RISK", "BREACHED"}
 }
 
 // The custom fields are deliberately not in the catalogue.

@@ -624,7 +624,8 @@ func LegalBasisOf(kind domain.Kind) string {
 // Descriptor registers recording a case in all three channels.
 func (h CreateDataSubjectRequest) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateDataSubjectRequestName,
+		Name:       CreateDataSubjectRequestName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Records a right somebody has exercised - access, erasure, portability, " +
 			"restriction, objection or rectification - as a case with the statutory deadline it " +
 			"has to be answered within. Nothing is collected, exported or erased by this: what " +
@@ -726,7 +727,8 @@ func (h CreateDataSubjectRequest) invoke(
 // Descriptor registers the listing.
 func (h ListDataSubjectRequests) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListDataSubjectRequestsName,
+		Name:       ListDataSubjectRequestsName,
+		Permission: service.PermissionManageMembers,
 		Summary: "The data subject requests this workspace is handling, the soonest deadline " +
 			"first - which is the order the work has to be done in. The open ones by default, " +
 			"because \"what do we still owe\" is the question; the answered and refused ones " +
@@ -796,7 +798,8 @@ func (h ListDataSubjectRequests) invoke(
 // Descriptor registers moving a case along.
 func (h UpdateDataSubjectRequest) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateDataSubjectRequestName,
+		Permission: service.PermissionManageMembers,
+		Name:       UpdateDataSubjectRequestName,
 		Summary: "Assigns a case, notes something on it, or moves it: to `IN_PROGRESS`, which is " +
 			"what starts the work, to `COMPLETED`, or to `REJECTED` with the reason that makes " +
 			"a refusal an answer. An illegitimate step is refused by name rather than ignored.",

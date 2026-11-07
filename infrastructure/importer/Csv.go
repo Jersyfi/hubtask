@@ -74,6 +74,13 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 	if err != nil {
 		return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
+	return convertTable(source, header, reader.Read)
+}
+
+// convertTable is a header and its rows, however the file held them: a CSV's lines or a
+// workbook's first sheet. next answers io.EOF after the last row; a row it cannot read is
+// refused by its number and the rest go on.
+func convertTable(source service.Source, header []string, next func() ([]string, error)) (service.Result, error) {
 	columns, err := csvColumns(header, source.Mapping)
 	if err != nil {
 		return service.Result{}, err
@@ -91,7 +98,7 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 	zone := zoneOf(source.Zone)
 	rowNumber := 1
 	for {
-		record, err := reader.Read()
+		record, err := next()
 		rowNumber++
 		if errors.Is(err, io.EOF) {
 			break
@@ -128,7 +135,7 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 			collections[collectionName] = collection
 		}
 
-		item := Item{Key: "row:" + itoa(rowNumber), Collection: collection, Title: title, Notes: cell("notes")}
+		item := Item{Key: "row:" + itoa(rowNumber), Collection: collection, Title: title, Notes: cell("notes"), Row: rowNumber}
 		if bucketName := cell("bucket"); bucketName != "" {
 			key := collectionName + "/" + bucketName
 			bucket, ok := buckets[key]
@@ -225,7 +232,7 @@ func csvParentKey(parent string, b *builder) (string, bool) {
 			return "row:" + parent, true
 		}
 	}
-	key, ok := b.byTitle[strings.ToLower(parent)]
+	key, ok := b.byTitle[strings.ToLower(line(parent, 500))]
 	return key, ok
 }
 
@@ -276,7 +283,7 @@ func parseDue(cell string, zone *time.Location) (time.Time, bool, error) {
 	if at, err := time.Parse(time.RFC3339, cell); err == nil {
 		return at.UTC(), false, nil
 	}
-	for _, layout := range []string{"2006-01-02T15:04", "2006-01-02 15:04", "2006-01-02 15:04:05", "02.01.2006 15:04", "01/02/2006 15:04"} {
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02 15:04", "2006-01-02 15:04:05", "02.01.2006 15:04", "01/02/2006 15:04"} {
 		if at, err := time.ParseInLocation(layout, cell, zone); err == nil {
 			return at.UTC(), false, nil
 		}

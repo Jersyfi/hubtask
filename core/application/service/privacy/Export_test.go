@@ -7,14 +7,17 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
@@ -198,22 +201,44 @@ func TestADeletionMarkerAlwaysTravels(t *testing.T) {
 }
 
 // The archive is named so that a restore can be pointed at it and a backup listing never picks it
-// up by accident.
+// up by accident - and by the case, not the person (UC-PRV-02 check 2): the name lands in the
+// trail, and an address there would be personal data in an audit entry (rule 10).
 func TestAnExportIsNamedAsWhatItIs(t *testing.T) {
-	name := ArchiveName(subjectID, "", now)
+	caseID := shared.MustParseID("0192f000-0000-7000-8000-0000000000d7")
+	name := ArchiveName(caseID, now)
 
-	if got := name[:12]; got != "hubtask-dsr-" {
+	if !strings.HasPrefix(name, "hubtask-dsr-"+caseID.String()+"-") {
 		t.Errorf("the archive is named %q", name)
 	}
-	if archivePrefix := archive.Prefix(tenantID); len(name) >= len(archivePrefix) &&
-		name[:len(archivePrefix)] == archivePrefix {
+	if archivePrefix := archive.Prefix(tenantID); strings.HasPrefix(name, archivePrefix) {
 		t.Error("an export would appear among the workspace's backups")
 	}
+}
 
-	// A person with no account is named by their address, which is the only name there is.
-	byEmail := ArchiveName("", "anna@example.org", now)
-	if byEmail == name || byEmail[:12] != "hubtask-dsr-" {
-		t.Errorf("an export for somebody with no account is named %q", byEmail)
+// A person with no account is known by an address, and the archive of their copy - and the entry
+// about it - still names only the case.
+func TestAnAddressCopyIsNamedByItsCase(t *testing.T) {
+	target := &memoryTarget{written: map[string][]byte{}}
+	sink := &auditSink{}
+	caseID := shared.MustParseID("0192f000-0000-7000-8000-0000000000d8")
+
+	written, err := newExporter(target, &tenantsOf{}, sink, &snapshotter{}).
+		Export(context.Background(), actor(), domain.Request{
+			ID: caseID, Kind: domain.KindAccess, SubjectEmail: "anna@example.org", TargetID: targetID,
+		})
+	if err != nil {
+		t.Fatalf("exporting: %v", err)
+	}
+	if !strings.Contains(written.Archive, caseID.String()) || strings.Contains(written.Archive, "anna") {
+		t.Errorf("the archive is named %q", written.Archive)
+	}
+	for key := range target.written {
+		if strings.Contains(key, "anna") {
+			t.Errorf("the target holds %q", key)
+		}
+	}
+	if entry := fmt.Sprintf("%+v", sink.entries); strings.Contains(entry, "anna") {
+		t.Errorf("the trail names the address: %s", entry)
 	}
 }
 
@@ -403,7 +428,7 @@ func newExporter(target *memoryTarget, subjects *tenantsOf, sink *auditSink, sna
 			"comment": {{ID: "c1", Data: map[string]any{"author_id": subjectID.String()}}},
 			"bucket":  {{ID: "b1", Data: map[string]any{"name": "Doing"}}},
 		}},
-		Kudos: ownKudos{}, Audit: sink, Snapshot: snapshot, UnitOfWork: &unitOfWork{},
+		Kudos: ownKudos{}, Mail: addressMail{}, Audit: sink, Snapshot: snapshot, UnitOfWork: &unitOfWork{},
 		Clock: clock.Fixed(now), IDs: &idSource{},
 		SchemaVersion: "44", ProductVersion: "0.4.5",
 	}
@@ -424,6 +449,8 @@ func (o ownKudos) KudosOf(_ context.Context, accountID shared.ID, yield func(wor
 	return nil
 }
 
+// UC-PRV-02 check 6: the export writes `dsr.exported` in the workspace (a plain member cannot
+// start one: TestStartingAnExportAsksForTheAdministratorsLine).
 func TestAnExportWritesOneArchiveAndRecordsIt(t *testing.T) {
 	target := &memoryTarget{written: map[string][]byte{}}
 	sink, snapshot := &auditSink{}, &snapshotter{}
@@ -462,7 +489,8 @@ func TestAnExportWritesOneArchiveAndRecordsIt(t *testing.T) {
 
 // An installation-wide case is a loop rather than a wider query, each workspace read under its own
 // tenant context, with an entry in each - and what it writes is one archive (UC-PRV-06 check 3): one
-// object whose members are the workspaces' archives, named by the case and not the person.
+// object whose members are the workspaces' archives, named by the case and not the person. The one
+// question across workspaces is which ones the address is a member of (UC-PRV-06 check 5).
 func TestAnInstallationWideExportCollectsWorkspaceByWorkspace(t *testing.T) {
 	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000f2")
 	target := &memoryTarget{written: map[string][]byte{}}
@@ -508,6 +536,9 @@ func TestAnInstallationWideExportCollectsWorkspaceByWorkspace(t *testing.T) {
 		t.Errorf("the archive holds the workspaces %v", manifests)
 	}
 
+	if subjects.asked != 1 {
+		t.Errorf("the workspaces were asked for %d times", subjects.asked)
+	}
 	// Each archive is written under its own workspace's context - never one query across tenants.
 	if len(snapshot.scopes) != 2 ||
 		snapshot.scopes[0].TenantID != tenantID || snapshot.scopes[1].TenantID != elsewhere {
@@ -574,7 +605,8 @@ func keysOf(written map[string][]byte) []string {
 	return keys
 }
 
-// A case with no target is refused before anything is opened: an export has to be put somewhere.
+// A case with no target is refused before anything is opened: an export has to be put somewhere
+// (UC-PRV-02 check 1).
 func TestAnExportWithNoTargetIsRefused(t *testing.T) {
 	target := &memoryTarget{written: map[string][]byte{}}
 
@@ -582,10 +614,151 @@ func TestAnExportWithNoTargetIsRefused(t *testing.T) {
 		Export(context.Background(), actor(), domain.Request{
 			ID: subjectID, Kind: domain.KindAccess, SubjectAccountID: subjectID,
 		})
-	if err == nil {
-		t.Fatal("an export with nowhere to write was accepted")
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != domain.CodeExportTargetRequired {
+		t.Fatalf("an export with nowhere to write came back as %v", err)
 	}
 	if len(target.opened) != 0 {
 		t.Error("a target was opened for an export that could not be written")
+	}
+}
+
+// A requester who wrote in by mail and has no account: the entry their mail created and the comment
+// their reply became were filed by an agent, so only their intake line names them - and those are
+// in their copy, while the agent's own comment on the same entry is not.
+func TestAnAddressCopyCarriesTheEntriesAndCommentsTheirMailBecame(t *testing.T) {
+	agent := shared.MustParseID("0192f000-0000-7000-8000-0000000000a9")
+	item := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	reply := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000b3")
+	lines := intakeRecords([]repository.IntakeLine{
+		{ID: item, ItemID: item, WrittenBy: agent, Text: "From: Anna <anna@example.org>\n\nMy printer is broken."},
+		{Comment: true, ID: reply, ItemID: item, WrittenBy: agent, Text: "From: Anna <anna@example.org>\n\nStill broken."},
+		// The prefix test of the query matched, the exact line does not: another address.
+		{Comment: true, ID: other, ItemID: item, WrittenBy: agent, Text: "From: Bert <banna@example.org.evil>\n\nhi"},
+	}, "anna@example.org")
+	inner := &rowsOfEntity{rows: map[string][]archive.Record{
+		"work_item": {upsert(item.String(), map[string]any{"created_by": agent.String()})},
+		"comment": {
+			upsert(reply.String(), map[string]any{"author_id": agent.String()}),
+			upsert(other.String(), map[string]any{"author_id": agent.String()}),
+			upsert("c-team", map[string]any{"author_id": agent.String()}),
+		},
+	}}
+	source := subjectSource{inner: inner, email: "anna@example.org", lines: lines}
+
+	if kept := collect(t, source, "work_item"); len(kept) != 1 || kept[0].ID != item.String() {
+		t.Errorf("the entries came out as %v", kept)
+	}
+	if kept := collect(t, source, "comment"); len(kept) != 1 || kept[0].ID != reply.String() {
+		t.Errorf("the comments came out as %v", kept)
+	}
+}
+
+// The intake's log of an address and the rating links mailed to it are in no workspace archive, so
+// a copy of the address carries them as sections of its own (data-protection.md §4.1) - the link
+// without its token, which is a credential and nothing about the person.
+func TestAnAddressCopyCarriesItsMailReceiptsAndRatingLinks(t *testing.T) {
+	item := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	used := now.Add(time.Hour)
+	mail := addressMail{
+		receipts: []repository.MailReceipt{{
+			ID: item, MessageID: "<m1@example.org>", ReceivedAt: now, Sender: "anna@example.org",
+			Subject: "Printer", Outcome: "ENTRY", ItemID: item, Door: "support@example.com",
+		}},
+		links: []repository.RatingLink{{ItemID: item, CreatedAt: now, ExpiresAt: now.Add(720 * time.Hour), UsedAt: &used}},
+	}
+	counted := 0
+	source := subjectSource{inner: &rowsOfEntity{}, email: "anna@example.org", mail: mail, counted: &counted}
+
+	var noAccount shared.ID
+	sections := copySections(noAccount, "anna@example.org")
+	if len(sections) != 2 || sections[0].Name != mailReceiptSection.Name || sections[1].Name != ratingLinkSection.Name {
+		t.Fatalf("an address's copy has the sections %v", sections)
+	}
+	if withAccount := copySections(subjectID, "anna@example.org"); len(withAccount) != 3 {
+		t.Errorf("an account's copy with an address has the sections %v", withAccount)
+	}
+	if none := copySections(subjectID, ""); len(none) != 1 || none[0].Name != kudosSection.Name {
+		t.Errorf("an account's copy without an address has the sections %v", none)
+	}
+
+	receipts := collectSection(t, source, mailReceiptSection)
+	if len(receipts) != 1 || receipts[0].Data["subject"] != "Printer" || receipts[0].Data["item_id"] != item.String() ||
+		receipts[0].Data["entry_id"] != nil || receipts[0].Data["received_at"] == nil {
+		t.Errorf("the receipts came out as %v", receipts)
+	}
+	links := collectSection(t, source, ratingLinkSection)
+	if len(links) != 1 || links[0].Data["item_id"] != item.String() || links[0].Data["used_at"] == nil {
+		t.Errorf("the rating links came out as %v", links)
+	}
+	if _, token := links[0].Data["token_hash"]; token {
+		t.Error("a rating link went into the copy with its token")
+	}
+	if counted != 2 {
+		t.Errorf("%d records were counted", counted)
+	}
+	for _, section := range []archive.Entity{mailReceiptSection, ratingLinkSection} {
+		if _, archived := archive.FindEntity(section.Name); archived {
+			t.Errorf("%s is an entity of every archive", section.Name)
+		}
+		// A copy that cannot read them is not written short.
+		if err := (subjectSource{inner: &rowsOfEntity{}, email: "anna@example.org"}).Records(t.Context(), section,
+			time.Time{}, func(archive.Record) error { return nil }); err == nil {
+			t.Errorf("a copy without a reader for %s was written without them", section.Name)
+		}
+	}
+}
+
+func collectSection(t *testing.T, source subjectSource, section archive.Entity) []archive.Record {
+	t.Helper()
+	var kept []archive.Record
+	if err := source.Records(t.Context(), section, time.Time{}, func(record archive.Record) error {
+		kept = append(kept, record)
+		return nil
+	}); err != nil {
+		t.Fatalf("reading %s: %v", section.Name, err)
+	}
+	return kept
+}
+
+// addressMail answers an address's receipts and links as the repository would.
+type addressMail struct {
+	receipts []repository.MailReceipt
+	links    []repository.RatingLink
+}
+
+func (a addressMail) MailReceiptsFrom(context.Context, string) ([]repository.MailReceipt, error) {
+	return a.receipts, nil
+}
+
+func (a addressMail) RatingLinksTo(context.Context, string) ([]repository.RatingLink, error) {
+	return a.links, nil
+}
+
+// UC-PRV-02 check 5: access and portability produce the same archive - the same members with the
+// same data; only the occasion the trail names differs.
+func TestAccessAndPortabilityProduceTheSameArchive(t *testing.T) {
+	members := func(kind domain.Kind) map[string]string {
+		target := &memoryTarget{written: map[string][]byte{}}
+		if _, err := newExporter(target, &tenantsOf{}, &auditSink{}, &snapshotter{}).
+			Export(context.Background(), actor(), domain.Request{
+				ID: subjectID, Kind: kind, SubjectAccountID: subjectID, TargetID: targetID,
+			}); err != nil {
+			t.Fatalf("exporting %s: %v", kind, err)
+		}
+		out := map[string]string{}
+		for key, body := range target.written {
+			if strings.HasSuffix(key, ".jsonl") {
+				out[key] = string(body)
+			} else {
+				out[key] = ""
+			}
+		}
+		return out
+	}
+	access, portability := members(domain.KindAccess), members(domain.KindPortability)
+	if len(access) == 0 || !maps.Equal(access, portability) {
+		t.Errorf("access wrote %v, portability %v", access, portability)
 	}
 }

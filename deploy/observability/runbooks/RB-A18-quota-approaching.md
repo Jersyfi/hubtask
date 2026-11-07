@@ -1,7 +1,8 @@
 # RB-A18 — A workspace approaches a quota
 
-**Alert**: `HubtaskTenantQuotaApproaching` — `hubtask_tenant_quota_usage_ratio > 0.9` for 15
-minutes. Severity `info`: capacity planning, not an outage. Nothing is broken yet, and that is
+**Alert**: `HubtaskTenantQuotaApproaching` — `hubtask_tenant_quota_workspaces{band="approaching"} > 0`
+for 15 minutes: the scheduler leader's count, every five minutes, of the workspaces at 90% or more
+of a quota (`band="at_limit"` beside it counts those at the wall). Severity `info`: capacity planning, not an outage. Nothing is broken yet, and that is
 the point of being told now.
 
 ## What is happening
@@ -23,13 +24,15 @@ is broken.
 
 ## Who it is
 
-With `HUBTASK_METRICS_TENANT_LABEL=true` the series carries `tenant_id`. Without it, ask the
-installation: every workspace's standing is one authenticated call to `GET /quotas` (their own
-view), or read the ledger —
+The series never carries a workspace, not even with `HUBTASK_METRICS_TENANT_LABEL=true`. Ask the
+installation which one, and at which wall:
 
-```sql
-SELECT tenant_id, metric, period, value FROM usage_record ORDER BY period DESC, value DESC LIMIT 20;
+```sh
+hubctl admin quota near        # GET /admin/quotas
 ```
+
+It answers every active workspace at 90% or more of a counted quota, by identifier and address,
+with each such quota's ceiling, use and ratio, read at the moment of the call.
 
 ## What to do
 

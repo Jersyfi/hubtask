@@ -22,6 +22,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	mail "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -103,6 +104,9 @@ type ReceiveMail struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Requesters records a sender without an account whose mail an account filed on their behalf
+	// (REQUESTER, accepted.md B); nil records none.
+	Requesters RequesterContacts
 	// Domain is the operator's receiving domain; empty takes nothing from the inbound service.
 	Domain string
 }
@@ -345,6 +349,8 @@ func actorOf(scope persistence.Scope, account identity.Account) appshared.ActorC
 		Scopes:   []string{itemsWriteScope, commentsWrite},
 		Locale:   account.Locale,
 		TimeZone: account.TimeZone,
+		// A type's form narrows what arrives by mail (domain-model.md §2, "Forms").
+		Channel: string(work.ChannelMail),
 	}
 }
 
@@ -356,6 +362,7 @@ func (h ReceiveMail) write(
 	text := domain.CutQuotedReply(message.Body)
 	if onBehalf {
 		text = fromLine(message) + "\n\n" + text
+		actor.ForSender = true
 	}
 	var result MailDeliveryResult
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -417,9 +424,20 @@ func (h ReceiveMail) write(
 				return err
 			}
 		}
+		if onBehalf && h.Requesters != nil {
+			// In the act's transaction: an entry filed for somebody is never without the record
+			// that says whose it is and when it goes.
+			return h.Requesters.RecordContact(ctx, strings.ToLower(senderWithin(message.Sender)),
+				strings.TrimSpace(message.SenderName), result.ItemID, h.Clock.Now())
+		}
 		return nil
 	})
 	return result, err
+}
+
+// RequesterContacts is the record of requesters without an account.
+type RequesterContacts interface {
+	RecordContact(ctx context.Context, address, name string, itemID shared.ID, at time.Time) error
 }
 
 // toJumble stores the message as a jumble entry, with the place it was meant for and why it is here.

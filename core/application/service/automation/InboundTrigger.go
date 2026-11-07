@@ -15,6 +15,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -79,8 +80,8 @@ func (h RotateInboundTrigger) Execute(
 	// The automation permission at the rule's own scope. Not the composition check writing a rule
 	// needs: an address does not widen what the rule may do, and what the rule does was decided
 	// when it was written and is decided again, per action, when it runs.
-	if err := h.Authorizer.Authorize(
-		ctx, actor, runRequest(rule.Scope, InboundRotatedAction, rule.ID),
+	if err := askRun(ctx, h.Authorizer, actor, rule.Scope,
+		runRequest(rule.Scope, InboundRotatedAction, rule.ID),
 	); err != nil {
 		return MintedInboundTrigger{}, err
 	}
@@ -149,7 +150,8 @@ func (h RotateInboundTrigger) record(
 // Descriptor is the catalogue entry.
 func (h RotateInboundTrigger) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RotateInboundTriggerName,
+		Permission: service.PermissionAutomation,
+		Name:       RotateInboundTriggerName,
 		Summary: "Mints the address an INBOUND_WEBHOOK rule answers on, and replaces whatever " +
 			"address it had. The token is answered once and stored hashed, so no later read can " +
 			"produce it - rotating is how one is revoked, because a rule has exactly one address.",

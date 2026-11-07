@@ -4,11 +4,11 @@
 // *Make entries* in the capture field (UC-AI-09), walked against the shared fixture with the
 // server's answers for this walk routed here:
 //
-// * check 1 - with AI on, pasted text of more than one line offers *Make entries*; one line does
+// * UC-AI-09 check 1 - with AI on, pasted text of more than one line offers *Make entries*; one line does
 //   not, and without AI nothing is drawn;
-// * check 2 - the proposal lists the entries with the fields the server proposed, and marks the one
+// * UC-AI-09 check 2 - the proposal lists the entries with the fields the server proposed, and marks the one
 //   whose title looks like an existing entry;
-// * check 3 - nothing is created before a press: *Take* on one creates that one and leaves the rest,
+// * UC-AI-09 check 3 - nothing is created before a press: *Take* on one creates that one and leaves the rest,
 //   *Take all* creates the rest and closes the field, *Dismiss* creates nothing;
 // * check 4 is the server's (the material carries nobody's content who keeps it out), proved by
 //   `core/application/service/suggestion/MakeEntries_test.go`.
@@ -142,7 +142,7 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
 
         // Check 3: one entry taken, the rest still proposed, and the way back offered.
         await proposal.getByRole('button', { name: 'Take “Eggs”' }).click();
-        await page.locator('.stack').getByText('Added to Groceries').waitFor({ timeout: 5_000 });
+        await page.locator('.stack').getByText('“Eggs” added to Groceries').waitFor({ timeout: 5_000 });
         assert.deepEqual(callsOf(writes, `POST /suggestions/${PROPOSAL}:accept`)[0].body, { take: ['2'] });
         await proposal.getByText('Eggs', { exact: true }).waitFor({ state: 'detached', timeout: 5_000 });
         await proposal.getByText('Flour', { exact: true }).waitFor({ timeout: 5_000 });

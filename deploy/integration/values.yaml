@@ -42,6 +42,9 @@ config:
     - webhook.invalid
     - api.anthropic.com
     - s3.amazonaws.com
+  # Traefik runs as a pod of this k3s node, so its address is in the default pod network.
+  trustedProxies:
+    - 10.42.0.0/16
   extraEnv:
     # The application's mail path (smtp.yaml): a catcher in this namespace, reached by the name
     # its certificate carries, on production's port, with the default - STARTTLS - security.

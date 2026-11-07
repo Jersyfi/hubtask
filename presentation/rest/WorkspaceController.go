@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -15,129 +14,9 @@ import (
 
 // The workspace's own configuration.
 const (
-	readWorkspaceUseCase   = "ReadWorkspace"
-	updateWorkspaceUseCase = "UpdateWorkspace"
-
+	readWorkspaceUseCase          = "ReadWorkspace"
 	changeWorkspaceAddressUseCase = "ChangeWorkspaceAddress"
 )
-
-// ReadWorkspace answers GET /tenant.
-//
-// Written out rather than through the identity helper, for `ListWebhookSubscriptions`' reason:
-// the helper's closure takes no context, and an operation with no parameters gives the linter
-// nothing to trace the request's context through.
-func (c *RestController) ReadWorkspace(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), readWorkspaceUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusOK, workspaceResponse(out))
-}
-
-// UpdateWorkspace answers PATCH /tenant.
-func (c *RestController) UpdateWorkspace(
-	w http.ResponseWriter, r *http.Request, params openapi.UpdateWorkspaceParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.WorkspaceUpdate
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-
-		in := usecase.Input{
-			"display_name":      optionalStringField(body.DisplayName),
-			"default_locale":    optionalStringField(body.DefaultLocale),
-			"default_time_zone": optionalStringField(body.DefaultTimeZone),
-		}
-		if body.DefaultWeekStart != nil {
-			// The empty string is the clearing, which an explicit null cannot say here.
-			in["default_week_start"] = string(*body.DefaultWeekStart)
-		}
-		if body.RequireAdminTotp != nil {
-			// Set only when the caller sent one: absent has to reach the catalogue as absent,
-			// because false is a value this field legitimately holds.
-			in["require_admin_totp"] = *body.RequireAdminTotp
-		}
-		if version, ok := versionFromIfMatch(params.IfMatch); ok {
-			in["expected_version"] = version
-		}
-		if body.SignInPolicy != nil {
-			// The sign-in half travels as a flat document rather than as eighteen declared fields:
-			// the catalogue's input is one shape for three channels, and eighteen of them would be
-			// eighteen places for a name to drift from the one the domain knows.
-			in["sign_in_policy"] = signInPolicyChange(*body.SignInPolicy)
-		}
-		if body.SignInPolicy != nil || body.RequireAdminTotp != nil {
-			// The old boolean is a change to the rule too (UC-ID-12 check 2), so it carries the
-			// proof the rule demands.
-			in["step_up_token"] = stepUpHeaderField(params.XHubtaskStepUp)
-		}
-		return c.UseCases.Invoke(r.Context(), updateWorkspaceUseCase, actor, in)
-	}, func(out usecase.Output) {
-		w.Header().Set("ETag", etag(out.Int("version")))
-		writeJSON(w, r, http.StatusOK, workspaceResponse(out))
-	})
-}
-
-// signInPolicyChange flattens the contract's patch into the catalogue's document. Only what the
-// caller sent: an absent switch has to reach the use case absent, because zero is a value every one
-// of these legitimately holds.
-func signInPolicyChange(sent openapi.SignInPolicyChange) map[string]any {
-	change := map[string]any{}
-
-	for name, value := range map[string]*int{
-		"min_length": sent.MinLength, "min_lowercase": sent.MinLowercase,
-		"min_uppercase": sent.MinUppercase, "min_digits": sent.MinDigits,
-		"min_symbols": sent.MinSymbols, "min_classes": sent.MinClasses,
-		"max_repeat": sent.MaxRepeat, "max_age_days": sent.MaxAgeDays,
-		"history_count": sent.HistoryCount, "min_age_hours": sent.MinAgeHours,
-		"session_max_days": sent.SessionMaxDays, "session_idle_minutes": sent.SessionIdleMinutes,
-	} {
-		if value != nil {
-			change[name] = *value
-		}
-	}
-	for name, value := range map[string]*bool{
-		"common_passwords": sent.CommonPasswords, "context_words": sent.ContextWords,
-		"breach_check": sent.BreachCheck, "managed_accounts": sent.ManagedAccounts,
-		"private_hubs": sent.PrivateHubs,
-	} {
-		if value != nil {
-			change[name] = *value
-		}
-	}
-	for name, value := range map[string]*string{
-		"imprint_url": sent.ImprintUrl, "privacy_url": sent.PrivacyUrl,
-		"terms_url": sent.TermsUrl, "accessibility_url": sent.AccessibilityUrl,
-		"terms_version": sent.TermsVersion,
-	} {
-		if value != nil {
-			change[name] = *value
-		}
-	}
-	if sent.MfaRequiredFor != nil {
-		change["mfa_required_for"] = string(*sent.MfaRequiredFor)
-	}
-	if sent.Methods != nil {
-		methods := make([]any, 0, len(*sent.Methods))
-		for _, method := range *sent.Methods {
-			methods = append(methods, string(method))
-		}
-		change["methods"] = methods
-	}
-	if sent.RotationFrom != nil {
-		change["rotation_from"] = string(*sent.RotationFrom)
-	}
-	return change
-}
 
 // workspaceResponse maps the use case's answer.
 func workspaceResponse(out usecase.Output) openapi.Workspace {
@@ -158,6 +37,12 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	}
 	if offered, held := out["private_hubs_offered"].(bool); held {
 		answer.PrivateHubsOffered = &offered
+	}
+	if offered, held := out["starter_offered"].(bool); held {
+		answer.StarterOffered = &offered
+	}
+	if skipped, held := out["starter_skipped"].(bool); held {
+		answer.StarterSkipped = &skipped
 	}
 	if updated, held := out["updated_at"].(time.Time); held && !updated.IsZero() {
 		answer.UpdatedAt = &updated
@@ -324,6 +209,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			InstallationSource: policySource(row["installation_source"]),
 		}
 	}
+	helpWord := func(document usecase.Output, field string) *openapi.SignInPolicyText {
+		held := word(document, field)
+		return &held
+	}
 
 	password, _ := out["password"].(usecase.Output)
 	session, _ := out["session"].(usecase.Output)
@@ -363,6 +252,8 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			PrivacyUrl:       word(legal, "privacy_url"),
 			TermsUrl:         word(legal, "terms_url"),
 			AccessibilityUrl: word(legal, "accessibility_url"),
+			SupportUrl:       helpWord(legal, "support_url"),
+			DocsUrl:          helpWord(legal, "docs_url"),
 			TermsVersion:     word(legal, "terms_version"),
 		},
 	}
@@ -426,4 +317,13 @@ func optionalStringOutput(out usecase.Output, field string) *string {
 		return nil
 	}
 	return &value
+}
+
+// stepUpHeaderField reads the proof off the header a privileged operation accepts it in, for the
+// doors written out longhand.
+func stepUpHeaderField(token *openapi.StepUpToken) any {
+	if token == nil || *token == "" {
+		return nil
+	}
+	return string(*token)
 }

@@ -24,34 +24,9 @@ import (
 // thing that is genuinely this layer's - the address a client subscribes to, which is a URL and
 // therefore a question about this installation rather than about the domain.
 
-const (
-	listCalendarFeedsUseCase  = "ListCalendarFeeds"
-	createCalendarFeedUseCase = "CreateCalendarFeed"
-	revokeCalendarFeedUseCase = "RevokeCalendarFeed"
-)
-
-// ListCalendarFeeds answers GET /integrations/calendar-feeds.
-func (c *RestController) ListCalendarFeeds(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(
-		r.Context(), listCalendarFeedsUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	feeds := make([]openapi.CalendarFeed, 0, len(rows))
-	for _, row := range rows {
-		feeds = append(feeds, calendarFeedResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, feeds)
-}
+// createCalendarFeedUseCase is CreateCalendarFeed's, answered longhand rather than by the generated
+// door: the address handed out is the workspace's, which takes the request's context to read.
+const createCalendarFeedUseCase = "CreateCalendarFeed"
 
 // CreateCalendarFeed answers POST /integrations/calendar-feeds.
 func (c *RestController) CreateCalendarFeed(
@@ -62,13 +37,11 @@ func (c *RestController) CreateCalendarFeed(
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
-
 	var body openapi.CalendarFeedCreate
 	if err := decodeJSON(r, &body); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
-
 	// Read before the feed is made, so an address that cannot be read leaves no feed whose token
 	// nobody was handed.
 	base, err := c.linkBase(r.Context(), actorOf(r).TenantID)
@@ -76,42 +49,42 @@ func (c *RestController) CreateCalendarFeed(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	out, err := c.UseCases.Invoke(r.Context(), createCalendarFeedUseCase, actorOf(r),
-		usecase.Input{"view_id": body.ViewId.String()})
+	in := usecase.Input{"view_id": body.ViewId.String()}
+	if body.Kind != nil {
+		in["kind"] = string(*body.Kind)
+	}
+	out, err := c.UseCases.Invoke(r.Context(), createCalendarFeedUseCase, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
+	writeJSON(w, r, http.StatusCreated, calendarFeedSecretResponse(base, out))
+}
 
+// calendarFeedSecretResponse draws a new feed with its token and the address it is read at, on the
+// workspace's main address (base).
+func calendarFeedSecretResponse(base string, out usecase.Output) openapi.CalendarFeedSecret {
 	feed := calendarFeedResponse(out)
 	token := out.String("token")
-	writeJSON(w, r, http.StatusCreated, openapi.CalendarFeedSecret{
+	address := feedURL(base, token)
+	if out.String("kind") == string(integration.DataKind) {
+		address = dataFeedRoot(base, token)
+	}
+	var kind *openapi.CalendarFeedSecretKind
+	if feed.Kind != nil {
+		k := openapi.CalendarFeedSecretKind(*feed.Kind)
+		kind = &k
+	}
+	return openapi.CalendarFeedSecret{
+		Kind:      kind,
 		Id:        feed.Id,
 		AccountId: feed.AccountId,
 		ViewId:    feed.ViewId,
 		CreatedAt: feed.CreatedAt,
 		RevokedAt: feed.RevokedAt,
 		Token:     token,
-		Url:       feedURL(base, token),
-	})
-}
-
-// RevokeCalendarFeed answers DELETE /integrations/calendar-feeds/{feedId}.
-func (c *RestController) RevokeCalendarFeed(
-	w http.ResponseWriter, r *http.Request, feedID openapi.FeedId,
-) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
+		Url:       address,
 	}
-
-	if _, err := c.UseCases.Invoke(r.Context(), revokeCalendarFeedUseCase, actorOf(r),
-		usecase.Input{"feed_id": feedID.String()}); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // WorkspaceLinks answers a workspace's address for the links this layer writes: the main row's,
@@ -125,10 +98,19 @@ type WorkspaceLinks interface {
 // linkBase is the address of tenantID's workspace, or empty where no Links is wired, which keeps
 // every link relative.
 func (c *RestController) linkBase(ctx context.Context, tenantID shared.ID) (string, error) {
-	if c.Links == nil {
+	return linkBaseOf(ctx, c.Links, tenantID)
+}
+
+// linkBase is linkBaseOf for the routes a token alone opens.
+func (c *FeedDoor) linkBase(ctx context.Context, tenantID shared.ID) (string, error) {
+	return linkBaseOf(ctx, c.Links, tenantID)
+}
+
+func linkBaseOf(ctx context.Context, links WorkspaceLinks, tenantID shared.ID) (string, error) {
+	if links == nil {
 		return "", nil
 	}
-	return c.Links.For(ctx, tenantID)
+	return links.For(ctx, tenantID)
 }
 
 // feedURL is the address a calendar client is given, on the workspace's main address. Without one
@@ -149,6 +131,10 @@ func calendarFeedResponse(out usecase.Output) openapi.CalendarFeed {
 		Id:        uuidValue(out.String("id")),
 		AccountId: uuidValue(out.String("account_id")),
 		CreatedAt: timeValue(out["created_at"]),
+	}
+	if kind := out.String("kind"); kind != "" {
+		k := openapi.CalendarFeedKind(kind)
+		feed.Kind = &k
 	}
 	if view := out.String("view_id"); view != "" {
 		viewID := uuidValue(view)
@@ -175,11 +161,11 @@ type CalendarFeedReader interface {
 // owner who may read it are all decided inwards of here (ADR-0005). Every one of those answers
 // looks the same from out here, which is the point: a route that distinguished them would answer
 // questions for whoever is trying tokens (T-21).
-func (c *RestController) GetCalendarFeedDocument(
+func (c *FeedDoor) GetCalendarFeedDocument(
 	w http.ResponseWriter, r *http.Request, presented string,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
-	if c.CalendarFeeds == nil {
+	if c.Calendar == nil {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
@@ -192,11 +178,12 @@ func (c *RestController) GetCalendarFeedDocument(
 		return
 	}
 
-	exported, err := c.CalendarFeeds.Execute(r.Context(), token)
+	exported, err := c.Calendar.Execute(r.Context(), token)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
+
 	// The feed's own workspace, which the token names; read only once the feed is known to stand,
 	// so a guessed token learns nothing a known one would not.
 	base, err := c.linkBase(r.Context(), token.TenantID())
@@ -210,7 +197,7 @@ func (c *RestController) GetCalendarFeedDocument(
 	zone := zoneOr(exported.TimeZone, time.UTC)
 	events := make([]calendar.Event, 0, len(exported.Items))
 	for _, item := range exported.Items {
-		event, dated := eventOf(base, item, zone)
+		event, dated := eventOf(item, zone, base)
 		if !dated {
 			continue
 		}
@@ -226,7 +213,7 @@ func (c *RestController) GetCalendarFeedDocument(
 
 // eventOf turns one entry into a calendar entry, and says whether it is one at all: an entry with
 // no due date is not a moment, and a calendar is a set of moments.
-func eventOf(base string, item workmodel.WorkItem, zone *time.Location) (calendar.Event, bool) {
+func eventOf(item workmodel.WorkItem, zone *time.Location, base string) (calendar.Event, bool) {
 	if item.Due == nil {
 		return calendar.Event{}, false
 	}

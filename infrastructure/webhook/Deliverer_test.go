@@ -62,6 +62,9 @@ func (s *stores) FindPendingOfPush(context.Context, shared.ID, domain.CollapseKe
 }
 
 func (s *stores) Repoint(context.Context, shared.ID, shared.ID) (bool, error) { return false, nil }
+func (s *stores) Superseded(context.Context, domain.WebhookDelivery) (bool, error) {
+	return false, nil
+}
 
 func (s *stores) RecordOutcome(_ context.Context, outcome repository.DeliveryOutcome) error {
 	s.outcomes = append(s.outcomes, outcome)

@@ -70,9 +70,11 @@ type CreateSavedViewCommand struct {
 	ScopeType view.ViewScope
 	ScopeID   shared.ID
 	Name      string
-	Layout    string
-	Query     map[string]any
-	Grouping  map[string]any
+	// Key names the view in its scope; empty asks the store to draw one from the name.
+	Key      string
+	Layout   string
+	Query    map[string]any
+	Grouping map[string]any
 	// VisibleFields distinguishes nil - not sent, stored empty - from an empty list a client
 	// chose, though the two store alike.
 	VisibleFields []string
@@ -125,7 +127,7 @@ func (h CreateSavedView) Execute(
 		built, err := view.NewSavedView(view.NewSavedViewInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID,
 			ScopeType: cmd.ScopeType, ScopeID: scopeID, OwnerID: actor.AccountID,
-			Name: cmd.Name, Layout: cmd.Layout, Query: cmd.Query, Grouping: cmd.Grouping,
+			Name: cmd.Name, Key: cmd.Key, Layout: cmd.Layout, Query: cmd.Query, Grouping: cmd.Grouping,
 			VisibleFields: cmd.VisibleFields, Sharing: cmd.Sharing,
 			Now: now, Text: h.Text,
 		})
@@ -139,6 +141,12 @@ func (h CreateSavedView) Execute(
 		if err := h.Views.Insert(ctx, built); err != nil {
 			return err
 		}
+		// The key the store drew where the writer named none.
+		stored, err := h.Views.Find(ctx, built.ID)
+		if err != nil {
+			return err
+		}
+		built.Key = stored.Key
 		if err := recordViewAudit(ctx, h.Audit, actor, built, ViewCreatedAction, now); err != nil {
 			return err
 		}
@@ -234,6 +242,9 @@ type ListSavedViewsQuery struct {
 	// ContainerID widens the answer to what is shared along that container's path. Zero answers
 	// the caller's own views alone.
 	ContainerID shared.ID
+	// Workspace widens it to what is shared workspace-wide instead, asking READ at the workspace -
+	// the configuration document's views section reads it.
+	Workspace bool
 }
 
 // Execute returns the views.
@@ -245,6 +256,26 @@ type ListSavedViewsQuery struct {
 func (h ListSavedViews) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListSavedViewsQuery,
 ) ([]view.SavedView, error) {
+	if query.Workspace && query.ContainerID.IsZero() {
+		if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.PermissionRead,
+			Path:       []identity.Scope{identity.TenantScope()},
+			Action:     ViewReadAction,
+			TokenScope: viewsRead,
+			TargetType: viewTarget,
+			TargetID:   actor.TenantID,
+		}); err != nil {
+			return nil, err
+		}
+		// No container: the caller's own and the TENANT-wide shares, which match by type alone.
+		var views []view.SavedView
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			views, err = h.Views.ListReachable(ctx, actor.AccountID, nil)
+			return err
+		})
+		return views, err
+	}
 	if query.ContainerID.IsZero() {
 		// The caller's own shelf: self-service, like reading one's own preferences. The token
 		// scope is still the door.
@@ -443,6 +474,7 @@ func viewOutput(saved view.SavedView) usecase.Output {
 		"scope_id":   nil,
 		"owner_id":   saved.OwnerID.String(),
 		"name":       saved.Name,
+		"key":        saved.Key,
 		"layout":     string(saved.Layout),
 		"query":      saved.Query,
 		"grouping":   saved.Grouping,
@@ -488,6 +520,13 @@ func (h CreateSavedView) Descriptor() usecase.Descriptor {
 			{
 				Name: "name", Kind: usecase.KindString, Required: true,
 				Description: "The view's name: one line, at most 200 characters.",
+			},
+			{
+				Name: "key", Kind: usecase.KindString,
+				Description: "The view's stable key where it lives - lower case letters, digits and " +
+					"underscores, starting with a letter, at most 63 - by which the configuration " +
+					"document names it. Omitted draws one from the name; one its scope already " +
+					"holds is refused. A rename keeps it.",
 			},
 			{
 				Name: "layout", Kind: usecase.KindString, Required: true,
@@ -553,6 +592,7 @@ func (h CreateSavedView) invoke(
 		ScopeType: view.ViewScope(in.String("scope_type")),
 		ScopeID:   scopeID,
 		Name:      in.String("name"),
+		Key:       in.String("key"),
 		Layout:    in.String("layout"),
 		Sharing:   sharing,
 	}
@@ -577,7 +617,8 @@ func (h CreateSavedView) invoke(
 // Descriptor is the catalogue entry.
 func (h ListSavedViews) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListSavedViewsName,
+		Name:       ListSavedViewsName,
+		Permission: service.PermissionRead,
 		Summary: "The saved views the caller may see. Naming a container answers the caller's " +
 			"own views plus what is shared into that container's path - the collection's, its " +
 			"hub's and the workspace-wide ones. Naming none answers the caller's own alone.",
@@ -589,6 +630,11 @@ func (h ListSavedViews) Descriptor() usecase.Descriptor {
 				Name: "container_id", Kind: usecase.KindID,
 				Description: "The container whose shared views are wanted, together with the " +
 					"caller's own. Omitted answers the caller's own alone.",
+			},
+			{
+				Name: "workspace", Kind: usecase.KindBool,
+				Description: "Without a container: the views shared workspace-wide, together with " +
+					"the caller's own.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -607,7 +653,7 @@ func (h ListSavedViews) invoke(
 		return nil, err
 	}
 
-	views, err := h.Execute(ctx, actor, ListSavedViewsQuery{ContainerID: containerID})
+	views, err := h.Execute(ctx, actor, ListSavedViewsQuery{ContainerID: containerID, Workspace: in.Bool("workspace")})
 	if err != nil {
 		return nil, err
 	}

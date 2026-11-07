@@ -39,6 +39,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   const OUTCOMES = ['SUCCESS', 'DENIED', 'FAILED'];
   const FORMATS = ['JSONL', 'CSV'];
@@ -53,6 +54,7 @@
   let targetType = $state('');
   let targetId = $state('');
   let outcome = $state('');
+  let requestId = $state('');
 
   // The query the listing is reading. Separate from the fields, so that typing into a filter does
   // not send a request per keystroke: the reader presses the button.
@@ -214,6 +216,7 @@
       ...(targetType.trim() ? { targetType: targetType.trim() } : {}),
       ...(targetId.trim() ? { targetId: targetId.trim() } : {}),
       ...(outcome ? { outcome } : {}),
+      ...(requestId.trim() ? { requestId: requestId.trim() } : {}),
     };
   }
 
@@ -254,16 +257,13 @@
     <p class="quiet">{t('app.audit.intro')}</p>
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        <Stack gap="050">
-          {#each [...failure.fields] as [path, message] (path)}
-            <span>{message}</span>
-          {/each}
-          {#if failure.reference}
-            <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-          {/if}
-        </Stack>
-      </Banner>
+      <FailureNote problem={failure}>
+        {#if failure.fields.size > 0}
+          <Stack gap="050">
+            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+          </Stack>
+        {/if}
+      </FailureNote>
     {/if}
 
     <form class="panel" onsubmit={apply}>
@@ -290,6 +290,11 @@
             bind:value={targetType}
           />
           <Input label={t('app.audit.target_id')} bind:value={targetId} />
+          <Input
+            label={t('app.audit.request_id')}
+            hint={t('app.audit.request_id_hint')}
+            bind:value={requestId}
+          />
           <Select
             label={t('app.audit.outcome')}
             bind:value={outcome}
@@ -313,9 +318,7 @@
         <Spinner label={t('app.audit.reading')} /> <span>{t('app.audit.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       <ul class="entries">
         {#each entries as entry (entry.id)}

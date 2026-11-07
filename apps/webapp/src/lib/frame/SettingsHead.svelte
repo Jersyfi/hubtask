@@ -24,9 +24,11 @@
     row: string;
     /** Lines under the title, where a screen has one: a refusal, a notice. */
     notices?: import('svelte').Snippet;
+    /** The head's figure, where the screen counts what it holds (user-experience.md §7.10). */
+    figure?: import('svelte').Snippet;
   }
 
-  const { row, notices }: Props = $props();
+  const { row, notices, figure }: Props = $props();
 
   const found = $derived(SETTINGS.flatMap((group) => group.rows).find((each) => each.id === row));
   // The heading's own word where the row has one, because a column has less room than a heading:
@@ -53,4 +55,5 @@
     expandLabel: t('app.you.expand_trail'),
   }}
   {notices}
+  {figure}
 />

@@ -17,22 +17,26 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// A deprecated field says so (versioning-release.md §5, api-guidelines.md "Deprecation").
+// A deprecated field, query parameter or operation says so (versioning-release.md §5,
+// api-guidelines.md "Deprecation").
 //
-// The contract marks a request field `deprecated` with the day it was, the major version it goes
-// away with and, once one is set, the day it stops being accepted. `tools/deprecations` reads that
-// into `deprecatedFields` at `make generate`, and two things are answered from it: the manifest's
+// The contract marks one `deprecated` with the day it was, the major version it goes away with
+// and, once one is set, the day it stops being accepted. `tools/deprecations` reads that into
+// `deprecatedFields` at `make generate`, and two things are answered from it: the manifest's
 // `deprecations`, so a client can read what is going before it goes, and - on a request that
-// actually sends such a field - the `Deprecation` header (RFC 9745) and, where a day is set,
-// `Sunset` (RFC 8594). A request that does not send it hears nothing: the header says "what you
-// just did is going away", not "this route has something deprecated somewhere".
+// actually sends such a field or parameter, or asks such an operation - the `Deprecation` header
+// (RFC 9745) and, where a day is set, `Sunset` (RFC 8594). A request that does not hears nothing:
+// the header says "what you just did is going away", not "this route has something deprecated
+// somewhere".
 
 // deprecatedField is one row of the generated table.
 type deprecatedField struct {
 	OperationID string
 	Method      string
 	// Path is the operation's path as the specification writes it, without the base path.
-	Path      string
+	Path string
+	// In is where it is: "body", "query" or "operation"; Field is empty for an operation.
+	In        string
 	Field     string
 	Since     string
 	RemovedIn string
@@ -56,11 +60,30 @@ var deprecatedByTemplate = func() map[string][]deprecatedField {
 	return index
 }()
 
-// announceDeprecation sets the headers when the request's body sends a deprecated field of the
-// operation it was routed to. The body is read and put back, so the handler reads it as it was.
+// announceDeprecation sets the headers when the request asks a deprecated operation, names a
+// deprecated query parameter or sends a deprecated field of the operation it was routed to. The
+// body is read and put back, so the handler reads it as it was.
 func announceDeprecation(w http.ResponseWriter, r *http.Request, template string) {
 	fields := deprecatedByTemplate[template]
-	if len(fields) == 0 || r.Body == nil || r.ContentLength > deprecationBodyLimit {
+	if len(fields) == 0 {
+		return
+	}
+	var inBody []deprecatedField
+	for _, field := range fields {
+		switch field.In {
+		case "operation":
+			announce(w, field)
+			return
+		case "query":
+			if r.URL != nil && r.URL.Query().Has(field.Field) {
+				announce(w, field)
+				return
+			}
+		default:
+			inBody = append(inBody, field)
+		}
+	}
+	if len(inBody) == 0 || r.Body == nil || r.ContentLength > deprecationBodyLimit {
 		return
 	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, deprecationBodyLimit+1))
@@ -72,18 +95,21 @@ func announceDeprecation(w http.ResponseWriter, r *http.Request, template string
 	if json.Unmarshal(raw, &sent) != nil {
 		return // the handler answers a malformed body; this only listens
 	}
-	for _, field := range fields {
+	for _, field := range inBody {
 		// Case-insensitive, as the handler's decoder matches it: `Password` is the field too.
-		if !sentField(sent, field.Field) {
-			continue
+		if sentField(sent, field.Field) {
+			announce(w, field)
+			return
 		}
-		if since, err := time.Parse(time.DateOnly, field.Since); err == nil {
-			w.Header().Set("Deprecation", "@"+strconv.FormatInt(since.Unix(), 10))
-		}
-		if sunset, err := time.Parse(time.DateOnly, field.Sunset); err == nil {
-			w.Header().Set("Sunset", sunset.UTC().Format(http.TimeFormat))
-		}
-		return
+	}
+}
+
+func announce(w http.ResponseWriter, field deprecatedField) {
+	if since, err := time.Parse(time.DateOnly, field.Since); err == nil {
+		w.Header().Set("Deprecation", "@"+strconv.FormatInt(since.Unix(), 10))
+	}
+	if sunset, err := time.Parse(time.DateOnly, field.Sunset); err == nil {
+		w.Header().Set("Sunset", sunset.UTC().Format(http.TimeFormat))
 	}
 }
 
@@ -104,6 +130,9 @@ func deprecationManifest() *[]openapi.DeprecatedField {
 		entry := openapi.DeprecatedField{
 			OperationId: field.OperationID, Method: field.Method, Path: field.Path, Field: field.Field,
 			RemovedIn: field.RemovedIn, ReplacedBy: field.ReplacedBy,
+		}
+		if in := openapi.DeprecatedFieldIn(field.In); in.Valid() {
+			entry.In = &in
 		}
 		if since, err := time.Parse(time.DateOnly, field.Since); err == nil {
 			entry.Since = openapi_types.Date{Time: since}

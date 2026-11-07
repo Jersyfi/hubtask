@@ -10,6 +10,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/mail"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
@@ -65,6 +66,30 @@ type Boxes struct {
 	IDs       clock.IDGenerator
 	// OAuth connects a mailbox through its provider's sign-in; unset, only passwords connect.
 	OAuth OAuth
+	// Quota is the workspace's `mailboxes` ceiling (multi-tenancy.md §4). Unset, the default
+	// ceiling still holds: a missing guard never means unlimited.
+	Quota MailboxQuota
+}
+
+// MailboxQuota is the capacity guard's slice a new mailbox asks.
+type MailboxQuota interface {
+	Mailboxes(ctx context.Context, tenant string) error
+}
+
+// room refuses `422 capacity.mailboxes` when another mailbox would pass the ceiling, inside the
+// caller's transaction; the mailboxes already connected keep being read.
+func (b Boxes) room(ctx context.Context, actor appshared.ActorContext) error {
+	if b.Quota != nil {
+		return b.Quota.Mailboxes(ctx, actor.TenantID.String())
+	}
+	count, err := b.Mailboxes.Count(ctx)
+	if err != nil {
+		return err
+	}
+	if count >= quotaservice.DefaultMailboxes {
+		return quotaservice.Exceeded(quotaservice.Mailboxes, quotaservice.DefaultMailboxes, int64(count))
+	}
+	return nil
 }
 
 // ListMailboxes answers the workspace's connected mailboxes and how their last read went.
@@ -146,12 +171,8 @@ func (h ConnectMailbox) invoke(ctx context.Context, actor appshared.ActorContext
 		return nil, err
 	}
 	err = b.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		count, err := b.Mailboxes.Count(ctx)
-		if err != nil {
+		if err := b.room(ctx, actor); err != nil {
 			return err
-		}
-		if count >= domain.MaxMailboxes {
-			return shared.ErrConflict.WithDetail("mail.mailboxes_full")
 		}
 		if err := b.Mailboxes.Insert(ctx, box, sealed, actor.AccountID); err != nil {
 			return err
@@ -341,6 +362,14 @@ type PollMailbox struct {
 	// Parse turns the raw bytes into what the intake reads; the presentation's parser, injected so
 	// the application knows nothing about MIME.
 	Parse func(raw []byte, mailbox string) (jumbleservice.ReceivedMail, error)
+	// Failing tells the workspace's administrators once a mailbox has refused for an hour.
+	// Optional: nil tells nobody, and the mail page still says it.
+	Failing FailingNotice
+}
+
+// FailingNotice is the message a mailbox that turned failing leaves for its administrators.
+type FailingNotice interface {
+	MailboxFailing(ctx context.Context, tenantID, mailboxID shared.ID) error
 }
 
 // Receiver is the intake's use case.
@@ -353,6 +382,12 @@ var _ queue.Detached = PollMailbox{}
 // OwnsItsTransactions: a read reaches a mail server between two writes, which must not hold a
 // transaction open; a read that runs twice takes nothing twice (the receipts).
 func (PollMailbox) OwnsItsTransactions() {}
+
+var _ queue.Perpetual = PollMailbox{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (PollMailbox) RepeatsForever() {}
 
 // Run reads the mailbox once.
 func (p PollMailbox) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
@@ -382,9 +417,19 @@ func (p PollMailbox) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 		taken, failure = p.read(ctx, box, password)
 	}
 	now := b.Writer.Clock.Now()
+	// Failing as of the previous check, not now: an hour since the first refusal would otherwise
+	// already count as failing before this check, and nobody would ever be told.
+	wasFailing := box.CheckedAt != nil && box.Failing(*box.CheckedAt)
 	box = box.Checked(now, failure)
+	turnedFailing := !wasFailing && box.Failing(now)
 	if err := b.Writer.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return b.Mailboxes.RecordCheck(ctx, box)
+		if err := b.Mailboxes.RecordCheck(ctx, box); err != nil {
+			return err
+		}
+		if turnedFailing && p.Failing != nil {
+			return p.Failing.MailboxFailing(ctx, job.TenantID, box.ID)
+		}
+		return nil
 	}); err != nil {
 		return queue.Result{}, err
 	}

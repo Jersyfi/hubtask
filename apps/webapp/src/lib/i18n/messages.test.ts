@@ -4,11 +4,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SOURCE } from './catalogue.ts';
+import { SOURCE } from './source.ts';
 import { createMessages, humanise } from './messages.ts';
 
 test('a code with parameters renders, in the reader’s language', () => {
-  const messages = createMessages({ locale: 'en' });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE] });
   assert.equal(messages.t('errors.unauthenticated'), 'Please sign in.');
   assert.equal(
     messages.t('errors.internal', { request_id: '01J9Z2' }),
@@ -23,14 +23,17 @@ test('a translation is preferred, and a gap in it falls through to English', () 
   assert.equal(messages.t('errors.not_found'), 'This entry does not exist.');
 });
 
-test('the source catalogue is in the chain even when a caller forgets it', () => {
-  const messages = createMessages({ locale: 'de', catalogues: [{ 'a.b': 'c' }] });
-  assert.equal(messages.t('errors.not_found'), 'This entry does not exist.');
+test('a code the chain lacks asks for the source and reads meanwhile', () => {
+  const missing: string[] = [];
+  const messages = createMessages({ locale: 'de', catalogues: [{ 'a.b': 'c' }], onMissing: (code) => missing.push(code), onProblem: () => {} });
+  assert.equal(messages.t('a.b'), 'c');
+  assert.equal(messages.t('errors.not_found'), 'Not found');
+  assert.deepEqual(missing, ['errors.not_found']);
 });
 
 test('an unknown code renders something a person can read', () => {
   const problems: string[] = [];
-  const messages = createMessages({ locale: 'en', onProblem: (m) => problems.push(m) });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE], onProblem: (m) => problems.push(m) });
   assert.equal(messages.t('items.due_date_in_past'), 'Due date in past');
   assert.equal(messages.has('items.due_date_in_past'), false);
   // The code is not lost: it goes where somebody who can look it up will see it.
@@ -53,7 +56,7 @@ test('a message that cannot be rendered does not take the page down', () => {
 });
 
 test('has answers for the two codes a problem document carries', () => {
-  const messages = createMessages({ locale: 'en' });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE] });
   assert.equal(messages.has('errors.validation_failed'), true);
   assert.equal(messages.has('errors.detail_that_does_not_exist'), false);
 });
@@ -63,7 +66,7 @@ test('a verb from a newer server reads as words rather than as a key', () => {
   // client runs one release behind the server, so it *will* meet a verb its catalogue has not
   // got yet. `0.3.0`'s five are already in `locales/en.json`; the one after that is not, and it
   // still has to render.
-  const messages = createMessages({ locale: 'en', onProblem: () => {} });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE], onProblem: () => {} });
   assert.equal(messages.has('activity.item_delegated'), false);
   assert.equal(messages.t('activity.item_delegated', { actor: 'You' }), 'Item delegated');
   assert.ok(!messages.t('activity.item_delegated').includes('activity.'), 'a key reached a reader');
@@ -72,7 +75,7 @@ test('a verb from a newer server reads as words rather than as a key', () => {
 test('and the twelve verbs the history renders are all in the catalogue', () => {
   // The other half: what the history claims to render, it renders from the catalogue rather than from a
   // fallback that happens to read well.
-  const messages = createMessages({ locale: 'en', onProblem: () => {} });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE], onProblem: () => {} });
   for (const verb of [
     'created', 'updated', 'completed', 'reopened', 'moved', 'reordered',
     'archived', 'unarchived', 'trashed', 'restored', 'label_added', 'label_removed',
@@ -87,7 +90,7 @@ test('and the twelve verbs the history renders are all in the catalogue', () => 
 
 test('the installation\'s clock counts in the plural form', () => {
   // The band reads "1 minute left" in its last minutes, not "1 minutes".
-  const messages = createMessages({ locale: 'en' });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE] });
   assert.equal(messages.t('app.instance.remaining_minutes', { minutes: 1 }), '1 minute');
   assert.equal(messages.t('app.instance.remaining_minutes', { minutes: 2 }), '2 minutes');
   assert.equal(messages.t('app.instance.remaining_seconds', { seconds: 1 }), '1 second');

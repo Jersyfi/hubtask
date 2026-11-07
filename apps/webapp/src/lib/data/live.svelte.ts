@@ -5,7 +5,7 @@
  * The one stream this tab keeps, and what it does to the screen.
  *
  * **It opens after sign-in and closes on sign-out.** The engine reconnects with the last identifier
- * it saw, waits out a `503` for exactly the `Retry-After` the server named, and treats
+ * it saw, waits out a `503` for at least the `Retry-After` the server named, and treats
  * `sync.cursor_too_old` as "forget everything and read again" — all of that is the engine's and none
  * of it is repeated here. What this module owns is the *lifecycle* and the *mapping*: when to listen,
  * and what a record means in this application's paths.
@@ -24,9 +24,9 @@ import type { ChangeRecord } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { manifest } from './capabilities.svelte.ts';
-import { engine } from './engine.ts';
+import { engine, holdOfflineAccount } from './engine.ts';
 import { figures } from './figures.svelte.ts';
-import { pathsFor, revokedContainerOf } from './live.ts';
+import { LIVE_BATCH_MS, pathsFor, revokedContainerOf, unaffected } from './live.ts';
 import { fetchStructureAfresh } from './replica.ts';
 
 /**
@@ -34,9 +34,11 @@ import { fetchStructureAfresh } from './replica.ts';
  *
  * `off` is "no stream is running" - before the first start and after a sign-out, which is also
  * when the mark is not drawn at all. `offline` is the *device's* answer: this machine says it has
- * no network, and the three states are then not a question about the server.
+ * no network, and the three states are then not a question about the server. `paused` is the
+ * server refusing the stream at its cap: it is up and busy, and the engine still pulls the changes
+ * at a slowing interval, so the reader is told live updates are paused, not that the server is gone.
  */
-export type LiveState = 'off' | 'live' | 'reconnecting' | 'offline';
+export type LiveState = 'off' | 'live' | 'reconnecting' | 'paused' | 'offline';
 
 class Live {
   #state = $state<LiveState>('off');
@@ -56,7 +58,17 @@ class Live {
   #isDeviceOffline = $state(false);
   /** The containers this reader has lost while the tab was open. */
   #revoked = $state<readonly string[]>([]);
+  /** The hubs the copy holds where the workspace is too large to hold whole; none: it holds all. */
+  #held = $state<readonly string[] | undefined>(undefined);
   #stop: (() => void) | undefined;
+
+  /**
+   * Whether a hub is read from the server alone: the copy holds only the hubs opened lately
+   * (offline-sync.md §1). False wherever the copy holds everything.
+   */
+  isOnlineOnly(hubId: string): boolean {
+    return this.#held !== undefined && !this.#held.includes(hubId);
+  }
 
   get state(): LiveState {
     // The device's answer outranks the stream's, because it explains it: attempts are failing and
@@ -105,9 +117,13 @@ class Live {
 
     const attach = async () => {
       const storage = platform.storageFor(accountId);
+      holdOfflineAccount(accountId);
       if (storage) {
         try {
           await engine.attach(storage, { platform: platform.devicePlatform, displayName: platform.deviceName() });
+          // A copy narrowed before holds the hubs opened lately as of now.
+          await engine.renarrow();
+          this.#held = engine.heldContainers;
         } catch {
           // A store that cannot be opened is no store: the copy is a convenience in the browser,
           // and the stream and every read work without it.
@@ -119,13 +135,17 @@ class Live {
       if (stopped) return;
       stopListening = engine.listen({
         pathsFor,
+        unaffected,
+        batchMs: LIVE_BATCH_MS,
         // What the mark in the bar reads, and it is the **connection's** state rather than the
         // traffic's. Were it `live` only on the first record, a stream that is open and idle - a
         // workspace nobody else is writing in - would say *Reconnecting…* until somebody changed
         // something. A record proves the stream delivers; the engine is what knows whether it is
         // attached, and it says so.
-        onConnection: (isOpen) => {
-          this.#state = isOpen ? 'live' : 'reconnecting';
+        onConnection: (isOpen, reason) => {
+          this.#state = isOpen ? 'live' : reason === 'refused' ? 'paused' : 'reconnecting';
+          // The catch-up before the connection may have narrowed the copy.
+          if (isOpen) this.#held = engine.heldContainers;
         },
         onRecord: (record) => this.#notice(record),
       });
@@ -140,6 +160,7 @@ class Live {
     this.#state = 'off';
     this.#isDeviceOffline = false;
     this.#revoked = [];
+    this.#held = undefined;
   }
 
   /**

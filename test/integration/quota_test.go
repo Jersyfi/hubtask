@@ -344,3 +344,27 @@ func TestTheInstallationsLockOnACeilingReachesTheWorkspace(t *testing.T) {
 		return nil
 	})
 }
+
+// The `mailboxes` quota counts only the transaction's workspace's mailboxes (SG-3).
+func TestTheMailboxesCountIsBoundedByItsTenant(t *testing.T) {
+	ctx := context.Background()
+	seedQuotaTenants(ctx, t)
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO mailbox (id, tenant_id, protocol, address, host, port, username, folder,
+			done_folder, enabled, secret_enc, secret_key_id, created_at)
+		VALUES ('01936f2a-7c1e-7000-8000-00000000fb21', $1, 'IMAP', 'quota@box.example',
+			'imap.box.example', 993, 'u', 'INBOX', 'Hubtask', false, '\x00', 'k', now())
+		ON CONFLICT (id) DO NOTHING`, quotaTenantA.String()); err != nil {
+		t.Fatalf("seeding a mailbox: %v", err)
+	}
+	store := postgres.NewQuotaRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	for tenant, want := range map[shared.ID]int64{quotaTenantA: 1, quotaTenantB: 0} {
+		inTenant(t, uow, tenant, func(ctx context.Context) error {
+			if count, err := store.Mailboxes(ctx); err != nil || count != want {
+				t.Errorf("%s counts %d mailboxes (%v), want %d", tenant, count, err, want)
+			}
+			return nil
+		})
+	}
+}

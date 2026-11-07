@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -392,50 +393,60 @@ func (p PolicyPatch) carries(name PolicySwitch) bool {
 func (p PolicyPatch) Merge(other PolicyPatch) PolicyPatch {
 	merged := p
 	for _, name := range other.Decided() {
-		switch name {
-		case SwitchMinLength:
-			merged.MinLength = other.MinLength
-		case SwitchMinLowercase:
-			merged.MinLowercase = other.MinLowercase
-		case SwitchMinUppercase:
-			merged.MinUppercase = other.MinUppercase
-		case SwitchMinDigits:
-			merged.MinDigits = other.MinDigits
-		case SwitchMinSymbols:
-			merged.MinSymbols = other.MinSymbols
-		case SwitchMinClasses:
-			merged.MinClasses = other.MinClasses
-		case SwitchMaxRepeat:
-			merged.MaxRepeat = other.MaxRepeat
-		case SwitchCommonPasswords:
-			merged.CommonPasswords = other.CommonPasswords
-		case SwitchContextWords:
-			merged.ContextWords = other.ContextWords
-		case SwitchBreachCheck:
-			merged.BreachCheck = other.BreachCheck
-		case SwitchMaxAgeDays:
-			merged.MaxAgeDays = other.MaxAgeDays
-		case SwitchHistoryCount:
-			merged.HistoryCount = other.HistoryCount
-		case SwitchMinAgeHours:
-			merged.MinAgeHours = other.MinAgeHours
-		case SwitchMfaRequiredFor:
-			merged.MfaRequiredFor = other.MfaRequiredFor
-		case SwitchMethods:
-			merged.Methods = other.Methods
-		case SwitchSessionMaxDays:
-			merged.SessionMaxDays = other.SessionMaxDays
-		case SwitchSessionIdleMinutes:
-			merged.SessionIdleMinutes = other.SessionIdleMinutes
-		case SwitchManagedAccounts:
-			merged.ManagedAccounts = other.ManagedAccounts
-		case SwitchPrivateHubs:
-			merged.PrivateHubs = other.PrivateHubs
-		case SwitchRotationFrom:
-			merged.RotationFrom = other.RotationFrom
-		}
+		merged = merged.take(name, other)
 	}
 	return merged
+}
+
+// Only answers a patch that decides this one switch as this patch does, and nothing else: one
+// switch's value as the settings catalogue carries it (SignInSettings.go).
+func (p PolicyPatch) Only(name PolicySwitch) PolicyPatch { return PolicyPatch{}.take(name, p) }
+
+// take copies one switch's decision from another patch.
+func (p PolicyPatch) take(name PolicySwitch, other PolicyPatch) PolicyPatch {
+	switch name {
+	case SwitchMinLength:
+		p.MinLength = other.MinLength
+	case SwitchMinLowercase:
+		p.MinLowercase = other.MinLowercase
+	case SwitchMinUppercase:
+		p.MinUppercase = other.MinUppercase
+	case SwitchMinDigits:
+		p.MinDigits = other.MinDigits
+	case SwitchMinSymbols:
+		p.MinSymbols = other.MinSymbols
+	case SwitchMinClasses:
+		p.MinClasses = other.MinClasses
+	case SwitchMaxRepeat:
+		p.MaxRepeat = other.MaxRepeat
+	case SwitchCommonPasswords:
+		p.CommonPasswords = other.CommonPasswords
+	case SwitchContextWords:
+		p.ContextWords = other.ContextWords
+	case SwitchBreachCheck:
+		p.BreachCheck = other.BreachCheck
+	case SwitchMaxAgeDays:
+		p.MaxAgeDays = other.MaxAgeDays
+	case SwitchHistoryCount:
+		p.HistoryCount = other.HistoryCount
+	case SwitchMinAgeHours:
+		p.MinAgeHours = other.MinAgeHours
+	case SwitchMfaRequiredFor:
+		p.MfaRequiredFor = other.MfaRequiredFor
+	case SwitchMethods:
+		p.Methods = other.Methods
+	case SwitchSessionMaxDays:
+		p.SessionMaxDays = other.SessionMaxDays
+	case SwitchSessionIdleMinutes:
+		p.SessionIdleMinutes = other.SessionIdleMinutes
+	case SwitchManagedAccounts:
+		p.ManagedAccounts = other.ManagedAccounts
+	case SwitchPrivateHubs:
+		p.PrivateHubs = other.PrivateHubs
+	case SwitchRotationFrom:
+		p.RotationFrom = other.RotationFrom
+	}
+	return p
 }
 
 // PolicyLayer is a level of the resolution: what it decided, and what it forbids the level below
@@ -516,41 +527,22 @@ func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 	locks := map[PolicySwitch]LockOrigin{}
 	sources := map[PolicySwitch]PolicySource{}
 
-	for _, level := range []struct {
-		layer  PolicyLayer
-		origin LockOrigin
-		source PolicySource
-	}{{instance, LockInstance, SourceInstance}, {plan, LockPlan, SourcePlan}, {workspace, LockNone, SourceWorkspace}} {
-		// Every level below the installation is held by what is above it: the plan as the
-		// workspace is (multi-tenancy.md §4.2).
-		below := level.origin != LockInstance
-		for _, name := range level.layer.Patch.Decided() {
-			if locks[name] != LockNone && below {
-				// A locked switch: the lower level's value is ignored rather than refused here.
-				// Refusing is the writer's job, where there is a field to name; resolving has to
-				// answer something for a row that was written before the lock landed.
-				continue
+	layers := []setting.Layer{
+		policyLayerAt(setting.LevelInstance, instance, true),
+		policyLayerAt(setting.LevelPlan, plan, true),
+		// A workspace has nobody below it to lock, so its locks are never read.
+		policyLayerAt(setting.LevelWorkspace, workspace, false),
+	}
+	for _, name := range PolicySwitches() {
+		resolution := setting.Resolve(SwitchDefinition(name), layers...)
+		if resolution.Source != setting.LevelDefault {
+			if only, held := resolution.Effective.(PolicyPatch); held {
+				resolved = applySwitch(resolved, name, only)
+				sources[name] = PolicySource(resolution.Source)
 			}
-			if below && !tightens(name, resolved, level.layer.Patch) {
-				// The row is *older* than the level above it, and the level above has since moved
-				// past it. Ignoring it here is what makes "a lower level only ever tightens" true
-				// over time rather than only at the moment of the write: an operator who raises the
-				// minimum to sixteen has raised it for the plan and the workspace that stored
-				// fourteen last year too.
-				continue
-			}
-			resolved = applySwitch(resolved, name, level.layer.Patch)
-			sources[name] = level.source
 		}
-		if level.origin == LockNone {
-			continue
-		}
-		for name, locked := range level.layer.Locks {
-			// A lock keeps the origin of the level that placed it first: a plan cannot claim a
-			// switch the installation already fixed.
-			if locked && locks[name] == LockNone {
-				locks[name] = level.origin
-			}
+		if resolution.Locked() {
+			locks[name] = LockOrigin(resolution.LockedBy)
 		}
 	}
 

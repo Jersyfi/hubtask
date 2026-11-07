@@ -6,6 +6,7 @@ package httpclient_test
 import (
 	"bytes"
 	"context"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -90,6 +91,28 @@ func TestACallCarriesMethodHeadersAndBody(t *testing.T) {
 
 // A target that answers is a call that worked, whatever it thinks of the request. Only the
 // caller knows whether a 500 from a webhook target is a failure worth retrying.
+// HUBTASK_HTTP_CA_FILE (security.md §10): a target signed by a root the operator names is
+// trusted, and without that root the same target is refused - the system's roots are the default
+// and a named root only adds to them.
+func TestANamedRootIsTrustedBesideTheSystemsAndOnlyThen(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("trusted"))
+	}))
+	defer server.Close()
+	root := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+
+	if _, err := openClient(t, env.OutboundConfig{}).Do(context.Background(), port.Request{URL: server.URL}); err == nil {
+		t.Fatal("a target under an unnamed root was trusted")
+	}
+	resp, err := openClient(t, env.OutboundConfig{CARoots: root}).Do(context.Background(), port.Request{URL: server.URL})
+	if err != nil {
+		t.Fatalf("the named root was not trusted: %v", err)
+	}
+	if string(resp.Body) != "trusted" {
+		t.Errorf("answered %q", resp.Body)
+	}
+}
+
 func TestAnUnhappyStatusIsNotATransportError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

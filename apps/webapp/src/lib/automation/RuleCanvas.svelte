@@ -164,7 +164,10 @@
 
   <span class="stub"></span>
 
-  <!-- The gate: one block, every condition inside it, through which the run has to pass. -->
+  <!-- The gate: one block, every condition inside it, through which the run has to pass. It holds
+       controls of its own, so it is a group and its head is what selects it from the keyboard; a
+       press anywhere on it still selects it. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
   <div
     class="gate"
     class:selected={isSelected('gate')}
@@ -173,10 +176,9 @@
     class:over={overGate}
     class:inert={drag !== undefined && !gateTakes}
     data-card="gate"
-    role="button"
-    tabindex="0"
+    role="group"
+    aria-labelledby="rule-gate-title"
     onclick={() => onselect({ kind: 'gate' })}
-    onkeydown={(event) => onkey(event, () => onselect({ kind: 'gate' }))}
     ondragover={(event) => { allow(event, gateTakes); overGate = gateTakes; }}
     ondragleave={() => (overGate = false)}
     ondrop={(event) => {
@@ -189,15 +191,15 @@
     }}
   >
     {#if gateTakes}<span class="dropword">{t('app.flow.drop_condition')}</span>{/if}
-    <span class="ghead">
+    <button type="button" class="ghead" aria-pressed={isSelected('gate')} onclick={(event) => { event.stopPropagation(); onselect({ kind: 'gate' }); }}>
       <span class="mark condition-mark"><Icon name="funnel" size="sm" /></span>
-      <span class="title">{t('app.flow.card_only_when')}</span>
+      <span class="title" id="rule-gate-title">{t('app.flow.card_only_when')}</span>
       <!-- Nothing to say where there is one condition: one is the most there can be (automation.md §1.5).
            A stored rule from before may carry several, and then how they join is worth saying. -->
       {#if draft.conditions.length !== 1}
         <span class="hint">{draft.conditions.length > 1 ? t('app.flow.card_only_when_all') : t('app.flow.card_only_when_none')}</span>
       {/if}
-    </span>
+    </button>
     <!-- One condition is the gate itself (automation.md §1.5): it is not a second thing to click, and
          the click goes through to the gate, whose panel is where it is edited. Only a stored rule
          with several keeps them apart, one card each. -->
@@ -374,7 +376,8 @@
 
   .gate.empty { border-style: dashed; box-shadow: none; background: var(--bg-surface-sunken); }
 
-  .ghead { display: flex; align-items: center; gap: var(--sp-100); padding-inline: var(--sp-050); }
+  .ghead { display: flex; align-items: center; gap: var(--sp-100); padding-block: 0; padding-inline: var(--sp-050); border: 0; border-radius: var(--r-sm); background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+  .ghead:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   .ghead .hint { font-size: var(--fs-075); color: var(--text-subtle); }
 

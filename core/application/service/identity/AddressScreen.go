@@ -52,7 +52,10 @@ func (r WorkspaceAddressReader) addressOutput(
 	rule := domain.OwnerAddressRule{}
 	domainsAllowed := false
 	if multi && r.Settings != nil {
-		err := unitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		// Under the workspace's scope, not the installation's: `instance_setting` has no row
+		// security, and a caller already in the workspace's transaction (the configuration desk)
+		// would refuse the switch (postgres.tenant_switch_in_transaction).
+		err := unitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 			level, err := r.Settings.Read(ctx)
 			rule = domain.OwnerAddressRule{Allowed: level.OwnersChangeAddress, CooldownDays: level.AddressCooldownDays}
 			domainsAllowed = level.OwnersOwnDomains

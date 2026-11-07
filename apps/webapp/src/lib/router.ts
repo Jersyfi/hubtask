@@ -125,14 +125,38 @@ export type Unsubscribe = () => void;
  * Everything above this line is pure and carries the tests; everything below is thin enough
  * to be verified by reading it.
  */
+/**
+ * Whether a link stays in this application: the same scheme and host as the page. Not `origin`:
+ * the URL standard gives a custom scheme's URL an opaque origin, `"null"`, while the page at
+ * `tauri://localhost` (the shell on Linux and macOS) has a tuple one, so every link compared
+ * unequal there and left as a full page load.
+ */
+export function isOwnAddress(url: URL, here: { readonly protocol: string; readonly host: string }): boolean {
+  return url.protocol === here.protocol && url.host === here.host;
+}
+
 export class Router {
   readonly #routes: readonly Route[];
   readonly #listeners = new Set<(resolution: Resolution) => void>();
   #current: Resolution;
+  readonly #fullLoad?: (path: string) => boolean;
+  readonly #admits?: (path: string) => boolean;
 
-  constructor(routes: readonly Route[], initialPath: string = window.location.pathname + window.location.search) {
+  /**
+   * `fullLoad` may take a navigation as a full page load instead - a newer release to load
+   * (`frame/release.ts`) - and answers whether it did. `admits` may hold a move the reader has
+   * not agreed to yet - a screen with unsaved changes (`frame/leave.ts`) - and answers whether it
+   * goes; a held move is made later through `navigate`.
+   */
+  constructor(
+    routes: readonly Route[],
+    initialPath: string = window.location.pathname + window.location.search,
+    options: { fullLoad?: (path: string) => boolean; admits?: (path: string) => boolean } = {},
+  ) {
     this.#routes = routes;
     this.#current = resolve(routes, initialPath);
+    this.#fullLoad = options.fullLoad;
+    this.#admits = options.admits;
   }
 
   get current(): Resolution {
@@ -148,6 +172,8 @@ export class Router {
   /** Navigate to a path, entering it into the session history. */
   navigate(path: string): void {
     if (addressOf(path) === this.#address()) return;
+    if (this.#admits && !this.#admits(path)) return;
+    if (this.#fullLoad?.(path)) return;
     history.pushState(null, '', path);
     this.#apply(path);
   }
@@ -173,14 +199,23 @@ export class Router {
    * stays with the browser.
    */
   start(): Unsubscribe {
-    const onPopState = () => this.#apply(window.location.pathname + window.location.search);
+    const onPopState = () => {
+      const path = window.location.pathname + window.location.search;
+      // The browser has already moved the address; a held move puts it back, so the address and
+      // the screen agree while the reader decides.
+      if (this.#admits && addressOf(path) !== this.#address() && !this.#admits(path)) {
+        history.pushState(null, '', this.#address());
+        return;
+      }
+      this.#apply(path);
+    };
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0) return;
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const anchor = (event.target as Element | null)?.closest('a');
       if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
       const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin) return;
+      if (!isOwnAddress(url, window.location)) return;
       event.preventDefault();
       this.navigate(url.pathname + url.search);
     };

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-10, P-11]
 state: built
 tasks: [G-08]
-checked_by: [core/application/service/automation/SchedulePass_test.go, core/application/service/automation/RelativeDates_test.go, test/integration/automation_trigger_test.go]
+checked_by: [core/application/service/automation/SchedulePass_test.go, core/application/service/automation/RelativeDates_test.go, test/integration/automation_trigger_test.go, core/domain/model/automation/Occurrence_test.go, core/domain/model/calendar/BusinessCalendar_test.go, core/application/service/servicedesk/InstallationCalendars_test.go, core/application/service/config/ShippedItil_test.go, apps/webapp/src/lib/automation/model.test.ts]
 ---
 
 # Run a rule on a schedule, or a set time before or after a date
@@ -43,6 +43,12 @@ its due date cleared, the rule owes it nothing.
    entry is owed a run once its date is set or changed after that.
 8. One workspace's schedules never cause runs in another; a workspace that owes nothing costs
    nothing until a write makes it owe something.
+9. A rule relative to a date that names a business calendar counts its offset in that calendar's
+   working days, at the date's clock time, on the hub's own version of the calendar where the hub
+   keeps one: the ITIL service desk closes a resolved incident five business days after it was
+   done, so a weekend or a holiday moves the close later. On a calendar only whole days are
+   accepted (`automation.offset_business_days`), and a rule whose calendar no longer exists owes
+   nothing rather than counting plain days.
 
 ## Where it ends
 

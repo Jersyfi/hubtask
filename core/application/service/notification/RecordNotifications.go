@@ -14,6 +14,7 @@ package notification
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -85,6 +86,26 @@ type RecordNotifications struct {
 	// assignee, somebody on its member list who has since left the hub (D6, ADR-0073 §1): no record,
 	// no mail. Nil only in a build that has no private hubs to keep.
 	Reach PrivateReach
+	// Requesters tells who raised an entry as a requester (UC-SVC-05), who is told of the team's
+	// public answers on it under REQUEST_REPLY. Nil tells no requester.
+	Requesters RequesterReach
+	// Links finds the requests merged into an entry, whose requesters are told of its replies on
+	// their own request (UC-SVC-03 check 8); nil tells the entry's own requester alone.
+	Links MergeLinks
+}
+
+// MergeLinks answers an entry's links from both ends - the entry links' Of.
+type MergeLinks interface {
+	Of(ctx context.Context, entryID shared.ID, limit int) ([]work.EntryLink, error)
+}
+
+// maxLinksForMerges bounds the links read to find the requests merged into an entry.
+const maxLinksForMerges = 500
+
+// RequesterReach is the authoriser's question whether a person follows a place only through the
+// portal (access.Service.Requester).
+type RequesterReach interface {
+	Requester(ctx context.Context, actor appshared.ActorContext, path []identity.Scope) (bool, error)
 }
 
 // PrivateReach is the authoriser's question about a private hub, asked about each person a
@@ -178,6 +199,9 @@ func (r RecordNotifications) Deliver(ctx context.Context, envelope event.Envelop
 			return err
 		}
 	}
+	if envelope.Type == event.CommentCreated {
+		return r.tellRequester(ctx, envelope, itemID, recipients)
+	}
 	return nil
 }
 
@@ -241,6 +265,67 @@ func (r RecordNotifications) everybodyOn(
 		recipients = append(recipients, candidate)
 	}
 	return recipients, nil
+}
+
+// tellRequester tells the person who raised the entry as a requester of a public comment on it:
+// never of an internal note, which they may not read, nor of their own words the mail intake filed
+// (UC-SVC-12). Whether they are a requester is asked now, at the entry's place, so a requester who
+// has since joined the team hears of it as a team member, by its assignment or member list.
+func (r RecordNotifications) tellRequester(
+	ctx context.Context, envelope event.Envelope, itemID shared.ID, told []shared.ID,
+) error {
+	if r.Requesters == nil || itemID.IsZero() || envelope.Payload["internal"] == true || envelope.Payload["by_requester"] == true {
+		return nil
+	}
+	item, err := r.Items.Find(ctx, itemID)
+	switch {
+	case errors.Is(err, shared.ErrNotFound):
+		return nil
+	case err != nil:
+		return err
+	}
+	if err := r.tellCreator(ctx, envelope, item, told); err != nil {
+		return err
+	}
+	if r.Links == nil {
+		return nil
+	}
+	links, err := r.Links.Of(ctx, itemID, maxLinksForMerges)
+	if err != nil {
+		return err
+	}
+	told = append(told, item.CreatedBy)
+	for _, sourceID := range work.MergedInto(links, itemID) {
+		source, err := r.Items.Find(ctx, sourceID)
+		switch {
+		case errors.Is(err, shared.ErrNotFound):
+			continue
+		case err != nil:
+			return err
+		}
+		if err := r.tellCreator(ctx, envelope, source, told); err != nil {
+			return err
+		}
+		told = append(told, source.CreatedBy)
+	}
+	return nil
+}
+
+// tellCreator records REQUEST_REPLY on the entry for the person who raised it, if they follow the
+// place as a requester and are not told already.
+func (r RecordNotifications) tellCreator(
+	ctx context.Context, envelope event.Envelope, item work.WorkItem, told []shared.ID,
+) error {
+	if item.CreatedBy.IsZero() || slices.Contains(told, item.CreatedBy) {
+		return nil
+	}
+	requester, err := r.Requesters.Requester(ctx, appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: envelope.TenantID, AccountID: item.CreatedBy,
+	}, condition.PlaceOf(envelope))
+	if err != nil || !requester {
+		return err
+	}
+	return r.record(ctx, envelope, domain.CategoryRequestReply, item.ID, item.CreatedBy)
 }
 
 // record writes one person's record and, where it is to be sent, the job that sends it.

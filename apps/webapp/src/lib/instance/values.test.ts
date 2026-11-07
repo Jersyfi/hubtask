@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
-import { changesBetween, countOf, documentOf, draftEntry, isOfferedAiReachable, lockCode, planBodyOf, rowsOf } from './values.ts';
+import { changesBetween, countOf, documentOf, draftEntry, installationFile, isOfferedAiReachable, lockCode, planBodyOf, rowsOf } from './values.ts';
 
 const count = (extra: Partial<InstanceSetting> = {}): InstanceSetting => ({
   set: false, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, workspace_may: 'TIGHTEN', ...extra,
@@ -40,6 +40,14 @@ test('what was decided is sent in its kind, and what was not is left out', () =>
   assert.deepEqual(document.sign_in, { min_length: { set: true, value: 14, locked: true } });
   assert.deepEqual(document.quotas, { items: { set: true, value: 500, locked: false } });
   assert.deepEqual(document.legal, {});
+});
+
+test("the modules the installation decided travel with every save, so a save elsewhere keeps them (UC-INS-21 check 6)", () => {
+  const planning: InstanceSetting = { set: true, value: true, locked: true, kind: 'FLAG', workspace_may: 'REPLACE' };
+  const goals: InstanceSetting = { set: false, locked: false, kind: 'FLAG', workspace_may: 'REPLACE' };
+  const document = documentOf({ module: { planning, goals }, blocklist_file: '' });
+  assert.deepEqual(document.module, { planning: { set: true, value: true, locked: true } });
+  assert.deepEqual(planBodyOf('Team', [], { module: { planning } }).module, { planning: { set: true, value: true, locked: true } });
 });
 
 test('the areas are drawn in the screen order, each key in its declared position', () => {
@@ -99,7 +107,7 @@ test("a plan's body carries its name, what it leaves out and only what it decide
   const body = planBodyOf('Family', ['WEBHOOKS'], { quotas: { accounts: decided, items: open } });
   assert.deepEqual(body, {
     display_name: 'Family', left_out: ['WEBHOOKS'],
-    sign_in: {}, legal: {}, quotas: { accounts: { set: true, value: 6, locked: true } }, ai: {},
+    sign_in: {}, legal: {}, quotas: { accounts: { set: true, value: 6, locked: true } }, ai: {}, module: {},
   });
 });
 
@@ -133,4 +141,19 @@ test('an offered model is reachable only where the installation lets workspaces 
   assert.equal(isOfferedAiReachable(sources({ set: true, value: 'NONE', locked: true })), false);
   assert.equal(isOfferedAiReachable(sources({ set: true, value: 'OFFERED' })), true);
   assert.equal(isOfferedAiReachable(sources({ set: true, value: 'EITHER' })), true);
+});
+
+// The installation's *Configuration file* (user-experience.md §8.4): every key of every area as the
+// document holds it, a decided value as the installation's and locked where it is; the AI area left
+// out where the screen leaves it out, on an installation of one workspace.
+test('the installation file holds every key in force, its source and its lock', () => {
+  const settings = {
+    sign_in: { min_length: { ...count(), set: true, locked: true, value: 12 } },
+    ai: { sources: { set: false, locked: false, kind: 'CHOICE', value: 'EITHER' } },
+  } as unknown as InstanceSettings;
+  assert.deepEqual(installationFile(settings, false), [
+    { key: 'sign_in.min_length', value: 12, source: 'INSTANCE', lockedBy: 'INSTANCE' },
+    { key: 'ai.sources', value: 'EITHER', source: 'DEFAULT', lockedBy: undefined },
+  ]);
+  assert.deepEqual(installationFile(settings, true).map((each) => each.key), ['sign_in.min_length']);
 });

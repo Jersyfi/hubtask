@@ -96,3 +96,23 @@ func TestAnEmergencyAccessCountsForNobodyElse(t *testing.T) {
 		t.Errorf("CanSee about the opener, asked by somebody else: %v, %v", visible, err)
 	}
 }
+
+// A requester holds REQUEST and no READ along the path (UC-SVC-05): asked about the person a
+// portal request's reply would be told to. A member is no requester, nor is somebody holding nothing.
+func TestARequesterIsToldApartFromTheTeam(t *testing.T) {
+	path := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
+	member := shared.MustParseID("0192f000-0000-7000-8000-0000000000fa")
+	nobody := shared.MustParseID("0192f000-0000-7000-8000-0000000000fb")
+	authorizer, store, _, _ := serviceWith(nil)
+	store.byAccount = map[shared.ID][]identity.Membership{
+		accountID: {{AccountID: accountID, Scope: identity.HubScope(hubID), Custom: "requester", Permissions: []string{string(service.PermissionRequest)}}},
+		member:    {{AccountID: member, Scope: identity.HubScope(hubID), Role: identity.RoleMember}},
+	}
+	for account, want := range map[shared.ID]bool{accountID: true, member: false, nobody: false} {
+		actor := actorWithScopes()
+		actor.AccountID = account
+		if got, err := authorizer.Requester(context.Background(), actor, path); err != nil || got != want {
+			t.Errorf("%s: requester %v (%v), want %v", account, got, err, want)
+		}
+	}
+}

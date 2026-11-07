@@ -7,6 +7,8 @@
 
   import { Banner, Button, Input, Stack } from '@hubtask/design-system/components';
 
+  import FailureNote from '../frame/FailureNote.svelte';
+
   import { people } from '../data/people.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -55,7 +57,7 @@
 
 <Stack gap="150">
   {#if failure}
-    <Banner tone="danger">{failure}</Banner>
+    <FailureNote problem={failure} />
   {/if}
   {#if sentTo}
     <Banner tone="success">{t('app.people.address_sent', { email: sentTo })}</Banner>

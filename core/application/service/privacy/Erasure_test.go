@@ -38,12 +38,38 @@ type erasureStore struct {
 	order        []string
 	// runningRules is what the workspace would be left with: rules that act as the person.
 	runningRules int
+	// personalRules are the person's own rules, which go with them before the count above.
+	personalRules int
+	// integrations act as the person; switchedOff are their switched-off connectors and hooks and
+	// retired agents, which a full deletion moves to reownedTo.
+	integrations repository.IntegrationsAs
+	switchedOff  repository.IntegrationsAs
+	reownedTo    shared.ID
 	intakeGone   int
 	intakeFreed  int
 	// contributions are the person's rows on entries, and where each entry is.
 	contributions  []repository.Contribution
 	commentIDsGone []shared.ID
 	releasedOn     []shared.ID
+	// writingsGone are the writings removed, by kind; blankedOf answers how many of a kind are
+	// blanked instead of removed.
+	writingsGone map[repository.ContributionKind][]shared.ID
+	blankedOf    map[repository.ContributionKind]int
+}
+
+func (e *erasureStore) DeleteWritings(
+	_ context.Context, _ shared.ID, kind repository.ContributionKind, ids []shared.ID, _ time.Time,
+) ([]shared.ID, int, error) {
+	if err := e.step("delete writings"); err != nil {
+		return nil, 0, err
+	}
+	if e.writingsGone == nil {
+		e.writingsGone = map[repository.ContributionKind][]shared.ID{}
+	}
+	blanked := min(e.blankedOf[kind], len(ids))
+	gone := ids[blanked:]
+	e.writingsGone[kind] = append(e.writingsGone[kind], gone...)
+	return gone, blanked, nil
 }
 
 func (e *erasureStore) DiscardIntake(context.Context, shared.ID) (int, error) {
@@ -62,11 +88,96 @@ func (e *erasureStore) ReleaseIntake(context.Context, shared.ID) (int, error) {
 	return e.intakeFreed, nil
 }
 
+func (e *erasureStore) IntegrationsRunningAs(context.Context, shared.ID) (repository.IntegrationsAs, error) {
+	return e.integrations, nil
+}
+
+func (e *erasureStore) ReownSwitchedOffIntegrations(_ context.Context, _, to shared.ID, _ time.Time) (repository.IntegrationsAs, error) {
+	moved := e.switchedOff
+	e.switchedOff, e.reownedTo = repository.IntegrationsAs{}, to
+	return moved, nil
+}
+
+func (e *erasureStore) IntegrationsNaming(context.Context, shared.ID) (repository.IntegrationsAs, error) {
+	return repository.IntegrationsAs{
+		Connectors: e.integrations.Connectors + e.switchedOff.Connectors,
+		Hooks:      e.integrations.Hooks + e.switchedOff.Hooks,
+		Agents:     e.integrations.Agents + e.switchedOff.Agents,
+	}, nil
+}
+
+// A full deletion moves the switched-off integrations and retired agents to another owner, who is
+// named in the trail, and they stay off; with nobody to take them it is refused instead.
+func TestAFullDeletionMovesSwitchedOffIntegrationsToAnotherOwner(t *testing.T) {
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+	harness := newErasureHarness()
+	harness.storage.switchedOff = repository.IntegrationsAs{Connectors: 1, Hooks: 1, Agents: 2}
+	eraser := harness.eraser()
+	eraser.Owners = &ownersOf{accounts: []shared.ID{subjectID, other}}
+	if _, err := eraser.Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete)); err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if harness.storage.reownedTo != other || !harness.storage.deleted {
+		t.Errorf("moved to %q, deleted %v; want the other owner and the account gone", harness.storage.reownedTo, harness.storage.deleted)
+	}
+	trail := map[string]any{}
+	for field, change := range harness.audit.entries[len(harness.audit.entries)-1].Changes {
+		trail[field] = change.(map[string]any)["to"]
+	}
+	if trail["reowned_agents"] != 2 || trail["reowned_connectors"] != 1 || trail["reowned_to"] != other.String() {
+		t.Errorf("the trail says %v", trail)
+	}
+
+	alone := newErasureHarness()
+	alone.storage.switchedOff = repository.IntegrationsAs{Hooks: 1}
+	_, err := alone.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if problem := shared.AsError(err); problem == nil || problem.DetailCode != domain.CodeErasureBlockedByIntegration ||
+		problem.Params["hooks"] != "1" {
+		t.Fatalf("with no other owner: %v", err)
+	}
+	if alone.storage.deleted {
+		t.Error("the account was deleted while a hook still names it")
+	}
+}
+
+// A full deletion is refused while an integration acts as the person, with how many of each, and
+// deletes nothing; an anonymisation is not, as for a rule.
+func TestAFullDeletionIsRefusedWhileAnIntegrationActsAsThePerson(t *testing.T) {
+	harness := newErasureHarness()
+	harness.storage.integrations = repository.IntegrationsAs{Connectors: 1, Hooks: 2}
+
+	_, err := harness.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	problem := shared.AsError(err)
+	if problem == nil || problem.DetailCode != domain.CodeErasureBlockedByIntegration ||
+		problem.Params["connectors"] != "1" || problem.Params["hooks"] != "2" || problem.Params["agents"] != "0" {
+		t.Fatalf("refused with %v", err)
+	}
+	if harness.storage.deleted {
+		t.Error("the account was deleted anyway")
+	}
+
+	anonymise := newErasureHarness()
+	anonymise.storage.integrations = repository.IntegrationsAs{Agents: 1}
+	if _, err := anonymise.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeAnonymize)); err != nil {
+		t.Fatalf("anonymising: %v", err)
+	}
+}
+
 func (e *erasureStore) AutomationsRunningAs(context.Context, shared.ID) (int, error) {
 	if err := e.step("automations"); err != nil {
 		return 0, err
 	}
-	return e.runningRules, nil
+	return e.runningRules - e.personalRules, nil
+}
+
+func (e *erasureStore) DiscardPersonalRules(context.Context, shared.ID) (int, error) {
+	if err := e.step("personal rules"); err != nil {
+		return 0, err
+	}
+	gone := e.personalRules
+	e.runningRules -= gone
+	e.personalRules = 0
+	return gone, nil
 }
 
 func (e *erasureStore) step(name string) error {
@@ -114,8 +225,22 @@ func (e *erasureStore) DiscardAiDrafts(context.Context, shared.ID) (int, error) 
 	return 1, nil
 }
 
+func (e *erasureStore) PseudonymiseTime(context.Context, shared.ID) (int, error) {
+	if err := e.step("time"); err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
 func (e *erasureStore) DiscardKudos(context.Context, shared.ID) (int, error) {
 	if err := e.step("kudos"); err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
+func (e *erasureStore) DiscardArrangements(context.Context, shared.ID) (int, error) {
+	if err := e.step("arrangements"); err != nil {
 		return 0, err
 	}
 	return 1, nil
@@ -312,6 +437,8 @@ type erasureHarness struct {
 	holds      *holdSource
 	kept       *keptStore
 	subjects   *subjectStore
+	// addresses is the requester store of an address case; nil leaves Eraser.Addresses unset.
+	addresses *addressStore
 }
 
 // Where the person's rows are: two comments on one task, and three tasks assigned to them, all in
@@ -364,13 +491,17 @@ func newErasureHarness() *erasureHarness {
 func (h *erasureHarness) eraser() Eraser { return h.eraserFor(newRequestStore()) }
 
 func (h *erasureHarness) eraserFor(requests *requestStore) Eraser {
-	return Eraser{
+	eraser := Eraser{
 		Requests: requests, Erasure: h.storage, Pseudonyms: h.pseudonyms,
 		Holds: h.holds, Kept: h.kept, Subjects: h.subjects, Statuses: h.subjects,
 		Removals: h.removals, Objects: h.objects, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 		TombstoneWindow: 90 * 24 * time.Hour,
 	}
+	if h.addresses != nil {
+		eraser.Addresses = h.addresses
+	}
+	return eraser
 }
 
 func erasureCase(mode domain.ErasureMode) domain.Request {
@@ -528,6 +659,7 @@ func TestAnErasureLeavesAPseudonymForTheTrail(t *testing.T) {
 
 // The erasure is recorded in the trail it does not touch, with counts rather than identifiers:
 // what an auditor needs is that every location was served, which is checkable.
+// UC-PRV-03 check 7: one dsr.erased entry, counts per place, no name.
 func TestTheErasureIsRecordedWithWhatItDid(t *testing.T) {
 	h := newErasureHarness()
 
@@ -613,7 +745,7 @@ func TestAnErasureWithoutAModeIsRefused(t *testing.T) {
 // which is the failure risk R-09 is about.
 func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
 	for _, step := range []string{
-		"contributions", "credentials", "notifications", "ai drafts", "kudos", "assignments", "delete comments",
+		"contributions", "credentials", "notifications", "ai drafts", "kudos", "arrangements", "time", "assignments", "delete comments",
 		"media",
 	} {
 		h := newErasureHarness()
@@ -631,6 +763,7 @@ func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
 // A full deletion is refused while a rule still acts as the person. The reference is `ON DELETE
 // RESTRICT`, so the alternative to this refusal is a foreign key violation reaching the caller as
 // a dependency error - which is what PG-2 found.
+// UC-PRV-03 check 5: delete in full is refused while a rule acts as the person, naming how many.
 func TestAFullDeletionIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 	harness := newErasureHarness()
 	harness.storage.runningRules = 3
@@ -649,6 +782,20 @@ func TestAFullDeletionIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 	}
 	if harness.storage.deleted {
 		t.Error("the account was deleted anyway")
+	}
+}
+
+// A person's own rules are their configuration and go with them (UC-AUT-01 check 10): they do
+// not stand in the way of a full deletion as the workspace's rules do.
+func TestAPersonsOwnRulesGoWithThemAndBlockNoDeletion(t *testing.T) {
+	harness := newErasureHarness()
+	harness.storage.runningRules, harness.storage.personalRules = 2, 2
+
+	if _, err := harness.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete)); err != nil {
+		t.Fatalf("the person's own rules blocked their deletion: %v", err)
+	}
+	if !harness.storage.deleted || harness.storage.runningRules != 0 {
+		t.Errorf("deleted %v, %d rules left acting as them", harness.storage.deleted, harness.storage.runningRules)
 	}
 }
 
@@ -814,5 +961,67 @@ func TestTheRestrictionOfAnAccountAHoldKeepsCannotBeLifted(t *testing.T) {
 		AccountID: subjectID, Restricted: true, Reason: "Art. 18",
 	}); err != nil {
 		t.Fatalf("restricting: %v", err)
+	}
+}
+
+// What the person wrote outside entries goes with a full deletion too - a page and a board comment,
+// a check-in, a portfolio update, a page draft - each removed row with its journal entry, a page
+// comment others answered blanked instead, and every one counted in the audit entry.
+func TestAFullDeletionTakesWhatThePersonWroteOutsideEntries(t *testing.T) {
+	h := newErasureHarness()
+	ids := map[repository.ContributionKind]shared.ID{
+		repository.ContributedPageComment:     shared.MustParseID("0192f000-0000-7000-8000-0000000007a1"),
+		repository.ContributedBoardComment:    shared.MustParseID("0192f000-0000-7000-8000-0000000007a2"),
+		repository.ContributedCheckIn:         shared.MustParseID("0192f000-0000-7000-8000-0000000007a3"),
+		repository.ContributedPortfolioUpdate: shared.MustParseID("0192f000-0000-7000-8000-0000000007a4"),
+		repository.ContributedPageDraft:       shared.MustParseID("0192f000-0000-7000-8000-0000000007a5"),
+	}
+	answered := shared.MustParseID("0192f000-0000-7000-8000-0000000007a6")
+	h.storage.contributions = append(h.storage.contributions,
+		repository.Contribution{Kind: repository.ContributedPageComment, ID: answered})
+	for kind, id := range ids {
+		h.storage.contributions = append(h.storage.contributions, repository.Contribution{Kind: kind, ID: id})
+	}
+	h.storage.blankedOf = map[repository.ContributionKind]int{repository.ContributedPageComment: 1}
+
+	erased, err := h.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if erased.Writings != 6 {
+		t.Errorf("writings %d, want the five removed and the one blanked", erased.Writings)
+	}
+	for kind := range ids {
+		if len(h.storage.writingsGone[kind]) != 1 && kind != repository.ContributedPageComment {
+			t.Errorf("%s: removed %v", kind, h.storage.writingsGone[kind])
+		}
+	}
+	entities := map[string]int{}
+	for _, removal := range h.removals.recorded {
+		entities[removal.Entity]++
+	}
+	for _, table := range []string{"page_comment", "whiteboard_comment", "goal_check_in", "portfolio_update", "page_draft"} {
+		if entities[table] != 1 {
+			t.Errorf("the journal holds %d rows of %s, want 1: %v", entities[table], table, entities)
+		}
+	}
+	entry := h.audit.entries[len(h.audit.entries)-1]
+	if got := entry.Changes["writings"].(map[string]any)["to"]; got != 6 {
+		t.Errorf("the audit entry counts %v writings, want 6", got)
+	}
+}
+
+// An anonymisation leaves what the person wrote outside entries, attributed to the former user.
+func TestAnAnonymisationLeavesWhatThePersonWroteOutsideEntries(t *testing.T) {
+	h := newErasureHarness()
+	h.storage.contributions = append(h.storage.contributions, repository.Contribution{
+		Kind: repository.ContributedCheckIn, ID: shared.MustParseID("0192f000-0000-7000-8000-0000000007b1"),
+	})
+	erased, err := h.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeAnonymize))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if erased.Writings != 0 || len(h.storage.writingsGone) != 0 {
+		t.Errorf("an anonymisation removed %v", h.storage.writingsGone)
 	}
 }

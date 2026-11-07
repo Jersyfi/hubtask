@@ -65,7 +65,7 @@ func (d PresetDesk) readableContainer(
 	return container, nil
 }
 
-// inForce answers the container's eight settings in force, read inside the caller's transaction.
+// inForce answers the container's settings in force, read inside the caller's transaction.
 func (d PresetDesk) inForce(ctx context.Context, container domain.Container) (domain.StructureValues, error) {
 	effective, err := d.Structure.within(repository.LayerRead).Of(ctx, container)
 	if err != nil {
@@ -147,7 +147,7 @@ func maxPresetsOf(origin domain.PresetOrigin) int {
 func (h SavePreset) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: SavePresetName,
-		Summary: "Saves the eight settings in force on a hub or collection as a preset under a name, " +
+		Summary: "Saves the settings in force on a hub or collection as a preset under a name, " +
 			"its categories left out: OWN for the caller alone, WORKSPACE for everyone in the " +
 			"workspace, which needs the right to change the workspace's shape. Reading the " +
 			"container needs READ on it. Refused as presets.limit_reached beyond the bound of its origin.",

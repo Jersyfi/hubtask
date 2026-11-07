@@ -92,6 +92,17 @@ func TestACaseNobodyCouldAnswerIsRefused(t *testing.T) {
 	}
 }
 
+// UC-PRV-01 check 1: a case about nobody is refused by name, at the field that is missing.
+func TestACaseWithoutASubjectIsRefusedByName(t *testing.T) {
+	_, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.SubjectAccountID, in.SubjectEmail = "", ""
+	}))
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != privacy.CodeSubjectRequired {
+		t.Fatalf("the refusal came back as %v", err)
+	}
+}
+
 // The deadline is one calendar month from the day of receipt (Art. 12(3); Reg. 1182/71 Art. 3):
 // clamped where the month has no such day, ending at the end of that day in the workspace's zone,
 // with "today" read there too. A request received long ago is recorded, and is overdue at once.
@@ -184,7 +195,7 @@ func TestAnInstallationWideErasureIsRefusedWhenRecorded(t *testing.T) {
 			continue
 		}
 		if _, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
-			in.Kind, in.Scope = kind, privacy.ScopeInstallation
+			in.Kind, in.Scope, in.SubjectEmail = kind, privacy.ScopeInstallation, "anna@example.org"
 		})); err != nil {
 			t.Errorf("an installation-wide %s was refused: %v", kind, err)
 		}
@@ -193,6 +204,24 @@ func TestAnInstallationWideErasureIsRefusedWhenRecorded(t *testing.T) {
 		in.Kind, in.Scope = privacy.KindErasure, privacy.ScopeTenant
 	})); err != nil {
 		t.Errorf("an erasure in this workspace was refused: %v", err)
+	}
+}
+
+// UC-PRV-06 check 2: an installation-wide case needs an address - an account identifier names
+// somebody in one workspace only - and is refused when it is recorded, not by its job.
+func TestAnInstallationWideCaseNeedsAnAddress(t *testing.T) {
+	_, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Scope = privacy.ScopeInstallation
+	}))
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != privacy.CodeSubjectRequired ||
+		len(problem.Fields) != 1 || problem.Fields[0].Path != "/subject_email" {
+		t.Fatalf("an installation-wide case by account came back as %v", err)
+	}
+	if _, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Scope, in.SubjectAccountID, in.SubjectEmail = privacy.ScopeInstallation, "", "anna@example.org"
+	})); err != nil {
+		t.Errorf("an installation-wide case by address was refused: %v", err)
 	}
 }
 
@@ -209,6 +238,7 @@ func TestAnAddressIsEnoughOfASubject(t *testing.T) {
 	}
 }
 
+// UC-PRV-01 check 3: received → in progress → completed, or to rejected, and nothing else.
 func TestTheStateMachineIsTheOneTheDocumentNames(t *testing.T) {
 	allowed := map[privacy.Status][]privacy.Status{
 		privacy.StatusReceived:   {privacy.StatusInProgress, privacy.StatusRejected},
@@ -240,6 +270,7 @@ func TestTheStateMachineIsTheOneTheDocumentNames(t *testing.T) {
 // (data-protection.md §4). Not a refusal: a case that cannot start because a field nobody filled in
 // is empty is a statutory deadline running while an administrator works out which of two words to
 // type.
+// UC-PRV-03 check 2: a case with no mode chosen is carried out as anonymise.
 func TestAnErasureWithNoModeStartsAsTheDefault(t *testing.T) {
 	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
 		in.Kind = privacy.KindErasure
@@ -301,7 +332,7 @@ func TestAnUnknownModeIsStillRefused(t *testing.T) {
 }
 
 // And an export with nowhere to write is the same refusal: a copy of somebody's data has to be put
-// somewhere, and this system writes archives to targets somebody approved.
+// somewhere, and this system writes archives to targets somebody approved (UC-PRV-02 check 1).
 func TestAnExportCannotStartWithoutATarget(t *testing.T) {
 	for _, kind := range []privacy.Kind{privacy.KindAccess, privacy.KindPortability} {
 		request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) { in.Kind = kind }))
@@ -309,8 +340,10 @@ func TestAnExportCannotStartWithoutATarget(t *testing.T) {
 			t.Fatalf("recording the case: %v", err)
 		}
 
-		if _, err := request.Start("", "", handlerID); err == nil {
-			t.Fatalf("a %s case started with nowhere to write", kind)
+		_, err = request.Start("", "", handlerID)
+		var problem *shared.Error
+		if !errors.As(err, &problem) || problem.DetailCode != privacy.CodeExportTargetRequired {
+			t.Fatalf("a %s case with nowhere to write came back as %v", kind, err)
 		}
 		started, err := request.Start("", targetID, handlerID)
 		if err != nil {
@@ -351,12 +384,14 @@ func TestACaseIsCompletedWithWhatItProduced(t *testing.T) {
 	}
 }
 
-// A refusal without a reason is not an answer.
+// A refusal without a reason is not an answer (UC-PRV-01 check 3).
 func TestARejectionNeedsItsReason(t *testing.T) {
 	request, _ := privacy.NewRequest(input(func(*privacy.NewRequestInput) {}))
 
-	if _, err := request.Reject("   ", handlerID, nil, now); err == nil {
-		t.Fatal("a case was refused with no reason")
+	_, err := request.Reject("   ", handlerID, nil, now)
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != privacy.CodeRejectionReasonRequired {
+		t.Fatalf("a refusal with no reason came back as %v", err)
 	}
 
 	rejected, err := request.Reject("Identity could not be established", handlerID, nil, now)
@@ -368,7 +403,7 @@ func TestARejectionNeedsItsReason(t *testing.T) {
 	}
 }
 
-// A closed case does not move again. A second request is the honest way to record a second answer.
+// A closed case does not move again (UC-PRV-01 check 3). A second request is the honest way to record a second answer.
 func TestAClosedCaseDoesNotMoveAgain(t *testing.T) {
 	request, _ := privacy.NewRequest(input(func(*privacy.NewRequestInput) {}))
 	started, _ := request.Start("", targetID, handlerID)

@@ -1,0 +1,191 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!--
+  Mockup of docs/architecture/user-experience.md §3 and §2.8: the starter (families, then a
+  family's templates with the products they switch on), Today for a newcomer, and the card a
+  module switched on answers with. Draws the generated token sheet only (rule 15); run
+  `make tokens` before opening it. A picture to build from: none of the names are real.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the first start</title>
+<link rel="stylesheet" href="../../../packages/design-system/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/design-system/dist/fonts.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg-canvas); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--fs-200); line-height: var(--lh-normal); }
+  button { font: inherit; color: inherit; }
+  .scenes { display: flex; flex-wrap: wrap; gap: var(--sp-100); padding: var(--sp-150) var(--sp-300); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); align-items: center; }
+  .scenes button { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-full); padding: var(--sp-050) var(--sp-200); cursor: pointer; }
+  .scenes button[aria-pressed="true"] { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); }
+  .scenes .note { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-100); }
+  .scene { display: none; padding: var(--sp-500); }
+  .scene.on { display: block; }
+
+  .scrim { background: var(--bg-scrim); padding: var(--sp-500); border-radius: var(--r-xl); }
+  .dialog { background: var(--bg-raised); border-radius: var(--r-xl); box-shadow: var(--shadow-overlay); max-width: var(--layout-content-max); margin: 0 auto; padding: var(--sp-400); display: grid; gap: var(--sp-300); }
+  .dialog h2 { margin: 0; font-family: var(--font-display); font-size: var(--fs-600); }
+  .dialog p { margin: 0; color: var(--text-secondary); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--layout-gallery-card), 1fr)); gap: var(--sp-200); }
+  .fam { border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-lg); padding: var(--sp-200); display: grid; gap: var(--sp-100); background: var(--bg-surface); cursor: pointer; text-align: start; }
+  .fam:hover { background: var(--bg-surface-hover); }
+  .fam[aria-pressed="true"] { border-color: var(--accent-primary); box-shadow: var(--shadow-glow); }
+  .fam .mk { display: inline-grid; place-items: center; width: var(--sp-500); height: var(--sp-500); border-radius: var(--r-md); font-size: var(--fs-300); }
+  .fam b { font-size: var(--fs-300); }
+  .fam small { color: var(--text-secondary); font-size: var(--fs-100); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .chip { font-size: var(--fs-075); border-radius: var(--r-full); padding: 0 var(--sp-100); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .chip.std { background: var(--status-neutral-surface); color: var(--status-neutral-text); }
+  .m-teal { background: var(--label-teal-bg); color: var(--label-teal-fg); }
+  .m-blue { background: var(--label-blue-bg); color: var(--label-blue-fg); }
+  .m-amber { background: var(--label-amber-bg); color: var(--label-amber-fg); }
+  .m-green { background: var(--label-green-bg); color: var(--label-green-fg); }
+  .m-red { background: var(--label-red-bg); color: var(--label-red-fg); }
+  .m-violet { background: var(--label-violet-bg); color: var(--label-violet-fg); }
+  .m-slate { background: var(--label-slate-bg); color: var(--label-slate-fg); }
+  .m-lime { background: var(--label-lime-bg); color: var(--label-lime-fg); }
+  .preview { border-top: var(--bw-hairline) solid var(--border-subtle); padding-top: var(--sp-200); display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-300); }
+  .qs { display: grid; gap: var(--sp-150); align-content: start; }
+  .preview ul { margin: 0; padding-inline-start: var(--sp-300); color: var(--text-secondary); }
+  .actions { display: flex; gap: var(--sp-150); justify-content: flex-end; align-items: center; }
+  .btn { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); }
+  .btn.p { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); box-shadow: var(--shadow-glow); }
+  .quiet { color: var(--text-subtle); font-size: var(--fs-100); }
+  .field { display: grid; gap: var(--sp-050); }
+  .field span { font-size: var(--fs-100); color: var(--text-secondary); }
+  .field .in { border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-150); background: var(--bg-surface); }
+
+  .today { max-width: var(--layout-content-max); margin: 0 auto; display: grid; gap: var(--sp-300); }
+  .greet { display: flex; align-items: baseline; gap: var(--sp-200); }
+  .greet h1 { margin: 0; font-family: var(--font-display); font-size: var(--fs-700); }
+  .greet span { margin-inline-start: auto; color: var(--text-subtle); }
+  .panel { background: var(--bg-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-raised); padding: var(--sp-300); display: grid; gap: var(--sp-200); }
+  .panel h2 { margin: 0; font-size: var(--fs-400); }
+  .step { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-200); align-items: center; }
+  .tick { display: inline-grid; place-items: center; width: var(--sp-400); height: var(--sp-400); border-radius: var(--r-full); border: var(--bw-thick) solid var(--border-default); }
+  .tick.done { background: var(--status-success-accent); border-color: var(--status-success-accent); color: var(--text-inverse); }
+  .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--layout-gallery-card), 1fr)); gap: var(--sp-150); }
+  .try { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); padding: var(--sp-200); display: grid; gap: var(--sp-100); background: var(--bg-surface-sunken); }
+  .try b { display: flex; gap: var(--sp-100); align-items: center; }
+
+  .switches { max-width: var(--layout-dialog-wide); margin: 0 auto; display: grid; gap: var(--sp-150); }
+  .sw { background: var(--bg-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-raised); padding: var(--sp-200) var(--sp-300); display: grid; gap: var(--sp-150); }
+  .sw .line { display: flex; align-items: center; gap: var(--sp-200); }
+  .sw .line .sp { flex: 1; }
+  .toggle { width: var(--sp-600); height: var(--sp-300); border-radius: var(--r-full); background: var(--border-strong); position: relative; }
+  .toggle::after { content: ""; position: absolute; inset-block: var(--sp-025); inset-inline-start: var(--sp-025); width: var(--sp-200); aspect-ratio: 1; border-radius: var(--r-full); background: var(--bg-surface); }
+  .toggle.on { background: var(--accent-primary); }
+  .toggle.on::after { inset-inline-start: auto; inset-inline-end: var(--sp-025); }
+  .follow { border-top: var(--bw-hairline) solid var(--border-subtle); padding-top: var(--sp-150); display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-200); animation: rise var(--motion-entrance-duration) var(--motion-entrance-easing); }
+  .follow h3 { margin: 0 0 var(--sp-050); font-size: var(--fs-100); color: var(--text-subtle); text-transform: uppercase; }
+  .follow a { color: var(--text-brand); }
+  @keyframes rise { from { opacity: 0; transform: translateY(var(--sp-100)); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .follow { animation: none; } }
+  .explain { max-width: var(--layout-content-max); margin: var(--sp-400) auto 0; padding: var(--sp-200); border-inline-start: var(--bw-thick) solid var(--accent-primary); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-100); }
+</style>
+</head>
+<body>
+<div class="scenes" role="toolbar" aria-label="Scenes">
+  <button data-scene="families" aria-pressed="true">Starter: families</button>
+  <button data-scene="templates" aria-pressed="false">Starter: a family's templates</button>
+  <button data-scene="today" aria-pressed="false">Today for a newcomer</button>
+  <button data-scene="switched" aria-pressed="false">A module switched on</button>
+  <button id="theme" aria-pressed="false">Dark</button>
+  <span class="note">user-experience.md §3, §2.8</span>
+</div>
+
+<section class="scene on" id="families">
+  <div class="scrim"><div class="dialog" role="dialog" aria-label="What do you want to run here?">
+    <h2>What do you want to run here?</h2>
+    <p>Pick what comes closest. Hubtask sets it up with sample content you can remove in one press, and you can change everything later.</p>
+    <div class="grid">
+      <button class="fam"><span class="mk m-green">✓</span><b>Just me</b><small>My tasks, lists and notes</small></button>
+      <button class="fam"><span class="mk m-red">⌂</span><b>Household</b><small>Chores, shopping, trips</small></button>
+      <button class="fam"><span class="mk m-blue">▦</span><b>A team's work</b><small>Kanban, Scrum or plain tasks</small></button>
+      <button class="fam"><span class="mk m-violet">▤</span><b>Projects</b><small>Phases, plan, risks, clients</small></button>
+      <button class="fam" aria-pressed="true"><span class="mk m-teal">☎</span><b>Service and requests</b><small>IT help, facility, HR, customers</small></button>
+      <button class="fam"><span class="mk m-slate">¶</span><b>Knowledge and docs</b><small>Handbook, how-tos, decisions</small></button>
+      <button class="fam"><span class="mk m-lime">◇</span><b>Assets and registers</b><small>Devices, licences, contracts</small></button>
+      <button class="fam"><span class="mk m-amber">◎</span><b>Goals and portfolio</b><small>OKRs, roadmaps, dashboards</small></button>
+    </div>
+    <div class="actions"><span class="quiet">You can also start empty.</span><button class="btn">Skip</button><button class="btn p">Next</button></div>
+  </div></div>
+</section>
+
+<section class="scene" id="templates">
+  <div class="scrim"><div class="dialog" role="dialog" aria-label="Service and requests">
+    <h2>Service and requests</h2>
+    <div class="grid">
+      <button class="fam" aria-pressed="true"><b>IT service desk</b><small>Incidents, requests, problems and changes with SLAs and a portal.</small><span class="chips"><span class="chip std">ITIL 4</span><span class="chip">Service desk</span><span class="chip">Pages</span><span class="chip">Workflows</span><span class="chip">Assets</span></span></button>
+      <button class="fam"><b>Internal IT</b><small>A small team's requests and its devices.</small><span class="chips"><span class="chip">Service desk</span><span class="chip">Assets</span></span></button>
+      <button class="fam"><b>Facility requests</b><small>Rooms, repairs and deliveries.</small><span class="chips"><span class="chip">Service desk</span></span></button>
+      <button class="fam"><b>Customer support</b><small>Tickets by mail and portal, with organisations.</small><span class="chips"><span class="chip">Service desk</span><span class="chip">Pages</span></span></button>
+    </div>
+    <div class="preview">
+      <div><b>What it sets up</b><ul><li>A hub “IT help desk” with the collection “Incidents and requests”</li><li>Queues: Mine, Unassigned, About to breach, All open</li><li>A portal with four request kinds</li><li>Business hours Mon–Fri 8–18, SLAs P1 to P4</li><li>The guide “How we work with this desk” and three knowledge pages</li><li>Three sample incidents, marked, removable in one press</li></ul></div>
+      <div class="qs">
+        <b>Two questions</b>
+        <label class="field"><span>Which group answers first?</span><span class="in">IT support ▾ · or create a group</span></label>
+        <label class="field"><span>Who approves changes?</span><span class="in">Not now ▾</span></label>
+        <span class="quiet">Switches on: Service desk, Pages, Workflows, Assets.</span>
+      </div>
+    </div>
+    <div class="actions"><button class="btn">Back</button><button class="btn p">Start the service desk</button></div>
+  </div></div>
+</section>
+
+<section class="scene" id="today">
+  <div class="today">
+    <div class="greet"><h1>Good morning, Jérôme</h1><span>Monday, 2 November</span></div>
+    <div class="panel">
+      <h2>First steps</h2>
+      <div class="step"><span class="tick done">✓</span><span><b>Choose what you use Hubtask for</b><br><span class="quiet">IT service desk is set up</span></span><button class="btn">Open the desk</button></div>
+      <div class="step"><span class="tick"></span><span><b>Invite your team</b><br><span class="quiet">They see only what you share</span></span><button class="btn p">Invite</button></div>
+      <div class="step"><span class="tick"></span><span><b>Connect mail</b><br><span class="quiet">Requests by mail become tickets</span></span><button class="btn">Connect</button></div>
+    </div>
+    <div class="panel">
+      <h2>More in Hubtask</h2>
+      <div class="strip">
+        <div class="try"><b><span class="chip">Plans</span></b><span class="quiet">See your projects on a timeline and spot what slips.</span><button class="btn">Try it</button></div>
+        <div class="try"><b><span class="chip">Whiteboards</span></b><span class="quiet">Sketch, sort ideas and run a retro together.</span><button class="btn">Try it</button></div>
+        <div class="try"><b><span class="chip">Time</span></b><span class="quiet">Record time on tickets and close weeks.</span><button class="btn">Try it</button></div>
+        <div class="try"><b><span class="chip">Goals</span></b><span class="quiet">Quarterly goals with key results and dashboards.</span><button class="btn">Try it</button></div>
+      </div>
+    </div>
+  </div>
+  <p class="explain">Today for a newcomer (§3.3): the starter's result first, then what is still needed, then the products that are off, each with a one-line value and <i>Try it</i>, which opens the same template dialog. Shown only to a person who may switch products on.</p>
+</section>
+
+<section class="scene" id="switched">
+  <div class="switches">
+    <div class="sw"><div class="line"><b>Whiteboards</b><span class="quiet">Draw and sort together on an endless board.</span><span class="sp"></span><span class="toggle" role="switch" aria-checked="false"></span></div></div>
+    <div class="sw">
+      <div class="line"><b>Service desk</b><span class="quiet">Requests with SLAs, queues and a portal.</span><span class="sp"></span><span class="toggle on" role="switch" aria-checked="true"></span></div>
+      <div class="follow">
+        <div><h3>Find it here</h3><a>Products › Service desk</a><br><span class="quiet">and as <i>Desk</i> in each hub that uses it</span></div>
+        <div><h3>Start with</h3><a>IT service desk</a> · <a>Customer support</a> · <a>Facility requests</a></div>
+        <div><h3>Still needed</h3><a>An intake address</a><br><a>Business hours</a></div>
+      </div>
+    </div>
+    <div class="sw"><div class="line"><b>Time</b><span class="quiet">Timers, weeks and reports.</span><span class="sp"></span><span class="toggle" role="switch" aria-checked="false"></span></div></div>
+  </div>
+  <p class="explain">A switch answers with where the product now lives, the templates that set it up and what it still needs (§2.8), the same card for every module; it arrives in the entrance motion role and does not move under reduced motion.</p>
+</section>
+
+<script>
+  const buttons = document.querySelectorAll('[data-scene]');
+  function show(id) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scene === id)));
+    document.querySelectorAll('.scene').forEach((s) => s.classList.toggle('on', s.id === id));
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => show(b.dataset.scene)));
+  document.getElementById('theme').addEventListener('click', (e) => {
+    const dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    e.currentTarget.setAttribute('aria-pressed', String(dark));
+  });
+</script>
+</body>
+</html>

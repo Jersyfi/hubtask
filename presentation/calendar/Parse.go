@@ -110,7 +110,9 @@ func ParseTodo(raw []byte) (ParsedTodo, error) {
 	depth := 0
 	found := 0
 	inTodo := false
-	for _, line := range unfold(string(raw)) {
+	lines := unfold(string(raw))
+	zones := definedZones(lines)
+	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -141,13 +143,13 @@ func ParseTodo(raw []byte) (ParsedTodo, error) {
 		case "SUMMARY":
 			todo.Summary = unescapeText(value)
 		case "DUE":
-			at, isDate, err := parseDateTime(value, params)
+			at, isDate, err := parseDateTime(value, params, zones)
 			if err != nil {
 				return todo, err
 			}
 			todo.Due, todo.DueDate, todo.DueZone = at, isDate, params["TZID"]
 		case "DTSTART":
-			at, _, err := parseDateTime(value, params)
+			at, _, err := parseDateTime(value, params, zones)
 			if err != nil {
 				return todo, err
 			}
@@ -185,8 +187,9 @@ func ParseTodo(raw []byte) (ParsedTodo, error) {
 }
 
 // parseDateTime reads a DATE or a DATE-TIME value. A floating DATE-TIME (no Z, no TZID) is read
-// in UTC, which is the reading RFC 5545 gives it on a server with no local time of its own.
-func parseDateTime(value string, params map[string]string) (time.Time, bool, error) {
+// in UTC, which is the reading RFC 5545 gives it on a server with no local time of its own. A TZID
+// the time zone database does not know is read by the VTIMEZONE the document defines it with.
+func parseDateTime(value string, params map[string]string, zones map[string]definedZone) (time.Time, bool, error) {
 	value = strings.TrimSpace(value)
 	if strings.EqualFold(params["VALUE"], "DATE") || len(value) == 8 {
 		at, err := time.Parse("20060102", value)
@@ -204,9 +207,34 @@ func parseDateTime(value string, params map[string]string) (time.Time, bool, err
 		return time.Time{}, false, err
 	}
 	if zone := params["TZID"]; zone != "" {
-		if loaded, err := time.LoadLocation(zone); err == nil {
-			return time.Date(at.Year(), at.Month(), at.Day(), at.Hour(), at.Minute(), at.Second(), 0, loaded), false, nil
+		loaded, err := zoneNamed(zone)
+		if err != nil {
+			offset, defined := zones[zone].offsetAt(at)
+			if !defined {
+				return time.Time{}, false, err
+			}
+			loaded = time.FixedZone(zone, offset)
 		}
+		return time.Date(at.Year(), at.Month(), at.Day(), at.Hour(), at.Minute(), at.Second(), 0, loaded), false, nil
 	}
 	return at, false, nil
+}
+
+// zoneNamed reads a TZID: a zone of the database, or a path whose last two parts are one - the
+// shape an older Thunderbird writes. Any other name is refused rather than read as UTC, which would
+// move the time by the zone's offset without a word.
+func zoneNamed(name string) (*time.Location, error) {
+	// The time package reads "Local" as this server's own zone; a client's "Local" is its own.
+	if strings.EqualFold(name, "Local") {
+		return nil, errors.New("calendar: a time zone this server does not know")
+	}
+	if loaded, err := time.LoadLocation(name); err == nil {
+		return loaded, nil
+	}
+	if parts := strings.Split(strings.Trim(name, "/"), "/"); len(parts) > 2 {
+		if loaded, err := time.LoadLocation(strings.Join(parts[len(parts)-2:], "/")); err == nil {
+			return loaded, nil
+		}
+	}
+	return nil, errors.New("calendar: a time zone this server does not know")
 }

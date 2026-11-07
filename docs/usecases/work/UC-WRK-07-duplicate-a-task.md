@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12]
 state: built
 tasks: [C-11, F3-11]
-checked_by: [test/integration/bulk_and_duplicate_test.go, test/integration/copy_test.go, core/application/service/work/DuplicateWorkItem_test.go, apps/webapp/e2e/subtreeviews.test.mjs]
+checked_by: [test/integration/bulk_and_duplicate_test.go, test/integration/copy_test.go, core/application/service/work/DuplicateWorkItem_test.go, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/e2e/entrymenu.test.mjs]
 ---
 
 # Duplicate a task
@@ -31,8 +31,8 @@ exist or do not apply in the destination are listed by kind.
    subtree — and opens the same dialog wherever it is chosen.
 2. The dialog offers a new title (the original's by default), *with everything under it*, and a
    destination among the collections of the same hub.
-3. The copy is a new entry with its own history starting at `item.created`; the original is
-   unchanged.
+3. The copy is a new entry with its own history starting at `item.duplicated`; the original
+   is unchanged.
 4. With *everything under it*, the whole subtree is copied in the same order; without it, only the
    entry.
 5. In another collection, every label, column, custom field value, member and assignee that cannot

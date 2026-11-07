@@ -181,11 +181,20 @@
     const element = head;
     if (!element || typeof ResizeObserver === 'undefined') return;
     const medium = Number.parseFloat(getComputedStyle(element).getPropertyValue('--bp-medium'));
+    // Folding changes the head's height, so it is answered in the next frame: changed within the
+    // observer's own delivery, the observation is left undelivered, which WebKit throws.
+    let frame = 0;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry && Number.isFinite(medium)) isFolded = entry.contentRect.width < medium;
+      if (!entry || !Number.isFinite(medium)) return;
+      const folded = entry.contentRect.width < medium;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => (isFolded = folded));
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   });
 </script>
 

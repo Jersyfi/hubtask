@@ -204,7 +204,7 @@ func TestTheManifestPublishesTheQueryGrammar(t *testing.T) {
 func serveCapabilities(t *testing.T, reader CapabilityReader) *httptest.ResponseRecorder {
 	t.Helper()
 	controller := NewRestController()
-	controller.Capabilities = reader
+	controller.Meta = &MetaDoor{Capabilities: reader}
 
 	response := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(response,
@@ -279,7 +279,7 @@ func TestATypeWithoutChildrenAnswersAnEmptyList(t *testing.T) {
 func TestTheActorIsPassedToTheUseCase(t *testing.T) {
 	reader := &capabilities{result: manifest()}
 	controller := NewRestController()
-	controller.Capabilities = reader
+	controller.Meta = &MetaDoor{Capabilities: reader}
 
 	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/meta/capabilities", nil)
 	actor := appshared.ActorContext{
@@ -309,7 +309,9 @@ func TestAFailureBecomesAProblemDocument(t *testing.T) {
 // an empty 200 that a client would treat as an answer.
 func TestAnUnwiredUseCaseIsAnInternalError(t *testing.T) {
 	response := httptest.NewRecorder()
-	NewRestController().Routes().ServeHTTP(response,
+	controller := NewRestController()
+	controller.Meta = &MetaDoor{}
+	controller.Routes().ServeHTTP(response,
 		httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/meta/capabilities", nil))
 
 	if response.Code != http.StatusInternalServerError {

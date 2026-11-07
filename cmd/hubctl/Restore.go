@@ -37,12 +37,6 @@ func restoreGroup() group {
 				// silently capped it at thirty seconds.
 				waits: true,
 			},
-			{
-				name:    "show",
-				usage:   "<id>",
-				summary: "what one restore did, or was about to do",
-				run:     restoreShow,
-			},
 		},
 	}
 }
@@ -123,28 +117,6 @@ func restoreRun(ctx context.Context, cli *CLI, args []string) error {
 	return cli.startRestore(ctx, request, *wait)
 }
 
-func restoreShow(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "restore show <id>"
-	restoreID, rest, err := cli.takeID(args, usage)
-	if err != nil {
-		return err
-	}
-	flags := commandFlags(cli, "restore", "show", "<id>")
-	if err := parseOnlyFlags(flags, rest, usage); err != nil {
-		return err
-	}
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var run openapi.RestoreRun
-	if err := client.Get(ctx, restoresPath+"/"+restoreID.String(), nil, &run); err != nil {
-		return err
-	}
-	return cli.emitRestore(run)
-}
-
 // restoreRequest is what every one of the three commands builds, so that the passphrase, the
 // archive and the target are read the same way whichever verb is used.
 func (cli *CLI) restoreRequest(target, archive, mode string) (openapi.RestoreRequest, error) {
@@ -162,9 +134,11 @@ func (cli *CLI) restoreRequest(target, archive, mode string) (openapi.RestoreReq
 		ArchiveId: archive,
 		Mode:      openapi.RestoreRequestMode(mode),
 	}
-	// No `decryption_passphrase`, for the reason `backup target add` sends no passphrase: the key
-	// an archive is written under is derived from the installation's master key, and this
-	// version refuses the field rather than ignoring it.
+	// An archive downloaded with a passphrase opens with it, read from the environment rather than
+	// a flag that would stay in the shell's history.
+	if passphrase := cli.Env(envArchivePassphrase); passphrase != "" {
+		request.DecryptionPassphrase = &passphrase
+	}
 	return request, nil
 }
 

@@ -12,10 +12,14 @@
  * back, and a copy taken once is a copy that keeps working after a sign-out.
  * `lib/session.svelte.ts` is what puts a pair there and takes it away again.
  */
-import { FetchTransport, SyncEngine, TransportError } from '@hubtask/sync-engine';
+import { FetchTransport, SyncEngine, TransportError, collectionOf, type MutateOptions } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
+import { currentEntry } from '../frame/chunkfailure.ts';
+import { noteServerBuild } from '../frame/release.ts';
+import { Intents } from './intent.ts';
 import { mutationFor, storeFor } from './replica.ts';
+import { offlineHubs } from './offlinehubs.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -87,7 +91,11 @@ function watchedForPause<T extends object>(inner: T): T {
   });
 }
 
-const transport = watchedForPause(new FetchTransport({ baseUrl: platform.apiBase }));
+// The build travels both ways (api-guidelines.md §8): sent, so a server of the other release
+// answers a route it does not know with a retry; heard, so this tab can move to a newer release.
+const transport = watchedForPause(new FetchTransport({
+  baseUrl: platform.apiBase, clientBuild: currentEntry() ?? undefined, onServerBuild: noteServerBuild,
+}));
 
 /**
  * Exchanges the refresh token for the next pair, and answers whether the session survived.
@@ -129,7 +137,41 @@ async function renew(): Promise<boolean> {
   }
 }
 
-export const engine = new SyncEngine({
+/**
+ * The idempotency key a write asks for when its key is its intent's (`intent.ts`): replaced by the
+ * key of the same content's undecided write before the call leaves, never sent as it is.
+ */
+export const INTENT = 'intent';
+
+const intents = new Intents();
+
+class IntentEngine extends SyncEngine {
+  override async mutate<T>(
+    method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+    path: string,
+    body: unknown,
+    options: MutateOptions = {},
+  ): Promise<T> {
+    if (options.idempotencyKey !== INTENT) return super.mutate<T>(method, path, body, options);
+    const idempotencyKey = intents.keyFor(method, path, body);
+    try {
+      const answer = await super.mutate<T>(method, path, body, { ...options, idempotencyKey });
+      intents.settle(method, path, body);
+      return answer;
+    } catch (cause) {
+      intents.settle(method, path, body, cause);
+      throw cause;
+    }
+  }
+}
+
+/** Whose copy the engine holds: the hubs it narrows to are the ones that account opened lately. */
+let offlineAccount: string | undefined;
+export function holdOfflineAccount(accountId: string | undefined): void {
+  offlineAccount = accountId;
+}
+
+export const engine = new IntentEngine({
   transport,
   token: () => platform.bearer(),
   onUnauthorized: () => onRefused(),
@@ -137,9 +179,25 @@ export const engine = new SyncEngine({
   // What the replica answers while the server cannot be reached: this application's
   // paths, mapped in `replica.ts` the way `live.ts` maps a record - the engine learns neither.
   storeFor,
+  // A workspace too large for the browser's copy holds the hubs this device opened lately and
+  // reads the rest from the server (offline-sync.md §1); a shell's copy stays whole.
+  ...(platform.replicaEntries === undefined ? {} : {
+    bound: {
+      records: platform.replicaEntries,
+      counts: (record) => collectionOf(record.entity) === 'items' && record.op === 'UPSERT',
+      containers: async () => offlineHubs(offlineAccount, Date.now()),
+    },
+  }),
   // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
   // this application's writes in the same file.
   mutationFor,
+  // A page's live document (offline-sync.md §13): the API's origin, `wss` where the page is
+  // served over TLS. The engine adds the bearer as the subprotocol; the address carries none.
+  socket: (path, protocols) => {
+    const origin = globalThis.location;
+    const scheme = origin.protocol === 'https:' ? 'wss:' : 'ws:';
+    return new WebSocket(`${scheme}//${origin.host}/api/v1${path}`, protocols);
+  },
   // A file captured offline waits only in a copy that is encrypted: the shells' (offline-sync.md §1).
   holdsFiles: platform.holdsFiles,
   firstSynchronisation: platform.firstSynchronisation,

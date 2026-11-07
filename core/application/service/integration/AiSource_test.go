@@ -122,11 +122,16 @@ func offeredModel(id shared.ID, name string) domain.AiProvider {
 
 func sourceRegistry(t *testing.T, world *sourceWorld) *usecase.Registry {
 	t.Helper()
-	store := &providerStore{active: "k1"}
+	return sourceRegistryOver(t, world, &providerStore{active: "k1"})
+}
+
+// sourceRegistryOver is sourceRegistry over a store that may already hold the own provider.
+func sourceRegistryOver(t *testing.T, world *sourceWorld, store *providerStore) *usecase.Registry {
+	t.Helper()
 	writer := AiSourceWriter{
 		Rules: AiRules{
 			Instance: world, Workspaces: sourceWorkspaces{world},
-			Offered: sourceOffered{world}, Choices: sourceChoices{world}, Plans: world,
+			Offered: sourceOffered{world}, Choices: sourceChoices{world}, Plans: world, Own: store,
 		},
 		Authorizer: providerAllow{}, Audit: store, UnitOfWork: providerDirect{},
 		Clock: providerClock{}, Reindex: sourceReseeder{world},
@@ -315,6 +320,51 @@ func TestAWorkspaceNarrowsWhereItMayAndOnlyThere(t *testing.T) {
 	_, err = sourceRegistry(t, narrow).Invoke(t.Context(), ChooseAiSourceName, providerActor(), usecase.Input{"source": "OWN", "sources": "EITHER"})
 	if got := shared.AsError(err); got == nil || got.DetailCode != "auth.policy_loosens" {
 		t.Errorf("a widening answered %v", err)
+	}
+}
+
+// UC-AI-01 check 4: switching AI off for a workspace keeps its own provider - the address, the
+// model and the sealed key - so switching it on again asks for nothing to be entered again.
+func TestSwitchingAiOffKeepsTheOwnProvidersConfiguration(t *testing.T) {
+	writer, store := providerWriter()
+	if _, err := (ConfigureAiProvider{Writer: writer}).
+		Execute(context.Background(), providerActor(), providerCommand()); err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	configured, sealed := *store.stored, store.sealed
+	registry := sourceRegistryOver(t, &sourceWorld{}, store)
+
+	for _, source := range []string{"NONE", "OWN"} {
+		if _, err := registry.Invoke(t.Context(), ChooseAiSourceName, providerActor(), usecase.Input{"source": source}); err != nil {
+			t.Fatalf("choosing %s: %v", source, err)
+		}
+		if store.stored == nil || *store.stored != configured || store.sealed != sealed {
+			t.Fatalf("after choosing %s the provider is %+v, want %+v with its key", source, store.stored, configured)
+		}
+	}
+}
+
+// The answer says whether the workspace configured its own provider, read and chosen alike, so a
+// screen asks for the provider only where there is one.
+func TestTheAnswerSaysWhetherTheOwnProviderIsConfigured(t *testing.T) {
+	writer, store := providerWriter()
+	registry := sourceRegistryOver(t, &sourceWorld{}, store)
+	if got := readSource(t, registry)["own_configured"]; got != false {
+		t.Fatalf("own_configured before configuring = %v, want false", got)
+	}
+	if _, err := (ConfigureAiProvider{Writer: writer}).
+		Execute(context.Background(), providerActor(), providerCommand()); err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	if got := readSource(t, registry)["own_configured"]; got != true {
+		t.Fatalf("own_configured after configuring = %v, want true", got)
+	}
+	chosen, err := registry.Invoke(t.Context(), ChooseAiSourceName, providerActor(), usecase.Input{"source": "NONE"})
+	if err != nil {
+		t.Fatalf("choosing: %v", err)
+	}
+	if chosen["own_configured"] != true {
+		t.Fatalf("own_configured in the choice's answer = %v, want true", chosen["own_configured"])
 	}
 }
 

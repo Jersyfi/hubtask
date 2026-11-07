@@ -14,12 +14,12 @@ architecture is decided and documented. It gets implemented, not redesigned.
 ```text
 docs/            vision, use cases, the rules (architecture, design), ADRs, backlog — docs/README.md
 core/            domain and application layer, technology-free
-presentation/    inbound adapters: rest, mcp, stream, calendar, intake, worker, webui, openapi
+presentation/    inbound adapters: rest, mcp, stream, realtime, calendar, intake, odata, voice, worker, webui, openapi
 infrastructure/  outbound adapters: postgres, storage, mail, httpclient, …
 cmd/             the binaries; cmd/server/main.go is the composition root
 api/  db/        openapi.yaml, the contract's source; migrations (forward only), sqlc queries
 apps/            webapp (the product), website (hubtask.eu, information only)
-packages/  sdk/  design-system, api-client, sync-engine, connectors; generated clients
+packages/  sdk/  design-system, api-client, sync-engine, editor, whiteboard, expression, connectors; generated clients
 ```
 
 Dependencies point inwards: `cmd → presentation, infrastructure → core`;

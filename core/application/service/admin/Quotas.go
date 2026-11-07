@@ -135,6 +135,7 @@ func applyChange(overrides *quotarepo.Overrides, change QuotaChange) {
 		quotaservice.Accounts:                 &overrides.Accounts,
 		quotaservice.AiTokensPerDay:           &overrides.AiTokensPerDay,
 		quotaservice.AiArrivalProposalsPerDay: &overrides.AiArrivalProposalsPerDay,
+		quotaservice.Mailboxes:                &overrides.Mailboxes,
 	}[change.Quota]
 	if target == nil {
 		return
@@ -168,6 +169,7 @@ func (h UpdateTenantQuotas) recordAudit(
 		quotaservice.Accounts:                 before.Accounts,
 		quotaservice.AiTokensPerDay:           before.AiTokensPerDay,
 		quotaservice.AiArrivalProposalsPerDay: before.AiArrivalProposalsPerDay,
+		quotaservice.Mailboxes:                before.Mailboxes,
 	}
 	for _, change := range cmd.Changes {
 		changes = append(changes, audit.Change{

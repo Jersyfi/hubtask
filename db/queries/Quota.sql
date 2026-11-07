@@ -47,6 +47,16 @@ SELECT count(*) FROM work_item;
 -- workspace's to answer for.
 SELECT coalesce(sum(byte_size), 0)::bigint FROM media_object WHERE deleted_at IS NULL;
 
+-- name: KeptTenantCount :one
+-- The count the usage triggers keep for one of `items` and `media_bytes` (migration 0183): the
+-- latest day row's closing, moved by every attributed write's own statement, in its transaction,
+-- under the day row's lock, and counted afresh by the first write of each UTC day. A capacity
+-- check reads it instead of counting every row; no row is "nothing kept", and the caller counts.
+SELECT closing::bigint FROM usage_record
+WHERE metric = sqlc.arg('metric') AND closing IS NOT NULL
+ORDER BY period DESC
+LIMIT 1;
+
 -- name: CountWebhookTargets :one
 SELECT count(*) FROM webhook_subscription;
 

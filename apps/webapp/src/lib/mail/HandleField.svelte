@@ -6,13 +6,16 @@
   // collection. The subject works through every door the workspace's intake has, so it is the one
   // thing always shown; the address only where the operator's receiving domain makes one.
 
-  import { Banner, Button, IconButton, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, IconButton, Input, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
 
   import { announcer } from '../announce.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import type { Container } from '@hubtask/sync-engine';
   import { copyHandle, readMailSettings, routesTo, type MailSettings } from '../data/mailintake.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { ticketKeyOf } from '../data/ticket.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -79,7 +82,7 @@
         <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: ways.address })} onclick={() => void copy(ways.address ?? '')} />
       </div>
     {/if}
-    <p class="hint">{t('app.mail.key_hint', { key: `${handle.toUpperCase()}-42` })}</p>
+    <p class="hint">{t('app.mail.key_hint', { key: ticketKeyOf(container, 42) ?? `${handle.toUpperCase()}-42` })}</p>
   {/if}
   {#if mayShape}
     <div class="edit">
@@ -87,7 +90,7 @@
       <Button tone="secondary" isBusy={isSaving} busyLabel={t('app.mail.saving')} disabledReason={isChanged ? undefined : t('app.mail.unchanged')} onclick={() => void save()}>{t('app.mail.save_handle')}</Button>
     </div>
   {/if}
-  {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+  {#if failure}<FailureNote problem={failure} />{/if}
 </Stack>
 
 <style>

@@ -52,6 +52,7 @@ func testActor() appshared.ActorContext {
 // The acceptance criterion: the dry run reports condition results for the sample event and which
 // actions would run - and changes nothing, proved here by the transaction shape and in the e2e
 // session by the checksum discipline.
+// UC-AUT-02 check 2.
 func TestADryRunReportsWhatWouldHappenAndChangesNothing(t *testing.T) {
 	rule := enabledRule()
 	rule.Conditions = []domain.Condition{{Expr: "event.type != ''"}, {Expr: "true"}}
@@ -144,6 +145,7 @@ func TestADryRunHonoursAStop(t *testing.T) {
 
 // An inline definition goes through the same validation the create runs: a rule the dry run
 // accepts is a rule the create will accept.
+// UC-AUT-02 check 3.
 func TestADryRunValidatesAnInlineDefinition(t *testing.T) {
 	h := dryRun(t, enabledRule())
 
@@ -169,6 +171,7 @@ func TestADryRunValidatesAnInlineDefinition(t *testing.T) {
 }
 
 // Exactly one source, and a sample with a type: each refusal names its field.
+// UC-AUT-02 checks 3 and 4.
 func TestADryRunNeedsOneSourceAndATypedSample(t *testing.T) {
 	h := dryRun(t, enabledRule())
 	definition := validCommand()

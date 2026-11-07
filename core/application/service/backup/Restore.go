@@ -26,6 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 const (
@@ -259,7 +260,8 @@ func (r Restorer) open(
 // Descriptor registers the listing.
 func (h ListBackupsAtTarget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListBackupsAtTargetName,
+		Name:       ListBackupsAtTargetName,
+		Permission: service.PermissionStructure,
 		Summary: "Lists the archives one backup target holds for this tenant, read from the " +
 			"manifests at the target rather than from the database. That is what makes it the " +
 			"reading that survives a total loss: with the target's credentials and nothing else, " +
@@ -361,6 +363,20 @@ func archiveOutput(found Archive) usecase.Output {
 func (h StartRestore) Execute(
 	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest,
 ) (Accepted, error) {
+	return h.execute(ctx, actor, request, secret.Secret{})
+}
+
+// ExecuteWithPassphrase is Execute for an archive encrypted to a passphrase: the passphrase is held
+// sealed, bound to the run, until the run ends (backup-restore.md §4).
+func (h StartRestore) ExecuteWithPassphrase(
+	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest, passphrase secret.Secret,
+) (Accepted, error) {
+	return h.execute(ctx, actor, request, passphrase)
+}
+
+func (h StartRestore) execute(
+	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest, passphrase secret.Secret,
+) (Accepted, error) {
 	if err := request.Validate(); err != nil {
 		return Accepted{}, err
 	}
@@ -423,6 +439,9 @@ func (h StartRestore) Execute(
 			Status:             domain.RestorePending, RequestedBy: actor.AccountID,
 		})
 		if err != nil {
+			return err
+		}
+		if err := HoldPassphrase(ctx, h.Restorer.Encryptor, h.Restorer.Restores, restoreID, passphrase); err != nil {
 			return err
 		}
 
@@ -560,7 +579,8 @@ func (r Restorer) record(
 // Descriptor registers starting a restore in all three channels.
 func (h StartRestore) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: StartRestoreName,
+		Permission: service.PermissionStructure,
+		Name:       StartRestoreName,
 		Summary: "Reads an archive back. A dry run by default: it reports what it would do - how " +
 			"many objects are new, overwritten, skipped and in conflict - and changes nothing. " +
 			"Six modes: INSPECT looks, SELECTIVE pulls named collections or items back, MERGE " +
@@ -635,6 +655,12 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 					"authentication: the token POST /auth/step-up answered, consumed by this " +
 					"one restore.",
 			},
+			{
+				Name: "decryption_passphrase", Kind: usecase.KindString,
+				Description: "The passphrase an archive downloaded with one is encrypted to. " +
+					"Held sealed while the restore runs and emptied when it ends; refused for an " +
+					"archive not encrypted to one.",
+			},
 		},
 		StepUp: "the destructive modes (REPLACE_TENANT, INSTANCE)",
 		Audit: usecase.AuditDeclaration{
@@ -648,6 +674,7 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 func (h StartRestore) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	passphrase := secret.New(in.String("decryption_passphrase"))
 	targetID, err := in.ID("target_id")
 	if err != nil {
 		return nil, err
@@ -677,7 +704,7 @@ func (h StartRestore) invoke(
 		return nil, err
 	}
 
-	accepted, err := h.Execute(ctx, actor, request)
+	accepted, err := h.execute(ctx, actor, request, passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -708,7 +735,8 @@ func selectionIn(in usecase.Input) (domain.Selection, error) {
 // Descriptor registers the restore resource.
 func (h GetRestoreRun) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: GetRestoreRunName,
+		Name:       GetRestoreRunName,
+		Permission: service.PermissionStructure,
 		Summary: "What one restore did, or is about to do. It carries the report of the dry run - " +
 			"new, overwritten, skipped, duplicated, in conflict, and what was deliberately " +
 			"withheld - which is what to read before asking for the same restore without " +

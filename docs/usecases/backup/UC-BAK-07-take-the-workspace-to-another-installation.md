@@ -7,7 +7,7 @@ deployments: [D1, D4, D5, D6, D7]
 serves: [P-01, P-08, P-09, P-15]
 state: built
 tasks: [H-07, F4-02, CP-05]
-checked_by: [test/integration/tenant_export_test.go, core/application/service/admin/Export_test.go, test/integration/restore_foreign_test.go, test/integration/export_installation_target_test.go, test/integration/installation_backup_target_test.go, core/application/service/admin/InstanceBackupTargets_test.go]
+checked_by: [test/integration/tenant_export_test.go, core/application/service/admin/Export_test.go, test/integration/restore_foreign_test.go, test/integration/export_installation_target_test.go, test/integration/archive_download_test.go, core/application/service/admin/DownloadArchive_test.go, presentation/rest/WorkspaceArchiveDoor_test.go, cmd/hubctl/BackupDownload_test.go, cmd/hubctl/Restore_test.go, core/application/service/backup/ArchiveKeys_test.go, test/integration/installation_backup_target_test.go, core/application/service/admin/InstanceBackupTargets_test.go]
 ---
 
 # Take the whole workspace to another installation
@@ -40,10 +40,18 @@ self-hoster (`D1`) does the same as the operator of their own installation.
 5. On another installation, the archive can be restored as a new workspace, whose content matches
    the exported one.
 6. Exporting writes `tenant.exported` in the workspace's trail.
+7. The workspace's owner, with a fresh proof, downloads the same archive as one ZIP file under
+   Data & records → Backup, through the API, without any backup target; it restores on another
+   installation as a new workspace. Nobody else can, a second download within 24 hours is refused
+   with the time left, it stays within the workspace's export quota, and it writes
+   `tenant.exported` with `download` as its target. With a passphrase the owner gives, the file
+   is encrypted to it and restores elsewhere with that passphrase alone, and is refused without
+   it or with a wrong one (decision: the owner's fourth answers, item 1).
 
 ## Where it ends
 
-* No direct HTTP download of the export; it goes to a target.
+* The owner's direct download is once in 24 hours and is stored nowhere on the way; any other
+  export goes to a target (decision: the owner's fourth answers, item 1, 2026-10-31).
 * No export or import of credentials, sessions, live automation plumbing or the compliance
   machinery's own records (data subject cases, anchors); see
   [tenant-export.md](../../architecture/tenant-export.md) §9.

@@ -447,3 +447,19 @@ for (const mode of MODES) {
     assert.ok(chromaOf(colour('status.danger.accent')) > 0.1, 'danger is a vivid red, not a muted one');
   });
 }
+
+/**
+ * A critical bar on the Gantt chart differs from a normal one by more than its tint (SC 1.4.1,
+ * user-experience.md §7.5): its hatch is drawn in the surface's colour, which stands at the graphic
+ * floor against the normal bar's fill and against the critical tint it crosses.
+ */
+for (const mode of MODES) {
+  test(`${mode}: a critical bar's hatch stands at 3:1 against a normal bar`, () => {
+    const colour = opaque(mode);
+    const hatch = colour('bg.surface');
+    for (const bar of ['accent.primary', 'status.danger.accent']) {
+      const measured = ratio(hatch, colour(bar));
+      assert.ok(measured >= NON_TEXT, `bg.surface against ${bar}: ${measured.toFixed(2)}`);
+    }
+  });
+}

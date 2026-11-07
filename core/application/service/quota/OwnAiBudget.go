@@ -114,7 +114,8 @@ func budgetLabel(tokens *int64) string {
 // Descriptor is the catalogue entry.
 func (h SetOwnAiBudget) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetOwnAiBudgetName,
+		Name:       SetOwnAiBudgetName,
+		Permission: service.PermissionStructure,
 		Summary: "Sets how many tokens a day this workspace's own AI model may spend, in the " +
 			"workspace's own day - or, without a number, lets it spend without a budget, the " +
 			"default. The installation's budget bounds only the models it offers; this one is the " +

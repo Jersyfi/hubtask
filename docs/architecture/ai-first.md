@@ -25,6 +25,7 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
 | Tool name | The stable use case name in `snake_case` (`create_work_item`, `query_items`) |
 | Description | From the registry, including preconditions and side effects |
 | Input schema | JSON Schema, identical to the REST request body |
+| Output schema | Every answer is `structuredContent` as well as text. A tool declares an `outputSchema` only where its use case declares the members every answer carries (`Descriptor.Output`) and a test holds its real answers to them (`OutputMismatch`): a client refuses structured content that misses the schema, so an unproven schema would break the tool. Undeclared members may follow; an optional member may be null. Declared today: `plan_config` |
 | Auth | Service account or PAT with scopes; every tool call is audited as `actor.type = AI_AGENT` |
 | Read/write marking | `annotations.readOnlyHint` / `destructiveHint`, so clients can ask for confirmation |
 | Resources | Containers, items and views are readable as MCP resources (`hubtask://items/{id}`). A resource is a catalogue read addressed by URI, so `resources/read` carries no authorisation of its own, as `tools/call` carries none ([ADR-0051](../adr/ADR-0051-mcp-resources-are-catalogue-reads.md)). `resources/list` pages the hubs and the caller's saved views; entries are reached by URI or `search_items`, since no unanchored item list exists |
@@ -61,6 +62,32 @@ remains fully functional (QS-09). Which AI features exist and how a person uses 
   wrote is **data, not instructions**: prompt templates mark it as context, and server-side AI calls
   never carry out actions it demands. Actions arise only from configured automation actions.
 * An agent cannot create a rule with more rights than the agent itself.
+* **A registered agent is governed** (M9, UC-AGT-01 … 04; [domain-model.md](./domain-model.md)
+  §3.12): it acts as its own service account for a named person and never does more than that
+  person; its token's scopes are narrowed to those it was registered with; every act it attempts
+  through any door passes the agents' gate - the workspace's halt, its own kill switch, the model
+  revision its approval covers, its budget, then its policy per act class (a read runs; a reversible
+  write runs, runs told, waits or never; an irreversible one waits or never) - and is a row of its
+  ledger without its input or answer. An act that waits is performed by the person who approves it,
+  as them. A registered model is the consent to send it material; a changed one stops its agents
+  until they are approved again. An agent with an evaluation bar goes live only once a run on its
+  model passed it; a triage answering its own set asks the workspace's classifier about each case's
+  text as the person running it, and records no suggestion (UC-AGT-04 check 8). A caller that is no registered agent - a person's own token over MCP among them -
+  is held to the guardrails above as before - unless the workspace switched `agents.registered_only`
+  on (off by default; the installation or a plan may lock it on): then MCP refuses it with
+  `agents.registration_required` and records `agent.unregistered_refused`, and every other door is
+  untouched (UC-AGT-02 check 10).
+* **A shipped agent proposes; a person applies** (G11, UC-AGT-07): ticket triage, CI suggestion,
+  duplicate review and knowledge draft run as jobs on their own account through the gate, which
+  holds every write a shipped agent attempts whatever its policy says; the triage's labels are a
+  suggestion. The triage routes a ticket nobody holds by its offering - the one it names, else the
+  nearest one a CI it names affects, none where two are equally near - and proposes `AssignWorkItem`
+  to the member of that offering's support group with the fewest open entries in the hub; a group
+  holds no ticket and skills are not weighed. A job is held to the agent's tokens per day and its runs at once, and its tokens are a
+  row of the ledger.
+* **Configuring agents get sections, not areas** (UC-AGT-06): `config:apply:<section>` beside
+  `config:apply` applies that section's blocks without each block's own scope, and `config:plan`
+  reads the previews a plan's reach asks for.
 
 ---
 
@@ -217,6 +244,32 @@ it was made, and a writer dismisses it to ask again.
   never localised through the message catalogue**: a suggestion records its prompt version, and a
   reader-dependent text would make that unresolvable. Rule 8 concerns the product's interface; a
   prompt addresses a model, as a tool description does (`presentation/mcp/Prompts.go`).
+
+### 2.1 The EU AI Act
+
+**Not legal advice.** The articles and dates below are the reading of Regulation (EU) 2024/1689,
+as amended by the Digital Omnibus on AI, that the research of 2026-10 records
+([foundation-law-standards-2026-10.md](../backlog/suite/research/foundation-law-standards-2026-10.md)
+§1.5). The rules are exactly as narrow as Art. 50 is: a mark where the law asks for one, and none
+where it does not. The reference for *how* to mark is the Commission's Code of Practice on the
+transparency of AI-generated content (June 2026).
+
+| # | When | Rule | Today |
+|---|---|---|---|
+| AI-1 | Art. 50(1), since 2026-08-02 | An AI system that **interacts directly with a person** — an assistant answering a question, a portal or voice assistant answering a requester, an agent replying by mail or comment to a person without a human reviewing the reply first — tells that person it is AI at the first interaction, unless that is obvious; visibly and accessibly (Art. 50(5)) | *Ask the workspace* (UC-AI-08) is the one such interaction: its hint says the answer comes from AI (`app.ask.hint`), and the answer sits in the AI surface with the model under *Where this came from*. Every other AI feature is a proposal a person decides on (AI-2), not a conversation. No AI replies to a person by mail, comment or portal |
+| AI-2 | Art. 50(2); for a system on the market before 2026-08-02 the omnibus moves it to 2026-12-02 (the exact date unverified) | Machine-readable marking of synthetic text. **Exempt** where the AI performs an assistive function for standard editing or does not substantially alter the input: a suggestion a person reads and then accepts, edits or dismisses (UC-AI-04) needs **no visible label**. Hubtask still keeps machine-readable provenance of every AI-originated value — suggested by AI, by which model and prompt, accepted by whom, when — because it is cheap and covers the case that Hubtask counts as the provider | The suggestion record carries `source: AI`, model, prompt version and time, readable through the API until its retention (`AI_SUGGESTION`) ends; the acceptance is audited (`ai.suggestion_accepted`, by whom, when, which suggestion), and the trail travels with the export. Accepting also writes a **mark** per object it wrote - the names of the fields the model proposed, the suggestion, model, prompt and version, the registered agent that asked where one did (the suggestion's `agent_id`), who accepted it when, never a value - which outlives the suggestion, travels with the archive and the access export, and is read as an entry's provenance (`GET /items/{itemId}/provenance`, UC-AGT-05) and on the entry's page |
+| AI-3 | Art. 50(4), the deployer's duty | Text generated by AI and **published to inform the public** (a public knowledge-base page, say) is disclosed as such unless a person reviewed it and holds editorial responsibility. The operator is the deployer; Hubtask gives them the provenance and a switch to show the disclosure | Nothing Hubtask builds today publishes to the public; the switch arrives with the first feature that does |
+| — | Not Art. 50 | An agent's acts on entries and its configuration changes (plan and apply) are not synthetic content and carry **no label**. Their accountability is the audit trail: `actor_type = AI_AGENT` for every call through MCP (§1.3), the approving person where a plan waits for one | The trail records `AI_AGENT`; the entry's history says *An assistant* (`app.activity.actor_AI_AGENT`) |
+
+**No AI decides about people (Annex III point 4).** No AI feature assigns or allocates work to a
+person on the basis of their behaviour, personal traits or performance, and none monitors,
+evaluates, ranks or scores people. An AI may propose properties of *work* — a title, notes, a due
+date, labels, a column, a breakdown, a collection — and may name a person only as a filter the asker
+can read or as somebody already named in the material, never as an assignee. This keeps every AI
+feature out of the high-risk category (applicable from 2027-12-02 after the omnibus); a feature that
+would cross the line is a separate, explicitly high-risk module and an owner's decision, never an
+extension of an existing one. Today no allow list in `core/application/service/suggestion/Producing.go`
+keeps an assignee, and `USER` fields are never classified (§2).
 
 ---
 

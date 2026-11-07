@@ -11,6 +11,8 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -130,6 +132,7 @@ func dueChanged() event.Envelope {
 }
 
 // The first half of the acceptance: a relative-date rule owes its moment at the offset.
+// UC-AUT-04 check 5.
 func TestARelativeDateRuleOwesItsMomentAtTheOffset(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 	h := newDates([]domain.Rule{relativeRule(domain.AnchorDueDate, "-PT24H")}, dueItem(&due))
@@ -158,6 +161,7 @@ func TestARelativeDateRuleOwesItsMomentAtTheOffset(t *testing.T) {
 
 // The test that matters: the moment moves when the anchor does. A system that worked the
 // moment out at firing time would have to look at every entry in the workspace to find out.
+// UC-AUT-04 check 5.
 func TestTheMomentMovesWhenTheDueDateMoves(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 	item := dueItem(&due)
@@ -191,6 +195,7 @@ func TestTheMomentMovesWhenTheDueDateMoves(t *testing.T) {
 
 // The third half of the acceptance: an anchor that was cleared owes nothing. A row left behind
 // would fire at a deadline that no longer exists.
+// UC-AUT-04 check 6.
 func TestAClearedAnchorOwesNothing(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 	item := dueItem(&due)
@@ -216,6 +221,7 @@ func TestAClearedAnchorOwesNothing(t *testing.T) {
 
 // An entry in the trash and an entry that is gone both owe nothing: a rule that escalated a deleted
 // entry's deadline would act on something its author had thrown away.
+// UC-AUT-04 check 6.
 func TestAnEntryThatIsGoneOwesNothing(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 
@@ -385,3 +391,187 @@ func TestThePollerAnswersTheEarlierOfTheTwoDebts(t *testing.T) {
 }
 
 var _ repository.Occurrences = (*occurrences)(nil)
+
+// "Close resolved incidents after a while" (configuration.md §6): a rule measures from the moment the
+// entry was done, owes it when the entry completes and owes nothing once it is reopened.
+func TestTheCompletionAnchorFollowsCompletingAndReopening(t *testing.T) {
+	item := dueItem(nil)
+	done := now.Add(-time.Hour)
+	item.Completion = work.Completion{IsCompleted: true, CompletedAt: &done}
+	h := newDates([]domain.Rule{relativeRule(domain.AnchorCompletedAt, "P5D")}, item)
+
+	completed := itemEvent()
+	completed.Type = event.ItemCompleted
+	if !h.subscriber.Wants(event.ItemCompleted) || !h.subscriber.Wants(event.ItemReopened) {
+		t.Fatal("completing and reopening move the completion anchor")
+	}
+	if err := h.subscriber.Deliver(context.Background(), completed); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	owed, found := h.owed.rows[owedKey(ruleID, itemID)]
+	if !found || !owed.FireAt.Equal(done.Add(5*24*time.Hour).UTC()) {
+		t.Fatalf("owes %+v (found %v), want five days after it was done", owed, found)
+	}
+
+	item.Completion = work.Completion{}
+	h.subscriber.Entries = entries{rows: map[shared.ID]work.WorkItem{item.ID: item}}
+	reopened := itemEvent()
+	reopened.Type = event.ItemReopened
+	if err := h.subscriber.Deliver(context.Background(), reopened); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if _, found := h.owed.rows[owedKey(ruleID, itemID)]; found {
+		t.Error("a reopened entry still owes the moment measured from its completion")
+	}
+}
+
+// A contract's renewal reminder measures from the register's notice date, a custom field: a day is
+// read from its start in UTC, a moment as it is, and an empty field or one holding no date owes
+// nothing.
+func TestAFieldAnchorReadsTheEntrysDateField(t *testing.T) {
+	cases := map[string]struct {
+		value any
+		want  *time.Time
+	}{
+		"a day":      {value: "2027-03-31", want: ptrTime(time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC))},
+		"a moment":   {value: "2027-03-31T09:15:00Z", want: ptrTime(time.Date(2027, 3, 1, 9, 15, 0, 0, time.UTC))},
+		"empty":      {value: nil},
+		"not a date": {value: "next spring"},
+		"a number":   {value: 12.0},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			item := dueItem(nil)
+			if tc.value != nil {
+				item.CustomFields = map[string]any{"contract_notice_by": tc.value}
+			}
+			rule := relativeRule(domain.AnchorField, "-P30D")
+			rule.Trigger.AnchorField = "contract_notice_by"
+			h := newDates([]domain.Rule{rule}, item)
+
+			if err := h.subscriber.Deliver(context.Background(), itemEvent()); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			owed, found := h.owed.rows[owedKey(ruleID, itemID)]
+			if tc.want == nil {
+				if found {
+					t.Fatalf("owes %+v, want nothing", owed)
+				}
+				return
+			}
+			if !found || !owed.FireAt.Equal(*tc.want) {
+				t.Fatalf("owes %+v (found %v), want %v", owed, found, *tc.want)
+			}
+		})
+	}
+}
+
+func ptrTime(at time.Time) *time.Time { return &at }
+
+// businessCalendars answers a hub's calendars by key.
+type businessCalendars struct {
+	rows  map[string]calendar.BusinessCalendar
+	asked []shared.ID
+}
+
+func (b *businessCalendars) Find(_ context.Context, hub shared.ID, key string) (calendar.BusinessCalendar, error) {
+	b.asked = append(b.asked, hub)
+	found, ok := b.rows[key]
+	if !ok {
+		return calendar.BusinessCalendar{}, shared.ErrNotFound.WithDetail("calendars.not_found")
+	}
+	return found, nil
+}
+
+// "Close resolved incidents after 5 business days" (configuration.md §6): a trigger naming a
+// calendar counts its working days in the entry's hub, and one whose calendar is gone owes
+// nothing rather than counting plain days, which would close earlier than promised.
+func TestABusinessCalendarCountsWorkingDays(t *testing.T) {
+	var week calendar.Week
+	for _, day := range []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday} {
+		week[day] = []calendar.Span{{From: 8 * 60, To: 18 * 60}}
+	}
+	office, err := calendar.New(calendar.Spec{Zone: "UTC", Week: week})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := dueItem(nil)
+	done := time.Date(2026, 10, 30, 15, 0, 0, 0, time.UTC) // a Friday
+	item.Completion = work.Completion{IsCompleted: true, CompletedAt: &done}
+	rule := relativeRule(domain.AnchorCompletedAt, "P5D")
+	rule.Trigger.Calendar = "office"
+	h := newDates([]domain.Rule{rule}, item)
+	calendars := &businessCalendars{rows: map[string]calendar.BusinessCalendar{"office": office}}
+	h.subscriber.Calendars = calendars
+
+	completed := itemEvent()
+	completed.Type = event.ItemCompleted
+	if err := h.subscriber.Deliver(context.Background(), completed); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	owed, found := h.owed.rows[owedKey(ruleID, itemID)]
+	if want := time.Date(2026, 11, 6, 15, 0, 0, 0, time.UTC); !found || !owed.FireAt.Equal(want) {
+		t.Fatalf("owes %+v (found %v), want five working days later, %s", owed, found, want)
+	}
+	if len(calendars.asked) != 1 || calendars.asked[0] != hubID {
+		t.Errorf("the calendar was asked of %v, want the entry's hub", calendars.asked)
+	}
+
+	calendars.rows = map[string]calendar.BusinessCalendar{}
+	if err := h.subscriber.Deliver(context.Background(), completed); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if _, found := h.owed.rows[owedKey(ruleID, itemID)]; found {
+		t.Error("a rule whose calendar is gone still owes a moment")
+	}
+}
+
+// A trigger whose calendar is gone owes nothing and seeds the workspace's check, so the rule
+// becomes a finding its owner hears of rather than a rule that silently stops firing.
+func TestAGoneCalendarSeedsTheCheck(t *testing.T) {
+	due := now.Add(72 * time.Hour)
+	rule := relativeRule(domain.AnchorDueDate, "P5D")
+	rule.Trigger.Calendar = "office"
+	h := newDates([]domain.Rule{rule}, dueItem(&due))
+	h.subscriber.Calendars = &businessCalendars{rows: map[string]calendar.BusinessCalendar{}}
+
+	if err := h.subscriber.Deliver(context.Background(), dueChanged()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	if _, found := h.owed.rows[owedKey(ruleID, itemID)]; found {
+		t.Fatal("a rule whose calendar is gone still owes a moment")
+	}
+	seeded := false
+	for _, request := range h.queued.queued {
+		seeded = seeded || (request.Kind == queue.KindAutomationCheck && request.DedupeKey == tenant.String())
+	}
+	if !seeded {
+		t.Fatalf("queued %+v, want the workspace's check", h.queued.queued)
+	}
+}
+
+type workspaceZone string
+
+func (z workspaceZone) Find(context.Context) (identity.Workspace, error) {
+	return identity.Workspace{DefaultTimeZone: string(z)}, nil
+}
+
+// A day before is a calendar day in the workspace's zone: a deadline the morning after the spring
+// change is reminded of at the same clock time the day before, not an hour off.
+func TestADayOffsetCountsTheWorkspacesCalendarDays(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skip("no zone database")
+	}
+	due := time.Date(2026, 3, 29, 9, 0, 0, 0, berlin).UTC()
+	h := newDates([]domain.Rule{relativeRule(domain.AnchorDueDate, "-P1D")}, dueItem(&due))
+	h.subscriber.Workspaces = workspaceZone("Europe/Berlin")
+
+	if err := h.subscriber.Deliver(context.Background(), dueChanged()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	owed := h.owed.rows[owedKey(ruleID, itemID)]
+	if want := time.Date(2026, 3, 28, 9, 0, 0, 0, berlin); !owed.FireAt.Equal(want) {
+		t.Errorf("owes at %v, want %v", owed.FireAt.In(berlin), want)
+	}
+}

@@ -66,14 +66,19 @@ func (g Guard) limits(ctx context.Context) (Limits, error) {
 // check is every capacity quota's shape: resolve, count, report the ratio, refuse at the wall.
 // `adding` is what the caller is about to create - the refusal happens before the wall is
 // breached, not after.
+//
+// `kept` names the count the database keeps for the quota, or is empty. Where one is kept and
+// leaves room, it is the answer and nothing is counted: a count over a million rows on every
+// create of a limited workspace is the cost it saves. A refusal is never based on it - a
+// deletion it missed would refuse a workspace that has room - so at the wall the rows are counted.
 func (g Guard) check(
 	ctx context.Context, tenant, quota string, limit int64,
-	count func(context.Context) (int64, error), adding int64,
+	count func(context.Context) (int64, error), adding int64, kept string,
 ) error {
 	if limit == Unlimited {
 		return nil
 	}
-	used, err := count(ctx)
+	used, err := g.used(ctx, limit, count, adding, kept)
 	if err != nil {
 		return err
 	}
@@ -94,13 +99,29 @@ func (g Guard) check(
 	return nil
 }
 
+// used is the kept count where it leaves room for `adding`, otherwise the counted one.
+func (g Guard) used(
+	ctx context.Context, limit int64, count func(context.Context) (int64, error), adding int64, kept string,
+) (int64, error) {
+	if kept != "" {
+		value, ok, err := g.Usage.Kept(ctx, kept)
+		if err != nil {
+			return 0, err
+		}
+		if ok && value+adding <= limit {
+			return value, nil
+		}
+	}
+	return count(ctx)
+}
+
 // Items refuses when the workspace's items would pass their ceiling.
 func (g Guard) Items(ctx context.Context, tenant string, adding int64) error {
 	limits, err := g.limits(ctx)
 	if err != nil {
 		return err
 	}
-	return g.check(ctx, tenant, Items, limits.Items, g.Usage.Items, adding)
+	return g.check(ctx, tenant, Items, limits.Items, g.Usage.Items, adding, Items)
 }
 
 // MediaBytes refuses when storing `adding` more bytes would pass the ceiling.
@@ -109,7 +130,7 @@ func (g Guard) MediaBytes(ctx context.Context, tenant string, adding int64) erro
 	if err != nil {
 		return err
 	}
-	return g.check(ctx, tenant, MediaBytes, limits.MediaBytes, g.Usage.MediaBytes, adding)
+	return g.check(ctx, tenant, MediaBytes, limits.MediaBytes, g.Usage.MediaBytes, adding, MediaBytes)
 }
 
 // WebhookTargets refuses when another subscription would pass the ceiling.
@@ -118,7 +139,16 @@ func (g Guard) WebhookTargets(ctx context.Context, tenant string) error {
 	if err != nil {
 		return err
 	}
-	return g.check(ctx, tenant, WebhookTargets, limits.WebhookTargets, g.Usage.WebhookTargets, 1)
+	return g.check(ctx, tenant, WebhookTargets, limits.WebhookTargets, g.Usage.WebhookTargets, 1, "")
+}
+
+// Mailboxes refuses when another mailbox would pass the ceiling; the connected ones keep being read.
+func (g Guard) Mailboxes(ctx context.Context, tenant string) error {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	return g.check(ctx, tenant, Mailboxes, limits.Mailboxes, g.Usage.Mailboxes, 1, "")
 }
 
 // Accounts refuses when the people the workspace holds would pass their ceiling. Unlike the other
@@ -135,7 +165,7 @@ func (g Guard) Accounts(ctx context.Context, tenant string, adding int64) error 
 	if err := g.Usage.LockPeople(ctx); err != nil {
 		return err
 	}
-	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding)
+	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding, "")
 }
 
 // Renewal refuses renewing an invitation past the people limit: one whose link is still open
@@ -161,7 +191,7 @@ func (g Guard) Renewal(ctx context.Context, tenant, account string) error {
 	if open {
 		adding = 0
 	}
-	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding)
+	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding, "")
 }
 
 // ExportJobs refuses when another live export would pass the ceiling.
@@ -170,7 +200,7 @@ func (g Guard) ExportJobs(ctx context.Context, tenant string) error {
 	if err != nil {
 		return err
 	}
-	return g.check(ctx, tenant, ExportJobs, limits.ExportJobs, g.Usage.LiveExports, 1)
+	return g.check(ctx, tenant, ExportJobs, limits.ExportJobs, g.Usage.LiveExports, 1, "")
 }
 
 // AiTokens reports whether the workspace's daily AI budget for one source still has room - the

@@ -64,6 +64,7 @@ func deadLettered(t *testing.T, h *harness) domain.WebhookDelivery {
 	return delivery
 }
 
+// UC-INT-02 check 1.
 func TestTheDeliveryLogIsPagedAndFilterable(t *testing.T) {
 	h := withSubscription(t)
 	dead := deadLettered(t, h)
@@ -121,6 +122,7 @@ func TestAnUnknownStatusFilterIsRefusedRatherThanIgnored(t *testing.T) {
 
 // The same event sent again: the identifier a subscriber deduplicates on is the one it always had,
 // and the attempt carries on so the log stays a true account.
+// UC-INT-02 check 3.
 func TestAReplayQueuesANewAttemptOfTheSameEvent(t *testing.T) {
 	h := withSubscription(t)
 	dead := deadLettered(t, h)
@@ -156,6 +158,30 @@ func TestAReplayQueuesANewAttemptOfTheSameEvent(t *testing.T) {
 	}
 }
 
+// A dead letter replayed once is not replayed again: a second click, or a client repeating the
+// request, would put a second attempt of the same event in flight beside the first. Its latest
+// attempt is the one to act on.
+func TestADeadLetterIsReplayedOnlyOnce(t *testing.T) {
+	h := withSubscription(t)
+	dead := deadLettered(t, h)
+	queued := &jobs{}
+	replay := ReplayWebhookDelivery{Writer: h.writer, Jobs: queued}
+
+	if _, err := replay.Execute(t.Context(), actor(), hookID, dead.ID); err != nil {
+		t.Fatalf("replaying: %v", err)
+	}
+	_, err := replay.Execute(t.Context(), actor(), hookID, dead.ID)
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "webhooks.delivery_replayed_already" {
+		t.Errorf("the second replay answered %v", err)
+	}
+	if len(queued.requests) != 1 {
+		t.Errorf("queued %d jobs, want one", len(queued.requests))
+	}
+	if !h.delivered.locked[dead.ID] {
+		t.Error("the dead letter was not held while its later attempts were asked about")
+	}
+}
+
 // A delivery of another subscription, named through this one's path: not found rather than
 // forbidden, for the reason every other read of somebody else's thing is (T-04).
 func TestADeliveryOfAnotherSubscriptionIsNotFound(t *testing.T) {
@@ -178,6 +204,7 @@ func TestADeliveryOfAnotherSubscriptionIsNotFound(t *testing.T) {
 
 // A subscriber cannot deploy atomically, so the old secret keeps verifying for its grace - and the
 // clock decides that, not a sleep.
+// UC-INT-03 check 1.
 func TestARotationAnswersANewSecretAndKeepsTheOldOneVerifying(t *testing.T) {
 	h := withSubscription(t)
 	before := h.store.rows[hookID]

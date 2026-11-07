@@ -171,6 +171,7 @@ Everything a tool needs is readable without asking a worker:
 | Question | Where |
 |---|---|
 | Which milestones run, what they deliver | `docs/backlog/milestone-*.md` headers (`Delivers`, `Released`, `Closed`) |
+| Which concept is built whole, and how far | its running plan, today [`suite/README.md`](./suite/README.md) with its *State* |
 | Which tasks exist, which are open | GitHub issues labelled `task`, by milestone |
 | Is it being built, is it done | the pull request: draft, ready, merged |
 | What waits on the owner | open issues labelled `decision` |

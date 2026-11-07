@@ -91,6 +91,9 @@ export interface SignInPolicy {
      * absent from a server that predates it.
      */
     readonly terms_version?: Setting<string>;
+    /** Where people ask for help and what they read: shown in Help, not in the footer. */
+    readonly support_url?: Setting<string>;
+    readonly docs_url?: Setting<string>;
   };
   /**
    * Whether owners and administrators may give somebody an account without a mail address
@@ -231,7 +234,7 @@ class SignInPolicyStore {
     } catch (cause) {
       this.#problem = cause instanceof TransportError
         ? renderProblem(cause, messages)
-        : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+        : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
       return false;
     } finally {
       this.#working = false;
@@ -254,7 +257,7 @@ class SignInPolicyStore {
     } catch (cause) {
       return cause instanceof TransportError
         ? renderProblem(cause, messages)
-        : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+        : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
     }
   }
 

@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"testing"
 
@@ -23,7 +24,7 @@ func presetReader() appshared.ActorContext {
 // UC-WRK-23 check 2, through the catalogue: four presets, each with all eight settings, held to
 // this installation's profiles.
 func TestThePresetsAnswerEightSettingsEach(t *testing.T) {
-	handler := ListPresets{Profiles: &profiles{rows: systemProfiles()}, UnitOfWork: &unitOfWork{}}
+	handler := ListPresets{Profiles: &profiles{rows: systemProfiles()}, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
 	descriptor := handler.Descriptor()
 	if !descriptor.ReadOnly || descriptor.Destructive || descriptor.MCPTool() != "list_presets" {
 		t.Errorf("descriptor %+v", descriptor)
@@ -61,7 +62,7 @@ func TestThePresetsAnswerEightSettingsEach(t *testing.T) {
 }
 
 func TestThePresetsAskForTheReadScope(t *testing.T) {
-	handler := ListPresets{Profiles: &profiles{rows: systemProfiles()}, UnitOfWork: &unitOfWork{}}
+	handler := ListPresets{Profiles: &profiles{rows: systemProfiles()}, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
 	writer := actor()
 	writer.Scopes = []string{"items:write"}
 
@@ -71,9 +72,30 @@ func TestThePresetsAskForTheReadScope(t *testing.T) {
 	}
 }
 
+// The workspace's saved presets are the team's: a requester is no member and reads none of them
+// (access.Request.AnyMember), and a build without the authoriser refuses everybody.
+func TestARequesterReadsNoPresets(t *testing.T) {
+	refusing := &authorizer{err: shared.ErrForbidden.WithDetail("access.not_permitted")}
+	handler := ListPresets{Profiles: &profiles{rows: systemProfiles()}, Authorizer: refusing, UnitOfWork: &unitOfWork{}}
+
+	if _, err := handler.Execute(context.Background(), presetReader()); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the presets = %v, want the refusal", err)
+	}
+	if len(refusing.requests) != 1 || !refusing.requests[0].AnyMember ||
+		refusing.requests[0].Action != PresetsReadAction || refusing.requests[0].TokenScope != containersRead {
+		t.Errorf("asked %+v, want any member under %s", refusing.requests, containersRead)
+	}
+
+	unwired := ListPresets{Profiles: &profiles{rows: systemProfiles()}, UnitOfWork: &unitOfWork{}}
+	if _, err := unwired.Execute(context.Background(), presetReader()); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("without an authoriser the presets = %v, want the refusal", err)
+	}
+}
+
 func TestAFailedProfileReadAnswersNoPresets(t *testing.T) {
 	handler := ListPresets{
-		Profiles: &profiles{err: shared.ErrUnavailable.WithDetail("postgres.query_failed")}, UnitOfWork: &unitOfWork{},
+		Profiles:   &profiles{err: shared.ErrUnavailable.WithDetail("postgres.query_failed")},
+		Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{},
 	}
 	if _, err := handler.Execute(context.Background(), presetReader()); err == nil {
 		t.Error("presets were answered without the installation's profiles")

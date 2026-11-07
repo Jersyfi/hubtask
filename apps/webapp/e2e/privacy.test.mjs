@@ -100,7 +100,9 @@ async function open(browser, role = 'OWNER', options = {}) {
   forgetUnstubbed();
   await page.goto(`${served.origin}/administration/privacy`);
   await page.locator('section.panel', { hasText: OPEN.subject_email }).waitFor();
-  return { page, failures, written, close: () => context.close() };
+  // The erasure's mode note reads its preview on load, so a read stands among the writes.
+  const writes = () => written.filter((each) => !each.preview);
+  return { page, failures, written, writes, close: () => context.close() };
 }
 
 const row = (page, request) => page.locator('section.panel', { hasText: request.subject_email });
@@ -145,7 +147,7 @@ test('chromium: the day the person was told starts on today in the workspace, no
 test('chromium: the extension starts on the bound the case answers and sends three facts', async () => {
   const browser = await chromium.launch();
   try {
-    const { page, failures, written, close } = await open(browser);
+    const { page, failures, writes, close } = await open(browser);
     const open_ = row(page, OPEN);
     await open_.getByRole('button', { name: 'Extend the deadline' }).click();
 
@@ -158,10 +160,10 @@ test('chromium: the extension starts on the bound the case answers and sends thr
     await open_.getByLabel('The day you told them').fill('2026-09-12');
     await open_.getByRole('button', { name: 'Extend it' }).click();
 
-    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
-    assert.equal(written.length, 1);
-    assert.deepEqual(written[0].body, { due_on: '2026-12-01', reason: 'NUMBER_OF_REQUESTS', informed_on: '2026-09-12' });
-    assert.ok(written[0].idempotencyKey, 'the extension carries an Idempotency-Key');
+    for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    assert.equal(writes().length, 1);
+    assert.deepEqual(writes()[0].body, { due_on: '2026-12-01', reason: 'NUMBER_OF_REQUESTS', informed_on: '2026-09-12' });
+    assert.ok(writes()[0].idempotencyKey, 'the extension carries an Idempotency-Key');
     assert.deepEqual(failures, []);
     assert.deepEqual(unstubbedSoFar().filter((each) => each.includes('privacy')), []);
     await close();
@@ -190,21 +192,45 @@ test('chromium: an installation-wide case is listed and offers nothing here', as
   }
 });
 
+test('chromium: the register offers no installation-wide case and says whom to ask', async () => {
+  // UC-PRV-06 check 6: the form records this workspace's case only, and the page names the
+  // operator as the one who answers a request across the installation.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, writes, close } = await open(browser);
+    const note = page.getByText('Raise it with whoever runs this installation', { exact: false });
+    assert.equal(await note.count(), 1);
+    const form = page.locator('form', { hasText: 'Record a request' });
+    for (const role of ['option', 'radio', 'checkbox', 'button']) {
+      assert.equal(await form.getByRole(role, { name: /installation|everywhere/i }).count(), 0, role);
+    }
+    await form.getByLabel('Their address').fill('new@example.invalid');
+    await form.getByRole('button', { name: 'Record it' }).click();
+    for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    assert.equal(writes().length, 1);
+    assert.equal(writes()[0].body.scope ?? 'TENANT', 'TENANT');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
 test('chromium: a case is recorded with its own deadline, owed to the end of that day', async () => {
-  // UC-PRV-01 check 6: the record form names a day, and the case is owed until its last second in
+  // UC-PRV-01 checks 1 and 6: the web app records a case, and the record form names a day, and the case is owed until its last second in
   // the workspace's zone.
   const browser = await chromium.launch();
   try {
-    const { page, failures, written, close } = await open(browser);
+    const { page, failures, writes, close } = await open(browser);
     const form = page.locator('form', { hasText: 'Record a request' });
     await form.getByLabel('Their address').fill('new@example.invalid');
     await form.getByLabel('Deadline').fill('2027-03-28');
     await form.getByRole('button', { name: 'Record it' }).click();
-    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
 
-    assert.equal(written.length, 1);
-    assert.equal(written[0].body.subject_email, 'new@example.invalid');
-    assert.equal(written[0].body.due_at, '2027-03-28T21:59:59.000Z');
+    assert.equal(writes().length, 1);
+    assert.equal(writes()[0].body.subject_email, 'new@example.invalid');
+    assert.equal(writes()[0].body.due_at, '2027-03-28T21:59:59.000Z');
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -219,7 +245,7 @@ test('chromium: a request received two months ago is recorded with that day and 
   // 14 September there.
   const browser = await chromium.launch();
   try {
-    const { page, failures, written, close } = await open(browser, 'OWNER', {
+    const { page, failures, writes, close } = await open(browser, 'OWNER', {
       now: new Date('2026-10-15T09:00:00Z'),
       recordAnswer: (sent) => ({
         ...OPEN, id: '01a0e2e0-0000-7000-8000-0000000000c9', ...sent,
@@ -232,11 +258,11 @@ test('chromium: a request received two months ago is recorded with that day and 
     await form.getByLabel('Their address').fill('late@example.invalid');
     await form.getByLabel('Received on').fill('2026-08-14');
     await form.getByRole('button', { name: 'Record it' }).click();
-    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
 
-    assert.equal(written.length, 1);
-    assert.equal(written[0].body.received_on, '2026-08-14');
-    assert.equal(written[0].body.due_at, undefined);
+    assert.equal(writes().length, 1);
+    assert.equal(writes()[0].body.received_on, '2026-08-14');
+    assert.equal(writes()[0].body.due_at, undefined);
     const late = page.locator('section.panel', { hasText: 'late@example.invalid' });
     await late.waitFor();
     const text = await late.innerText();
@@ -253,7 +279,7 @@ test('chromium: starting an erasure asks first, naming the person and what the m
   // UC-PRV-03 check 8, P-04: nothing is sent before the confirmation.
   const browser = await chromium.launch();
   try {
-    const { page, failures, written, close } = await open(browser);
+    const { page, failures, written, writes, close } = await open(browser);
     await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
 
     const dialog = page.getByRole('dialog');
@@ -267,11 +293,10 @@ test('chromium: starting an erasure asks first, naming the person and what the m
     written.length = 0;
 
     await dialog.locator('footer').getByRole('button', { name: 'Keep the case open' }).click();
-    assert.equal(written.filter((each) => !each.preview).length, 0);
+    assert.equal(writes().length, 0);
 
     await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
     await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
-    const writes = () => written.filter((each) => !each.preview);
     for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
     assert.equal(writes().length, 1);
     assert.ok(writes()[0].path.endsWith(ERASURE.id));

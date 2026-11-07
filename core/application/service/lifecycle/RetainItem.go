@@ -165,7 +165,8 @@ const itemEntity = "work_item"
 // Descriptor registers taking an entry out in all three channels.
 func (h RetainItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RetainItemName,
+		Name:       RetainItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Takes one entry out of the retention period running against it. The rule stops " +
 			"owning the entry, so the next pass judges it afresh against whatever rule then " +
 			"applies - which is what makes editing it, moving it and this command three ways of " +

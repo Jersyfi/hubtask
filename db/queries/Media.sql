@@ -20,15 +20,31 @@ FROM media_object
 WHERE id = $1;
 
 -- name: SealMediaObject :execrows
--- The confirmation's write: PENDING becomes READY, carrying the judged type and the measured
--- size. Matches only a live PENDING row, so a double confirmation and a confirmation racing the
--- reconciliation job both come back as zero rows - the caller reads the row again and answers
--- from what it finds.
+-- The confirmation's write: PENDING becomes READY - or PENDING_SCAN, held for a scanner that could
+-- not answer - carrying the judged type and the measured size. Matches only a live PENDING row,
+-- so a double confirmation and a confirmation racing the reconciliation job both come back as zero
+-- rows - the caller reads the row again and answers from what it finds.
 UPDATE media_object SET
-  status    = 'READY',
+  status    = sqlc.arg('status'),
   mime_type = sqlc.arg('mime_type'),
   byte_size = sqlc.arg('byte_size')
 WHERE id = sqlc.arg('id')::uuid AND status = 'PENDING' AND deleted_at IS NULL;
+
+-- name: ListHeldMediaObjects :many
+-- The files held for a scan, oldest first: what the scan job takes up while the scanner answers
+-- again. media_object_reconcile_idx leads with (tenant_id, status).
+SELECT id, tenant_id, storage_key, file_name, mime_type, byte_size, checksum, usage, status,
+       ref_count, created_by, created_at, deleted_at
+FROM media_object
+WHERE status = 'PENDING_SCAN' AND deleted_at IS NULL
+ORDER BY created_at, id
+LIMIT sqlc.arg('batch');
+
+-- name: SettleMediaScan :execrows
+-- A scan's verdict on a held file: READY, or INFECTED. Matches only a live held row, so two
+-- scans of one file settle it once.
+UPDATE media_object SET status = sqlc.arg('status')
+WHERE id = sqlc.arg('id')::uuid AND status = 'PENDING_SCAN' AND deleted_at IS NULL;
 
 -- name: AdjustMediaRefCount :execrows
 -- The fast half of reference counting: the use case that adds or drops a reference moves the
@@ -79,7 +95,13 @@ FROM (
     -- not be reclaimed while the entry that carries it is still readable.
     + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
     -- A person's picture: reclaimed only once nobody shows it any more.
-    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id) AS total
+    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
+    -- A desk's logo, a trashed collection's included: it may come back.
+    + (SELECT count(*) FROM container d WHERE d.logo_media_id = o.id)
+    -- A board's pictures and files, trashed boards included: they may come back.
+    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
+    -- A page's pictures and files, trashed pages included, for the same reason.
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -99,7 +121,7 @@ UPDATE media_object SET deleted_at = sqlc.arg('now')
 WHERE deleted_at IS NULL
   AND ref_count = 0
   AND (
-    (status = 'READY'
+    (status IN ('READY', 'PENDING_SCAN', 'INFECTED')
       AND unreferenced_since IS NOT NULL
       AND unreferenced_since < sqlc.arg('unreferenced_before'))
     OR (status = 'PENDING' AND created_at < sqlc.arg('pending_before'))
@@ -130,12 +152,37 @@ FROM item_attachment a JOIN work_item w ON w.id = a.item_id
 WHERE a.media_id = sqlc.arg('media_id')::uuid
 LIMIT 50;
 
+-- name: ListMediaReferencingBoards :many
+-- The hubs of the boards that draw an object, for GetMedia's authorisation: whoever may read one
+-- of those boards may read the object. A trashed board serves nothing until it is restored.
+SELECT DISTINCT w.hub_id
+FROM whiteboard_media b JOIN whiteboard w ON w.tenant_id = b.tenant_id AND w.id = b.whiteboard_id
+WHERE b.media_id = sqlc.arg('media_id')::uuid AND w.deleted_at IS NULL
+LIMIT 50;
+
+-- name: ListMediaReferencingPages :many
+-- The pages that hold an object, for GetMedia's authorisation: whoever may read one of those pages
+-- may read the object, which the knowledge module decides. A trashed page serves nothing until it
+-- is restored.
+SELECT DISTINCT g.page_id
+FROM page_media g JOIN page p ON p.tenant_id = g.tenant_id AND p.id = g.page_id
+WHERE g.media_id = sqlc.arg('media_id')::uuid AND p.deleted_at IS NULL
+LIMIT 50;
+
 -- name: MediaServesAvatar :one
 -- Whether somebody shows the object as their picture, for GetMedia's authorisation: a picture is
 -- read by every member, as the name beside it is.
 SELECT EXISTS (
   SELECT 1 FROM account WHERE avatar_media_id = sqlc.arg('media_id')::uuid AND deleted_at IS NULL
 )::boolean AS serves;
+
+-- name: ListMediaServedDesks :many
+-- The collections that show an object as their desk's logo, for GetMedia's authorisation: whoever
+-- may raise a request at one of them may read it, as the portal draws it. A trashed collection
+-- serves nothing until it is restored.
+SELECT id FROM container
+WHERE logo_media_id = sqlc.arg('media_id')::uuid AND deleted_at IS NULL
+LIMIT 50;
 
 -- name: InsertItemAttachment :execrows
 -- ON CONFLICT DO NOTHING, for the reason AddItemMember gives: attaching what is already attached

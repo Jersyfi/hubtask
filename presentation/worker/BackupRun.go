@@ -35,13 +35,17 @@ type BackupRun struct {
 }
 
 var (
-	_ queue.Handler  = BackupRun{}
-	_ queue.Detached = BackupRun{}
-	_ queue.Releaser = BackupRun{}
+	_ queue.Handler     = BackupRun{}
+	_ queue.Detached    = BackupRun{}
+	_ queue.LongRunning = BackupRun{}
+	_ queue.Releaser    = BackupRun{}
 )
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
 func (h BackupRun) OwnsItsTransactions() {}
+
+// RunsLong is the declaration queue.LongRunning asks for: one pass may take hours.
+func (BackupRun) RunsLong() {}
 
 // Run writes one archive.
 func (h BackupRun) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
@@ -123,11 +127,15 @@ type BackupVerify struct {
 }
 
 var (
-	_ queue.Handler  = BackupVerify{}
-	_ queue.Detached = BackupVerify{}
+	_ queue.Handler     = BackupVerify{}
+	_ queue.Detached    = BackupVerify{}
+	_ queue.LongRunning = BackupVerify{}
 )
 
 func (h BackupVerify) OwnsItsTransactions() {}
+
+// RunsLong is the declaration queue.LongRunning asks for: one pass may take hours.
+func (BackupVerify) RunsLong() {}
 
 // Run checks one archive.
 func (h BackupVerify) Run(ctx context.Context, job queue.Job) (queue.Result, error) {

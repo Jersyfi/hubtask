@@ -5,9 +5,11 @@ package archive
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -516,5 +518,76 @@ func TestASectionIsWrittenOnlyWhereItIsAskedFor(t *testing.T) {
 	clash.Sections = []Entity{{Name: "containers", Table: "kudos"}}
 	if _, err := NewWriter(newStore(), &reversible{}, newBlobs()).Write(t.Context(), clash, source); err == nil {
 		t.Error("a section under an entity's name was written")
+	}
+}
+
+// snapshotMedia is a Locator whose Open needs the snapshot, as the database lookup does.
+type snapshotMedia struct {
+	blobs  *blobStore
+	closed bool
+}
+
+func (m *snapshotMedia) Open(ctx context.Context, digest string) (io.ReadCloser, error) {
+	if m.closed {
+		return nil, errors.New("the snapshot has ended")
+	}
+	return m.blobs.Open(ctx, digest)
+}
+
+func (m *snapshotMedia) Locate(_ context.Context, digests []string) (Media, error) {
+	if m.closed {
+		return nil, errors.New("the snapshot has ended")
+	}
+	for _, digest := range digests {
+		if _, found := m.blobs.content[digest]; !found {
+			return nil, shared.ErrNotFound.WithParams(map[string]string{"sha256": digest})
+		}
+	}
+	return m.blobs, nil
+}
+
+func TestTheMediaAreTransferredAfterTheSnapshotEnds(t *testing.T) {
+	store, source := newStore(), newSource()
+	media := &snapshotMedia{blobs: newBlobs()}
+	attachment := blobOf("bytes read after the snapshot")
+	media.blobs.content[attachment.Digest] = "bytes read after the snapshot"
+	source.rows["media_objects"] = []Record{
+		{ID: "m1", Op: OpUpsert, UpdatedAt: snapshot(), Data: map[string]any{}, Blobs: []Blob{attachment}},
+	}
+
+	pending, err := NewWriter(store, &reversible{}, media).Begin(t.Context(), request(), source)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	if len(media.blobs.opened) != 0 {
+		t.Fatalf("Begin transferred %v; the media belong after the snapshot", media.blobs.opened)
+	}
+	media.closed = true
+
+	manifest, err := pending.Finish(t.Context())
+	if err != nil {
+		t.Fatalf("finish after the snapshot: %v", err)
+	}
+	if manifest.MediaCount != 1 {
+		t.Fatalf("media count = %d, want 1", manifest.MediaCount)
+	}
+	if _, found := store.object(request().Prefix + "/" + MediaName(attachment.Digest)); !found {
+		t.Fatal("the medium was not written")
+	}
+}
+
+func TestAMediumThatCannotBeLocatedRefusesTheRunInsideTheSnapshot(t *testing.T) {
+	store, source := newStore(), newSource()
+	media := &snapshotMedia{blobs: newBlobs()}
+	gone := blobOf("gone")
+	source.rows["media_objects"] = []Record{
+		{ID: "m1", Op: OpUpsert, UpdatedAt: snapshot(), Data: map[string]any{}, Blobs: []Blob{gone}},
+	}
+
+	_, err := NewWriter(store, &reversible{}, media).Begin(t.Context(), request(), source)
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != CodeMediaMissing ||
+		refusal.Params["sha256"] != gone.Digest {
+		t.Fatalf("err = %v, want %s naming %s", err, CodeMediaMissing, gone.Digest)
 	}
 }

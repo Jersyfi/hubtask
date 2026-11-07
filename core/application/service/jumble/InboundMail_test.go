@@ -4,6 +4,7 @@
 package jumble
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -68,8 +69,9 @@ func mailDoor(t *testing.T) (IntakeMail, *ingestedMedia, *entryStore, *published
 	}, media, entries, events, token
 }
 
-// The ordinary mail: it becomes one entry on the EMAIL channel, its files go through the media
-// pipeline, and the arrival is announced - which is what fires a JUMBLE_ENTRY rule.
+// The ordinary mail: it becomes one entry on the EMAIL channel with its sender, subject and text,
+// its files go through the media pipeline, no account is its author, and the arrival is announced
+// as the system's - which is what fires a JUMBLE_ENTRY rule (UC-JUM-03 checks 1 and 7).
 func TestAMailBecomesAnEntryWithItsAttachments(t *testing.T) {
 	door, media, entries, events, token := mailDoor(t)
 
@@ -90,7 +92,8 @@ func TestAMailBecomesAnEntryWithItsAttachments(t *testing.T) {
 	if entry.TenantID != tenant {
 		t.Errorf("the entry belongs to %q", entry.TenantID)
 	}
-	if entry.Sender != "orders@example.org" || entry.RawSubject != "Order #42" {
+	if entry.Sender != "orders@example.org" || entry.RawSubject != "Order #42" ||
+		entry.RawBody != "The customer asked for a call back." || !entry.CreatedBy.IsZero() {
 		t.Errorf("the entry reads %+v", entry)
 	}
 	if len(entry.Attachments) != 1 || entry.Attachments[0] != attachmentID {
@@ -113,7 +116,8 @@ func TestAMailBecomesAnEntryWithItsAttachments(t *testing.T) {
 }
 
 // A message that defeated the parser still lands: the bytes become an attachment and the readable
-// half of them becomes the body. A jumble exists to catch, and "unparseable" is a thing to catch.
+// half of them becomes the body. A jumble exists to catch, and "unparseable" is a thing to catch
+// (UC-JUM-03 check 3).
 func TestAnUnparseablePayloadStillLands(t *testing.T) {
 	door, media, _, _, token := mailDoor(t)
 
@@ -126,7 +130,7 @@ func TestAnUnparseablePayloadStillLands(t *testing.T) {
 		t.Fatalf("an unparseable payload was lost: %v", err)
 	}
 
-	if len(media.files) != 1 || media.files[0].FileName != RawMailFileName {
+	if len(media.files) != 1 || media.files[0].FileName != "message.eml" {
 		t.Fatalf("the payload was stored as %+v", media.files)
 	}
 	// No claim about what the bytes are: the sniff decides, which is the honest reading of bytes
@@ -143,17 +147,26 @@ func TestAnUnparseablePayloadStillLands(t *testing.T) {
 }
 
 // The token is checked before a byte is stored. An unknown address costs one lookup rather than a
-// file in somebody's bucket - and every reason not to serve is the same not-found (T-21).
+// file in somebody's bucket - and every reason not to serve is the same not-found (T-21,
+// UC-JUM-03 check 6).
 func TestAWrongTokenStoresNothingAtAll(t *testing.T) {
-	door, media, entries, _, _ := mailDoor(t)
+	door, media, entries, _, replaced := mailDoor(t)
 
 	stranger, err := integration.NewInboundToken(tenant, make([]byte, integration.InboundTokenSecretBytes))
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := door.Intake.(*intakeStore).SetToken(context.Background(), stranger, now); err != nil {
+		t.Fatal(err)
+	}
+	unknown, err := integration.NewInboundToken(tenant, bytes.Repeat([]byte{7}, integration.InboundTokenSecretBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for name, delivery := range map[string]MailDelivery{
-		"a token nobody minted": {Token: stranger, Body: "x"},
+		"a token nobody minted": {Token: unknown, Body: "x"},
+		"a replaced token":      {Token: replaced, Body: "x"},
 		"no token at all":       {Body: "x"},
 	} {
 		_, err := door.Execute(context.Background(), delivery)
@@ -171,7 +184,7 @@ func TestAWrongTokenStoresNothingAtAll(t *testing.T) {
 
 // A subject longer than the column takes is cut rather than refused. The bounds exist so that a
 // crafted message costs a refusal instead of storage; losing a legitimate message to a header
-// nobody reads twice would be the inbox failing at its one job.
+// nobody reads twice would be the inbox failing at its one job (UC-JUM-03 check 5).
 func TestALongSubjectIsCutRatherThanLost(t *testing.T) {
 	door, _, _, _, token := mailDoor(t)
 

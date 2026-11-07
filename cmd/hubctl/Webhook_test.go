@@ -146,7 +146,7 @@ func TestAReplayNamesTheEventItRepeats(t *testing.T) {
 		`{"id":"`+deliveryID+`","subscription_id":"`+webhookID+`","event_id":"`+eventIdentity+`",
 		  "status":"PENDING","attempt":2,"created_at":"2026-08-20T08:00:00Z"}`)
 
-	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
 		"webhook", "replay", webhookID, deliveryID)
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -154,8 +154,8 @@ func TestAReplayNamesTheEventItRepeats(t *testing.T) {
 	if !strings.Contains(stub.request.URL.Path, webhookID+"/deliveries/"+deliveryID) {
 		t.Errorf("the path is %q", stub.request.URL.Path)
 	}
-	if !strings.Contains(errOut, eventIdentity) {
-		t.Errorf("the note does not name the event: %q", errOut)
+	if !strings.Contains(out, eventIdentity) {
+		t.Errorf("the answer does not name the event: %q", out)
 	}
 }
 
@@ -205,5 +205,30 @@ func TestARotationWithoutGraceSendsZero(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "shown once") {
 		t.Errorf("the warning is %q", errOut)
+	}
+}
+
+// UC-INT-12 check 1: a Matrix room's token comes from standard input, never an argument, and
+// reaches the server with the format, room and language.
+func TestAMatrixRoomTakesItsTokenFromStandardInput(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneSubscription)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "syt_room_token\n",
+		"webhook", "add", "--url", "https://matrix.example.org",
+		"--event", "de.hubtask.work.item.completed.v1",
+		"--format", "matrix", "--room", "!team:example.org", "--locale", "de")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if sent["format"] != "MATRIX" || sent["room"] != "!team:example.org" || sent["locale"] != "de" ||
+		sent["credential"] != "syt_room_token" {
+		t.Errorf("the room reached the server as %v", sent)
+	}
+	if strings.Contains(errOut, "shown once") {
+		t.Error("a chat room was told about a signing secret it does not have")
 	}
 }

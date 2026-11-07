@@ -119,13 +119,17 @@ func pullResponse(page syncservice.Page, cursor string) openapi.SyncPullResponse
 	}
 	serverTime := page.ServerTime.UTC()
 	windowDays := int(page.Window / (24 * time.Hour))
-	return openapi.SyncPullResponse{
+	response := openapi.SyncPullResponse{
 		Changes:             changes,
 		Cursor:              cursor,
 		HasMore:             page.More,
 		ServerTime:          &serverTime,
 		TombstoneWindowDays: &windowDays,
 	}
+	if len(page.SkippedKinds) > 0 {
+		response.SkippedKinds = &page.SkippedKinds
+	}
+	return response
 }
 
 // syncChange is one record as a client receives it - the same facts the stream's event carries
@@ -163,45 +167,6 @@ func syncChange(record syncservice.Record) openapi.SyncChange {
 func uuidPointer(id shared.ID) *openapi_types.UUID {
 	value := uuidValue(id.String())
 	return &value
-}
-
-const (
-	listSyncDevicesUseCase  = "ListSyncDevices"
-	forgetSyncDeviceUseCase = "ForgetSyncDevice"
-)
-
-// ListSyncDevices answers GET /sync/devices. Written out rather than through the identity
-// helper, for the reason ListSessions is.
-func (c *RestController) ListSyncDevices(w http.ResponseWriter, r *http.Request) {
-	requestID := correlation.RequestIDFrom(r.Context())
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-
-	out, err := c.UseCases.Invoke(r.Context(), listSyncDevicesUseCase, actorOf(r), usecase.Input{})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	rows, _ := out["data"].([]usecase.Output)
-	devices := make([]openapi.SyncDevice, 0, len(rows))
-	for _, row := range rows {
-		devices = append(devices, deviceResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, devices)
-}
-
-// ForgetSyncDevice answers DELETE /sync/devices/{deviceId}.
-func (c *RestController) ForgetSyncDevice(w http.ResponseWriter, r *http.Request, deviceID openapi.DeviceId) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		return c.UseCases.Invoke(r.Context(), forgetSyncDeviceUseCase, actor, usecase.Input{
-			"device_id": deviceID.String(),
-		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusNoContent)
-	})
 }
 
 func deviceResponse(row usecase.Output) openapi.SyncDevice {
@@ -304,6 +269,12 @@ func pushRequest(body openapi.SyncPushRequest) syncservice.PushRequest {
 		if m.Payload != nil {
 			mutation.Payload = *m.Payload
 		}
+		if m.Entity != nil {
+			mutation.Entity = syncdomain.Entity(*m.Entity)
+		}
+		if m.EntityKey != nil {
+			mutation.EntityKey = *m.EntityKey
+		}
 		if m.Fields != nil {
 			mutation.Fields = make(map[string]syncservice.FieldChange, len(*m.Fields))
 			for name, field := range *m.Fields {
@@ -354,11 +325,51 @@ func mutationResult(result syncservice.Result) openapi.SyncMutationResult {
 		}
 	}
 	if result.Error != nil {
-		code, message := result.Error.Code, result.Error.MessageCode
-		out.Error = &struct {
-			Code        *string `json:"code,omitempty"`
-			MessageCode *string `json:"message_code,omitempty"`
-		}{Code: &code, MessageCode: &message}
+		out.Error = refusalOutput(result.Error)
 	}
 	return out
+}
+
+// refusalField is one entry of a refusal's field_errors, in the generated type's shape.
+type refusalField = struct {
+	Code   *string                 `json:"code,omitempty"`
+	Params *map[string]interface{} `json:"params,omitempty"`
+	Path   *string                 `json:"path,omitempty"`
+}
+
+// refusalOutput is why a mutation was refused, with the message's values and what it says about
+// single fields, as a problem document carries them.
+func refusalOutput(failure *syncservice.ResultError) *struct {
+	Code        *string                 `json:"code,omitempty"`
+	FieldErrors *[]refusalField         `json:"field_errors,omitempty"`
+	MessageCode *string                 `json:"message_code,omitempty"`
+	Params      *map[string]interface{} `json:"params,omitempty"`
+} {
+	code, message := failure.Code, failure.MessageCode
+	out := &struct {
+		Code        *string                 `json:"code,omitempty"`
+		FieldErrors *[]refusalField         `json:"field_errors,omitempty"`
+		MessageCode *string                 `json:"message_code,omitempty"`
+		Params      *map[string]interface{} `json:"params,omitempty"`
+	}{Code: &code, MessageCode: &message, Params: refusalParams(failure.Params)}
+	if len(failure.Fields) > 0 {
+		fields := make([]refusalField, 0, len(failure.Fields))
+		for _, field := range failure.Fields {
+			path, fieldCode := field.Path, field.Code
+			fields = append(fields, refusalField{Path: &path, Code: &fieldCode, Params: refusalParams(field.Params)})
+		}
+		out.FieldErrors = &fields
+	}
+	return out
+}
+
+func refusalParams(params map[string]string) *map[string]interface{} {
+	if len(params) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(params))
+	for key, value := range params {
+		out[key] = value
+	}
+	return &out
 }

@@ -453,3 +453,40 @@ func waitFor(t *testing.T, until func() bool, complaint string) {
 	}
 	t.Fatal(complaint)
 }
+
+// An agent's stream ends with its credential: a session revoked or a token expired since the
+// stream opened closes it at the next recheck, rather than leaving it told about a workspace.
+func TestTheAgentStreamEndsWithItsCredential(t *testing.T) {
+	server, _, _, _ := streamingServer(stream.Limits{PerProcess: 4})
+	server.CredentialRecheck = 10 * time.Millisecond
+
+	request := streamRequest(t.Context(), sessionFor(streamTenant, streamAccount))
+	revoked := stream.WithReauthentication(request.Context(), func(context.Context) (appshared.ActorContext, error) {
+		return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+	})
+	recorder := serveStream(t, server, request.WithContext(revoked))
+	if !strings.Contains(recorder.Body.String(), ": credential") {
+		t.Errorf("the client was not told why: %q", recorder.Body.String())
+	}
+}
+
+// A revocation rung for the agent's account ends its stream at once, not at the next recheck.
+func TestARevocationEndsTheAgentStreamAtOnce(t *testing.T) {
+	server, _, _, registry := streamingServer(stream.Limits{PerProcess: 4})
+	server.CredentialRecheck = time.Hour
+
+	request := streamRequest(t.Context(), sessionFor(streamTenant, streamAccount))
+	revoked := stream.WithReauthentication(request.Context(), func(context.Context) (appshared.ActorContext, error) {
+		return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+	})
+	concurrency.Go(t.Context(), "test.ring", func(context.Context) {
+		for deadline := time.Now().Add(5 * time.Second); registry.Open() == 0 && time.Now().Before(deadline); {
+			time.Sleep(2 * time.Millisecond)
+		}
+		registry.Recheck(streamTenant.String(), streamAccount.String())
+	})
+	recorder := serveStream(t, server, request.WithContext(revoked))
+	if !strings.Contains(recorder.Body.String(), ": credential") {
+		t.Errorf("the client was not told why: %q", recorder.Body.String())
+	}
+}

@@ -118,6 +118,11 @@ func TestParseFilterRefuses(t *testing.T) {
 			leaf("type", "EQ", "EPIC"), "query.value_not_in_enum", filterPath + "/value",
 		},
 		{
+			// UC-SVC-03 check 2: a standing outside MET, PAUSED, RUNNING, AT_RISK and BREACHED.
+			"a standing that is not one",
+			leaf("sla_standing", "EQ", "LATE"), "query.value_not_in_enum", filterPath + "/value",
+		},
+		{
 			"an identifier that is not one",
 			leaf("bucket_id", "EQ", "not-a-uuid"), "shared.id_malformed", filterPath + "/value",
 		},

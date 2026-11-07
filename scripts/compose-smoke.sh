@@ -58,6 +58,7 @@ HUBTASK_IMAGE=$IMAGE
 HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
 HUBTASK_OPS_PORT=$OPS_PORT
+HUBTASK_BASE_URL=http://127.0.0.1:$HTTP_PORT
 ENV
 
 cd deploy/docker
@@ -128,16 +129,22 @@ else
 		failures=$((failures + 1))
 	fi
 
-	# Every catalogue reaches the image's interface, not only the source: the entry loads each
-	# other one as a chunk of its own (i18n-l10n.md §3), so the German one has to be named by the
-	# entry and served. A build stage that copied en.json alone passes everything above.
-	entry="$(curl -fsS "http://127.0.0.1:$HTTP_PORT$asset" || true)"
-	german="$(grep -o 'de-[A-Za-z0-9_-]*\.js' <<< "$entry" | head -1)"
+	# Every catalogue reaches the image's interface, not only the source: each other one is a
+	# chunk of its own (i18n-l10n.md §3), so the German one has to be named by a script the
+	# document loads and be served. The import sits in whichever shared chunk the bundler put the
+	# i18n engine into, not necessarily the entry, so every script the document names is read.
+	# The slash keeps a chunk like node-x.js from passing for de-x.js. A build stage that copied
+	# en.json alone passes everything above.
+	german=""
+	for script in $(grep -o '/assets/[^"]*\.js' <<< "$index"); do
+		german="$(curl -fsS "http://127.0.0.1:$HTTP_PORT$script" | grep -o '/de-[A-Za-z0-9_-]*\.js' | head -1 | cut -c2- || true)"
+		if [ -n "$german" ]; then break; fi
+	done
 	if [ -z "$german" ]; then
-		echo "FAILED: the entry names no chunk for locales/de.json - the image's interface speaks English only"
+		echo "FAILED: no script the document loads names a chunk for locales/de.json - the image's interface speaks English only"
 		failures=$((failures + 1))
 	elif ! curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/assets/$german"; then
-		echo "FAILED: the entry names /assets/$german, and the image does not serve it"
+		echo "FAILED: the document's scripts name /assets/$german, and the image does not serve it"
 		failures=$((failures + 1))
 	fi
 fi
@@ -398,8 +405,7 @@ HUBTASK_OPS_PORT=$MULTI_OPS_PORT
 HUBTASK_TENANCY_MODE=multi
 ENV
 # The address this check reaches the stack under. In multi mode a host is the installation's own or
-# a workspace's, and any other names nothing (multi-tenancy.md §3, T-28): the compose default of
-# localhost:8080 would make 127.0.0.1 such a stranger.
+# a workspace's, and any other names nothing (multi-tenancy.md §3, T-28).
 echo "HUBTASK_BASE_URL=http://127.0.0.1:$MULTI_HTTP_PORT" >> "$MULTI_ENV_FILE"
 
 $COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true

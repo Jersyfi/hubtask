@@ -304,7 +304,8 @@ func (h SuggestDuplicates) record(
 // is a rule that can ask "does this already exist" the moment an entry arrives.
 func (h SuggestDuplicates) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SuggestDuplicatesName,
+		Name:       SuggestDuplicatesName,
+		Permission: service.PermissionRead,
 		Summary: "Answers which entries look like this one, from the embedding index the product " +
 			"already maintains. No provider is asked and no budget is spent: two entries are near " +
 			"each other or they are not. An entry's own parent and children are never among the " +

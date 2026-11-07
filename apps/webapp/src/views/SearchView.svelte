@@ -27,7 +27,6 @@
     Button,
     Checkbox,
     EmptyState,
-    ErrorState,
     Inline,
     PageHeader,
     SearchField,
@@ -37,6 +36,7 @@
     TaskRow,
     canCopy,
   } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import EntryActions from '../lib/entries/EntryActions.svelte';
@@ -45,6 +45,8 @@
   import { entryMenu } from '../lib/entries/entryMenu.ts';
   import FilterBar from '../lib/search/FilterBar.svelte';
   import SearchLine from '../lib/search/SearchLine.svelte';
+  import OtherHits from '../lib/search/OtherHits.svelte';
+  import { foundWords, kindsOffered, shows, type SearchKind } from '../lib/search/kinds.ts';
 
   import type { BulkOperation, BulkResult, WorkItem } from '@hubtask/sync-engine';
 
@@ -176,6 +178,13 @@
 
   /** The editing split: the plain words, and every token. What the two basic controls hold. */
   const typed = $derived(wordsOf(line));
+  // The other kinds the search fans out to (user-experience.md §5.3), and which of them is shown.
+  const kinds = $derived(kindsOffered(manifest.value?.modules_on));
+  let kind = $state<SearchKind>('all');
+  let otherCount = $state(0);
+  const hasWords = $derived(typed.trim() !== '');
+  // Without words there is only the narrowing, which only entries answer.
+  const shownKind = $derived<SearchKind>(hasWords && kinds.includes(kind) ? kind : 'all');
   const tokens = $derived(narrowingOf(line));
 
   /**
@@ -335,13 +344,11 @@
 
   // What arrived, said out loud. A list that changes under a reader still in the field is a change
   // a screen reader is told nothing about.
+  // The other kinds count too: "nothing matches" while pages match would be a wrong answer.
   $effect(() => {
     if (search.status !== 'done') return;
-    announcer.say(
-      search.hits.length === 0
-        ? t('app.search.none')
-        : t('app.search.found', { count: search.hits.length }),
-    );
+    const words = foundWords(shows(shownKind, 'entries') ? search.hits.length : 0, otherCount);
+    announcer.say(t(words.code, words.params));
   });
 
   const failure = $derived(search.error ? renderProblem(search.error, messages) : undefined);
@@ -599,6 +606,15 @@
         </Button>
       {/if}
     </div>
+    {#if hasWords}
+      <div class="starts" role="group" aria-label={t('app.search.kinds')}>
+        {#each kinds as each (each)}
+          <button type="button" class="pill" aria-pressed={shownKind === each} data-chosen={shownKind === each ? '' : undefined} onclick={() => (kind = each)}>
+            {t(`app.search.kind.${each}`)}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </Stack>
 
   {#if compiled.problems.length > 0}
@@ -617,14 +633,10 @@
 
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
-  {#if failure}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => void search.run(asked)}
-    />
+  {#if !shows(shownKind, 'entries')}
+    {#if hasWords && otherCount === 0}<EmptyState kind="filtered" title={t('app.search.kind_none')} icon="search" />{/if}
+  {:else if failure}
+    <FailureState problem={failure} onRetry={() => void search.run(asked)} />
   {:else if search.status === 'searching' && search.hits.length === 0}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if search.status === 'idle'}
@@ -648,6 +660,8 @@
         </div>
       {/if}
     </Stack>
+  {:else if search.hits.length === 0 && hasWords && otherCount > 0}
+    <!-- No entry holds the words, and another kind does: drawn below, so no "nothing matches". -->
   {:else if search.hits.length === 0 && typed.trim() === ''}
     <!-- Narrowed and empty is a different sentence from searched and empty: nothing was looked
          *for*, so nothing "does not match the words" — what excluded everything is the narrowing. -->
@@ -725,6 +739,8 @@
       <p class="hint">{t('app.search.partial')}</p>
     {/if}
   {/if}
+
+  <OtherHits words={typed} kind={shownKind} modulesOn={manifest.value?.modules_on} oncount={(count) => (otherCount = count)} {onnavigate} />
 </Stack>
 
 <style>

@@ -32,6 +32,8 @@ data:
   # be killed while the process is still draining (deployment.md §5).
   HUBTASK_SHUTDOWN_GRACE_SECONDS: {{ .Values.config.shutdownGraceSeconds | quote }}
   HUBTASK_JOB_TIMEOUT: {{ .Values.config.jobTimeout | quote }}
+  HUBTASK_LONG_JOB_TIMEOUT: {{ .Values.config.longJobTimeout | quote }}
+  HUBTASK_QUEUE_CONCURRENCY: {{ .Values.config.queueConcurrency | quote }}
 
   HUBTASK_STORAGE_KIND: {{ .Values.storage.kind | quote }}
   {{- if eq .Values.storage.kind "s3" }}
@@ -51,6 +53,31 @@ data:
   # The egress allowlist is mandatory in provider operation (T-07); without it /meta/health warns.
   HUBTASK_HTTP_ALLOWED_HOSTS: {{ join "," .Values.config.egressAllowedHosts | quote }}
   {{- end }}
+  {{- if .Values.config.trustedProxies }}
+  # The ingress's network: only from a peer inside it is X-Forwarded-For believed, so each
+  # client keeps its own sign-in and anonymous budget (security.md §9).
+  HUBTASK_TRUSTED_PROXIES: {{ join "," .Values.config.trustedProxies | quote }}
+  {{- end }}
+  {{- with .Values.mail.inbound.domain }}
+  HUBTASK_MAIL_INBOUND_DOMAIN: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.mail.oauth.google.clientId }}
+  HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_ID: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.mail.oauth.microsoft.clientId }}
+  HUBTASK_MAIL_OAUTH_MICROSOFT_CLIENT_ID: {{ . | quote }}
+  {{- end }}
+  {{- if or .Values.instanceFile.configMap .Values.instanceFile.secret }}
+  {{- if and .Values.instanceFile.configMap .Values.instanceFile.secret }}
+  {{- fail "instanceFile: name a configMap or a secret, not both - one file is one source" }}
+  {{- end }}
+  # Mounted by deployment.yaml (deployment.md §6.1).
+  HUBTASK_INSTANCE_FILE: "/etc/hubtask/instance/{{ .Values.instanceFile.key }}"
+  HUBTASK_INSTANCE_FILE_MODE: {{ .Values.instanceFile.mode | quote }}
+  {{- end }}
   {{- range $key, $value := .Values.config.extraEnv }}
+  {{- if regexMatch "_(KEY|SECRET|PASSWORD|TOKEN)$" $key }}
+  {{- fail (printf "config.extraEnv.%s looks like a secret, and extraEnv renders into a ConfigMap anyone with read rights on ConfigMaps reads: put it in config.extraSecretEnv as { secret: <name>, key: <key> }" $key) }}
+  {{- end }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

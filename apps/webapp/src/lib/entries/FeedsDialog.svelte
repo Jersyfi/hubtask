@@ -17,11 +17,14 @@
   // without being told — so the confirmation says that rather than asking "are you sure".
 
   import { Badge, Button, Dialog, Inline, Input, Stack } from '@hubtask/design-system/components';
-  import type { CalendarFeed, SavedView } from '@hubtask/sync-engine';
+  import type { CalendarFeed, CalendarPushList, SavedView } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
   import { feeds, views } from '../data/views.svelte.ts';
   import { caldavAddressOf, feedStateOf } from '../data/views.ts';
+  import { CALENDAR_PUSH_RETURN, PUSH_PROVIDERS, calendarPushesPath, pushesOf, type PushProvider } from '../data/calendarpush.ts';
+  import { calendarPushes } from '../data/calendarpush.svelte.ts';
+  import { resource } from '../data/resource.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -90,10 +93,11 @@
     }
   }
 
-  function mint() {
+  /** A calendar of the view's dated entries, or its rows as a data feed for Power BI or Excel (UC-INT-15). */
+  function mint(kind: 'CALENDAR' | 'DATA' = 'CALENDAR') {
     if (!view) return;
     void attempt(async () => {
-      const made = await feeds.create({ view_id: view.id }, crypto.randomUUID());
+      const made = await feeds.create(kind === 'DATA' ? { view_id: view.id, kind } : { view_id: view.id }, crypto.randomUUID());
       secret = made.url;
       minted = made;
       copied = false;
@@ -110,6 +114,20 @@
         // screen and selectable, which is the fallback every copy control has.
         copied = false;
       });
+  }
+
+  // A calendar feed written into the reader's own calendar at Microsoft 365 or Google
+  // (UC-INT-16): offered for the providers the installation has an app for, the sign-in at the
+  // provider and back on the profile's calendars page.
+  const pushRead = resource<CalendarPushList>(calendarPushesPath);
+  const pushList = $derived(pushRead.state.status === 'ready' ? pushRead.state.data : { data: [], providers: [] });
+  const offered = $derived(PUSH_PROVIDERS.filter((provider) => pushList.providers.includes(provider)));
+
+  function push(feed: CalendarFeed, provider: PushProvider) {
+    void attempt(async () => {
+      const started = await calendarPushes.authorize(feed.id, provider);
+      window.location.assign(started.authorize_url);
+    });
   }
 
   function confirmRevoke() {
@@ -134,7 +152,9 @@
           {#if copied}<span class="quiet">{t('app.feeds.copied')}</span>{/if}
           <Button onclick={() => (secret = undefined)}>{t('app.feeds.done')}</Button>
         </Inline>
-        {#if minted && caldavOf(minted)}
+        {#if minted?.kind === 'DATA'}
+          <p class="quiet" data-data-feed-how>{t('app.feeds.data_how')}</p>
+        {:else if minted && caldavOf(minted)}
           <!-- The other way in: the same feed as a CalDAV calendar, no credential in the address. -->
           <Input label={t('app.feeds.caldav_url')} value={caldavOf(minted)} readonly />
           <p class="quiet">{t('app.feeds.caldav_how', { user: actor.account?.email ?? '' })} <a href="/profile/tokens">{t('app.feeds.caldav_tokens')}</a></p>
@@ -143,8 +163,11 @@
     {:else}
       {#if view}
         <div>
-          <Button isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={mint}>
+          <Button isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={() => mint()}>
             {t('app.feeds.create')}
+          </Button>
+          <Button tone="secondary" isBusy={isWorking} busyLabel={t('app.workspace.saving')} data-mint-data-feed onclick={() => mint('DATA')}>
+            {t('app.feeds.create_data')}
           </Button>
         </div>
       {/if}
@@ -159,12 +182,28 @@
             <li>
               <div class="row">
                 <div>
-                  <span class="name">{t('app.feeds.for_view', { name: nameOf(feed) })}</span>
+                  <span class="name">{t(feed.kind === 'DATA' ? 'app.feeds.data_for_view' : 'app.feeds.for_view', { name: nameOf(feed) })}</span>
                   <span class="meta">
                     {t('app.feeds.made', { when: formatDateTime(feed.created_at, messages.locale) })}
                   </span>
-                  {#if state !== 'revoked' && caldavOf(feed)}
+                  {#if state !== 'revoked' && feed.kind !== 'DATA' && caldavOf(feed)}
                     <code class="address">{caldavOf(feed)}</code>
+                  {/if}
+                  {#if state === 'active' && feed.kind !== 'DATA' && offered.length > 0}
+                    {@const written = pushesOf(pushList.data, feed.id)}
+                    <Inline gap="050">
+                      {#each offered as provider (provider)}
+                        {#if written[provider]}
+                          <a class="pushed" href={CALENDAR_PUSH_RETURN} data-pushed={provider}>
+                            {t(provider === 'GOOGLE' ? 'app.pushes.written_google' : 'app.pushes.written_microsoft')}
+                          </a>
+                        {:else}
+                          <Button size="sm" tone="secondary" isBusy={isWorking} data-push-to={provider} onclick={() => push(feed, provider)}>
+                            {t(provider === 'GOOGLE' ? 'app.pushes.write_google' : 'app.pushes.write_microsoft')}
+                          </Button>
+                        {/if}
+                      {/each}
+                    </Inline>
                   {/if}
                 </div>
                 <Inline gap="050">
@@ -225,7 +264,7 @@
 
   .address { display: block; font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; user-select: all; }
 
-  .quiet a { color: var(--text-brand); }
+  .quiet a, .pushed { color: var(--text-brand); font-size: var(--fs-075); }
 
   .quiet a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
 

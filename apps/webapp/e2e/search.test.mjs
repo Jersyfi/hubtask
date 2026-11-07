@@ -113,8 +113,12 @@ async function open(browser, width) {
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
+  const before = asked.length;
   await page.goto(`${served.origin}/`);
   await page.getByRole('button', { name: ACCOUNT.display_name }).first().waitFor({ timeout: 15_000 });
+  // *Today* asks a wordless search of its own; on a loaded machine it lands after a walk has
+  // emptied `asked`, and reads as the first search the walk made.
+  await waitForAsked(before + 1);
   return { page, failures, close: () => context.close() };
 }
 
@@ -127,6 +131,7 @@ async function waitForAsked(count) {
   assert.fail(`only ${asked.length} searches were asked, wanted ${count}`);
 }
 
+// UC-WRK-18 check 4.
 test('chromium: the bar leads to the search, and the words are not in the address', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -158,6 +163,7 @@ test('chromium: the bar leads to the search, and the words are not in the addres
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-18 check 4.
 test('chromium: a reload keeps the words, and the address never held them', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -193,6 +199,7 @@ test('chromium: a reload keeps the words, and the address never held them', asyn
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-18 check 4.
 test('chromium: a link carries the narrowing and none of the words', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

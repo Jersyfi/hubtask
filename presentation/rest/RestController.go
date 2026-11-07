@@ -5,12 +5,13 @@ package rest
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -35,31 +36,22 @@ type UseCaseRegistry interface {
 type RestController struct {
 	pending
 
-	// Capabilities answers /meta/capabilities. One field per use case as they land; nil means the
-	// operation falls back to the pending answer rather than panicking.
-	Capabilities CapabilityReader
+	// SAML serves the assertion consumer service and the metadata (identity.md §26).
+	SAML *SAMLDoor
 
-	// HealthReport answers /api/v1/meta/health. A typed field rather than a call
-	// through the catalogue, although the use case is registered in it: the wire format of this
-	// report is hand-written and validated against the schema by a contract test, and it
-	// distinguishes "no latency measured" from "zero milliseconds" with a pointer. Carrying it
-	// through `usecase.Output`'s map would lose exactly those distinctions on the one route whose
-	// readers - a status page, an operator, a support thread - are the people who need them.
-	HealthReport HealthReportReader
+	// Meta serves the self-description and the health report (MetaDoor). Nil leaves both routes
+	// answering the pending 404.
+	Meta *MetaDoor
 
 	// UseCases is the catalogue every business operation goes through. One field rather than one
 	// per use case: the operations that arrive from here on are entries in it, not new
 	// dependencies of this controller (arc42 §4).
 	UseCases UseCaseRegistry
 
-	// MediaContent and MediaTokens serve the two content routes, which are not catalogue entries:
-	// they take a stream and answer a stream, which is neither what MCP nor what an automation
-	// rule could do with them (core/application/service/media.MediaContent).
-	MediaContent MediaContentService
-	MediaTokens  MediaTokenValidator
-	// Clock judges an expiring capability. The one place this layer needs the time, and a port
-	// rather than time.Now so that a test can stand at the moment a token expires.
-	Clock clock.Clock
+	// Media serves the two content routes (MediaDoor). Nil leaves them answering the pending 404.
+	Media *MediaDoor
+	// WorkspaceArchive streams the owner's download of the whole workspace (UC-BAK-07 check 7).
+	WorkspaceArchive *WorkspaceArchiveDoor
 
 	// Links answers the address of the request's workspace - its main row's (UC-INS-19 check 9) -
 	// for the links this controller composes rather than maps: a calendar feed's address and an
@@ -67,28 +59,17 @@ type RestController struct {
 	// called this server can still use.
 	Links WorkspaceLinks
 
-	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
-	// answers a credential nobody in this system holds, and there is nothing for MCP or an
-	// automation rule to call. Nil leaves the route answering the pending 404.
-	CalendarFeeds CalendarFeedReader
+	// Feeds serves the routes a token alone opens (FeedDoor). Nil leaves them answering the
+	// pending 404.
+	Feeds *FeedDoor
 
-	// InboundRuns serves the public inbound-webhook route, which is not a catalogue entry either:
-	// it answers a credential nobody in this system holds, and there is nothing for MCP or an
-	// automation rule to call. Nil leaves the route answering the pending 404.
-	InboundRuns InboundRunStarter
+	// Scim serves the SCIM 2.0 door a directory provisions people and groups through
+	// (UC-ID-28). Nil leaves the routes answering the pending 404.
+	Scim *ScimDoor
 
-	// JumbleIntake serves the jumble's public webhook door, for the same reasons.
-	JumbleIntake JumbleIntakeDeliverer
-
-	// MailIntake serves the mail door beside it: the same credential, and a body that is
-	// the message itself rather than a shape somebody had to agree on.
-	MailIntake MailDeliverer
-	// AddressedMail serves the receiving domain's inbound route (ADR-0092). Nil leaves it answering
-	// the pending 404.
-	AddressedMail AddressedMailDeliverer
-	// Alexa serves the voice assistant's endpoint (ADR-0093). Nil leaves it answering the pending
-	// 404.
-	Alexa AlexaAnswerer
+	// Intake serves the public doors a sender outside holds the credential of (IntakeDoor). Nil
+	// leaves them answering the pending 404.
+	Intake *IntakeDoor
 
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation
@@ -96,49 +77,13 @@ type RestController struct {
 	// installation built without it should say.
 	Stream *StreamController
 
+	// Realtime serves a live document's WebSocket, a held connection for the stream's reason. Nil
+	// leaves the route answering the pending 404.
+	Realtime *RealtimeController
+
 	// Sync serves `POST /sync:pull`, which is not a catalogue entry for the stream's reason: a
 	// pull is the stream served in pages. Nil leaves the route answering the pending 404.
 	Sync *SyncController
-}
-
-// SyncPull answers one page of the delta. Delegated rather than embedded, so that the field being
-// nil is an answer rather than a panic.
-func (c *RestController) SyncPull(w http.ResponseWriter, r *http.Request) {
-	if c.Sync == nil {
-		c.pending.SyncPull(w, r)
-		return
-	}
-	c.Sync.SyncPull(w, r)
-}
-
-// SyncSnapshot streams the initial synchronisation, delegated for the same reason.
-func (c *RestController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
-	if c.Sync == nil {
-		c.pending.SyncSnapshot(w, r)
-		return
-	}
-	c.Sync.SyncSnapshot(w, r)
-}
-
-// SyncPush applies a device's queue, delegated for the same reason.
-func (c *RestController) SyncPush(w http.ResponseWriter, r *http.Request) {
-	if c.Sync == nil || c.Sync.Push == nil {
-		c.pending.SyncPush(w, r)
-		return
-	}
-	c.Sync.SyncPush(w, r)
-}
-
-// StreamChanges opens the change stream. Delegated rather than embedded, so that the field being
-// nil is an answer rather than a panic.
-func (c *RestController) StreamChanges(
-	w http.ResponseWriter, r *http.Request, params openapi.StreamChangesParams,
-) {
-	if c.Stream == nil {
-		c.pending.StreamChanges(w, r, params)
-		return
-	}
-	c.Stream.StreamChanges(w, r, params)
 }
 
 func NewRestController() *RestController { return &RestController{} }
@@ -153,6 +98,46 @@ var errNotWired = shared.ErrInternal.WithDetail("rest.use_case_not_wired")
 // from drifting away from the contract (ADR-0004).
 func (c *RestController) Routes() *Mux {
 	mux := NewMux()
-	openapi.HandlerFromMuxWithBaseURL(c, mux, APIBasePath)
+	openapi.HandlerWithOptions(c, openapi.StdHTTPServerOptions{
+		BaseURL: APIBasePath, BaseRouter: mux, ErrorHandlerFunc: writeParameterProblem,
+	})
 	return mux
+}
+
+// writeParameterProblem answers a parameter the generated wrapper could not read. Its default
+// writes the parser's English text as text/plain (rule 8), which no client can tell from an answer
+// it cannot read; this names the parameter as a field error instead.
+func writeParameterProblem(w http.ResponseWriter, r *http.Request, err error) {
+	name := parameterOf(err)
+	WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.parameter_invalid").
+		WithParams(map[string]string{"parameter": name}).
+		WithFields(shared.FieldError{Path: name, Code: "request.parameter_invalid"}).
+		WithCause(err), correlation.RequestIDFrom(r.Context()))
+}
+
+// parameterOf is the parameter a generated wrapper error names.
+func parameterOf(err error) string {
+	var (
+		format    *openapi.InvalidParamFormatError
+		required  *openapi.RequiredParamError
+		header    *openapi.RequiredHeaderError
+		unmarshal *openapi.UnmarshalingParamError
+		many      *openapi.TooManyValuesForParamError
+		cookie    *openapi.UnescapedCookieParamError
+	)
+	switch {
+	case errors.As(err, &format):
+		return format.ParamName
+	case errors.As(err, &required):
+		return required.ParamName
+	case errors.As(err, &header):
+		return header.ParamName
+	case errors.As(err, &unmarshal):
+		return unmarshal.ParamName
+	case errors.As(err, &many):
+		return many.ParamName
+	case errors.As(err, &cookie):
+		return cookie.ParamName
+	}
+	return ""
 }

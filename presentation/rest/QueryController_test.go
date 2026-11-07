@@ -66,7 +66,7 @@ func TestAQueryHandsTheFilterOnUntouched(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	if registry.name != queryItemsUseCase {
+	if registry.name != "QueryItems" {
 		t.Fatalf("the handler ran %q", registry.name)
 	}
 
@@ -274,7 +274,7 @@ func TestAQueryWithoutCountsLeavesThemOut(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", response.Code, response.Body)
 	}
-	if registry.in["expand_counts"] != false {
+	if registry.in.Bool("expand_counts") {
 		t.Errorf("expand_counts is %v", registry.in["expand_counts"])
 	}
 	if strings.Contains(response.Body.String(), `"counts"`) {

@@ -8,8 +8,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math"
-	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -249,6 +249,11 @@ func FeedBucket(perMinute, burst int) func(*http.Request) Bucket {
 // A string operation on a path this layer owns: whether the token means anything is decided in
 // the application layer, and this only has to know which requests to count.
 func feedTokenInPath(path string) string {
+	// A data feed's routes carry the same token, counted in the same bucket (UC-INT-15).
+	if rest, ok := strings.CutPrefix(path, APIBasePath+"/odata/"); ok {
+		token, _, _ := strings.Cut(rest, "/")
+		return token
+	}
 	const prefix = APIBasePath + "/calendar/"
 	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, icsExtension) {
 		return ""
@@ -268,6 +273,57 @@ func AuthBucket(perMinute, burst int) func(*http.Request) Bucket {
 		}
 		return Bucket{Key: ClientAddress(r), Limit: perMinute, Burst: burst}
 	}
+}
+
+// PublicFormBucket counts the anonymous writes per client address - a public form's submissions
+// (UC-SVC-13) and a satisfaction link's answers (UC-SVC-07 check 6) - and applies to nothing
+// else. Each writes without anybody signed in, so it is held to the sign-in's budget: a
+// submission beside the proof of work it carries, an answer beside its one-time token, so that
+// guessing tokens costs as much as guessing passwords.
+func PublicFormBucket(perMinute, burst int) func(*http.Request) Bucket {
+	return func(r *http.Request) Bucket {
+		if r.Method != http.MethodPost || (!strings.HasPrefix(r.URL.Path, APIBasePath+"/public/forms/") &&
+			!strings.HasPrefix(r.URL.Path, APIBasePath+"/public/satisfaction/")) {
+			return Bucket{}
+		}
+		return Bucket{Key: ClientAddress(r), Limit: perMinute, Burst: burst}
+	}
+}
+
+// publicNetworkShare is how many addresses' budgets one network may spend on the public writes:
+// a household or an office behind one prefix still gets through, a sender rotating its source
+// address inside one /64 or a small IPv4 pool does not buy a fresh budget each time.
+const publicNetworkShare = 4
+
+// PublicFormNetworkBucket counts the same anonymous writes as PublicFormBucket per network origin
+// (/24 for IPv4, /64 for IPv6), beside the per-address bucket, never instead of it.
+func PublicFormNetworkBucket(perMinute, burst int) func(*http.Request) Bucket {
+	perAddress := PublicFormBucket(perMinute, burst)
+	return func(r *http.Request) Bucket {
+		if perAddress(r).Key == "" {
+			return Bucket{}
+		}
+		return Bucket{Key: NetworkOrigin(r), Limit: perMinute * publicNetworkShare, Burst: max(burst, 1) * publicNetworkShare}
+	}
+}
+
+// NetworkOrigin is ClientAddress reduced to its network: the /24 of an IPv4 address and the /64 of
+// an IPv6 one, the smallest block a sender is commonly handed whole.
+func NetworkOrigin(r *http.Request) string {
+	address, err := netip.ParseAddr(ClientAddress(r))
+	if err != nil {
+		return ClientAddress(r)
+	}
+	address = address.Unmap()
+	bits := 64
+	if address.Is4() {
+		bits = 24
+	}
+	prefix, err := address.Prefix(bits)
+	if err != nil {
+		return address.String()
+	}
+	return prefix.String()
 }
 
 // isAuthRoute matches the public credential routes by their literal paths. A string operation on
@@ -293,6 +349,7 @@ func isAuthRoute(r *http.Request) bool {
 		// Anonymous too, and a read keyed on a presented state: unbounded, it would be a way to try
 		// states at the speed of the network.
 		APIBasePath + "/auth/oidc:locate",
+		APIBasePath + "/auth/connector:locate",
 		// Anonymous, and a check of signatures: unbounded, it would be a way to try forgeries at
 		// the speed of the network.
 		APIBasePath + "/auth/device-list:check",
@@ -305,11 +362,12 @@ func isAuthRoute(r *http.Request) bool {
 }
 
 // TenantBucket counts per tenant, so that one busy token cannot spend a whole tenant's budget and
-// one busy tenant cannot spend the installation's. It applies only once authentication has run.
+// one busy tenant cannot spend the installation's. It applies only once authentication has run;
+// a perMinute of zero is no workspace wall (single mode's default).
 func TenantBucket(perMinute, burst int) func(*http.Request) Bucket {
 	return func(r *http.Request) Bucket {
 		actor, ok := appshared.ActorFrom(r.Context())
-		if !ok || !actor.IsAuthenticated() {
+		if perMinute <= 0 || !ok || !actor.IsAuthenticated() {
 			return Bucket{}
 		}
 		return Bucket{Key: actor.TenantID.String(), Limit: perMinute, Burst: burst}
@@ -328,19 +386,13 @@ func fingerprint(credential string) string {
 	return hex.EncodeToString(sum[:])[:fingerprintLength]
 }
 
-// ClientAddress is the peer of the connection, never X-Forwarded-For.
-//
-// That header is written by the client and can only be believed when a proxy that overwrites it
-// sits in front - and this process cannot know whether one does. Trusting it would turn the
-// anonymous limit into decoration, because every request could claim a fresh address. The cost is
-// that everything behind one ingress shares a bucket, which is the safe direction to be wrong in;
-// a trusted-proxy setting belongs with the deployment work that knows the topology.
+// ClientAddress is the address ProxyTrust resolved at the edge, and the peer of the connection
+// where nothing resolved one - a forwarded header is believed only from a trusted proxy.
 func ClientAddress(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
+	if address, ok := r.Context().Value(clientAddressKey{}).(string); ok && address != "" {
+		return address
 	}
-	return host
+	return peerAddress(r)
 }
 
 // OverrideBucket is the per-workspace request-rate ceiling (multi-tenancy.md §4), a

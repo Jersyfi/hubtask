@@ -72,3 +72,21 @@ func TestAFailureIsCountedFromItsStart(t *testing.T) {
 		t.Errorf("a good read did not clear it: %+v", box)
 	}
 }
+
+// A GRAPH mailbox names no server: whatever was typed for one is dropped, and the Graph preset
+// signs in through the installation's Microsoft app.
+func TestAGraphMailboxNamesNoServer(t *testing.T) {
+	box, err := NewMailbox(NewMailboxInput{Protocol: ProtocolGraph, Address: "Desk@Contoso.example", Host: "graph.microsoft.com", Port: 443})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if box.Host != "" || box.Port != 0 || box.SessionURL != "" || box.Folder != "INBOX" || box.Address != "desk@contoso.example" {
+		t.Errorf("box = %+v", box)
+	}
+	if InstallationApp("microsoft_graph") != "microsoft" || InstallationApp("google") != "google" || InstallationApp("custom") != "custom" {
+		t.Error("the Graph preset does not share the Microsoft app")
+	}
+	if ProtocolOf("microsoft_graph") != ProtocolGraph || ProtocolOf("microsoft") != ProtocolIMAP || ProtocolOf("custom") != ProtocolIMAP {
+		t.Error("the protocol of a provider is wrong")
+	}
+}

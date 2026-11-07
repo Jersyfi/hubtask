@@ -196,7 +196,8 @@ func (h RequestAddress) recordAudit(
 // Descriptor registers the use case in all three channels.
 func (h RequestAddress) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RequestAddressName,
+		Name:       RequestAddressName,
+		Permission: service.PermissionManageMembers,
 		Summary: "Sends a link to a mail address that a managed account - a sign-in name and no " +
 			"address - is to take. Nothing changes until somebody holding that mailbox follows the " +
 			"link; then the account is an ordinary one and keeps its sign-in name. The person may " +

@@ -28,8 +28,9 @@ func (r ContainerRepository) InOrder(
 	}
 
 	params := sqlc.ListCollectionsInOrderParams{
-		IncludePrivate: query.IncludePrivate,
-		PageSize:       pageProbe(query.Page.Size),
+		IncludePrivate:  query.IncludePrivate,
+		IncludeArchived: query.IncludeArchived,
+		PageSize:        pageProbe(query.Page.Size),
 	}
 	if query.Page.Cursor != "" {
 		position, err := r.cursors.Decode(query.Page.Cursor)

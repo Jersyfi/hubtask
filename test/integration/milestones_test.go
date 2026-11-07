@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -98,7 +99,16 @@ func seedSecondCollection(ctx context.Context, t *testing.T, hub shared.ID) shar
 
 func milestonesOf(ctx context.Context, t *testing.T, tenant shared.ID, ids ...shared.ID) map[shared.ID]time.Time {
 	t.Helper()
-	var found map[shared.ID]time.Time
+	reached := map[shared.ID]time.Time{}
+	for id, milestone := range milestonesWithCounts(ctx, t, tenant, ids...) {
+		reached[id] = milestone.ReachedAt
+	}
+	return reached
+}
+
+func milestonesWithCounts(ctx context.Context, t *testing.T, tenant shared.ID, ids ...shared.ID) map[shared.ID]workrepo.Milestone {
+	t.Helper()
+	var found map[shared.ID]workrepo.Milestone
 	if err := read(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
 		found, err = postgres.NewMilestoneRepository().Of(ctx, ids)
@@ -179,10 +189,23 @@ func TestAFinishedCollectionAndHubKeepTheirMilestone(t *testing.T) {
 		t.Fatalf("after the last entry of the hub: %v", found)
 	}
 
+	// Entries created after the milestone are counted beside it; an open one created before it is
+	// not, nor is a trashed one (UC-WRK-29 check 4).
+	after := figureMoment.Add(time.Hour).Format(time.RFC3339)
+	seedEntry(ctx, t, tenantB, kitchen.ID, entryRow{createdAt: after})
+	seedEntry(ctx, t, tenantB, electrics, entryRow{createdAt: after})
+	seedEntry(ctx, t, tenantB, electrics, entryRow{createdAt: after, trashed: true})
+	seedEntry(ctx, t, tenantB, kitchen.ID, entryRow{createdAt: figureMoment.Add(-time.Hour).Format(time.RFC3339)})
+	counted := milestonesWithCounts(ctx, t, tenantB, kitchen.ID, electrics, hub.ID)
+	if counted[kitchen.ID].OpenSince != 1 || counted[electrics].OpenSince != 1 || counted[hub.ID].OpenSince != 2 {
+		t.Fatalf("open since: %v", counted)
+	}
+
 	// Through the REST door, on the hub's read and on its level.
 	status, body := restAs(ctx, t, registry, owner, http.MethodGet, "/containers/"+hub.ID.String())
 	milestone, _ := body["milestone"].(map[string]any)
-	if status != http.StatusOK || milestone["reached_at"] != figureMoment.Format(time.RFC3339) {
+	if status != http.StatusOK || milestone["reached_at"] != figureMoment.Format(time.RFC3339) ||
+		milestone["open_since"] != float64(2) {
 		t.Fatalf("GET the hub: %d %v", status, body)
 	}
 	status, body = restAs(ctx, t, registry, owner, http.MethodGet, "/containers?parent_id="+hub.ID.String())

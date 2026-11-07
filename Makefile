@@ -244,6 +244,12 @@ generate:
 	$(GO) run ./tools/openapijson api/openapi.yaml api/openapi.json
 	@# The deprecated request fields, announced by the REST adapter (versioning-release.md §5).
 	$(GO) run ./tools/deprecations api/openapi.yaml presentation/rest/Deprecations.gen.go
+	@# hubctl's commands (x-hubtask-cli) and the REST adapter's generated mapping
+	@# (x-hubtask-rest), from the contract and the generated router (F-7).
+	$(GO) run ./tools/doors api/openapi.yaml presentation/openapi/Api.gen.go cmd/hubctl/Doors.gen.go presentation/rest/Doors.gen.go
+	@# The settings catalogue, which the web app's tests hold to a screen per setting (model.md §4),
+	@# and the documentation's who-configures-what matrix drawn from it.
+	$(GO) run ./tools/settingscatalogue apps/webapp/src/lib/settings/catalogue.gen.json docs/reference/settings-matrix.md
 	@$(MAKE) --no-print-directory sdk-go
 	@$(MAKE) --no-print-directory sdk
 
@@ -292,6 +298,27 @@ workbench:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system workbench
 
+## demo: Make a demo workspace with content in every product (DEMO_SLUG=demo, DEMO_API=..., or DEMO_WORKSPACE=<short>)
+# A walk's data, through the product's REST operations. With DEMO_WORKSPACE it fills that existing
+# workspace with the showcase as hubctl's signed-in person (`hubctl workspace demo`), every object
+# marked as sample content, again without doubling and removable in one act
+# (DEMO_REMOVE=1). Without it, scripts/seed-demo.sh provisions a new workspace with its people
+# and runs the same showcase as its owner, the other people writing their own words
+# (HUBTASK_ADMIN_TOKEN, HUBTASK_DEMO_PASSWORD, a multi-workspace installation), so a second run
+# takes another DEMO_SLUG; DEMO_EMPTY=1 makes an empty one instead.
+DEMO_SLUG ?= demo
+DEMO_API ?= http://localhost:8080
+DEMO_EMPTY ?=
+DEMO_WORKSPACE ?=
+DEMO_REMOVE ?=
+.PHONY: demo
+demo:
+ifneq ($(DEMO_WORKSPACE),)
+	go run ./cmd/hubctl workspace demo --workspace $(DEMO_WORKSPACE) $(if $(DEMO_REMOVE),--remove)
+else
+	scripts/seed-demo.sh --api $(DEMO_API) --slug $(DEMO_SLUG) $(if $(DEMO_EMPTY),--empty)
+endif
+
 ## workbench-build: Build the workbench into packages/design-system/dist/workbench
 # What workbench.hubtask.eu serves (ADR-0038). Still not part of `pnpm -r build`: a surface that
 # is published is not thereby a product artefact, and none of ADR-0037's three exclusions moves -
@@ -319,6 +346,13 @@ website:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter "@hubtask/website..." build
 	@echo "apps/website/dist is ready to deploy"
+
+## csaf: Write the CSAF 2.0 advisories of security/advisories/ into CSAF_OUT (none, nothing)
+# security.md §14.2; the release attaches the result and the website publishes it.
+CSAF_OUT ?= dist/csaf
+.PHONY: csaf
+csaf:
+	$(GO) run ./tools/csaf security/advisories $(CSAF_OUT)
 
 ## api-client: Regenerate the TypeScript API client from api/openapi.yaml
 # The same source as the Go server types above (ADR-0004): the specification is changed first, and
@@ -409,7 +443,7 @@ gate-quick:
 .PHONY: gate-unit
 gate-unit: export CGO_ENABLED = 1
 gate-unit:
-	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/load/... ./test/e2e/... ./tools/...,-race -covermode=atomic -coverprofile=coverage.out)
+	$(call go_test,,./cmd/... ./core/... ./infrastructure/... ./presentation/... ./test/doors/... ./test/load/... ./test/e2e/... ./tools/...,-race -covermode=atomic -coverprofile=coverage.out)
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/domain/... MIN=85
 	@$(MAKE) --no-print-directory coverage-check PKG=./core/application/... MIN=75
 
@@ -670,7 +704,27 @@ gate-chart:
 		--set imagePolicy.enabled=true \
 		--set networkPolicy.allowedEgressCIDRs={10.0.0.0/8} \
 		--set 'extraVolumes[0].name=mail-ca' --set 'extraVolumes[0].secret.secretName=mail-ca' \
-		--set 'extraVolumeMounts[0].name=mail-ca' --set 'extraVolumeMounts[0].mountPath=/etc/hubtask/mail-ca' > /dev/null
+		--set 'extraVolumeMounts[0].name=mail-ca' --set 'extraVolumeMounts[0].mountPath=/etc/hubtask/mail-ca' \
+		--set mail.inbound.domain=in.example.org --set mail.inbound.existingSecret=hubtask-mail \
+		--set mail.oauth.google.clientId=gid --set mail.oauth.google.existingSecret=hubtask-google \
+		--set mail.oauth.microsoft.clientId=mid --set mail.oauth.microsoft.existingSecret=hubtask-microsoft \
+		--set instanceFile.configMap=hubtask-instance \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.secret=hubtask-ai' \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.key=api-key' > /dev/null
+	@# A secret never reaches the ConfigMap: extraEnv refuses a name that looks like one, and the
+	@# chart's own secrets render as secretKeyRef.
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) --set existingSecret=hubtask-secrets \
+		--set config.extraEnv.HUBTASK_MAIL_INBOUND_KEY=x > /dev/null 2>&1; then \
+		echo "chart: a secret-looking name in config.extraEnv rendered into the ConfigMap"; exit 1; fi
+	@configmap="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set mail.inbound.existingSecret=hubtask-mail \
+		--set mail.oauth.google.existingSecret=hubtask-google \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.secret=hubtask-ai' \
+		--set 'config.extraSecretEnv.HUBTASK_AI_KEY_ONE.key=api-key' --show-only templates/configmap.yaml)"; \
+		for name in HUBTASK_MAIL_INBOUND_KEY HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_SECRET HUBTASK_AI_KEY_ONE; do \
+			printf '%s' "$$configmap" | grep -q "$$name" && \
+				{ echo "chart: $$name is in the ConfigMap"; exit 1; }; \
+		done; echo "chart: no secret in the ConfigMap"
 	@# Every host the operator names has to reach the API and be on the certificate. A name in the
 	@# rules and not in the `tls` block is a route a browser refuses before the application sees it.
 	@routed="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
@@ -806,10 +860,11 @@ gate-chart:
 	@echo "chart: GOMEMLIMIT follows every role's memory limit"
 	@echo "chart: lint and template green"
 
-## gate-compose: Start the self-hosting reference stack from a real image and wait for /readyz
+## gate-compose: Start the self-hosting reference stack from a real image, wait for /readyz, back it up and restore it
 .PHONY: gate-compose
 gate-compose: docker-build
 	scripts/compose-smoke.sh $(VERSION)
+	scripts/compose-restore-drill.sh $(VERSION)
 
 ## gate-cli: Build hubctl on the platform it will run on, test it, and start it
 # The support matrix rows for the CLI (support-matrix.md §4) are about a binary on somebody's own
@@ -831,6 +886,14 @@ gate-cli:
 .PHONY: gate-e2e
 gate-e2e: docker-build
 	scripts/hubctl-e2e.sh $(VERSION)
+
+## gate-upgrade: The last release and this build on one database, forward and back
+# The last release's stack and hubctl write; this build's migrator runs while the old application
+# serves; the old client reads and writes on the new schema, this build reads it, and the old
+# application goes back on the new schema (versioning-release.md §4, deployment.md §5).
+.PHONY: gate-upgrade
+gate-upgrade: docker-build
+	scripts/upgrade-session.sh $(VERSION)
 
 ## gate-engine-conformance: The sync engine's conformance run against the reference Compose stack
 # The client's half of the offline synchronisation's conformance: `hubctl sync-conformance` (a
@@ -985,12 +1048,33 @@ fuzz-targets:
 gate-load:
 	$(call go_test,load,./test/load/...,-timeout=60m)
 
+## capacity: the capacity run at ITEMS entries over TENANTS workspaces (default 10^6 over 200)
+#
+# F-10's run, not a nightly: it seeds ITEMS entries into its own container, starts the real binary
+# and holds each read path that grows with a workspace for the largest, a middle and the smallest
+# credentialled tenant, writing capacity-<ITEMS>.json into HUBTASK_LOAD_EVIDENCE_DIR, then fills the
+# largest tenant's hub to the CI ceiling and holds the CMDB views that read it whole
+# (cmdb-ceiling.json). The 10^7 run
+# is `make capacity ITEMS=10000000 TENANTS=2000` on named hardware (test/load/README.md).
+ITEMS ?= 1000000
+TENANTS ?= 200
+.PHONY: capacity
+capacity:
+	HUBTASK_LOAD_CAPACITY=1 HUBTASK_LOAD_ITEMS=$(ITEMS) HUBTASK_LOAD_TENANTS=$(TENANTS) \
+		$(GO) test -tags=load -run '^(TestCapacityAtScale|TestCmdbViewsAtTheHubCeiling)$$' -timeout=6h -v ./test/load/
+
 ## release-tag: Create and push a signed release tag
 .PHONY: release-tag
 release-tag:
 	@test -n "$(VERSION_TO_TAG)" || { echo "Usage: make release-tag VERSION_TO_TAG=1.2.3"; exit 1; }
 	@git diff --quiet || { echo "Working tree is not clean"; exit 1; }
 	@$(MAKE) verify
+	@# A scheduled contract step falls due by the releases that shipped its expand half
+	@# (versioning-release.md §4); a pre-release does not count.
+	@expand=$$(git log --diff-filter=A --format=%H -- 'db/migrations/0235_*.sql' | tail -1); \
+		test -n "$$expand" || { echo "migration 0235 not found in the history"; exit 1; }; \
+		n=$$(git tag --list 'v*' --contains "$$expand" | grep -cv -e '-' || true); \
+		HUBTASK_RELEASES_SINCE_SLIM_EXPAND=$$n $(GO) test -count=1 -run '^TestTheSlimEntrysContractStepsAreDueOnTime$$' ./test/architecture/
 	git tag -s "v$(VERSION_TO_TAG)" -m "Release v$(VERSION_TO_TAG)"
 	git push origin "v$(VERSION_TO_TAG)"
 	@echo "The release workflow now waits for the 'production' environment approval."

@@ -11,26 +11,70 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countEntriesHoldingCustomField = `-- name: CountEntriesHoldingCustomField :one
+SELECT count(*)::bigint
+FROM work_item wi
+WHERE wi.deleted_at IS NULL
+  AND wi.custom_fields ? $1::text
+  AND (CASE WHEN $2::uuid IS NULL
+         THEN NOT EXISTS (SELECT 1 FROM custom_field_definition own
+                          WHERE own.deleted_at IS NULL AND own.key = $1::text
+                            AND (own.collection_id = wi.collection_id
+                                 OR own.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id)))
+         ELSE wi.collection_id = $2::uuid
+              OR (wi.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = $2::uuid)
+                  AND NOT EXISTS (SELECT 1 FROM custom_field_definition own
+                                  WHERE own.deleted_at IS NULL AND own.key = $1::text
+                                    AND own.collection_id = wi.collection_id))
+       END)
+`
+
+type CountEntriesHoldingCustomFieldParams struct {
+	Key          string
+	CollectionID pgtype.UUID
+}
+
+// The live entries that hold a value under a definition's key where the definition is in force:
+// its collection; for a hub's, every collection of the hub that does not define the key itself;
+// for a workspace-wide one, every collection whose own and whose hub's definitions leave the key
+// free. What removing the definition or hiding it from readers would stop showing - a count,
+// never a value (rule 10).
+func (q *Queries) CountEntriesHoldingCustomField(ctx context.Context, arg CountEntriesHoldingCustomFieldParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countEntriesHoldingCustomField, arg.Key, arg.CollectionID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const findCustomField = `-- name: FindCustomField :one
-SELECT id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
-       created_at, updated_at, deleted_at, version
-FROM custom_field_definition
-WHERE id = $1
+SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
+       coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.id = $1
 `
 
 type FindCustomFieldRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
+	CopiedFrom     pgtype.UUID
+	Name           *string
+	AtHub          bool
 }
 
 func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCustomFieldRow, error) {
@@ -43,24 +87,34 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 		&i.Key,
 		&i.Kind,
 		&i.Options,
+		&i.Currency,
+		&i.Formula,
 		&i.IsRequired,
 		&i.AppliesTo,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Version,
+		&i.Restricted,
+		&i.ReadRestricted,
+		&i.CopiedFrom,
+		&i.Name,
+		&i.AtHub,
 	)
 	return i, err
 }
 
 const findCustomFieldInScope = `-- name: FindCustomFieldInScope :one
-SELECT id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
-       created_at, updated_at, deleted_at, version
-FROM custom_field_definition
-WHERE deleted_at IS NULL
-  AND key = $1
-  AND (collection_id = $2::uuid OR collection_id IS NULL)
-ORDER BY collection_id NULLS LAST
+SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
+       coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL
+  AND f.key = $1
+  AND (f.collection_id IS NULL OR f.collection_id = $2::uuid
+       OR f.collection_id = (SELECT up.parent_id FROM container up WHERE up.id = $2::uuid))
+ORDER BY CASE WHEN f.collection_id = $2::uuid THEN 0 WHEN f.collection_id IS NULL THEN 2 ELSE 1 END
 LIMIT 1
 `
 
@@ -70,24 +124,31 @@ type FindCustomFieldInScopeParams struct {
 }
 
 type FindCustomFieldInScopeRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
+	CopiedFrom     pgtype.UUID
+	Name           *string
+	AtHub          bool
 }
 
-// The definition one entry's collection sees under a key: its collection's own, or the
-// workspace-wide one. The collection's own wins, which is what makes a workspace-wide default
-// overridable by a team that needs something narrower - `ORDER BY` puts the specific one first and
-// the row limit takes it.
+// The definition one entry's collection sees under a key: its collection's own, its hub's, or the
+// workspace-wide one. The nearest wins, which is what makes a workspace-wide default overridable by
+// a hub or a team that needs something narrower - `ORDER BY` puts the specific one first and the
+// row limit takes it. A hub as the scope sees its own and the workspace's: a hub has no parent.
 func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFieldInScopeParams) (FindCustomFieldInScopeRow, error) {
 	row := q.db.QueryRow(ctx, findCustomFieldInScope, arg.Key, arg.CollectionID)
 	var i FindCustomFieldInScopeRow
@@ -98,12 +159,19 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 		&i.Key,
 		&i.Kind,
 		&i.Options,
+		&i.Currency,
+		&i.Formula,
 		&i.IsRequired,
 		&i.AppliesTo,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Version,
+		&i.Restricted,
+		&i.ReadRestricted,
+		&i.CopiedFrom,
+		&i.Name,
+		&i.AtHub,
 	)
 	return i, err
 }
@@ -111,24 +179,31 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 const insertCustomField = `-- name: InsertCustomField :exec
 
 INSERT INTO custom_field_definition (
-  id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
-  created_at, updated_at, version
+  id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, read_restricted, applies_to,
+  created_at, updated_at, version, copied_from, name
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
-  $4, $5, $6,
-  $7::item_type[], $8, $8, 1
+  $4, $5, $6, $7, $8,
+  $9, $10, $11::item_type[], $12, $12, 1,
+  $13, $14
 )
 `
 
 type InsertCustomFieldParams struct {
-	ID           pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
+	ID             pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	Restricted     bool
+	ReadRestricted bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	CopiedFrom     pgtype.UUID
+	Name           *string
 }
 
 // Custom field definitions.
@@ -146,41 +221,106 @@ func (q *Queries) InsertCustomField(ctx context.Context, arg InsertCustomFieldPa
 		arg.Key,
 		arg.Kind,
 		arg.Options,
+		arg.Currency,
+		arg.Formula,
 		arg.IsRequired,
+		arg.Restricted,
+		arg.ReadRestricted,
 		arg.AppliesTo,
 		arg.CreatedAt,
+		arg.CopiedFrom,
+		arg.Name,
 	)
 	return err
 }
 
+const listCustomFieldKindsByKey = `-- name: ListCustomFieldKindsByKey :many
+SELECT DISTINCT d.key, d.kind
+FROM custom_field_definition d
+WHERE d.deleted_at IS NULL
+  AND d.key = ANY($1::text[])
+  AND ($2::uuid IS NULL
+       OR d.collection_id IS NULL
+       OR d.collection_id = $2::uuid
+       OR d.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = $2::uuid)
+       OR d.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = $2::uuid))
+ORDER BY d.key, d.kind
+`
+
+type ListCustomFieldKindsByKeyParams struct {
+	Keys  []string
+	Scope pgtype.UUID
+}
+
+type ListCustomFieldKindsByKeyRow struct {
+	Key  string
+	Kind string
+}
+
+// The kinds the live definitions under these keys have, in force anywhere a query's scope reaches:
+// the workspace-wide ones and those of the scope's collections - the collection itself and its
+// hub, or a hub and every collection of it. A NULL scope is the whole workspace, which is what a search spans. What the
+// query language needs to know which typed column a range, a sort or a grouping reads (F-2); a key
+// with two kinds in one scope answers both, and the use case refuses to guess.
+func (q *Queries) ListCustomFieldKindsByKey(ctx context.Context, arg ListCustomFieldKindsByKeyParams) ([]ListCustomFieldKindsByKeyRow, error) {
+	rows, err := q.db.Query(ctx, listCustomFieldKindsByKey, arg.Keys, arg.Scope)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCustomFieldKindsByKeyRow{}
+	for rows.Next() {
+		var i ListCustomFieldKindsByKeyRow
+		if err := rows.Scan(&i.Key, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCustomFieldsInScope = `-- name: ListCustomFieldsInScope :many
-SELECT id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
-       created_at, updated_at, deleted_at, version
-FROM custom_field_definition
-WHERE deleted_at IS NULL
-  AND (collection_id = $1::uuid OR collection_id IS NULL)
-ORDER BY collection_id NULLS FIRST, key
+SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
+       coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL
+  AND (f.collection_id IS NULL OR f.collection_id = $1::uuid
+       OR f.collection_id = (SELECT up.parent_id FROM container up WHERE up.id = $1::uuid))
+ORDER BY CASE WHEN f.collection_id IS NULL THEN 0 WHEN f.collection_id = $1::uuid THEN 2 ELSE 1 END, f.key
 `
 
 type ListCustomFieldsInScopeRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	CollectionID pgtype.UUID
-	Key          string
-	Kind         string
-	Options      []byte
-	IsRequired   bool
-	AppliesTo    []ItemType
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	Version      int32
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	CollectionID   pgtype.UUID
+	Key            string
+	Kind           string
+	Options        []byte
+	Currency       *string
+	Formula        *string
+	IsRequired     bool
+	AppliesTo      []ItemType
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Version        int32
+	Restricted     bool
+	ReadRestricted bool
+	CopiedFrom     pgtype.UUID
+	Name           *string
+	AtHub          bool
 }
 
-// Every definition in force for one collection: its own and the workspace-wide ones above it. A
-// NULL collection answers the workspace-wide ones alone, which is what a client configuring the
-// workspace asks for. Ordered by scope and then by key, so the answer is stable and the specific
-// definitions sit beside the general ones they narrow.
+// Every definition in force for one collection: its own and those of its hub and the workspace
+// above it; for a hub, its own and the workspace's. A NULL scope answers the workspace-wide ones
+// alone, which is what a client configuring the workspace asks for. Ordered by scope, the widest
+// first, and then by key, so the answer is stable and the specific definitions follow the general
+// ones they narrow.
 func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgtype.UUID) ([]ListCustomFieldsInScopeRow, error) {
 	rows, err := q.db.Query(ctx, listCustomFieldsInScope, collectionID)
 	if err != nil {
@@ -197,13 +337,100 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 			&i.Key,
 			&i.Kind,
 			&i.Options,
+			&i.Currency,
+			&i.Formula,
 			&i.IsRequired,
 			&i.AppliesTo,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Version,
+			&i.Restricted,
+			&i.ReadRestricted,
+			&i.CopiedFrom,
+			&i.Name,
+			&i.AtHub,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFormulaFields = `-- name: ListFormulaFields :many
+SELECT f.key, f.collection_id, f.kind, f.formula, coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL AND f.kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
+ORDER BY f.key, f.collection_id NULLS FIRST
+`
+
+type ListFormulaFieldsRow struct {
+	Key          string
+	CollectionID pgtype.UUID
+	Kind         string
+	Formula      *string
+	AtHub        bool
+}
+
+// The CALCULATED definitions and those a formula may read, across the workspace: asked only where
+// a field is hidden from readers, to hide with it a calculated field that reads it.
+func (q *Queries) ListFormulaFields(ctx context.Context) ([]ListFormulaFieldsRow, error) {
+	rows, err := q.db.Query(ctx, listFormulaFields)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFormulaFieldsRow{}
+	for rows.Next() {
+		var i ListFormulaFieldsRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.CollectionID,
+			&i.Kind,
+			&i.Formula,
+			&i.AtHub,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReadRestrictedFields = `-- name: ListReadRestrictedFields :many
+SELECT f.key, f.collection_id, coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL AND f.read_restricted
+ORDER BY f.key, f.collection_id NULLS FIRST
+`
+
+type ListReadRestrictedFieldsRow struct {
+	Key          string
+	CollectionID pgtype.UUID
+	AtHub        bool
+}
+
+// The definitions hidden from readers, across the workspace: what every read asks before it
+// narrows an answer (UC-ID-27 check 3). Small - a handful per workspace - and empty for most.
+func (q *Queries) ListReadRestrictedFields(ctx context.Context) ([]ListReadRestrictedFieldsRow, error) {
+	rows, err := q.db.Query(ctx, listReadRestrictedFields)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReadRestrictedFieldsRow{}
+	for rows.Next() {
+		var i ListReadRestrictedFieldsRow
+		if err := rows.Scan(&i.Key, &i.CollectionID, &i.AtHub); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -242,17 +469,23 @@ func (q *Queries) SoftDeleteCustomField(ctx context.Context, arg SoftDeleteCusto
 
 const updateCustomField = `-- name: UpdateCustomField :execrows
 UPDATE custom_field_definition SET
-  options     = $1,
-  is_required = $2,
-  applies_to  = $3::item_type[],
-  updated_at  = $4,
+  name        = $1,
+  options     = $2,
+  is_required = $3,
+  restricted  = $4,
+  read_restricted = $5,
+  applies_to  = $6::item_type[],
+  updated_at  = $7,
   version     = version + 1
-WHERE id = $5::uuid AND version = $6 AND deleted_at IS NULL
+WHERE id = $8::uuid AND version = $9 AND deleted_at IS NULL
 `
 
 type UpdateCustomFieldParams struct {
+	Name            *string
 	Options         []byte
 	IsRequired      bool
+	Restricted      bool
+	ReadRestricted  bool
 	AppliesTo       []ItemType
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
@@ -264,8 +497,11 @@ type UpdateCustomFieldParams struct {
 // and a kind that changed would reinterpret them.
 func (q *Queries) UpdateCustomField(ctx context.Context, arg UpdateCustomFieldParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateCustomField,
+		arg.Name,
 		arg.Options,
 		arg.IsRequired,
+		arg.Restricted,
+		arg.ReadRestricted,
 		arg.AppliesTo,
 		arg.UpdatedAt,
 		arg.ID,

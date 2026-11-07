@@ -13,7 +13,7 @@
 
 import type { Plan, PlanChange, PlanCreate, ResourceState, TenantPlanMoved } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const PLANS = '/admin/plans';
@@ -53,7 +53,7 @@ class Plans {
   async create(plan: PlanCreate): Promise<Plan> {
     return stepUp.around((stepUpToken) =>
       engine.mutate<Plan>('POST', PLANS, plan, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         stepUpToken,
         invalidates: STALE,
       }),
@@ -93,7 +93,7 @@ class Plans {
         `${TENANTS}/${tenantId}:move-plan`,
         { plan, ...(version === undefined ? {} : { expected_version: version }), ...(dryRun ? { dry_run: true } : {}) },
         {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           stepUpToken,
           invalidates: dryRun ? [] : STALE,
         },

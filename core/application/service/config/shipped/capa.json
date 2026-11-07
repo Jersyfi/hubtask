@@ -1,0 +1,258 @@
+{
+  "key": "capa",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "capa_source": {
+        "name": "Source",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Internal audit",
+          "Customer complaint",
+          "Supplier",
+          "Process monitoring",
+          "External audit"
+        ]
+      },
+      "capa_severity": {
+        "name": "Severity",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Major",
+          "Minor",
+          "Observation"
+        ]
+      },
+      "capa_owner": {
+        "name": "Owner",
+        "kind": "USER",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "capa_containment": {
+        "name": "Containment",
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "capa_root_cause": {
+        "name": "Root cause",
+        "kind": "RICH_TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "capa_check_on": {
+        "name": "Effectiveness check on",
+        "kind": "DATE",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "nonconformity": {
+        "level": "TASK",
+        "name": "Nonconformity",
+        "icon": "circle-alert",
+        "color_token": "red",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "finding",
+              "name": "Finding"
+            },
+            {
+              "key": "cause",
+              "name": "Cause and action"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "finding",
+              "required": true
+            },
+            {
+              "key": "custom_fields.capa_source",
+              "section": "finding"
+            },
+            {
+              "key": "custom_fields.capa_severity",
+              "section": "finding"
+            },
+            {
+              "key": "custom_fields.capa_owner",
+              "section": "finding"
+            },
+            {
+              "key": "custom_fields.capa_containment",
+              "section": "cause"
+            },
+            {
+              "key": "custom_fields.capa_root_cause",
+              "section": "cause"
+            },
+            {
+              "key": "custom_fields.capa_check_on",
+              "section": "cause"
+            },
+            {
+              "key": "notes",
+              "section": "cause"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "nonconformity": {
+        "name": "Nonconformity",
+        "shape": {
+          "initial": "reported",
+          "statuses": [
+            {
+              "key": "reported",
+              "name": "Reported",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "contained",
+              "name": "Contained",
+              "category": "IN_PROGRESS",
+              "color_token": "amber"
+            },
+            {
+              "key": "analysed",
+              "name": "Root cause found",
+              "category": "IN_PROGRESS",
+              "color_token": "violet"
+            },
+            {
+              "key": "acting",
+              "name": "Actions under way",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "checking",
+              "name": "Effectiveness check",
+              "category": "IN_PROGRESS",
+              "color_token": "teal"
+            },
+            {
+              "key": "closed",
+              "name": "Closed",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "contain",
+              "name": "Contain",
+              "from": [
+                "reported"
+              ],
+              "to": "contained"
+            },
+            {
+              "key": "analyse",
+              "name": "Root cause found",
+              "from": [
+                "contained"
+              ],
+              "to": "analysed"
+            },
+            {
+              "key": "act",
+              "name": "Start actions",
+              "from": [
+                "analysed"
+              ],
+              "to": "acting"
+            },
+            {
+              "key": "check",
+              "name": "Check effectiveness",
+              "from": [
+                "acting"
+              ],
+              "to": "checking"
+            },
+            {
+              "key": "not_effective",
+              "name": "Not effective",
+              "from": [
+                "checking"
+              ],
+              "to": "analysed"
+            },
+            {
+              "key": "close",
+              "name": "Close",
+              "from": [
+                "checking"
+              ],
+              "to": "closed"
+            }
+          ]
+        }
+      }
+    },
+    "rules": {
+      "effectiveness_due": {
+        "name": "Remind of the effectiveness check",
+        "enabled": true,
+        "trigger": {
+          "kind": "RELATIVE_DATE",
+          "anchor": "FIELD",
+          "anchor_field": "capa_check_on",
+          "offset": "P0D"
+        },
+        "conditions": [
+          {
+            "expr": "item.entry_type == 'nonconformity' && item.status == 'checking'"
+          }
+        ],
+        "on_error": "STOP",
+        "actions": [
+          {
+            "kind": "ADD_COMMENT",
+            "params": {
+              "body": "The effectiveness check is due today: did the actions remove the cause?",
+              "internal": true
+            }
+          }
+        ]
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "nonconformity": {
+        "workflow": "nonconformity"
+      }
+    }
+  }
+}

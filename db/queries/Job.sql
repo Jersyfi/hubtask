@@ -56,19 +56,40 @@ LIMIT 1;
 -- that each picked row is still due, and SKIP LOCKED keeps two workers on disjoint batches
 -- (ADR-0008). The aliases are not decoration: without them "run_at" would mean two different
 -- things in one statement.
+--
+-- Fair across workers too (F-10): a tenant's ranks start after the jobs it already has running
+-- under a live lease, so a workspace that holds every other worker's slot ranks behind one that
+-- holds none, and one batch alone no longer decides who is served.
+--
+-- A role claims only its kinds (deployment.md §2.2): only_kinds empty is every kind, and
+-- except_kinds keeps the automation role's kinds off a worker that runs beside one, so a rule
+-- storm drains on its own pods. Both arrays are never NULL - `<> ALL(NULL)` would match nothing.
+--
+-- reclaimed marks a row taken over from a RUNNING attempt whose lease ran out - a worker that died
+-- mid-run. The runner counts it and, once such attempts are past max_attempts, dead-letters the job
+-- without running it: only a runner that survives records a failure.
 -- name: ClaimJobs :many
 WITH due AS (
   SELECT d.id AS due_id, d.tenant_id AS due_tenant, d.priority AS due_priority,
          d.run_at AS due_run_at
   FROM job AS d
-  WHERE (d.state = 'PENDING' AND d.run_at <= sqlc.arg('now'))
-     OR (d.state = 'RUNNING' AND d.locked_until < sqlc.arg('now'))
+  WHERE ((d.state = 'PENDING' AND d.run_at <= sqlc.arg('now'))
+     OR (d.state = 'RUNNING' AND d.locked_until < sqlc.arg('now')))
+    AND (cardinality(sqlc.arg('only_kinds')::text[]) = 0 OR d.kind = ANY(sqlc.arg('only_kinds')::text[]))
+    AND d.kind <> ALL(sqlc.arg('except_kinds')::text[])
+), busy AS (
+  SELECT r.tenant_id AS busy_tenant, count(*) AS running
+  FROM job AS r
+  WHERE r.state = 'RUNNING' AND r.locked_until >= sqlc.arg('now')
+  GROUP BY r.tenant_id
 ), ranked AS (
   SELECT due_id, due_priority, due_run_at,
-         row_number() OVER (PARTITION BY due_tenant ORDER BY due_priority, due_run_at, due_id) AS place
+         row_number() OVER (PARTITION BY due_tenant ORDER BY due_priority, due_run_at, due_id)
+           + coalesce(busy.running, 0) AS place
   FROM due
+  LEFT JOIN busy ON busy.busy_tenant IS NOT DISTINCT FROM due.due_tenant
 ), picked AS (
-  SELECT j.id FROM job AS j
+  SELECT j.id AS picked_id, j.state = 'RUNNING' AS was_running FROM job AS j
   JOIN ranked ON ranked.due_id = j.id
   WHERE (j.state = 'PENDING' AND j.run_at <= sqlc.arg('now'))
      OR (j.state = 'RUNNING' AND j.locked_until < sqlc.arg('now'))
@@ -80,8 +101,10 @@ UPDATE job SET
   state        = 'RUNNING',
   attempts     = attempts + 1,
   locked_until = sqlc.arg('locked_until')
-WHERE id IN (SELECT id FROM picked)
-RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until;
+FROM picked
+WHERE job.id = picked.picked_id
+RETURNING job.id, job.tenant_id, job.kind, job.payload, job.attempts, job.max_attempts,
+          job.locked_until, picked.was_running::boolean AS reclaimed;
 
 -- The row lock a pass takes on its own job, held until the caller's transaction ends.
 --
@@ -93,6 +116,13 @@ RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until;
 SELECT id FROM job
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease')
 FOR UPDATE;
+
+-- A claimed job's lease moved to a later moment, before the job starts: a batch runs one job after
+-- another, and a job must not begin with less lease left than it may run. Fenced like every
+-- statement here: a job another worker took over after the lease ran out is not extended.
+-- name: ExtendJobLease :execrows
+UPDATE job SET locked_until = sqlc.arg('locked_until')
+WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
 
 -- The outcome is the handler's message code, or NULL where its kind has none to say (rule 10: a
 -- code, never content).
@@ -112,6 +142,7 @@ UPDATE job SET
   state        = 'PENDING',
   run_at       = sqlc.arg('run_at'),
   attempts     = 0,
+  revivals     = 0,
   locked_until = NULL,
   last_error   = NULL
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
@@ -161,6 +192,71 @@ GROUP BY kind;
 -- name: ScheduledJobBacklog :one
 SELECT count(*) FROM job
 WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now');
+
+-- The dead letters waiting for an operator, every kind and workspace: the health report's
+-- dead_letter_total, which an installation without Prometheus reads instead of alert A-07.
+-- name: DeadLetterCount :one
+SELECT count(*) FROM job WHERE state = 'DEAD_LETTER';
+
+-- The jobs of one kind not yet finished, due, parked between rounds or running: for a kind with one
+-- job per workspace while there is work (media.scan), the number of workspaces that have it.
+-- name: OpenJobCount :one
+SELECT count(*) FROM job
+WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING');
+
+-- The keys of one duty kind with work left: an open job, or a dead letter no later success of its
+-- key settled - which the hourly revival takes up again. For media.scan, one key per workspace,
+-- the workspaces whose uploads stay held, a dead-lettered pass included (alert A-23).
+-- name: UnsettledDutyCount :one
+SELECT count(DISTINCT dedupe_key) FROM job AS duty
+WHERE duty.kind = sqlc.arg('kind')
+  AND (duty.state IN ('PENDING', 'RUNNING')
+    OR (duty.state = 'DEAD_LETTER' AND NOT EXISTS (
+      SELECT 1 FROM job AS later
+      WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
+        AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)));
+
+-- The same keys for media.scan as UnsettledDutyCount, with how long the oldest has waited: the
+-- health report's notice of held uploads. A repeated pass keeps its row, so created_at is when the
+-- workspace's hold began.
+-- name: HeldUploadDuties :one
+SELECT count(DISTINCT dedupe_key)::bigint AS workspaces,
+       COALESCE(EXTRACT(EPOCH FROM (sqlc.arg('now')::timestamptz - min(created_at))), 0)::float8 AS oldest_seconds
+FROM job AS duty
+WHERE duty.kind = 'media.scan'
+  AND (duty.state IN ('PENDING', 'RUNNING')
+    OR (duty.state = 'DEAD_LETTER' AND NOT EXISTS (
+      SELECT 1 FROM job AS later
+      WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
+        AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)));
+
+-- The workspace and key of each open job of one kind, by turns: every workspace's oldest before
+-- any workspace's second, so a limit below the total leaves no workspace out while another holds
+-- several (mail.mailbox_poll, keyed by the mailbox: the things that live now). No payload: the
+-- caller loads each under its own workspace. With shard_count above one, only the workspaces whose
+-- hash falls on shard_index: the shards split the workspaces, each wholly in one.
+-- name: OpenJobKeys :many
+SELECT open_key.tenant_id, open_key.dedupe_key FROM (
+  SELECT tenant_id, dedupe_key::text AS dedupe_key, created_at, id,
+         row_number() OVER (PARTITION BY tenant_id ORDER BY created_at, id) AS turn
+  FROM job
+  WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
+    AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+    AND (sqlc.arg('shard_count')::int <= 1
+      OR mod(mod(hashtext(tenant_id::text), sqlc.arg('shard_count')::int) + sqlc.arg('shard_count')::int,
+             sqlc.arg('shard_count')::int) = sqlc.arg('shard_index')::int)
+) AS open_key
+ORDER BY open_key.turn, open_key.created_at, open_key.id
+LIMIT sqlc.arg('limit_count');
+
+-- How many open jobs of one kind OpenJobKeys could answer for the shard, beyond any limit.
+-- name: CountOpenJobKeys :one
+SELECT count(*)::bigint FROM job
+WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
+  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+  AND (sqlc.arg('shard_count')::int <= 1
+    OR mod(mod(hashtext(tenant_id::text), sqlc.arg('shard_count')::int) + sqlc.arg('shard_count')::int,
+           sqlc.arg('shard_count')::int) = sqlc.arg('shard_index')::int);
 
 -- What a caller polls, and the only two statements here that are asked on somebody's behalf
 -- rather than by a worker. They therefore carry the tenant condition themselves - the job table
@@ -243,6 +339,39 @@ WHERE id = sqlc.arg('id')
   AND state IN ('PENDING', 'RUNNING')
   AND payload #>> '{secret_header_sealed,key_id}' = sqlc.arg('expected_key_id')::text;
 
+-- A duty the dead letter holds goes back to work (queue.Perpetual): the same row, due now, its
+-- attempts from zero, once it has waited an hour doubled by each earlier revival and capped at a
+-- day - unless its key already has an open job, which then is the duty. Bounded, oldest first; the
+-- answer is the kinds revived, never a payload (rule 10).
+-- name: ReviveDeadDuties :many
+UPDATE job SET
+  state        = 'PENDING',
+  run_at       = sqlc.arg('now')::timestamptz,
+  attempts     = 0,
+  revivals     = job.revivals + 1,
+  finished_at  = NULL,
+  locked_until = NULL
+WHERE job.id IN (
+  SELECT dead.id FROM job AS dead
+  WHERE dead.state = 'DEAD_LETTER'
+    AND dead.kind = ANY(sqlc.arg('kinds')::text[])
+    AND dead.finished_at <= sqlc.arg('now')::timestamptz
+      - LEAST(interval '1 hour' * power(2, LEAST(dead.revivals, 5)), interval '24 hours')
+    AND (dead.dedupe_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM job AS open
+      WHERE open.kind = dead.kind AND open.dedupe_key = dead.dedupe_key
+        AND open.state IN ('PENDING', 'RUNNING')))
+    -- Only a key's newest dead letter, so one statement never revives two rows of one key.
+    AND (dead.dedupe_key IS NULL OR NOT EXISTS (
+      SELECT 1 FROM job AS newer
+      WHERE newer.kind = dead.kind AND newer.dedupe_key = dead.dedupe_key
+        AND newer.state = 'DEAD_LETTER' AND (newer.finished_at, newer.id) > (dead.finished_at, dead.id)))
+  ORDER BY dead.finished_at, dead.id
+  LIMIT sqlc.arg('batch')::int
+  FOR UPDATE SKIP LOCKED
+)
+RETURNING kind;
+
 -- The catalogue's period for a finished job: seven days after it ended (docs/privacy/data-catalog.md).
 -- Every terminal state alike, dead letters included - a payload names people by identifier, and a
 -- dead letter has had A-07 for the week. Oldest first and bounded, so a backlog clears over runs
@@ -257,3 +386,151 @@ WHERE id IN (
   LIMIT sqlc.arg('batch')::int
 )
 RETURNING state;
+
+-- The oldest open transaction's age in seconds (migration 0338, alert A-25).
+-- name: OldestTransactionSeconds :one
+SELECT oldest_transaction_seconds()::float8 AS seconds;
+
+-- The indexes PostgreSQL holds invalid (alert A-28): an index a CREATE INDEX CONCURRENTLY left
+-- behind when it was interrupted, which every write still maintains and no query uses, and which
+-- a unique index's constraint does not enforce. The migrator rebuilds the ones a migration builds
+-- (versioning-release.md §4); one that stays is what this counts. pg_index is readable by every
+-- role, so no function is needed.
+-- name: InvalidIndexCount :one
+SELECT count(*)::bigint AS invalid
+FROM pg_catalog.pg_index i
+JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND NOT i.indisvalid;
+
+-- What would let the connected role past row level security (multi-tenancy.md §2.1): a superuser
+-- or BYPASSRLS role, a role that owns tables with RLS - the doors' standing owner policies then
+-- apply to it - and a backfill's policy left behind (`%_backfill`, TO the migrating role). The
+-- catalogues are readable by every role.
+-- name: DatabaseRoleIsolation :one
+SELECT r.rolsuper AS superuser, r.rolbypassrls AS bypass_rls,
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relowner = r.oid
+  ) AS owns_tables,
+  (SELECT count(*) FROM pg_catalog.pg_policies p WHERE p.policyname LIKE '%\_backfill')::bigint AS backfill_policies
+FROM pg_catalog.pg_roles r
+WHERE r.rolname = current_user;
+
+-- The installation's dead letters for an operator (UC-INS-12), newest first: codes and moments,
+-- never the payload (rule 10). The table has no policy; only the operator's door reads this.
+-- name: PageDeadLetters :many
+SELECT id, tenant_id, kind, attempts, max_attempts, last_error, created_at, finished_at
+FROM job
+WHERE state = 'DEAD_LETTER'
+  AND (sqlc.narg('kind')::text IS NULL OR kind = sqlc.narg('kind')::text)
+  AND (sqlc.narg('before')::uuid IS NULL OR id < sqlc.narg('before')::uuid)
+ORDER BY id DESC
+LIMIT sqlc.arg('size')::int;
+
+-- One dead letter back to the queue as it was, due now, its attempts from zero - unless its key
+-- already has an open job, which then does the work (job_dedupe_uq would refuse the row anyway).
+-- name: RequeueDeadLetter :one
+UPDATE job SET
+  state        = 'PENDING',
+  run_at       = sqlc.arg('now')::timestamptz,
+  attempts     = 0,
+  finished_at  = NULL,
+  locked_until = NULL,
+  last_error   = NULL,
+  last_error_params = NULL
+WHERE job.id = sqlc.arg('id') AND job.state = 'DEAD_LETTER'
+  AND (job.dedupe_key IS NULL OR NOT EXISTS (
+    SELECT 1 FROM job AS open
+    WHERE open.kind = job.kind AND open.dedupe_key = job.dedupe_key
+      AND open.state IN ('PENDING', 'RUNNING')))
+RETURNING id, tenant_id, kind, attempts, max_attempts, last_error, created_at;
+
+-- Whether a job of this identifier is a dead letter, for the refusal a requeue that changed nothing
+-- answers.
+-- name: IsDeadLetter :one
+SELECT EXISTS (SELECT 1 FROM job WHERE id = sqlc.arg('id') AND state = 'DEAD_LETTER');
+
+-- How close the database is to the limits that stop every write (alerts A-36, A-37): the share of
+-- the NOTIFY queue a stuck listener has filled - once full, every transaction that notifies fails
+-- at commit - and the transaction-ID age vacuum has not yet frozen, which at about two billion
+-- makes PostgreSQL refuse writes (migration 0360); and the database's size on disk, which alert
+-- A-42 holds against the operator's budget before the volume or the plan runs out.
+-- name: DatabaseHorizon :one
+SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age,
+  pg_database_size(current_database())::bigint AS database_bytes;
+
+-- How the last invitation mail to each of these accounts went (0369): the newest job of the
+-- invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
+-- statement here. No payload is read: it holds identifiers only, and the answer needs none.
+--
+-- The job only records the notification and queues its delivery, so once it has succeeded what
+-- the mail did is the newest INVITATION notification of the account written since (0370): sent,
+-- failed or suppressed, with its reason code. Account identifiers are compared as text, the form
+-- the dedupe key has.
+-- name: LatestInvitationDeliveries :many
+SELECT j.account_id, j.state, j.last_error, j.last_error_params, j.created_at, j.finished_at,
+       coalesce(n.state, '')::text AS mail_state, n.reason AS mail_reason, n.sent_at AS mail_sent_at
+FROM (
+  SELECT DISTINCT ON (jj.dedupe_key)
+         jj.tenant_id AS job_tenant_id, jj.dedupe_key::text AS account_id, jj.state, jj.last_error,
+         jj.last_error_params, jj.created_at, jj.finished_at
+  FROM job jj
+  WHERE jj.tenant_id = sqlc.arg('tenant_id')::uuid
+    AND jj.kind = 'notification.invitation'
+    AND jj.dedupe_key = ANY(sqlc.arg('account_ids')::text[])
+  ORDER BY jj.dedupe_key, jj.created_at DESC, jj.id DESC
+) j
+LEFT JOIN LATERAL (
+  SELECT nn.state, nn.reason, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = j.job_tenant_id
+    AND nn.category = 'INVITATION'
+    AND nn.recipient_id::text = j.account_id
+    AND nn.created_at >= j.created_at
+  ORDER BY nn.created_at DESC
+  LIMIT 1
+) n ON true;
+
+-- The invitation mail to one account being sent right now (identity.md §12, "Never both"). Its
+-- delivery is detached and mints its token outside the runner's transaction, so cancelling it
+-- would not stop the token: a hand-over by link waits until it has finished. The tenant is named,
+-- as in every statement here.
+-- name: InvitationMailSending :one
+SELECT EXISTS (
+  SELECT 1 FROM job j
+  JOIN notification n ON n.tenant_id = j.tenant_id AND n.id::text = j.dedupe_key
+  WHERE j.tenant_id = sqlc.arg('tenant_id')::uuid
+    AND j.kind = 'notification.deliver'
+    AND j.state = 'RUNNING'
+    AND n.category = 'INVITATION'
+    AND n.recipient_id = sqlc.arg('account_id')::uuid
+)::boolean AS sending;
+
+-- Cancels the invitation mail to one account still waiting before its invitation is handed over
+-- by link: the invitation job not yet run (which records nothing once cancelled; one under way
+-- rolls back at its next write) and the delivery of a recorded invitation not yet sent. The
+-- delivery mints a token of its own and the newest wins, so a mail left waiting would kill the
+-- handed-over link.
+-- name: CancelOpenInvitationMail :execrows
+UPDATE job j SET
+  state        = 'CANCELLED',
+  finished_at  = sqlc.arg('now'),
+  locked_until = NULL
+WHERE j.tenant_id = sqlc.arg('tenant_id')::uuid
+  AND j.state IN ('PENDING', 'RUNNING')
+  AND (
+    (j.kind = 'notification.invitation' AND j.dedupe_key = sqlc.arg('account_id')::uuid::text)
+    OR (j.kind = 'notification.deliver' AND j.state = 'PENDING' AND j.dedupe_key IN (
+      SELECT n.id::text FROM notification n
+      WHERE n.tenant_id = sqlc.arg('tenant_id')::uuid AND n.category = 'INVITATION'
+        AND n.recipient_id = sqlc.arg('account_id')::uuid AND n.state = 'PENDING'))
+  );
+
+-- The recorded invitation mails to one account not yet sent, set aside for the link that replaced
+-- them, so nothing sends them later and the people list says why they did not go.
+-- name: SupersedePendingInvitationMail :execrows
+UPDATE notification SET state = 'SUPPRESSED', reason = 'notifications.replaced_by_link'
+WHERE tenant_id = sqlc.arg('tenant_id')::uuid AND category = 'INVITATION'
+  AND recipient_id = sqlc.arg('account_id')::uuid AND state = 'PENDING';

@@ -76,6 +76,21 @@ type ActorContext struct {
 	// a caller holding that account's token would be too - only this tells an act whose answer
 	// nobody reads from one whose caller reads it.
 	RunsForRule shared.ID
+	// OnBehalfOf is the person a registered agent acts for, set by the agents' gate and nowhere
+	// else (M9, G2): the authoriser then asks what it asks of the actor of that person too, so an
+	// agent never does what the person it acts for may not. Empty for every other actor.
+	OnBehalfOf shared.ID
+	// AsAgent is the registered agent acting, set beside OnBehalfOf by the agents' gate and nowhere
+	// else, so what it proposes names it (UC-AGT-05 check 1). Empty for every other actor.
+	AsAgent shared.ID
+	// Channel is the door the act arrived through, as a type's form narrows it (work.FormChannel):
+	// set by the adapter - MCP, the sync service, mail intake, import - and empty for the REST
+	// door, which the web app and hubctl share.
+	Channel string
+	// ForSender marks words that are a sender's without an account, filed by the mail intake as
+	// the administrator who opened it (UC-JUM-12 check 4). Set by the intake and nowhere else: a
+	// comment so filed is the requester's own, never a reply mailed back to them (UC-SVC-12).
+	ForSender bool
 	// Present is true for a request a person is waiting on now: a call through the REST API - the
 	// web app's door and hubctl's - set by that adapter and nowhere else. It decides one thing:
 	// whether the workspace owner's running emergency access to a private hub counts (ADR-0073 §4,
@@ -85,6 +100,15 @@ type ActorContext struct {
 	// agent acting with the person's credential. False is the safe value: an actor somebody forgot
 	// to mark sees nothing of a private hub.
 	Present bool
+	// ViewedBy is the administrator whose own session shows the app as this actor's person (UC-ID-29),
+	// set by authentication and nowhere else. The actor is then the person read only: the scopes
+	// are the reading ones, Present is false, and no device's copy is filled (RefuseACopy). Empty
+	// for every request that is its own person's.
+	ViewedBy shared.ID
+	// ViewedByName is that administrator's label, for the trail of a view's end.
+	ViewedByName string
+	// ViewingAsUntil is when the view lapses.
+	ViewingAsUntil time.Time
 	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID
@@ -98,6 +122,18 @@ type ActorContext struct {
 	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
 	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
 	WeekStart string
+}
+
+// IsViewingAs reports whether this request is an administrator looking at the app as this person.
+func (a ActorContext) IsViewingAs() bool { return !a.ViewedBy.IsZero() }
+
+// RefuseACopy refuses filling a copy that outlives the request while viewing as somebody: a view
+// is online only (UC-ID-29), and a device's replica of another person's work would outlast it.
+func (a ActorContext) RefuseACopy() error {
+	if a.IsViewingAs() {
+		return shared.ErrForbidden.WithDetail("access.view_as_online_only")
+	}
+	return nil
 }
 
 // ForACopy is the actor as a reader that fills a copy which outlives the request - a device's

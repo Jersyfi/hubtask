@@ -50,8 +50,8 @@ func TestTheAiSourceIsChosenAndAnsweredOverRest(t *testing.T) {
 	}
 }
 
-// The own model's budget over REST: a number travels in, a null travels in as nothing - which is
-// "no budget" - and the two AI standings come back.
+// The own model's budget over REST: a number travels in, a null travels in as null - which the use
+// case reads as "no budget" - and the two AI standings come back.
 func TestTheOwnAiBudgetIsSetOverRest(t *testing.T) {
 	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{
 		{"quota": "ai_tokens_per_day", "limit": int64(200000), "used": int64(10), "configured": false},
@@ -62,7 +62,7 @@ func TestTheOwnAiBudgetIsSetOverRest(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != "SetOwnAiBudget" || registry.in["own_tokens_per_day"] != int64(5000) {
+	if registry.name != "SetOwnAiBudget" || registry.in["own_tokens_per_day"] != 5000 {
 		t.Errorf("the use case received %s %v", registry.name, registry.in)
 	}
 	var body []map[string]any
@@ -75,7 +75,7 @@ func TestTheOwnAiBudgetIsSetOverRest(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
 	}
-	if _, sent := registry.in["own_tokens_per_day"]; sent {
+	if value := registry.in["own_tokens_per_day"]; value != nil {
 		t.Errorf("a null reached the use case as %v", registry.in)
 	}
 }

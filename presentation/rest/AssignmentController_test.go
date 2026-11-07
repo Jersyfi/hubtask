@@ -56,7 +56,7 @@ func TestAssigningAnswersWithTheEntryAndItsNewETag(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != assignWorkItemUseCase {
+	if registry.name != "AssignWorkItem" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if registry.in["item_id"] != itemID || registry.in["account_id"] != assigneeID {
@@ -100,7 +100,7 @@ func TestUnassigningTakesNoBody(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != unassignWorkItemUseCase {
+	if registry.name != "UnassignWorkItem" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if _, named := registry.in["account_id"]; named {

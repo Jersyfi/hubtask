@@ -31,6 +31,9 @@ const (
 	agentHeartbeat  = 20 * time.Second
 	agentRetry      = 3000
 	agentRetryAfter = 5
+
+	agentCredentialRecheck = 30 * time.Second
+	agentCredentialTimeout = 5 * time.Second
 )
 
 // StreamSignals is the slice of the metrics adapter this stream reports through - the same one the
@@ -74,7 +77,7 @@ func (s Server) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slot, refusal := s.Streams.Admit(credentialOf(r), actor.TenantID.String())
+	slot, refusal := s.Streams.Admit(credentialOf(r), actor.TenantID.String(), stream.Accounts(actor)...)
 	if refusal != stream.RefusedNone {
 		s.report(r.Context(), func(ctx context.Context, signals StreamSignals) {
 			signals.StreamRefused(ctx, refusal.String())
@@ -90,7 +93,7 @@ func (s Server) stream(w http.ResponseWriter, r *http.Request) {
 	woken, unsubscribe := s.subscribe(actor.TenantID)
 	defer unsubscribe()
 
-	s.hold(w, r, slot, woken)
+	s.hold(w, r, slot, woken, stream.CredentialStill(r.Context(), actor))
 }
 
 // hold writes the stream until the client leaves, the process drains, or writing fails.
@@ -101,6 +104,7 @@ func (s Server) stream(w http.ResponseWriter, r *http.Request) {
 // end, and net/http already owns three of them.
 func (s Server) hold(
 	w http.ResponseWriter, r *http.Request, slot stream.Slot, woken <-chan struct{},
+	still func(context.Context) error,
 ) {
 	started := s.now()
 	stream.Headers(w.Header())
@@ -119,9 +123,39 @@ func (s Server) hold(
 
 	heartbeat := time.NewTicker(agentHeartbeat)
 	defer heartbeat.Stop()
+	// The actor is fixed when the stream opens, the credential is not: a session revoked or
+	// expired since ends the stream within a recheck, as the change stream's does.
+	recheckEvery := s.CredentialRecheck
+	if recheckEvery <= 0 {
+		recheckEvery = agentCredentialRecheck
+	}
+	recheck := time.NewTicker(recheckEvery)
+	defer recheck.Stop()
 
+	// ended asks the credential; the client then reconnects through a fresh authentication, which
+	// refuses it. slot.Recheck is a revocation heard for this account on any process.
+	ended := func(ctx context.Context) bool {
+		if still == nil {
+			return false
+		}
+		checkCtx, cancel := context.WithTimeout(ctx, agentCredentialTimeout)
+		defer cancel()
+		if still(checkCtx) != nil {
+			_ = events.Comment("credential")
+			return true
+		}
+		return false
+	}
 	for {
 		select {
+		case <-slot.Recheck:
+			if ended(r.Context()) {
+				return
+			}
+		case <-recheck.C:
+			if ended(r.Context()) {
+				return
+			}
 		case <-r.Context().Done():
 			return
 		case <-slot.Closing:

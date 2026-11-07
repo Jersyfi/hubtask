@@ -102,6 +102,23 @@ export function headMessage(figure: CollectionFigure, locale: string): FigureMes
 }
 
 /**
+ * Where the numbers are the last count kept before the collection's latest change (UC-WRK-29, the
+ * owner's fifth answers 3), the time they are of, in the reader's clock: "as of 14:05". Nothing
+ * where they are current or could not be counted.
+ */
+export function asOfMessage(
+  figure: CollectionFigure,
+  locale: string,
+  timeZone?: string,
+): FigureMessage | undefined {
+  if (figure.unavailable || !figure.counted_at) return undefined;
+  const at = new Date(figure.counted_at);
+  if (Number.isNaN(at.getTime())) return undefined;
+  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(at);
+  return { code: 'app.figure.as_of', params: { time } };
+}
+
+/**
  * The flow's warning beside its figure (UC-WRK-31 check 3): how many columns hold more than their
  * limit, or nothing where none does. Reported, never a refusal.
  */

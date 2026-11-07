@@ -1,0 +1,124 @@
+{
+  "key": "household",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "household_room": {
+        "name": "Room",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Kitchen",
+          "Bathroom",
+          "Living room",
+          "Bedroom",
+          "Garden",
+          "Elsewhere"
+        ]
+      },
+      "household_cost": {
+        "name": "Cost",
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      }
+    },
+    "types": {
+      "chore": {
+        "level": "TASK",
+        "name": "Chore",
+        "icon": "house",
+        "color_token": "teal",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "work",
+              "name": "Work"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "work",
+              "required": true
+            },
+            {
+              "key": "custom_fields.household_room",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.household_cost",
+              "section": "work"
+            },
+            {
+              "key": "notes",
+              "section": "work"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "chore": {
+        "name": "Chore",
+        "shape": {
+          "initial": "to_do",
+          "statuses": [
+            {
+              "key": "to_do",
+              "name": "To do",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            }
+          ],
+          "steps": [
+            {
+              "key": "do",
+              "name": "Done",
+              "from": [
+                "to_do"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "again",
+              "name": "Again",
+              "from": [
+                "done"
+              ],
+              "to": "to_do"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "chore": {
+        "workflow": "chore"
+      }
+    }
+  }
+}

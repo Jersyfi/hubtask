@@ -68,7 +68,10 @@ type CollectionQuery struct {
 	// IncludePrivate keeps the collections of private hubs. Without it the answer is the shared
 	// set: the collections everybody who may convert an arrival may write in.
 	IncludePrivate bool
-	Page           Page
+	// IncludeArchived keeps the archived collections, and those under an archived hub; trashed
+	// ones never.
+	IncludeArchived bool
+	Page            Page
 }
 
 // CollectionInHub is one collection with the hub it sits in, as a picker names it.
@@ -87,7 +90,7 @@ type CollectionPage struct {
 // Collections reads the collections across the hubs.
 type Collections interface {
 	// InOrder answers the collections that are neither trashed nor archived - their own stamp or
-	// their hub's - in the hubs' manual order and then each hub's. It judges no permission.
+	// their hub's; archived ones too when asked - in the hubs' manual order and then each hub's. It judges no permission.
 	InOrder(ctx context.Context, query CollectionQuery) (CollectionPage, error)
 }
 
@@ -173,6 +176,14 @@ type Move struct {
 	UpdatedAt time.Time
 	// ExpectedVersion locks the moved item's own row. Zero means the caller read no version.
 	ExpectedVersion int
+}
+
+// HubCollections reads the collections a hub's figure counts (UC-WRK-29): of each hub named, at
+// most perHub of those neither trashed nor archived, in their manual order, keyed by hub. A caller
+// that asks for one more than it counts tells from the answer that a hub holds more. Like List, it
+// judges no permission.
+type HubCollections interface {
+	CollectionsOfHubs(ctx context.Context, hubIDs []shared.ID, perHub int) (map[shared.ID][]work.Container, error)
 }
 
 // Containers stores hubs and collections.
@@ -288,6 +299,9 @@ const (
 	AnchorCollection AnchorKind = "COLLECTION"
 	// AnchorItem is one entry, and with descendants its subtree.
 	AnchorItem AnchorKind = "ITEM"
+	// AnchorCollections is a set of collections the use case decided the actor reads: a summary
+	// across the workspace, narrowed inside the statement rather than row by row.
+	AnchorCollections AnchorKind = "COLLECTIONS"
 )
 
 // Anchor is the resolved scope of a query.
@@ -304,6 +318,11 @@ type Anchor struct {
 	HubID shared.ID
 	// ItemID is the entry, for an item anchor.
 	ItemID shared.ID
+	// CollectionIDs are the collections, for a collections anchor. Empty is no entry at all.
+	CollectionIDs []shared.ID
+	// ItemIDs are entries a collections anchor reaches besides its collections: those shared with
+	// the actor alone, in a collection they do not read.
+	ItemIDs []shared.ID
 	// PathPrefix is that entry's own path, which every row of its subtree begins with (I-W2).
 	PathPrefix string
 	// IncludeDescendants searches the subtree rather than one level below the anchor.
@@ -327,6 +346,17 @@ type ItemSearch struct {
 	// RestrictTo narrows the answer to a named set of entries, or to all of them when it is empty -
 	// the read half of the share rule, exactly as ItemQuery carries it for the plain level list.
 	RestrictTo []shared.ID
+	// RaisedFrom narrows the answer to the entries a portal organisation raised (UC-SVC-11 check
+	// 3), nil for no such narrowing. The domains are joined in the query, not read as a list of
+	// accounts first, so no organisation is cut short however many people it has.
+	RaisedFrom *Raisers
+}
+
+// Raisers is an organisation as a portal list asks for it: the active people whose address is at
+// one of the domains, and the asking account whatever its state.
+type Raisers struct {
+	Account shared.ID
+	Domains []string
 }
 
 // TextSearch is one full-text search as the adapter receives it: the validated request, its
@@ -405,6 +435,9 @@ type ItemQueryResult struct {
 	// Total is the size of the whole result, and is meaningful only when the query asked for an
 	// exact count.
 	Total int
+	// Uncounted says an exact count was asked for and not answered, because counting took longer
+	// than its budget; the rows are answered all the same, and no Total is meaningful.
+	Uncounted bool
 }
 
 // Items stores work items: tasks, work packages, and activities.
@@ -456,6 +489,15 @@ type ItemBatch interface {
 	// archived ones included - in no particular order. An identifier that names nothing here,
 	// another tenant's included, is absent from the answer rather than an error.
 	FindMany(ctx context.Context, ids []shared.ID) ([]work.WorkItem, error)
+}
+
+// EntryWalk walks the live entries of a collection, or of the whole workspace, in identifier order:
+// filling a new CALCULATED field on the entries defined before it. Its own interface for
+// ItemBatch's reason.
+type EntryWalk interface {
+	// IDsAfter answers up to limit live entries after the cursor (zero for the first), of the
+	// collection or, for a zero collection, of every collection.
+	IDsAfter(ctx context.Context, collectionID, after shared.ID, limit int) ([]shared.ID, error)
 }
 
 // ItemTypes answers the type of each entry among ids: the levels above an entry, which decide
@@ -695,14 +737,6 @@ type Items interface {
 	// It judges no further than the query asks, as List does: whether the actor may see the scope
 	// is decided in the application layer, once, before this runs (ADR-0005).
 	Query(ctx context.Context, search ItemSearch) (ItemQueryResult, error)
-
-	// Search answers the full text search: one page of entries in the order the database ranked
-	// them, with the hub each one sits under.
-	//
-	// Ranked rather than sorted, which is what makes the cursor a keyset over the rank. The order
-	// is `ts_rank_cd` descending and the identifier descending after it, so that entries matching
-	// equally well come newest first - a UUIDv7 carries its own time (ADR-0034).
-	Search(ctx context.Context, search TextSearch) (ItemHitPage, error)
 }
 
 // Buckets stores the columns of a collection's board.
@@ -814,6 +848,31 @@ type ItemTally struct {
 // none is an answer.
 type ItemTallies interface {
 	TallyFor(ctx context.Context, itemIDs []shared.ID) (map[shared.ID]ItemTally, error)
+}
+
+// ItemAggregates summarises the entries a query keeps: a count and a function over one measure,
+// per group and period (view.Aggregation). Its own interface rather than a method on Items, so the
+// fakes of Items stay whole; the permission on the scope is decided before it runs (rule 2).
+type ItemAggregates interface {
+	Aggregate(ctx context.Context, search ItemSearch, aggregation view.Aggregation, timeZone string) (
+		ItemAggregateResult, error)
+}
+
+// ItemAggregateResult is the answer: its rows in the group's order, then the period's, and whether
+// they were cut at view.MaxAggregateRows.
+type ItemAggregateResult struct {
+	Rows      []ItemAggregateRow
+	Truncated bool
+}
+
+// ItemAggregateRow is one group in one period. Group is empty where nothing groups or the entry has
+// no value; Period is the period's first day, `YYYY-MM-DD`, empty where nothing buckets; Value is
+// the function's result as a decimal string, nil for a plain count or an empty measure.
+type ItemAggregateRow struct {
+	Group  string
+	Period string
+	Count  int64
+	Value  *string
 }
 
 // ItemLabels stores which items carry which labels, and the tags that decide it after a merge.
@@ -1129,6 +1188,10 @@ type TrashMember struct {
 	CollectionID shared.ID
 	// Path is an entry's materialised path, its ancestors and itself; empty for a container.
 	Path string
+	// Contributors are the accounts whose own words are in a page or a whiteboard - its creator and
+	// the authors of its versions and comments, as the retention pass reads them. Empty for an
+	// entry and a container, whose contributors the lifecycle reader answers.
+	Contributors []shared.ID
 }
 
 // Trash reads what is in the trash and finally removes it.
@@ -1140,7 +1203,8 @@ type Trash interface {
 	// List returns one page of the trash: one entry per deletion, not one per deleted row. The
 	// entry is the batch's root - the thing somebody deleted - and what came along with it is
 	// reached through the batch.
-	List(ctx context.Context, page Page) (TrashPage, error)
+	// An empty kind lists every kind.
+	List(ctx context.Context, page Page, kind work.TrashKind) (TrashPage, error)
 
 	// SubtreeIDs returns every identifier in one item's subtree, the item included.
 	//
@@ -1175,7 +1239,45 @@ type Trash interface {
 	BatchMembers(ctx context.Context, batchIDs []shared.ID) ([]TrashMember, error)
 }
 
-// CustomFields stores the definitions a workspace or a collection adds to its entries.
+// FieldHiding is one definition hidden from readers: its key, and the container it is defined
+// for - a collection or a hub -, zero for the whole workspace (UC-ID-27 check 3).
+type FieldHiding struct {
+	Key          string
+	CollectionID shared.ID
+	// AtHub says the container is a hub, whose collections the hiding reaches.
+	AtHub bool
+}
+
+// FieldHidings answers the definitions hidden from readers. Its own interface beside CustomFields,
+// because every read asks it and nothing else: the narrowing needs no other statement.
+type FieldHidings interface {
+	// ReadRestricted answers every live definition hidden from readers, workspace-wide.
+	ReadRestricted(ctx context.Context) ([]FieldHiding, error)
+
+	// ReadFormulas answers every live CALCULATED definition and every one a formula may read,
+	// workspace-wide: what hides a calculated field together with a hidden field it reads.
+	ReadFormulas(ctx context.Context) ([]FieldFormula, error)
+}
+
+// FieldValueCounts answers how many entries hold a value under a definition where it is in force:
+// what removing it or hiding it from readers would stop showing. A count, never a value.
+type FieldValueCounts interface {
+	EntriesHolding(ctx context.Context, definition work.CustomFieldDefinition) (int, error)
+}
+
+// FieldFormula is one definition a formula concerns: a CALCULATED one with its formula, or one
+// whose kind a formula may read; the container it is defined for - a collection or a hub -, zero
+// for the whole workspace.
+type FieldFormula struct {
+	Key          string
+	CollectionID shared.ID
+	// AtHub says the container is a hub, whose collections the definition reaches.
+	AtHub   bool
+	Kind    work.CustomFieldKind
+	Formula string
+}
+
+// CustomFields stores the definitions a workspace, a hub or a collection adds to its entries.
 //
 // Its own interface rather than methods on Items, because the two are not the same thing: this is
 // the vocabulary, and `work_item.custom_fields` is what an entry says in it. A repository that
@@ -1191,20 +1293,28 @@ type CustomFields interface {
 	Find(ctx context.Context, id shared.ID) (work.CustomFieldDefinition, error)
 
 	// FindInScope returns the live definition one collection sees under a key: the collection's
-	// own, or the workspace-wide one. The collection's own wins, so that a team can narrow a
-	// workspace-wide default rather than having to avoid its key.
+	// own, its hub's, or the workspace-wide one. The nearest wins, so that a hub or a team can
+	// narrow a workspace-wide default rather than having to avoid its key. A hub as the scope sees
+	// its own and the workspace's.
 	//
 	// A zero collection asks about the workspace-wide scope alone.
 	FindInScope(ctx context.Context, collectionID shared.ID, key string) (work.CustomFieldDefinition, error)
 
-	// ListInScope returns every live definition in force for one collection: its own and the
-	// workspace-wide ones above it, ordered by scope and then by key. A zero collection answers
-	// the workspace-wide ones alone.
+	// ListInScope returns every live definition in force for one collection: its own and those
+	// of its hub and the workspace above it - for a hub, its own and the workspace's -, the widest
+	// scope first and then by key. A zero collection answers the workspace-wide ones alone.
 	//
 	// Unpaged, deliberately. A workspace's vocabulary is small and bounded by what a person can
 	// fill in on one form; a client renders the whole of it or none of it, and a cursor over a
 	// list nobody scrolls would be machinery for its own sake.
 	ListInScope(ctx context.Context, collectionID shared.ID) ([]work.CustomFieldDefinition, error)
+
+	// KindsByKey answers, per key, the kinds of the live definitions under it that are in force
+	// in a scope: workspace-wide, and in the scope's collections - the collection itself, or every
+	// collection of a hub. A zero scope is the whole workspace. It is what the query language needs
+	// to know which typed column a range, a sort or a grouping on the key reads (F-2); a key nothing
+	// defines is absent, a key with two kinds in the scope answers both.
+	KindsByKey(ctx context.Context, keys []string, scope shared.ID) (map[string][]work.CustomFieldKind, error)
 
 	// SetAttributes writes what an edit may change, or reports a version conflict.
 	SetAttributes(ctx context.Context, definition work.CustomFieldDefinition, expectedVersion int) error
@@ -1376,7 +1486,15 @@ type Starter interface {
 	Pending(ctx context.Context) (bool, error)
 
 	// Close records that the question was answered or skipped; closing it again changes nothing.
-	Close(ctx context.Context, at time.Time) error
+	// It reports whether this call closed it - false where it was closed already.
+	Close(ctx context.Context, at time.Time) (bool, error)
+
+	// Skipped reports whether the question was skipped while nobody has made a hub, collection or
+	// entry beyond what the workspace was created with: the set may still be taken.
+	Skipped(ctx context.Context) (bool, error)
+
+	// Hold locks the workspace's row for the transaction, so a second set waits for the first.
+	Hold(ctx context.Context) error
 }
 
 // Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its
@@ -1384,6 +1502,60 @@ type Starter interface {
 // count is answered with zeros, or not at all.
 type Figures interface {
 	Count(ctx context.Context, requests []work.FigureRequest, window work.FigureWindow) (map[shared.ID]work.FigureCounts, error)
+}
+
+// KeptFigureKey names one kept count: a collection's figure of a kind on one basis.
+type KeptFigureKey struct {
+	CollectionID shared.ID
+	Kind         work.Figure
+	BasisKey     string
+}
+
+// KeptFigure is a count kept between reads (migration 0299) with the collection's number of
+// changes it was counted at. Present is false where nothing is kept for the key.
+type KeptFigure struct {
+	Key       KeptFigureKey
+	Basis     work.FigureBasis
+	Changes   int64
+	Counts    work.FigureCounts
+	CountedAt time.Time
+	Present   bool
+}
+
+// KeptFigureState is what a read learns about one wanted figure: the collection's number of changes
+// now, and what is kept, if anything.
+type KeptFigureState struct {
+	Changes int64
+	Kept    KeptFigure
+}
+
+// KeptFigures keeps collections' counts between reads (UC-WRK-29, migration 0299). A kept count is
+// answered only while its collection's number of changes is the one it was counted at; every write
+// to an entry, a column or a definition moves that number in its own transaction, by trigger.
+type KeptFigures interface {
+	// States answers each wanted figure's number of changes now and what is kept for it. Read
+	// before counting, so that a write committed in between can only make the count newer.
+	States(ctx context.Context, wanted []KeptFigureKey) (map[KeptFigureKey]KeptFigureState, error)
+	// Keep stores counts; one already kept at a later number of changes stays.
+	Keep(ctx context.Context, figures []KeptFigure) error
+	// Fold moves the recorded changes into each collection's stamp without moving any number.
+	Fold(ctx context.Context) (int64, error)
+	// Prune drops what no read can be answered from: counts older than before or than their
+	// collection's last change, a trashed collection's, and a purged collection's stamp.
+	Prune(ctx context.Context, before time.Time) (int64, error)
+	// ToVerify answers up to batch kept counts of the kinds that a read may still be answered
+	// from, the longest unverified first.
+	ToVerify(ctx context.Context, kinds []work.Figure, batch int) ([]KeptFigure, error)
+	// Verify writes a recount over a kept count at the same number of changes, and reports whether
+	// the row was still that one.
+	Verify(ctx context.Context, figure KeptFigure, at time.Time) (bool, error)
+}
+
+// Milestone is when a collection or hub was last left with nothing open, and how many entries
+// created after that moment are open now (UC-WRK-29 check 4).
+type Milestone struct {
+	ReachedAt time.Time
+	OpenSince int
 }
 
 // Milestones records and reads the last moment a collection or hub was left with nothing open
@@ -1400,7 +1572,7 @@ type Milestones interface {
 	// holds an open entry, and reports whether it did.
 	RecordHub(ctx context.Context, hubID shared.ID, at time.Time) (bool, error)
 	// Of answers the milestones of the given containers; a container without one is absent.
-	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]time.Time, error)
+	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]Milestone, error)
 }
 
 // Kudos keeps one person's acknowledgement of another's completion (UC-WRK-29 checks 5 and 6).

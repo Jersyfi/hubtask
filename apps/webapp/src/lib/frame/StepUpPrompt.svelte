@@ -21,7 +21,9 @@
   // stays the first way offered, the typed ways beneath it as links (UC-SYN-07/3, ADR-0096), and
   // the dialog waits while the browser asks.
 
-  import { Banner, Button, CodeField, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Button, CodeField, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from './FailureNote.svelte';
 
   import { canCreatePasskeys } from '../data/passkeys.ts';
   import { browserKey } from '../signin/browserKey.svelte.ts';
@@ -152,9 +154,9 @@
 
       {#if stepUp.failure}
         <!-- The server's own sentence. Which of the two was wrong is not something this client says. -->
-        <Banner tone="danger" title={stepUp.failure.message}>
+        <FailureNote problem={stepUp.failure}>
           {#if stepUp.failure.reference}{stepUp.failure.reference}{/if}
-        </Banner>
+        </FailureNote>
       {/if}
 
       {#if browserKey.isWaiting}

@@ -71,6 +71,13 @@ func TestADueDateIsTheTrioOrNothing(t *testing.T) {
 			wantCode: "items.due_time_zone_invalid",
 			wantPath: "/due_time_zone",
 		},
+		"the server's own zone, which no browser knows": {
+			at:       parseInstant("2026-09-01T17:00:00Z"),
+			zone:     "Local",
+			wantCode: "items.due_time_zone_invalid",
+			wantPath: "/due_time_zone",
+		},
+		// UC-WRK-13 check 8: a time zone without a date.
 		"a zone without a date": {
 			zone:     "Europe/Berlin",
 			wantCode: "items.due_time_zone_without_date",

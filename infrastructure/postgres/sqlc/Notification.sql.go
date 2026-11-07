@@ -11,6 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearMailUndeliverable = `-- name: ClearMailUndeliverable :exec
+DELETE FROM mail_undeliverable WHERE account_id = $1::uuid
+`
+
+func (q *Queries) ClearMailUndeliverable(ctx context.Context, accountID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearMailUndeliverable, accountID)
+	return err
+}
+
 const countExpiredNotifications = `-- name: CountExpiredNotifications :one
 SELECT count(*) FROM (
   SELECT 1 FROM notification AS expired
@@ -62,10 +71,27 @@ func (q *Queries) DeleteExpiredNotifications(ctx context.Context, arg DeleteExpi
 	return result.RowsAffected(), nil
 }
 
+const findMailUndeliverable = `-- name: FindMailUndeliverable :one
+SELECT address, since FROM mail_undeliverable WHERE account_id = $1::uuid
+`
+
+type FindMailUndeliverableRow struct {
+	Address string
+	Since   pgtype.Timestamptz
+}
+
+func (q *Queries) FindMailUndeliverable(ctx context.Context, accountID pgtype.UUID) (FindMailUndeliverableRow, error) {
+	row := q.db.QueryRow(ctx, findMailUndeliverable, accountID)
+	var i FindMailUndeliverableRow
+	err := row.Scan(&i.Address, &i.Since)
+	return i, err
+}
+
 const findNotification = `-- name: FindNotification :one
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
        event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id,
-       private_hub_access_id, membership_id
+       private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id,
+       mailbox_id, identity_provider_id, calendar_push_id, cmdb_connector_id, code_hook_id
 FROM notification
 WHERE id = $1
 `
@@ -91,6 +117,16 @@ func (q *Queries) FindNotification(ctx context.Context, id pgtype.UUID) (Notific
 		&i.SubscriptionID,
 		&i.PrivateHubAccessID,
 		&i.MembershipID,
+		&i.PageID,
+		&i.AgentID,
+		&i.WhiteboardID,
+		&i.ApprovalID,
+		&i.BaselineID,
+		&i.MailboxID,
+		&i.IdentityProviderID,
+		&i.CalendarPushID,
+		&i.CmdbConnectorID,
+		&i.CodeHookID,
 	)
 	return i, err
 }
@@ -129,16 +165,19 @@ const insertNotification = `-- name: InsertNotification :execrows
 INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
   event_id, item_id, actor_id, created_at, rule_id, subscription_id, private_hub_access_id,
-  membership_id
+  membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id, mailbox_id,
+  identity_provider_id, calendar_push_id, cmdb_connector_id, code_hook_id
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9, $10,
   $11, $12, $13,
-  $14
+  $14, $15, $16, $17,
+  $18, $19, $20,
+  $21, $22, $23,
+  $24
 )
-ON CONFLICT (tenant_id, event_id, recipient_id, channel) WHERE event_id IS NOT NULL
-DO NOTHING
+ON CONFLICT DO NOTHING
 `
 
 type InsertNotificationParams struct {
@@ -156,6 +195,16 @@ type InsertNotificationParams struct {
 	SubscriptionID     pgtype.UUID
 	PrivateHubAccessID pgtype.UUID
 	MembershipID       pgtype.UUID
+	PageID             pgtype.UUID
+	AgentID            pgtype.UUID
+	WhiteboardID       pgtype.UUID
+	ApprovalID         pgtype.UUID
+	BaselineID         pgtype.UUID
+	MailboxID          pgtype.UUID
+	IdentityProviderID pgtype.UUID
+	CalendarPushID     pgtype.UUID
+	CmdbConnectorID    pgtype.UUID
+	CodeHookID         pgtype.UUID
 }
 
 // The notification record and what people have said about being told (arc42 §5.2).
@@ -184,11 +233,88 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		arg.SubscriptionID,
 		arg.PrivateHubAccessID,
 		arg.MembershipID,
+		arg.PageID,
+		arg.AgentID,
+		arg.WhiteboardID,
+		arg.ApprovalID,
+		arg.BaselineID,
+		arg.MailboxID,
+		arg.IdentityProviderID,
+		arg.CalendarPushID,
+		arg.CmdbConnectorID,
+		arg.CodeHookID,
 	)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const latestMailPerRecipient = `-- name: LatestMailPerRecipient :many
+SELECT a.account_id::uuid AS account_id, n.category, n.state, n.reason, n.created_at, n.sent_at,
+       d.finished_at AS delivery_finished_at, d.last_error AS delivery_error,
+       d.last_error_params AS delivery_error_params
+FROM unnest($1::uuid[]) AS a(account_id)
+CROSS JOIN LATERAL (
+  SELECT nn.id, nn.category, nn.state, nn.reason, nn.created_at, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = current_tenant_id() AND nn.recipient_id = a.account_id
+  ORDER BY nn.created_at DESC, nn.id DESC
+  LIMIT 1
+) n
+LEFT JOIN LATERAL (
+  SELECT j.finished_at, j.last_error, j.last_error_params
+  FROM job j
+  WHERE j.tenant_id = current_tenant_id() AND j.kind = 'notification.deliver'
+    AND j.dedupe_key = n.id::text
+  ORDER BY j.created_at DESC, j.id DESC
+  LIMIT 1
+) d ON true
+`
+
+type LatestMailPerRecipientRow struct {
+	AccountID           pgtype.UUID
+	Category            string
+	State               string
+	Reason              *string
+	CreatedAt           pgtype.Timestamptz
+	SentAt              pgtype.Timestamptz
+	DeliveryFinishedAt  pgtype.Timestamptz
+	DeliveryError       *string
+	DeliveryErrorParams []byte
+}
+
+// The newest notification of each account, whatever its category, for the people list's rows
+// (user-experience.md §8.3), with its delivery job's end and last failure: what the mail did, and
+// when it failed. The job table has no row level security, so its join names the tenant itself.
+func (q *Queries) LatestMailPerRecipient(ctx context.Context, accountIds []pgtype.UUID) ([]LatestMailPerRecipientRow, error) {
+	rows, err := q.db.Query(ctx, latestMailPerRecipient, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestMailPerRecipientRow{}
+	for rows.Next() {
+		var i LatestMailPerRecipientRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.Category,
+			&i.State,
+			&i.Reason,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.DeliveryFinishedAt,
+			&i.DeliveryError,
+			&i.DeliveryErrorParams,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listNotificationPreferences = `-- name: ListNotificationPreferences :many
@@ -227,6 +353,28 @@ func (q *Queries) ListNotificationPreferences(ctx context.Context, accountID pgt
 		return nil, err
 	}
 	return items, nil
+}
+
+const markMailUndeliverable = `-- name: MarkMailUndeliverable :exec
+INSERT INTO mail_undeliverable (tenant_id, account_id, address, since)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  since   = EXCLUDED.since
+WHERE mail_undeliverable.address <> EXCLUDED.address
+`
+
+type MarkMailUndeliverableParams struct {
+	AccountID pgtype.UUID
+	Address   string
+	Since     pgtype.Timestamptz
+}
+
+// The address the mail server refused for good. A later refusal at a new address moves the mark
+// to it and keeps nothing of the old one.
+func (q *Queries) MarkMailUndeliverable(ctx context.Context, arg MarkMailUndeliverableParams) error {
+	_, err := q.db.Exec(ctx, markMailUndeliverable, arg.AccountID, arg.Address, arg.Since)
+	return err
 }
 
 const saveNotificationOutcome = `-- name: SaveNotificationOutcome :execrows

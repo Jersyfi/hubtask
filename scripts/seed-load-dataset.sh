@@ -68,7 +68,7 @@ copy account    "id, tenant_id, kind, display_name, status"
 copy membership "id, tenant_id, account_id, scope_type, role"
 copy container  "id, tenant_id, type, parent_id, name, order_key, created_by, policies"
 copy work_item  "id, tenant_id, collection_id, type, parent_id, path, depth, title, \
-is_completed, completed_at, order_key, due_at, created_by, created_at"
+is_completed, completed_at, order_key, due_at, created_by, created_at, number"
 
 # ANALYZE and not VACUUM FULL: what the planner needs is statistics over the new rows, and a run
 # against a table it thinks is empty measures the wrong plan rather than the wrong hardware.

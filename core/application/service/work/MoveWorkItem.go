@@ -50,7 +50,11 @@ type PlacementWriter struct {
 	Gate EntryGate
 	// Flow refuses an entry moved into a column past the first without its required fields, where
 	// the destination applies that (FlowGate).
-	Flow       FlowGate
+	Flow FlowGate
+	// Workflow and Statuses settle the statuses of what moved into another collection: the
+	// workflow in force there decides (WorkflowGate.Settle). Unwired, statuses stay as they were.
+	Workflow   WorkflowGate
+	Statuses   StatusMover
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -385,6 +389,19 @@ func (w PlacementWriter) perform(
 		if err := offer.requireLevel(fresh.item.Type, "/target_parent_id"); err != nil {
 			return err
 		}
+		if fresh.item.ParentID != fresh.command.TargetParentID {
+			if err := w.Gate.admitsUnder(ctx, fresh.parent, fresh.item); err != nil {
+				return err
+			}
+		}
+		if fresh.destination.ID != fresh.source.ID {
+			if err := offer.requireEntryType(fresh.item); err != nil {
+				return err
+			}
+			if err := keepsHubTypes(ctx, w.Gate.EntryTypes, fresh.item, hubOf(fresh.source), hubOf(fresh.destination)); err != nil {
+				return err
+			}
+		}
 
 		if err := w.ensureBucketAt(ctx, fresh, spot, offer); err != nil {
 			return err
@@ -579,10 +596,31 @@ func (w PlacementWriter) write(
 	if err := w.recordActivity(ctx, before, after, actor, verb, profile, now); err != nil {
 		return MoveResult{}, err
 	}
+	if after.CollectionID != before.CollectionID && w.Statuses.Workflows != nil {
+		if after, err = w.settleStatuses(ctx, actor, plan.destination, after, now); err != nil {
+			return MoveResult{}, err
+		}
+	}
 
 	// Always present, and empty for a move that resolved everything: a client that iterates the
 	// losses should not have to nil-check the field (I-W6).
 	return MoveResult{Item: after, SubtreeSize: size, DroppedReferences: dropped}, nil
+}
+
+// settleStatuses moves the statuses of the entries that came into the destination and answers the
+// entry as it now stands. No step is taken: a move is not a transition, so it lands where entering
+// the destination's workflow puts it, as a publish does (UC-FLW-05 check 6).
+func (w PlacementWriter) settleStatuses(
+	ctx context.Context, actor appshared.ActorContext, destination domain.Container, after domain.WorkItem, now time.Time,
+) (domain.WorkItem, error) {
+	moves, err := w.Workflow.Settle(ctx, destination)
+	if err != nil || len(moves) == 0 {
+		return after, err
+	}
+	if _, err := w.Statuses.Move(ctx, actor, moves, now); err != nil {
+		return after, err
+	}
+	return w.findItem(ctx, after.ID)
 }
 
 // recordChanges writes what an offline client has to be told: one entry per field that moved
@@ -739,7 +777,8 @@ func notEditable(item domain.WorkItem) error {
 // not a nicety here.
 func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: MoveWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       MoveWorkItemName,
 		Summary: "Moves an item, and everything below it, under a different parent or into a different " +
 			"collection. Which placements are permitted is configured per workspace rather than fixed, so a " +
 			"refusal names the reason. An item can never be moved into its own subtree.",
@@ -796,7 +835,8 @@ func (h MoveWorkItem) Descriptor() usecase.Descriptor {
 
 func (h ReorderWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReorderWorkItemName,
+		Permission: service.PermissionWriteItems,
+		Name:       ReorderWorkItemName,
 		Summary: "Changes an item's position among the items it already sits with. The position is given as " +
 			"the sibling to place it before; omitting it moves the item to the end. The rank is a fractional " +
 			"index, so nothing else is renumbered and two offline devices can reorder the same list without " +

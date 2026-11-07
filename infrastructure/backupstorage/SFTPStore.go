@@ -12,7 +12,6 @@ import (
 	"net"
 	"path"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -390,28 +389,17 @@ func (s *SFTPStore) ensureDirectories(session *sftpSession, key string) error {
 	return nil
 }
 
-// connect dials, checks the address against the guard, and opens the SFTP subsystem.
+// connect dials through the guard and opens the SFTP subsystem.
 func (s *SFTPStore) connect(ctx context.Context) (*sftpSession, func(), error) {
-	host, _, err := net.SplitHostPort(s.address)
-	if err != nil {
+	if _, _, err := net.SplitHostPort(s.address); err != nil {
 		return nil, nil, configInvalid("host", "backup.config_required")
 	}
-	// The same check the HTTP adapters get from GuardedClient, applied by hand because SSH is not
-	// HTTP: resolution first, so a target inside the network fails before a socket is opened.
-	if _, err := s.guard.Resolve(ctx, host); err != nil {
-		return nil, nil, err
-	}
-
-	dialer := &net.Dialer{
-		Timeout: s.dialTimes,
-		// The dial-time control, which is the check that cannot be raced: the name may resolve
-		// to something allowed and the connection still be made to something else.
-		Control: func(network, address string, _ syscall.RawConn) error {
-			return s.guard.CheckControl(network, address)
-		},
-	}
-	connection, err := dialer.DialContext(ctx, "tcp", s.address)
+	connection, err := httpclient.NewGuardedDialer(s.guard, s.dialTimes).DialContext(ctx, "tcp", s.address)
 	if err != nil {
+		var refused *shared.Error
+		if errors.As(err, &refused) {
+			return nil, nil, err
+		}
 		return nil, nil, unreachable("reaching the target", err)
 	}
 

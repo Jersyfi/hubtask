@@ -234,6 +234,10 @@ type Entity struct {
 	// All of them are small by nature - the join tables and the configuration - so writing them
 	// whole costs little, and it is the reading that has to be right.
 	Whole bool
+	// Unmarked marks an entity whose rows can date a change but are deleted without a tombstone.
+	// An incremental learns of such a deletion only from the complete set, so it is Whole although
+	// its table carries a change stamp (backup-restore.md §3: deleted objects would come back).
+	Unmarked bool
 	// Keys are the columns that make up a record's identity, in the order Record.ID joins them
 	// with "/" - the primary key without `tenant_id`, because the tenant comes from the scope a
 	// restore runs in rather than from the archive.
@@ -250,6 +254,15 @@ type Entity struct {
 	// the copies pointing at each other rather than at the originals - and they are kept honest
 	// by a test that compares them against the foreign keys the database actually has.
 	References []Reference
+	// ByKey are the fields that name another entity's row by a key of its own rather than by its
+	// identity - an entry's type, a link's own type, a policy's calendar. A restore keeps them as
+	// they are and never remaps them: what they hold is a word, not an identifier, and a word put
+	// through the identity remap would be a reference to nothing. A DUPLICATE keeps the copy
+	// naming the same key, which either the copied target carries unchanged or a target the
+	// workspace already holds answers to (its own Unique rule skips the copy). Apart from
+	// References so that no loop over those can treat one of these as an identifier; kept honest
+	// by the same test that compares References with the database's foreign keys.
+	ByKey []KeyReference
 	// Duplicable says whether a collision in this entity may be settled by making a copy.
 	//
 	// Not everything may. An account is who somebody is, a media object is the same bytes under a
@@ -328,6 +341,24 @@ type Reference struct {
 	Clearable bool
 }
 
+// KeyReference is one field naming another entity's row by a key that row keeps.
+type KeyReference struct {
+	// Field is the column in this entity's data.
+	Field string
+	// Table is the entity it names, in the schema's vocabulary.
+	Table string
+	// Key is the column of Table the value is compared with: one of its Keys or a column it
+	// declares Unique, so that the value names one row and survives the target's restore.
+	Key string
+}
+
+// realtimeHead is how the update log and the snapshots name their document's head: by the
+// document's own identity and kind, which no restore remaps.
+var realtimeHead = []KeyReference{
+	{Field: "document_id", Table: "realtime_document", Key: "document_id"},
+	{Field: "kind", Table: "realtime_document", Key: "kind"},
+}
+
 // entities is the archive's content, in restore order: a row's parents come before it, so that a
 // restore can apply the files in sequence without deferring foreign keys.
 //
@@ -364,15 +395,33 @@ var entities = []Entity{
 			{Field: "group_id", Table: "account_group"},
 		},
 	},
+	// The workspace's own roles and where they are held (migration 0226, UC-ID-26). Whole: a role and a
+	// grant are removed without a marker. The roles precede their grants.
+	{
+		Name: "custom_roles", Table: "custom_role", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"},
+	},
+	{
+		Name: "custom_role_grants", Table: "custom_role_grant", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "group_id", Table: "account_group"},
+			{Field: "role_id", Table: "custom_role"},
+		},
+	},
 	{
 		Name: "containers", Table: "container", Keys: []string{"id"}, Duplicable: true,
-		// A copy's handle is cleared, and the store gives it one of its own (ADR-0094): the
-		// original's handle is what mail addressed to it names, and it stays with the original.
+		// A copy's handle and key prefix are cleared, and the store gives it its own (ADR-0094,
+		// migration 0363): the original's are what mail and quoted keys name, and they stay with it.
 		Unique: []UniqueField{
 			{Field: "name", Rule: UniqueRename, Within: []string{"parent_id"}},
 			{Field: "handle", Rule: UniqueClear},
+			{Field: "key_prefix", Rule: UniqueClear},
 		},
-		References: []Reference{{Field: "parent_id", Table: "container"}},
+		References: []Reference{
+			{Field: "parent_id", Table: "container"},
+			// A desk's logo (0320): the hub is itself without it.
+			{Field: "logo_media_id", Table: "media_object", Clearable: true},
+		},
 	},
 	{
 		Name: "buckets", Table: "bucket", Whole: true, Keys: []string{"id"}, Duplicable: true,
@@ -390,9 +439,22 @@ var entities = []Entity{
 		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip, Within: []string{"collection_id"}}},
 		References: []Reference{{Field: "collection_id", Table: "container"}},
 	},
+	// The workspace's own entry types (migration 0216), before the entries that name them by key.
+	// Whole: a type is deleted only while no entry carries it, and leaves no marker. A duplicate
+	// skips a key the workspace already holds, and its entries then name that type.
+	{
+		Name: "entry_types", Table: "entry_type", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
+		// `level` is the system type's own uniqueness (one per level); the key's skip already
+		// keeps every copy out, a system row included.
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}, {Field: "level", Rule: UniqueSkip}},
+		// A hub's own type (migration 0324) follows its hub; `copied_from` is a key kept as a
+		// word, not a reference (it outlives its source).
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
 	{
 		Name: "work_items", Table: "work_item", Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "calendar_uid", Rule: UniqueClear}},
+		ByKey:  []KeyReference{{Field: "entry_type", Table: "entry_type", Key: "key"}},
 		References: []Reference{
 			{Field: "collection_id", Table: "container"},
 			{Field: "parent_id", Table: "work_item"},
@@ -516,6 +578,790 @@ var entities = []Entity{
 		Name: "structure_presets", Table: "structure_preset", Whole: true, Later: true, Keys: []string{"id"},
 		References: []Reference{{Field: "owner_id", Table: "account"}},
 	},
+	// The settings catalogue's entries of the workspace, its hubs, collections and people
+	// (migration 0215): the module switches among them, so that a restore keeps what was on.
+	{Name: "setting_values", Table: "setting_value", Later: true, Keys: []string{"id"}},
+	// The workspace's workflows and which hub or collection runs which (migration 0223, F-4).
+	// Whole: a workflow and a scheme row go without a marker. The workflows precede the scheme
+	// rows that name them by key; a duplicate skips a key the workspace holds.
+	{
+		Name: "workflows", Table: "workflow", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		// A hub's own workflow (migration 0330) follows its hub; `copied_from` is a key kept as a
+		// word, not a reference (it outlives its source).
+		References: []Reference{
+			{Field: "published_by", Table: "account", Clearable: true}, {Field: "hub_id", Table: "container"},
+		},
+	},
+	{
+		Name: "workflow_schemes", Table: "workflow_scheme", Whole: true, Later: true, Duplicable: true,
+		Keys:       []string{"container_id", "entry_type"},
+		References: []Reference{{Field: "container_id", Table: "container"}},
+		ByKey:      []KeyReference{{Field: "workflow_key", Table: "workflow", Key: "key"}},
+	},
+	// The workspace's own link types and the links between entries (migration 0220, F-3). Whole:
+	// a link is removed without a marker. The types precede the links that name them by key; a
+	// duplicate skips a key the workspace holds, and its links then name that type.
+	{
+		Name: "link_types", Table: "link_type", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "entry_links", Table: "entry_link", Whole: true, Later: true, Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "source_id", Table: "work_item"},
+			{Field: "target_id", Table: "work_item"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+		// The generated `own_type` is what the foreign key holds; a shipped type leaves it null.
+		ByKey: []KeyReference{{Field: "own_type", Table: "link_type", Key: "key"}},
+		// A copy whose ends both stayed the originals' would be the same link twice.
+		Unique: []UniqueField{{Field: "link_type", Rule: UniqueSkip, Within: []string{"source_id", "target_id"}}},
+	},
+	// The configuration document's versions, agents' proposals, templates and the templates the
+	// workspace took (migration 0228, F-6). Whole: none says when it changed. A version and a
+	// template version are written once, so one the workspace holds is kept.
+	{Name: "config_revisions", Table: "config_revision", Whole: true, Later: true, Keys: []string{"version"}},
+	{Name: "config_proposals", Table: "config_proposal", Whole: true, Later: true, Keys: []string{"id"}},
+	{Name: "config_templates", Table: "config_template", Whole: true, Later: true, Keys: []string{"id"}},
+	{Name: "config_template_uses", Table: "config_template_use", Whole: true, Later: true, Keys: []string{"template_key"}},
+	// The hub template parts hubs took (migration 0278); a duplicate takes it to the hub's copy.
+	{
+		Name: "config_hub_template_uses", Table: "config_hub_template_use", Whole: true, Later: true, Duplicable: true,
+		Keys:       []string{"hub_id", "template_key"},
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
+	// Live documents (migration 0237, F-8): the head, the update log and the snapshots. Whole: no
+	// row says when it changed, and retention removes compacted history without a marker. The head
+	// precedes what names it; an author erased since is cleared.
+	{
+		Name: "realtime_documents", Table: "realtime_document", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"document_id", "kind"},
+	},
+	{
+		Name: "realtime_updates", Table: "realtime_update", Whole: true, Later: true,
+		Keys:       []string{"document_id", "kind", "seq"},
+		References: []Reference{{Field: "author_id", Table: "account", Clearable: true}},
+		ByKey:      realtimeHead,
+	},
+	{
+		Name: "realtime_snapshots", Table: "realtime_snapshot", Whole: true, Later: true,
+		Keys:  []string{"document_id", "kind", "up_to_seq"},
+		ByKey: realtimeHead,
+	},
+	// The knowledge module's pages, their versions and comments (migration 0238, M3). Whole: a
+	// version carries no change stamp, and a page and a comment leave without a marker when their
+	// hub is purged. A page's parent is checked at the commit, so the pages go in identifier order.
+	{
+		Name: "pages", Table: "page", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "parent_id", Table: "page"},
+			{Field: "owner_id", Table: "account", Clearable: true},
+			// A language variant's source (0321): the variant stays a page without it.
+			{Field: "language_source_id", Table: "page", Clearable: true},
+		},
+	},
+	{
+		Name: "page_versions", Table: "page_version", Whole: true, Later: true, Keys: []string{"page_id", "seq"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_comments", Table: "page_comment", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "parent_id", Table: "page_comment"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	// Who reads a page beyond its hub, and the hub that is a person's own notes (migration 0268).
+	{
+		Name: "page_restrictions", Table: "page_restriction", Whole: true, Later: true, Keys: []string{"page_id", "account_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "account_id", Table: "account"},
+			{Field: "granted_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_shares", Table: "page_share", Whole: true, Later: true, Keys: []string{"page_id", "account_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "account_id", Table: "account"},
+			{Field: "granted_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "personal_spaces", Table: "personal_space", Whole: true, Later: true, Keys: []string{"account_id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	// A page's public link (migration 0269): its token's hash leaves in a backup only (§9).
+	{
+		Name: "page_public_links", Table: "page_public_link", Whole: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "created_by", Table: "account"},
+		},
+	},
+	// A page published to a service's portal, and its requesters' ratings (migration 0271).
+	{
+		Name: "page_articles", Table: "page_article", Whole: true, Later: true, Keys: []string{"page_id", "collection_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "collection_id", Table: "container"},
+			{Field: "published_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "page_article_ratings", Table: "page_article_rating", Whole: true, Later: true,
+		Keys: []string{"page_id", "collection_id", "account_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "collection_id", Table: "container"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
+	// A page's pictures and files (migration 0272), after the pages and the objects they name.
+	{
+		Name: "page_media", Table: "page_media", Whole: true, Later: true, Keys: []string{"page_id", "media_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	// What waits on a page to be published in a space with drafts (migration 0313).
+	{
+		Name: "page_drafts", Table: "page_draft", Whole: true, Unmarked: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "updated_by", Table: "account"},
+		},
+	},
+	// Drafts of the configuration's shared blocks (migration 0315, ui.md A4).
+	{
+		Name: "config_drafts", Table: "config_draft", Whole: true, Later: true, Keys: []string{"section", "key"},
+		References: []Reference{{Field: "saved_by", Table: "account"}},
+	},
+	// A template's sample entries (migration 0314): the mark only, after the entries it names.
+	{
+		Name: "sample_entries", Table: "sample_entry", Whole: true, Later: true, Keys: []string{"item_id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	// A template's pages (migration 0316): the mark only, after the pages it names.
+	{
+		Name: "template_pages", Table: "template_page", Whole: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{
+			{Field: "page_id", Table: "page"},
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	// The labels a page carries (migration 0304), after the pages.
+	{
+		Name: "page_labels", Table: "page_label", Whole: true, Later: true, Keys: []string{"page_id", "label"},
+		References: []Reference{{Field: "page_id", Table: "page"}},
+	},
+	// The whiteboard module's boards (migration 0240, M4). Whole and unmarked, as a page is: a
+	// board leaves without a marker when its hub is purged. Its scene is JSON in the contract's
+	// shape; where it points is rebuilt by the trigger.
+	{
+		Name: "whiteboards", Table: "whiteboard", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
+	{
+		Name: "whiteboard_media", Table: "whiteboard_media", Whole: true, Later: true, Keys: []string{"whiteboard_id", "media_id"},
+		References: []Reference{
+			{Field: "whiteboard_id", Table: "whiteboard"},
+			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	// A board's comments pinned to its objects and places (migration 0273), after the boards; a
+	// reply's thread comes first in the file.
+	{
+		Name: "whiteboard_comments", Table: "whiteboard_comment", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "whiteboard_id", Table: "whiteboard"},
+			{Field: "parent_id", Table: "whiteboard_comment"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "whiteboard_versions", Table: "whiteboard_version", Whole: true, Later: true, Keys: []string{"whiteboard_id", "seq"},
+		References: []Reference{
+			{Field: "whiteboard_id", Table: "whiteboard"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	// The assets and configuration module (migration 0243, M6): the workspace's classes, relation
+	// types and sources, and a hub's CIs with their identifier index, relations and the
+	// reconciliation's runs, holds and duplicates. Whole and unmarked: nothing removes a CI but its
+	// hub's deletion, which leaves no marker.
+	{
+		Name: "cmdb_classes", Table: "cmdb_class", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "cmdb_relation_types", Table: "cmdb_relation_type", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "cmdb_sources", Table: "cmdb_source", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "cmdb_cis", Table: "cmdb_ci", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "owner_account_id", Table: "account", Clearable: true},
+			{Field: "owner_group_id", Table: "account_group", Clearable: true},
+		},
+	},
+	{
+		Name: "cmdb_ci_identifiers", Table: "cmdb_ci_identifier", Whole: true, Later: true, Keys: []string{"ci_id", "name"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_relations", Table: "cmdb_relation", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "source_ci_id", Table: "cmdb_ci"},
+			{Field: "target_ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_runs", Table: "cmdb_run", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	{
+		Name: "cmdb_holds", Table: "cmdb_hold", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "run_id", Table: "cmdb_run"},
+		},
+	},
+	{
+		Name: "cmdb_duplicates", Table: "cmdb_duplicate", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	// A hub's connectors and the alerts they took in (migration 0245). An export leaves the sealed
+	// credential out (tenant-export.md §9); a backup keeps it, so that a restore keeps pulling.
+	{
+		Name: "cmdb_connectors", Table: "cmdb_connector", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "collection_id", Table: "container", Clearable: true},
+			{Field: "run_as", Table: "account"},
+		},
+	},
+	{
+		Name: "cmdb_alerts", Table: "cmdb_alert", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "connector_id", Table: "cmdb_connector"},
+		},
+	},
+	// The CMDB's assurance (migration 0274): the CIs an entry names as affected, certification
+	// campaigns with their attestations, a hub's CI groups, the CIs' asset records and the software
+	// aliases. Whole; a group, an asset and an alias are removed without a marker, as a CI is.
+	{
+		Name: "cmdb_affected", Table: "cmdb_affected", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_campaigns", Table: "cmdb_campaign", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+		},
+	},
+	{
+		Name: "cmdb_attestations", Table: "cmdb_attestation", Whole: true, Later: true, Keys: []string{"campaign_id", "ci_id"},
+		References: []Reference{
+			{Field: "campaign_id", Table: "cmdb_campaign"},
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
+		Name: "cmdb_ci_groups", Table: "cmdb_ci_group", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "service_id", Table: "cmdb_ci", Clearable: true},
+		},
+	},
+	{
+		Name: "cmdb_assets", Table: "cmdb_asset", Whole: true, Unmarked: true, Later: true, Keys: []string{"ci_id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "contract_id", Table: "cmdb_ci", Clearable: true},
+			{Field: "stockroom_id", Table: "cmdb_ci", Clearable: true},
+			{Field: "assigned_to", Table: "account", Clearable: true},
+			{Field: "request_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		Name: "cmdb_software_aliases", Table: "cmdb_software_alias", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+	},
+	// The service desk's business calendars, SLA policies and what became of each goal on an entry
+	// (migration 0247). Whole: each is deleted without a marker. A calendar precedes the policies
+	// that name it by key; a duplicate skips a key the workspace holds, and its policies then name
+	// that calendar. The clocks are timers, which a restore does not carry (§8.4).
+	{
+		Name: "business_calendars", Table: "business_calendar", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	// A collection's public form (migration 0309): its token's hash leaves in a backup only (§9).
+	{
+		Name: "public_forms", Table: "public_form", Whole: true, Later: true, Keys: []string{"collection_id"},
+		References: []Reference{
+			{Field: "collection_id", Table: "container"},
+			{Field: "created_by", Table: "account"},
+		},
+	},
+	// A hub's own version of a workspace calendar (migration 0277), after the calendar whose key it
+	// names; a duplicate takes it to the hub's copy.
+	{
+		Name: "hub_business_calendars", Table: "hub_business_calendar", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+		ByKey:      []KeyReference{{Field: "key", Table: "business_calendar", Key: "key"}},
+		// One version per calendar and hub: a copy lands only under the hub's copy.
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip, Within: []string{"hub_id"}}},
+	},
+	{
+		Name: "sla_policies", Table: "sla_policy", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		ByKey: []KeyReference{{Field: "calendar_key", Table: "business_calendar", Key: "key"}},
+		// A hub's own policy (migration 0331) follows its hub; `copied_from` is a key kept as a
+		// word, not a reference (it outlives its source).
+		References: []Reference{{Field: "hub_id", Table: "container"}},
+	},
+	// The planning module (migration 0251, M2): an entry's scheduling mode, and a plan's baselines
+	// with the dates they hold. Whole: a mode is removed with its entry without a marker, and a
+	// baseline cannot say when it changed. A baseline's entry names its entry, remapped with it; one whose entry a restore
+	// withholds stays out with it.
+	{
+		Name: "entry_schedules", Table: "entry_schedule", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"entry_id"}, Duplicable: true,
+		References: []Reference{{Field: "entry_id", Table: "work_item"}},
+	},
+	{
+		Name: "plan_baselines", Table: "plan_baseline", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "plan_id", Table: "container"},
+			{Field: "taken_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "plan_baseline_entries", Table: "plan_baseline_entry", Whole: true, Later: true,
+		Keys: []string{"baseline_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "baseline_id", Table: "plan_baseline"},
+			{Field: "entry_id", Table: "work_item"},
+		},
+	},
+	// Sprints, their entries and an entry's estimate (migration 0252, M2). Whole: none says when
+	// it was removed. A membership names its sprint and its entry, remapped with them.
+	{
+		Name: "sprints", Table: "sprint", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "collection_id", Table: "container"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "sprint_entries", Table: "sprint_entry", Whole: true, Later: true,
+		Keys: []string{"sprint_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "sprint_id", Table: "sprint"},
+			{Field: "entry_id", Table: "work_item"},
+		},
+	},
+	// A hub's releases and their entries (migration 0279, M2). Whole: none says when it was
+	// removed. The notes page is a reference the release can lose.
+	{
+		Name: "releases", Table: "release", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "notes_page_id", Table: "page", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "release_entries", Table: "release_entry", Whole: true, Later: true,
+		Keys: []string{"release_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "release_id", Table: "release"},
+			{Field: "entry_id", Table: "work_item"},
+		},
+	},
+	{
+		Name: "entry_estimates", Table: "entry_estimate", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "entry_id", Table: "work_item"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	// The time module (migration 0253, M7): kinds of work, records, running timers, a person's
+	// weeks and the workspace's time policy. Whole: none says when a row was removed. A record
+	// names its entry without a foreign key - approved time outlives a purged entry - so a restore
+	// that withholds the entry clears the reference and keeps the time.
+	{
+		Name: "time_work_types", Table: "time_work_type", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "time_records", Table: "time_record", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "entry_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		Name: "time_timers", Table: "time_timer", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "entry_id", Table: "work_item", Clearable: true},
+		},
+	},
+	{
+		Name: "timesheets", Table: "timesheet", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "decided_by", Table: "account", Clearable: true},
+		},
+		Unique: []UniqueField{{Field: "week_start", Rule: UniqueSkip, Within: []string{"account_id"}}},
+	},
+	{
+		Name: "time_policies", Table: "time_policy", Whole: true, Unmarked: true, Later: true,
+		Keys:       []string{"id"},
+		References: []Reference{{Field: "updated_by", Table: "account", Clearable: true}},
+	},
+	// Time's resources and costs (migration 0254, M7): capacity, absences, cost rates and budgets.
+	// Whole and unmarked: each is removed without a tombstone.
+	{
+		Name: "time_capacities", Table: "time_capacity", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+		Unique: []UniqueField{{Field: "from_day", Rule: UniqueSkip, Within: []string{"account_id"}}},
+	},
+	{
+		Name: "time_absences", Table: "time_absence", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "time_cost_rates", Table: "time_cost_rate", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "account_id", Table: "account", Clearable: true},
+			// a billing rate's hub or collection (migration 0297): it goes with its plan
+			{Field: "plan_id", Table: "container"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "time_budgets", Table: "time_budget", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"},
+		References: []Reference{
+			{Field: "plan_id", Table: "container"},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	// Goals and insight (migration 0255, M8): periods, goals, their entries and check-ins,
+	// portfolios with their projects and updates, and dashboards. Whole and unmarked.
+	{
+		Name: "goal_periods", Table: "goal_period", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "closed_by", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "goals", Table: "goal", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "period_id", Table: "goal_period"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "owner_id", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "goal_entries", Table: "goal_entry", Whole: true, Later: true,
+		Keys: []string{"goal_id", "entry_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "goal_id", Table: "goal"},
+			{Field: "entry_id", Table: "work_item"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "goal_check_ins", Table: "goal_check_in", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "goal_id", Table: "goal"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "portfolios", Table: "portfolio", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "owner_id", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "portfolio_items", Table: "portfolio_item", Whole: true, Later: true,
+		Keys: []string{"portfolio_id", "container_id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "portfolio_id", Table: "portfolio"},
+			{Field: "container_id", Table: "container"},
+		},
+	},
+	{
+		Name: "portfolio_updates", Table: "portfolio_update", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "portfolio_id", Table: "portfolio"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	// A portfolio roadmap's public link (migration 0329): its token's hash leaves in a backup only
+	// (§9).
+	{
+		Name: "portfolio_public_links", Table: "portfolio_public_link", Whole: true, Later: true, Keys: []string{"portfolio_id"},
+		References: []Reference{
+			{Field: "portfolio_id", Table: "portfolio"},
+			{Field: "created_by", Table: "account"},
+		},
+	},
+	{
+		Name: "dashboards", Table: "dashboard", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "owner_id", Table: "account", Clearable: true},
+			{Field: "updated_by", Table: "account", Clearable: true},
+		},
+	},
+	// A person's digest of a dashboard by mail (migration 0256): its schedule, never a number.
+	{
+		Name: "dashboard_digests", Table: "dashboard_digest", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "account_id", Rule: UniqueSkip, Within: []string{"dashboard_id"}}},
+		References: []Reference{
+			{Field: "dashboard_id", Table: "dashboard"},
+			{Field: "account_id", Table: "account"},
+		},
+	},
+	// The governed agents (migration 0258): the models registered for them, the agents with their
+	// policy and budget, the workspace's kill switch, the acts held for a person, the ledger of
+	// acts, the evaluation sets and runs - and the provenance of accepted AI values (AI-2). A model
+	// and an agent are not duplicable, so they declare no Unique: a registration copied is a second
+	// consent nobody gave, an agent copied a second budget on one account. A DUPLICATE skips both.
+	{
+		Name: "agent_models", Table: "agent_model", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: false,
+		References: []Reference{{Field: "consent_by", Table: "account", Clearable: true}},
+	},
+	{
+		Name: "agents", Table: "agent", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: false,
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "owner_id", Table: "account"},
+			{Field: "model_id", Table: "agent_model"},
+			{Field: "approved_by", Table: "account", Clearable: true},
+			{Field: "suspended_by", Table: "account", Clearable: true},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_halts", Table: "agent_halt", Whole: true, Later: true,
+		Keys:       []string{"id"},
+		References: []Reference{{Field: "set_by", Table: "account", Clearable: true}},
+	},
+	{
+		Name: "agent_requests", Table: "agent_request", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "decided_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_actions", Table: "agent_action", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "agent_id", Table: "agent"}},
+	},
+	{
+		Name: "agent_jobs", Table: "agent_job", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "started_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_eval_cases", Table: "agent_eval_case", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "created_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "agent_eval_runs", Table: "agent_eval_run", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "agent_id", Table: "agent"},
+			{Field: "run_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "ai_provenance", Table: "ai_provenance", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{{Field: "accepted_by", Table: "account", Clearable: true}},
+	},
+	// Approvals (migration 0275): a step waiting for people's yes, its decisions as the trail and a
+	// person's delegation while away.
+	{
+		Name: "approvals", Table: "approval", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "requested_by", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "approval_decisions", Table: "approval_decision", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		// One answer per level and approver: a copy lands only under the approval's copy.
+		Unique: []UniqueField{{Field: "level", Rule: UniqueSkip, Within: []string{"approval_id"}}},
+		References: []Reference{
+			{Field: "approval_id", Table: "approval"},
+			{Field: "approver_id", Table: "account", Clearable: true},
+			{Field: "on_behalf_of", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "approval_delegations", Table: "approval_delegation", Whole: true, Later: true, Keys: []string{"account_id"},
+		References: []Reference{
+			{Field: "account_id", Table: "account"},
+			{Field: "delegate_id", Table: "account"},
+		},
+	},
+	{
+		Name: "satisfaction_ratings", Table: "satisfaction_rating", Whole: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true,
+		Unique:     []UniqueField{{Field: "item_id", Rule: UniqueSkip}},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	{
+		Name: "reply_templates", Table: "reply_template", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	{
+		Name: "entry_slas", Table: "entry_sla", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		Duplicable: true,
+		Unique:     []UniqueField{{Field: "goal", Rule: UniqueSkip, Within: []string{"item_id"}}},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	// An entry's OLA goals (migration 0310); the group is named, not referenced: a policy whose
+	// group is gone measures nobody, and its records stay.
+	{
+		Name: "entry_olas", Table: "entry_ola", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		Duplicable: true,
+		Unique:     []UniqueField{{Field: "goal", Rule: UniqueSkip, Within: []string{"item_id"}}},
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	// A hub's forge hooks and an entry's code links (migration 0282). The hook's secret is not a
+	// column: it is derived from the installation key and the salt, so a restore on another
+	// installation answers its forge only once the secret is drawn again.
+	{
+		Name: "code_hooks", Table: "code_hook", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "run_as", Table: "account"},
+		},
+	},
+	{
+		Name: "code_links", Table: "code_link", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "hook_id", Table: "code_hook"},
+		},
+	},
+	// Requesters without an account (migration 0290, accepted.md B) and the entries they wrote on.
+	{
+		Name: "requesters", Table: "requester", Whole: true, Later: true, Keys: []string{"id"},
+	},
+	{
+		Name: "requester_contacts", Table: "requester_contact", Whole: true, Later: true,
+		Keys: []string{"requester_id", "item_id"},
+		References: []Reference{
+			{Field: "requester_id", Table: "requester"},
+			{Field: "item_id", Table: "work_item"},
+		},
+	},
+	// An entry's files in a store (migration 0283): the address, never the file.
+	{
+		Name: "file_links", Table: "file_link", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "item_id", Table: "work_item"},
+			{Field: "added_by", Table: "account"},
+		},
+	},
+	// A portal's organisations (migration 0294): names and mail domains, nobody's content.
+	{
+		Name: "requester_organisations", Table: "requester_organisation", Whole: true, Unmarked: true, Later: true,
+		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
+	// An entry's status history (migration 0381, UC-GOL-04 check 11). Whole: a row carries no
+	// change stamp the export could trust. A restore draws each row's `seq` anew and lets the first
+	// archived row of an entry replace the stand-in its write of the entry left; an archive without
+	// the file keeps the stand-in.
+	{
+		Name: "entry_status_changes", Table: "entry_status_change", Whole: true, Later: true,
+		Keys: []string{"item_id", "seq"}, Duplicable: true,
+		References: []Reference{{Field: "item_id", Table: "work_item"}},
+	},
+	// The workspace's sample content (migration 0384, user-experience.md §3.6): the mark only,
+	// after every object it can name. Its object_id names a row of the table its kind says, so it
+	// has no reference to remap, as a live document's head has none; a copy would name the
+	// originals, so a DUPLICATE skips it.
+	{
+		Name: "sample_objects", Table: "sample_object", Whole: true, Later: true, Keys: []string{"key"},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
@@ -635,9 +1481,13 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// somebody may still be using elsewhere.
 	"account_password_history": "§8.4 - hashes of passwords that are no longer current; an archive that carried them would be worth stealing, and a restore needs none of them",
 	"auth_pending":             "a half-finished sign-in lives minutes; restoring one would revive a credential that was already over",
-	"oauth_client":             "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
-	"oauth_grant":              "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
-	"oauth_code":               "a single-use credential with minutes of life, §8.4's reasoning verbatim",
+	// A scratch copy (configuration.md §3): what it led to is in the configuration's versions,
+	// which are archived; restoring one would set a stale copy beside a configuration it no longer
+	// matches.
+	"config_sandbox": "a scratch copy of the configuration; the versions its promotion wrote are archived, a stale copy is not worth restoring",
+	"oauth_client":   "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
+	"oauth_grant":    "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
+	"oauth_code":     "a single-use credential with minutes of life, §8.4's reasoning verbatim",
 	// The relying party, and oauth_client's reasoning in the other direction. The row
 	// holds a client secret sealed under the source installation's key, which a restore
 	// elsewhere cannot open - and restoring it silently would point a recovered workspace at a
@@ -693,15 +1543,46 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// them under whatever model produced them, into an installation that may run another - and
 	// vectors from two models are not comparable, which is the one failure the store exists to
 	// avoid. The entries come back and the embedding job re-derives them.
-	"item_embedding":        "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
-	"sync_device":           "a device registration carries a push token, and §8.4's reasoning covers it",
-	"jumble_intake":         "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
-	"mail_setting":          "the intake's name is unique on one installation and its mailbox credentials are sealed under its key; restored elsewhere the name may be another workspace's - the intake is set up again on the page",
-	"mail_receipt":          "a 30-day log of what the intake received; the messages it describes are archived as the entries and jumble entries they became",
-	"mailbox":               "a mailbox's secret is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - the mailbox is connected again on the page",
-	"mailbox_authorization": "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
-	"voice_setting":         "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
-	"voice_alias":           "the spoken names go with the voice settings and name places by identifier; they are set again with them",
+	// Derived from the notes and comments the archive carries: the restore's write of each rebuilds
+	// it through the triggers of migration 0220.
+	"entry_reference":      "the references texts hold, rebuilt from the notes and comments the archive carries",
+	"page_reference":       "the references a page's body holds, rebuilt by the trigger as each page is restored",
+	"whiteboard_reference": "the references a board's scene holds, rebuilt by the trigger as each board is restored",
+	"cmdb_intake_seen":     "the signatures of the last minutes' alert deliveries, kept only to refuse a replay",
+	"code_delivery_seen":   "the digests of the last days' forge deliveries, kept only to refuse a repeat",
+	// Written by the trigger of migration 0218 from the entry's custom fields, which the archive
+	// carries: the restore's write of each entry rebuilds it.
+	"entry_field_value": "a typed projection of the custom fields the entries carry, rebuilt by the trigger as each entry is restored",
+	// Mirrored by the trigger of migration 0234 from the entry's own columns, which the archive
+	// carries: the restore's write of each entry rebuilds them.
+	"work_item_announcement": "a mirror of the entry's announcement moments, rebuilt by the trigger as each entry is restored",
+	"work_item_flow":         "a mirror of the entry's flow moments, rebuilt by the trigger as each entry is restored",
+	"work_item_retention":    "a mirror of what a retention run marked on the entry, rebuilt by the trigger as each entry is restored",
+	// Migration 0299: counts kept between reads and the bookkeeping that says when they stop
+	// answering. A restore writes its entries, every write records itself, and the first read
+	// counts again.
+	"collection_figure":           "a collection's count kept between reads, counted again by the first read after a restore",
+	"collection_figure_touch":     "the record that a collection changed, written by the trigger as each entry is restored",
+	"collection_figure_stamp":     "the folded records of a collection's changes, which only order kept counts within one installation",
+	"item_embedding":              "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
+	"sync_device":                 "a device registration carries a push token, and §8.4's reasoning covers it",
+	"jumble_intake":               "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
+	"mail_setting":                "the intake's name is unique on one installation and its mailbox credentials are sealed under its key; restored elsewhere the name may be another workspace's - the intake is set up again on the page",
+	"mail_undeliverable":          "a mark the installation's own mail server left on an address it refused for good; another server may take it, and a mark left out is only a send tried again and marked again",
+	"mail_receipt":                "a 30-day log of what the intake received; the messages it describes are archived as the entries and jumble entries they became, and an address's own copy carries its log as a section",
+	"mailbox":                     "a mailbox's secret is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - the mailbox is connected again on the page",
+	"mailbox_authorization":       "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
+	"ldap_directory":              "the bind password is sealed under one installation's key and opens nowhere else; restored elsewhere it would bind to nothing - the directory is set up again on the page, and the people it holds keep their identifiers",
+	"calendar_push":               "a calendar push's grant is sealed under one installation's key and opens nowhere else; restored elsewhere it would write nothing - its owner connects the feed again",
+	"calendar_push_event":         "what a push wrote at the provider, which only that push's grant reaches; a push connected again writes its feed anew",
+	"calendar_push_authorization": "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
+	"file_store_connection":       "a file store connection's grant is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - its owner connects the store again",
+	"file_store_authorization":    "a connection waiting ten minutes for a store's answer; the browser that would bring it is gone by the time anything is restored",
+	"satisfaction_link":           "a resolution mail's one-time rating link, a credential for 30 days; restored it would let an old mail rate again - the next resolution mails a new one; an address's own copy carries its links, without the token, as a section",
+	"chat_bot":                    "a chat bot's token is sealed under one installation's key and opens nowhere else; restored elsewhere it would read no room - it is seated again on the hub",
+	"chat_link":                   "a person's link to a chat account goes with its bot, which is not archived; a bot seated again is linked again by `!link`",
+	"voice_setting":               "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
+	"voice_alias":                 "the spoken names go with the voice settings and name places by identifier; they are set again with them",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
 	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",
@@ -709,16 +1590,21 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// of which the archive carries, and every one of them is a moment in the *source* system's
 	// future - a restore months later would owe a night that has long passed. The rules themselves
 	// are restored; what they owe is worked out again from the anchors, as it always is.
-	"rule_occurrence":   "§8.4 - a debt owed at a moment in the source system's future; the rules are restored, what they owe is recomputed",
+	"rule_occurrence": "§8.4 - a debt owed at a moment in the source system's future; the rules are restored, what they owe is recomputed",
+	// A running clock, like an occurrence: its subject is named per purpose, which no remap can
+	// follow, and its moment is the source system's. The restore arms each live clock again from
+	// its purpose's records, which the archive carries (backup.ClockRearmer).
+	"durable_timer":     "§8.4 - a clock is re-armed from its purpose's records after the restore, not copied",
 	"webhook_delivery":  "§8.4 - nothing is re-delivered",
 	"outbox_event":      "§8.4 - the archive's outbox is not imported",
 	"event_consumption": "the outbox's companion; without the outbox it says nothing",
 	"notification":      "a notification announces a change; restoring one announces last month's",
 	// Guards and counters that are about requests rather than about data.
-	"idempotency_key": "a replay guard for requests that were over before the archive was written",
-	"sync_op_log":     "the same, for the sync push - a 30-day window, not data",
-	"usage_record":    "the operator's billing ledger rather than the tenant's data",
-	"quota_reached":   "the mark that a crossing was told to the installation's platform, about the live system rather than the tenant's data",
+	"idempotency_key":       "a replay guard for requests that were over before the archive was written",
+	"public_form_challenge": "a public form's spent challenges, which expire within minutes",
+	"sync_op_log":           "the same, for the sync push - a 30-day window, not data",
+	"usage_record":          "the operator's billing ledger rather than the tenant's data",
+	"quota_reached":         "the mark that a crossing was told to the installation's platform, about the live system rather than the tenant's data",
 	// The cursor and the markers of the live system. Restoring them would hand devices numbers
 	// that no longer mean anything.
 	"change_log": "the offline cursor; its sequence numbers belong to the database that issued them",

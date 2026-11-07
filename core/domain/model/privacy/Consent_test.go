@@ -40,6 +40,7 @@ func TestAPurposeIsRequiredAndBounded(t *testing.T) {
 	}
 }
 
+// UC-PRV-05 check 3: the withdrawal keeps the moment processing stopped.
 func TestWithdrawingKeepsTheMomentProcessingStopped(t *testing.T) {
 	standing := privacy.Consent{
 		ID: requestID, AccountID: subjectID, Purpose: "metering",

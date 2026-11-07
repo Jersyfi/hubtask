@@ -305,3 +305,43 @@ func TestTheStoredHashIsInvisibleFromAnotherTenant(t *testing.T) {
 		return nil
 	})
 }
+
+// The second factor's reset (ResetSecondFactor) against PostgreSQL: its writes - the app's
+// enrolment removed, every code replaced by none - reach nothing of another tenant's account, and
+// in the account's own tenant leave no code behind (gate SG-3).
+func TestAResetSecondFactorReachesOnlyItsTenantAndLeavesNoCode(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	mfa, uow := mfaStores(ctx, t)
+	now := time.Now().UTC()
+
+	codes := []string{"JJJJ-KKKK-LLLL-MMMM", "NNNN-PPPP-QQQQ-RRRR"}
+	ids := []shared.ID{
+		shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000f7"),
+		shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000f8"),
+	}
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		return mfa.Replace(ctx, sessionAccountA, ids, codes, now)
+	})
+
+	inTenant(t, uow, tenantB, func(ctx context.Context) error {
+		if removed, err := mfa.Disable(ctx, sessionAccountA); err != nil || removed {
+			t.Errorf("another tenant's enrolment removed from here (%v, %v)", removed, err)
+		}
+		return mfa.Replace(ctx, sessionAccountA, nil, nil, now)
+	})
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		left, err := mfa.Remaining(ctx, sessionAccountA)
+		if err != nil || left != 2 {
+			t.Errorf("another tenant's reset reached the codes: %d left, %v", left, err)
+		}
+		if err := mfa.Replace(ctx, sessionAccountA, nil, nil, now); err != nil {
+			return err
+		}
+		left, err = mfa.Remaining(ctx, sessionAccountA)
+		if err != nil || left != 0 {
+			t.Errorf("the reset left %d codes, %v", left, err)
+		}
+		return nil
+	})
+}

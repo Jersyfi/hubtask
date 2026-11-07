@@ -26,6 +26,7 @@ func aiInput() domain.NewAiProviderInput {
 	}
 }
 
+// UC-AI-03 check 1: configuring a provider gives no consent; it is off until somebody switches it on.
 func TestAValidProviderIsAccepted(t *testing.T) {
 	configured, err := domain.NewAiProvider(aiInput())
 	if err != nil {
@@ -58,6 +59,9 @@ func TestAProviderThatCouldNotWorkIsRefused(t *testing.T) {
 		}, "ai.base_url_required"},
 		{"an endpoint that is not an address", func(in *domain.NewAiProviderInput) {
 			in.BaseURL = "not an address"
+		}, "ai.base_url_malformed"},
+		{"an endpoint with a port and no host", func(in *domain.NewAiProviderInput) {
+			in.BaseURL = "https://:11434/v1"
 		}, "ai.base_url_malformed"},
 		{"an endpoint on a scheme nothing dials", func(in *domain.NewAiProviderInput) {
 			in.BaseURL = "ftp://models.example.org"

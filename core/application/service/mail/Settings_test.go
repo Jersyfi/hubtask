@@ -122,6 +122,8 @@ func writer(auth *authorizer) (Writer, *store, *trail) {
 	}, saved, sink
 }
 
+// UC-JUM-11 check 1: the settings are the automation permission's, saved in one write with an
+// audit entry.
 func TestTheSettingsAreAnAdministratorsAndSayTheAddress(t *testing.T) {
 	auth := &authorizer{}
 	w, saved, sink := writer(auth)
@@ -224,6 +226,8 @@ func TestAHandleIsChangedByWhoShapesTheCollection(t *testing.T) {
 	}
 }
 
+// UC-JUM-10 check 1: the address is the intake's with the entry's ticket key, and none where
+// the receiving domain or the intake is missing.
 func TestARepliesAddressCarriesTheTicketKey(t *testing.T) {
 	w, saved, _ := writer(&authorizer{})
 	replies := Replies{Writer: w}

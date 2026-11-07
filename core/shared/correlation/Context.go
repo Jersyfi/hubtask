@@ -13,7 +13,10 @@
 // context value is not a place to keep an authorisation decision (ADR-0005).
 package correlation
 
-import "context"
+import (
+	"context"
+	"sync/atomic"
+)
 
 type contextKey int
 
@@ -22,6 +25,7 @@ const (
 	tenantIDKey
 	apiClientKey
 	componentKey
+	failureLogKey
 )
 
 // ContextWithRequestID carries the request ID through the call chain. It is what a user quotes
@@ -84,4 +88,25 @@ func ContextWithAPIClient(ctx context.Context, clientID string) context.Context 
 func APIClientFrom(ctx context.Context) string {
 	id, _ := ctx.Value(apiClientKey).(string)
 	return id
+}
+
+// ContextWithFailureLog lets the request's outermost layer learn whether a failure was already
+// logged further in. A use case dispatched through the registry logs its own failure with its
+// name; a route that calls a service directly does not, and the REST middleware then writes the
+// one line that carries the request ID (observability-reliability.md §3.1).
+func ContextWithFailureLog(ctx context.Context) context.Context {
+	return context.WithValue(ctx, failureLogKey, new(atomic.Bool))
+}
+
+// NoteFailureLogged records that a line naming this request's failure was written.
+func NoteFailureLogged(ctx context.Context) {
+	if flag, ok := ctx.Value(failureLogKey).(*atomic.Bool); ok {
+		flag.Store(true)
+	}
+}
+
+// FailureLogged reports whether NoteFailureLogged was called within this request.
+func FailureLogged(ctx context.Context) bool {
+	flag, ok := ctx.Value(failureLogKey).(*atomic.Bool)
+	return ok && flag.Load()
 }

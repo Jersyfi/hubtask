@@ -62,6 +62,10 @@ Structured JSON through `log/slog`. Mandatory fields: `ts`, `level`, `msg`, `ser
   clear text (hashed, or the account ID).
 * Levels: `ERROR` only for states that require human action, otherwise `WARN`. Expected business
   errors (validation, `404`) are `INFO`.
+* **Every 5xx is one line with its request ID.** A use case dispatched through the registry logs
+  its own failure; for a route that calls its service directly (sync, SAML, SCIM, media, public
+  forms, the stream) the REST middleware writes it — `route`, `status`, `error_code` and the
+  cause — so a reference a user quotes always leads to a cause, and never to two lines.
 
 ### 3.2 Metrics
 
@@ -101,9 +105,8 @@ label is a deliberate cardinality decision. What must hold for it:
   visible.
 * A counter an alert reads is written even when its value is zero: a counter never written has no
   series, and an alert on it reads "no data" and is believed.
-* **Not built:** `hubtask_db_query_duration_seconds` (by sqlc query name) and
-  `hubtask_db_errors_total` (by `timeout`/`serialization`/`connection`); the outbox backlog is a
-  field of `/meta/health`, not a series, and A-05 alerts on the lag.
+* **Not built:** the outbox backlog is a field of `/meta/health`, not a series, and A-05 alerts on
+  the lag.
 
 ### 4.1 The `result` label
 
@@ -116,6 +119,21 @@ are a query, not a label:
 # Our fault - the error budget of SLO-1
 sum(rate(hubtask_usecase_total{result=~"internal|unavailable"}[5m])) by (use_case)
 ```
+
+### 4.2 Database statements
+
+Every statement a pool runs is measured by the driver's tracer (`infrastructure/postgres/QueryTracer.go`,
+F-10): `hubtask_db_query_duration_seconds{pool, outcome}` with `outcome` `ok`, `error` or
+`canceled` (a deadline or cancel, rule 7), and `hubtask_db_slow_queries_total{pool, query}` for a
+statement of 250 ms or more. A failed statement is counted once more in
+`hubtask_db_errors_total{pool, kind}`, `kind` read from the SQLSTATE class and the driver's own
+errors (`postgres.ErrorKind`): `timeout` (a deadline or cancel, a statement or lock timeout),
+`serialization` (a serialization failure or deadlock - retryable), `connection`, `constraint`,
+`other`. `query` is the sqlc name from the statement's `-- name:` header, or
+`dynamic` for the query compiler's SQL - a closed set compiled into the binary, never statement
+text. Only the slow counter carries the name: a histogram per name would be thousands of series,
+while the slow ones are the handful an operator asks about. The pools are named as their connection
+gauge names them (the primary role, `background`).
 
 ---
 
@@ -138,6 +156,12 @@ The report's shape is the `/meta/health` schema in `api/openapi.yaml`. Its `warn
 installation is missing, each a code with a severity, never free text (`Warnings` in
 `infrastructure/environment/EnvConfig.go`).
 
+Hubtask creates no backup target or schedule by itself. While an active workspace has no enabled
+backup target, or no successful backup in the last 7 days, the report warns
+`backup.workspaces_without_backup` (`warn`, with the two counts and the days), counted across
+workspaces through the `installation_backup_gaps` door with numbers only; the installation's own
+targets and runs cover every workspace (UC-BAK-01 check 11).
+
 ---
 
 ## 6. Resilience patterns
@@ -149,7 +173,7 @@ installation is missing, each a code with a severity, never free text (`Warnings
 | **Retry with backoff + jitter** | Only for idempotent operations; exponential, capped, a maximum attempt count; never in the synchronous request path against third-party systems |
 | **Circuit breaker** | Per external dependency (object storage, SMTP, AI per endpoint, each webhook target): open → an immediate error; half-open with a probe. The state is a metric and in `/meta/health` |
 | **Bulkheads** | Separate connection and worker pools for API, worker and automation, so a runaway rule cannot starve the interactive path; under Kubernetes, separate deployments too |
-| **Load shedding** | Above `HUBTASK_LOAD_SHED_INFLIGHT` requests in flight (per role), new *deferrable* requests (`rest.DeferrableRoutes`) are refused with `503` + `Retry-After`. A parked stream is not load (`rest.LongLivedRoutes`) |
+| **Load shedding** | Above `HUBTASK_LOAD_SHED_INFLIGHT` requests in flight (per role), new *deferrable* requests (`rest.DeferrableRoutes`) are refused with `503` + `Retry-After`. A parked stream is not load (`rest.LongLivedRoutes`). Behind authentication, one workspace's deferrable calls in flight are capped at a quarter of the threshold (`rest.TenantShedding`, scope `load_shed_tenant`), so one workspace's flood cannot shed every other workspace's searches and exports |
 | **Rate limits** | Internally too: automation throttles per rule and per tenant |
 | **A queue instead of synchrony** | Everything external goes through the outbox or jobs; a hanging webhook recipient cannot delay an API response |
 | **Idempotency** | `Idempotency-Key` outside, `job.dedupe_key` inside, `delivery_id` for webhooks: at-least-once becomes effectively exactly-once |
@@ -167,8 +191,9 @@ installation is missing, each a code with a severity, never free text (`Warnings
 |---|---|---|
 | PostgreSQL | `/readyz` red, no traffic accepted, reconnection with backoff; **no** process exit | `503` with a message code, `Retry-After` |
 | Object storage (S3-compatible) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
-| SMTP / push | Notifications stay in the queue and are caught up; no loss | The reminder arrives late, with an in-app notice |
+| SMTP / push | Notifications stay in the queue and are caught up; no loss. An installation with no mail server at all sends no email by decision: each email is suppressed at once (`notifications.no_mail_server`), never retried into a dead letter. An address the server refuses for good (a 5xx at RCPT or DATA) fails at once and is marked (`mail_undeliverable`, 0367): later messages to it are suppressed (`notifications.undeliverable`) until the person chooses *Try mail again* on the profile; a changed address is tried at once | The reminder arrives late, with an in-app notice; without a mail server, the in-app notice alone |
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
+| The public address's WebSocket path (a proxy in front) | Each process serving the API opens a socket to `/api/v1/realtime/probe` through `HUBTASK_BASE_URL` every five minutes, in the background; two failed attempts in a row read `realtime_public` down (`health.realtime_unreachable`) with `live_editing` degraded, and A-40 tickets it after a quarter of an hour. Without a base URL the probe is `disabled` | Pages and whiteboards save but are not edited together; the administration and instance overviews name *live editing* |
 | AI provider | AI suggestions and search by meaning disappear (`ai_suggestions`, `semantic_search`); every manual route remains, and search still finds the words typed. One breaker **per endpoint**, a provider being per tenant. `/meta/health` names no endpoint or model: `disabled` until this process has called a provider, then `ok`, `down`, or `degraded` with `ai.embedding_too_wide`; with no provider, `ok` and no degraded feature | The feature greyed out with a reason; with no provider at all no control (`/meta/capabilities`) |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
 | NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart | No visible change |
@@ -210,8 +235,12 @@ Alerts are symptom-based, each with a runbook. **The rule files and the runbooks
 catalogue**: condition, threshold and severity live in
 [`deploy/observability/alerts/`](../../deploy/observability/alerts/), meaning and action in
 [`deploy/observability/runbooks/`](../../deploy/observability/runbooks/). Every rule carries its
-catalogue ID (A-01…A-21) as the label `alert_id` and its runbook as the annotation `runbook`;
-thresholds are starting values an operator tunes in their own copy.
+catalogue ID (A-01…A-42) as the label `alert_id` and its runbook as the annotation `runbook`;
+thresholds are starting values an operator tunes in their own copy. What a copied file cannot know
+of a release the chart records as series (`k8s/templates/prometheusrule-release.yaml`): its
+namespace, `hubtask:release_namespace`, which scopes A-41 to the release's volumes (without it A-41
+watches every volume rather than none), and A-42's budget, `hubtask:db_size_budget_bytes` from
+`prometheusRules.databaseSizeBudget` (none recorded, A-42 stays silent).
 
 **Which file an alert is in is a decision about who is paged** (§11):
 
@@ -336,12 +365,74 @@ What is measured so far is a laptop's over a toy dataset (5 000 items in 10 tena
 serving every role): [RT-6's overload run](../archive/evidence/RT-6-2026-09-02.md) — 62.4 req/s per
 vCPU at a held interactive P95 of 94 ms, shedding engaged with no interactive request refused — and
 [the nightly baseline](../../test/load/baselines/steady-state.json), an interactive P95 of 16 ms at
-200 req/s. Memory per process, the connections a size needs, storage per item and the items per
-tenant at which any of these knees are *not measured*. The chart ships one `values.yaml` and no
+200 req/s. Memory per process and storage per item are measured once, on a workstation, by the capacity
+run below; on named hardware they, the connections a size needs and the items per tenant at which
+any of these knees are *not measured*. The chart ships one `values.yaml` and no
 per-size presets; its defaults agree with everything measured.
 
 **How a cell gets filled.** The release tier of [`test/load/README.md`](../../test/load/README.md),
 once per release on the integration server, written up under `docs/evidence/` with its JSON.
+The decay with entries per workspace is the capacity run's (`make capacity`, F-10): 10⁶ and 10⁷
+entries in a long tail, each read path that grows with a workspace held for the largest, a middle
+and the smallest workspace. **10⁶ ran on the owner's workstation on 2026-10-31**
+([evidence](../evidence/capacity-1000000-2026-10-31.md)): every path answered without a server
+error; at 170 124 entries in the largest workspace a collection's page held P95 7 ms, the board
+47 ms, a count over the hub 60 ms - and the hub's level 254 ms with eight concurrent readers while
+its figures were counted on every read (about 75 ms of database time for one), 7 ms once a
+collection's figure is kept between reads while it is unchanged (migration 0299; the first read
+after a write counts that collection again). Read while two writers add entries at 40 a second
+(P2, 2026-11-01), the hub's level held P95 66 ms at 134 reads a second in the largest workspace
+and 21 ms or less in the others, the writes 20 to 23 ms. The database held
+1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
+found and fixed a seed that grew with the square of a collection's entries (migration 0296),
+whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ ran
+on the owner's workstation on 2026-11-01** ([evidence](../evidence/capacity-10000000-2026-11-01.md)):
+no server error. It found a generic plan behind a collection's page and a figure deadline that
+kept nothing, both fixed and measured again by R2 at 8 ms P95. The board by completion and the
+count over the hub read every entry they covered (430 and 974 ms P95 in the 1.2-million-entry
+workspace); a board grouped by a field whose type names its values is now read per column and
+the count from `wi_completion_idx` alone (migration 0325), measured again at 10 and 128 ms P95.
+**The second round ran on 2026-11-05** ([evidence](../evidence/second-round-2026-11-05.md),
+`test/load/PLAN.md` "Results of the second round"): at 10⁶ and 10⁷ every read path held P95
+under 200 ms without a server error, the hub's level beside writers 11 to 13 ms and the writes 21
+to 24 ms, the server at 209 MiB resident; in the 1.2-million-entry workspace the count over the hub
+(P95 119 ms) and the web app's board (47 ms) no longer kept pace with eight callers at 400 a second
+(71.8 and 199.1 answers a second). A device's first synchronisation of that workspace walked
+2 451 pages, 1.2 GB, in 42 s, page P95 17 ms; its one-response snapshot ended at the 512 MiB
+budget without a cursor, as §3.1 of offline-sync.md intends. Live delivery to 64 streams held
+P95 302 ms; 30 writers on one live document ended equal once two faults were fixed (a socket cut
+at the request timeout, a ping that stalled a busy connection). The CMDB views at the hub's ceiling
+peaked at 796 MiB resident, over the 768 MiB `GOMEMLIMIT` of the run, and health and the service
+map at P95 248 and 390 ms, over SLO-2. A connector's reconciliation at volume is *not measured*. Every
+ceiling the code enforces stands beside the largest size measured in
+[support-matrix.md](./support-matrix.md) §9.
+
+### 13.3 Partitioning of the entries
+
+**`work_item` is not partitioned up to 10⁷ entries in one database, and nothing is built for it
+before a run shows the need.** Every read path of 13.2 walks an index that leads with the
+workspace, so its cost grows with the entries of the workspace read, not with the table: at 10⁶
+the largest workspace (170 124 entries) answered as the smallest within a millisecond on every
+path except those that count the workspace, and those are bounded by its own size. Hash
+partitioning by workspace would make each partition's indexes shallower by a level at most, and it
+would put every statement that names no workspace - the retention walk, the job claims across
+workspaces - over every partition. What it would buy is maintenance: a vacuum and a reindex per
+partition rather than per table. At 1.2 GB per 10⁶ entries, 10⁷ is a table of about 12 GB, which
+autovacuum and `REINDEX CONCURRENTLY` handle unpartitioned.
+
+**When it is reconsidered:** a capacity run whose breach is traced to the table's size rather than
+a workspace's - autovacuum of `work_item` not finishing between its runs, index bloat a
+`REINDEX CONCURRENTLY` cannot keep up with - or `work_item` past about 50 GB on one installation.
+
+**What is already in place for it** (ADR-0024): `work_item_tenant_id_uq` on `(tenant_id, id)`,
+every foreign key that names an entry (34 of 34) composite on it, and every unique index on the
+table leading with `tenant_id`. A partitioned table's keys must hold the partition key, and these
+do. **The expand steps, when needed:** a partitioned shadow table `work_item_p` by
+`HASH (tenant_id)` with the primary key `(tenant_id, id)`; a trigger mirroring writes into it, as
+`work_item_side_rows` mirrors the slim entry (versioning-release.md §4); a resumable copy job in
+batches per workspace; readers moved release by release; the foreign keys re-pointed at
+`work_item_p (tenant_id, id)` as `NOT VALID` and validated; the rename in the release after the
+last reader moved. No step rewrites the table under a lock.
 
 ---
 
@@ -361,14 +452,42 @@ in PostgreSQL, and nothing else is required to run it.
 * **The queue** is the `job` table. Workers claim batches with `SELECT … FOR UPDATE SKIP LOCKED`,
   so any number of `worker` processes claim disjoint work; a job can be written in the same
   transaction as the business change that causes it.
+* **A worker runs up to `HUBTASK_QUEUE_CONCURRENCY` jobs at once** (4), each in a slot of its own:
+  a round claims no more jobs than there are free slots, so a job that runs to its timeout delays
+  no other, and a shutdown claims nothing more and waits for the running jobs' own deadlines.
+  The composition root keeps it three below the background pool's size.
 * **A claim is a lease**: `HUBTASK_JOB_TIMEOUT` plus 30 seconds. A job outliving its lease is
   claimed again, so every job is **idempotent** and effects are guarded by `dedupe_key`.
+  A long-running handler (`queue.LongRunning`: backup run and restore, workspace and audit
+  export, import) runs under `HUBTASK_LONG_JOB_TIMEOUT` (6 h) instead, and the worker extends its
+  lease every third of a lease while it works; a lease another worker took over cancels the pass.
 * **Failures** retry with exponential backoff and full jitter, up to `HUBTASK_JOB_MAX_ATTEMPTS`;
   then the job goes to the dead letter with the code of its last failure, visible in the API and
-  alerted as A-07.
+  alerted as A-07. A duty kept as one row (`queue.Perpetual`: a mailbox poll, a connector or
+  directory pull, a workspace's sweeps) never dies of a transient failure: its last attempt on an
+  unavailable dependency, a rate limit or an untyped transport error is its next round at the
+  backoff's ceiling, attempts cleared; only a permanent answer or a defect dead-letters it.
 * **The scheduler** runs in exactly one active process: the `scheduler` role elects a leader with
   `pg_try_advisory_lock`, acts every `HUBTASK_SCHEDULER_TICK_INTERVAL`, and distributes the work
   itself as jobs. A standby takes over within a tick of the leader's lock being released.
+* **The mailbox watch** holds the connected IMAP mailboxes open (IDLE, RFC 2177), each shard of
+  the workspaces in exactly one `worker` process, by an advisory lock of its own beside the scheduler's: each mailbox in a
+  long-lived hold under `concurrency.Go`, renewed every 25 minutes, retried with a backoff from
+  5 seconds to 5 minutes (each pause at a random point in its upper half), a server without IDLE
+  asked again after an hour, at most 1000 mailboxes per shard. A tick's sign-ins start
+  50 ms apart, so 1000 mailboxes take 50 seconds rather than one burst a provider throttles. A
+  lock that cannot be asked (a database failover) keeps the holds; only a lock known lost, or one
+  unknown for longer than a hold, lets them go. An arrival pulls the mailbox's `mail.mailbox_poll` forward by its dedupe key;
+  the job's read every minute stays, so a failed hold, a lost lock or a stopped worker cost the
+  delay and nothing else. The mailboxes to hold are the open `mail.mailbox_poll` jobs' keys, read
+  from the job table, which has no tenant boundary; each mailbox is then loaded in its own
+  workspace. The workspaces can be split into shards (`HUBTASK_MAILBOX_WATCH_SHARDS`, by a hash
+  of the workspace), each under an advisory lock of its own - shard 0 keeps the one lock there was,
+  so a rolling update never has two leaders of it - and a worker leads at most
+  `HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER` of them, so the connections spread over the workers and
+  one worker's stop costs only its shards' seconds until another with a seat free takes them.
+  `hubtask_mailbox_watches_held{shard}`, `hubtask_mailbox_watch_holds_total{outcome}` and
+  `hubtask_mailbox_watch_shards` beside `hubtask_mailbox_watch_shards_led` measure it (A-38).
 * **Nothing enumerates tenants.** Every per-tenant duty is seeded by its own tenant's write and
   reschedules itself while work remains ([multi-tenancy.md](./multi-tenancy.md) §2.1).
 * **Recurrence** is RFC 5545 RRULE through `rrule-go`, read in a stored IANA time zone, and only on

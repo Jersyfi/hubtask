@@ -13,6 +13,8 @@
 
   interface Props extends Omit<HTMLInputAttributes, 'disabled' | 'size'>, Disableable {
     label: string;
+    /** Kept for assistive technology and hidden from sight, where a column head already names it. */
+    isLabelHidden?: boolean;
     hint?: string;
     error?: string;
     isRequired?: boolean;
@@ -49,6 +51,7 @@
 
   let {
     label,
+    isLabelHidden = false,
     hint,
     error,
     disabledReason,
@@ -82,7 +85,7 @@
   const guardOptions = $derived({ isPressRefused: true, isEditRefused: true, isEveryKeyRefused: hasKeysOfItsOwn });
 </script>
 
-<Field {label} {hint} {error} {disabledReason} {guardOptions} {isRequired} {describedBy} {isInvalid}>
+<Field {label} {isLabelHidden} {hint} {error} {disabledReason} {guardOptions} {isRequired} {describedBy} {isInvalid}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       {#if icon}

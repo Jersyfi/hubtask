@@ -311,7 +311,7 @@ func (r ContainerRepository) moveThroughTheTrash(
 
 // List returns one page of the trash, newest deletion first.
 func (r TrashRepository) List(
-	ctx context.Context, page repository.Page,
+	ctx context.Context, page repository.Page, kind work.TrashKind,
 ) (repository.TrashPage, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -322,9 +322,15 @@ func (r TrashRepository) List(
 		return repository.TrashPage{}, err
 	}
 
+	var only *string
+	if kind != "" {
+		named := string(kind)
+		only = &named
+	}
 	rows, err := queries.ListTrash(ctx, sqlc.ListTrashParams{
 		CursorDeletedAt: boundary.deletedAt,
 		CursorID:        boundary.id,
+		Kind:            only,
 		PageSize:        pageProbe(page.Size),
 	})
 	if err != nil {
@@ -388,9 +394,13 @@ func (r TrashRepository) BatchMembers(
 		if err != nil {
 			return nil, err
 		}
+		contributors, err := idsFrom(row.Contributors)
+		if err != nil {
+			return nil, err
+		}
 		members = append(members, repository.TrashMember{
 			BatchID: batch, Kind: work.TrashKind(row.Kind), ID: id,
-			HubID: hub, CollectionID: collection, Path: row.Path,
+			HubID: hub, CollectionID: collection, Path: row.Path, Contributors: contributors,
 		})
 	}
 	return members, nil

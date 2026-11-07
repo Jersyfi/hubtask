@@ -60,7 +60,7 @@ func (r ImportRunRepository) Insert(ctx context.Context, run domain.Run) error {
 	}
 	err = queries.InsertImportRun(ctx, sqlc.InsertImportRunParams{
 		ID: id, RequestedBy: requestedBy, Kind: string(run.Kind), MediaID: mediaID, HubID: hubID, CollectionID: collectionID, Mapping: mapping,
-		TimeZone: optionalText(run.Zone), Language: optionalText(run.Language),
+		TimeZone: optionalText(run.Zone), Language: optionalText(run.Language), DryRun: run.DryRun,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
@@ -183,14 +183,15 @@ func (r ImportRunRepository) Finish(ctx context.Context, outcome domain.Outcome)
 }
 
 type refusalRow struct {
-	Row  int    `json:"row"`
-	Code string `json:"code"`
+	Row    int      `json:"row"`
+	Code   string   `json:"code"`
+	Fields []string `json:"fields,omitempty"`
 }
 
 func refusalRows(refused []domain.Refusal) []refusalRow {
 	rows := make([]refusalRow, 0, len(refused))
 	for _, r := range refused {
-		rows = append(rows, refusalRow{Row: r.Row, Code: r.Code})
+		rows = append(rows, refusalRow{Row: r.Row, Code: r.Code, Fields: r.Fields})
 	}
 	return rows
 }
@@ -230,7 +231,7 @@ func importRunFrom(row sqlc.ImportRun) (domain.Run, error) {
 	}
 	run := domain.Run{
 		ID: id, TenantID: tenantID, RequestedBy: requestedBy, Kind: domain.Kind(row.Kind),
-		MediaID: mediaID, HubID: hubID, CollectionID: collectionID, Status: domain.Status(row.Status), Report: report,
+		MediaID: mediaID, HubID: hubID, CollectionID: collectionID, DryRun: row.DryRun, Status: domain.Status(row.Status), Report: report,
 		Progress: progress, CreatedAt: row.CreatedAt.Time,
 		StartedAt: optionalTime(row.StartedAt), FinishedAt: optionalTime(row.FinishedAt),
 	}
@@ -254,7 +255,7 @@ func importRunFrom(row sqlc.ImportRun) (domain.Run, error) {
 			return domain.Run{}, shared.Internalf("postgres: an import's refusals could not be read: %w", err)
 		}
 		for _, r := range rows {
-			run.Refused = append(run.Refused, domain.Refusal{Row: r.Row, Code: r.Code})
+			run.Refused = append(run.Refused, domain.Refusal{Row: r.Row, Code: r.Code, Fields: r.Fields})
 		}
 	}
 	return run, nil

@@ -23,17 +23,19 @@
   // wrong for a list under a field somebody is still typing in. Focus stays in the field; the
   // arrows move a highlight a screen reader is told about through `aria-activedescendant`.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
-  import type { Container, WorkItem } from '@hubtask/sync-engine';
+  import type { Container, SettingDefinition, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
   import { groupOf, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate, type Group, type Row } from './rows.ts';
-  import { collectionOffers, containerOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
+  import { collectionOffers, containerOffers, placeTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
+  import { catalogueOffers, type Place } from '../settings/catalogue.ts';
+  import { settingsCatalogue } from '../data/settingsCatalogue.svelte.ts';
   import type { AccountAction } from '../navigation.ts';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
@@ -45,6 +47,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { modules } from '../data/modules.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { itemPath } from '../data/item.svelte.ts';
   import { categoriesOf } from '../data/preferences.ts';
@@ -53,6 +56,8 @@
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { queryFields } from '../data/query.ts';
   import { search } from '../data/search.svelte.ts';
+  import { pages } from '../data/pages.svelte.ts';
+  import { objectHits, readObjects, readsOf, sourcesWanted, type ObjectRow } from '../search/objects.svelte.ts';
   import { QUICK, compile, parse } from '../data/searchquery.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
@@ -74,8 +79,11 @@
   /** The highlighted row, held by identity (`rows.ts`). */
   let activeKey = $state<string | undefined>(undefined);
   let hits = $state<readonly WorkItem[]>([]);
+  /** Pages that match, where the knowledge module is on (M3): offered as places to go. */
+  let pageHits = $state<readonly { id: string; title: string }[]>([]);
   let searching = $state(false);
   let form = $state<HTMLFormElement | null>(null);
+
 
   const words = $derived(term.trim());
   const isOpen = $derived(palette.isOpen);
@@ -108,6 +116,7 @@
     isPrivateHubsReadable: privateHubs.isReadable,
     hasAnyPrivateHub: privateHubs.hasAny,
     hasSeveralPeople: workspace.workspace?.several_people === true,
+    modulesOn: manifest.value?.modules_on,
   });
 
   const pathOf = (container: Container) => ({ hubId: container.parent_id ?? undefined, collectionId: container.id });
@@ -124,6 +133,43 @@
           .slice(0, 3)
           .flatMap((candidate) => placed.filter((each) => each.container.id === candidate.id)),
   );
+
+  /**
+   * The hubs whose names answer the words best: the three whose views are offered as *Go to*. The
+   * hub on screen offers its own through its head (`ContainerView`), and twice would be noise.
+   */
+  const matchedHubs = $derived(
+    words === ''
+      ? []
+      : rank(
+          placed.filter((each) => each.container.type === 'HUB' && each.container.id !== here.hub).map((each) => ({ kind: 'container' as const, id: each.container.id, label: each.container.name })),
+          words,
+          messages.locale,
+        )
+          .slice(0, 3)
+          .flatMap((candidate) => placed.filter((each) => each.container.id === candidate.id)),
+  );
+  /** The matched collections whose views are offered: not the one on screen, whose strip draws them. */
+  const matchedCollections = $derived(matched.filter((each) => each.container.id !== here.collection));
+  /**
+   * The modules on at each matched hub and at each matched collection's hub, as the hub answered
+   * them; until then its views are not offered.
+   */
+  let hubModules = $state<Record<string, readonly string[]>>({});
+  const askedHubs = $derived(
+    isOpen
+      ? [...new Set([...matchedHubs.map((each) => each.container.id), ...matchedCollections.flatMap((each) => (each.container.parent_id ? [each.container.parent_id] : []))])].join(',')
+      : '',
+  );
+  $effect(() => {
+    const ids = askedHubs === '' ? [] : askedHubs.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
+        if (next.status === 'ready') hubModules = { ...hubModules, [hubId]: next.data.modules_on };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
 
   // ------------------------------------------------------------------------------------------
   // Where the reader stands
@@ -191,6 +237,50 @@
     ),
   );
 
+  /**
+   * Every catalogue setting at each level the reader reaches (configuration/ui.md A7), read only
+   * while the palette is open for somebody who reaches a settings screen of the catalogue.
+   */
+  let catalogue = $state<readonly SettingDefinition[]>([]);
+  $effect(() => {
+    if (!isOpen || (!reach.isAdministrationReachable && !reach.isInstanceReachable && !shapedPlace)) return;
+    return untrack(() =>
+      settingsCatalogue.read((next) => {
+        // An answer without the list (an older server, a proxy's page) offers no setting rather
+        // than taking the palette down with it.
+        if (next.status === 'ready') catalogue = Array.isArray(next.data.settings) ? next.data.settings : [];
+      }),
+    );
+  });
+  /** The hub or collection the reader is at, where their role there may shape it (A7). */
+  const shapedPlace = $derived.by((): Place | undefined => {
+    const at = here.collection && hereCollection ? hereCollection : here.hub && hereHub ? hereHub : undefined;
+    if (!at) return undefined;
+    const path = at.type === 'COLLECTION' ? pathOf(at) : { hubId: at.id };
+    const role = people.roleOf(path, actor.account?.id, roleOrder()) ?? undefined;
+    return holds(role, 'STRUCTURE').status === 'permitted' ? { level: at.type === 'COLLECTION' ? 'COLLECTION' : 'HUB', id: at.id } : undefined;
+  });
+  const catalogueRows = $derived(catalogueOffers(catalogue, reach, t, shapedPlace));
+
+  // The modules' named objects (user-experience.md §5.3): the search's own sources, read while
+  // the palette is open with words, matched as the words change.
+  const wantsObjects = $derived(isOpen && words !== '');
+  const objectReads = $derived(
+    wantsObjects
+      ? readsOf(sourcesWanted(manifest.value?.modules_on as readonly string[] | undefined, () => true), {
+          hubs: containers.hubs.map((hub) => hub.id), collections: containers.loadedCollections.map((collection) => collection.id),
+        })
+      : [],
+  );
+  const objectKey = $derived(objectReads.map((read) => read.path).join(' '));
+  let objectsRead = $state<Record<string, readonly ObjectRow[]>>({});
+  $effect(() => {
+    void objectKey;
+    return untrack(() => readObjects(objectReads, (path, rows) => { objectsRead = { ...objectsRead, [path]: rows }; }));
+  });
+  const OBJECTS_SHOWN = 5;
+  const objectRows = $derived(objectKey === '' ? [] : objectHits(objectsRead, words, OBJECTS_SHOWN).filter((row) => objectReads.some((read) => read.source.kind === row.kind)));
+
   /** What may be offered, each with what pressing it does. */
   const offers = $derived<readonly (Offer | (Candidate & { readonly run: () => void }))[]>([
     ...containerOffers(placed),
@@ -214,9 +304,14 @@
         t,
       }).map((offer) => (offer.id.startsWith('new-in:') ? { ...offer, keywords: t('app.palette.words_create') } : offer)),
     ),
+    ...matchedHubs.flatMap((each) => placeTabOffers(each, manifest.value?.modules_on, hubModules[each.container.id], t)),
+    ...matchedCollections.flatMap((each) => placeTabOffers(each, manifest.value?.modules_on, hubModules[each.container.parent_id ?? ''], t)),
     ...placeOffers(reach, t),
     ...settings,
+    ...catalogueRows,
     ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
+    ...pageHits.map((hit) => ({ kind: 'place' as const, id: `page:${hit.id}`, label: hit.title, target: { kind: 'route' as const, path: `/pages/${hit.id}` } })),
+    ...objectRows.map((row) => ({ kind: 'place' as const, id: `${row.kind}:${row.id}`, label: row.title, context: t(`app.search.kind.${row.kind}`), target: { kind: 'route' as const, path: row.href } })),
     ...recentOffers(recents.rows),
   ]);
 
@@ -264,6 +359,7 @@
     const asked = words;
     if (!isOpen || asked === '') {
       hits = [];
+      pageHits = [];
       searching = false;
       return;
     }
@@ -284,6 +380,12 @@
           hits = [];
           searching = false;
         });
+      if ((manifest.value?.modules_on ?? []).includes('KNOWLEDGE')) {
+        void pages.search(asked, undefined, 5).then(
+          (found) => { if (mine === generation) pageHits = found; },
+          () => { if (mine === generation) pageHits = []; },
+        );
+      } else pageHits = [];
     }, 200);
     return () => clearTimeout(timer);
   });
@@ -306,6 +408,12 @@
     if (host !== 'bar' || !isOpen) return;
     const node = form;
     if (node && !node.contains(document.activeElement)) node.querySelector('input')?.focus();
+  });
+
+  // Summoned again, the words left from the last question are selected: typing replaces them.
+  $effect(() => {
+    if (palette.summons === 0 || !isOpen) return;
+    void tick().then(() => form?.querySelector('input')?.select());
   });
 
   // ------------------------------------------------------------------------------------------
@@ -420,7 +528,7 @@
     if (row.kind === 'hit') return hitById.get(row.id)?.completion?.is_completed ? 'square-check' : 'square';
     if (row.kind === 'container') return containers.find(row.id)?.type === 'HUB' ? 'hub' : 'collection';
     if (row.kind === 'source') return 'sparkles';
-    if (row.kind === 'place') return 'arrow-right';
+    if (row.kind === 'place') return row.id.startsWith('page:') ? 'file-text' : 'arrow-right';
     if (row.kind === 'setting') return 'settings';
     if (row.kind === 'recent') return 'clock';
     return 'zap';

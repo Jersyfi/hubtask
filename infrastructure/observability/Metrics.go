@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -50,20 +51,34 @@ type Metrics struct {
 	jobDuration       metric.Float64Histogram
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
+	jobLeaseExpiries  metric.Int64Counter
 	jobsPurged        metric.Int64Counter
+	mailboxesHeld     metric.Int64Gauge
+	mailboxesUnheld   metric.Int64Gauge
+	mailboxShards     metric.Int64Gauge
+	mailboxShardsLed  metric.Int64Gauge
+	mailboxHolds      metric.Int64Counter
 	auditHeld         metric.Int64Gauge
 	auditDefaultAged  metric.Int64Gauge
 	jobQueueDepth     metric.Int64Gauge
+	quotaWorkspaces   metric.Int64Gauge
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
+	schedulerTicked   metric.Int64Gauge
 	backupLastSuccess metric.Int64Gauge
+	backupCadence     metric.Int64Gauge
 	dsrDeadline       metric.Int64Counter
+	timerFailures     metric.Int64Counter
+	syncKindsSkipped  metric.Int64Counter
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
 	retentionRead     metric.Int64Counter
 	mediaReclaimed    metric.Int64Counter
+	figureDrifted     metric.Int64Counter
+	awarenessRelayed  metric.Int64Counter
+	documentBacklog   metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
 	notificationsRec  metric.Int64Counter
 	notificationsSent metric.Float64Histogram
@@ -81,6 +96,9 @@ type Metrics struct {
 	resetRequests     metric.Int64Counter
 	rehashes          metric.Int64Counter
 	poolConnections   metric.Int64Gauge
+	dbQueryDuration   metric.Float64Histogram
+	dbSlowQueries     metric.Int64Counter
+	dbErrors          metric.Int64Counter
 	migrationVersion  metric.Int64Gauge
 	ruleRuns          metric.Int64Counter
 	ruleDisabled      metric.Int64Counter
@@ -88,6 +106,16 @@ type Metrics struct {
 	busPublications   metric.Int64Counter
 	secretReseals     metric.Int64Counter
 	webhookBacklog    metric.Int64Gauge
+	mediaScanHeld     metric.Int64Gauge
+	oldestTransaction metric.Float64Gauge
+	notifyQueueUsage  metric.Float64Gauge
+	frozenXIDAge      metric.Int64Gauge
+	databaseSize      metric.Int64Gauge
+	invalidIndexes    metric.Int64Gauge
+	mailApps          metric.Int64Gauge
+	mailAppsFailing   metric.Int64Gauge
+	samlProviders     metric.Int64Gauge
+	samlEnding        metric.Int64Gauge
 	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
 	// dead letters waiting - alert A-21's number.
 	platformDeliveries  metric.Int64Counter
@@ -249,6 +277,28 @@ func (m *Metrics) instruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("pool gauge: %w", err)
 	}
+	if m.dbQueryDuration, err = meter.Float64Histogram(
+		namespace+"_db_query_duration_seconds",
+		metric.WithDescription("How long a statement took, by pool and outcome (ok, error, canceled)."),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 5, 30),
+	); err != nil {
+		return fmt.Errorf("query duration histogram: %w", err)
+	}
+	if m.dbSlowQueries, err = meter.Int64Counter(
+		namespace+"_db_slow_queries_total",
+		metric.WithDescription("Statements slower than "+slowQueryText+", by pool and sqlc query name "+
+			"(dynamic for the query compiler's own SQL)."),
+	); err != nil {
+		return fmt.Errorf("slow query counter: %w", err)
+	}
+	if m.dbErrors, err = meter.Int64Counter(
+		namespace+"_db_errors_total",
+		metric.WithDescription("Statements that failed, by pool and kind (timeout, serialization, "+
+			"connection, constraint, other)."),
+	); err != nil {
+		return fmt.Errorf("database error counter: %w", err)
+	}
 	if m.migrationVersion, err = meter.Int64Gauge(
 		namespace+"_migration_version",
 		metric.WithDescription("The migration this build embeds. Differing values across the "+
@@ -320,12 +370,52 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("dead letter counter: %w", err)
 	}
+	if m.jobLeaseExpiries, err = meter.Int64Counter(
+		namespace+"_job_lease_expired_total",
+		metric.WithDescription("Jobs taken over after their lease ran out while running: a worker died mid-job."),
+	); err != nil {
+		return fmt.Errorf("lease expiry counter: %w", err)
+	}
 	if m.jobsPurged, err = meter.Int64Counter(
 		namespace+"_job_purged_total",
 		metric.WithDescription("Finished jobs removed seven days after they ended, by terminal state. "+
 			"Reported by the scheduler leader only."),
 	); err != nil {
 		return fmt.Errorf("purged job counter: %w", err)
+	}
+	if m.mailboxesHeld, err = meter.Int64Gauge(
+		namespace+"_mailbox_watches_held",
+		metric.WithDescription("Connected IMAP mailboxes this process holds open to hear of new mail at once. "+
+			"By shard; zero on every process but the one holding that shard's lock."),
+	); err != nil {
+		return fmt.Errorf("held mailboxes gauge: %w", err)
+	}
+	if m.mailboxesUnheld, err = meter.Int64Gauge(
+		namespace+"_mailbox_watches_unheld",
+		metric.WithDescription("Connected IMAP mailboxes the watch's limit leaves to the minute's read. "+
+			"By shard, written by the process holding that shard's lock."),
+	); err != nil {
+		return fmt.Errorf("unheld mailboxes gauge: %w", err)
+	}
+	if m.mailboxShards, err = meter.Int64Gauge(
+		namespace+"_mailbox_watch_shards",
+		metric.WithDescription("How many shards the mailbox watch splits the workspaces into, as this process is configured."),
+	); err != nil {
+		return fmt.Errorf("mailbox watch shards gauge: %w", err)
+	}
+	if m.mailboxShardsLed, err = meter.Int64Gauge(
+		namespace+"_mailbox_watch_shards_led",
+		metric.WithDescription("How many of the mailbox watch's shards this process leads. Summed over the workers, "+
+			"less than the shards leaves the rest to the minute's read."),
+	); err != nil {
+		return fmt.Errorf("mailbox watch shards led gauge: %w", err)
+	}
+	if m.mailboxHolds, err = meter.Int64Counter(
+		namespace+"_mailbox_watch_holds_total",
+		metric.WithDescription("Holds of a connected mailbox by how they ended: arrived, quiet, gone, unsupported or failed. "+
+			"A failed hold leaves the mailbox to its read every minute."),
+	); err != nil {
+		return fmt.Errorf("mailbox hold counter: %w", err)
 	}
 	if m.auditHeld, err = meter.Int64Gauge(
 		namespace+"_audit_partitions_held",
@@ -353,6 +443,12 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("quota usage gauge: %w", err)
 	}
+	if m.quotaWorkspaces, err = meter.Int64Gauge(
+		namespace+"_tenant_quota_workspaces",
+		metric.WithDescription("Workspaces standing at 90% or more of a quota (band approaching) and at its limit (band at_limit), by quota. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("quota workspaces gauge: %w", err)
+	}
 	if m.outboxLag, err = meter.Float64Histogram(
 		namespace+"_outbox_lag_seconds",
 		metric.WithDescription("Age of an event when it reached its consumers. The objective is a P99 under thirty seconds."),
@@ -370,6 +466,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("tick lag gauge: %w", err)
 	}
+	if m.schedulerTicked, err = meter.Int64Gauge(
+		namespace+"_scheduler_last_tick_timestamp_seconds",
+		metric.WithDescription("When the scheduler's leader last ran its duties, as a Unix timestamp. "+
+			"Alert A-30 reads its age: a stopped scheduler leaves the lag gauge at its last value."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("last tick gauge: %w", err)
+	}
 	if m.backupLastSuccess, err = meter.Int64Gauge(
 		namespace+"_backup_last_success_timestamp_seconds",
 		metric.WithDescription(
@@ -377,6 +481,28 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("backup freshness gauge: %w", err)
+	}
+	if m.backupCadence, err = meter.Int64Gauge(
+		namespace+"_backup_cadence_seconds",
+		metric.WithDescription(
+			"How often each backup target is owed a backup by its schedules, in seconds."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("backup cadence gauge: %w", err)
+	}
+	if m.timerFailures, err = meter.Int64Counter(
+		namespace+"_timer_failures_total",
+		metric.WithDescription(
+			"Durable timers whose firing failed and were put back with a growing delay, by purpose."),
+	); err != nil {
+		return fmt.Errorf("timer failure counter: %w", err)
+	}
+	if m.syncKindsSkipped, err = meter.Int64Counter(
+		namespace+"_sync_kinds_skipped_total",
+		metric.WithDescription(
+			"Kinds an initial synchronisation skipped because their read failed, by kind."),
+	); err != nil {
+		return fmt.Errorf("skipped sync kind counter: %w", err)
 	}
 	if m.dsrDeadline, err = meter.Int64Counter(
 		namespace+"_dsr_deadline_total",
@@ -452,6 +578,79 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Reported by the scheduler leader only, like the queue depth."),
 	); err != nil {
 		return fmt.Errorf("webhook backlog gauge: %w", err)
+	}
+	if m.mediaScanHeld, err = meter.Int64Gauge(
+		namespace+"_media_scan_held_workspaces",
+		metric.WithDescription("Workspaces holding uploads a malware scan has not settled: nobody can "+
+			"download them until it does. Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("media scan held gauge: %w", err)
+	}
+	if m.oldestTransaction, err = meter.Float64Gauge(
+		namespace+"_db_oldest_transaction_seconds",
+		metric.WithDescription("How long the database's oldest open transaction has run: vacuum cannot "+
+			"reclaim rows changed after it began. Reported by the scheduler leader only, like the queue depth."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("oldest transaction gauge: %w", err)
+	}
+	if m.notifyQueueUsage, err = meter.Float64Gauge(
+		namespace+"_db_notify_queue_usage_ratio",
+		metric.WithDescription("The share of PostgreSQL's NOTIFY queue in use: once full, every transaction "+
+			"that notifies fails at commit. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("notify queue gauge: %w", err)
+	}
+	if m.frozenXIDAge, err = meter.Int64Gauge(
+		namespace+"_db_frozen_xid_age",
+		metric.WithDescription("Transaction IDs used since vacuum last froze the database: near two billion "+
+			"PostgreSQL refuses writes. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("frozen xid age gauge: %w", err)
+	}
+	if m.databaseSize, err = meter.Int64Gauge(
+		namespace+"_db_size",
+		metric.WithDescription("The database's size on disk, held against the operator's budget. "+
+			"Reported by the scheduler leader only."),
+		metric.WithUnit("By"),
+	); err != nil {
+		return fmt.Errorf("database size gauge: %w", err)
+	}
+	if m.invalidIndexes, err = meter.Int64Gauge(
+		namespace+"_db_invalid_indexes",
+		metric.WithDescription("How many of the schema's indexes PostgreSQL holds invalid: one an "+
+			"interrupted concurrent build left behind, maintained by every write and used by no query. "+
+			"Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("invalid indexes gauge: %w", err)
+	}
+	if m.mailApps, err = meter.Int64Gauge(
+		namespace+"_mail_app_mailboxes",
+		metric.WithDescription("Enabled mailboxes, across every workspace, that sign in through one of the "+
+			"installation's own mail apps. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("mail app mailboxes gauge: %w", err)
+	}
+	if m.mailAppsFailing, err = meter.Int64Gauge(
+		namespace+"_mail_app_mailboxes_failing",
+		metric.WithDescription("Of those mailboxes, the ones that have failed for over an hour: when an "+
+			"app's secret runs out, all of them fail together. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("mail app failing gauge: %w", err)
+	}
+	if m.samlProviders, err = meter.Int64Gauge(
+		namespace+"_saml_providers",
+		metric.WithDescription("Enabled SAML sign-in providers, across every workspace, whose certificates' end "+
+			"is known. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("SAML providers gauge: %w", err)
+	}
+	if m.samlEnding, err = meter.Int64Gauge(
+		namespace+"_saml_providers_ending",
+		metric.WithDescription("Of those providers, the ones whose last certificate ends within 30 or 7 days, "+
+			"or has ended - nobody signs in through those. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("SAML providers ending gauge: %w", err)
 	}
 	if m.platformDeliveries, err = meter.Int64Counter(
 		namespace+"_platform_deliveries_total",
@@ -694,6 +893,24 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("media reclamation counter: %w", err)
 	}
+	if m.figureDrifted, err = meter.Int64Counter(
+		namespace+"_figure_drift_total",
+		metric.WithDescription("Kept collection figures a recount found wrong and replaced."),
+	); err != nil {
+		return fmt.Errorf("figure drift counter: %w", err)
+	}
+	if m.awarenessRelayed, err = meter.Int64Counter(
+		namespace+"_realtime_awareness_relayed_total",
+		metric.WithDescription("Live document awareness handed to the other replicas, by outcome: sent, local, too_large or failed."),
+	); err != nil {
+		return fmt.Errorf("awareness relay counter: %w", err)
+	}
+	if m.documentBacklog, err = meter.Int64Counter(
+		namespace+"_realtime_document_backlog_total",
+		metric.WithDescription("Live document updates landing on a log no writer compacts, by outcome: overdue or refused; incomplete is a writer's snapshot refused for lacking part of the log."),
+	); err != nil {
+		return fmt.Errorf("document backlog counter: %w", err)
+	}
 	if m.mediaReclaimFail, err = meter.Int64Counter(
 		namespace+"_media_reclaim_failed_total",
 		metric.WithDescription("Orphaned media objects whose bytes storage would not release."),
@@ -707,6 +924,26 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 // RetentionDeleted is.
 func (m *Metrics) MediaReclaimed(ctx context.Context, count int64) {
 	m.mediaReclaimed.Add(ctx, count)
+}
+
+// FigureDrifted counts the kept figures a recount replaced. Anything above zero is a write that
+// moved no collection's number of changes (migration 0299): a figure was answered wrong until then.
+func (m *Metrics) FigureDrifted(ctx context.Context, count int64) {
+	m.figureDrifted.Add(ctx, count)
+}
+
+// AwarenessRelayed counts one awareness message handed to the other replicas (offline-sync.md
+// §13). `failed` above zero is co-editors on different replicas who no longer see each other's
+// cursors; `too_large` is a state that stays on its own replica.
+func (m *Metrics) AwarenessRelayed(ctx context.Context, outcome string) {
+	m.awarenessRelayed.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
+}
+
+// DocumentBacklog counts an update on a live document's log past five rounds of compaction
+// (`overdue`) or refused at its ceiling (`refused`), and a writer's snapshot refused for lacking
+// part of the log (`incomplete`): logs that stay uncompacted (offline-sync.md SY-F, A-24).
+func (m *Metrics) DocumentBacklog(ctx context.Context, outcome string) {
+	m.documentBacklog.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
 }
 
 // MediaReclaimFailed counts the orphans a pass could not reclaim. They stay marked and the next
@@ -890,6 +1127,16 @@ func (m *Metrics) QuotaUsage(ctx context.Context, quota string, tenant string, r
 	m.quotaUsageRatio.Record(ctx, ratio, metric.WithAttributes(attrs...))
 }
 
+// QuotaWorkspaces publishes the leader's census of one quota (A-18): how many workspaces stand at
+// 90% or more of it and how many at its limit. Two series per quota, never a tenant - the who is
+// the operator's overview.
+func (m *Metrics) QuotaWorkspaces(ctx context.Context, quota string, approaching, atLimit int64) {
+	m.quotaWorkspaces.Record(ctx, approaching, metric.WithAttributes(
+		attribute.String("quota", quota), attribute.String("band", "approaching")))
+	m.quotaWorkspaces.Record(ctx, atLimit, metric.WithAttributes(
+		attribute.String("quota", quota), attribute.String("band", "at_limit")))
+}
+
 // DependencyUp mirrors the health report into a time series, so that a disruption has a
 // beginning and an end in the same place as everything else.
 func (m *Metrics) DependencyUp(ctx context.Context, dependency string, up bool) {
@@ -966,7 +1213,7 @@ func (m *Metrics) OutboundHTTP(ctx context.Context, targetClass string, seconds 
 }
 
 // RateLimited counts a call turned away by a limit. scope says which limit: ip, token, tenant
-// for the rate limiter, load_shed for the shedder, bulkhead:<compartment> for a full
+// for the rate limiter, load_shed for the shedder, load_shed_tenant for a workspace over its share, bulkhead:<compartment> for a full
 // compartment. The set is written by hand and stays small - that is what keeps it a label.
 func (m *Metrics) RateLimited(ctx context.Context, scope string) {
 	m.rateLimited.Add(ctx, 1, metric.WithAttributes(attribute.String("scope", scope)))
@@ -993,6 +1240,29 @@ func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
 	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
 }
 
+// MailboxWatchesHeld is how many of a shard's mailboxes this process holds open now.
+func (m *Metrics) MailboxWatchesHeld(ctx context.Context, shard int, held int64) {
+	m.mailboxesHeld.Record(ctx, held, metric.WithAttributes(attribute.Int("shard", shard)))
+}
+
+// MailboxWatchesUnheld is how many of a shard's mailboxes the watch's limit leaves to the
+// minute's read (A-38).
+func (m *Metrics) MailboxWatchesUnheld(ctx context.Context, shard int, unheld int64) {
+	m.mailboxesUnheld.Record(ctx, unheld, metric.WithAttributes(attribute.Int("shard", shard)))
+}
+
+// MailboxWatchShards is how many shards the watch is split into and how many this process leads
+// (A-38: a shard nobody leads leaves its mailboxes to the minute's read).
+func (m *Metrics) MailboxWatchShards(ctx context.Context, shards, led int64) {
+	m.mailboxShards.Record(ctx, shards)
+	m.mailboxShardsLed.Record(ctx, led)
+}
+
+// MailboxWatchEnded counts one hold of a mailbox by what it came to, a closed set of five.
+func (m *Metrics) MailboxWatchEnded(ctx context.Context, outcome string) {
+	m.mailboxHolds.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
+}
+
 // AuditPartitionsHeld is how many of the trail's aged months a hold keeps.
 func (m *Metrics) AuditPartitionsHeld(ctx context.Context, months int64) {
 	m.auditHeld.Record(ctx, months)
@@ -1006,6 +1276,11 @@ func (m *Metrics) AuditDefaultAgedRows(ctx context.Context, rows int64) {
 // JobDeadLettered counts a job that used up its attempts (alert A-07).
 func (m *Metrics) JobDeadLettered(ctx context.Context, kind string) {
 	m.jobDeadLetters.Add(ctx, 1, metric.WithAttributes(attribute.String("job_type", kind)))
+}
+
+// JobLeaseExpired counts a job claimed again after its worker stopped renewing it mid-run.
+func (m *Metrics) JobLeaseExpired(ctx context.Context, kind string) {
+	m.jobLeaseExpiries.Add(ctx, 1, metric.WithAttributes(attribute.String("job_type", kind)))
 }
 
 // QueueDepth publishes the backlog of one kind. Only the scheduler leader reports it: the number
@@ -1028,6 +1303,11 @@ func (m *Metrics) SchedulerTickLag(ctx context.Context, seconds float64) {
 	m.schedulerTickLag.Record(ctx, int64(seconds))
 }
 
+// SchedulerTicked publishes when the leader last ran its duties - alert A-30's number.
+func (m *Metrics) SchedulerTicked(ctx context.Context, at time.Time) {
+	m.schedulerTicked.Record(ctx, at.Unix())
+}
+
 // BackupLastSuccess publishes when a target last had a backup that worked - the number alert A-12
 // watches (backup-restore.md §10).
 //
@@ -1043,6 +1323,13 @@ func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at tim
 		metric.WithAttributes(attribute.String("target_id", targetID)))
 }
 
+// BackupCadence publishes how often a target's schedules owe it a backup, so A-12 holds a weekly
+// target to a week and a daily one to a day (backup-restore.md §10).
+func (m *Metrics) BackupCadence(ctx context.Context, targetID string, every time.Duration) {
+	m.backupCadence.Record(ctx, int64(every/time.Second),
+		metric.WithAttributes(attribute.String("target_id", targetID)))
+}
+
 // DataSubjectDeadline reports cases whose statutory deadline is near or past - alert A-19's number
 // (data-protection.md §4).
 //
@@ -1053,6 +1340,18 @@ func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at tim
 func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count int) {
 	m.dsrDeadline.Add(ctx, int64(count),
 		metric.WithAttributes(attribute.String("stage", stage)))
+}
+
+// TimerFailed counts a durable timer whose firing failed and was put back; the purpose is the
+// closed set of the timers' purposes, never a subject.
+func (m *Metrics) TimerFailed(ctx context.Context, purpose string) {
+	m.timerFailures.Add(ctx, 1, metric.WithAttributes(attribute.String("purpose", purpose)))
+}
+
+// KindSkipped counts a kind an initial synchronisation skipped because its read failed; the kind
+// is the walk's closed set of names, never a subject.
+func (m *Metrics) KindSkipped(ctx context.Context, kind string) {
+	m.syncKindsSkipped.Add(ctx, 1, metric.WithAttributes(attribute.String("kind", kind)))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather
@@ -1128,6 +1427,44 @@ func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
 	m.webhookBacklog.Record(ctx, waiting)
 }
 
+// OldestTransaction publishes the age of the database's oldest open transaction.
+func (m *Metrics) OldestTransaction(ctx context.Context, seconds float64) {
+	m.oldestTransaction.Record(ctx, seconds)
+}
+
+// DatabaseHorizon publishes the NOTIFY queue's use, the unfrozen transaction-ID age and the
+// database's size.
+func (m *Metrics) DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge, databaseBytes int64) {
+	m.notifyQueueUsage.Record(ctx, notifyQueueUsage)
+	m.frozenXIDAge.Record(ctx, xidAge)
+	m.databaseSize.Record(ctx, databaseBytes)
+}
+
+// InvalidIndexes publishes how many indexes PostgreSQL holds invalid.
+func (m *Metrics) InvalidIndexes(ctx context.Context, count int64) {
+	m.invalidIndexes.Record(ctx, count)
+}
+
+// MailApp publishes how many mailboxes sign in through one installation app, and how many fail.
+func (m *Metrics) MailApp(ctx context.Context, app string, connected, failing int64) {
+	attributes := metric.WithAttributes(attribute.String("app", app))
+	m.mailApps.Record(ctx, connected, attributes)
+	m.mailAppsFailing.Record(ctx, failing, attributes)
+}
+
+// SAMLCertificatesEnding publishes the installation's SAML providers by their certificates' end.
+func (m *Metrics) SAMLCertificatesEnding(ctx context.Context, count identity.SAMLCertificateCount) {
+	m.samlProviders.Record(ctx, count.Providers)
+	m.samlEnding.Record(ctx, count.Within30Days, metric.WithAttributes(attribute.String("within", "30d")))
+	m.samlEnding.Record(ctx, count.Within7Days, metric.WithAttributes(attribute.String("within", "7d")))
+	m.samlEnding.Record(ctx, count.Ended, metric.WithAttributes(attribute.String("within", "ended")))
+}
+
+// MediaScanHeldWorkspaces publishes how many workspaces hold uploads waiting for a scan.
+func (m *Metrics) MediaScanHeldWorkspaces(ctx context.Context, workspaces int64) {
+	m.mediaScanHeld.Record(ctx, workspaces)
+}
+
 // PoolConnections publishes one pool's connection states. The max joins in_use and idle as a
 // third state rather than a separate metric, because it is the denominator A-11 divides by and
 // belongs on the same series a dashboard already reads. The pool label tells the API's pool from
@@ -1137,6 +1474,30 @@ func (m *Metrics) PoolConnections(ctx context.Context, pool string, inUse, idle,
 		m.poolConnections.Record(ctx, value, metric.WithAttributes(
 			attribute.String("pool", pool), attribute.String("state", state)))
 	}
+}
+
+// slowQuerySeconds is where a statement starts to count by name. Only the slow ones carry the
+// name: a histogram per query name would be thousands of series, a counter of the slow ones is a
+// handful, and the handful is what an operator asks about (observability-reliability.md §4.2).
+const (
+	slowQuerySeconds = 0.25
+	slowQueryText    = "250 ms"
+)
+
+// DBQuery records one statement. name is the sqlc query name - a closed set compiled into the
+// binary - and is a label only on the slow counter.
+func (m *Metrics) DBQuery(ctx context.Context, pool, name, outcome string, seconds float64) {
+	m.dbQueryDuration.Record(ctx, seconds, metric.WithAttributes(
+		attribute.String("pool", pool), attribute.String("outcome", outcome)))
+	if seconds >= slowQuerySeconds {
+		m.dbSlowQueries.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("pool", pool), attribute.String("query", name)))
+	}
+}
+
+// DBError counts one failed statement by its kind (postgres.ErrorKind), a closed set.
+func (m *Metrics) DBError(ctx context.Context, pool, kind string) {
+	m.dbErrors.Add(ctx, 1, metric.WithAttributes(attribute.String("pool", pool), attribute.String("kind", kind)))
 }
 
 // MigrationVersion publishes the migration this build embeds, once at startup. It deliberately

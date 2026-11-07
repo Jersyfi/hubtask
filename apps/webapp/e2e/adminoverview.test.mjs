@@ -8,7 +8,10 @@
 //   opened, the request owed soon and the degraded feature - each with a link to its page - and
 //   puts what needs somebody before what does not;
 // * an auditor reads it too, with no write anywhere on it, and without the privacy register's card,
-//   whose read their role is refused - nor is the read sent.
+//   whose read their role is refused - nor is the read sent;
+// * the first steps (user-experience.md §8.5) tick what is done, link what is not, and stay away
+//   once a reader hides them, until the overview's menu shows them again; an auditor, who may act
+//   on none of them, is shown none.
 //
 // Against a stubbed API. Chromium only.
 
@@ -49,6 +52,7 @@ async function as(browser, permissions, { verifyOk = true } = {}) {
         { quota: 'accounts', limit: 30, used: 28, ratio: 28 / 30 },
         { quota: 'items', limit: 10000, used: 120, ratio: 0.012 },
         { quota: 'api_requests_per_minute', limit: 600, used: null, ratio: null },
+        { quota: 'automation_runs_per_hour', limit: 1000, used: 4, ratio: 0.004 },
         { quota: 'ai_arrival_proposals_per_day', limit: 200, used: 0, ratio: 0 },
       ] });
     }
@@ -96,7 +100,9 @@ test('chromium: the administration opens on an overview of what needs attention,
   assert.equal(new URL(page.url()).pathname, '/administration', 'the address was replaced with a settings page');
 
   assert.match(await cardText(page, 'limits'), /People\s*28 of 30/);
-  assert.match(await cardText(page, 'limits'), /Entries\s*120 of 10000/);
+  assert.match(await cardText(page, 'limits'), /Entries\s*120 of 10,000/);
+  // No AI answers in this workspace, so its AI limits measure nothing it uses.
+  assert.doesNotMatch(await cardText(page, 'limits'), /AI/);
   // Every line's badge sits beside its name at the line's end, a long name wrapping in its own
   // column rather than pushing its badge under it.
   const placed = await page.locator('[data-card="limits"] li').evaluateAll((lines) => lines.map((line) => {
@@ -130,12 +136,17 @@ test('chromium: the administration opens on an overview of what needs attention,
   });
   assert.deepEqual(colours.links, [colours.brand]);
 
-  // What needs somebody first: the backup opened, so it is the one card that waits below.
+  // What needs somebody first: the backup opened, so it waits below them with the cards that
+  // report nothing (the check and what waits for a word read empty here).
   const order = await page.locator('[data-card]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-card')));
-  assert.equal(order.at(-1), 'backup', order.join(' '));
+  assert.deepEqual(order.slice(0, 4), ['limits', 'rules', 'requests', 'health'], order.join(' '));
+  assert.ok(order.slice(4).includes('backup'), order.join(' '));
 
   // The column marks the overview current.
   assert.equal(await page.locator('nav [aria-current="page"]').first().textContent().then((text) => text?.trim()), 'Overview');
+  // The column's AI figure needs which AI answers only: the provider's read is the AI screen's,
+  // whose "none configured" 404 would be a console error on every page of the administration.
+  assert.ok(!owner.asked.includes('/ai-provider'), 'the administration read the AI provider');
   assert.deepEqual(owner.failures, []);
 });
 
@@ -165,5 +176,39 @@ test('chromium: an auditor reads the overview with nothing to change and no regi
   assert.ok(!auditor.asked.some((path) => path.startsWith('/privacy/requests')), 'the register was read for an auditor');
   // Read-only: the overview offers nothing to press but links.
   assert.equal(await page.locator('[data-testid="admin-overview"] :is(button, input, select, textarea)').count(), 0);
+  assert.equal(await page.locator('[data-testid="first-steps"]').count(), 0, 'an auditor was shown steps they may not take');
   assert.deepEqual(auditor.failures, []);
+});
+
+test('chromium: the first steps tick what is done, link what is not, and stay hidden once hidden', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const owner = await as(browser, PERMISSIONS.OWNER);
+  t.after(() => owner.context.close());
+  const { page } = owner;
+
+  await page.goto(`${served.origin}/administration`);
+  const card = page.getByTestId('first-steps');
+  await card.waitFor();
+  // The fixture's workspace holds several people and no backup schedule.
+  assert.equal(await card.locator('[data-step="invite"][data-done]').count(), 1, 'inviting was not ticked');
+  assert.equal(await card.locator('[data-step="backup"]:not([data-done]) a').getAttribute('href'), '/administration/backup');
+  const steps = await card.locator('[data-step]').count();
+  const done = await card.locator('[data-step][data-done]').count();
+  assert.match(((await card.textContent()) ?? '').replace(/\s+/g, ' '), new RegExp(`${done} of ${steps} done`));
+  // It stands above the cards of what needs attention.
+  const [first, cards] = await Promise.all([card.boundingBox(), page.getByTestId('admin-overview').boundingBox()]);
+  assert.ok(first && cards && first.y < cards.y);
+
+  await card.getByRole('button', { name: 'Hide the first steps' }).click();
+  await card.waitFor({ state: 'detached' });
+  await page.reload();
+  await page.getByRole('heading', { name: 'Overview', level: 1 }).waitFor();
+  await page.locator('[data-card="backup"]').getByText('Opened').waitFor();
+  assert.equal(await page.getByTestId('first-steps').count(), 0, 'the hidden steps came back on a reload');
+
+  await page.getByRole('button', { name: 'More on the overview' }).click();
+  await page.getByRole('menuitem', { name: 'Show the first steps' }).click();
+  await page.getByTestId('first-steps').waitFor();
+  assert.deepEqual(owner.failures, []);
 });

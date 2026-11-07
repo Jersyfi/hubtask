@@ -381,3 +381,31 @@ func TestTheRulesNamePasskeysOnlyWhereACeremonyCanFinish(t *testing.T) {
 		t.Errorf("switched off: %v", got)
 	}
 }
+
+// The card names the workspace by its name, the host beside it (user-experience.md §5.8); a host
+// no workspace answers names none.
+func TestTheRulesNameTheWorkspaceTheHostAnswers(t *testing.T) {
+	handler, _, _ := newRulesFixture()
+
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
+	if err != nil {
+		t.Fatalf("the rules were refused: %v", err)
+	}
+	if rules.WorkspaceName != "Acme" {
+		t.Errorf("workspace name %q, want Acme", rules.WorkspaceName)
+	}
+	if got := rulesOutput(rules)["workspace_name"]; got != "Acme" {
+		t.Errorf("answered workspace_name %v", got)
+	}
+
+	nobody, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "elsewhere.hubtask.example"})
+	if err != nil {
+		t.Fatalf("the rules were refused: %v", err)
+	}
+	if nobody.WorkspaceName != "" {
+		t.Errorf("a host no workspace answers was named %q", nobody.WorkspaceName)
+	}
+	if _, present := rulesOutput(nobody)["workspace_name"]; present {
+		t.Error("a host no workspace answers carries a workspace_name")
+	}
+}

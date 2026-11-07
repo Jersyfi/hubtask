@@ -14,7 +14,9 @@
   // new recovery codes once, behind the acknowledgement - the old ten stopped at the swap.
 
   import { canCopy } from '@hubtask/design-system/components';
-  import { Banner, Button, CodeField, OneTimeSecret, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
+
+  import FailureNote from './FailureNote.svelte';
+  import { Button, CodeField, OneTimeSecret, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
 
   import { mfa } from '../data/mfa.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -72,7 +74,7 @@
 
 <Stack gap="200">
   {#if mfa.failure}
-    <Banner tone="danger">{t(mfa.failure)}</Banner>
+    <FailureNote problem={t(mfa.failure)} />
   {/if}
 
   {#if swapped}

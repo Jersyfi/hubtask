@@ -58,7 +58,7 @@ func TestCreatingALabelAnswers201WithTheLabel(t *testing.T) {
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status %d, want 201: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != createLabelUseCase {
+	if registry.name != "CreateLabel" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	// The collection comes from the path rather than from the body: the route already says which
@@ -100,7 +100,7 @@ func TestListingAVocabularyAnswersAnArray(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != listLabelsUseCase {
+	if registry.name != "ListLabels" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 
@@ -169,7 +169,7 @@ func TestUpdatingALabelPassesOnOnlyWhatArrived(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != updateLabelUseCase {
+	if registry.name != "UpdateLabel" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if _, sent := registry.in["description"]; sent {
@@ -208,7 +208,7 @@ func TestDeletingALabelAnswers204(t *testing.T) {
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status %d, want 204: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != deleteLabelUseCase {
+	if registry.name != "DeleteLabel" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if body := recorder.Body.String(); body != "" {
@@ -253,7 +253,7 @@ func TestRestoringALabelAnswers200WithTheLabel(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != restoreLabelUseCase {
+	if registry.name != "RestoreLabel" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if registry.in["label_id"] != firstLabel || len(registry.in) != 1 {

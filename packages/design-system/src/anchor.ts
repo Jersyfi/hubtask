@@ -77,6 +77,19 @@ const FIT_RULE = `@position-try ${FIT} {
  */
 const FALLBACKS = `flip-block, flip-inline, flip-block flip-inline, ${FIT}, ${FIT} flip-block`;
 
+/**
+ * A surface that stands alone beside its anchor - a tour's mark - and must never shrink: its words
+ * and its buttons are the whole of it. Where no side of the anchor has room (a target as tall as
+ * the screen), it stands in the viewport's end corner, over the page, rather than clipped.
+ */
+const OVER = '--hbt-over';
+const OVER_RULE = `@position-try ${OVER} {
+  position-area: span-all;
+  align-self: end;
+  justify-self: end;
+}`;
+const STANDALONE = `flip-block, flip-inline, flip-block flip-inline, ${OVER}`;
+
 let sheet: CSSStyleSheet | undefined;
 let sequence = 0;
 
@@ -84,6 +97,7 @@ function stylesheet(): CSSStyleSheet {
   if (!sheet) {
     sheet = new CSSStyleSheet();
     sheet.insertRule(FIT_RULE);
+    sheet.insertRule(OVER_RULE);
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   }
   return sheet;
@@ -102,6 +116,8 @@ const drop = (target: CSSStyleSheet, rule: CSSRule) => {
 
 export interface AnchorOptions {
   readonly placement: Placement;
+  /** A surface that must keep its size: never shrunk, put over the page where no side fits. */
+  readonly standalone?: boolean;
 }
 
 /**
@@ -149,7 +165,7 @@ export function raiseToTopLayer(overlay: HTMLElement): () => void {
  * Ties an overlay to its trigger and returns the function that unties it: two declarations and no
  * listeners, the flip done by the engine during layout rather than a frame after it.
  */
-export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement }: AnchorOptions): () => void {
+export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false }: AnchorOptions): () => void {
   const id = `hbt-anchor-${++sequence}`;
   trigger.dataset.hbtAnchor = id;
   overlay.dataset.hbtAnchored = id;
@@ -166,7 +182,7 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
   overlayRule.style.setProperty('position-anchor', `--${id}`);
   overlayRule.style.setProperty('position-area', positionArea(placement));
   // `flip-block` and `flip-inline` are the two the sides above can need; the shrunk one comes last.
-  overlayRule.style.setProperty('position-try-fallbacks', FALLBACKS);
+  overlayRule.style.setProperty('position-try-fallbacks', standalone ? STANDALONE : FALLBACKS);
 
   return () => {
     lower();

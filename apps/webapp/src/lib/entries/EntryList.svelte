@@ -15,6 +15,8 @@
   // spells them out.
 
   import { untrack } from 'svelte';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { entryTypes, iconOf, rowMarkOf, typeNameOf, typeOf, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   import {
     Badge,
@@ -22,13 +24,13 @@
     Checkbox,
     Dialog,
     EmptyState,
-    ErrorState,
     Icon,
     IconButton,
     Inline,
     Input,
     LabelChip,
     LabelPicker,
+    LoadMore,
     Popover,
     provideReasonGroup,
     rankIntent,
@@ -38,6 +40,7 @@
     TaskRow,
     type RankCommand,
   } from '@hubtask/design-system/components';
+  import FailureState from '../frame/FailureState.svelte';
   import type { BulkResult, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
 
   import { partition, type Sections } from './simplelist.ts';
@@ -70,6 +73,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
+  import EntryKey from './EntryKey.svelte';
   import ReplicaMark from '../frame/ReplicaMark.svelte';
   import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem, isBelowArchived } from '../data/lifecycle.ts';
@@ -200,6 +204,8 @@
   }: Props = $props();
 
   /** The columns beside each title: the view's, or for a subtree what an entry carries. */
+  // The collection the keys are read from (ticket.ts); a list is always one collection's.
+  const keyedCollection = $derived(containers.find(collectionId));
   const fields = $derived<readonly ListField[]>(arrangement?.fields ?? ['due', 'people', 'labels', 'progress']);
   /** The sort key a field's column head orders by, where the installation can order by it. */
   const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id' };
@@ -304,6 +310,14 @@
   // so an effect that subscribes while tracking that read cancels itself before the answer lands.
   // A subtree is read whole - every level under the root in one query, unfiltered as every child
   // level is: a level per branch would be a request per branch, twice after every write.
+  // The workspace's entry types, read where the workflows module is on: a row marks a type of
+  // the workspace's own (UC-FLW-01 checks 6, 8).
+  const showsTypes = $derived(typesShown(manifest.value));
+  $effect(() => {
+    if (!showsTypes) return;
+    return untrack(() => entryTypes.open());
+  });
+
   $effect(() => {
     const wanted = collectionId;
     const asked = query;
@@ -537,6 +551,8 @@
     const labelOrder = available.map((label) => label.id);
     const keyOf = (row: Row): string | null => {
       switch (arrangement.grouping) {
+        case 'type':
+          return typeOf(entryTypes.all, row.item.type, row.item.entry_type)?.key ?? row.item.entry_type ?? null;
         case 'column':
           return row.item.bucket_id ?? null;
         case 'assignee':
@@ -556,7 +572,9 @@
           ? labelOrder
           : arrangement.grouping === 'due'
             ? [...DUE_BANDS]
-            : [];
+            : arrangement.grouping === 'type'
+              ? typeOrder(entryTypes.all).map((type) => type.key)
+              : [];
     return groupRows(rows, {
       depthOf: (row) => row.depth,
       keyOf,
@@ -575,6 +593,8 @@
   /** A group's heading: the value it is grouped by, in words. */
   function groupName(key: string | null): string {
     switch (arrangement?.grouping) {
+      case 'type':
+        return key === null ? t('app.list.type_none') : typeName(key);
       case 'column':
         return key === null ? t('app.board.unbucketed') : (buckets.of(collectionId).find((bucket) => bucket.id === key)?.name ?? key);
       case 'assignee':
@@ -586,6 +606,11 @@
       default:
         return '';
     }
+  }
+
+  /** A type's name: its own, a level's own type named after its level, an unread key as itself. */
+  function typeName(key: string): string {
+    return typeNameOf(entryTypes.all, key, (level) => t('app.entry_types.level', { level }));
   }
 
   /** A category's heading: its label's name, or the words for the entries that carry none. */
@@ -651,6 +676,21 @@
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
   const levelState = $derived(items.stateOf(root ? `subtree:${root.id}` : `container:${collectionId}`));
+  const listPage = $derived(items.collectionPage(collectionId));
+  let isLoadingMore = $state(false);
+  let moreFailed = $state<string | undefined>(undefined);
+  async function loadMore() {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+    moreFailed = undefined;
+    try {
+      await items.loadMoreCollection(collectionId);
+    } catch {
+      moreFailed = t('app.entries.load_more_failed');
+    } finally {
+      isLoadingMore = false;
+    }
+  }
   const failure = $derived(
     levelState?.status === 'failed' ? renderProblem(levelState.error, messages) : undefined,
   );
@@ -1166,13 +1206,7 @@
   {#if levelState === undefined || levelState.status === 'loading' || levelState.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if failure}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => (root ? items.openSubtree(root.id) : items.openCollection(collectionId))()}
-    />
+    <FailureState problem={failure} onRetry={() => (root ? items.openSubtree(root.id) : items.openCollection(collectionId))()} />
   {:else}
     <ReplicaMark state={levelState} />
     {#if writeFailure}
@@ -1325,6 +1359,21 @@
         {/if}
       </div>
 
+      <!-- The collection's list is read a page at a time: what is not on the first page is said
+           and offered, never silently left out. -->
+      {#if !root && listPage.hasMore}
+        <LoadMore
+          label={listPage.total === undefined
+            ? t('app.entries.load_more', { shown: String(listPage.shown) })
+            : t('app.entries.load_more_of', { shown: String(listPage.shown), total: String(listPage.total) })}
+          busyLabel={t('app.entries.loading_more')}
+          hasMore
+          isBusy={isLoadingMore}
+          {...(moreFailed ? { failedLabel: moreFailed } : {})}
+          onLoadMore={() => void loadMore()}
+        />
+      {/if}
+
       {#if !isReadOnly && mayCreate && topTypes().length > 0}
         {#if !(viewport.isCompact && !root)}
           <!-- Capture, pointed here: a door into the one add, said as quietly as the board's column
@@ -1407,9 +1456,24 @@
              where the entry's type carries it here (UC-WRK-23 check 4) - an empty cell keeps the
              column's width so the columns stand straight. -->
         <span class="cells">
+          {#if showsTypes && !fields.includes('type')}
+            {@const mark = rowMarkOf(entryTypes.all, row.item.type, row.item.entry_type)}
+            {#if mark}
+              <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
+            {/if}
+          {/if}
           {#each fields as field (field)}
             <span class="cell" data-field={field}>
-              {#if field === 'amount' && row.item.amount}
+              {#if field === 'key'}
+                <EntryKey collection={keyedCollection} number={row.item.number} />
+              {:else if field === 'type'}
+                <!-- The type as a column (S-03): every row's, the level's own included, so the
+                     column reads as a value rather than as a mark only some rows carry. -->
+                {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
+                {#if type}
+                  <span class="type-mark" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" /><LabelChip name={typeName(type.key)} colorToken={type.color_token} /></span>
+                {/if}
+              {:else if field === 'amount' && row.item.amount}
                 <span class="amount">{row.item.amount}</span>
               {:else if field === 'column' && row.item.bucket_id}
                 {@const column = buckets.of(collectionId).find((bucket) => bucket.id === row.item.bucket_id)}
@@ -1711,12 +1775,15 @@
   .cells { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
   .cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); min-width: 0; }
   .cell:empty { display: none; }
+  .type-mark { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .cells { flex-wrap: nowrap; }
     .cell { flex: none; flex-wrap: nowrap; overflow: hidden; }
     .cell:empty { display: inline-flex; }
+    .cell[data-field='key'] { inline-size: calc(var(--sp-1000) * 1.5); }
+    .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
     .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
     .cell[data-field='due'] { inline-size: calc(var(--sp-1000) * 2.5); }

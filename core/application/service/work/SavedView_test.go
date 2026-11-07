@@ -70,6 +70,9 @@ func (s *savedViews) ListReachable(
 }
 
 func (s *savedViews) Insert(_ context.Context, saved view.SavedView) error {
+	if saved.Key == "" {
+		saved.Key = "view"
+	}
 	s.stored[saved.ID] = saved
 	return nil
 }
@@ -346,6 +349,22 @@ func TestListingWithAContainerPassesThePathsScopes(t *testing.T) {
 	}
 	if len(h.authorizer.requests) != 1 {
 		t.Errorf("listing own asked the matrix: %+v", h.authorizer.requests)
+	}
+}
+
+// The configuration document's views section: the workspace-wide shares, asked READ at the
+// workspace, and no container's path handed to the statement.
+func TestListingTheWorkspacesSharesAsksAtTheWorkspace(t *testing.T) {
+	h := newSavedViewHarness(t)
+	if _, err := h.list.Execute(context.Background(), viewActor(), ListSavedViewsQuery{Workspace: true}); err != nil {
+		t.Fatalf("listing the workspace's shares failed: %v", err)
+	}
+	if len(h.authorizer.requests) != 1 || h.authorizer.requests[0].Permission != service.PermissionRead ||
+		len(h.authorizer.requests[0].Path) != 1 {
+		t.Errorf("the permission question was %+v", h.authorizer.requests)
+	}
+	if len(h.views.reachAsked) != 1 || len(h.views.reachAsked[0]) != 0 {
+		t.Errorf("the statement was handed %+v", h.views.reachAsked)
 	}
 }
 

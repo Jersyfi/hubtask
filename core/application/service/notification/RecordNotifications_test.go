@@ -4,12 +4,16 @@
 package notification
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
@@ -107,6 +111,7 @@ func TestTheConsumerWantsOnlyWhatConcernsSomebody(t *testing.T) {
 	}
 }
 
+// UC-NOT-01 check 1.
 func TestAnAssignmentTellsTheAssignee(t *testing.T) {
 	fixture := consumer(t, bert)
 
@@ -148,6 +153,7 @@ func TestAnAssignmentTellsTheAssignee(t *testing.T) {
 
 // The whole entry is told about a comment, and each person once: somebody who is both the assignee
 // and on the member list is one recipient, not two.
+// UC-NOT-01 check 1.
 func TestACommentTellsTheAssigneeAndTheMembersOnce(t *testing.T) {
 	fixture := consumer(t, bert, bert, carla)
 
@@ -176,6 +182,7 @@ func TestACommentTellsTheAssigneeAndTheMembersOnce(t *testing.T) {
 
 // Being told about your own comment is not news. The record is written anyway, because "why did I
 // hear nothing" deserves an answer.
+// UC-NOT-01 check 2.
 func TestSomebodyIsNotToldAboutTheirOwnAction(t *testing.T) {
 	fixture := consumer(t, anna, anna)
 
@@ -200,6 +207,7 @@ func TestSomebodyIsNotToldAboutTheirOwnAction(t *testing.T) {
 
 // The acceptance criterion: a recipient who has switched a category off receives nothing, and the
 // record says why.
+// UC-NOT-03 check 2.
 func TestSwitchingACategoryOffLeavesARecordThatSaysWhy(t *testing.T) {
 	fixture := consumer(t, bert)
 	fixture.preferences.switchOff(bert, domain.CategoryAssignment)
@@ -228,6 +236,7 @@ func TestSwitchingACategoryOffLeavesARecordThatSaysWhy(t *testing.T) {
 
 // The correction for at-least-once delivery: the second consumption writes nothing and queues
 // nothing (ADR-0007).
+// UC-NOT-01 check 8.
 func TestTheSameEventDeliveredTwiceSendsOneMessage(t *testing.T) {
 	fixture := consumer(t, bert)
 
@@ -318,5 +327,99 @@ func TestAQueueFailureStopsTheBatch(t *testing.T) {
 
 	if err := fixture.consumer.Deliver(t.Context(), assigned(t, anna, bert)); err == nil {
 		t.Fatal("a queue failure was swallowed")
+	}
+}
+
+// requesterBook answers who follows the place as a requester.
+type requesterBook map[shared.ID]bool
+
+func (b requesterBook) Requester(_ context.Context, actor appshared.ActorContext, _ []identity.Scope) (bool, error) {
+	return b[actor.AccountID], nil
+}
+
+// UC-SVC-05 check 6: the team's public answer on a request is told to the requester who raised
+// it in the portal, under their own category; an internal note, their own words and an entry
+// raised by a team member tell them nothing.
+func TestAPublicReplyOnARequestTellsItsRequester(t *testing.T) {
+	cases := map[string]struct {
+		author    shared.ID
+		extra     map[string]any
+		requester bool
+		want      int
+	}{
+		"a public reply":          {author: anna, requester: true, want: 1},
+		"an internal note":        {author: anna, extra: map[string]any{"internal": true}, requester: true},
+		"the requester's words":   {author: carla, requester: true},
+		"filed for by the intake": {author: anna, extra: map[string]any{"by_requester": true}, requester: true},
+		"raised by the team":      {author: anna},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			fixture := consumer(t, shared.ID(""))
+			item := task(shared.ID(""))
+			item.CreatedBy = carla
+			fixture.consumer.Items = newItems(item)
+			fixture.consumer.Requesters = requesterBook{carla: c.requester}
+			envelope := commented(t, c.author)
+			for k, v := range c.extra {
+				envelope.Payload[k] = v
+			}
+			if err := fixture.consumer.Deliver(t.Context(), envelope); err != nil {
+				t.Fatal(err)
+			}
+			var told []domain.Notification
+			for _, record := range fixture.notifications.written() {
+				if record.Category == domain.CategoryRequestReply && record.State != domain.StateSuppressed {
+					told = append(told, record)
+				}
+			}
+			if len(told) != c.want {
+				t.Fatalf("%d replies told, want %d", len(told), c.want)
+			}
+			if c.want == 1 && (told[0].RecipientID != carla || told[0].ItemID != itemID) {
+				t.Errorf("told %+v", told[0])
+			}
+		})
+	}
+}
+
+// twoItems answers the request replied on and the one merged into it.
+type twoItems map[shared.ID]work.WorkItem
+
+func (s twoItems) Find(_ context.Context, id shared.ID) (work.WorkItem, error) {
+	item, found := s[id]
+	if !found {
+		return work.WorkItem{}, shared.ErrNotFound
+	}
+	return item, nil
+}
+
+type mergeLinks []work.EntryLink
+
+func (l mergeLinks) Of(context.Context, shared.ID, int) ([]work.EntryLink, error) { return l, nil }
+
+// UC-SVC-03 check 8: the portal requester of a request merged into another is told of the other's
+// public replies, on their own request, which is the one they may read.
+func TestAMergedRequestsRequesterIsToldOfTheOthersReplies(t *testing.T) {
+	merged := shared.ID("01936f2a-7c1e-7000-8000-0000000000a9")
+	fixture := consumer(t, shared.ID(""))
+	target := task(shared.ID(""))
+	target.CreatedBy = anna
+	source := task(shared.ID(""))
+	source.ID, source.CreatedBy = merged, carla
+	fixture.consumer.Items = twoItems{itemID: target, merged: source}
+	fixture.consumer.Requesters = requesterBook{carla: true}
+	fixture.consumer.Links = mergeLinks{{Type: work.LinkTypeDuplicates, SourceID: merged, TargetID: itemID}}
+	if err := fixture.consumer.Deliver(t.Context(), commented(t, anna)); err != nil {
+		t.Fatal(err)
+	}
+	var told []domain.Notification
+	for _, record := range fixture.notifications.written() {
+		if record.Category == domain.CategoryRequestReply && record.State != domain.StateSuppressed {
+			told = append(told, record)
+		}
+	}
+	if len(told) != 1 || told[0].RecipientID != carla || told[0].ItemID != merged {
+		t.Fatalf("told %+v, want carla on her merged request", told)
 	}
 }

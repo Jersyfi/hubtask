@@ -355,5 +355,5 @@ func choiceFrom(row sqlc.AiSource) (integration.AiChoice, error) {
 // operator withdrew while a workspace was choosing it.
 func isForeignKeyViolation(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation
 }

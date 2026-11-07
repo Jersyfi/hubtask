@@ -10,7 +10,7 @@
  * this needs a DOM or a running app to check.
  */
 
-import { SOURCE, type Catalogue, patternFor } from './catalogue.ts';
+import { type Catalogue, patternFor } from './catalogue.ts';
 import { MessageSyntaxError, format, type MessageParams } from './format.ts';
 
 export interface Messages {
@@ -29,11 +29,14 @@ export interface Messages {
 export interface MessagesOptions {
   readonly locale: string;
   /**
-   * The catalogues to read, the reader's language first. The source catalogue is appended if it is
-   * not already there: §3's fallback is not optional, and a caller that forgot it would produce
-   * exactly the empty screen the rule forbids.
+   * The catalogues to read, the reader's language first and the source last (§3). A chain without
+   * the source is the application's normal state for a reader of a complete translation, so a
+   * code none of them knows is told to `onMissing`, which fetches the source, and renders
+   * humanised meanwhile - never a blank, never the key.
    */
   readonly catalogues?: readonly Catalogue[];
+  /** Told each time a code is in no catalogue of the chain. */
+  readonly onMissing?: (code: string) => void;
   /** Where an unrenderable message is reported. Injected so a test can read it. */
   readonly onProblem?: (message: string) => void;
 }
@@ -54,9 +57,8 @@ export function humanise(code: string): string {
   return words === '' ? code : words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export function createMessages({ locale, catalogues, onProblem }: MessagesOptions): Messages {
-  const chain = catalogues && catalogues.length > 0 ? [...catalogues] : [SOURCE];
-  if (!chain.includes(SOURCE)) chain.push(SOURCE);
+export function createMessages({ locale, catalogues, onProblem, onMissing }: MessagesOptions): Messages {
+  const chain = [...(catalogues ?? [])];
   const report = onProblem ?? ((message: string) => console.warn(`i18n: ${message}`));
   const reported = new Set<string>();
   const reportOnce = (key: string, message: string) => {
@@ -71,6 +73,7 @@ export function createMessages({ locale, catalogues, onProblem }: MessagesOption
     t(code, params = {}) {
       const pattern = patternFor(code, chain);
       if (pattern === undefined) {
+        onMissing?.(code);
         reportOnce(code, `no message for the code ${code}`);
         return humanise(code);
       }

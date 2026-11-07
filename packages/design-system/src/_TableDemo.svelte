@@ -8,7 +8,7 @@
   import { comparing, type Sort } from './table.ts';
 
   const { mode = 'entries' }: {
-    mode?: 'entries' | 'wide' | 'sorted' | 'long' | 'states' | 'empty';
+    mode?: 'entries' | 'wide' | 'sorted' | 'long' | 'states' | 'empty' | 'stacked';
   } = $props();
 
   const columns: Column[] = [
@@ -153,7 +153,7 @@
     {''}
   </Table>
 {:else}
-  <Table label="Entries in this collection" {columns}>
+  <Table label="Entries in this collection" {columns} isStacked={mode === 'stacked'}>
     {#each rows.slice(0, 3) as row (row.title)}
       <tr>
         <td>{row.title}</td>

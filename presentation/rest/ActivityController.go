@@ -4,37 +4,9 @@
 package rest
 
 import (
-	"net/http"
-
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-const listActivityUseCase = "ListActivity"
-
-// ListActivity answers GET /items/{itemId}/activity.
-//
-// No ETag, for the reason no list has one: a page is not an entity with a version, and there is
-// nothing here for a client to write back against - the history is append-only and nothing writes
-// to it through this endpoint.
-func (c *RestController) ListActivity(
-	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId, params openapi.ListActivityParams,
-) {
-	out, ok := c.read(w, r, listActivityUseCase, usecase.Input{
-		"item_id": itemID.String(),
-		"cursor":  optionalStringField(params.Cursor),
-		"size":    optionalIntField(params.Size),
-	})
-	if !ok {
-		return
-	}
-
-	page := openapi.ActivityPage{Data: []openapi.ActivityEntry{}, Page: pageResponse(out)}
-	for _, row := range rowsOf(out) {
-		page.Data = append(page.Data, activityEntryResponse(row))
-	}
-	writeJSON(w, r, http.StatusOK, page)
-}
 
 // activityEntryResponse maps one step of a history.
 //

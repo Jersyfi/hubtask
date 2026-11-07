@@ -67,10 +67,10 @@ func TestInspectingAnArchiveAsksForTheInspectModeAndPrintsTheReport(t *testing.T
 	if sent["archive_id"] != "daily/2026-08-27.hubtask" {
 		t.Errorf("the archive did not travel: %v", sent["archive_id"])
 	}
-	// The contract has a `decryption_passphrase` and this version refuses it: an archive's key is
-	// derived from the installation's master key.
+	// Without $HUBTASK_ARCHIVE_PASSPHRASE none travels: the server refuses one an archive has no
+	// use for.
 	if _, sentAnyway := sent["decryption_passphrase"]; sentAnyway {
-		t.Error("a passphrase was sent to a version that refuses the field")
+		t.Error("a passphrase was sent that nobody gave")
 	}
 	// The report is the whole point: the counts and what each entity contributed.
 	if !strings.Contains(out, "42") || !strings.Contains(out, "work_item") {
@@ -227,5 +227,26 @@ func TestARestoreIsBoundedByItsWaitRatherThanByOneCallsTimeout(t *testing.T) {
 				t.Error("restore run is capped by --timeout, so --wait cannot extend it")
 			}
 		}
+	}
+}
+
+// UC-BAK-07 check 7: an archive downloaded with a passphrase is restored with it, read from the
+// environment rather than from a flag the shell's history would keep.
+func TestARestoreSendsThePassphraseFromTheEnvironment(t *testing.T) {
+	stub, asked := restoring(t, inspectedRun)
+	env := signedIn(stub)
+	env[envArchivePassphrase] = "correct horse battery staple"
+
+	code, _, errOut := invokeAgainst(t, stub, env, "",
+		"restore", "inspect", "--target", targetID, "--archive", "daily/2026-08-27.hubtask")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(*asked), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if sent["decryption_passphrase"] != "correct horse battery staple" {
+		t.Errorf("the passphrase did not travel: %v", sent["decryption_passphrase"])
 	}
 }

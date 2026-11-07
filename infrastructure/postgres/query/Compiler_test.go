@@ -388,12 +388,106 @@ func TestGroupsAreOneWindowedQuery(t *testing.T) {
 	}
 	for _, want := range []string{
 		`row_number() OVER (PARTITION BY wi.bucket_id ORDER BY wi.order_key COLLATE "C" ASC, wi.id) AS rn`,
-		`) g WHERE g.rn <= $2`,
+		// Numbered over the identifiers alone; only the chosen rows are read whole.
+		`FROM work_item wi LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number()`,
+		`) r WHERE r.rn <= $2))) g`,
 		` ORDER BY bucket_id ASC NULLS LAST, order_key COLLATE "C" ASC, id`,
 	} {
 		if !strings.Contains(statement.SQL, want) {
 			t.Errorf("compiled to\n  %s\nand should contain\n  %s", statement.SQL, want)
 		}
+	}
+}
+
+// A field whose type names every value it can hold is read a column at a time, each column its own
+// ordered page, so a large collection is never numbered whole (observability-reliability.md §13.2).
+func TestAGroupWhoseTypeNamesItsValuesIsReadPerColumn(t *testing.T) {
+	tests := map[string]struct {
+		field    string
+		branches []string
+	}{
+		"done and open": {"is_completed", []string{
+			`wi.is_completed = $2::boolean ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $3)`,
+			`wi.is_completed = $5::boolean ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $6)`,
+		}},
+		"an item type": {"type", []string{
+			`wi.type = $2::item_type ORDER BY`, `wi.type = $5::item_type ORDER BY`,
+			`wi.type = $8::item_type ORDER BY`,
+		}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			group, err := view.ParseGroupBy(map[string]any{"field": test.field}, "/group_by")
+			if err != nil {
+				t.Fatalf("the grammar refused the grouping: %v", err)
+			}
+			statement, err := Groups(searchOf(t, nil, view.Spec{GroupBy: group}), 51)
+			if err != nil {
+				t.Fatalf("compilation failed: %v", err)
+			}
+			if strings.Contains(statement.SQL, "row_number()") {
+				t.Errorf("a column of a known value was numbered with the others:\n  %s", statement.SQL)
+			}
+			if got := strings.Count(statement.SQL, " UNION ALL "); got != len(test.branches)-1 {
+				t.Errorf("%d columns joined by %d UNION ALL, want %d", len(test.branches), got,
+					len(test.branches)-1)
+			}
+			for _, want := range test.branches {
+				if !strings.Contains(statement.SQL, want) {
+					t.Errorf("compiled to\n  %s\nand should contain\n  %s", statement.SQL, want)
+				}
+			}
+			if !strings.Contains(statement.SQL, ` ORDER BY `+test.field+` ASC NULLS LAST, order_key`) {
+				t.Errorf("the columns do not come in the field's order:\n  %s", statement.SQL)
+			}
+		})
+	}
+}
+
+// A board's column or status over one collection is read a column at a time too, though its values
+// are data: they are found by skipping through the column's index (migration 0371), so the
+// collection is never numbered whole. A scope the index does not hold is still numbered.
+func TestABoardsColumnsAreFoundBySkippingThroughTheIndex(t *testing.T) {
+	board := func(t *testing.T, field string, descendants, trashed bool) string {
+		t.Helper()
+		group, err := view.ParseGroupBy(map[string]any{"field": field}, "/group_by")
+		if err != nil {
+			t.Fatalf("the grammar refused the grouping: %v", err)
+		}
+		search := searchOf(t, nil, view.Spec{GroupBy: group, IncludeArchived: true, IncludeTrashed: trashed})
+		search.Anchor.IncludeDescendants = descendants
+		statement, err := Groups(search, 51)
+		if err != nil {
+			t.Fatalf("compilation failed: %v", err)
+		}
+		return statement.SQL
+	}
+
+	for _, field := range []string{"bucket_id", "status"} {
+		t.Run(field, func(t *testing.T) {
+			sql := board(t, field, false, false)
+			if strings.Contains(sql, "row_number()") {
+				t.Errorf("the board was numbered whole:\n  %s", sql)
+			}
+			for _, want := range []string{
+				`WITH RECURSIVE v(g) AS ((SELECT wi.` + field + ` FROM work_item wi WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid AND wi.parent_id IS NULL AND wi.deleted_at IS NULL AND wi.` + field + ` IS NOT NULL ORDER BY wi.` + field + ` LIMIT 1)`,
+				`wi.` + field + ` > v.g ORDER BY wi.` + field + ` LIMIT 1) FROM v WHERE v.g IS NOT NULL)`,
+				`CROSS JOIN LATERAL (SELECT wi.id FROM work_item wi WHERE`,
+				`AND wi.` + field + ` = v.g ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $`,
+				`AND wi.` + field + ` IS NULL ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $`,
+				` ORDER BY ` + field + ` ASC NULLS LAST, order_key`,
+			} {
+				if !strings.Contains(sql, want) {
+					t.Errorf("compiled to\n  %s\nand should contain\n  %s", sql, want)
+				}
+			}
+		})
+	}
+	if sql := board(t, "bucket_id", true, false); !strings.Contains(sql, "row_number()") {
+		t.Errorf("a scope with the entries below was skipped through an index that does not hold them:\n  %s", sql)
+	}
+	if sql := board(t, "status", false, true); !strings.Contains(sql, "row_number()") {
+		t.Errorf("the trash was skipped through an index that does not hold it:\n  %s", sql)
 	}
 }
 
@@ -578,7 +672,7 @@ func TestASearchWithoutAVectorIsTheStatementItAlwaysWas(t *testing.T) {
 		t.Fatalf("compilation failed: %v", err)
 	}
 
-	for _, unwanted := range []string{"item_embedding", "<=>", "vector"} {
+	for _, unwanted := range []string{"item_embedding", "<=>", "::vector"} {
 		if strings.Contains(statement.SQL, unwanted) {
 			t.Errorf("a lexical search mentions %q:\n  %s", unwanted, statement.SQL)
 		}
@@ -763,5 +857,153 @@ func TestASearchSaysWhichRowsOnlyTheMeaningFound(t *testing.T) {
 	}
 	if !strings.Contains(rows.SQL, "false AS by_meaning") {
 		t.Errorf("a wordless search lacks the by_meaning column the reader scans:\n  %s", rows.SQL)
+	}
+}
+
+// A search finds an entry by a living comment on it and by its text-valued custom fields (F-9),
+// through the expressions migration 0232 indexed, and the words reach both as parameters only.
+func TestASearchReadsCommentsAndTextFields(t *testing.T) {
+	statement, err := Search(textSearchOf("quarterly report"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, want := range []string{
+		"FROM comment cm WHERE cm.tenant_id = wi.tenant_id AND cm.item_id = wi.id AND cm.deleted_at IS NULL",
+		"to_tsvector('simple'::regconfig, cm.body) @@ websearch_to_tsquery('simple', normalize($",
+		"fd.kind IN ('TEXT', 'URL') AND fd.deleted_at IS NULL",
+		"to_tsvector('simple'::regconfig, fv.text) @@ websearch_to_tsquery('simple', normalize($",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the search does not read %q:\n  %s", want, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, "quarterly") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
+	}
+}
+
+// An attached hit is ranked by how well it matched (F-9), as a real so the keyset compares one real
+// with the cursor's, and both rank expressions - the column and the boundary - carry it.
+func TestAnAttachedHitIsRanked(t *testing.T) {
+	boundary := SearchBoundary{Rank: 0.1, ID: shared.ID("0190a4c2-7b1e-7000-8000-000000000001")}
+	statement, err := Search(textSearchOf("quarterly report"), "", boundary, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, want := range []string{
+		"0.5::real * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, cm.body), websearch_to_tsquery('simple', normalize($",
+		"0.5::real * coalesce((SELECT max(ts_rank_cd(to_tsvector('simple'::regconfig, fv.text), websearch_to_tsquery('simple', normalize($",
+	} {
+		if got := strings.Count(statement.SQL, want); got != 2 {
+			t.Errorf("%q appears %d times, want 2 (rank and boundary):\n  %s", want, got, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, "quarterly") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
+	}
+}
+
+// `linked_to` reads a link of any type from either end (F-9), the identifiers bound.
+func TestLinkedToReadsEitherEnd(t *testing.T) {
+	id := "0190a4c2-7b1e-7000-8000-000000000001"
+	got := compile(t, map[string]any{"field": "linked_to", "op": "EQ", "value": id}, view.Spec{})
+	for _, want := range []string{
+		"EXISTS (SELECT 1 FROM entry_link ln WHERE ln.tenant_id = wi.tenant_id",
+		"((ln.source_id = wi.id AND ln.target_id = ANY($",
+		"OR (ln.target_id = wi.id AND ln.source_id = ANY($",
+	} {
+		if !strings.Contains(got.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", got.SQL, want)
+		}
+	}
+	if strings.Contains(got.SQL, id) {
+		t.Fatalf("the identifier reached the text:\n  %s", got.SQL)
+	}
+}
+
+// `group_queue_of` reads the collections whose auto-assign policy names a group of the account,
+// the account bound (user-experience.md §3.3).
+func TestAGroupQueueReadsThePoliciesNamingTheAccountsGroups(t *testing.T) {
+	id := "0190a4c2-7b1e-7000-8000-000000000001"
+	got := compile(t, map[string]any{"field": "group_queue_of", "op": "EQ", "value": id}, view.Spec{})
+	for _, want := range []string{
+		"wi.collection_id IN (SELECT ap.scope_id FROM auto_assign_policy ap WHERE ap.scope_type = 'COLLECTION'",
+		"gm.account_id = $",
+		"ap.candidates @> jsonb_build_array(jsonb_build_object('kind', 'GROUP', 'id', gm.group_id::text))",
+	} {
+		if !strings.Contains(got.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", got.SQL, want)
+		}
+	}
+	if strings.Contains(got.SQL, id) {
+		t.Fatalf("the identifier reached the text:\n  %s", got.SQL)
+	}
+}
+
+// `blocking` traverses the same links the other way (F-9): this entry is the one waited for, and
+// the open entry across the link is the one waiting.
+func TestBlockingTraversesTheLinksTheOtherWay(t *testing.T) {
+	yes := compile(t, map[string]any{"field": "blocking", "op": "EQ", "value": true}, view.Spec{})
+	no := compile(t, map[string]any{"field": "blocking", "op": "EQ", "value": false}, view.Spec{})
+	if yes.SQL != no.SQL {
+		t.Fatalf("the value changed the text:\n  %s\n  %s", yes.SQL, no.SQL)
+	}
+	for _, want := range []string{
+		"AND bw.id = CASE lw.waits WHEN 'TARGET' THEN bl.target_id ELSE bl.source_id END",
+		"((lw.waits = 'TARGET' AND bl.source_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.target_id = wi.id))",
+		"AND NOT bw.is_completed AND bw.deleted_at IS NULL)) = $",
+	} {
+		if !strings.Contains(yes.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", yes.SQL, want)
+		}
+	}
+	held := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": true}, view.Spec{})
+	if held.SQL == yes.SQL {
+		t.Fatalf("blocking compiled to blocked's text")
+	}
+}
+
+// `blocked` traverses the links that wait (F-9): the system types by their key, a workspace's own
+// by its `waits`. True and false compile to one text, so the value is never statement text.
+func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
+	yes := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": true}, view.Spec{})
+	no := compile(t, map[string]any{"field": "blocked", "op": "EQ", "value": false}, view.Spec{})
+	if yes.SQL != no.SQL {
+		t.Fatalf("the value changed the text:\n  %s\n  %s", yes.SQL, no.SQL)
+	}
+	for _, want := range []string{
+		"LEFT JOIN link_type lt ON lt.tenant_id = bl.tenant_id AND lt.key = bl.own_type",
+		"CASE bl.link_type WHEN 'blocks' THEN 'TARGET' WHEN 'depends_on' THEN 'SOURCE' ELSE lt.waits END",
+		"((lw.waits = 'TARGET' AND bl.target_id = wi.id) OR (lw.waits = 'SOURCE' AND bl.source_id = wi.id))",
+		"AND NOT bw.is_completed AND bw.deleted_at IS NULL)) = $",
+	} {
+		if !strings.Contains(yes.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", yes.SQL, want)
+		}
+	}
+	not := compile(t, map[string]any{"field": "blocked", "op": "NEQ", "value": true}, view.Spec{})
+	if !strings.Contains(not.SQL, ")) IS DISTINCT FROM $") {
+		t.Errorf("NEQ compiled to %s", not.SQL)
+	}
+}
+
+// A search finds an entry by the name of a file attached to it (F-9), through migration 0233's
+// expression written verbatim, only for a sealed and living object, and with the words bound.
+func TestASearchReadsAttachmentNames(t *testing.T) {
+	statement, err := Search(textSearchOf("budget"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	for _, want := range []string{
+		"FROM item_attachment ia JOIN media_object mo ON mo.tenant_id = ia.tenant_id AND mo.id = ia.media_id",
+		"mo.status = 'READY' AND mo.file_name IS NOT NULL AND mo.deleted_at IS NULL",
+		"to_tsvector('simple'::regconfig, translate(mo.file_name, '._-', '   ')) @@ websearch_to_tsquery('simple', normalize($",
+	} {
+		if !strings.Contains(statement.SQL, want) {
+			t.Errorf("the search does not read %q:\n  %s", want, statement.SQL)
+		}
+	}
+	if strings.Contains(statement.SQL, "budget") {
+		t.Fatalf("the words reached the statement's text:\n  %s", statement.SQL)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,8 +105,13 @@ func authorize(t *testing.T, b Boxes, actor appshared.ActorContext, in usecase.I
 	if query.Get("code_challenge_method") != "S256" || query.Get("code_challenge") == "" {
 		t.Errorf("no PKCE in %s", parsed)
 	}
-	// The fixed entropy draws the same bytes for the state and the verifier.
-	return query.Get("state"), query.Get("state")
+	// The state names the workspace, so a return on the installation's host can be located
+	// (multi-tenancy.md §3); the fixed entropy draws the same bytes for its handle and the verifier.
+	state := query.Get("state")
+	if tenant, ok := shared.TenantOfReturnState(state); !ok || tenant != actor.TenantID {
+		t.Errorf("state %q names no workspace or another", state)
+	}
+	return state, strings.TrimPrefix(state, actor.TenantID.String()+".")
 }
 
 func TestGoogleConnectsWithTheInstallationsAppAndKeepsOnlyTheRefreshToken(t *testing.T) {
@@ -231,5 +237,47 @@ func TestAReadRefreshesTheTokenAndKeepsARotatedOne(t *testing.T) {
 	}
 	if store.boxes[boxID].Failure != "mail.oauth_revoked" {
 		t.Errorf("a revoked grant recorded %q", store.boxes[boxID].Failure)
+	}
+}
+
+// A Microsoft 365 desk mailbox whose tenant switched IMAP off connects through Graph: the
+// installation's one Microsoft app, asked for Graph's mail scope, and a mailbox read as GRAPH with
+// no IMAP server; the refresh draws its token through the same app.
+func TestMicrosoftGraphConnectsThroughTheInstallationsMicrosoftApp(t *testing.T) {
+	b, store, _, tokens := oauthBoxes(map[string]App{"microsoft": {ClientID: "ms-id", ClientSecret: secret.New("ms-secret")}})
+	tokens.email = "desk@contoso.example"
+	out, err := AuthorizeMailbox{Boxes: b}.Descriptor().Handler.Invoke(context.Background(), person, usecase.Input{"provider": "microsoft_graph"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, _ := url.Parse(out["authorize_url"].(string))
+	query := parsed.Query()
+	if query.Get("client_id") != "ms-id" || !strings.Contains(query.Get("scope"), "https://graph.microsoft.com/Mail.ReadWrite") {
+		t.Fatalf("authorize at %s", parsed)
+	}
+	tokens.verifier = strings.TrimPrefix(query.Get("state"), person.TenantID.String()+".")
+	connected, err := CompleteMailboxAuthorization{Boxes: b}.Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"state": query.Get("state"), "code": "code-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if connected["protocol"] != "GRAPH" || connected["oauth_provider"] != "microsoft_graph" || connected["host"] != nil {
+		t.Errorf("connected %+v", connected)
+	}
+	if store.boxes[boxID].Protocol != domain.ProtocolGraph || store.boxes[boxID].Host != "" {
+		t.Errorf("stored %+v", store.boxes[boxID])
+	}
+	if tokens.gotSecret[0] != "ms-secret" {
+		t.Errorf("exchanged with %q", tokens.gotSecret[0])
+	}
+	providers := b.oauthProviders()
+	offered := false
+	for _, each := range providers {
+		if row := each.(map[string]any); row["key"] == "microsoft_graph" && row["installation"] == true {
+			offered = true
+		}
+	}
+	if !offered {
+		t.Errorf("Graph is not offered with the installation's app: %v", providers)
 	}
 }

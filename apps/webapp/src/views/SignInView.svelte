@@ -243,6 +243,16 @@
     if (ended === 'cancelled') passkeyButton?.querySelector('button')?.focus();
   }
 
+  /**
+   * A refusal puts the caret back into the emptied password (UC-ID-01 check 4): the next keystroke
+   * is the retry. The form is drawn anew with the refusal, so the element is read when it stands.
+   */
+  let passwordBox = $state<HTMLFormElement | null | undefined>(undefined);
+  $effect(() => {
+    if (session.problem === undefined || !passwordBox) return;
+    passwordBox.querySelector<HTMLInputElement>('input[autocomplete="current-password"]')?.focus();
+  });
+
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const address = email.trim();
@@ -660,7 +670,7 @@
 {/snippet}
 
 {#snippet passwordForm()}
-  <form onsubmit={submit}>
+  <form onsubmit={submit} bind:this={passwordBox}>
     <Stack gap="200">
       <Input
         label={t(form === 'name'

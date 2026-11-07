@@ -78,8 +78,8 @@ func (MilestoneRepository) RecordHub(ctx context.Context, hubID shared.ID, at ti
 }
 
 // Of answers the milestones of the given containers.
-func (MilestoneRepository) Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]time.Time, error) {
-	found := make(map[shared.ID]time.Time, len(containerIDs))
+func (MilestoneRepository) Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]repository.Milestone, error) {
+	found := make(map[shared.ID]repository.Milestone, len(containerIDs))
 	if len(containerIDs) == 0 {
 		return found, nil
 	}
@@ -100,7 +100,7 @@ func (MilestoneRepository) Of(ctx context.Context, containerIDs []shared.ID) (ma
 		if err != nil {
 			return nil, err
 		}
-		found[id] = timeFrom(row.ReachedAt)
+		found[id] = repository.Milestone{ReachedAt: timeFrom(row.ReachedAt), OpenSince: int(row.OpenSince)}
 	}
 	return found, nil
 }

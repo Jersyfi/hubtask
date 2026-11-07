@@ -54,6 +54,9 @@ func (WebhookSubscriptionRepository) Insert(
 		FilterExpr:  optionalText(subscription.Filter),
 		ScopeType:   scopeTypeOf(subscription.Scope),
 		ScopeID:     scopeIDOf(subscription.Scope),
+		Format:      string(formatOf(subscription.Format)),
+		ChatRoom:    optionalText(subscription.Room),
+		ChatLocale:  optionalText(subscription.Locale),
 		SecretEnc:   stored.Secret.Ciphertext,
 		SecretKeyID: optionalText(stored.Secret.KeyID),
 		State:       string(subscription.State),
@@ -268,6 +271,9 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 			EventTypes:          types,
 			Filter:              stringFrom(row.FilterExpr),
 			Scope:               scope,
+			Format:              domain.DeliveryFormat(row.Format),
+			Room:                stringFrom(row.ChatRoom),
+			Locale:              stringFrom(row.ChatLocale),
 			State:               domain.SubscriptionState(row.State),
 			FailureCount:        int(row.FailureCount),
 			LastError:           stringFrom(row.LastError),
@@ -284,6 +290,14 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 			Ciphertext: row.PreviousSecretEnc, KeyID: stringFrom(row.PreviousSecretKeyID),
 		},
 	}, nil
+}
+
+// formatOf stores a subscription built without a format as the CloudEvent it delivers.
+func formatOf(format domain.DeliveryFormat) domain.DeliveryFormat {
+	if format == "" {
+		return domain.FormatCloudEvents
+	}
+	return format
 }
 
 // scopeTypeOf and scopeIDOf store the whole workspace as two NULLs, which every subscription made
@@ -499,6 +513,45 @@ func (WebhookDeliveryRepository) Repoint(ctx context.Context, deliveryID, eventI
 			WithCause(fmt.Errorf("repointing the delivery: %w", err))
 	}
 	return affected > 0, nil
+}
+
+func (WebhookDeliveryRepository) Superseded(ctx context.Context, delivery domain.WebhookDelivery) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(delivery.ID)
+	if err != nil {
+		return false, err
+	}
+	subscription, err := uuidOf(delivery.SubscriptionID)
+	if err != nil {
+		return false, err
+	}
+	event, err := uuidOf(delivery.EventID)
+	if err != nil {
+		return false, err
+	}
+	if _, err := queries.LockWebhookDelivery(ctx, id); err != nil {
+		if IsNoRows(err) {
+			return false, shared.ErrNotFound.
+				WithDetail("webhooks.delivery_not_found").
+				WithParams(map[string]string{"delivery_id": delivery.ID.String()})
+		}
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("holding the webhook delivery: %w", err))
+	}
+	later, err := queries.LaterWebhookDeliveryExists(ctx, sqlc.LaterWebhookDeliveryExistsParams{
+		SubscriptionID: subscription, EventID: event,
+		Attempt: int32(delivery.Attempt), //nolint:gosec // G115: an attempt counts a handful of tries.
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking for a later webhook delivery: %w", err))
+	}
+	return later, nil
 }
 
 func (WebhookDeliveryRepository) RecordOutcome(

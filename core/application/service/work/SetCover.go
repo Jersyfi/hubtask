@@ -510,7 +510,8 @@ func textOrNull(value string) any {
 // REST, MCP and automation at once (arc42 §4).
 func (h SetCover) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SetCoverName,
+		Permission: service.PermissionWriteItems,
+		Name:       SetCoverName,
 		Summary: "Puts a cover on an entry: a colour token from the design system's vocabulary, or " +
 			"an image by its media identifier - exactly one of the two, matching the kind. Only a " +
 			"type whose profile carries COVER has one, which by default is a task and neither a " +
@@ -553,7 +554,8 @@ func (h SetCover) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h ClearCover) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ClearCoverName,
+		Permission: service.PermissionWriteItems,
+		Name:       ClearCoverName,
 		Summary: "Takes the cover off an entry. Idempotent: an entry with no cover succeeds and " +
 			"announces nothing. An image that loses its last reference is reclaimed by the " +
 			"reconciliation job rather than by this call.",

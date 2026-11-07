@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cel.dev/cel-go/cel"
+	celast "cel.dev/cel-go/common/ast"
 	"cel.dev/cel-go/common/types"
 	"cel.dev/cel-go/common/types/ref"
 	"cel.dev/cel-go/interpreter"
@@ -95,12 +96,20 @@ func compileNow(text string, environment port.Environment, want port.Result) (po
 	if issues != nil && issues.Err() != nil {
 		return nil, refusalOf(issues.Err()).Error()
 	}
+	if want == port.Number {
+		if ast, err = asFormula(env, ast); err != nil {
+			return nil, refusalOf(err).Error()
+		}
+	}
 
 	// The output type, checked here rather than at evaluation. A condition that produces a string
 	// filters nothing and a template that produces a boolean renders "true", and both are silently
 	// wrong every time they run - CEL knows the answer after the check, so the mistake is
 	// answerable to whoever wrote it.
 	if err := producesWhatWasAsked(ast.OutputType(), want); err != nil {
+		return nil, err
+	}
+	if err := selectsDeclaredFields(ast, environment); err != nil {
 		return nil, err
 	}
 
@@ -138,6 +147,10 @@ func producesWhatWasAsked(out *cel.Type, want port.Result) error {
 	case port.Text:
 		if out != cel.StringType {
 			return port.Refusal{Code: port.CodeNotString}.Error()
+		}
+	case port.Number:
+		if out != cel.IntType && out != cel.UintType && out != cel.DoubleType {
+			return port.Refusal{Code: port.CodeNotNumber}.Error()
 		}
 	}
 	return nil
@@ -180,15 +193,21 @@ func (c compiled) Evaluate(ctx context.Context, in port.Activation) (port.Value,
 	// type was dynamic passed that check by construction and can still produce the wrong thing.
 	switch value := out.Value().(type) {
 	case bool:
-		if c.want == port.Text {
-			return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotString)
+		if c.want != port.Boolean {
+			return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 		}
 		return port.Value{Bool: value, Text: fmt.Sprint(value)}, nil
 	case string:
-		if c.want == port.Boolean {
-			return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotBoolean)
+		if c.want != port.Text {
+			return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 		}
 		return port.Value{Text: value}, nil
+	case int64:
+		return numberOf(c.want, float64(value))
+	case uint64:
+		return numberOf(c.want, float64(value))
+	case float64:
+		return numberOf(c.want, value)
 	default:
 		return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 	}
@@ -253,6 +272,8 @@ func environmentOf(environment port.Environment) (*cel.Env, error) {
 		// Depth, not length, is what makes a compile slow (port.MaxDepth).
 		cel.ParserRecursionLimit(port.MaxDepth),
 	}
+	// `hours > 1` compares a double with an int, as a person writes it.
+	options = append(options, cel.CrossTypeNumericComparisons(true))
 	for _, variable := range environment.Variables {
 		celType, err := typeOf(variable.Kind)
 		if err != nil {
@@ -285,6 +306,8 @@ func typeOf(kind port.Kind) (*cel.Type, error) {
 		return cel.IntType, nil
 	case port.KindBool:
 		return cel.BoolType, nil
+	case port.KindStrings:
+		return cel.ListType(cel.StringType), nil
 	default:
 		return nil, shared.ErrInternal.
 			WithDetail("expression.environment_invalid").
@@ -409,12 +432,24 @@ func failureOf(err error) port.Failure {
 	return port.FailureOther
 }
 
-// wrongResult names the code for a value that is neither of the two shapes an expression may have.
-func wrongResult(want port.Result) string {
-	if want == port.Text {
-		return port.CodeNotString
+// numberOf answers a numeric value to a formula and refuses it to a condition or a template.
+func numberOf(want port.Result, value float64) (port.Value, error) {
+	if want != port.Number {
+		return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(want))
 	}
-	return port.CodeNotBoolean
+	return port.Value{Number: value}, nil
+}
+
+// wrongResult names the code for a value that is not the shape the caller asked for.
+func wrongResult(want port.Result) string {
+	switch want {
+	case port.Text:
+		return port.CodeNotString
+	case port.Number:
+		return port.CodeNotNumber
+	default:
+		return port.CodeNotBoolean
+	}
 }
 
 func itoa(n int) string {
@@ -432,3 +467,54 @@ func itoa(n int) string {
 // unused keeps the ref import honest while the value mapping is the standard one; CEL's own
 // conversion handles the map and scalar kinds this environment declares.
 var _ ref.Val = types.Bool(false)
+
+// selectsDeclaredFields refuses a dot-selection of a name a typed map does not declare
+// (port.Variable.Fields). CEL types such a map as map(string, dyn), so its checker cannot; the walk
+// over the checked tree can, and a misspelt field is then a mistake answered where it is written
+// rather than a condition that never holds.
+func selectsDeclaredFields(ast *cel.Ast, environment port.Environment) error {
+	declared := map[string]port.Variable{}
+	for _, variable := range environment.Variables {
+		declared[variable.Name] = variable
+	}
+	var refusal error
+	celast.PostOrderVisit(ast.NativeRep().Expr(), celast.NewExprVisitor(func(e celast.Expr) {
+		if refusal != nil || e.Kind() != celast.SelectKind {
+			return
+		}
+		selection := e.AsSelect()
+		owner, typed := typedOwner(selection.Operand(), declared)
+		if !typed || len(owner.Fields) == 0 {
+			return
+		}
+		for _, field := range owner.Fields {
+			if field.Name == selection.FieldName() {
+				return
+			}
+		}
+		refusal = port.Refusal{Code: port.CodeUnknownName, Message: "undefined field " + selection.FieldName()}.Error()
+	}))
+	return refusal
+}
+
+// typedOwner answers the declaration of what a selection reads from: a variable, or a declared
+// field of one, followed down the chain of dots.
+func typedOwner(e celast.Expr, declared map[string]port.Variable) (port.Variable, bool) {
+	switch e.Kind() {
+	case celast.IdentKind:
+		variable, found := declared[e.AsIdent()]
+		return variable, found
+	case celast.SelectKind:
+		selection := e.AsSelect()
+		owner, found := typedOwner(selection.Operand(), declared)
+		if !found {
+			return port.Variable{}, false
+		}
+		for _, field := range owner.Fields {
+			if field.Name == selection.FieldName() {
+				return field, true
+			}
+		}
+	}
+	return port.Variable{}, false
+}

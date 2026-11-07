@@ -44,8 +44,11 @@ const (
 // different verb, and no scope check upstream can prevent it: the rows come from everywhere at
 // once. It is asked here, in the application layer, like every other permission (rule 2, ADR-0005).
 type SearchItems struct {
-	Items      repository.Items
+	// Searcher is the search port: the PostgreSQL index today, an external one as an option.
+	Searcher   repository.TextSearcher
 	Containers repository.Containers
+	// Fields answers what a custom field the search ranges over or sorts by holds (F-2).
+	Fields     repository.CustomFields
 	Authorizer Authorizer
 	Anchored   Anchored
 	Reader     Reader
@@ -164,10 +167,20 @@ func (h SearchItems) Execute(
 		}
 	}
 
+	lens, err := h.lens(ctx, actor, request)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+
 	var page repository.ItemHitPage
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		page, err = h.Items.Search(ctx, repository.TextSearch{
+		shaped, err := shapeCustomFields(ctx, h.Fields,
+			view.Spec{Filter: request.Filter, Sort: request.Sort}, request.ContainerID)
+		if err != nil {
+			return err
+		}
+		request.Filter, request.Sort = shaped.Filter, shaped.Sort
+		page, err = h.Searcher.Search(ctx, repository.TextSearch{
 			Anchor: reach.anchor, Request: request, RestrictTo: reach.restrictTo,
 			Meaning: meaning, MeaningModel: model,
 		})
@@ -182,6 +195,63 @@ func (h SearchItems) Execute(
 			return repository.ItemHitPage{}, err
 		}
 	}
+	return h.narrowed(ctx, lens, page)
+}
+
+// lens starts the narrowing of the hits, and refuses a search that filters or sorts by a field
+// hidden from the reader (UC-ID-27 check 3): over the container named, or the workspace.
+func (h SearchItems) lens(ctx context.Context, actor appshared.ActorContext, request view.Search) (*FieldLens, error) {
+	if !h.Gate.Sight.Wired() {
+		return nil, nil
+	}
+	lens, err := h.Gate.Sight.Lens(ctx, h.UnitOfWork, actor)
+	if err != nil {
+		return nil, err
+	}
+	keys := view.Spec{Filter: request.Filter, Sort: request.Sort}.CustomKeys()
+	if lens.Empty() || len(keys) == 0 {
+		return lens, nil
+	}
+	path := []identity.Scope{identity.TenantScope()}
+	if !request.ContainerID.IsZero() {
+		var container domain.Container
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			container, err = h.Containers.Find(ctx, request.ContainerID)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+		path = containerPath(container)
+	}
+	hidden, err := lens.HiddenFrom(ctx, path, keys)
+	if err != nil {
+		return nil, err
+	}
+	return lens, refuseHidden(hidden)
+}
+
+// narrowed takes the hidden fields out of every hit.
+func (h SearchItems) narrowed(
+	ctx context.Context, lens *FieldLens, page repository.ItemHitPage,
+) (repository.ItemHitPage, error) {
+	if lens.Empty() || len(page.Hits) == 0 {
+		return page, nil
+	}
+	items := make([]domain.WorkItem, len(page.Hits))
+	for i, hit := range page.Hits {
+		items[i] = hit.Item
+	}
+	items, err := lens.Items(ctx, h.UnitOfWork, items)
+	if err != nil {
+		return repository.ItemHitPage{}, err
+	}
+	hits := make([]repository.ItemHit, len(page.Hits))
+	for i, hit := range page.Hits {
+		hit.Item = items[i]
+		hits[i] = hit
+	}
+	page.Hits = hits
 	return page, nil
 }
 
@@ -320,9 +390,11 @@ func hitPath(hit repository.ItemHit) []identity.Scope {
 // Descriptor is the catalogue entry.
 func (h SearchItems) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SearchItemsName,
+		Name:       SearchItemsName,
+		Permission: service.PermissionRead,
 		Summary: "Searches the text of tasks, work packages and activities - their titles and " +
-			"their notes - and answers them in the order they match, best first. The words are " +
+			"their notes, their comments, their text fields and the names of the files attached " +
+			"to them - and answers them in the order they match, best first. The words are " +
 			"read in a language: an entry is indexed under the language it was written in, and " +
 			"the query under the caller's, so a German search finds an inflected German word and " +
 			"an English one finds a stemmed English word. A language whose script has no word " +

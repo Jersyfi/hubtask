@@ -5,8 +5,10 @@ package stream
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
@@ -201,4 +203,180 @@ func TestTheRegistryIsSafeUnderConcurrentUse(t *testing.T) {
 		}
 	}
 	wg.Wait()
+}
+
+func rung(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}
+
+// A credential ended on any process asks the streams of its account to ask again at once, and
+// those of a workspace whose status changed; nobody else's.
+func TestARevocationAsksTheAccountsStreamsAgain(t *testing.T) {
+	r := registry(Limits{})
+	anna, _ := r.Admit("a", "workspace", "anna")
+	viewer, _ := r.Admit("v", "workspace", "bert", "admin")
+	other, _ := r.Admit("c", "another", "anna")
+	defer anna.Release()
+	defer viewer.Release()
+	defer other.Release()
+
+	r.Recheck("workspace", "anna")
+	if !rung(anna.Recheck) || rung(viewer.Recheck) || rung(other.Recheck) {
+		t.Fatal("the account's revocation rang the wrong streams")
+	}
+	r.Recheck("workspace", "admin")
+	if !rung(viewer.Recheck) {
+		t.Error("the viewer's revocation did not reach the view as somebody")
+	}
+	r.Recheck("workspace", "")
+	if !rung(anna.Recheck) || !rung(viewer.Recheck) || rung(other.Recheck) {
+		t.Error("the workspace's change did not ring exactly its streams")
+	}
+
+	anna.Release()
+	r.Recheck("workspace", "anna") // a released slot is not rung, and nothing blocks
+}
+
+// Side connections - snapshots, live documents - hold at most half of the workspace's and the
+// process's slots, so a sign-in wave leaves room for the streams; a credential's side connections
+// are counted apart from its streams, so a tab with boards open still gets its stream.
+func TestSideConnectionsCannotStarveTheStreams(t *testing.T) {
+	r := registry(Limits{PerCredential: 2, PerTenant: 4, PerProcess: 100})
+	for _, who := range []string{"anna", "bert"} {
+		if _, refusal := r.AdmitSide(who, "workspace"); refusal != RefusedNone {
+			t.Fatalf("a side connection of %s was refused with %q", who, refusal)
+		}
+	}
+	if _, refusal := r.AdmitSide("carla", "workspace"); refusal != RefusedTenant {
+		t.Errorf("a third side connection was refused with %q, want the side share of the tenant cap", refusal)
+	}
+	admit(t, r, "anna", "workspace")
+	admit(t, r, "carla", "workspace")
+	if _, refusal := r.Admit("dora", "workspace"); refusal != RefusedTenant {
+		t.Errorf("past the workspace's cap a stream was answered %q", refusal)
+	}
+
+	// Per credential: two side connections and two streams for one client.
+	own := registry(Limits{PerCredential: 2, PerTenant: 100, PerProcess: 100})
+	for range 2 {
+		if _, refusal := own.AdmitSide("anna", "workspace"); refusal != RefusedNone {
+			t.Fatalf("a side connection was refused with %q", refusal)
+		}
+	}
+	if _, refusal := own.AdmitSide("anna", "workspace"); refusal != RefusedCredential {
+		t.Errorf("a third side connection of one client was answered %q", refusal)
+	}
+	admit(t, own, "anna", "workspace")
+}
+
+// A refusal at the workspace's or the process's cap raises the health report's warning; a client
+// over its own cap does not - that is the client's loop, not the installation's capacity.
+func TestACapacityRefusalWarns(t *testing.T) {
+	r := registry(Limits{PerCredential: 1, PerTenant: 2, PerProcess: 100})
+	admit(t, r, "anna", "workspace")
+	if _, refusal := r.Admit("anna", "workspace"); refusal != RefusedCredential {
+		t.Fatalf("answered %q", refusal)
+	}
+	if warnings := r.Warnings(context.Background()); len(warnings) != 0 {
+		t.Errorf("a credential refusal warned: %+v", warnings)
+	}
+	admit(t, r, "bert", "workspace")
+	if _, refusal := r.Admit("carla", "workspace"); refusal != RefusedTenant {
+		t.Fatalf("answered %q", refusal)
+	}
+	warnings := r.Warnings(context.Background())
+	if len(warnings) != 1 || warnings[0].Code != "stream.capacity_reached" || warnings[0].Params["per_tenant"] != "2" {
+		t.Errorf("the warning %+v", warnings)
+	}
+}
+
+// A pod's streams end in waves over the window rather than all at once, so its clients do not
+// reconnect to the remaining pods in the same second (deployment.md §5): every stream is asked
+// exactly once, no wave holds more than a tenth plus one, the waves come in order and the last
+// lands inside the window.
+func TestTheDrainClosesInWavesOverTheWindow(t *testing.T) {
+	r := registry(Limits{PerCredential: 100, PerTenant: 100, PerProcess: 100})
+	var slots []Slot
+	for i := range 95 {
+		slots = append(slots, admit(t, r, "client-"+strconv.Itoa(i), "workspace"))
+	}
+	closed := func() int {
+		n := 0
+		for _, s := range slots {
+			select {
+			case <-s.Closing:
+				n++
+			default:
+			}
+		}
+		return n
+	}
+
+	const window = 10 * time.Second
+	var now time.Duration
+	var waves []int
+	before := 0
+	// The jitter takes the largest value it may, the worst case for the window's end.
+	r.closeInWaves(window, func(step time.Duration) time.Duration { return step - 1 }, func(d time.Duration) {
+		if d <= 0 {
+			t.Fatalf("slept %v", d)
+		}
+		if c := closed(); c > before {
+			waves = append(waves, c-before)
+			before = c
+		}
+		now += d
+	})
+	waves = append(waves, closed()-before)
+
+	if closed() != len(slots) {
+		t.Fatalf("%d of %d streams asked to close", closed(), len(slots))
+	}
+	if len(waves) != drainWaves {
+		t.Errorf("%d waves %v, want %d", len(waves), waves, drainWaves)
+	}
+	for _, w := range waves {
+		if w > len(slots)/drainWaves+1 {
+			t.Errorf("a wave closed %d streams at once, waves %v", w, waves)
+		}
+	}
+	if now >= window {
+		t.Errorf("the last wave fell at %v, past the %v window", now, window)
+	}
+	if now < window-window/drainWaves {
+		t.Errorf("the last wave fell at %v, the waves are not spread over the %v window", now, window)
+	}
+	if _, refusal := r.Admit("late", "workspace"); refusal != RefusedDraining {
+		t.Errorf("a stream opened during the drain, refused with %q", refusal)
+	}
+}
+
+// Without a window (nothing routes the traffic) or with one stream there is nothing to spread.
+func TestTheDrainWithoutAWindowIsOneWave(t *testing.T) {
+	held := []*openStream{{}, {}, {}}
+	never := func(time.Duration) time.Duration { t.Fatal("jitter drawn"); return 0 }
+	if got := drainSchedule(held, 0, never); len(got) != 1 || len(got[0].streams) != 3 || got[0].at != 0 {
+		t.Errorf("no window: %+v", got)
+	}
+	if got := drainSchedule(held[:1], time.Minute, never); len(got) != 1 || got[0].at != 0 {
+		t.Errorf("one stream: %+v", got)
+	}
+	if got := drainSchedule(nil, time.Minute, never); got != nil {
+		t.Errorf("nothing open: %+v", got)
+	}
+}
+
+func TestAWavesJitterStaysWithinItsStep(t *testing.T) {
+	for _, step := range []time.Duration{0, 1, time.Millisecond, 3 * time.Second} {
+		for range 200 {
+			if j := waveJitter(step); j < 0 || (step > 0 && j >= step) || (step == 0 && j != 0) {
+				t.Fatalf("jitter %v for step %v", j, step)
+			}
+		}
+	}
 }

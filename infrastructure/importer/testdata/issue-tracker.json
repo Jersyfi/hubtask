@@ -1,0 +1,72 @@
+{
+  "startAt": 0, "maxResults": 50, "total": 4,
+  "names": {"summary": "Summary", "customfield_10010": "Story Points", "customfield_10020": "Sprint", "customfield_10030": "Customer Tier", "customfield_10040": "Go-live"},
+  "schema": {
+    "customfield_10010": {"type": "number", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:float"},
+    "customfield_10020": {"type": "array", "items": "json", "custom": "com.pyxis.greenhopper.jira:gh-sprint"},
+    "customfield_10030": {"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:select"},
+    "customfield_10040": {"type": "date", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:datepicker"}
+  },
+  "issues": [
+    {"id": "1001", "key": "SHOP-1", "fields": {
+      "project": {"key": "SHOP", "name": "Web shop"},
+      "issuetype": {"id": "10000", "name": "Epic", "subtask": false, "hierarchyLevel": 1},
+      "status": {"id": "3", "name": "In Progress", "statusCategory": {"key": "indeterminate"}},
+      "summary": "Checkout redesign",
+      "created": "2026-03-01T09:00:00.000+0100"
+    }},
+    {"id": "1002", "key": "SHOP-2", "fields": {
+      "project": {"key": "SHOP", "name": "Web shop"},
+      "issuetype": {"id": "10001", "name": "Bug", "subtask": false, "hierarchyLevel": 0},
+      "status": {"id": "10002", "name": "Done", "statusCategory": {"key": "done"}},
+      "parent": {"key": "SHOP-1", "fields": {"issuetype": {"name": "Epic", "hierarchyLevel": 1}}},
+      "summary": "Card payment fails on retry",
+      "description": {"type": "doc", "version": 1, "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "Steps"}, {"type": "text", "text": " to reproduce", "marks": [{"type": "strong"}]}]},
+        {"type": "bulletList", "content": [{"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Pay by card"}]}]}]}
+      ]},
+      "priority": {"name": "High"},
+      "labels": ["payments", "regression"],
+      "components": [{"name": "Checkout"}],
+      "fixVersions": [{"name": "2.4"}],
+      "assignee": {"displayName": "Ada Lovelace"},
+      "reporter": {"displayName": "Grace Hopper"},
+      "duedate": "2026-04-15",
+      "created": "2026-03-02T10:00:00.000+0100",
+      "resolutiondate": "2026-03-20T16:30:00.000+0100",
+      "customfield_10010": 3,
+      "customfield_10020": [{"id": 7, "name": "Sprint 7"}],
+      "customfield_10030": {"value": "Gold"},
+      "customfield_10040": "2026-05-01",
+      "comment": {"comments": [{"id": "5001", "author": {"displayName": "Ada Lovelace"}, "created": "2026-03-03T08:00:00.000+0100",
+        "body": {"type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Reproduced."}]}]}}]},
+      "attachment": [{"id": "7001", "filename": "trace.txt", "created": "2026-03-02T11:00:00.000+0100"}, {"id": "7002", "filename": "missing.png"}],
+      "issuelinks": [{"type": {"name": "Blocks", "inward": "is blocked by", "outward": "blocks"}, "outwardIssue": {"key": "SHOP-3"}},
+                     {"type": {"name": "Relates", "inward": "relates to", "outward": "relates to"}, "outwardIssue": {"key": "OTHER-9"}}]
+    }, "changelog": {"histories": [
+      {"id": "9001", "author": {"displayName": "Grace Hopper"}, "created": "2026-03-10T12:00:00.000+0100",
+       "items": [{"field": "status", "fromString": "To Do", "toString": "In Progress"}, {"field": "assignee", "fromString": null, "toString": "Ada Lovelace"}]}
+    ]}},
+    {"id": "1003", "key": "SHOP-3", "fields": {
+      "project": {"key": "SHOP", "name": "Web shop"},
+      "issuetype": {"id": "10002", "name": "Story", "subtask": false, "hierarchyLevel": 0},
+      "status": {"id": "1", "name": "To Do", "statusCategory": {"key": "new"}},
+      "summary": "Remember the last payment method",
+      "priority": {"name": "Medium"}
+    }},
+    {"id": "1004", "key": "SHOP-4", "fields": {
+      "project": {"key": "SHOP", "name": "Web shop"},
+      "issuetype": {"id": "10003", "name": "Sub-task", "subtask": true, "hierarchyLevel": -1},
+      "status": {"id": "1", "name": "To Do", "statusCategory": {"key": "new"}},
+      "parent": {"key": "SHOP-3"},
+      "summary": "Store the method per account"
+    }},
+    {"id": "1005", "key": "SHOP-5", "fields": {
+      "project": {"key": "SHOP", "name": "Web shop"},
+      "issuetype": {"id": "10003", "name": "Sub-task", "subtask": true, "hierarchyLevel": -1},
+      "status": {"id": "1", "name": "To Do", "statusCategory": {"key": "new"}},
+      "parent": {"key": "SHOP-404"},
+      "summary": "Orphan"
+    }}
+  ]
+}

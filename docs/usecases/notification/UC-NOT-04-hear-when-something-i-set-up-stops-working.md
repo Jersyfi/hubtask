@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12]
 state: built
 tasks: [G-03, G-07, F8-03]
-checked_by: [core/application/service/notification/RecordRuleDisabled_test.go, test/integration/notification_rule_test.go]
+checked_by: [core/application/service/notification/RecordRuleDisabled_test.go, test/integration/notification_rule_test.go, core/application/service/notification/DeliverNotification_test.go]
 ---
 
 # Hear when something I set up stops working

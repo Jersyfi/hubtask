@@ -279,3 +279,123 @@ func TestTheEmbeddedBundleIsUsable(t *testing.T) {
 		t.Errorf("GET / = %d, want 200", recorder.Code)
 	}
 }
+
+// HUBTASK_UI_FRAME_ANCESTORS: the configured origins replace `frame-ancestors 'none'` on the
+// interface's policy and change nothing else; none leaves the policy as it is, and the API's own
+// policy never takes them.
+func TestTheFrameAncestorsWidenOnlyTheInterfacesFrameDirective(t *testing.T) {
+	t.Parallel()
+
+	if got := webui.EmbeddableBy(webui.ContentSecurityPolicy, nil); got != webui.ContentSecurityPolicy {
+		t.Errorf("no origins changed the policy: %q", got)
+	}
+	origins := []string{"https://portal.example.org", "https://element.example.org"}
+	got := webui.EmbeddableBy(webui.ContentSecurityPolicy, origins)
+	want := strings.Replace(webui.ContentSecurityPolicy, "frame-ancestors 'none'",
+		"frame-ancestors https://portal.example.org https://element.example.org", 1)
+	if got != want {
+		t.Errorf("the embeddable policy:\n got %q\nwant %q", got, want)
+	}
+
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "", origins...)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	if csp := get(t, h, "/").Header().Get("Content-Security-Policy"); csp != want {
+		t.Errorf("GET /: CSP = %q", csp)
+	}
+
+	api := httptest.NewRecorder()
+	rest.Secured{Next: http.NotFoundHandler()}.ServeHTTP(api,
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta", nil))
+	if csp := api.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("the API's policy is %q", csp)
+	}
+}
+
+// HUBTASK_UI_FRAME_SOURCES: the configured origins become the interface's `frame-src` and change
+// nothing else; none leaves the policy as it is (default-src 'none' frames nothing), and the
+// API's own policy never takes them.
+func TestTheFrameSourcesWidenOnlyTheInterfacesFrameSource(t *testing.T) {
+	t.Parallel()
+
+	if got := webui.FramingSources(webui.ContentSecurityPolicy, nil); got != webui.ContentSecurityPolicy {
+		t.Errorf("no origins changed the policy: %q", got)
+	}
+	origins := []string{"https://dashboards.example.org", "https://video.example.org"}
+	want := webui.ContentSecurityPolicy + "; frame-src https://dashboards.example.org https://video.example.org"
+	if got := webui.FramingSources(webui.ContentSecurityPolicy, origins); got != want {
+		t.Errorf("the framing policy:\n got %q\nwant %q", got, want)
+	}
+
+	h, err := webui.NewHandler(bundle(), rest.WriteSecurityHeaders, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	if csp := get(t, h.FramingSources(origins), "/").Header().Get("Content-Security-Policy"); csp != want {
+		t.Errorf("GET /: CSP = %q", csp)
+	}
+
+	api := httptest.NewRecorder()
+	rest.Secured{Next: http.NotFoundHandler()}.ServeHTTP(api,
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/meta", nil))
+	if csp := api.Header().Get("Content-Security-Policy"); strings.Contains(csp, "dashboards.example.org") {
+		t.Errorf("the API's policy is %q", csp)
+	}
+}
+
+// The build is the bundle's entry script, the value a client reads from its own document, so the
+// two compare without a second build id that could disagree (api-guidelines.md §8).
+func TestTheBuildIsTheEntryScriptAndMarksEveryAnswer(t *testing.T) {
+	t.Parallel()
+	files := bundle()
+	files["index.html"] = &fstest.MapFile{Data: []byte(`<!DOCTYPE html><script type="module" crossorigin src="/assets/index-CBRxRnMw.js"></script>`)}
+	if got := webui.Build(files); got != "/assets/index-CBRxRnMw.js" {
+		t.Fatalf("Build = %q, want the entry script", got)
+	}
+	h, err := webui.NewHandler(files, rest.WriteSecurityHeaders, "")
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	for _, path := range []string{"/", "/assets/index-CBRxRnMw.js", "/assets/missing-AAAAAAAA.js"} {
+		if got := get(t, h, path).Header().Get(rest.BuildHeader); got != "/assets/index-CBRxRnMw.js" {
+			t.Errorf("%s: %s = %q, want the build", path, rest.BuildHeader, got)
+		}
+	}
+	if got := webui.Build(bundle()); got != "" {
+		t.Errorf("a document without an entry script has build %q, want none", got)
+	}
+}
+
+// During a rolling update a tab loaded from the previous release asks the new pod for a chunk of
+// its own release. The previous release's hashed assets answer it, immutable like any other;
+// a file that is not content-hashed, or one the bundle holds itself, is never taken from them.
+func TestAPreviousReleasesHashedAssetIsStillServed(t *testing.T) {
+	t.Parallel()
+	previous := fstest.MapFS{
+		"assets/editor-Bq3xYwZ1.js": {Data: []byte("old chunk")},
+		"assets/index-CBRxRnMw.js":  {Data: []byte("not this one")},
+		"assets/stable.js":          {Data: []byte("stable name")},
+		"index.html":                {Data: []byte("the previous document")},
+	}
+	h := handler(t).WithPrevious(previous)
+
+	old := get(t, h, "/assets/editor-Bq3xYwZ1.js")
+	if old.Code != http.StatusOK || old.Body.String() != "old chunk" ||
+		!strings.Contains(old.Header().Get("Cache-Control"), "immutable") {
+		t.Errorf("the previous release's chunk = %d %q (%s), want it, immutable",
+			old.Code, old.Body.String(), old.Header().Get("Cache-Control"))
+	}
+	if own := get(t, h, "/assets/index-CBRxRnMw.js"); own.Body.String() != "console.log(1)" {
+		t.Errorf("a chunk the bundle holds = %q, want the bundle's own", own.Body.String())
+	}
+	if stable := get(t, h, "/assets/stable.js"); stable.Code != http.StatusNotFound {
+		t.Errorf("a stable name from the previous release = %d, want 404", stable.Code)
+	}
+	if document := get(t, h, "/"); strings.Contains(document.Body.String(), "previous") {
+		t.Error("the document came from the previous release")
+	}
+	if gone := get(t, handler(t), "/assets/editor-Bq3xYwZ1.js"); gone.Code != http.StatusNotFound {
+		t.Errorf("without a previous release the chunk = %d, want 404", gone.Code)
+	}
+}

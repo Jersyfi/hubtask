@@ -83,6 +83,16 @@ func structureSettingOutput(setting domain.StructureSetting, values domain.Struc
 			behaviours = append(behaviours, string(behaviour))
 		}
 		return behaviours
+	case domain.SettingEntryTypes:
+		offered := make(map[string]any, len(values.EntryTypes))
+		for level, keys := range values.EntryTypes {
+			listed := make([]any, 0, len(keys))
+			for _, key := range keys {
+				listed = append(listed, key)
+			}
+			offered[string(level)] = listed
+		}
+		return offered
 	}
 	return nil
 }

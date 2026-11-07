@@ -1,0 +1,229 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package identity
+
+import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"crypto/x509"
+	"encoding/pem"
+	"net/url"
+	"strings"
+	"time"
+	"unicode"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
+
+// A SAML 2.0 identity provider is a way in beside OpenID Connect (identity.md §26). What differs is
+// only how the identity is proven - a signed assertion instead of an ID token - so it is a kind of
+// identity provider with the same admission, the same arrival and the same session; what is its own
+// is held here: the provider's entity ID as the issuer, compared exactly, the single sign-on address
+// and the certificates its assertions are signed with.
+
+// KindSAML is a SAML 2.0 identity provider. It draws the letter tile, is stated rather than read
+// from an issuer, and is a workspace's own provider only.
+const KindSAML ProviderKind = "SAML"
+
+// The bounds of a SAML provider's configuration.
+const (
+	MaxSAMLEntityID      = 500
+	MaxSAMLSSOURL        = 2000
+	MaxSAMLCertificate   = 20000
+	MaxSAMLCertificates  = 2
+	samlCertificateBlock = "CERTIFICATE"
+)
+
+// IsSAML reports whether the provider speaks SAML rather than OpenID Connect.
+func (p IdentityProvider) IsSAML() bool { return p.Kind == KindSAML }
+
+// samlEntityID holds an entity ID to what SAML says one is: an absolute URI, compared exactly. Not
+// an issuer URL - an entity ID is a name and is never fetched, so `http:` and `urn:` are what
+// providers publish and a trailing slash is part of it.
+func samlEntityID(raw string) (string, error) {
+	id := strings.TrimSpace(raw)
+	if id == "" {
+		return "", shared.ErrValidation.WithDetail("identity_provider.issuer_required")
+	}
+	parsed, err := url.Parse(id)
+	if err != nil || parsed.Scheme == "" || len(id) > MaxSAMLEntityID || strings.ContainsFunc(id, unicode.IsSpace) {
+		return "", shared.ErrValidation.WithDetail("identity_provider.issuer_invalid").
+			WithParams(map[string]string{"issuer": id})
+	}
+	return id, nil
+}
+
+// samlSSOURL holds the single sign-on address to https: the browser carries the request there, and
+// a plain-HTTP address is one anybody on the path answers for.
+func samlSSOURL(raw string) (string, error) {
+	address := strings.TrimSpace(raw)
+	parsed, err := url.Parse(address)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil ||
+		parsed.Fragment != "" || len(address) > MaxSAMLSSOURL {
+		return "", shared.ErrValidation.WithDetail("identity_provider.saml_sso_url_invalid").
+			WithFields(shared.FieldError{Path: "/saml_sso_url", Code: "identity_provider.saml_sso_url_invalid"})
+	}
+	return address, nil
+}
+
+// SAMLCertificates reads the PEM a SAML provider signs with: one or two certificates (a rollover),
+// each valid at now, nothing else in the text. It answers them re-encoded, so what is stored is
+// exactly what was checked.
+func SAMLCertificates(raw string, now time.Time) (string, []*x509.Certificate, error) {
+	refused := func(code string) error {
+		return shared.ErrValidation.WithDetail(code).
+			WithFields(shared.FieldError{Path: "/saml_certificate", Code: code})
+	}
+	if len(raw) > MaxSAMLCertificate {
+		return "", nil, refused("identity_provider.saml_certificate_invalid")
+	}
+	rest := []byte(strings.TrimSpace(raw))
+	var (
+		certs []*x509.Certificate
+		out   strings.Builder
+	)
+	for len(rest) > 0 {
+		block, remainder := pem.Decode(rest)
+		if block == nil || block.Type != samlCertificateBlock {
+			return "", nil, refused("identity_provider.saml_certificate_invalid")
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return "", nil, refused("identity_provider.saml_certificate_invalid")
+		}
+		if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
+			return "", nil, refused("identity_provider.saml_certificate_expired")
+		}
+		certs = append(certs, cert)
+		out.Write(pem.EncodeToMemory(&pem.Block{Type: samlCertificateBlock, Bytes: block.Bytes}))
+		rest = []byte(strings.TrimSpace(string(remainder)))
+	}
+	if len(certs) == 0 || len(certs) > MaxSAMLCertificates {
+		return "", nil, refused("identity_provider.saml_certificate_invalid")
+	}
+	return out.String(), certs, nil
+}
+
+// SAMLExpiryWarnings are the days before a SAML provider's certificates end at which its
+// workspace's administrators are told, largest first (identity.md §26.1): an ended certificate
+// refuses every answer, so nobody signs in through the provider any more.
+var SAMLExpiryWarnings = [...]int{30, 7, 1}
+
+// SAMLCertificatesEnd is when the last of the stored certificates ends - during a rollover the
+// provider keeps working on the newer one. False where the text holds no certificate.
+func SAMLCertificatesEnd(raw string) (time.Time, bool) {
+	var end time.Time
+	rest := []byte(strings.TrimSpace(raw))
+	for len(rest) > 0 {
+		block, remainder := pem.Decode(rest)
+		if block == nil || block.Type != samlCertificateBlock {
+			break
+		}
+		if cert, err := x509.ParseCertificate(block.Bytes); err == nil && cert.NotAfter.After(end) {
+			end = cert.NotAfter
+		}
+		rest = remainder
+	}
+	return end, !end.IsZero()
+}
+
+// SAMLExpiryDue answers the warning due at now for certificates ending at end - the smallest of
+// SAMLExpiryWarnings whose moment has come, 0 while none has - and the next such moment, zero
+// once none is left.
+func SAMLExpiryDue(end, now time.Time) (days int, next time.Time) {
+	for _, warning := range SAMLExpiryWarnings {
+		at := end.Add(-time.Duration(warning) * 24 * time.Hour)
+		if now.Before(at) {
+			return days, at
+		}
+		days = warning
+	}
+	return days, time.Time{}
+}
+
+// samlFields checks what only a SAML provider holds: required for one, refused for every other
+// kind, because a field nothing reads is somebody's belief that it did something.
+func samlFields(in NewIdentityProviderInput, kind ProviderKind) (string, string, error) {
+	if kind != KindSAML {
+		if strings.TrimSpace(in.SAMLSSOURL) != "" || strings.TrimSpace(in.SAMLCertificate) != "" {
+			return "", "", shared.ErrValidation.WithDetail("identity_provider.saml_only")
+		}
+		return "", "", nil
+	}
+	if in.TenantID.IsZero() {
+		return "", "", shared.ErrValidation.WithDetail("identity_provider.saml_workspace_only")
+	}
+	sso, err := samlSSOURL(in.SAMLSSOURL)
+	if err != nil {
+		return "", "", err
+	}
+	certificate, _, err := SAMLCertificates(in.SAMLCertificate, in.Now)
+	if err != nil {
+		return "", "", err
+	}
+	return sso, certificate, nil
+}
+
+// SAMLHandoffPrefix labels the single-use code the assertion consumer service hands the callback.
+const SAMLHandoffPrefix = "hbt_sam_"
+
+// MaxSAMLResponse bounds the answer the assertion consumer service keeps (base64, as posted).
+const MaxSAMLResponse = 256 << 10
+
+// SAMLHandoffHash is what the flow keeps of the handoff code: its digest, as every presented token.
+func SAMLHandoffHash(code string) []byte {
+	sum := sha256.Sum256([]byte(code))
+	return sum[:]
+}
+
+// SAMLHandoffMatches reports whether a presented code is the one the flow's answer was handed off
+// with; a flow holding none matches nothing.
+func SAMLHandoffMatches(held []byte, presented string) bool {
+	return len(held) == sha256.Size && subtle.ConstantTimeCompare(held, SAMLHandoffHash(presented)) == 1
+}
+
+// SAMLWatch is one SAML provider as its certificate watch reads it: what its administrators were
+// last told about the end - ToldDays of SAMLExpiryWarnings for the end ToldFor, zero for nothing.
+type SAMLWatch struct {
+	ProviderID  shared.ID
+	DisplayName string
+	Enabled     bool
+	Certificate string
+	ToldFor     time.Time
+	ToldDays    int
+	// RecordedEnd is the certificates' end the watch last kept on the provider, zero before the
+	// first pass: the installation counts ending certificates by it without reading one.
+	RecordedEnd time.Time
+}
+
+// SAMLCertificateCount is how the installation's SAML sign-in fares across workspaces: the enabled
+// SAML providers whose certificates' end is known, those ending within 30 and 7 days, and those
+// whose last certificate ended - nobody signs in through them. Numbers, never a provider.
+type SAMLCertificateCount struct {
+	Providers    int64
+	Within30Days int64
+	Within7Days  int64
+	Ended        int64
+}
+
+// Owed answers the warning to give at now, 0 for none, and when to look again (zero: no warning
+// is left for these certificates). A warning given for another end does not count - a new
+// certificate is warned of afresh; a disabled provider is told nothing, nobody signs in through it.
+func (w SAMLWatch) Owed(now time.Time) (days int, next time.Time) {
+	end, ok := w.CertificatesEnd()
+	if !ok {
+		return 0, time.Time{}
+	}
+	due, next := SAMLExpiryDue(end, now)
+	if !w.Enabled || due == 0 {
+		return 0, next
+	}
+	if w.ToldFor.Equal(end) && w.ToldDays != 0 && w.ToldDays <= due {
+		return 0, next
+	}
+	return due, next
+}
+
+// CertificatesEnd is when the provider's last certificate ends.
+func (w SAMLWatch) CertificatesEnd() (time.Time, bool) { return SAMLCertificatesEnd(w.Certificate) }

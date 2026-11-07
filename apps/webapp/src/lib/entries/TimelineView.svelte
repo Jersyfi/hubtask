@@ -31,10 +31,16 @@
   // Dates are placed in the **reader's** zone. An entry's due date carries its own, and reading a
   // span against a different clock per row would put two entries due at the same moment in two
   // columns.
+  //
+  // **A dependency is an arrow** (UC-PLN-01 check 6): the links among the entries shown, read by
+  // `POST /links:query`, drawn from the entry waited for to the waiting one, and marked where the
+  // waiting entry starts before the other is due.
 
   import { untrack } from 'svelte';
 
-  import { Button, Select, Skeleton, Timeline, type TimelineCarry, type TimelineRow } from '@hubtask/design-system/components';
+  import {
+    Button, Select, Skeleton, Timeline, type TimelineCarry, type TimelineDependency, type TimelineRow,
+  } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import EntryActions from './EntryActions.svelte';
@@ -50,8 +56,10 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { addDays, dueInputFor, shift, type Window } from '../data/due.ts';
   import { items, type ItemsQuery } from '../data/items.svelte.ts';
+  import { dependenciesAmong, linksAmong } from '../data/links.svelte.ts';
   import { bothOf, windowFilter } from '../data/query.ts';
   import { anchorOf, draggedTo, gridOf, placedBetween, scaleOf, windowOf, type Scale, type Span } from '../data/schedule.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { firstWeekdayOf } from '../i18n/week.ts';
   import { dateIn, instantOf, todayIn } from '../i18n/zone.ts';
@@ -198,6 +206,22 @@
     })),
   );
 
+  const shownIds = $derived(entries.map((entry: WorkItem) => entry.id));
+  const among = linksAmong(() => shownIds);
+  const dependencies = $derived<TimelineDependency[]>(
+    dependenciesAmong(among.links, rows).map((dependency) => {
+      const titleOf = (id: string) => entries.find((entry: WorkItem) => entry.id === id)?.title ?? '';
+      const words = { waiting: titleOf(dependency.waiting), waited: titleOf(dependency.waitedFor) };
+      return {
+        id: dependency.id,
+        from: dependency.waitedFor,
+        to: dependency.waiting,
+        isEarly: dependency.isEarly,
+        label: t(dependency.isEarly ? 'app.timeline.dependency_early' : 'app.timeline.dependency', words),
+      };
+    }),
+  );
+
   // The anchor, once: what the collection's first answer says about where its work is. A window
   // the reader has moved is theirs, and neither this nor a later read takes it back.
   $effect(() => {
@@ -240,13 +264,13 @@
 
   function move(direction: 1 | -1) {
     shown = shift(current, direction);
-    announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
+    announcer.say(t('app.timeline.moved', { from: formatPlainDay(current.from, messages.locale), to: formatPlainDay(current.to, messages.locale) }));
   }
 
   function backToToday() {
     anchor = today;
     shown = undefined;
-    announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
+    announcer.say(t('app.timeline.moved', { from: formatPlainDay(current.from, messages.locale), to: formatPlainDay(current.to, messages.locale) }));
   }
 
   function chooseScale(next: string) {
@@ -328,7 +352,7 @@
       ]}
       onchange={(event: Event) => chooseScale((event.currentTarget as HTMLSelectElement).value)}
     />
-    <span class="range">{t('app.timeline.window', { from: current.from, to: current.to })}</span>
+    <span class="range">{t('app.timeline.window', { from: formatPlainDay(current.from, messages.locale), to: formatPlainDay(current.to, messages.locale) })}</span>
   </div>
 
   {#if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
@@ -354,6 +378,8 @@
         onCarry={(carry) => void carried(carry)}
         {currentId}
         onHold={openMenu}
+        {dependencies}
+        dependenciesLabel={t('app.timeline.dependencies')}
       >
         {#snippet rowAction(id: string)}
           {@const entry = entries.find((each) => each.id === id)}

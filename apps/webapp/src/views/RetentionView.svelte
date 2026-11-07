@@ -27,6 +27,8 @@
 
   import { untrack } from 'svelte';
 
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+
   import { Badge, Banner, Button, Dialog, Input, PageHeader, SearchField, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import type { RetentionDataKind as DataKind, WorkItem } from '@hubtask/sync-engine';
@@ -47,6 +49,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** §7's five per cent: above this on a first run and the rule is stored as an announcement. */
   const BROAD_SHARE = 0.05;
@@ -242,6 +245,20 @@
       await policies.preview(written.id);
     }, t('app.retention.written_announced'));
   }
+  const sections = $derived([
+    { id: 'retention-part-rules', label: t('app.retention.rules_title') },
+    { id: 'retention-part-effective', label: t('app.retention.effective_title') },
+    { id: 'retention-part-holds', label: t('app.retention.holds_title') },
+  ]);
+
+  /**
+   * What is typed and not yet sent, for the leave guard: every write here is its own act, so there
+   * is no save bar, but a justification or a reason typed and left would be lost.
+   */
+  const changes = $derived(
+    [draftJustification, holdReason, releaseReason].filter((typed) => typed.trim() !== '').length,
+  );
+
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.retention.title')));
@@ -265,16 +282,13 @@
     <p class="quiet">{t('app.retention.intro')}</p>
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        <Stack gap="050">
-          {#each [...failure.fields] as [path, message] (path)}
-            <span>{message}</span>
-          {/each}
-          {#if failure.reference}
-            <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-          {/if}
-        </Stack>
-      </Banner>
+      <FailureNote problem={failure}>
+        {#if failure.fields.size > 0}
+          <Stack gap="050">
+            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+          </Stack>
+        {/if}
+      </FailureNote>
     {/if}
 
     {#if landedIn}
@@ -284,17 +298,17 @@
       </Banner>
     {/if}
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.retention.rules_title')}</h2>
+    <SettingsPage label={t('app.settings_page.sections', { name: t('app.retention.title') })} {sections} {changes}>
+
+    <section id="retention-part-rules" class="part" aria-labelledby="retention-rules">
+      <h2 class="section" id="retention-rules">{t('app.retention.rules_title')}</h2>
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="waiting">
           <Spinner label={t('app.retention.reading')} /> <span>{t('app.retention.reading')}</span>
         </p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each listed as policy (policy.id)}
           {@const preview = policies.previewOf(policy.id)}
@@ -486,10 +500,10 @@
         </form>
         {/snippet}
       </WorkspaceGate>
-    </Stack>
+    </section>
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.retention.effective_title')}</h2>
+    <section id="retention-part-effective" class="part" aria-labelledby="retention-effective">
+      <h2 class="section" id="retention-effective">{t('app.retention.effective_title')}</h2>
       <p class="quiet small">{t('app.retention.effective_intro')}</p>
       <Select
         label={t('app.retention.effective_where')}
@@ -517,10 +531,10 @@
           <p class="quiet">{t('app.retention.no_effective')}</p>
         {/each}
       {/if}
-    </Stack>
+    </section>
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.retention.holds_title')}</h2>
+    <section id="retention-part-holds" class="part" aria-labelledby="retention-holds">
+      <h2 class="section" id="retention-holds">{t('app.retention.holds_title')}</h2>
       <!-- Beside the rules rather than on a page of its own: a hold overrides the workspace's own
            periods, and it belongs where somebody reads what those periods are. -->
       <p class="quiet small">{t('app.retention.holds_intro')}</p>
@@ -691,7 +705,8 @@
       </form>
         {/snippet}
       </WorkspaceGate>
-    </Stack>
+    </section>
+    </SettingsPage>
     </Stack>
 </Stack>
 
@@ -728,6 +743,8 @@
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
      around a screen that is not a document. */
+
+  .part { display: flex; flex-direction: column; gap: var(--sp-150); }
 
   .section {
     margin: 0;

@@ -144,6 +144,29 @@ func (q *Queries) CancelTenantDeletion(ctx context.Context, now pgtype.Timestamp
 	return status, err
 }
 
+const claimTenantArchiveDownload = `-- name: ClaimTenantArchiveDownload :execrows
+UPDATE tenant
+SET archive_downloaded_at = $1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND (archive_downloaded_at IS NULL OR archive_downloaded_at <= $2)
+`
+
+type ClaimTenantArchiveDownloadParams struct {
+	Now         pgtype.Timestamptz
+	WindowStart pgtype.Timestamptz
+}
+
+// Takes the download window for the transaction's own tenant: one row where no download fell after
+// `window_start`, none where one did. One statement, so two requests at once cannot both pass.
+// updated_at stays: this is no change to the workspace a delta backup should carry.
+func (q *Queries) ClaimTenantArchiveDownload(ctx context.Context, arg ClaimTenantArchiveDownloadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, claimTenantArchiveDownload, arg.Now, arg.WindowStart)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const closeTenantPassword = `-- name: CloseTenantPassword :execrows
 UPDATE tenant
 SET password_opened_until = NULL, password_opened_requester = NULL, password_opened_reason = NULL,
@@ -810,6 +833,21 @@ func (q *Queries) QueryTenants(ctx context.Context, arg QueryTenantsParams) ([]Q
 	return items, nil
 }
 
+const releaseTenantArchiveDownload = `-- name: ReleaseTenantArchiveDownload :execrows
+UPDATE tenant
+SET archive_downloaded_at = NULL
+WHERE id = current_tenant_id() AND archive_downloaded_at = $1
+`
+
+// Gives a failed download's window back: only the claim it made, never a later one.
+func (q *Queries) ReleaseTenantArchiveDownload(ctx context.Context, claimed pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseTenantArchiveDownload, claimed)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const requestTenantDeletion = `-- name: RequestTenantDeletion :execrows
 UPDATE tenant
 SET status = 'PENDING_DELETION', purge_after = $1,
@@ -910,4 +948,15 @@ func (q *Queries) SetTenantStatus(ctx context.Context, arg SetTenantStatusParams
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const tenantArchiveDownloadedAt = `-- name: TenantArchiveDownloadedAt :one
+SELECT archive_downloaded_at FROM tenant WHERE id = current_tenant_id() AND deleted_at IS NULL
+`
+
+func (q *Queries) TenantArchiveDownloadedAt(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, tenantArchiveDownloadedAt)
+	var archive_downloaded_at pgtype.Timestamptz
+	err := row.Scan(&archive_downloaded_at)
+	return archive_downloaded_at, err
 }

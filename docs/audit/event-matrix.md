@@ -42,6 +42,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.avatar_set` | SetOwnAvatar | `account` | INFO | Every time |
 | `account.invitation_renewed` | RenewInvitation | `account` | NOTICE | Every time |
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
+| `account.mail_undeliverable_cleared` | ClearOwnMailUndeliverable | `account` | INFO | Every time |
 | `account.managed_created` | CreateManagedAccount | `account` | NOTICE | Every time |
 | `account.notification_preference_changed` | SetNotificationPreference | `account` | INFO | Every time |
 | `account.notification_preferences_read` | ListNotificationPreferences | `account` | INFO | When refused |
@@ -51,10 +52,60 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
 | `account.read` | GetAccount | `account` | INFO | When refused |
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
+| `account.read` | ReadInvitationDeliveries | `account` | INFO | When refused |
+| `account.read` | ReadOwnSettings | `account` | INFO | When refused |
+| `account.read` | ReadSignInDetails | `account` | INFO | When refused |
+| `account.read` | ResolveAccounts | `account` | INFO | When refused |
 | `account.renamed` | UpdateOwnAccount | `account` | INFO | Every time |
+| `account.second_factor_reset` | ResetSecondFactor | `account` | WARNING | Every time |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
+| `account.view_as_ended` | EndViewAs | `account` | INFO | Every time |
+| `account.view_as_read` | GetViewAs | `session` | INFO | When refused |
+| `account.viewed_as` | StartViewAs | `account` | WARNING | Every time |
+
+## Agent
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `agent.activated` | ActivateAgent | `agent` | NOTICE | Every time |
+| `agent.approved` | ApproveAgent | `agent` | NOTICE | Every time |
+| `agent.case_added` | AddAgentCase | `agent` | INFO | Every time |
+| `agent.case_removed` | RemoveAgentCase | `agent` | INFO | Every time |
+| `agent.changed` | ChangeAgent | `agent` | NOTICE | Every time |
+| `agent.evaluated` | RecordAgentEvaluation | `agent` | NOTICE | Every time |
+| `agent.evaluated` | RunAgentEvaluation | `agent` | NOTICE | Every time |
+| `agent.halt_set` | SetAgentHalt | `agent` | WARNING | Every time |
+| `agent.job_started` | StartAgentJob | `agent` | NOTICE | Every time |
+| `agent.read` | ListAgentActions | `agent` | INFO | When refused |
+| `agent.read` | ListAgentCases | `agent` | INFO | When refused |
+| `agent.read` | ListAgentEvaluations | `agent` | INFO | When refused |
+| `agent.read` | ListAgentJobs | `agent` | INFO | When refused |
+| `agent.read` | ListAgentRequests | `agent_request` | INFO | When refused |
+| `agent.read` | ListAgents | `agent` | INFO | When refused |
+| `agent.read` | ReadAgent | `agent` | INFO | When refused |
+| `agent.read` | ReadAgentHalt | `agent` | INFO | When refused |
+| `agent.read` | ReadAgentMetering | `agent` | INFO | When refused |
+| `agent.registered` | RegisterAgent | `agent` | NOTICE | Every time |
+| `agent.request_approved` | DecideAgentRequest | `agent_request` | NOTICE | Every time |
+| `agent.retired` | RetireAgent | `agent` | NOTICE | Every time |
+| `agent.suspended` | SuspendAgent | `agent` | NOTICE | Every time |
+
+## Agent_model
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `agent_model.changed` | ChangeAgentModel | `agent_model` | NOTICE | Every time |
+| `agent_model.read` | ListAgentModels | `agent_model` | INFO | When refused |
+| `agent_model.registered` | RegisterAgentModel | `agent_model` | NOTICE | Every time |
+
+## Agent_policy
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `agent_policy.read` | ReadAgentPolicy | `agent_policy` | INFO | When refused |
+| `agent_policy.set` | SetAgentPolicy | `agent_policy` | NOTICE | Every time |
 
 ## Ai
 
@@ -72,6 +123,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.own_budget_set` | SetOwnAiBudget | `ai_budget` | NOTICE | Every time |
 | `ai.own_position_read` | ReadOwnAiPosition | `account` | INFO | When refused |
 | `ai.person_opt_out_set` | SetAiPersonOptOut | `ai_source` | NOTICE | Every time |
+| `ai.provenance_read` | ListValueProvenance | `work_item` | INFO | When refused |
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
@@ -87,6 +139,17 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.summary_asked` | AiSummarizeThread | `ai_suggestion` | NOTICE | Every time |
 | `ai.template_asked` | AiGenerateTemplate | `ai_suggestion` | NOTICE | Every time |
 | `ai.translation_asked` | AiTranslate | `item` | NOTICE | Every time |
+
+## Approval
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `approval.decided` | DecideApproval | `approval` | INFO | Every time |
+| `approval.delegation_ended` | EndApprovalDelegation | `approval_delegation` | INFO | Every time |
+| `approval.delegation_read` | ReadApprovalDelegation | `approval_delegation` | INFO | When refused |
+| `approval.delegation_set` | SetApprovalDelegation | `approval_delegation` | INFO | Every time |
+| `approval.read` | ListMyApprovals | `approval` | INFO | When refused |
+| `approval.read` | ReadEntryApprovals | `approval` | INFO | When refused |
 
 ## Audit of the audit
 
@@ -176,6 +239,134 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Business_calendar
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `business_calendar.defined` | DefineBusinessCalendar | `business_calendar` | INFO | Every time |
+| `business_calendar.defined` | DefineHubCalendar | `hub_business_calendar` | INFO | Every time |
+| `business_calendar.deleted` | DeleteBusinessCalendar | `business_calendar` | INFO | Every time |
+| `business_calendar.deleted` | DeleteHubCalendar | `hub_business_calendar` | INFO | Every time |
+| `business_calendar.read` | ListBusinessCalendars | `business_calendar` | INFO | When refused |
+| `business_calendar.read` | ListHubCalendars | `hub_business_calendar` | INFO | When refused |
+
+## Calendar_push
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `calendar_push.authorization_started` | AuthorizeCalendarPush | `calendar_push` | INFO | Every time |
+| `calendar_push.connected` | CompleteCalendarPushAuthorization | `calendar_push` | INFO | Every time |
+| `calendar_push.disconnected` | DisconnectCalendarPush | `calendar_push` | INFO | Every time |
+| `calendar_push.listed` | ListCalendarPushes | `calendar_push` | INFO | When refused |
+
+## Chatbot
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `chatbot.created` | CreateChatBot | `chat_bot` | NOTICE | Every time |
+| `chatbot.deleted` | DeleteChatBot | `chat_bot` | NOTICE | Every time |
+| `chatbot.link_started` | LinkChatAccount | `chat_bot` | NOTICE | Every time |
+| `chatbot.read` | ListChatBots | `chat_bot` | INFO | When refused |
+| `chatbot.unlinked` | UnlinkChatAccount | `chat_bot` | NOTICE | Every time |
+| `chatbot.updated` | UpdateChatBot | `chat_bot` | NOTICE | Every time |
+
+## Cmdb
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `cmdb.alias_defined` | DefineSoftwareAlias | `cmdb_software_alias` | INFO | Every time |
+| `cmdb.alias_removed` | RemoveSoftwareAlias | `cmdb_software_alias` | INFO | Every time |
+| `cmdb.asset_moved` | MoveCiAsset | `cmdb_asset` | INFO | Every time |
+| `cmdb.asset_registered` | RegisterCiAsset | `cmdb_asset` | INFO | Every time |
+| `cmdb.campaign_closed` | CloseCiCampaign | `cmdb_campaign` | INFO | Every time |
+| `cmdb.campaign_started` | StartCiCampaign | `cmdb_campaign` | INFO | Every time |
+| `cmdb.ci_affected` | AffectEntryCi | `work_item` | INFO | Every time |
+| `cmdb.ci_attested` | AttestCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_changed` | SetCiCompliance | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_read` | ListCiAssets | `cmdb_asset` | INFO | When refused |
+| `cmdb.ci_read` | ListCiBacklinks | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ListCiCampaigns | `cmdb_campaign` | INFO | When refused |
+| `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ListCiGroupMembers | `cmdb_ci_group` | INFO | When refused |
+| `cmdb.ci_read` | ListCiGroups | `cmdb_ci_group` | INFO | When refused |
+| `cmdb.ci_read` | ListCiHolds | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ListCiRuns | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ListCis | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ListEntryCis | `work_item` | INFO | When refused |
+| `cmdb.ci_read` | ListSoftwareProducts | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadCi | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadCiAsset | `cmdb_asset` | INFO | When refused |
+| `cmdb.ci_read` | ReadCiCampaign | `cmdb_campaign` | INFO | When refused |
+| `cmdb.ci_read` | ReadCiImpact | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadCiRun | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ReadCmdbHealth | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ReadServiceMap | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_unaffected` | UnaffectEntryCi | `work_item` | INFO | Every time |
+| `cmdb.class_defined` | DefineCiClass | `cmdb_class` | INFO | Every time |
+| `cmdb.configuration_read` | ListCiClasses | `cmdb_class` | INFO | When refused |
+| `cmdb.configuration_read` | ListCiRelationTypes | `cmdb_relation_type` | INFO | When refused |
+| `cmdb.configuration_read` | ListCiSources | `cmdb_source` | INFO | When refused |
+| `cmdb.configuration_read` | ListSoftwareAliases | `cmdb_software_alias` | INFO | When refused |
+| `cmdb.connector_credential_set` | SetCiConnectorCredential | `cmdb_connector` | NOTICE | Every time |
+| `cmdb.connector_defined` | DefineCiConnector | `cmdb_connector` | NOTICE | Every time |
+| `cmdb.connector_ran` | RunCiConnector | `cmdb_connector` | INFO | Every time |
+| `cmdb.connector_read` | ListCiAlerts | `cmdb_alert` | INFO | When refused |
+| `cmdb.connector_read` | ListCiConnectors | `cmdb_connector` | INFO | When refused |
+| `cmdb.duplicate_resolved` | ResolveCiDuplicate | `cmdb_ci` | INFO | Every time |
+| `cmdb.group_defined` | DefineCiGroup | `cmdb_ci_group` | INFO | Every time |
+| `cmdb.hold_dismissed` | DismissCiHold | `cmdb_run` | INFO | Every time |
+| `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | Every time |
+| `cmdb.reconciled` | ReconcileCis | `cmdb_run` | INFO | Every time |
+| `cmdb.related` | RelateCis | `cmdb_relation` | INFO | Every time |
+| `cmdb.relation_type_defined` | DefineCiRelationType | `cmdb_relation_type` | INFO | Every time |
+| `cmdb.source_defined` | DefineCiSource | `cmdb_source` | INFO | Every time |
+| `cmdb.unrelated` | UnrelateCis | `cmdb_relation` | INFO | Every time |
+
+## Config
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `config.applied` | ApplyConfig | `configuration` | INFO | Every time |
+| `config.applied` | DecideConfigProposal | `configuration` | INFO | Every time |
+| `config.draft_discarded` | DiscardConfigDraft | `configuration` | INFO | Every time |
+| `config.draft_saved` | SaveConfigDraft | `configuration` | INFO | Every time |
+| `config.planned` | PlanConfig | `configuration` | INFO | When refused |
+| `config.planned` | PlanConfigTemplate | `configuration` | INFO | When refused |
+| `config.planned` | ValidateConfig | `configuration` | INFO | When refused |
+| `config.policy_set` | SetConfigPolicy | `configuration` | INFO | Every time |
+| `config.proposed` | ProposeConfig | `configuration` | INFO | Every time |
+| `config.read` | CheckConfig | `configuration` | INFO | When refused |
+| `config.read` | ExplainConfig | `configuration` | INFO | When refused |
+| `config.read` | ExportConfig | `configuration` | INFO | When refused |
+| `config.read` | ListConfigProposals | `configuration` | INFO | When refused |
+| `config.read` | ListConfigTemplates | `configuration` | INFO | When refused |
+| `config.read` | ListConfigVersions | `configuration` | INFO | When refused |
+| `config.read` | ReadConfigSandbox | `configuration` | INFO | When refused |
+| `config.read` | ReadConfigVersion | `configuration` | INFO | When refused |
+| `config.sample_added` | AddSampleEntry | `configuration` | INFO | Every time |
+| `config.samples_removed` | RemoveSampleEntries | `configuration` | NOTICE | Every time |
+| `config.sandbox_written` | WriteConfigSandbox | `configuration` | INFO | Every time |
+| `config.template_page_added` | AddHubTemplatePage | `configuration` | INFO | Every time |
+| `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
+| `config.workspace_sample_marked` | MarkWorkspaceSample | `configuration` | INFO | Every time |
+| `config.workspace_samples_removed` | RemoveWorkspaceSamples | `configuration` | NOTICE | Every time |
+
+## Dashboard
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `dashboard.created` | CreateDashboard | `dashboard` | INFO | Every time |
+| `dashboard.deleted` | DeleteDashboard | `dashboard` | INFO | Every time |
+| `dashboard.digest_removed` | DeleteDashboardDigest | `dashboard` | INFO | Every time |
+| `dashboard.digest_set` | SetDashboardDigest | `dashboard` | INFO | Every time |
+| `dashboard.read` | ListDashboards | `dashboard` | INFO | When refused |
+| `dashboard.read` | ReadDashboard | `dashboard` | INFO | When refused |
+| `dashboard.read` | ReadDashboardDigest | `dashboard` | INFO | When refused |
+| `dashboard.read` | ReadDashboardFigures | `dashboard` | INFO | When refused |
+| `dashboard.updated` | UpdateDashboard | `dashboard` | INFO | Every time |
+
 ## Data: comments
 
 | Action | Use case | Target | Severity | Recorded |
@@ -205,22 +396,37 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.due_cleared` | ClearDueDate | `item` | INFO | Every time |
 | `item.due_set` | SetDueDate | `item` | INFO | Every time |
 | `item.duplicated` | DuplicateWorkItem | `item` | INFO | Every time |
+| `item.duplicated` | SplitWorkItem | `item` | INFO | Every time |
+| `item.entry_type_set` | SetItemEntryType | `item` | INFO | Every time |
+| `item.estimated` | ClearEntryEstimate | `item` | INFO | Every time |
+| `item.estimated` | SetEntryEstimate | `item` | INFO | Every time |
 | `item.label_added` | AddLabel | `item` | INFO | Every time |
 | `item.label_removed` | RemoveLabel | `item` | INFO | Every time |
+| `item.linked` | LinkEntries | `entry_link` | INFO | Every time |
 | `item.member_added` | AddMember | `item` | INFO | Every time |
 | `item.member_removed` | RemoveMember | `item` | INFO | Every time |
+| `item.merged` | MergeWorkItems | `item` | INFO | Every time |
 | `item.moved` | MoveWorkItem | `item` | INFO | Every time |
 | `item.moved` | ReorderWorkItem | `item` | INFO | Every time |
 | `item.purged` | PurgeWorkItem | `item` | WARNING | Every time |
+| `item.read` | AggregateItems | `item` | INFO | When refused |
+| `item.read` | AggregateView | `item` | INFO | When refused |
+| `item.read` | EvaluateEntryForm | `item` | INFO | When refused |
 | `item.read` | GetWorkItem | `item` | INFO | When refused |
+| `item.read` | ListEntryLinks | `item` | INFO | When refused |
+| `item.read` | ListLinksAmong | `item` | INFO | When refused |
 | `item.read` | ListWorkItems | `item` | INFO | When refused |
 | `item.read` | QueryItems | `item` | INFO | When refused |
 | `item.read` | SearchItems | `search` | INFO | When refused |
 | `item.reopened` | ReopenWorkItem | `item` | INFO | Every time |
 | `item.restored` | RestoreWorkItem | `item` | NOTICE | Every time |
+| `item.scheduling_set` | SetEntryScheduling | `item` | INFO | Every time |
+| `item.step_taken` | TakeStep | `item` | INFO | Every time |
+| `item.steps_read` | ListEntrySteps | `item` | INFO | When refused |
 | `item.trashed` | TrashWorkItem | `item` | NOTICE | Every time |
 | `item.unarchived` | UnarchiveWorkItem | `item` | INFO | Every time |
 | `item.unassigned` | UnassignWorkItem | `item` | INFO | Every time |
+| `item.unlinked` | UnlinkEntries | `entry_link` | INFO | Every time |
 | `item.updated` | UpdateWorkItem | `item` | INFO | Every time |
 
 ## Data: hubs and collections
@@ -229,6 +435,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `container.archived` | ArchiveContainer | `container` | INFO | Every time |
 | `container.created` | CreateContainer | `container` | INFO | Every time |
+| `container.created` | CreateHubFromTemplate | `container` | INFO | Every time |
 | `container.deleted` | TrashContainer | `container` | NOTICE | Every time |
 | `container.emergency_access_opened` | OpenPrivateHub | `container` | NOTICE | Every time |
 | `container.emergency_accesses_read` | ListPrivateHubAccesses | `container` | INFO | When refused |
@@ -262,6 +469,23 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `trash.emptied` | EmptyTrash | `trash` | WARNING | Every time |
 | `trash.read` | ListTrash | `trash` | INFO | When refused |
 
+## Desk
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `desk.logo_read` | GetDeskLogo | `desk` | INFO | When refused |
+| `desk.logo_removed` | RemoveDeskLogo | `desk` | INFO | Every time |
+| `desk.logo_set` | SetDeskLogo | `desk` | INFO | Every time |
+
+## Directory
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `directory.ldap_configured` | ConfigureLdapDirectory | `ldap_directory` | NOTICE | Every time |
+| `directory.ldap_read` | ShowLdapDirectory | `ldap_directory` | INFO | When refused |
+| `directory.ldap_removed` | RemoveLdapDirectory | `ldap_directory` | NOTICE | Every time |
+| `directory.ldap_synced` | SyncLdapDirectory | `ldap_directory` | NOTICE | Every time |
+
 ## Dsr
 
 | Action | Use case | Target | Severity | Recorded |
@@ -283,6 +507,95 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `encryption.reseal_requested` | ResealSecrets | `tenant` | NOTICE | Every time |
 | `encryption.status_read` | ReadEncryptionStatus | `tenant` | INFO | When refused |
+
+## Entry_link
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_link.timed` | SetDependencyTiming | `entry_link` | INFO | Every time |
+
+## Entry_requester
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_requester.read` | ReadEntryRequester | `entry_requester` | INFO | When refused |
+
+## Entry_sla
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_sla.read` | ReadEntrySla | `entry_sla` | INFO | When refused |
+| `entry_sla.reported` | ReportSla | `entry_sla` | INFO | When refused |
+
+## Entry_type
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_type.changed` | ChangeEntryType | `entry_type` | INFO | Every time |
+| `entry_type.created` | CopyEntryTypeHere | `entry_type` | INFO | Every time |
+| `entry_type.created` | CreateEntryType | `entry_type` | INFO | Every time |
+| `entry_type.deleted` | DeleteEntryType | `entry_type` | INFO | Every time |
+| `entry_type.form_set` | SetEntryTypeForm | `entry_type` | INFO | Every time |
+| `entry_type.read` | ListEntryTypes | `entry_type` | INFO | When refused |
+
+## Filelink
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `filelink.linked` | LinkEntryFile | `file_link` | INFO | Every time |
+| `filelink.links_read` | ListEntryFileLinks | `work_item` | INFO | When refused |
+| `filelink.unlinked` | UnlinkEntryFile | `file_link` | INFO | Every time |
+
+## Filestore
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `filestore.browsed` | BrowseFileStore | `file_store_connection` | INFO | When refused |
+| `filestore.connected` | CompleteFileStoreConnection | `file_store_connection` | INFO | Every time |
+| `filestore.connection_started` | ConnectFileStore | `file_store_connection` | INFO | Every time |
+| `filestore.disconnected` | DisconnectFileStore | `file_store_connection` | INFO | Every time |
+| `filestore.listed` | ListFileStoreConnections | `file_store_connection` | INFO | When refused |
+| `filestore.shared` | ShareFileStoreItem | `file_store_connection` | INFO | Every time |
+
+## Forge
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `forge.hook_changed` | UpdateCodeHook | `code_hook` | NOTICE | Every time |
+| `forge.hook_created` | CreateCodeHook | `code_hook` | NOTICE | Every time |
+| `forge.hook_secret_rotated` | RotateCodeHookSecret | `code_hook` | NOTICE | Every time |
+| `forge.hooks_read` | ListCodeHooks | `code_hook` | INFO | When refused |
+| `forge.links_read` | ListEntryCodeLinks | `work_item` | INFO | When refused |
+
+## Glance
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `glance.read` | ListMyOpenEntries | `glance` | INFO | When refused |
+| `glance.read` | SearchEverywhere | `glance` | INFO | When refused |
+
+## Goal
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `goal.checked_in` | CheckInGoal | `goal` | INFO | Every time |
+| `goal.created` | CreateGoal | `goal` | INFO | Every time |
+| `goal.deleted` | DeleteGoal | `goal` | INFO | Every time |
+| `goal.entries_linked` | LinkGoalEntries | `goal` | INFO | Every time |
+| `goal.entry_unlinked` | UnlinkGoalEntry | `goal` | INFO | Every time |
+| `goal.read` | ListEntryGoals | `goal` | INFO | When refused |
+| `goal.read` | ListGoalCheckIns | `goal` | INFO | When refused |
+| `goal.read` | ListGoals | `goal` | INFO | When refused |
+| `goal.read` | ReadGoal | `goal` | INFO | When refused |
+| `goal.updated` | UpdateGoal | `goal` | INFO | Every time |
+
+## Goal_period
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `goal_period.closed` | CloseGoalPeriod | `goal_period` | INFO | Every time |
+| `goal_period.defined` | DefineGoalPeriod | `goal_period` | INFO | Every time |
+| `goal_period.read` | ListGoalPeriods | `goal_period` | INFO | When refused |
 
 ## Health
 
@@ -326,6 +639,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.backup_target_read` | ListInstanceBackupTargets | `backup_target` | INFO | When refused |
 | `instance.backup_target_removed` | DeleteInstanceBackupTarget | `backup_target` | WARNING | Every time |
 | `instance.backup_target_tested` | TestInstanceBackupTarget | `backup_target` | INFO | Every time |
+| `instance.dead_letter_requeued` | RequeueDeadLetter | `job` | NOTICE | Every time |
+| `instance.dead_letters_read` | ListDeadLetters | `instance` | INFO | When refused |
 | `instance.journal_read` | ListInstanceJournal | `instance` | INFO | When refused |
 | `instance.operator_added` | AddOperator | `instance` | NOTICE | Every time |
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
@@ -350,9 +665,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_withdrawal_cancelled` | CancelInstanceIdentityProviderWithdrawal | `identity_provider` | NOTICE | Every time |
 | `instance.provider_withdrawn` | WithdrawInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
+| `instance.quotas_near_read` | ListWorkspacesNearQuota | `instance` | INFO | When refused |
 | `instance.session_elevated` | ElevateSession | `session` | WARNING | Every time |
 | `instance.set_up` | SetUpInstallation | `tenant` | NOTICE | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
+| `instance.settings_planned` | PlanInstanceSettings | `instance` | INFO | When refused |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
 | `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
 
@@ -383,6 +700,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `kudos.read` | ReadKudos | `item` | INFO | When refused |
 | `kudos.taken_back` | TakeBackKudos | `item` | INFO | When refused |
 
+## Link_type
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `link_type.changed` | ChangeLinkType | `link_type` | INFO | Every time |
+| `link_type.created` | CreateLinkType | `link_type` | INFO | Every time |
+| `link_type.deleted` | DeleteLinkType | `link_type` | INFO | Every time |
+| `link_type.read` | ListLinkTypes | `link_type` | INFO | When refused |
+
 ## Mail
 
 | Action | Use case | Target | Severity | Recorded |
@@ -397,6 +723,23 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `mail.receipts_read` | ListMailReceipts | `mail_settings` | INFO | When refused |
 | `mail.settings_read` | ShowMailSettings | `mail_settings` | INFO | When refused |
 | `mail.settings_saved` | SaveMailSettings | `mail_settings` | WARNING | Every time |
+
+## Module
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `module.reach_previewed` | PreviewModuleReach | `module` | INFO | When refused |
+| `module.read` | ListContainerModules | `container` | INFO | When refused |
+| `module.read` | ListModules | `module` | INFO | When refused |
+| `module.switched` | SetModule | `module` | INFO | Every time |
+
+## Notifications
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `notifications.rule_notice_sent` | NotifyAccount | `item` | INFO | Every time |
+| `notifications.rule_notice_sent` | NotifyGroup | `item` | INFO | Every time |
+| `notifications.rule_notice_sent` | NotifyRole | `item` | INFO | Every time |
 
 ## Oauth
 
@@ -424,10 +767,93 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `` | CheckDeviceList | `` |  | When refused |
 | `` | CheckPassword | `` |  | When refused |
+| `` | ExplainAccess | `` |  | When refused |
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
+| `` | ListConfigDrafts | `` |  | When refused |
+| `` | ListHubTemplatePages | `` |  | When refused |
+| `` | ListRoles | `` |  | When refused |
+| `` | ListSampleEntries | `` |  | When refused |
+| `` | ListWorkspaceSamples | `` |  | When refused |
+| `` | LocateConnectorReturn | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
+| `` | ReadConfigSchema | `` |  | When refused |
+| `` | ReadSettingsCatalogue | `` |  | When refused |
+| `` | ReadTimer | `` |  | When refused |
+
+## Page
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page.article_published` | PublishPageToPortal | `page` | INFO | Every time |
+| `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
+| `page.changed` | SetPageLabels | `page` | INFO | Every time |
+| `page.changed` | UpdatePage | `page` | INFO | Every time |
+| `page.created` | CopyPage | `page` | INFO | Every time |
+| `page.created` | CreatePage | `page` | INFO | Every time |
+| `page.created` | OpenDailyNote | `page` | INFO | Every time |
+| `page.draft_discarded` | DiscardPageDraft | `page` | INFO | Every time |
+| `page.exported` | ExportPage | `page` | INFO | Every time |
+| `page.language_linked` | LinkPageLanguageVariant | `page` | INFO | Every time |
+| `page.language_unlinked` | UnlinkPageLanguageVariant | `page` | INFO | Every time |
+| `page.media_attached` | AttachPageMedia | `page` | INFO | Every time |
+| `page.moved` | MovePage | `page` | INFO | Every time |
+| `page.public_link_created` | CreatePagePublicLink | `page` | NOTICE | Every time |
+| `page.public_link_deleted` | DeletePagePublicLink | `page` | NOTICE | Every time |
+| `page.published` | PublishPage | `page` | INFO | Every time |
+| `page.read` | ListPageBacklinks | `page` | INFO | When refused |
+| `page.read` | ListPageComments | `page_comment` | INFO | When refused |
+| `page.read` | ListPageLabels | `page` | INFO | When refused |
+| `page.read` | ListPageLanguageVariants | `page` | INFO | When refused |
+| `page.read` | ListPageVersions | `page` | INFO | When refused |
+| `page.read` | ListPages | `page` | INFO | When refused |
+| `page.read` | ListSharedPages | `page` | INFO | When refused |
+| `page.read` | ListSpaceLabels | `page` | INFO | When refused |
+| `page.read` | ListTrashedPages | `page` | INFO | When refused |
+| `page.read` | ReadPage | `page` | INFO | When refused |
+| `page.read` | ReadPageAccess | `page` | INFO | When refused |
+| `page.read` | ReadPageVersion | `page` | INFO | When refused |
+| `page.read` | ReadPersonalSpace | `page` | INFO | When refused |
+| `page.read` | SearchPages | `page` | INFO | When refused |
+| `page.restored` | RestorePage | `page` | INFO | Every time |
+| `page.restricted` | RestrictPage | `page` | INFO | Every time |
+| `page.shared` | SharePage | `page` | INFO | Every time |
+| `page.trashed` | TrashPage | `page` | INFO | Every time |
+| `page.unshared` | UnsharePage | `page` | INFO | Every time |
+| `page.verified` | VerifyPage | `page` | INFO | Every time |
+| `page.version_named` | NamePageVersion | `page` | INFO | Every time |
+| `page.version_restored` | RestorePageVersion | `page` | INFO | Every time |
+
+## Page_article
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_article.rated` | RateArticle | `page_article` | INFO | Every time |
+| `page_article.read` | ReadArticle | `page_article` | INFO | Every time |
+| `page_article.read` | SuggestArticles | `page_article` | INFO | When refused |
+
+## Page_comment
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_comment.added` | AddPageComment | `page_comment` | INFO | Every time |
+| `page_comment.changed` | ChangePageComment | `page_comment` | INFO | Every time |
+| `page_comment.deleted` | DeletePageComment | `page_comment` | INFO | Every time |
+
+## Page_public_links
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_public_links.policy_read` | ReadPublicLinksPolicy | `page_public_links` | INFO | When refused |
+| `page_public_links.policy_set` | SetPublicLinksPolicy | `page_public_links` | NOTICE | Every time |
+
+## Page_space
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_space.drafts_read` | ReadSpaceDrafts | `page_space` | INFO | When refused |
+| `page_space.drafts_set` | SetSpaceDrafts | `page_space` | NOTICE | Every time |
 
 ## Permissions
 
@@ -439,8 +865,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `group.read` | ListGroups | `group` | INFO | When refused |
 | `group.updated` | UpdateGroup | `group` | INFO | Every time |
 | `membership.granted` | GrantMembership | `membership` | NOTICE | Every time |
+| `membership.granted` | GrantRole | `membership` | NOTICE | Every time |
 | `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
+| `membership.revoked` | RevokeRoleGrant | `membership` | NOTICE | Every time |
 
 ## Plan
 
@@ -448,9 +876,46 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `plan.changed` | ChangePlan | `plan` | NOTICE | Every time |
 | `plan.created` | CreatePlan | `plan` | NOTICE | Every time |
+| `plan.imported` | ImportPlan | `plan` | INFO | Every time |
 | `plan.listed` | ListPlans | `plan` | INFO | When refused |
 | `plan.read` | ReadPlan | `plan` | INFO | When refused |
+| `plan.read` | ReadPlanSchedule | `plan` | INFO | When refused |
 | `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
+| `plan.scheduled` | ApplyPlanSchedule | `plan` | INFO | Every time |
+
+## Plan_baseline
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan_baseline.compared` | CompareBaseline | `plan_baseline` | INFO | When refused |
+| `plan_baseline.deleted` | DeleteBaseline | `plan_baseline` | INFO | Every time |
+| `plan_baseline.read` | ListBaselines | `plan_baseline` | INFO | When refused |
+| `plan_baseline.taken` | TakeBaseline | `plan_baseline` | INFO | Every time |
+
+## Plan_tolerance
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan_tolerance.exceeded` | ReadPlanTolerance | `plan_tolerance` | INFO | Every time |
+| `plan_tolerance.read` | ReadWorkspaceTolerance | `plan_tolerance` | INFO | When refused |
+| `plan_tolerance.set` | SetPlanTolerance | `plan_tolerance` | INFO | Every time |
+| `plan_tolerance.set` | SetWorkspaceTolerance | `plan_tolerance` | INFO | Every time |
+
+## Portfolio
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `portfolio.created` | CreatePortfolio | `portfolio` | INFO | Every time |
+| `portfolio.deleted` | DeletePortfolio | `portfolio` | INFO | Every time |
+| `portfolio.public_link_created` | CreatePortfolioPublicLink | `portfolio` | INFO | Every time |
+| `portfolio.public_link_deleted` | DeletePortfolioPublicLink | `portfolio` | INFO | Every time |
+| `portfolio.public_link_read` | ReadPortfolioPublicLink | `portfolio` | INFO | When refused |
+| `portfolio.read` | ListPortfolioUpdates | `portfolio` | INFO | When refused |
+| `portfolio.read` | ListPortfolios | `portfolio` | INFO | When refused |
+| `portfolio.read` | ReadPortfolio | `portfolio` | INFO | When refused |
+| `portfolio.read` | ReadPortfolioRoadmap | `portfolio` | INFO | When refused |
+| `portfolio.status_reported` | ReportPortfolioStatus | `portfolio` | INFO | Every time |
+| `portfolio.updated` | UpdatePortfolio | `portfolio` | INFO | Every time |
 
 ## Presets
 
@@ -466,6 +931,28 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `private_hubs.read` | ListPrivateHubs | `tenant` | INFO | When refused |
+
+## Public_form
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `public_form.created` | CreatePublicForm | `public_form` | INFO | Every time |
+| `public_form.deleted` | DeletePublicForm | `public_form` | INFO | Every time |
+| `public_form.read` | ReadPublicForm | `public_form` | INFO | When refused |
+
+## Public_forms
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `public_forms.policy_read` | ReadPublicFormsPolicy | `public_forms` | INFO | When refused |
+| `public_forms.policy_set` | SetPublicFormsPolicy | `public_forms` | INFO | Every time |
+
+## Public_roadmaps
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `public_roadmaps.policy_read` | ReadPublicRoadmapsPolicy | `public_roadmaps` | INFO | When refused |
+| `public_roadmaps.policy_set` | SetPublicRoadmapsPolicy | `public_roadmaps` | INFO | Every time |
 
 ## Quota
 
@@ -486,6 +973,53 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `reminder.list_read` | ListReminders | `item` | INFO | When refused |
 | `reminder.updated` | UpdateReminder | `reminder` | INFO | Every time |
 
+## Reference
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `reference.resolved` | ResolveReferences | `reference` | INFO | When refused |
+
+## Release
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `release.created` | CreateRelease | `release` | INFO | Every time |
+| `release.deleted` | DeleteRelease | `release` | INFO | Every time |
+| `release.entries_added` | AddReleaseEntries | `release` | INFO | Every time |
+| `release.entries_removed` | RemoveReleaseEntries | `release` | INFO | Every time |
+| `release.published` | PublishRelease | `release` | INFO | Every time |
+| `release.read` | ListReleases | `release` | INFO | When refused |
+| `release.read` | ReadRelease | `release` | INFO | When refused |
+| `release.updated` | UpdateRelease | `release` | INFO | Every time |
+
+## Reply_template
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `reply_template.defined` | DefineReplyTemplate | `reply_template` | INFO | Every time |
+| `reply_template.deleted` | DeleteReplyTemplate | `reply_template` | INFO | Every time |
+| `reply_template.read` | ListReplyTemplates | `reply_template` | INFO | When refused |
+| `reply_template.rendered` | RenderReplyTemplate | `reply_template` | INFO | When refused |
+
+## Request
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `request.catalogue_read` | ListRequestCatalogue | `request` | INFO | When refused |
+| `request.commented` | CommentOnMyRequest | `request` | INFO | Every time |
+| `request.raised` | RaiseRequest | `request` | INFO | Every time |
+| `request.rated` | RateMyRequest | `request` | INFO | Every time |
+| `request.read` | ListMyRequests | `request` | INFO | When refused |
+| `request.read` | ReadMyRequest | `request` | INFO | When refused |
+
+## Requester_organisation
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `requester_organisation.defined` | DefineRequesterOrganisation | `requester_organisation` | INFO | Every time |
+| `requester_organisation.deleted` | DeleteRequesterOrganisation | `requester_organisation` | INFO | Every time |
+| `requester_organisation.read` | ListRequesterOrganisations | `requester_organisation` | INFO | When refused |
+
 ## Retention and legal hold
 
 | Action | Use case | Target | Severity | Recorded |
@@ -501,11 +1035,45 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `lifecycle.rule_changed` | UpdateRetentionPolicy | `retention_policy` | WARNING | Every time |
 | `lifecycle.rule_withdrawn` | DeleteRetentionPolicy | `retention_policy` | WARNING | Every time |
 
+## Role
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `role.changed` | ChangeRole | `custom_role` | NOTICE | Every time |
+| `role.created` | CreateRole | `custom_role` | NOTICE | Every time |
+| `role.deleted` | DeleteRole | `custom_role` | NOTICE | Every time |
+
 ## Search
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `search.reindex_asked` | ReindexSearch | `workspace` | NOTICE | Every time |
+
+## Sla_policy
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `sla_policy.defined` | CopySlaPolicyHere | `sla_policy` | INFO | Every time |
+| `sla_policy.defined` | DefineSlaPolicy | `sla_policy` | INFO | Every time |
+| `sla_policy.deleted` | DeleteSlaPolicy | `sla_policy` | INFO | Every time |
+| `sla_policy.read` | ListSlaPolicies | `sla_policy` | INFO | When refused |
+
+## Sprint
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `sprint.closed` | CloseSprint | `sprint` | INFO | Every time |
+| `sprint.created` | CreateSprint | `sprint` | INFO | Every time |
+| `sprint.deleted` | DeleteSprint | `sprint` | INFO | Every time |
+| `sprint.entries_added` | AddSprintEntries | `sprint` | INFO | Every time |
+| `sprint.entries_removed` | RemoveSprintEntries | `sprint` | INFO | Every time |
+| `sprint.read` | ListMyRunningSprints | `sprint` | INFO | When refused |
+| `sprint.read` | ListSprints | `sprint` | INFO | When refused |
+| `sprint.read` | ReadSprint | `sprint` | INFO | When refused |
+| `sprint.read` | ReadSprintBacklog | `sprint` | INFO | When refused |
+| `sprint.started` | StartSprint | `sprint` | INFO | Every time |
+| `sprint.updated` | UpdateSprint | `sprint` | INFO | Every time |
+| `sprint.velocity_read` | ReadVelocity | `sprint` | INFO | When refused |
 
 ## Structure: buckets and labels
 
@@ -526,8 +1094,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `custom_field.defined` | CopyCustomFieldHere | `custom_field` | INFO | Every time |
 | `custom_field.defined` | DefineCustomField | `custom_field` | INFO | Every time |
 | `custom_field.deleted` | DeleteCustomField | `custom_field` | INFO | Every time |
+| `custom_field.reach_previewed` | PreviewCustomFieldReach | `custom_field` | INFO | When refused |
 | `custom_field.read` | ListCustomFields | `custom_field` | INFO | When refused |
 | `custom_field.updated` | UpdateCustomField | `custom_field` | INFO | Every time |
 
@@ -567,6 +1137,110 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.reference_changed` | UpdateTenant | `tenant` | INFO | Every time |
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
 | `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
+
+## Time_absence
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_absence.read` | ListAbsences | `time_absence` | INFO | When refused |
+| `time_absence.recorded` | RecordAbsence | `time_absence` | INFO | Every time |
+| `time_absence.removed` | RemoveAbsence | `time_absence` | INFO | Every time |
+| `time_absence.updated` | UpdateAbsence | `time_absence` | INFO | Every time |
+
+## Time_actuals
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_actuals.read` | ReadEstimatesVsActuals | `plan` | INFO | When refused |
+
+## Time_billing_rate
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_billing_rate.read` | ListBillingRates | `time_billing_rate` | INFO | When refused |
+| `time_billing_rate.removed` | RemoveBillingRate | `time_billing_rate` | INFO | Every time |
+| `time_billing_rate.set` | SetBillingRate | `time_billing_rate` | INFO | Every time |
+
+## Time_budget
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_budget.read` | ReadBudget | `time_budget` | INFO | When refused |
+| `time_budget.removed` | RemoveBudget | `time_budget` | INFO | Every time |
+| `time_budget.set` | SetBudget | `time_budget` | INFO | Every time |
+
+## Time_capacity
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_capacity.read` | ListCapacities | `time_capacity` | INFO | When refused |
+| `time_capacity.removed` | RemoveCapacity | `time_capacity` | INFO | Every time |
+| `time_capacity.set` | SetCapacity | `time_capacity` | INFO | Every time |
+
+## Time_cost_rate
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_cost_rate.read` | ListCostRates | `time_cost_rate` | INFO | When refused |
+| `time_cost_rate.removed` | RemoveCostRate | `time_cost_rate` | INFO | Every time |
+| `time_cost_rate.set` | SetCostRate | `time_cost_rate` | INFO | Every time |
+
+## Time_policy
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_policy.read` | ReadTimePolicy | `time_policy` | INFO | When refused |
+| `time_policy.set` | SetTimePolicy | `time_policy` | INFO | Every time |
+
+## Time_record
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_record.corrected` | CorrectTimeRecord | `time_record` | INFO | Every time |
+| `time_record.deleted` | DeleteTimeRecord | `time_record` | INFO | Every time |
+| `time_record.exported` | ExportTimeRecords | `time_record` | INFO | Every time |
+| `time_record.logged` | LogTime | `time_record` | INFO | Every time |
+| `time_record.read` | ListTimeRecords | `time_record` | INFO | When refused |
+| `time_record.updated` | UpdateTimeRecord | `time_record` | INFO | Every time |
+
+## Time_report
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_report.read` | ReadTimeReport | `time_record` | INFO | When refused |
+
+## Time_timer
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_timer.discarded` | DiscardTimer | `time_timer` | INFO | Every time |
+| `time_timer.started` | StartTimer | `time_timer` | INFO | Every time |
+| `time_timer.stopped` | StopTimer | `time_record` | INFO | Every time |
+
+## Time_work_type
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_work_type.defined` | DefineWorkType | `time_work_type` | INFO | Every time |
+| `time_work_type.read` | ListWorkTypes | `time_work_type` | INFO | When refused |
+
+## Time_workload
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `time_workload.read` | ReadWorkload | `plan` | INFO | When refused |
+
+## Timesheet
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `timesheet.approved` | ApproveTimesheet | `timesheet` | INFO | Every time |
+| `timesheet.copied` | CopyTimesheetWeek | `timesheet` | INFO | Every time |
+| `timesheet.read` | ListTimesheets | `timesheet` | INFO | When refused |
+| `timesheet.read` | ReadTimesheet | `timesheet` | INFO | When refused |
+| `timesheet.rejected` | RejectTimesheet | `timesheet` | INFO | Every time |
+| `timesheet.submitted` | SubmitTimesheet | `timesheet` | INFO | Every time |
+| `timesheet.withdrawn` | WithdrawTimesheet | `timesheet` | INFO | Every time |
 
 ## Triggers
 
@@ -612,6 +1286,47 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `webhooks.subscription_read` | ListWebhookSubscriptions | `webhook_subscription` | INFO | When refused |
 | `webhooks.subscription_updated` | UpdateWebhookSubscription | `webhook_subscription` | NOTICE | Every time |
 
+## Whiteboard
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `whiteboard.changed` | UpdateWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.created` | CreateWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.exported` | ExportWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.media_placed` | AttachWhiteboardMedia | `whiteboard` | INFO | Every time |
+| `whiteboard.read` | ListWhiteboardBacklinks | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ListWhiteboardComments | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ListWhiteboardVersions | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ListWhiteboards | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ReadWhiteboard | `whiteboard` | INFO | When refused |
+| `whiteboard.read` | ReadWhiteboardVersion | `whiteboard` | INFO | When refused |
+| `whiteboard.restored` | RestoreWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.trashed` | TrashWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.version_named` | NameWhiteboardVersion | `whiteboard` | INFO | Every time |
+
+## Whiteboard_comment
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `whiteboard_comment.added` | AddWhiteboardComment | `whiteboard_comment` | INFO | Every time |
+| `whiteboard_comment.changed` | ChangeWhiteboardComment | `whiteboard_comment` | INFO | Every time |
+| `whiteboard_comment.deleted` | DeleteWhiteboardComment | `whiteboard_comment` | INFO | Every time |
+
+## Workflow
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `workflow.created` | CopyWorkflowHere | `workflow` | INFO | Every time |
+| `workflow.created` | CreateWorkflow | `workflow` | INFO | Every time |
+| `workflow.deleted` | DeleteWorkflow | `workflow` | INFO | Every time |
+| `workflow.drafted` | SaveWorkflowDraft | `workflow` | INFO | Every time |
+| `workflow.published` | PreviewWorkflowPublish | `workflow` | INFO | When refused |
+| `workflow.published` | PublishWorkflow | `workflow` | INFO | Every time |
+| `workflow.read` | ListWorkflows | `workflow` | INFO | When refused |
+| `workflow.scheme_set` | PreviewWorkflowScheme | `workflow` | INFO | When refused |
+| `workflow.scheme_set` | SetWorkflowScheme | `workflow` | INFO | Every time |
+| `workflow.step_tried` | TryWorkflowStep | `workflow` | INFO | When refused |
+
 ## Workspace
 
 | Action | Use case | Target | Severity | Recorded |
@@ -619,5 +1334,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
 | `workspace.device_list_entry_read` | IssueDeviceListEntry | `workspace` | INFO | When refused |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
+| `workspace.starter_closed` | ApplyStarter | `workspace` | INFO | Every time |
 | `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |
+| `workspace.structure_previewed` | PreviewWorkspaceStructure | `workspace` | INFO | When refused |
 | `workspace.structure_updated` | SetWorkspaceStructure | `workspace` | INFO | Every time |

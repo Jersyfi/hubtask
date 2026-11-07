@@ -8,12 +8,13 @@
  * What the workspace holds decides which steps can be walked: a collection's list and board and
  * an entry need a collection and an entry to point at, and a fresh workspace has neither. Those
  * steps are left out rather than pointed at nothing, and the last then points at where the
- * first hub is made. A step whose element this width does not draw - the palette's field on a
- * phone - is passed over when it is reached. The count a person reads is the count of what the
- * workspace can show.
+ * first hub is made. A step whose element this width never draws - the products' column below
+ * `expanded`, the palette's way in on a phone - is not a step there, so the count a person reads is
+ * the count of what the workspace and the width can show; a step whose element does not arrive
+ * is still passed over when it is reached.
  */
 
-export type StepId = 'hubs' | 'capture' | 'palette' | 'layouts' | 'entry' | 'levels' | 'jumble' | 'search' | 'profile' | 'make';
+export type StepId = 'hubs' | 'products' | 'capture' | 'palette' | 'layouts' | 'entry' | 'levels' | 'jumble' | 'search' | 'profile' | 'make';
 
 export interface Step {
   readonly id: StepId;
@@ -23,6 +24,8 @@ export interface Step {
   readonly selector: string;
   /** Where the mark sits relative to the cut-out. */
   readonly side: 'block-end' | 'inline-end';
+  /** The words' key under `app.tour.` where they differ from the step's id. */
+  readonly words?: string;
 }
 
 /** What the workspace holds, as far as the tour needs to know. */
@@ -33,16 +36,32 @@ export interface Workspace {
   readonly itemId?: string;
   /** Whether the jumble is the reader's to see: `READ` on the workspace itself. */
   readonly hasJumble: boolean;
+  /** The first row of the products band, where any product is on (user-experience.md §3.4). */
+  readonly firstProduct?: string;
+  /**
+   * How the frame is drawn: the tree pinned as a column, behind the bar's ☰ (below `expanded`), or
+   * a phone's (`compact`), whose bar has no palette.
+   */
+  readonly frame?: 'pinned' | 'drawer' | 'phone';
 }
 
 /** The steps a workspace can be walked through, in order. */
 export function stepsFor(workspace: Workspace): readonly Step[] {
+  const frame = workspace.frame ?? 'pinned';
   const steps: Step[] = [
-    { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' },
+    // Below `expanded` the tree is behind the bar's ☰, which is what the step points at and says.
+    frame === 'pinned'
+      ? { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' }
+      : { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'block-end', words: 'hubs_drawer' },
+    // *Your products live here*: the band's first row in the column, which only `expanded` pins.
+    ...(workspace.firstProduct && frame === 'pinned'
+      ? [{ id: 'products' as const, route: '/', selector: `[data-tour="hubs"] [data-node="${workspace.firstProduct}"]`, side: 'inline-end' as const }]
+      : []),
     // Capture from every page (ux-inventory.md §E1): the bar's button, or the bottom bar's ＋ on a
     // phone - the one act among its destinations.
     { id: 'capture', route: '/', selector: '[data-tour="capture"], nav button[data-action]', side: 'block-end' },
-    { id: 'palette', route: '/', selector: '[data-tour="palette"]', side: 'block-end' },
+    // A phone's search is the bottom bar's: its bar draws no palette.
+    ...(frame === 'phone' ? [] : [{ id: 'palette' as const, route: '/', selector: '[data-tour="palette"]', side: 'block-end' as const }]),
   ];
   if (workspace.collectionId) {
     steps.push({ id: 'layouts', route: `/collections/${workspace.collectionId}`, selector: '[data-tour="layouts"]', side: 'block-end' });
@@ -83,5 +102,16 @@ export function startsAt(path: string): boolean {
   return path === '/';
 }
 
-/** The key under which this tab remembers that the tour was walked to its end or skipped. */
+/** The key under which this tab remembers the tour: `walked` to its end or skipped, or `at:<n>`, the step it stands at. */
 export const TOUR_SESSION_KEY = 'hubtask.tour';
+
+/** The key under which this tab remembers the hub the starter made, which the tour walks first. */
+export const STARTER_HUB_SESSION_KEY = 'hubtask.starter.hub';
+
+/**
+ * The hubs in the order the tour looks for a collection in them: the one the starter made first
+ * (user-experience.md §3.1, the tour on what the starter made), then the rest as listed.
+ */
+export function hubsInTourOrder(hubs: readonly string[], made: string | undefined): string[] {
+  return made && hubs.includes(made) ? [made, ...hubs.filter((each) => each !== made)] : [...hubs];
+}

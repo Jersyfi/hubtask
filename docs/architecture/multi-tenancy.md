@@ -40,7 +40,11 @@ CREATE POLICY tenant_isolation ON work_item
 
 **Roles and context**
 
-* The application connects as `hubtask_app`: **no** `BYPASSRLS`, and **not** the table owner.
+* The application connects as `hubtask_app`: **no** `BYPASSRLS`, and **not** the table owner. A
+  process connected otherwise - a superuser, `BYPASSRLS`, the owner of the tables, or while a
+  backfill's `%_backfill` policy is left behind - says so in every health report as the critical
+  warning `database.isolation_bypassed` with its cause; it does not refuse to start, because the
+  integration suite and a developer's database connect as the superuser.
 * Migrations run as `hubtask_migrator`, which **owns** the objects; `0001`'s default privileges
   name that role, so migrations under another owner would grant the application nothing.
 * Exactly one place sets the context: the transaction wrapper in `infrastructure/postgres/Tenant.go`
@@ -65,6 +69,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_event` | The installation's own journal; its rows outlive the tenants they name ([audit.md](./audit.md) §6) | Append-only grants; written by the control plane's use cases; read only by `GET /admin/journal`, behind `admin:tenants` and the register |
 | `item_capability_profile` | Has RLS but **no `FORCE`**: the system rows are the owner's to seed, and `FORCE` would bind the owner too ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)) | The policy binds every non-owner role in full, `hubtask_app` included |
 | `restore_drill_marker` | The restore drill's marker rows; no tenant column | No grant to the application role |
+| `migration_cursor` | Where a migration's backfill stopped, one row while it runs ([versioning-release.md](./versioning-release.md) §4); no tenant column | No grant to the application role |
 | `operator` | The operator register names accounts across workspaces | No grant to the application role; reachable only through narrow `SECURITY DEFINER` functions |
 | `instance_setup_code` | The first start's one-time setup code ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); it exists before any workspace does | No grant to the application role; reached only through the issuing and claiming `SECURITY DEFINER` functions |
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
@@ -86,11 +91,12 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `ensure_main_hosts(base)` | The number of main rows it wrote — never a row or a name | A multi-mode server's start, for every live workspace without a main address (§3.1) |
 | `browser_host(host)` | The main address to send a browser on to, or none — never the workspace | A page load on a host that is not its workspace's main address, beside an own domain (§3.1) |
 | `is_main_host(host)` | Yes or no — never the workspace | The device's list of workspaces: checking an entry the installation signed before it is kept and whenever it is shown (§3.1) |
-| `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
 | `resolve_mail_workspace(name)`, `mail_workspace_name_taken(name, self)` | One tenant identifier or none; whether another workspace holds a name - never a list | An address on the operator's mail domain before it has a tenant, and choosing that name ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
 | `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
 | `instance_census()` | Five counts, no rows | The instance overview |
+| `installation_mail_apps()` | Per mail preset, how many enabled mailboxes sign in through the installation's own app and how many have failed for over an hour - numbers, no mailbox and no workspace | The scheduler's leader, for alert A-29 |
+| `saml_certificates_ending()` | The enabled SAML providers whose certificates' end is known, those ending within 30 and 7 days, and those ended - numbers, no provider and no workspace | The scheduler's leader, for `hubtask_saml_providers_ending` ([identity.md](./identity.md) §26.1) |
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
@@ -373,11 +379,19 @@ through `PATCH /admin/tenants/{id}/quotas` and the last word. The workspace read
 `GET /quotas` with the level that set it (`source`) and the one that locked it (`lock`). Enforced
 in the application layer and middleware; the per-token rate is resolved the same way in the
 authentication query that already runs. A capacity quota refuses as `422 capacity.<quota>` naming the
-ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is alert A-18.
+ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is alert A-18, which counts workspaces without naming them;
+`GET /admin/quotas` and the installation's overview name each one and the quota it stands at.
+The items and media ceilings read the count the usage triggers keep beside every write (§4.3, in
+the writing transaction), so a create in a limited workspace of a million entries does not count
+them; where that count says the wall is reached, or none is kept yet, the rows are counted, so a
+write it missed never refuses a workspace that has room. Like every capacity, the check is
+check-then-act: two creates at the last place can both pass.
 
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|
 | API requests/min per token | 600 | 6,000 |
+| API requests/min per workspace, per process (`HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE`) | 3,000 | None |
+| Live connections per workspace, per process (`HUBTASK_STREAM_PER_TENANT`) | 512 | The process's cap (1,024) |
 | Items per tenant | Unlimited unless a plan or the operator sets it | Unlimited |
 | Media storage | Unlimited unless a plan or the operator sets it | Disk space |
 | Automation runs/hour | 1,000 | 100,000 |
@@ -386,9 +400,13 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
 | People per workspace (§4.2) | Unlimited | Unlimited |
+| Connected mailboxes per workspace (`mailboxes`) | 5 | 5 |
 | AI tokens per day, offered models | 200,000 | Unlimited |
 | AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 | Jumble arrivals asked about on arrival per day | 200 | 200 |
+
+The two per-process rows are each process's configuration, not quotas: no plan or exception moves
+them, and with N replicas a workspace may reach N times the number.
 
 **The AI budget** is counted per source in provider-reported tokens over the workspace's calendar
 day — midnight in `tenant.default_time_zone`, which is when it renews (UC-AI-07 check 2) — from the
@@ -408,8 +426,13 @@ ledger on the same workspace day. It is not unlimited in single mode, unlike the
 holds the intake address decides what arrives ([security.md](./security.md) T-27). An arrival past
 it is not asked about; it waits for a person, and nothing else changes.
 
-**Fairness:** the job queue claims per tenant round-robin, so one tenant cannot monopolise the
-workers; `statement_timeout` per role; a query DSL request whose estimated cost is over the cap is
+**Mailboxes** (UC-JUM-11) bound what a workspace's mail intake reads every minute. Past the
+ceiling a new mailbox, by password or by a provider's sign-in, is `422 capacity.mailboxes`; the
+mailboxes already connected keep being read, also after a lower ceiling.
+
+**Fairness:** the job queue claims per tenant round-robin, and a tenant's turn starts after the
+jobs it already has running, so one tenant cannot monopolise the workers - neither within one batch
+nor across the workers claiming beside each other (`ClaimJobs`, F-10); `statement_timeout` per role; a query DSL request whose estimated cost is over the cap is
 refused before it runs.
 
 ---
@@ -503,7 +526,7 @@ otherwise:
 |---|---|---|
 | Automation rules | no rule runs, by event or schedule; rules stay readable and cannot be created or switched on | they run from then on; a schedule without the occurrences it missed |
 | Webhooks | nothing is delivered and no subscription is added; subscriptions and secrets stay | deliveries resume for events from then on |
-| The workspace's own sign-in providers | they sign nobody in; connections and sealed secrets stay; offered providers are untouched; where no way in is left the password opens ([identity.md](./identity.md) §17.1) | they sign people in again |
+| The workspace's own sign-in providers | they sign nobody in; connections and sealed secrets stay; offered providers are untouched; where no way in is left the password opens ([identity.md](./identity.md) §17.1); the LDAP directory (UC-ID-31) is neither changed nor run, on demand or by its schedule, and stays configured | they sign people in again; the directory's next scheduled run synchronises |
 
 A screen shows "Not included in your plan" where the person would otherwise have met the control
 (P-05); `/meta/capabilities` answers the set as `not_included` to everybody signed in to the
@@ -622,7 +645,7 @@ stateDiagram-v2
 
 | Phase | Actions |
 |---|---|
-| Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent under `Idempotency-Key` |
+| Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent under `Idempotency-Key`. The owner's way in travels one way only (`owner_delivery`): where the installation sends mail their invitation is queued, as any invitation's is, and no token is answered; where it does not, the redemption token is answered once. Never both, since the mail mints its own token at delivery and the newest voids any other |
 | Active | Normal operation; metering only if enabled |
 | Suspended | The API answers `403 access.tenant_suspended`; data remains; the export still works |
 | PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works. A deletion request is refused while a legal hold in the workspace is in force, and a workspace already here stays here until the last hold is lifted ([data-protection.md](./data-protection.md) §5); its grace job comes back daily and removes nothing while one stands, and no hold can be placed here |

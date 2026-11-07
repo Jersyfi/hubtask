@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package timekeeping
+
+import (
+	"testing"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
+
+// UC-TIM-08 check 2: a rate prices a person or a role in a currency's minor unit with an ISO 4217
+// code, from a day to a day or on.
+func TestCostRatesAreChecked(t *testing.T) {
+	end := day(t, "2026-12-31")
+	before := day(t, "2026-01-01")
+	cases := []struct {
+		name string
+		rate CostRate
+		want string
+	}{
+		{"a person's rate", CostRate{AccountID: person, HourMinor: 9500, Currency: "EUR", From: before}, ""},
+		{"a role's rate until a day", CostRate{Role: "developer", HourMinor: 8000, Currency: "EUR", From: before, To: &end}, ""},
+		{"no subject", CostRate{HourMinor: 1, Currency: "EUR"}, "time.rate_subject_required"},
+		{"both subjects", CostRate{AccountID: person, Role: "developer", Currency: "EUR"}, "time.rate_subject_required"},
+		{"a negative amount", CostRate{AccountID: person, HourMinor: -1, Currency: "EUR"}, "time.rate_out_of_range"},
+		{"too high an amount", CostRate{AccountID: person, HourMinor: MaxRateMinor + 1, Currency: "EUR"}, "time.rate_out_of_range"},
+		{"a malformed currency", CostRate{AccountID: person, Currency: "eur"}, "time.currency_invalid"},
+		{"an end before the start", CostRate{AccountID: person, Currency: "EUR", From: end, To: &before}, "time.range_reversed"},
+	}
+	for _, c := range cases {
+		if got := code(CheckCostRate(c.rate)); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// UC-TIM-08 check 2: two rates of one subject never share a day.
+func TestOneRateHoldsOnEachDay(t *testing.T) {
+	june := day(t, "2026-06-30")
+	existing := []CostRate{
+		{ID: recordID, AccountID: person, Currency: "EUR", From: day(t, "2026-01-01"), To: &june},
+		{ID: entryB, Role: "developer", Currency: "EUR", From: day(t, "2026-01-01")},
+	}
+	cases := []struct {
+		name string
+		rate CostRate
+		want string
+	}{
+		{"from the day after", CostRate{ID: entryA, AccountID: person, From: day(t, "2026-07-01")}, ""},
+		{"on the last day", CostRate{ID: entryA, AccountID: person, From: june}, "time.rate_overlaps"},
+		{"before and open-ended", CostRate{ID: entryA, AccountID: person, From: day(t, "2025-01-01")}, "time.rate_overlaps"},
+		{"the rate itself changed", CostRate{ID: recordID, AccountID: person, From: day(t, "2026-02-01")}, ""},
+		{"another person", CostRate{ID: entryA, AccountID: other, From: day(t, "2026-03-01")}, ""},
+		{"the role again", CostRate{ID: entryA, Role: "developer", From: day(t, "2027-01-01")}, "time.rate_overlaps"},
+	}
+	for _, c := range cases {
+		if got := code(CheckRateOverlap(existing, c.rate)); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// UC-TIM-08 check 3: the person's own rate, else their role's.
+func TestAPersonsRateComesBeforeTheirRole(t *testing.T) {
+	june := day(t, "2026-06-30")
+	rates := NewRates([]CostRate{
+		{AccountID: person, HourMinor: 9500, Currency: "EUR", From: day(t, "2026-01-01"), To: &june},
+		{Role: "lead", HourMinor: 12000, Currency: "EUR", From: day(t, "2026-01-01")},
+		{Role: "developer", HourMinor: 8000, Currency: "EUR", From: day(t, "2026-01-01")},
+	})
+	if r, ok := rates.For(person, []string{"developer"}, day(t, "2026-03-01")); !ok || r.HourMinor != 9500 {
+		t.Errorf("own rate %+v %v", r, ok)
+	}
+	if r, ok := rates.For(person, []string{"developer", "lead"}, day(t, "2026-07-01")); !ok || r.HourMinor != 8000 {
+		t.Errorf("after the own rate ended %+v %v", r, ok)
+	}
+	if _, ok := rates.For(other, nil, day(t, "2026-07-01")); ok {
+		t.Error("somebody without a rate or a role is priced")
+	}
+	cases := []struct {
+		minutes int
+		hour    int64
+		want    int64
+	}{
+		{60, 9500, 9500}, {30, 9500, 4750}, {1, 100, 2}, {1, 29, 0}, {-30, 9500, -4750}, {-1, 100, -2},
+	}
+	for _, c := range cases {
+		if got := CostMinor(c.minutes, c.hour); got != c.want {
+			t.Errorf("%d minutes at %d: %d, want %d", c.minutes, c.hour, got, c.want)
+		}
+	}
+}
+
+// UC-TIM-08 checks 3 and 4: a rate in another currency than the budget's leaves its minutes
+// unpriced; the burn answers every minute and its cost against the budget, whether either is
+// passed, and the cumulative burn week by week.
+func TestABudgetBurnsByTimeAndMoney(t *testing.T) {
+	if got := code(CheckBudget(Budget{Minutes: 6000, AmountMinor: 1_000_000, Currency: "EUR"})); got != "" {
+		t.Errorf("a budget: %q", got)
+	}
+	if got := code(CheckBudget(Budget{AmountMinor: 100})); got != "time.currency_invalid" {
+		t.Errorf("money without a currency: %q", got)
+	}
+	if got := code(CheckBudget(Budget{Minutes: -1})); got != "time.budget_out_of_range" {
+		t.Errorf("negative hours: %q", got)
+	}
+	rates := NewRates([]CostRate{
+		{AccountID: person, HourMinor: 10000, Currency: "EUR", From: day(t, "2026-01-01")},
+		{AccountID: other, HourMinor: 9000, Currency: "CHF", From: day(t, "2026-01-01")},
+	})
+	budget := Budget{Minutes: 300, AmountMinor: 40000, Currency: "EUR"}
+	burn := BurnOf(budget, []Priced{
+		{AccountID: person, Day: day(t, "2026-11-02"), Minutes: 120},
+		{AccountID: other, Day: day(t, "2026-11-03"), Minutes: 60},
+		{AccountID: third, Day: day(t, "2026-11-17"), Minutes: 30},
+		{AccountID: person, Day: day(t, "2026-11-18"), Minutes: 150},
+		{AccountID: person, Day: day(t, "2026-11-19"), Minutes: -30},
+	}, rates)
+	if burn.Minutes != 330 || burn.AmountMinor != 40000 || burn.UnpricedMinutes != 90 {
+		t.Errorf("burn %+v", burn)
+	}
+	if !burn.OverTime() || burn.OverMoney() {
+		t.Errorf("over time %v, over money %v", burn.OverTime(), burn.OverMoney())
+	}
+	want := []BurnWeek{
+		{Week: day(t, "2026-11-02"), Minutes: 180, AmountMinor: 20000},
+		{Week: day(t, "2026-11-09"), Minutes: 180, AmountMinor: 20000},
+		{Week: day(t, "2026-11-16"), Minutes: 330, AmountMinor: 40000},
+	}
+	if len(burn.Weeks) != len(want) {
+		t.Fatalf("weeks %+v", burn.Weeks)
+	}
+	for i := range want {
+		if burn.Weeks[i] != want[i] {
+			t.Errorf("week %d: %+v, want %+v", i, burn.Weeks[i], want[i])
+		}
+	}
+	if empty := BurnOf(budget, nil, rates); empty.Minutes != 0 || len(empty.Weeks) != 0 {
+		t.Errorf("no records %+v", empty)
+	}
+}
+
+func TestABillingRateBillsTheCollectionBeforeItsHub(t *testing.T) {
+	hub, collection, elsewhere := entryA, entryB, entryC
+	october := day(t, "2026-10-31")
+	rates := NewBillingRates([]BillingRate{
+		{ID: recordID, PlanID: hub, HourMinor: 10000, Currency: "EUR", From: day(t, "2026-01-01")},
+		{ID: third, PlanID: collection, HourMinor: 12000, Currency: "EUR", From: day(t, "2026-11-01")},
+	})
+	cases := []struct {
+		name            string
+		hub, collection shared.ID
+		on              Day
+		want            int64
+		billed          bool
+	}{
+		{"the hub's before the collection's begins", hub, collection, october, 10000, true},
+		{"the collection's once it holds", hub, collection, day(t, "2026-11-02"), 12000, true},
+		{"the hub's for time on the hub itself", hub, "", day(t, "2026-11-02"), 10000, true},
+		{"none before any holds", hub, collection, day(t, "2025-12-31"), 0, false},
+		{"none on another plan", elsewhere, "", october, 0, false},
+		{"none for time on no plan", "", "", october, 0, false},
+	}
+	for _, c := range cases {
+		rate, ok := rates.For(c.hub, c.collection, c.on)
+		if ok != c.billed || rate.HourMinor != c.want {
+			t.Errorf("%s: %d %v, want %d %v", c.name, rate.HourMinor, ok, c.want, c.billed)
+		}
+	}
+	if got := BillableValueMinor(90, true, 10000); got != 15000 {
+		t.Errorf("an hour and a half at 100.00 is worth %d, want 15000", got)
+	}
+	if got := BillableValueMinor(90, false, 10000); got != 0 {
+		t.Errorf("time that is not billable is worth %d, want 0", got)
+	}
+	if got := BillableValueMinor(-30, true, 10000); got != -5000 {
+		t.Errorf("a correction of half an hour is worth %d, want -5000", got)
+	}
+}
+
+func TestBillingRatesAreChecked(t *testing.T) {
+	end := day(t, "2026-12-31")
+	start := day(t, "2026-01-01")
+	held := []BillingRate{{ID: recordID, PlanID: entryA, Currency: "EUR", From: start, To: &end}}
+	cases := []struct {
+		name string
+		rate BillingRate
+		want string
+	}{
+		{"a plan's rate", BillingRate{PlanID: entryB, HourMinor: 9000, Currency: "EUR", From: start}, ""},
+		{"no plan", BillingRate{HourMinor: 9000, Currency: "EUR", From: start}, "time.rate_subject_required"},
+		{"a negative amount", BillingRate{PlanID: entryB, HourMinor: -1, Currency: "EUR"}, "time.rate_out_of_range"},
+		{"a malformed currency", BillingRate{PlanID: entryB, Currency: "eu"}, "time.currency_invalid"},
+		{"an end before the start", BillingRate{PlanID: entryB, Currency: "EUR", From: end, To: &start}, "time.range_reversed"},
+	}
+	for _, c := range cases {
+		if got := code(CheckBillingRate(c.rate)); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+	if got := code(CheckBillingOverlap(held, BillingRate{ID: third, PlanID: entryA, From: end})); got != "time.rate_overlaps" {
+		t.Errorf("two rates of one plan on one day: %q", got)
+	}
+	if got := code(CheckBillingOverlap(held, BillingRate{ID: third, PlanID: entryB, From: end})); got != "" {
+		t.Errorf("rates of two plans on one day: %q", got)
+	}
+	if got := code(CheckBillingOverlap(held, BillingRate{ID: recordID, PlanID: entryA, From: start})); got != "" {
+		t.Errorf("a rate changed in place: %q", got)
+	}
+}

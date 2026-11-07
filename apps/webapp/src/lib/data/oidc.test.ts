@@ -28,6 +28,18 @@ test('a provider that refused says so without a code', () => {
   assert.equal(readArrival('?error=access_denied').kind, 'refused');
 });
 
+// user-experience.md §5.8: a SAML answer this installation refused returns with its own code, and
+// the card says that reason; a provider's OAuth code or any other text stays the one sentence.
+test('a refusal of this installation carries its code, nothing else does', () => {
+  const ours = readArrival('?error=auth.oidc_flow_not_found&state=xyz');
+  assert.equal(ours.kind, 'refused');
+  assert.equal(ours.kind === 'refused' ? ours.code : 'none', 'auth.oidc_flow_not_found');
+  for (const other of ['?error=access_denied', '?error=items.title_too_long', '?error=auth.%3Cscript%3E', '?error=']) {
+    const read = readArrival(other);
+    assert.equal(read.kind === 'refused' ? read.code : 'none', undefined, other);
+  }
+});
+
 test('a state without a code is not a handoff', () => {
   // An empty code would be asking the server to refuse what is visibly not there.
   assert.equal(readArrival('?state=xyz').kind, 'nothing');

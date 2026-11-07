@@ -387,3 +387,42 @@ func TestBothPurgeVerbsAreDeclaredDestructive(t *testing.T) {
 		t.Error("EmptyTrash is not declared destructive")
 	}
 }
+
+// The one trash (user-experience.md §5.9): emptying it takes the trashed pages and boards too, at
+// once rather than after the period, journalled as the person's own act - and a hold keeps what
+// it covers, while a restriction does not stop a person's own act.
+func TestEmptyingTheTrashTakesItsPagesAndBoards(t *testing.T) {
+	heldHub := shared.MustParseID("0192f000-0000-7000-8000-0000000000fb")
+	h := newPurgeHarness()
+	store := &documentStore{rows: []documentRow{
+		trashedPage(1, 1, ""),
+		// Written by the restricted person, whose restriction keeps it from the automatic pass only.
+		trashedPage(2, 1, docID(1), accountID),
+		{doc: TrashedDocument{Entity: "whiteboard", ID: docID(3), HubID: hubID}, deletedAt: now.Add(-time.Minute)},
+		{doc: TrashedDocument{Entity: "whiteboard", ID: docID(4), HubID: heldHub}, deletedAt: now.Add(-time.Minute)},
+	}}
+	changes := &changeSink{}
+	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldContainer, ScopeID: heldHub, Reason: "Litigation"}}
+	h.purger.Restrictions = restrictedAccount()
+	emptying := h.empty()
+	emptying.Documents = DocumentSweep{Trash: store, Changes: changes, HLC: &hlcSource{}}
+
+	outcome, err := emptying.Execute(t.Context(), actor())
+	if err != nil {
+		t.Fatalf("emptying the trash was refused: %v", err)
+	}
+	if len(store.rows) != 1 || store.rows[0].doc.ID != docID(4) {
+		t.Fatalf("left %+v, want only the board in the held hub", store.rows)
+	}
+	if outcome.Removed < 3 || outcome.Blocked[BlockedByLegalHold] != 1 {
+		t.Errorf("the outcome is %+v, want three removed and one held", outcome)
+	}
+	for _, removal := range h.removals.recorded {
+		if removal.Reason != domain.DeletedByUser {
+			t.Errorf("%s %s was journalled as %s, want the person's own act", removal.Entity, removal.EntityID, removal.Reason)
+		}
+	}
+	if len(changes.recorded) != 3 {
+		t.Errorf("devices were told of %d removals, want 3", len(changes.recorded))
+	}
+}

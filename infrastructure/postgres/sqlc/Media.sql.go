@@ -182,6 +182,67 @@ func (q *Queries) InsertMediaObject(ctx context.Context, arg InsertMediaObjectPa
 	return err
 }
 
+const listHeldMediaObjects = `-- name: ListHeldMediaObjects :many
+SELECT id, tenant_id, storage_key, file_name, mime_type, byte_size, checksum, usage, status,
+       ref_count, created_by, created_at, deleted_at
+FROM media_object
+WHERE status = 'PENDING_SCAN' AND deleted_at IS NULL
+ORDER BY created_at, id
+LIMIT $1
+`
+
+type ListHeldMediaObjectsRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	StorageKey string
+	FileName   *string
+	MimeType   string
+	ByteSize   int64
+	Checksum   *string
+	Usage      string
+	Status     string
+	RefCount   int32
+	CreatedBy  pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+}
+
+// The files held for a scan, oldest first: what the scan job takes up while the scanner answers
+// again. media_object_reconcile_idx leads with (tenant_id, status).
+func (q *Queries) ListHeldMediaObjects(ctx context.Context, batch int32) ([]ListHeldMediaObjectsRow, error) {
+	rows, err := q.db.Query(ctx, listHeldMediaObjects, batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHeldMediaObjectsRow{}
+	for rows.Next() {
+		var i ListHeldMediaObjectsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.StorageKey,
+			&i.FileName,
+			&i.MimeType,
+			&i.ByteSize,
+			&i.Checksum,
+			&i.Usage,
+			&i.Status,
+			&i.RefCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItemAttachmentIDs = `-- name: ListItemAttachmentIDs :many
 SELECT media_id FROM item_attachment
 WHERE item_id = $1::uuid
@@ -288,6 +349,35 @@ func (q *Queries) ListItemAttachments(ctx context.Context, arg ListItemAttachmen
 	return items, nil
 }
 
+const listMediaReferencingBoards = `-- name: ListMediaReferencingBoards :many
+SELECT DISTINCT w.hub_id
+FROM whiteboard_media b JOIN whiteboard w ON w.tenant_id = b.tenant_id AND w.id = b.whiteboard_id
+WHERE b.media_id = $1::uuid AND w.deleted_at IS NULL
+LIMIT 50
+`
+
+// The hubs of the boards that draw an object, for GetMedia's authorisation: whoever may read one
+// of those boards may read the object. A trashed board serves nothing until it is restored.
+func (q *Queries) ListMediaReferencingBoards(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaReferencingBoards, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var hub_id pgtype.UUID
+		if err := rows.Scan(&hub_id); err != nil {
+			return nil, err
+		}
+		items = append(items, hub_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMediaReferencingItems = `-- name: ListMediaReferencingItems :many
 SELECT id, collection_id FROM work_item WHERE cover_media_id = $1::uuid
 UNION
@@ -325,12 +415,71 @@ func (q *Queries) ListMediaReferencingItems(ctx context.Context, mediaID pgtype.
 	return items, nil
 }
 
+const listMediaReferencingPages = `-- name: ListMediaReferencingPages :many
+SELECT DISTINCT g.page_id
+FROM page_media g JOIN page p ON p.tenant_id = g.tenant_id AND p.id = g.page_id
+WHERE g.media_id = $1::uuid AND p.deleted_at IS NULL
+LIMIT 50
+`
+
+// The pages that hold an object, for GetMedia's authorisation: whoever may read one of those pages
+// may read the object, which the knowledge module decides. A trashed page serves nothing until it
+// is restored.
+func (q *Queries) ListMediaReferencingPages(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaReferencingPages, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var page_id pgtype.UUID
+		if err := rows.Scan(&page_id); err != nil {
+			return nil, err
+		}
+		items = append(items, page_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaServedDesks = `-- name: ListMediaServedDesks :many
+SELECT id FROM container
+WHERE logo_media_id = $1::uuid AND deleted_at IS NULL
+LIMIT 50
+`
+
+// The collections that show an object as their desk's logo, for GetMedia's authorisation: whoever
+// may raise a request at one of them may read it, as the portal draws it. A trashed collection
+// serves nothing until it is restored.
+func (q *Queries) ListMediaServedDesks(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaServedDesks, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markMediaOrphans = `-- name: MarkMediaOrphans :execrows
 UPDATE media_object SET deleted_at = $1
 WHERE deleted_at IS NULL
   AND ref_count = 0
   AND (
-    (status = 'READY'
+    (status IN ('READY', 'PENDING_SCAN', 'INFECTED')
       AND unreferenced_since IS NOT NULL
       AND unreferenced_since < $2)
     OR (status = 'PENDING' AND created_at < $3)
@@ -390,7 +539,13 @@ FROM (
     -- not be reclaimed while the entry that carries it is still readable.
     + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
     -- A person's picture: reclaimed only once nobody shows it any more.
-    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id) AS total
+    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id)
+    -- A desk's logo, a trashed collection's included: it may come back.
+    + (SELECT count(*) FROM container d WHERE d.logo_media_id = o.id)
+    -- A board's pictures and files, trashed boards included: they may come back.
+    + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
+    -- A page's pictures and files, trashed pages included, for the same reason.
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -436,24 +591,50 @@ func (q *Queries) RemoveMediaObjectRows(ctx context.Context, ids []pgtype.UUID) 
 
 const sealMediaObject = `-- name: SealMediaObject :execrows
 UPDATE media_object SET
-  status    = 'READY',
-  mime_type = $1,
-  byte_size = $2
-WHERE id = $3::uuid AND status = 'PENDING' AND deleted_at IS NULL
+  status    = $1,
+  mime_type = $2,
+  byte_size = $3
+WHERE id = $4::uuid AND status = 'PENDING' AND deleted_at IS NULL
 `
 
 type SealMediaObjectParams struct {
+	Status   string
 	MimeType string
 	ByteSize int64
 	ID       pgtype.UUID
 }
 
-// The confirmation's write: PENDING becomes READY, carrying the judged type and the measured
-// size. Matches only a live PENDING row, so a double confirmation and a confirmation racing the
-// reconciliation job both come back as zero rows - the caller reads the row again and answers
-// from what it finds.
+// The confirmation's write: PENDING becomes READY - or PENDING_SCAN, held for a scanner that could
+// not answer - carrying the judged type and the measured size. Matches only a live PENDING row,
+// so a double confirmation and a confirmation racing the reconciliation job both come back as zero
+// rows - the caller reads the row again and answers from what it finds.
 func (q *Queries) SealMediaObject(ctx context.Context, arg SealMediaObjectParams) (int64, error) {
-	result, err := q.db.Exec(ctx, sealMediaObject, arg.MimeType, arg.ByteSize, arg.ID)
+	result, err := q.db.Exec(ctx, sealMediaObject,
+		arg.Status,
+		arg.MimeType,
+		arg.ByteSize,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const settleMediaScan = `-- name: SettleMediaScan :execrows
+UPDATE media_object SET status = $1
+WHERE id = $2::uuid AND status = 'PENDING_SCAN' AND deleted_at IS NULL
+`
+
+type SettleMediaScanParams struct {
+	Status string
+	ID     pgtype.UUID
+}
+
+// A scan's verdict on a held file: READY, or INFECTED. Matches only a live held row, so two
+// scans of one file settle it once.
+func (q *Queries) SettleMediaScan(ctx context.Context, arg SettleMediaScanParams) (int64, error) {
+	result, err := q.db.Exec(ctx, settleMediaScan, arg.Status, arg.ID)
 	if err != nil {
 		return 0, err
 	}

@@ -34,6 +34,7 @@ func replayCommand(t *testing.T, request queue.Request) Command {
 // actions. The same occasion means the same idempotency keys; a finished action finds its key
 // claimed and does nothing again, a failed one finds its claim released, and a skipped one runs
 // for the first time.
+// UC-AUT-06 check 5.
 func TestAReplayCompletesWithoutRepeating(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{
@@ -109,6 +110,7 @@ func TestAReplayCompletesWithoutRepeating(t *testing.T) {
 }
 
 // Only a FAILED run: a waiting one resumes by itself, and the rest did what their rule says.
+// UC-AUT-06 check 4.
 func TestOnlyAFailedRunCanBeReplayed(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}

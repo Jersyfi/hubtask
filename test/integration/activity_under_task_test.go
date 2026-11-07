@@ -152,10 +152,10 @@ func overREST(ctx context.Context, t *testing.T, registry *usecase.Registry, met
 	t.Helper()
 	controller := rest.NewRestController()
 	controller.UseCases = registry
-	controller.Capabilities = meta.GetCapabilities{
+	controller.Meta = &rest.MetaDoor{Capabilities: meta.GetCapabilities{
 		Profiles: postgres.NewCapabilityProfileRepository(), Languages: postgres.NewTextLanguageRepository(),
 		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
-	}
+	}}
 	request := httptest.NewRequestWithContext(appshared.ContextWithActor(ctx, levelWriter(tenantB, authorB)),
 		method, rest.APIBasePath+path, strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")

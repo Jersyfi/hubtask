@@ -15,7 +15,8 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import NotificationRow from '../lib/profile/NotificationRow.svelte';
@@ -111,13 +112,9 @@
       {:else if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
         <div aria-busy="true"><Skeleton lines={3} /></div>
       {:else if reading.status === 'failed'}
-        <ErrorState
-          title={renderProblem(reading.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => accountId && preferences.open(accountId)()}
-        />
+        <FailureState problem={renderProblem(reading.error, messages)} onRetry={() => accountId && preferences.open(accountId)()} />
       {:else if categories.length === 0}
-        <p class="quiet">{t('app.profile.none')}</p>
+        <EmptyState kind="unused" title={t('app.profile.none')} />
       {:else}
         <Table label={t('app.profile.notifications')} isLabelHidden {columns}>
           {#each categories as category (category)}

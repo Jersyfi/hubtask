@@ -39,6 +39,12 @@ func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
 		"POST /api/v1/auth/mfa/passkey:enroll":                            true,
 		"POST /api/v1/admin/subscriptions":                                true,
 		"POST /api/v1/admin/subscriptions/{subscriptionId}:rotate-secret": true,
+		"POST /api/v1/pages/{pageId}/public-link":                         true,
+		"POST /api/v1/collections/{collectionId}/public-form":             true,
+		"POST /api/v1/hubs/{hubId}/code-hooks":                            true,
+		"POST /api/v1/code-hooks/{hookId}/secret":                         true,
+		"POST /api/v1/portfolios/{portfolioId}/public-link":               true,
+		"POST /api/v1/chat-bots/{botId}/link":                             true,
 	}
 	for route := range rest.ShownOnceRoutes {
 		if markedLater[route] {

@@ -79,12 +79,15 @@ var _ repository.Export = (*rows)(nil)
 type snapshotDouble struct {
 	at    time.Time
 	taken int
+	open  bool
 }
 
 func (s *snapshotDouble) WithinSnapshot(
 	ctx context.Context, _ persistence.Scope, fn func(context.Context, time.Time) error,
 ) error {
 	s.taken++
+	s.open = true
+	defer func() { s.open = false }()
 	return fn(ctx, s.at)
 }
 
@@ -165,13 +168,20 @@ func (m maskReader) Read(p []byte) (int, error) {
 
 var _ crypto.StreamCipher = (*maskingCipher)(nil)
 
-// objects is the media store.
-type objects struct{ content map[string]string }
+// objects is the media store. snapshot, when set, counts the reads made while it was open.
+type objects struct {
+	content        map[string]string
+	snapshot       *snapshotDouble
+	readInSnapshot int
+}
 
 func (o *objects) Put(context.Context, storage.Upload) error { return nil }
 func (o *objects) Delete(context.Context, string) error      { return nil }
 
 func (o *objects) Get(_ context.Context, key string) (storage.Object, error) {
+	if o.snapshot != nil && o.snapshot.open {
+		o.readInSnapshot++
+	}
 	body, found := o.content[key]
 	if !found {
 		return storage.Object{}, shared.ErrNotFound
@@ -266,6 +276,34 @@ func TestARunWritesAnArchiveAndRecordsWhatItLeftBehind(t *testing.T) {
 
 // An archive's key is derived with a salt of its own, drawn for it, and its manifest carries the
 // salt, so the key can be derived again from the manifest alone (backup-restore.md §4).
+// The media's bytes are read after the snapshot ends: a large upload holds no transaction open
+// (backup-restore.md §5); only the storage keys are read inside it.
+func TestTheMediaAreReadAfterTheSnapshotEnds(t *testing.T) {
+	h := newPerformHarness(t)
+	h.objects.snapshot = h.snapshot
+	digest := strings.Repeat("ab", 32)
+	h.export.byTable["media_object"] = []repository.Row{{
+		ID: "m1", ChangedAt: now.Add(-time.Hour),
+		Data: map[string]any{"checksum": digest, "status": "READY", "byte_size": float64(5)},
+	}}
+	h.export.blobs[digest] = repository.MediaLocation{StorageKey: "tenant/m1", Bytes: 5}
+	h.objects.content["tenant/m1"] = "bytes"
+
+	run, err := h.performer().Perform(context.Background(), performInput())
+	if err != nil {
+		t.Fatalf("performing: %v", err)
+	}
+	if run.Status != domain.RunSucceeded {
+		t.Fatalf("status %s", run.Status)
+	}
+	if _, found := h.opener.store.objects[run.ArchivePath+"/"+archive.MediaName(digest)]; !found {
+		t.Fatal("the medium is not in the archive")
+	}
+	if h.objects.readInSnapshot != 0 {
+		t.Fatalf("%d media read while the snapshot was open", h.objects.readInSnapshot)
+	}
+}
+
 func TestAnArchiveHasAKeyOfItsOwnAndItsManifestCarriesTheSalt(t *testing.T) {
 	h := newPerformHarness(t)
 
@@ -317,6 +355,7 @@ func TestAnUnencryptedTargetWritesNoKeyAndNoCipher(t *testing.T) {
 
 // A second run at a target that is already being backed up is refused, and refused without writing
 // anything: the lock is what stops two archives being written at one moment.
+// UC-BAK-03 check 2.
 func TestASecondRunAtABusyTargetIsRefused(t *testing.T) {
 	h := newPerformHarness(t)
 	h.runs.claimed = false

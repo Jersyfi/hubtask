@@ -2,10 +2,10 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // *Today* (UC-WRK-34), the page the app opens on, over the shared fixture's day: what is due on
-// the reader across hubs with the hub's colour, ticked off where it stands (check 1); a list as
-// one tile with its figure (check 2); a project's next due step (check 3); the jumble's count and
-// first three (check 4); what this device opened (check 5); and no word about what the person did
-// not do (check 6, since changed: what is late is said as late). Also UC-WRK-20's line between overdue and next, in the reader's zone, and its
+// the reader across hubs with the hub's colour, ticked off where it stands (UC-WRK-34 check 1); a list as
+// one tile with its figure (UC-WRK-34 check 2); a project's next due step (UC-WRK-34 check 3); the jumble's count and
+// first three (UC-WRK-34 check 4); what this device opened (UC-WRK-34 check 5); and no word about what the person did
+// not do (UC-WRK-34 check 6, since changed: what is late is said as late). Also UC-WRK-20's line between overdue and next, in the reader's zone, and its
 // empty states. Chromium: a layout and a set of requests, with no engine-specific part.
 
 import { test } from 'node:test';
@@ -17,7 +17,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import {
-  ACCOUNT, COLLECTION, PAGE, TODAY_ARRIVALS, TODAY_COLLECTIONS, TODAY_HUB, TODAY_ITEMS, TODAY_STEP,
+  ACCOUNT, COLLECTION, HUB, PAGE, TODAY_ARRIVALS, TODAY_COLLECTIONS, TODAY_HUB, TODAY_ITEMS, TODAY_STEP,
   dayCompletionsSoFar, showToday, signedIn,
 } from './fixture.mjs';
 
@@ -52,9 +52,27 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
-  // The shared fixture without the day: nothing is on the reader.
+  // The shared fixture without the day: nothing is on the reader, but its hub holds entries - an
+  // owner of a busy workspace. Not the first steps, which would ask for the hub that exists, but
+  // the way into what is there.
+  const used = await signedIn(browser, 1280, 900);
+  t.after(() => used.context.close());
+  await used.page.goto(`${served.origin}/`);
+  const inUse = used.page.getByRole('region', { name: 'In use here' });
+  await inUse.waitFor({ timeout: 15_000 });
+  assert.equal(await inUse.getByRole('link', { name: HUB.name }).getAttribute('href'), `/hubs/${HUB.id}`);
+  assert.equal(await used.page.getByRole('region', { name: 'First steps' }).count(), 0, 'a used workspace is offered its first steps');
+  await used.page.getByText('Nothing assigned to you has a date on it.').waitFor();
+  assert.deepEqual(used.failures, []);
+
+  // The same tree with no entry in any hub: a new workspace.
   const empty = await signedIn(browser, 1280, 900);
   t.after(() => empty.context.close());
+  await empty.context.route('**/api/v1/items:query', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.scope?.container_id === HUB.id && body.page?.size === 1) return route.fulfill({ json: { data: [], groups: [], page: { next_cursor: null, has_more: false } } });
+    return route.fallback();
+  });
   await empty.page.goto(`${served.origin}/`);
   // Nothing on the reader, no list, no project, nothing opened, nothing waiting: not empty cards
   // but the first steps, each with its act (concept round 2, §1).
@@ -72,7 +90,7 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   await fresh.context.route('**/api/v1/containers?type=HUB**', (route) => route.fulfill({ json: { ...PAGE, data: [] } }));
   await fresh.page.goto(`${served.origin}/`);
   await fresh.page.locator('main').getByText('No hubs yet. A hub holds the collections you work in.').waitFor({ timeout: 15_000 });
-  assert.equal(await fresh.page.getByRole('region', { name: 'In the jumble' }).count(), 0, 'an empty workspace still draws the panels');
+  assert.equal(await fresh.page.getByRole('region', { name: 'In the inbox' }).count(), 0, 'an empty workspace still draws the panels');
   assert.equal(await fresh.page.locator('main').getByRole('button', { name: /^Create (private )?hub$/ }).count(), 1, 'no way to start a workspace');
   assert.deepEqual(fresh.failures, []);
 });
@@ -127,6 +145,11 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   const titles = await mine.locator('a[href^="/items/"]').allTextContents();
   assert.deepEqual(titles.map((title) => title.trim()), [PAST.title, TODAYS.title, LATER.title], 'the bands hold the entries out of order');
 
+  // A title keeps the room to be read beside its hub and collection: where both do not fit, the
+  // place goes under the title rather than squeezing it to a few words.
+  const room = await mine.locator('[data-entry-row] .content').evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().width)));
+  assert.ok(room.length > 0 && room.every((width) => width >= 200), `a title is squeezed: ${room}`);
+
   // A list's entry is the list's tile, not a row (check 2).
   assert.equal(await mine.getByText(LISTED.title).count(), 0, 'a list entry is listed one by one');
 
@@ -155,10 +178,10 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   assert.equal(await projects.getByText('Next step').count(), 1);
 
   // The jumble as a small inbox: how many wait and the first three, each with its decisions (check 4).
-  const jumble = region(page, 'In the jumble');
+  const jumble = region(page, 'In the inbox');
   await jumble.getByRole('link', { name: TODAY_ARRIVALS[0].raw_subject }).waitFor({ timeout: 5_000 });
   assert.equal(await jumble.getByRole('link', { name: 'No subject' }).count(), 1);
-  assert.equal(await jumble.getByRole('link', { name: /^Open the jumble \(2\)/u }).count(), 1);
+  assert.equal(await jumble.getByRole('link', { name: /^Open the inbox \(2\)/u }).count(), 1);
   assert.match((await jumble.textContent()) ?? '', /2 waiting/u);
 
   // Recently opened is not drawn while nothing was opened on this device (check 5): an empty card
@@ -213,6 +236,7 @@ test('chromium: a project\'s step ticked off on Today gives way to the next', as
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-34 check 7: a greeting by the hour and figures that lead to their entries.
 test('chromium: the day at a glance - a greeting by the hour, figures that lead to their search, the overdue among them (check 7)', async (t) => {
   showToday();
   const browser = await chromium.launch();

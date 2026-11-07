@@ -101,6 +101,24 @@ export function directionOf(locale: string, supported: readonly SupportedLocale[
   return 'ltr';
 }
 
+/**
+ * Which way a locale runs as the platform's own data says, for the moment before the manifest
+ * answers; `directionOf` with the manifest's entries is the answer after it. Left to right where
+ * the platform cannot say.
+ */
+export function platformDirection(locale: string): 'ltr' | 'rtl' {
+  try {
+    const tagged = new Intl.Locale(locale) as Intl.Locale & {
+      getTextInfo?: () => { direction?: string };
+      textInfo?: { direction?: string };
+    };
+    const info = tagged.getTextInfo?.() ?? tagged.textInfo;
+    return info?.direction === 'rtl' ? 'rtl' : 'ltr';
+  } catch {
+    return 'ltr';
+  }
+}
+
 /** Everything of the document this module touches, so that a test needs no DOM (as in `theme.ts`). */
 export interface LocaleTarget {
   setAttribute(name: string, value: string): void;

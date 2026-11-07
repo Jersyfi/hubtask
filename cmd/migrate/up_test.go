@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -17,6 +18,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/db"
 )
 
@@ -94,7 +96,7 @@ func TestUpAppliesAMigrationMergedAfterAHigherNumberedOne(t *testing.T) {
 
 	// Then 0090 arrives, as it did on 2026-09-16.
 	goose.SetBaseFS(db.Migrations)
-	if err := up(ctx, pool); err != nil {
+	if err := up(ctx, pool, pool, migrationFiles(), time.Millisecond); err != nil {
 		t.Fatalf("the migrator refused a migration merged after a higher-numbered one: %v", err)
 	}
 
@@ -105,5 +107,134 @@ func TestUpAppliesAMigrationMergedAfterAHigherNumberedOne(t *testing.T) {
 	}
 	if !applied {
 		t.Fatal("0090 is not in the ledger after the migrator ran")
+	}
+}
+
+func startDatabase(ctx context.Context, t *testing.T) string {
+	t.Helper()
+	container, err := tcpostgres.Run(ctx, "pgvector/pgvector:pg16",
+		tcpostgres.WithDatabase("hubtask"),
+		tcpostgres.WithUsername("postgres"),
+		tcpostgres.WithPassword("postgres"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(2*time.Minute)),
+	)
+	if err != nil {
+		t.Fatalf("starting PostgreSQL: %v", err)
+	}
+	t.Cleanup(func() { _ = container.Terminate(context.WithoutCancel(ctx)) })
+	dsn, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("connection string: %v", err)
+	}
+	return dsn
+}
+
+// A transactional migration behind a long read waits a bounded time, not the read's length, and
+// is retried until the read is gone: the table is never held for longer than the bound. Behind a
+// read that does not end, the run fails with the lock's own code instead of queueing the table.
+func TestATransactionalMigrationWaitsBoundedAndIsRetried(t *testing.T) {
+	if testing.Short() {
+		t.Skip("this test starts a database")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	dsn := startDatabase(ctx, t)
+	pool, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = pool.Close() }()
+	guarded, err := openGuarded(dsn, 200*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = guarded.Close() }()
+	if _, err := pool.ExecContext(ctx, `CREATE TABLE notification (id int)`); err != nil {
+		t.Fatal(err)
+	}
+	files := fstest.MapFS{
+		"0001_add.sql":   {Data: []byte("-- +goose Up\nALTER TABLE notification ADD COLUMN read_at timestamptz;\n")},
+		"0002_again.sql": {Data: []byte("-- +goose Up\nALTER TABLE notification ADD COLUMN seen_at timestamptz;\n")},
+	}
+
+	// A read that holds its lock for two seconds.
+	reader, err := pool.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.ExecContext(ctx, `LOCK TABLE notification IN ACCESS SHARE MODE`); err != nil {
+		t.Fatal(err)
+	}
+	released := make(chan struct{})
+	concurrency.Go(ctx, "test.reader", func(context.Context) {
+		time.Sleep(2 * time.Second)
+		_ = reader.Rollback()
+		close(released)
+	})
+	started := time.Now()
+	if err := up(ctx, pool, guarded, files, 500*time.Millisecond); err != nil {
+		t.Fatalf("the migration behind a read that ends: %v", err)
+	}
+	<-released
+	if elapsed := time.Since(started); elapsed < 2*time.Second {
+		t.Errorf("applied after %v, before the read let go", elapsed)
+	}
+
+	// A read that does not end within the retries.
+	if _, err := pool.ExecContext(ctx, `CREATE TABLE stuck (id int)`); err != nil {
+		t.Fatal(err)
+	}
+	holder, err := pool.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = holder.Rollback() }()
+	if _, err := holder.ExecContext(ctx, `LOCK TABLE stuck IN ACCESS SHARE MODE`); err != nil {
+		t.Fatal(err)
+	}
+	files["0003_stuck.sql"] = &fstest.MapFile{Data: []byte("-- +goose Up\nALTER TABLE stuck ADD COLUMN x int;\n")}
+	if err := up(ctx, pool, guarded, files, time.Millisecond); !isLockTimeout(err) {
+		t.Errorf("behind a read that does not end: %v, want lock_not_available", err)
+	}
+}
+
+// A backfill killed between two batches left its policy behind (0235); the next run drops it and
+// the file applies, rather than failing on CREATE POLICY at every retry.
+func TestALeftoverBackfillPolicyDoesNotStopTheNextRun(t *testing.T) {
+	if testing.Short() {
+		t.Skip("this test starts a database")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+	dsn := startDatabase(ctx, t)
+	pool, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = pool.Close() }()
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatal(err)
+	}
+	goose.SetLogger(goose.NopLogger())
+	goose.SetBaseFS(db.Migrations)
+	if err := goose.UpToContext(ctx, pool, "migrations", 234); err != nil {
+		t.Fatalf("bringing the database to 0234: %v", err)
+	}
+	// What a killed 0235 leaves: the policy, committed with its first batch, and no ledger row.
+	if _, err := pool.ExecContext(ctx, `CREATE POLICY side_rows_backfill ON work_item TO CURRENT_USER USING (true) WITH CHECK (true)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := up(ctx, pool, pool, migrationFiles(), time.Millisecond); err != nil {
+		t.Fatalf("the run after a killed backfill: %v", err)
+	}
+	var left int
+	if err := pool.QueryRowContext(ctx, `SELECT count(*) FROM pg_policies WHERE policyname LIKE '%\_backfill'`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Errorf("%d backfill policies left after the run", left)
 	}
 }

@@ -15,6 +15,9 @@ protects: the product must not make them feel it.
 | `PE-member` | A person working in a shared workspace: family member, colleague, club member | Their part of the work | See what is theirs and shared with them, hand work on, be told when something changes | Seeing other people's things, controls they may not use |
 | `PE-guest` | Somebody given access to a few items: a client, a craftsman, a grandparent | One thing they were asked to look at or do | Get in with the least effort, do that one thing | Anything beyond that one thing |
 | `PE-child` | A young member of a family workspace | Their own lists | A simple view of their chores and school work | Everything else in the workspace |
+| `PE-planner` | Whoever plans across people and time: a project lead, a product owner, a PMO | Dates, dependencies, capacity, the plan's history | See the critical path, commit a sprint, compare plan with reality, report upwards without a slide deck | A plan that cannot say why a date moved; numbers that differ between two screens |
+| `PE-requester` | Somebody outside the team who asks for something: an employee asking IT, a customer, a citizen, a tenant reporting a defect | Their problem, nothing of the team's structure | Ask once, in a form that fits, and see where the request stands | Accounts they must create, internal words, silence |
+| `PE-handler` | A person who works through incoming requests in a queue: service desk, back office, facility management | The queue, the promised response times | The next request that matters, the answer in one place, knowing which promise is about to break | Requests in three places, a clock they cannot see |
 
 ## People who run a workspace
 

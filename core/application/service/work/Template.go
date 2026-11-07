@@ -198,6 +198,11 @@ func checkTemplateChildren(
 	if err != nil {
 		return err
 	}
+	// A field the type does not carry is refused when the template is saved, not when it is used:
+	// stamped out later, it would be refused then or lost (UC-WRK-16 check 2).
+	if err := checkTemplateFields(profile, node, path); err != nil {
+		return err
+	}
 
 	for index, child := range node.Children {
 		childPath := path + "/children/" + strconv.Itoa(index)
@@ -215,6 +220,28 @@ func checkTemplateChildren(
 				})
 		}
 		if err := checkTemplateChildren(hierarchy, child, childPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkTemplateFields refuses a value on a node whose type's profile does not carry its capability.
+func checkTemplateFields(profile domain.CapabilityProfile, node domain.TemplateNode, path string) error {
+	carried := []struct {
+		isSet      bool
+		capability domain.Capability
+		field      string
+	}{
+		{node.Notes != "", domain.CapabilityNotes, "/notes"},
+		{node.DueOffset != nil, domain.CapabilityDueDate, "/due_offset"},
+		{!node.AssigneeID.IsZero(), domain.CapabilityAssignment, "/assignee_id"},
+	}
+	for _, each := range carried {
+		if !each.isSet {
+			continue
+		}
+		if err := profile.Require(each.capability, path+each.field); err != nil {
 			return err
 		}
 	}
@@ -409,7 +436,8 @@ func textOrNil(text string) any {
 // REST, MCP and automation at once (arc42 §4).
 func (h CreateTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateTemplateName,
+		Name:       CreateTemplateName,
+		Permission: service.PermissionStructure,
 		Summary: "Defines a template: a name, a scope, and the tree it stamps out. The tree is " +
 			"validated here rather than at instantiation - the types have to be permitted under " +
 			"one another by this installation's profiles, and the whole tree has to stay inside " +
@@ -549,7 +577,8 @@ func (h ListTemplates) Execute(
 // Descriptor is the catalogue entry.
 func (h ListTemplates) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListTemplatesName,
+		Name:       ListTemplatesName,
+		Permission: service.PermissionRead,
 		Summary: "The templates a person can pick from, newest first. Naming a container answers " +
 			"the ones defined along its path and the workspace-wide ones; naming none answers " +
 			"the workspace-wide ones alone.",
@@ -642,6 +671,7 @@ func (h GetTemplate) Execute(
 func (h GetTemplate) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        GetTemplateName,
+		Permission:  service.PermissionRead,
 		Summary:     "Reads one template, tree and all. What the caller may not see answers that there is no such template.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  templatesRead,

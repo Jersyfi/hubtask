@@ -26,9 +26,9 @@ import (
 // anywhere, so nothing notices when it drifts.
 //
 // This applies it to a database of its own and compares what it produced with what the migrations
-// produce. Foreign keys and unique indexes rather than the whole catalogue, because those are what a
-// reader consults the file for and what ADR-0024 turns on - a reference that disagrees about which
-// key carries the tenant is worse than no reference.
+// produce: the tables' columns (name, type, nullability), CHECK constraints, foreign keys and unique
+// indexes - what a reader consults the file for, and the keys ADR-0024 turns on. Not the column
+// order (a migration appends), defaults or plain indexes.
 func TestSchemaReferenceMatchesTheMigrations(t *testing.T) {
 	ctx := context.Background()
 	admin := adminPool(ctx, t)
@@ -55,10 +55,31 @@ func TestSchemaReferenceMatchesTheMigrations(t *testing.T) {
 		WHERE schemaname = 'public' AND indexdef LIKE '%UNIQUE%'
 		ORDER BY 2`
 
+	const columns = `
+		SELECT c.relname, c.relname || '.' || a.attname || ' ' || format_type(a.atttypid, a.atttypmod)
+			|| CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END
+		FROM pg_attribute a
+		JOIN pg_class c ON c.oid = a.attrelid
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND a.attnum > 0 AND NOT a.attisdropped
+		ORDER BY 2`
+	// A migration adds a CHECK on a large table NOT VALID and validates it later; the reference
+	// describes the state, not the rollout, so validity is not compared.
+	const checks = `
+		SELECT src.relname, src.relname || ' ' || con.conname || ' '
+			|| replace(pg_get_constraintdef(con.oid), ' NOT VALID', '')
+		FROM pg_constraint con
+		JOIN pg_class src ON src.oid = con.conrelid
+		JOIN pg_namespace n ON n.oid = src.relnamespace
+		WHERE n.nspname = 'public' AND con.contype = 'c'
+		ORDER BY 2`
+
 	for _, probe := range []struct {
 		what  string
 		query string
 	}{
+		{"columns", columns},
+		{"checks", checks},
 		{"foreign keys", foreignKeys},
 		{"unique indexes", uniqueIndexes},
 	} {

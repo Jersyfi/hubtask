@@ -73,8 +73,9 @@ func clearedValue(field string, value any) any {
 	return ""
 }
 
-// entity applies a mutation of a family beyond the entry's.
-func (p PushChanges) entity(ctx context.Context, actor appshared.ActorContext, m Mutation) (Result, error) {
+// familyRecord applies a mutation of a family beyond the entry's: a reminder, a recurrence
+// rule, a container, a label or a bucket.
+func (p PushChanges) familyRecord(ctx context.Context, actor appshared.ActorContext, m Mutation) (Result, error) {
 	family, shape, _ := domain.FamilyOf(m.Kind)
 	if family.Entity == "recurrence_rule" {
 		return p.recurrence(ctx, actor, m, shape)

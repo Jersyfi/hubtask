@@ -96,7 +96,12 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
   assert.equal(await page.getByRole('navigation', { name: 'Workspace' }).count(), 0, 'the workspace tree is drawn inside the section');
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  assert.equal(rows.length, 9, `the section holds ${rows.length} rows`);
+  // The way out and twelve screens, the calendars pushed to, the file stores and the reader's own
+  // rules and agents among them (the agents' row only while that module is on, as it is here).
+  assert.deepEqual(rows, [
+    'The workspace', 'Name and language', 'On this device', 'Notifications', 'Password and sign-in', 'Signed in',
+    'Devices', 'Apps', 'Access tokens', 'Calendars', 'File stores', 'Rules', 'Agents',
+  ]);
 
   const untrailed = [];
   const unheaded = [];
@@ -405,7 +410,9 @@ test('chromium: 1280 px — the workspace screen has no second-factor switch of 
   await page.goto(`${served.origin}/administration/workspace`);
   await page.waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Acme'), null, { timeout: 15_000 });
   assert.equal(await page.getByText('Administrators need a second factor').count(), 0, 'the second place for the rule is still there');
-  assert.equal(await page.getByRole('switch').count() + await page.locator('input[type="checkbox"]').count(), 0, 'a switch is left on the workspace screen');
+  // The screen holds switches of its own (pages by public link among them); none is the factor's.
+  assert.equal(await page.getByRole('switch', { name: /second factor|two-factor|TOTP/i }).count(), 0, 'a second-factor switch is left on the workspace screen');
+  assert.equal(await page.getByRole('checkbox', { name: /second factor|two-factor|TOTP/i }).count(), 0, 'a second-factor box is left on the workspace screen');
 });
 
 // UC-ID-03 checks 1 and 2 on the profile: the same walk the forced setup during sign-in takes, and
@@ -704,6 +711,44 @@ test('chromium: 1280 px — under a requiring rule the authenticator is replaced
   await page.getByText('Your authenticator is replaced.', { exact: false }).first().waitFor();
 });
 
+// UC-ID-06 check 1: every open session is listed with its device and last use, the current one
+// marked. UC-ID-06 check 3: once the session is ended, its next request fails and the card says
+// "Your session ended." rather than a refusal.
+test('chromium: every session is listed, this one marked, and an ended one says so on its next request', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let ended = false;
+  await context.route('**/api/v1/**', async (route) => {
+    if (ended) return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', status: 401, request_id: 'req_e2e' } });
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions') return route.fulfill({ json: SESSIONS });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/sessions`);
+  await page.getByText('Safari on iPhone').waitFor();
+
+  const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
+  for (const client of ['Firefox on Linux', 'Safari on iPhone', 'Chrome on macOS']) {
+    assert.equal(await page.locator('tr', { hasText: client }).count(), 1, `${client} is not listed once`);
+  }
+  assert.match(await row('Chrome on macOS'), /This device/);
+  assert.doesNotMatch(await row('Firefox on Linux'), /This device/);
+  assert.doesNotMatch(await row('Firefox on Linux'), /Not used since/, 'a used session shows no last use');
+  assert.match(await row('Safari on iPhone'), /Not used since/);
+
+  ended = true;
+  await page.reload();
+  await page.getByText('Your session ended.').waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('alert').count(), 0, 'an ended session is told as a refusal');
+});
+
 // UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.
 test('chromium: 1280 px — every session says how it was opened', async (t) => {
   const browser = await chromium.launch();
@@ -851,6 +896,9 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   await page.goto(`${served.origin}/profile/tokens`);
   const token = page.getByRole('row', { name: /Nightly script/ });
   await token.waitFor({ timeout: 15_000 });
+  // What it may do is said in words, never as the scope's key (user-experience.md §5.4).
+  await token.getByText('Read your entries').waitFor({ timeout: 5_000 });
+  assert.equal(await token.getByText('items:read', { exact: true }).count(), 0, 'the scope is shown as its key');
   await ask(token.getByRole('button', { name: 'Withdraw' }), 'Withdraw Nightly script?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the token sent ${sent.join(', ')}`);
 });
@@ -933,4 +981,51 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
     assert.equal(rows.includes(english), false, `"${english}" is English in a German session: ${rows.join(', ')}`);
   }
   assert.ok(rows.includes('Name und Sprache'), rows.join(', '));
+});
+
+test('chromium: 1280 px — You: leaving a choice to the workspace names the workspace\'s value (user-experience.md §8.8)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+  await page.goto(`${served.origin}/profile`);
+  // The fixture's workspace speaks English on UTC and decided no week start.
+  const zone = page.locator('[data-setting="zone"]');
+  await zone.waitFor({ timeout: 15_000 });
+  const optionsOf = (setting) => page.locator(`select[data-setting="${setting}"] option`).allTextContents();
+  await page.waitForFunction(() => [...document.querySelectorAll('option')].some((option) => option.textContent?.includes("Use the workspace's: UTC")));
+  assert.ok((await optionsOf('language')).includes("Use the workspace's: English"), (await optionsOf('language')).join(' | '));
+  assert.ok((await optionsOf('week-start')).includes("Use the workspace's"), 'a week start the workspace never decided was named');
+  assert.deepEqual(failures, []);
+});
+
+// UC-ID-03 check 3: the profile counts the recovery codes left, and none left is said in words -
+// a sentence in a banner, not only a red number.
+test('chromium: 1280 px — the security page says in words that no recovery code is left', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let left = 0;
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, has_authenticator_app: true, authenticator_app_removable: true, recovery_codes_remaining: left } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  const none = page.getByText('None left. Make new ones before your authenticator is out of reach.');
+  await none.waitFor();
+  assert.equal(await page.getByText(/^Left: \d+ of 10\.$/).count(), 0, 'zero is not drawn as a count');
+
+  left = 3;
+  await page.reload();
+  await page.getByText('Left: 3 of 10.').waitFor();
+  assert.equal(await none.count(), 0, 'the sentence for none left stays away while codes remain');
 });

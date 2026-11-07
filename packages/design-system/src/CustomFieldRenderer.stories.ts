@@ -12,9 +12,9 @@ export default {
 } satisfies StoryMeta;
 
 export const kinds: Story = {
-  name: 'The eight kinds, and one from a newer server',
+  name: 'The kinds, and one from a newer server',
   about:
-    'The schema has carried these eight since the first migration. `MULTI_SELECT` is a group of checkboxes rather than a multiple `<select>`: the native one is operable in theory and unusable in practice, because holding a modifier while clicking is a gesture most people have never been taught and no touch device offers.',
+    'The schema has carried eight since the first migration; `MONEY`, `DURATION` and `RICH_TEXT` came with the typed fields, `REFERENCE`, `USER_SET`, `GROUP` and `FILE` are slots like `USER`; `DATE_TIME`, `CASCADING_SELECT`, `IP_ADDRESS`, `LABEL` and `STATUS` came with the registers. `MULTI_SELECT` is a group of checkboxes rather than a multiple `<select>`: the native one is operable in theory and unusable in practice, because holding a modifier while clicking is a gesture most people have never been taught and no touch device offers.',
 };
 
 export const user: Story = {

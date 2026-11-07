@@ -365,6 +365,11 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 	if !known {
 		return Preview{}, shared.Internalf("lifecycle: a stored rule for the unknown kind %q", rule.DataKind)
 	}
+	if !kind.OfEntries() {
+		// Requesters, receipts, a board's history: no entry count to preview or call broad; the
+		// kind's lower bound is what guards them.
+		return Preview{Blocked: map[string]int{}}, nil
+	}
 	anchor, ok := rule.StageAnchor(kind, false)
 	if !ok {
 		return Preview{}, shared.Internalf("lifecycle: %q has no anchor", rule.DataKind)
@@ -478,7 +483,8 @@ func itoa(value int) string { return strconv.Itoa(value) }
 // Descriptor registers writing a rule down in all three channels.
 func (h CreateRetentionPolicy) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateRetentionPolicyName,
+		Name:       CreateRetentionPolicyName,
+		Permission: service.PermissionDeleteContainer,
 		Summary: "Writes down what this workspace deletes and when: which kind of data, how long " +
 			"it is kept, what happens then, and optionally what happens after that. A rule " +
 			"applies to the whole workspace, to a hub or to a collection, and the narrower one " +
@@ -633,7 +639,8 @@ func (h CreateRetentionPolicy) invoke(
 // Descriptor registers the listing.
 func (h ListRetentionPolicies) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ListRetentionPoliciesName,
+		Name:       ListRetentionPoliciesName,
+		Permission: service.PermissionStructure,
 		Summary: "The retention rules this workspace has. Name a container and each rule says " +
 			"whether it is the one in force there - which is the answer to \"what actually " +
 			"applies here\", inheritance included, because the narrower rule wins and a rule " +
@@ -691,7 +698,8 @@ func (h ListRetentionPolicies) invoke(
 // Descriptor registers the preview.
 func (h PreviewRetentionPolicy) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: PreviewRetentionPolicyName,
+		Name:       PreviewRetentionPolicyName,
+		Permission: service.PermissionStructure,
 		Summary: "What a rule would do, without doing it: how many objects are past its period, " +
 			"what share of the scope that is, what would be kept back and why, and a handful of " +
 			"the objects themselves so that a number is something somebody can check.",

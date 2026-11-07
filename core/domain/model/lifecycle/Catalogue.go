@@ -22,6 +22,10 @@ const (
 	AnchorOccurredAt  Anchor = "occurred_at"
 	AnchorStartedAt   Anchor = "started_at"
 	AnchorLastSeenAt  Anchor = "last_seen_at"
+	AnchorCompactedAt Anchor = "compacted_at"
+	AnchorEndedAt     Anchor = "ended_at"
+	// AnchorLastContactAt is when a requester without an account last wrote in.
+	AnchorLastContactAt Anchor = "last_contact_at"
 )
 
 // Action is what a rule does when the period is up (data-retention.md §2).
@@ -104,6 +108,10 @@ type Kind struct {
 	// MaxDays is the upper bound where the operator has set one, and nil where there is none.
 	// Exceeding it needs a justification and writes an audit entry (§4.4).
 	MaxDays *int
+	// WorkspaceOnly says a rule for this kind names the whole workspace: its rows sit in no
+	// collection a narrower rule could be matched against, so a hub's rule would be one the pass
+	// never reads, and it is refused rather than stored.
+	WorkspaceOnly bool
 	// Actions are what this build can do to this kind. An action outside the set is refused at
 	// configuration time rather than skipped at run time.
 	Actions []Action
@@ -119,6 +127,16 @@ type Kind struct {
 	// label set is drawn from. A kind nothing can block reports no series rather than a zero that
 	// can never be anything else.
 	Blockable []string
+}
+
+// OfEntries reports whether the kind's rows are entries, the only rows a rule's preview counts and
+// weighs against its scope; every other kind is a workspace's bookkeeping beside them.
+func (k Kind) OfEntries() bool {
+	switch k.Name {
+	case KindCompletedItem, KindArchivedItem, KindTrash:
+		return true
+	}
+	return false
 }
 
 // Swept reports whether this build has something that removes this kind.
@@ -288,6 +306,84 @@ var catalogue = []Kind{
 		// so that configuring one is refused honestly.
 		Name: KindAudit, Anchor: AnchorOccurredAt, DefaultDays: 400,
 	},
+	{
+		// The history behind a live document's snapshot (offline-sync.md §13): the updates a
+		// snapshot covers and the snapshots it replaced. Thirty days, so that a writer's snapshot
+		// that turns out wrong can still be rebuilt from the updates for a month; the document
+		// itself is the snapshot and the updates after it, which no period touches. A tenant-wide
+		// hold keeps it; no lower bound, because what goes is already merged into what stays.
+		Name: KindDocumentHistory, Anchor: AnchorCompactedAt, DefaultDays: 30,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// The agents' ledger (M9, UC-AGT-02): what each act was, its class and decision, never its
+		// input. Thirteen months, the owner's period (accepted.md B), so that a year's review of
+		// what the agents did reaches its start; it is also the lower bound - the ledger is the
+		// account of what an agent did, and no rule shortens it. A tenant-wide hold keeps it.
+		Name: KindAgentLedger, Anchor: AnchorOccurredAt, DefaultDays: 397, MinDays: 397,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// An agent's held acts with their input (UC-AGT-02 check 4), ninety days from when they were
+		// held - one nobody decided by then goes too; the ledger keeps that it was held.
+		Name: KindAgentRequest, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A shipped agent's jobs (UC-AGT-07), ninety days from their end; a running job never.
+		Name: KindAgentJob, Anchor: AnchorEndedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// Durable timers that fired or were stopped (domain-model.md §3.7), thirty days from their
+		// end: what each meant its purpose recorded; a live timer never.
+		Name: KindTimer, Anchor: AnchorEndedAt, DefaultDays: 30,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A connector's runs with their decisions and resolved holds (UC-CMD), ninety days from
+		// their start; each connector's newest run and a run with an item still held never.
+		Name: KindConnectorRun, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A page's versions thinned out (UC-DOC-06, accepted.md B): one past ninety days that is
+		// neither named nor the newest of its day (UTC) goes; a named version and each day's last
+		// stay for as long as the page. A hold on the workspace, the page's hub or an author keeps
+		// them, and so does a restricted author. No marking phase: nobody takes a version out of
+		// its period, they name it.
+		Name: KindPageVersion, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A whiteboard's history (UC-CNV-06, UC-CNV-09; accepted.md, second answers 6 and third
+		// answers 1): its unnamed versions by their creation, thinned like a page's - one that is
+		// not the newest of its day (UTC) goes - and its resolved threads, replies included, by
+		// their resolution. Without the workspace's rule the versions are thinned after
+		// WhiteboardVersionDays and the threads kept, so DefaultDays stays zero: the threads have
+		// no default period. A named version, each day's newest and an open thread stay whatever
+		// the rule says; a hold on the workspace, the board's hub or an author keeps what it
+		// covers, and so does a restricted author.
+		Name: KindWhiteboardHistory, Anchor: AnchorCreatedAt, WorkspaceOnly: true,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A requester without an account - somebody who wrote in by mail and whose request an
+		// account filed on their behalf (accepted.md B, data-protection.md §4): their address, name
+		// and which entries they wrote on, removed 24 months after they last wrote. The entries are
+		// the team's and keep their own periods. A hold on the workspace keeps the record.
+		Name: KindRequester, Anchor: AnchorLastContactAt, DefaultDays: 730,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{Name: KindMediaOrphan, Anchor: AnchorCreatedAt, DefaultDays: 7},
 	{Name: KindDeletedAccountResidue, Anchor: AnchorDeletedAt, DefaultDays: 30},
 }
@@ -308,13 +404,26 @@ const (
 	KindMailReceipt     DataKind = "MAIL_RECEIPT"
 	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has had it
 	// (ADR-0007's second countermeasure).
-	KindOutboxEvent           DataKind = "OUTBOX_EVENT"
-	KindSession               DataKind = "SESSION"
-	KindDevice                DataKind = "DEVICE"
-	KindSyncLog               DataKind = "SYNC_LOG"
-	KindIdempotencyKey        DataKind = "IDEMPOTENCY_KEY"
-	KindAudit                 DataKind = "AUDIT"
-	KindMediaOrphan           DataKind = "MEDIA_ORPHAN"
+	KindOutboxEvent       DataKind = "OUTBOX_EVENT"
+	KindSession           DataKind = "SESSION"
+	KindDevice            DataKind = "DEVICE"
+	KindSyncLog           DataKind = "SYNC_LOG"
+	KindIdempotencyKey    DataKind = "IDEMPOTENCY_KEY"
+	KindAudit             DataKind = "AUDIT"
+	KindMediaOrphan       DataKind = "MEDIA_ORPHAN"
+	KindDocumentHistory   DataKind = "DOCUMENT_HISTORY"
+	KindAgentLedger       DataKind = "AGENT_LEDGER"
+	KindAgentRequest      DataKind = "AGENT_REQUEST"
+	KindAgentJob          DataKind = "AGENT_JOB"
+	KindTimer             DataKind = "TIMER"
+	KindConnectorRun      DataKind = "CONNECTOR_RUN"
+	KindPageVersion       DataKind = "PAGE_VERSION"
+	KindWhiteboardHistory DataKind = "WHITEBOARD_HISTORY"
+
+	// WhiteboardVersionDays is how long a board's unnamed versions stay whole where the workspace
+	// wrote no WHITEBOARD_HISTORY rule, PAGE_VERSION's period (accepted.md, third answers 1).
+	WhiteboardVersionDays              = 90
+	KindRequester             DataKind = "REQUESTER"
 	KindDeletedAccountResidue DataKind = "DELETED_ACCOUNT_RESIDUE"
 )
 

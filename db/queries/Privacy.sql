@@ -223,6 +223,8 @@ UPDATE account SET
   email            = NULL,
   sign_in_name     = NULL,
   external_subject = NULL,
+  -- The directory's identifier of the person (migration 0263): personal, so it goes too.
+  external_id      = NULL,
   password_hash    = NULL,
   start_password_at = NULL,
   terms_url        = NULL,
@@ -261,6 +263,20 @@ WHERE tenant_id = current_tenant_id()
   AND (created_by = sqlc.arg('account_id')
        OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id')));
 
+-- name: DeleteMailReceiptsOfAccount :execrows
+-- The mail intake's log of the person's address, in both modes, as the address path removes it
+-- (DeleteMailReceiptsFrom): a receipt is the address and a subject. Before the account is
+-- anonymised, which clears the address this matches by.
+DELETE FROM mail_receipt
+WHERE tenant_id = current_tenant_id()
+  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
+-- name: DeletePersonalRulesOfAccount :execrows
+-- The person's own rules (scope PERSON, migration 0319): their configuration, gone with them
+-- whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.
+DELETE FROM automation_rule
+WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = sqlc.arg('account_id');
+
 -- name: AutomationsRunningAs :one
 -- What stands in the way of a full deletion, counted before it is attempted.
 --
@@ -269,8 +285,56 @@ WHERE tenant_id = current_tenant_id()
 -- acting as nobody. So an erasure that would leave such a rule behind is refused with a reason
 -- rather than attempted and failed on a foreign key - PG-2 found the second, which reached the
 -- caller as a dependency error and told them nothing.
+-- A person's own rules (PERSON) are not counted: they go with the person (DeletePersonalRulesOfAccount).
 SELECT count(*) FROM automation_rule
-WHERE tenant_id = current_tenant_id() AND run_as = sqlc.arg('account_id');
+WHERE tenant_id = current_tenant_id() AND run_as = sqlc.arg('account_id') AND scope_type <> 'PERSON';
+
+-- name: IntegrationsRunningAs :one
+-- The integrations that act as one account and would fail on every run once it is gone, counted
+-- before a full deletion as the rules are: none has a foreign key to refuse it. A connector or
+-- hook switched off takes a new run_as when it is switched on again; an agent keeps its owner, so
+-- every agent but a retired one counts - a drafted or suspended one can be put live again.
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.enabled AND c.run_as = sqlc.arg('account_id'))::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.enabled AND h.run_as = sqlc.arg('account_id'))::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = sqlc.arg('account_id')
+       AND a.status <> 'RETIRED')::int AS agents;
+
+-- name: ReownSwitchedOffIntegrations :one
+-- Before a full deletion: the switched-off connectors and code hooks that would run as the person
+-- and their retired agents move to another owner of the workspace, and stay off - an erasure does
+-- not decide to delete the workspace's integrations, nor to switch one on (data-protection.md §4).
+-- Each updated row's version moves, so an editor's stale write is refused.
+WITH connectors AS (
+  UPDATE cmdb_connector c SET run_as = sqlc.arg('to_account'), updated_at = sqlc.arg('now'), version = c.version + 1
+  WHERE c.tenant_id = current_tenant_id() AND NOT c.enabled AND c.run_as = sqlc.arg('from_account')
+  RETURNING 1
+), hooks AS (
+  UPDATE code_hook h SET run_as = sqlc.arg('to_account'), updated_at = sqlc.arg('now')
+  WHERE h.tenant_id = current_tenant_id() AND NOT h.enabled AND h.run_as = sqlc.arg('from_account')
+  RETURNING 1
+), agents AS (
+  UPDATE agent a SET owner_id = sqlc.arg('to_account'), updated_at = sqlc.arg('now'), version = a.version + 1
+  WHERE a.tenant_id = current_tenant_id() AND a.status = 'RETIRED' AND a.owner_id = sqlc.arg('from_account')
+  RETURNING 1
+)
+SELECT (SELECT count(*) FROM connectors)::int AS connectors,
+       (SELECT count(*) FROM hooks)::int AS hooks,
+       (SELECT count(*) FROM agents)::int AS agents;
+
+-- name: IntegrationsNamingAccount :one
+-- Every connector, hook and agent that still names the account, switched on or off: what a full
+-- deletion must have moved before the account row goes (0376's foreign keys refuse it otherwise).
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.run_as = sqlc.arg('account_id'))::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.run_as = sqlc.arg('account_id'))::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = sqlc.arg('account_id'))::int AS agents;
 
 -- name: DeleteAccount :execrows
 -- The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,
@@ -305,6 +369,11 @@ DELETE FROM webauthn_credential WHERE account_id = sqlc.arg('account_id');
 -- rendering rather than in the row, but the row says who was told what and when.
 DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id = sqlc.arg('account_id');
 
+-- name: DeleteMailUndeliverableOfAccount :execrows
+-- The mark of an address the mail server refused holds that address; an anonymised account keeps
+-- its row, so the mark does not go by the cascade.
+DELETE FROM mail_undeliverable WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: DeleteAiDraftsOfAccount :execrows
 -- What AI drafted for the person alone: a suggestion about their own account (a rule drafted from
 -- their sentence). Suggestions about entries stay - they are about the workspace's content, and
@@ -312,12 +381,60 @@ DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id 
 DELETE FROM ai_suggestion
 WHERE tenant_id = current_tenant_id() AND target_type = 'ACCOUNT' AND target_id = sqlc.arg('account_id');
 
+-- name: ClearTimeNotesOfAccount :one
+-- A person's erasure keeps their time - day, minutes, entry, kind, billable, the week and its
+-- decision - so that what accounting sums stays (accepted.md B): what goes is the words, the notes
+-- on their records and a rejection's reason on their weeks. The account identifier stays, and is
+-- the pseudonym once the account is anonymised or gone.
+WITH notes AS (
+  UPDATE time_record SET note = ''
+  WHERE time_record.tenant_id = current_tenant_id() AND time_record.account_id = sqlc.arg('subject')::uuid
+    AND time_record.note <> ''
+  RETURNING 1
+), reasons AS (
+  UPDATE timesheet SET reason = ''
+  WHERE timesheet.tenant_id = current_tenant_id() AND timesheet.account_id = sqlc.arg('subject')::uuid
+    AND timesheet.reason <> ''
+  RETURNING 1
+)
+SELECT ((SELECT count(*) FROM notes) + (SELECT count(*) FROM reasons))::bigint AS cleared;
+
+-- name: DeleteTimerOfAccount :execrows
+-- A running timer is not time anybody recorded: it goes with the person.
+DELETE FROM time_timer WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: DeleteKudosOfAccount :execrows
 -- Kudos the person gave and received: an acknowledgement between two people, about both of them,
 -- and evidence of nothing.
 DELETE FROM kudos
 WHERE tenant_id = current_tenant_id()
   AND (given_by = sqlc.arg('account_id') OR given_to = sqlc.arg('account_id'));
+
+-- name: DeleteDigestsOfAccount :execrows
+-- A digest is mail about to be sent to the person, like a notification.
+DELETE FROM dashboard_digest WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: DeletePrivateDashboardsOfAccount :execrows
+-- A PRIVATE dashboard is seen by its owner alone; a shared one is the workspace's and keeps a bare
+-- owner reference.
+DELETE FROM dashboard
+WHERE tenant_id = current_tenant_id() AND owner_id = sqlc.arg('account_id') AND sharing = 'PRIVATE';
+
+-- name: DeleteDelegationsOfAccount :execrows
+-- Both directions: approvals must neither wait on nor be routed to somebody who is gone.
+DELETE FROM approval_delegation
+WHERE tenant_id = current_tenant_id()
+  AND (account_id = sqlc.arg('account_id') OR delegate_id = sqlc.arg('account_id'));
+
+-- name: DeleteChatLinksOfAccount :execrows
+-- A chat account linked to the person names them on the platform (migration 0328).
+DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: DeletePersonSettingsOfAccount :execrows
+-- The person's own settings (level PERSON, scope_id the account): their configuration, which no
+-- foreign key takes with the account.
+DELETE FROM setting_value
+WHERE tenant_id = current_tenant_id() AND level = 'PERSON' AND scope_id = sqlc.arg('account_id');
 
 -- name: KudosOfAccount :many
 -- The kudos the person gave and received, for their own copy of their data, a page at a time in the
@@ -373,7 +490,9 @@ FOR UPDATE;
 -- name: ErasureContributions :many
 -- The person's rows that sit on an entry, with where the entry is: what a hold on the workspace, a
 -- hub, a collection, an entry or another person is judged against. Their comments, the entries
--- assigned to them, the entries they created.
+-- assigned to them, the entries they created - and what they wrote outside entries: page and board
+-- comments (with the hub), goal check-ins and portfolio updates (in no hub), the drafts of pages
+-- they edited last (the page's identifier, with the hub).
 SELECT 'COMMENT'::text AS kind, c.id, w.id AS item_id, w.path, w.collection_id,
        col.parent_id AS hub_id, w.created_by AS item_created_by
 FROM comment c
@@ -390,7 +509,30 @@ UNION ALL
 SELECT 'ENTRY'::text, w.id, w.id, w.path, w.collection_id, col.parent_id, w.created_by
 FROM work_item w
 JOIN container col ON col.tenant_id = w.tenant_id AND col.id = w.collection_id
-WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id');
+WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id')
+UNION ALL
+SELECT 'PAGE_COMMENT'::text, pc.id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_comment pc
+JOIN page p ON p.tenant_id = pc.tenant_id AND p.id = pc.page_id
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'WHITEBOARD_COMMENT'::text, bc.id, NULL::uuid, ''::text, NULL::uuid, b.hub_id, NULL::uuid
+FROM whiteboard_comment bc
+JOIN whiteboard b ON b.tenant_id = bc.tenant_id AND b.id = bc.whiteboard_id
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'GOAL_CHECK_IN'::text, gc.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM goal_check_in gc
+WHERE gc.tenant_id = current_tenant_id() AND gc.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'PORTFOLIO_UPDATE'::text, pu.id, NULL::uuid, ''::text, NULL::uuid, NULL::uuid, NULL::uuid
+FROM portfolio_update pu
+WHERE pu.tenant_id = current_tenant_id() AND pu.author_id = sqlc.arg('account_id')
+UNION ALL
+SELECT 'PAGE_DRAFT'::text, d.page_id, NULL::uuid, ''::text, NULL::uuid, p.hub_id, NULL::uuid
+FROM page_draft d
+JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
+WHERE d.tenant_id = current_tenant_id() AND d.updated_by = sqlc.arg('account_id');
 
 -- name: DeleteCommentsOf :execrows
 -- The person's comments a hold does not keep, by identifier: the ones that were read, judged and
@@ -398,6 +540,64 @@ WHERE w.tenant_id = current_tenant_id() AND w.created_by = sqlc.arg('account_id'
 DELETE FROM comment
 WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
   AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeletePageCommentsOf :many
+-- The person's page comments a hold does not keep, by identifier, that nobody answered: a comment
+-- with replies is blanked instead (BlankPageCommentsOf), because removing it would take the
+-- replies of others with it by cascade.
+DELETE FROM page_comment pc
+WHERE pc.tenant_id = current_tenant_id() AND pc.author_id = sqlc.arg('author_id')
+  AND pc.id = ANY(sqlc.arg('ids')::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM page_comment r WHERE r.tenant_id = pc.tenant_id AND r.parent_id = pc.id)
+RETURNING pc.id;
+
+-- name: BlankPageCommentsOf :execrows
+-- What is left of the person's page comments named once the unanswered ones are gone: the words,
+-- the quote and the author go, and the comment stays a removed one so its replies keep their thread.
+UPDATE page_comment
+SET body = '', quote = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, sqlc.arg('at')), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeleteWhiteboardCommentsOf :many
+-- As DeletePageCommentsOf, for a board's comments.
+DELETE FROM whiteboard_comment bc
+WHERE bc.tenant_id = current_tenant_id() AND bc.author_id = sqlc.arg('author_id')
+  AND bc.id = ANY(sqlc.arg('ids')::uuid[])
+  AND NOT EXISTS (
+    SELECT 1 FROM whiteboard_comment r WHERE r.tenant_id = bc.tenant_id AND r.parent_id = bc.id)
+RETURNING bc.id;
+
+-- name: BlankWhiteboardCommentsOf :execrows
+-- As BlankPageCommentsOf, for a board's comments.
+UPDATE whiteboard_comment
+SET body = '', author_id = NULL, edited_at = NULL,
+    deleted_at = COALESCE(deleted_at, sqlc.arg('at')), version = version + 1
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: DeleteCheckInsOf :many
+-- The person's goal check-ins a hold does not keep, by identifier.
+DELETE FROM goal_check_in
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING id;
+
+-- name: DeletePortfolioUpdatesOf :many
+-- The person's portfolio updates a hold does not keep, by identifier.
+DELETE FROM portfolio_update
+WHERE tenant_id = current_tenant_id() AND author_id = sqlc.arg('author_id')
+  AND id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING id;
+
+-- name: DeletePageDraftsOf :many
+-- The drafts the person edited last that a hold does not keep, by page. The published page stays.
+DELETE FROM page_draft
+WHERE tenant_id = current_tenant_id() AND updated_by = sqlc.arg('author_id')
+  AND page_id = ANY(sqlc.arg('ids')::uuid[])
+RETURNING page_id;
 
 -- name: ClearAssignmentsOn :execrows
 -- The person's assignments a hold does not keep: the entry goes back to nobody.

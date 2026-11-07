@@ -74,14 +74,14 @@ func (c SyncController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The same registry, the same key, the same refusal as the stream's: a client could not
-	// double its allowance by asking for snapshots instead.
-	slot, refusal := c.Registry.Admit(stream.Credential(r), actor.TenantID.String())
+	// The same registry and key as the stream's, within the side connections' share: a client
+	// cannot double its allowance by asking for snapshots, nor a sign-in wave starve the streams.
+	slot, refusal := c.Registry.AdmitSide(stream.Credential(r), actor.TenantID.String())
 	if refusal != stream.RefusedNone {
 		if c.StreamSignals != nil {
 			c.StreamSignals.StreamRefused(r.Context(), refusal.String())
 		}
-		w.Header().Set("Retry-After", strconv.Itoa(streamRefusalRetryAfter))
+		w.Header().Set("Retry-After", strconv.Itoa(refusalRetryAfter()))
 		WriteProblem(w, shared.ErrUnavailable.
 			WithDetail("sync.stream_unavailable").
 			WithParams(map[string]string{"reason": refusal.String()}), requestID)

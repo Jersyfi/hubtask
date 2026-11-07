@@ -3,18 +3,18 @@
 
 // Capture from anywhere (UC-WRK-26), walked against the shared fixture:
 //
-// * check 1 - `Q` and the bar's *Capture* open the field on every framed page; on a phone the
+// * UC-WRK-26 check 1 - `Q` and the bar's *Capture* open the field on every framed page; on a phone the
 //   bottom bar's ＋ does; a reader who may create nowhere has none of the three, and a child with
 //   one hub and no workspace role has all of them;
-// * check 2 - the story's line shows its chips, and a chip taken back stays in the title sent; a
+// * UC-WRK-26 check 2 - the story's line shows its chips, and a chip taken back stays in the title sent; a
 //   list's line shows its amount as a chip, and taken back the number stays in the title;
-// * check 3 - a collection set up as a list takes no date, person or label, splits lines and reads
+// * UC-WRK-26 check 3 - a collection set up as a list takes no date, person or label, splits lines and reads
 //   a leading amount, by the rule the list's own capture line reads too;
-// * check 4 - without a target the entry goes to the collection the reader is in, else the jumble;
+// * UC-WRK-26 check 4 - without a target the entry goes to the collection the reader is in, else the jumble;
 //   the message names the place, links to it and undoes it;
-// * check 5 - the due date sent is the person's tomorrow, in their zone, near midnight;
-// * check 6 - by keyboard alone, and what was recognised is said in the frame's live region;
-// * check 7 - every add opens this field pointed at its place, with suggestions while a token is
+// * UC-WRK-26 check 5 - the due date sent is the person's tomorrow, in their zone, near midnight;
+// * UC-WRK-26 check 6 - by keyboard alone, and what was recognised is said in the frame's live region;
+// * UC-WRK-26 check 7 - every add opens this field pointed at its place, with suggestions while a token is
 //   typed, the modes, and *Keep capturing* on where a list is typed line after line.
 //
 // Chromium; the keyboard sequence also runs in all three engines in `engines.test.mjs`.
@@ -134,7 +134,7 @@ test('chromium: 375 px — the bottom bar’s ＋ opens the field (check 1)', as
   await page.getByText(ITEMS[2].title).first().waitFor();
   const bar = page.getByRole('navigation', { name: 'Sections' });
   const names = await bar.locator('li').allTextContents();
-  assert.deepEqual(names.map((name) => name.trim()), ['Today', 'Search', 'Capture', 'Jumble', 'You']);
+  assert.deepEqual(names.map((name) => name.trim()), ['Today', 'Search', 'Capture', 'Inbox', 'More']);
   await bar.getByRole('button', { name: 'Capture' }).tap();
   await fieldOf(page).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('banner').getByRole('button', { name: 'Capture' }).count(), 0, 'the bar carries Capture on a phone too');
@@ -170,7 +170,8 @@ test('chromium: the story — chips, the entry in the right place on the person�
   assert.equal(create.body.due_at, '2026-10-21T21:00:00.000Z');
 
   await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
-  const message = page.locator('.stack').getByText('Added to Kitchen');
+  // UC-WRK-02 check 1: one entry is said by its title, in the live region of the message stack.
+  const message = page.locator('.stack').getByText('“Call the electrician” added to Kitchen');
   await message.waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('link', { name: 'Open' }).getAttribute('href'), `/items/${CREATED_ID}`);
   await page.getByRole('button', { name: 'Undo' }).click();
@@ -223,13 +224,14 @@ test('chromium: without a collection the jumble, and its Undo dismisses (check 4
   await land(page, '/search');
   await page.keyboard.press('q');
   await fieldOf(page).fill('Call the plumber tomorrow');
-  assert.ok((await dialogOf(page).textContent()).includes('Into the jumble'));
+  // UC-WRK-26 check 4: the prompt says the jumble is the workspace's, read by all who read it.
+  assert.ok((await dialogOf(page).textContent()).includes('Into the workspace\'s shared inbox, which everyone who can read the workspace sees.'));
   // The jumble decides nothing: no chip for the day.
   assert.equal(await dialogOf(page).getByRole('list', { name: 'Recognised' }).count(), 0);
   await page.keyboard.press('Enter');
   const submitted = await sent(page, writes, 'POST /jumble/entries');
   assert.deepEqual(submitted.body, { channel: 'QUICK_CAPTURE', raw_subject: 'Call the plumber tomorrow' });
-  await page.locator('.stack').getByText('Put in the jumble').waitFor({ timeout: 5_000 });
+  await page.locator('.stack').getByText('Put in the inbox').waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: 'Undo' }).click();
   await sent(page, writes, `POST /jumble/entries/${JUMBLED.id}:dismiss`);
   await page.locator('.stack').getByText(/^Dismissed\./).waitFor({ timeout: 5_000 });

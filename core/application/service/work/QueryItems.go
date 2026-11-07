@@ -40,6 +40,8 @@ type QueryItems struct {
 	// composed into something that never asks (an export, a view's preview).
 	Tallies    repository.ItemTallies
 	Containers repository.Containers
+	// Fields answers what a custom field the query ranges, sorts or groups over holds (F-2).
+	Fields     repository.CustomFields
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -78,12 +80,23 @@ func (h QueryItems) Execute(
 	}); err != nil {
 		return repository.ItemQueryResult{}, err
 	}
+	lens, err := h.lens(ctx, actor, container, resolved)
+	if err != nil {
+		return repository.ItemQueryResult{}, err
+	}
 
 	var result repository.ItemQueryResult
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
+		scope := anchor.CollectionID
+		if anchor.Kind == repository.AnchorHub {
+			scope = anchor.HubID
+		}
+		shaped, err := shapeCustomFields(ctx, h.Fields, resolved, scope)
+		if err != nil {
+			return err
+		}
 		result, err = h.Items.Query(ctx, repository.ItemSearch{
-			Anchor: anchor, Spec: resolved,
+			Anchor: anchor, Spec: shaped,
 			// The searcher's language, for MATCHES to read the words under. The entry's own is
 			// what its document was built under, and the two are deliberately different questions
 			// (ADR-0034, ItemSearch.Language).
@@ -94,6 +107,47 @@ func (h QueryItems) Execute(
 	if err != nil {
 		return repository.ItemQueryResult{}, err
 	}
+	return h.narrowed(ctx, lens, result)
+}
+
+// lens starts the narrowing of the answer, and refuses a query that ranges, sorts or groups over
+// a field hidden from the reader (UC-ID-27 check 3).
+func (h QueryItems) lens(
+	ctx context.Context, actor appshared.ActorContext, anchor domain.Container, spec view.Spec,
+) (*FieldLens, error) {
+	if !h.Gate.Sight.Wired() {
+		return nil, nil
+	}
+	lens, err := h.Gate.Sight.Lens(ctx, h.UnitOfWork, actor)
+	if err != nil {
+		return nil, err
+	}
+	hidden, err := lens.HiddenFrom(ctx, containerPath(anchor), spec.CustomKeys())
+	if err != nil {
+		return nil, err
+	}
+	return lens, refuseHidden(hidden)
+}
+
+// narrowed takes the hidden fields out of every entry of the answer, grouped or not.
+func (h QueryItems) narrowed(
+	ctx context.Context, lens *FieldLens, result repository.ItemQueryResult,
+) (repository.ItemQueryResult, error) {
+	if lens.Empty() {
+		return result, nil
+	}
+	var err error
+	if result.Items, err = lens.Items(ctx, h.UnitOfWork, result.Items); err != nil {
+		return repository.ItemQueryResult{}, err
+	}
+	groups := make([]repository.ItemGroup, len(result.Groups))
+	for i, group := range result.Groups {
+		if group.Items, err = lens.Items(ctx, h.UnitOfWork, group.Items); err != nil {
+			return repository.ItemQueryResult{}, err
+		}
+		groups[i] = group
+	}
+	result.Groups = groups
 	return result, nil
 }
 
@@ -239,7 +293,8 @@ func scopeNotFound(path string, id shared.ID) error {
 // (ai-first.md §1.1).
 func (h QueryItems) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: QueryItemsName,
+		Name:       QueryItemsName,
+		Permission: service.PermissionRead,
 		Summary: "Searches tasks, work packages and activities inside one hub, collection or " +
 			"entry: a filter of field, operator and value combined with AND, OR and NOT, an " +
 			"ordering, cursor paging, and an optional grouping into the columns a board draws. " +
@@ -262,6 +317,15 @@ func (h QueryItems) Descriptor() usecase.Descriptor {
 				Description: "Searches the whole subtree, which is the default. False narrows the " +
 					"scope to one level: the entries directly in the collection, or the direct " +
 					"children of the entry.",
+			},
+			{
+				Name: "q", Kind: usecase.KindString,
+				Description: "The filter and the order as one line instead of filter and sort, for " +
+					"example: status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC. " +
+					"Comparisons =, !=, <, <=, >, >=, ~ (contains), IN (...), NOT IN (...), IS EMPTY, " +
+					"IS NOT EMPTY, BETWEEN ... AND ..., CONTAINS, CONTAINS ANY (...), CONTAINS ALL (...), " +
+					"STARTS WITH and MATCHES, joined by AND, OR, NOT and brackets; texts quoted. " +
+					"Held to the same fields, operators and bounds as filter.",
 			},
 			{
 				Name: "filter", Kind: usecase.KindObject,
@@ -436,11 +500,27 @@ func specOf(in usecase.Input) (view.Spec, error) {
 	if err != nil {
 		return view.Spec{}, err
 	}
-	filter, err := view.ParseFilter(in["filter"], "/filter")
+	filterOf, sortOf, filterPath, sortPath := in["filter"], in["sort"], "/filter", "/sort"
+	if in.Present("q") {
+		// One spelling or the other: a line beside a tree would leave which one counts to a guess.
+		if in.Present("filter") || in.Present("sort") {
+			return view.Spec{}, shared.ErrValidation.WithDetail("query.line_with_filter").
+				WithFields(shared.FieldError{Path: "/q", Code: "query.line_with_filter"})
+		}
+		lineFilter, lineSort, err := view.ParseLine(in.String("q"), "/q")
+		if err != nil {
+			return view.Spec{}, err
+		}
+		filterOf, sortOf, filterPath, sortPath = lineFilter, nil, "/q", "/q"
+		if lineSort != nil {
+			sortOf = lineSort
+		}
+	}
+	filter, err := view.ParseFilter(filterOf, filterPath)
 	if err != nil {
 		return view.Spec{}, err
 	}
-	sort, err := view.ParseSort(in["sort"], "/sort")
+	sort, err := view.ParseSort(sortOf, sortPath)
 	if err != nil {
 		return view.Spec{}, err
 	}
@@ -492,7 +572,7 @@ func queryOutput(
 	out := pageOutput(rowsOf(result.Items, carried, marks), result.Info)
 	out["groups"] = groupsOf(result, spec, carried, marks)
 	out["total"] = nil
-	if spec.Count == view.CountExact {
+	if spec.Count == view.CountExact && !result.Uncounted {
 		out["total"] = result.Total
 	}
 	return out
@@ -511,7 +591,7 @@ func groupsOf(
 			out["key"] = group.Key
 		}
 		out["count"] = nil
-		if spec.Count == view.CountExact {
+		if spec.Count == view.CountExact && !result.Uncounted {
 			out["count"] = group.Total
 		}
 		groups = append(groups, out)

@@ -39,6 +39,8 @@ const (
 	bodyPasskeyAdded            = "email.way_in.passkey_added.body"      //nolint:gosec // G101: a message code, not a credential
 	subjectPasskeyRemoved       = "email.way_in.passkey_removed.subject" //nolint:gosec // G101: a message code, not a credential
 	bodyPasskeyRemoved          = "email.way_in.passkey_removed.body"    //nolint:gosec // G101: a message code, not a credential
+	subjectFactorReset          = "email.way_in.second_factor_reset.subject"
+	bodyFactorReset             = "email.way_in.second_factor_reset.body"
 )
 
 // RecordWayInChanged queues the notice. It implements the identity writers' WayInNotices.
@@ -164,6 +166,8 @@ func (s SendWayInChanged) Execute(ctx context.Context, tenantID shared.ID, notic
 		subjectCode, bodyCode = subjectPasskeyAdded, bodyPasskeyAdded
 	case identity.WayInPasskeyRemoved:
 		subjectCode, bodyCode = subjectPasskeyRemoved, bodyPasskeyRemoved
+	case identity.WayInSecondFactorReset:
+		subjectCode, bodyCode = subjectFactorReset, bodyFactorReset
 	default:
 		return shared.ErrInternal.WithDetail("notifications.payload_malformed").
 			WithParams(map[string]string{"field": "event"})

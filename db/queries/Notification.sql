@@ -13,21 +13,25 @@
 INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
   event_id, item_id, actor_id, created_at, rule_id, subscription_id, private_hub_access_id,
-  membership_id
+  membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id, mailbox_id,
+  identity_provider_id, calendar_push_id, cmdb_connector_id, code_hook_id
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('recipient_id'), sqlc.arg('category'),
   sqlc.arg('channel'), sqlc.arg('state'), sqlc.narg('reason'),
   sqlc.narg('event_id'), sqlc.narg('item_id'), sqlc.narg('actor_id'), sqlc.arg('created_at'),
   sqlc.narg('rule_id'), sqlc.narg('subscription_id'), sqlc.narg('private_hub_access_id'),
-  sqlc.narg('membership_id')
+  sqlc.narg('membership_id'), sqlc.narg('page_id'), sqlc.narg('agent_id'), sqlc.narg('whiteboard_id'),
+  sqlc.narg('approval_id'), sqlc.narg('baseline_id'), sqlc.narg('mailbox_id'),
+  sqlc.narg('identity_provider_id'), sqlc.narg('calendar_push_id'), sqlc.narg('cmdb_connector_id'),
+  sqlc.narg('code_hook_id')
 )
-ON CONFLICT (tenant_id, event_id, recipient_id, channel) WHERE event_id IS NOT NULL
-DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- name: FindNotification :one
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
        event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id,
-       private_hub_access_id, membership_id
+       private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id,
+       mailbox_id, identity_provider_id, calendar_push_id, cmdb_connector_id, code_hook_id
 FROM notification
 WHERE id = $1;
 
@@ -97,3 +101,43 @@ SELECT tenant_id, account_id, category, channel, enabled, include_title, updated
 FROM notification_preference
 WHERE account_id = sqlc.arg('account_id')::uuid
 ORDER BY category, channel;
+
+-- name: MarkMailUndeliverable :exec
+-- The address the mail server refused for good. A later refusal at a new address moves the mark
+-- to it and keeps nothing of the old one.
+INSERT INTO mail_undeliverable (tenant_id, account_id, address, since)
+VALUES (current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('address'), sqlc.arg('since'))
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  since   = EXCLUDED.since
+WHERE mail_undeliverable.address <> EXCLUDED.address;
+
+-- name: FindMailUndeliverable :one
+SELECT address, since FROM mail_undeliverable WHERE account_id = sqlc.arg('account_id')::uuid;
+
+-- name: ClearMailUndeliverable :exec
+DELETE FROM mail_undeliverable WHERE account_id = sqlc.arg('account_id')::uuid;
+
+-- name: LatestMailPerRecipient :many
+-- The newest notification of each account, whatever its category, for the people list's rows
+-- (user-experience.md §8.3), with its delivery job's end and last failure: what the mail did, and
+-- when it failed. The job table has no row level security, so its join names the tenant itself.
+SELECT a.account_id::uuid AS account_id, n.category, n.state, n.reason, n.created_at, n.sent_at,
+       d.finished_at AS delivery_finished_at, d.last_error AS delivery_error,
+       d.last_error_params AS delivery_error_params
+FROM unnest(sqlc.arg('account_ids')::uuid[]) AS a(account_id)
+CROSS JOIN LATERAL (
+  SELECT nn.id, nn.category, nn.state, nn.reason, nn.created_at, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = current_tenant_id() AND nn.recipient_id = a.account_id
+  ORDER BY nn.created_at DESC, nn.id DESC
+  LIMIT 1
+) n
+LEFT JOIN LATERAL (
+  SELECT j.finished_at, j.last_error, j.last_error_params
+  FROM job j
+  WHERE j.tenant_id = current_tenant_id() AND j.kind = 'notification.deliver'
+    AND j.dedupe_key = n.id::text
+  ORDER BY j.created_at DESC, j.id DESC
+  LIMIT 1
+) d ON true;

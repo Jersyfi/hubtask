@@ -15,7 +15,7 @@
  */
 
 /** The levels a value can come from, as the contract names them across its resources. */
-export type ValueSource = 'DEFAULT' | 'INSTANCE' | 'PLAN' | 'WORKSPACE' | 'EXCEPTION';
+export type ValueSource = 'DEFAULT' | 'INSTANCE' | 'PLAN' | 'WORKSPACE' | 'HUB' | 'EXCEPTION';
 
 /** Which level locked a value, where one did. */
 export type ValueLock = 'INSTANCE' | 'PLAN';
@@ -31,7 +31,7 @@ export interface ChipCodes {
   readonly whomToAsk?: string;
 }
 
-const KNOWN: ReadonlySet<string> = new Set(['DEFAULT', 'INSTANCE', 'PLAN', 'WORKSPACE', 'EXCEPTION']);
+const KNOWN: ReadonlySet<string> = new Set(['DEFAULT', 'INSTANCE', 'PLAN', 'WORKSPACE', 'HUB', 'EXCEPTION']);
 
 /**
  * The chip for one value, or `undefined` where the server named no source.
@@ -39,17 +39,18 @@ const KNOWN: ReadonlySet<string> = new Set(['DEFAULT', 'INSTANCE', 'PLAN', 'WORK
  * A lock names the level that holds it, which is the level the value comes from: a value the
  * installation locked is the installation's, whatever the workspace once stored. `operates` is
  * whether the reader runs this installation themselves - in a private installation they usually
- * do, and "ask the operator" would send them to themselves.
+ * do, and "ask the operator" would send them to themselves. `atHub` is whether the value is read
+ * at a hub, where the hub's own is "set here" and the workspace's is a level above.
  */
 export function chipCodes(
   origin: { readonly source?: string | null; readonly lock?: string | null },
-  reader: { readonly operates: boolean },
+  reader: { readonly operates: boolean; readonly atHub?: boolean },
 ): ChipCodes | undefined {
   const lock = origin.lock === 'INSTANCE' || origin.lock === 'PLAN' ? origin.lock : undefined;
   const source = lock ?? origin.source;
   if (!source || !KNOWN.has(source)) return undefined;
   const isLocked = lock !== undefined;
-  const level = source.toLowerCase();
+  const level = reader.atHub && source === 'WORKSPACE' ? 'workspace_above' : source.toLowerCase();
   return {
     label: `app.source.${isLocked ? 'locked' : 'label'}_${level}`,
     isLocked,

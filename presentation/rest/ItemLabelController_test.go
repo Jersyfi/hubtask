@@ -47,7 +47,7 @@ func TestAddingALabelAnswersWithTheSetTheEntryNowCarries(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != addLabelUseCase {
+	if registry.name != "AddLabel" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 	if registry.in["item_id"] != labelledItem || registry.in["label_id"] != firstLabel {
@@ -74,7 +74,7 @@ func TestRemovingALabelAnswersWithTheSetTheEntryNowCarries(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
 	}
-	if registry.name != removeLabelUseCase {
+	if registry.name != "RemoveLabel" {
 		t.Errorf("the handler invoked %q", registry.name)
 	}
 

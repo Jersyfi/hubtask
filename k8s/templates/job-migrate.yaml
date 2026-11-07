@@ -68,6 +68,11 @@ spec:
             - name: HUBTASK_DB_CONNECT_WAIT
               value: {{ . | quote }}
             {{- end }}
+            {{- with .Values.migration.timeout }}
+            # The run's own bound; helm's --timeout must not be shorter (deployment.md §2.2).
+            - name: HUBTASK_MIGRATE_TIMEOUT
+              value: {{ . | quote }}
+            {{- end }}
             {{- if .Values.migration.appPasswordSecretKey }}
             # The migrator is the operator that grants hubtask_app its login (deployment.md §2.1): the migration
             # creates the role without one, because a credential has no business in a migration.

@@ -155,6 +155,16 @@ type Question struct {
 	// never from the job's payload. Empty for every question that reads its material from the
 	// target.
 	Words string
+	// Case is a text to classify that is no entry - a case of an agent's evaluation set. Nil for
+	// every question about a target.
+	Case *CaseText
+}
+
+// CaseText is a text classified as an entry of a collection would be: the labels offered are the
+// collection's.
+type CaseText struct {
+	CollectionID shared.ID
+	Title, Notes string
 }
 
 // Produce asks a provider and records what it answered.
@@ -201,6 +211,8 @@ type Outcome struct {
 	// Code is how the question ended, as the message code a person who follows the job reads: one
 	// of the Outcome* codes, or the refusal the asker's own exclusion gives. Empty only on an error.
 	Code string
+	// Tokens is what the provider reported the question cost, zero where none was asked.
+	Tokens int64
 }
 
 // The outcomes of a question that ran to its end, as message codes (rule 8). Two of them are the
@@ -622,6 +634,7 @@ func (h Produce) ask(
 	if err != nil {
 		return Outcome{}, err
 	}
+	tokens := int64(answer.Usage.InputTokens + answer.Usage.OutputTokens)
 
 	var (
 		payload map[string]any
@@ -644,7 +657,7 @@ func (h Produce) ask(
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
-		return Outcome{Dropped: dropped, Code: OutcomeNothingToChange}, nil
+		return Outcome{Dropped: dropped, Code: OutcomeNothingToChange, Tokens: tokens}, nil
 	}
 
 	proposal, err := domain.New(domain.NewInput{
@@ -654,6 +667,7 @@ func (h Produce) ask(
 		Provenance: domain.Provenance{
 			Model: answer.Model, PromptID: answer.PromptID,
 			PromptVersion: answer.PromptVersion, ProducedAt: answer.ProducedAt,
+			AgentID: actor.AsAgent,
 		},
 		InputDigest:  material.Digest,
 		DroppedNodes: dropped,
@@ -676,7 +690,7 @@ func (h Produce) ask(
 	}); err != nil {
 		return Outcome{}, err
 	}
-	outcome := Outcome{Recorded: true, Dropped: dropped, Code: OutcomeProposed}
+	outcome := Outcome{Recorded: true, Dropped: dropped, Code: OutcomeProposed, Tokens: tokens}
 	if !request.Apply {
 		return outcome, nil
 	}

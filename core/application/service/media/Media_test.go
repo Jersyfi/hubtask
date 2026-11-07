@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -60,7 +61,13 @@ type objects struct {
 	referenced map[shared.ID]bool
 	// avatars are the objects some account shows as its picture.
 	avatars map[shared.ID]bool
-	marked  []shared.ID
+	// boards are the hubs of the boards drawing each object.
+	boards map[shared.ID][]shared.ID
+	// pagesHolding are the pages holding each object.
+	pagesHolding map[shared.ID][]shared.ID
+	// desks are the collections showing each object as their logo.
+	desks  map[shared.ID][]shared.ID
+	marked []shared.ID
 	// pages is what ListForItem answers, and asked records the page it was asked for - which is
 	// how a test says that the size was clamped rather than passed through.
 	pages    map[shared.ID]repository.ObjectPage
@@ -105,6 +112,26 @@ func (o *objects) Seal(_ context.Context, object domain.Object) error {
 	return nil
 }
 
+// Held answers the stored objects held for a scan, oldest first.
+func (o *objects) Held(_ context.Context, batch int) ([]domain.Object, error) {
+	held := []domain.Object{}
+	for _, object := range o.stored {
+		if object.Held() && object.DeletedAt == nil {
+			held = append(held, object)
+		}
+	}
+	slices.SortFunc(held, func(a, b domain.Object) int { return a.CreatedAt.Compare(b.CreatedAt) })
+	return held[:min(batch, len(held))], nil
+}
+
+func (o *objects) Settle(_ context.Context, object domain.Object) error {
+	if stored, ok := o.stored[object.ID]; !ok || !stored.Held() {
+		return shared.ErrConflict.WithDetail("media.not_held")
+	}
+	o.stored[object.ID] = object
+	return nil
+}
+
 func (o *objects) AdjustRefCount(context.Context, shared.ID, int) error { return nil }
 func (o *objects) MarkDeleted(_ context.Context, id shared.ID, at time.Time) (bool, error) {
 	if o.referenced[id] {
@@ -131,6 +158,18 @@ func (o *objects) TakeOrphans(context.Context, time.Time, int) ([]repository.Orp
 
 func (o *objects) ReferencingItems(_ context.Context, id shared.ID) ([]repository.ItemRef, error) {
 	return o.refs[id], nil
+}
+
+func (o *objects) ReferencingBoards(_ context.Context, id shared.ID) ([]shared.ID, error) {
+	return o.boards[id], nil
+}
+
+func (o *objects) ReferencingPages(_ context.Context, id shared.ID) ([]shared.ID, error) {
+	return o.pagesHolding[id], nil
+}
+
+func (o *objects) ServedDesks(_ context.Context, id shared.ID) ([]shared.ID, error) {
+	return o.desks[id], nil
 }
 
 func (o *objects) ServesAvatar(_ context.Context, id shared.ID) (bool, error) {
@@ -375,6 +414,7 @@ func staged(records *objects, bytesOf *store, claimed string, declared int64, bo
 	return object
 }
 
+// UC-MED-01 check 3.
 func TestConfirmingSealsTheObjectWithWhatTheBytesTurnedOutToBe(t *testing.T) {
 	handler, records, bytesOf, judge, trail := confirmHarness(1 << 20)
 	staged(records, bytesOf, "image/jpeg", int64(len(pngBytes)), pngBytes)
@@ -432,6 +472,7 @@ func TestConfirmingTwiceYieldsOneObject(t *testing.T) {
 	}
 }
 
+// UC-MED-01 check 2.
 func TestAConfirmationHoldsTheSizeAgainstWhatWasDeclared(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -476,6 +517,7 @@ func TestConfirmingWithoutBytesSaysSo(t *testing.T) {
 
 // A refused guard is a refused confirmation, and the object stays PENDING - which is what keeps
 // "nothing unjudged is ever attached" true (T-11).
+// UC-MED-01 check 3.
 func TestAGuardRefusalStopsTheConfirmation(t *testing.T) {
 	handler, records, bytesOf, judge, _ := confirmHarness(1 << 20)
 	staged(records, bytesOf, "text/html", int64(len(pngBytes)), pngBytes)
@@ -579,6 +621,7 @@ func TestTheContentRouteRefusesToOverwriteASealedObject(t *testing.T) {
 	}
 }
 
+// UC-MED-01 check 10.
 func TestNothingUnjudgedIsEverServed(t *testing.T) {
 	handler, records, bytesOf, _ := contentHarness()
 	staged(records, bytesOf, "image/png", int64(len(pngBytes)), pngBytes)

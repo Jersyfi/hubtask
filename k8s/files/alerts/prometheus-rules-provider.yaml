@@ -271,3 +271,348 @@ groups:
             them from GET /admin/events. Redeliver from the installation screen or hubctl once the
             platform answers again.
           runbook: RB-A21-platform-dead-letters.md
+
+      # A-22. Live document awareness does not reach the other replicas: co-editors connected to
+      # different replicas stop seeing each other's cursors and presence, while the document's
+      # own words still arrive (they are stored and woken separately). Awareness is best effort
+      # and never the connection's error, so this counter is the only place it shows.
+      - alert: HubtaskAwarenessRelayFailing
+        expr: sum(rate(hubtask_realtime_awareness_relayed_total{outcome="failed"}[10m])) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-22
+        annotations:
+          summary: "Co-editors on different replicas do not see each other"
+          description: >
+            Awareness - cursors and presence on a live document - could not be handed to the
+            other replicas for a quarter of an hour. Editing still works and every word arrives;
+            people on different replicas only miss each other's cursors.
+          runbook: RB-A22-awareness-relay.md
+
+      # A-23. Uploads wait for a malware scan the daemon does not give: a held file can be
+      # attached but nobody can download it until the scan settles it (UC-MED-01 check 10). The
+      # media.scan job retries every five minutes on its own, so a short daemon restart resolves
+      # itself; an hour of it is the scanner down or scanning switched off with files held. Not in
+      # the self-hosting set: the bytes are kept, nothing is lost by waiting. max() reads the one
+      # leader's series.
+      - alert: HubtaskUploadsHeldForScan
+        expr: max(hubtask_media_scan_held_workspaces) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-23
+        annotations:
+          summary: "Uploads wait for a malware scan"
+          description: >
+            Files confirmed while the scanner did not answer are held and cannot be downloaded
+            until it does. Check the daemon at HUBTASK_CLAMD_ADDRESS; the scan job settles the
+            held files by itself once it answers.
+          runbook: RB-A23-uploads-held-for-scan.md
+
+      # A-24. A live document's log is not compacted: its writers do not answer the server's
+      # request for a snapshot (offline-sync.md SY-F), so each opening replays a longer log.
+      # Counted past five rounds of asking, before reconnects slow down; at ten rounds the log
+      # refuses new updates until a snapshot comes, which the writers' editors then send.
+      - alert: HubtaskDocumentLogNotCompacted
+        expr: sum(rate(hubtask_realtime_document_backlog_total[15m])) > 0
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-24
+        annotations:
+          summary: "A live document's log is not compacted"
+          description: >
+            Updates keep landing on a live document whose log is far past its snapshot, or are
+            refused at its ceiling. Opening the document gets slower; past the ceiling its writers
+            wait for a snapshot before their words are stored.
+          runbook: RB-A24-document-log-not-compacted.md
+
+      # A-25. A transaction has stayed open for two hours: vacuum keeps every row version it might
+      # still read, so the busy tables and their indexes grow until it ends. Usually a backup's or a
+      # workspace export's snapshot of a large workspace (backup-restore.md §5), sometimes a session
+      # left open by hand. Nothing is lost; queries slow down as the tables bloat. max() reads the
+      # one leader's series.
+      - alert: HubtaskLongTransaction
+        expr: max(hubtask_db_oldest_transaction_seconds) > 7200
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-25
+        annotations:
+          summary: "A database transaction has been open for over two hours"
+          description: >
+            Vacuum cannot reclaim rows changed since the oldest open transaction began, so tables
+            and indexes grow while it stays open. Find it in pg_stat_activity; a backup or export
+            of a large workspace is the usual one.
+          runbook: RB-A25-long-transaction.md
+
+      # A-26. Live connections are refused at a workspace's or a pod's cap (HUBTASK_STREAM_PER_*):
+      # the server is fine, but the refused clients get no live updates and fall back to pulling
+      # the changes at a slowing interval. A client over its own cap is its loop, not capacity, and
+      # is left out.
+      - alert: HubtaskStreamCapacityReached
+        expr: sum(increase(hubtask_stream_refused_total{reason=~"tenant|process"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          alert_id: A-26
+        annotations:
+          summary: "Live connections are refused at the stream cap"
+          description: >
+            A workspace or a pod holds as many live connections as allowed, so new ones are
+            refused and those clients work without live updates. Raise HUBTASK_STREAM_PER_TENANT
+            or HUBTASK_STREAM_PER_PROCESS, or add a replica.
+          runbook: RB-A26-stream-capacity-reached.md
+
+      # A-27. A data kind's retention passes ran this week and none has completed for two days:
+      # the per-workspace sweep (hourly by default) stopped, so data stays past its period. The
+      # run histogram is written on a completed pass only, zero rows included. A kind with no
+      # pass in the week (never installed, or switched off long ago) has nothing to compare and
+      # stays quiet; one switched off within the week fires until it ages out.
+      - alert: HubtaskRetentionStalled
+        expr: |
+          sum by (data_kind) (increase(hubtask_retention_run_duration_seconds_count[7d])) > 0
+          unless on (data_kind)
+          sum by (data_kind) (increase(hubtask_retention_run_duration_seconds_count[48h])) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-27
+        annotations:
+          summary: "No retention pass of {{ $labels.data_kind }} has completed in 48 hours"
+          description: >
+            The retention sweep ran this week and has stopped: data of this kind stays past its
+            period. Look for dead letters of retention.sweep and for a scheduler that does not
+            run.
+          runbook: RB-A27-retention-stalled.md
+
+      # A-28. An index has been invalid for an hour: a CREATE INDEX CONCURRENTLY was interrupted
+      # and the migrator did not rebuild it (one no migration builds, or a build that fails again).
+      # Every write still maintains it and no query uses it; a unique one enforces nothing. The hour
+      # lets a concurrent build in progress, which is invalid until it ends, finish. max() reads the
+      # one leader's series.
+      - alert: HubtaskInvalidIndex
+        expr: max(hubtask_db_invalid_indexes) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-28
+        annotations:
+          summary: "An index of the database has been invalid for an hour"
+          description: >
+            An interrupted concurrent index build left an index that queries do not use and that,
+            if unique, does not enforce its uniqueness. Find it in pg_index and build it again.
+          runbook: RB-A28-invalid-index.md
+
+      # A-29. At least half of the mailboxes on one of the installation's own mail apps
+      # (HUBTASK_MAIL_OAUTH_*) have failed for over an hour - across workspaces, so the app itself
+      # is the likely cause: its client secret ran out or was withdrawn. Each workspace's
+      # administrators are told of their own mailbox and cannot fix it; the operator can. The
+      # mailbox's own hour of grace is already in the gauge; the 15 minutes ride out one tick.
+      - alert: HubtaskMailAppFailing
+        expr: |
+          max by (app) (hubtask_mail_app_mailboxes_failing) >= 1
+          and on (app)
+          max by (app) (hubtask_mail_app_mailboxes_failing) * 2 >= max by (app) (hubtask_mail_app_mailboxes)
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-29
+        annotations:
+          summary: "Most mailboxes on the installation's {{ $labels.app }} mail app fail"
+          description: >
+            At least half of the mailboxes that sign in through the installation's own
+            {{ $labels.app }} app have failed for over an hour. Check the app's client secret at
+            the provider and in HUBTASK_MAIL_OAUTH_*.
+          runbook: RB-A29-mail-app-failing.md
+
+      # A-38. The mailbox watch's limit (HUBTASK_MAILBOX_WATCH_LIMIT) leaves connected IMAP
+      # mailboxes to the minute's read: nothing is lost, but those workspaces no longer hear of
+      # mail within seconds, and nothing else says so. A ticket, for a decision on the limit.
+      - alert: HubtaskMailboxWatchFull
+        expr: max(hubtask_mailbox_watches_unheld) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-38
+        annotations:
+          summary: "{{ $value }} connected mailboxes are read only every minute"
+          description: >
+            The mailbox watch holds as many mailboxes as HUBTASK_MAILBOX_WATCH_LIMIT allows, one per
+            workspace before a second; the rest arrive by the minute's read. Raise the limit if the
+            watching worker has the connections to spare.
+          runbook: RB-A38-mailbox-watch-full.md
+
+      # A-38, too: a shard of the mailbox watch no worker leads - the workers are fewer than
+      # HUBTASK_MAILBOX_WATCH_SHARDS over HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER allow - leaves
+      # its workspaces' mailboxes to the minute's read, and no leader is there to count them.
+      - alert: HubtaskMailboxWatchShardUnled
+        expr: max(hubtask_mailbox_watch_shards) - sum(hubtask_mailbox_watch_shards_led) > 0
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-38
+        annotations:
+          summary: "{{ $value }} shards of the mailbox watch have no worker"
+          description: >
+            No worker leads these shards, so their workspaces' connected mailboxes are read only
+            every minute. Start more workers or raise HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER.
+          runbook: RB-A38-mailbox-watch-full.md
+
+      # A-39. An initial synchronisation skipped a kind whose read failed: the walk went on
+      # without it, so devices start with everything else, and a later pull walks the kind again.
+      # Those devices lack that kind until its read is mended; a ticket, for the defect or the row.
+      - alert: HubtaskSyncKindSkipped
+        expr: sum by (kind) (increase(hubtask_sync_kinds_skipped_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-39
+        annotations:
+          summary: "First synchronisations skip the kind {{ $labels.kind }}"
+          description: "Its read fails, so devices are told everything else and go without it until a later pull reads it. The server's log names the kind and the failure's code."
+          runbook: RB-A39-sync-kind-skipped.md
+
+      # A-40. No process got a WebSocket through the installation's public address for a quarter
+      # of an hour (the realtime probe, two failed attempts in a row before it reads down): a proxy
+      # in front drops the upgrade, and live editing is broken for everyone while every other
+      # check stays green.
+      - alert: HubtaskRealtimeUnreachable
+        expr: max(hubtask_dependency_up{dependency="realtime_public"}) == 0
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-40
+        annotations:
+          summary: "Live editing does not get through the public address"
+          description: "A WebSocket opened through HUBTASK_BASE_URL does not reach the server: the proxy in front drops the upgrade or answers it itself. People can still work, but pages and whiteboards are not edited together."
+          runbook: RB-A40-realtime-unreachable.md
+
+      # A-31. More than one in twenty notification sends failed over a quarter of an hour, with at
+      # least five failures so that one bounced address on a quiet installation stays silent. A
+      # failure the breaker does not see - a refusal per recipient, a template the channel rejects -
+      # raises only the counter; the person waiting for the mail notices nothing.
+      - alert: HubtaskNotificationsFailing
+        expr: |
+          sum(increase(hubtask_notification_failures_total[15m])) >= 5
+          and
+          sum(rate(hubtask_notification_failures_total[15m]))
+            / (sum(rate(hubtask_notification_failures_total[15m]))
+               + (sum(rate(hubtask_notification_send_duration_seconds_count[15m])) or vector(0)))
+            > 0.05
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-31
+        annotations:
+          summary: "Notifications are failing to send"
+          description: "More than 5% of notification sends failed over 15 minutes. hubtask_notification_failures_total names the channel and the reason."
+          runbook: RB-A31-notifications-failing.md
+
+      # A-32. An occurrence of a recurring entry was created more than an hour after the moment it
+      # is for. A rolling window creates them ahead, so a late one means the scheduler stopped and
+      # came back, or the materialising job is failing; A-30 catches the stop while it lasts.
+      - alert: HubtaskRecurrenceLate
+        expr: |
+          sum(increase(hubtask_recurrence_occurrence_lag_seconds_count[1h]))
+            - sum(increase(hubtask_recurrence_occurrence_lag_seconds_bucket{le="3600"}[1h]))
+            > 0
+        labels:
+          severity: ticket
+          alert_id: A-32
+        annotations:
+          summary: "Recurring entries were created more than an hour late"
+          description: "At least one occurrence of a recurrence arrived over an hour after its moment in the last hour."
+          runbook: RB-A32-recurrence-late.md
+
+      # A-33. Statements that fail by timeout, by a lost connection or for no known reason, at more
+      # than one every ten seconds for a quarter of an hour. Serialisation failures are retried and
+      # constraint violations are answers, so neither counts.
+      - alert: HubtaskDatabaseErrors
+        expr: |
+          sum by (kind) (rate(hubtask_db_errors_total{kind=~"timeout|connection|other"}[10m])) > 0.1
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-33
+        annotations:
+          summary: "Database statements are failing ({{ $labels.kind }})"
+          description: "More than one statement every ten seconds fails with {{ $labels.kind }} for 15 minutes."
+          runbook: RB-A33-database-errors.md
+
+      # A-34. Audit entries past their period lie in the trail's default partition, which no
+      # partition drop reaches: the retention promise is broken for them until an operator moves
+      # them out. Six hours lets the leader's own partition maintenance run first. The months a
+      # legal hold keeps whole (hubtask_audit_partitions_held) are the hold working, not a fault,
+      # and raise nothing.
+      - alert: HubtaskAuditDefaultPartitionAged
+        expr: max(hubtask_audit_default_partition_aged_rows) > 0
+        for: 6h
+        labels:
+          severity: ticket
+          alert_id: A-34
+        annotations:
+          summary: "Audit entries past their period are stuck in the default partition"
+          description: "No partition drop reaches them; move them into their monthly partitions so retention can remove them."
+          runbook: RB-A34-audit-default-partition.md
+
+      # A-35. A durable timer's firing failed and was put back: the pass fires each timer under its
+      # own savepoint, so one bad row degrades only itself, but that SLA breach, OLA, approval
+      # reminder or page review is not happening while it keeps failing. Retried with a delay
+      # doubling up to six hours; a failure that stays is a defect or a row to repair.
+      - alert: HubtaskTimerFailing
+        expr: sum by (purpose) (increase(hubtask_timer_failures_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-35
+        annotations:
+          summary: "Durable timers of purpose {{ $labels.purpose }} fail to fire"
+          description: "Each failing timer is put back with a growing delay while the others fire. The worker's log names the timer and the failure's code."
+          runbook: RB-A35-timer-failing.md
+
+      # A-36. Half of PostgreSQL's NOTIFY queue is in use: a session that LISTENs stopped reading,
+      # and the queue keeps every notification until the slowest listener has read it. Once it is
+      # full, every transaction that notifies fails at commit - every write to an entry among them.
+      # Paged, because the step from half to full can take minutes under the live updates' traffic.
+      - alert: HubtaskNotifyQueueFilling
+        expr: max(hubtask_db_notify_queue_usage_ratio) > 0.5
+        for: 2m
+        labels:
+          severity: page
+          alert_id: A-36
+        annotations:
+          summary: "PostgreSQL's NOTIFY queue is more than half full"
+          description: "A listening session stopped reading. When the queue is full, every write that notifies fails. Find and end the stuck listener."
+          runbook: RB-A36-notify-queue-filling.md
+
+      # A-37. Vacuum has not frozen the database for more than a billion transaction IDs. At about
+      # two billion PostgreSQL stops accepting writes until a vacuum has run, which on a large
+      # database takes hours; half-way leaves the time to find what holds vacuum back.
+      - alert: HubtaskTransactionIdAgeHigh
+        expr: max(hubtask_db_frozen_xid_age) > 1000000000
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-37
+        annotations:
+          summary: "The database's transaction-ID age is past one billion"
+          description: "Vacuum is not freezing old rows. Near two billion PostgreSQL refuses writes; find what holds vacuum back before then."
+          runbook: RB-A37-transaction-id-age.md
+
+      # A-42. The database has grown past 80% of the operator's budget - the plan of a managed
+      # database or the volume a self-hoster sized. The budget is the chart's recorded
+      # `hubtask:db_size_budget_bytes`; without it the rule has nothing to compare with and stays
+      # silent, which the chart's value says.
+      - alert: HubtaskDatabaseNearBudget
+        expr: max(hubtask_db_size_bytes) > 0.8 * scalar(max(hubtask:db_size_budget_bytes))
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-42
+        annotations:
+          summary: "The database is past 80% of its size budget"
+          description: "The database grows towards the size its plan or volume allows. Raise the budget or find what grows before writes are refused."
+          runbook: RB-A42-database-near-budget.md
+

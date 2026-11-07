@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [C-07, F3-10, K-03]
-checked_by: [test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, core/domain/model/work/CustomField_test.go, core/application/service/work/SetCustomField_test.go]
+checked_by: [core/application/service/work/FieldHub_test.go, test/integration/custom_field_hub_test.go, core/application/service/work/Calculated_test.go, core/application/service/work/FillCalculatedFields_test.go, infrastructure/expression/Formula_test.go, test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts, apps/webapp/e2e/fieldnames.test.mjs]
 ---
 
 # Record the facts a team tracks, with custom fields
@@ -28,14 +28,23 @@ the list by `priority = high`.
 ## How to check
 
 1. A person who may change the collection's shape defines a field with a key, one of the kinds
-   text, number, date, pick one, pick several, yes/no, person and link, the options for the two
-   pick kinds, whether it is required, and which entry types carry it.
+   text, number, date, pick one, pick several, yes/no, person and link, amount of money,
+   duration, reference to another entry, several people, formatted text, calculated, date and
+   time, group, two-level pick, IP address, one of the entry's files, labels and state, the options
+   for the pick kinds (a two-level pick's children written `Parent/Child` under a parent it
+   offers, `fields.option_without_parent` otherwise), the currency of an amount (and of no other kind), the formula of a
+   calculated field (and of no other kind), whether it is required, and which entry types carry it.
+   A calculated field shows the number its formula gives over the entry's own fields, recomputed
+   whenever they are written, and nobody fills it in.
 2. A second field with the same key in the same collection is refused with `fields.key_taken`; a
    pick field without options with `fields.options_required`.
 3. An entry of a type the field applies to shows one row per field and saves each value on its own;
    numbers are read and shown in the reader's own number format.
-4. A value of the wrong kind, a pick outside the options, or a person who cannot see the entry is
-   refused with a code naming the field.
+4. A value of the wrong kind, a pick outside the options, an amount finer than four decimal places,
+   a duration that is not whole minutes, a person who cannot see the entry, a reference to an
+   entry the writer cannot see, a group that is not the workspace's, a file the entry does not
+   carry, an address with a prefix or a zone, or a label with a space is refused with a code naming
+   the field.
 5. A required field cannot be cleared once set (`fields.value_required`); making a field required
    does not make older entries invalid.
 6. The key and the kind of a field cannot be changed after it is defined; deleting a field stops
@@ -44,12 +53,25 @@ the list by `priority = high`.
    operators that fit the kind (a pick field offers its options).
 8. A member without the right to change the collection's shape sees the fields on entries and
    fills them in, but is not offered to define, change or delete them.
+9. A hub defines fields of its own, which the entries of its collections carry: a collection's own
+   field under the key wins over the hub's, and the hub's over the workspace's. The hub's settings
+   show the workspace's fields read-only with *Make a copy here*, which makes the hub's own copy
+   under the same key, naming its source; values already filled in stay visible. A field the hub
+   hides from readers is hidden in its collections alone, and another hub's collections never
+   carry it.
 
 ## Where it ends
 
-* No computed fields and no formulas.
-* No sorting or grouping by a custom field — the server orders only by its own columns.
+* A formula reads only the entry's own number and yes/no fields - never another calculated field,
+  another entry or a value outside the entry - and is fixed once defined.
+* No sorting by a field that holds several values, a person, a reference or formatted text, and no
+  grouping by one that holds several values or formatted text (UC-WRK-17).
 * No display name separate from the key; the key is what people read.
-* Workspace-wide fields are defined through the API; the collection's dialog shows them read-only.
+* Workspace-wide fields are defined through the API; the collection's dialog shows them, and its
+  hub's, read-only. A hub's own field is defined through the API or made by *Make a copy here*.
+* A collection moved out of its hub stops showing the values of the hub's fields and keeps them;
+  moved back, it shows them again.
 * A field that decides behaviour (a status that drives a workflow) is an automation rule's job,
-  not a field's.
+  not a field's; a state field records where a record stands and moves nothing.
+* A two-level pick has two levels, no more; a file field names an attachment the entry already
+  carries and uploads nothing itself.

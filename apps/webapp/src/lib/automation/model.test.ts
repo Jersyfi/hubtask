@@ -22,6 +22,9 @@ import {
   offeredBlocks,
   offersDescribing,
   emptyDraft,
+  asOwn,
+  isOwnRule,
+  OWN_TRIGGERS,
   insertAt,
   isAutomatic,
   moveStep,
@@ -38,6 +41,8 @@ import {
   removeRung,
   stepAt,
   toRuleDraft,
+  stepDraft,
+  onStep,
   unreachableFrom,
   type Step,
   type Node,
@@ -107,6 +112,37 @@ test('a trigger sends the fields of its kind and no others, and an empty paramet
   assert.deepEqual(sent.trigger, { kind: 'SCHEDULE', rrule: 'FREQ=WEEKLY;BYDAY=MO', timezone: 'Europe/Berlin' });
   assert.deepEqual(sent.actions, [{ kind: 'ADD_COMMENT' }]);
   assert.equal('throttle' in sent, false);
+});
+
+test('a relative date sends its date field only when it is measured from one', () => {
+  const draft = fromRule(STORED);
+  draft.trigger = { kind: 'RELATIVE_DATE', anchor: 'FIELD', anchor_field: 'contract_notice_by', offset: '-P30D' };
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, {
+    kind: 'RELATIVE_DATE',
+    anchor: 'FIELD',
+    anchor_field: 'contract_notice_by',
+    offset: '-P30D',
+  });
+  draft.trigger = { ...draft.trigger, anchor: 'DUE_DATE' };
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, { kind: 'RELATIVE_DATE', anchor: 'DUE_DATE', offset: '-P30D' });
+});
+
+test('a relative date on a business calendar keeps its calendar when it is edited (UC-AUT-04 check 9)', () => {
+  const stored: Rule = {
+    ...STORED,
+    trigger: { kind: 'RELATIVE_DATE', anchor: 'COMPLETED_AT', offset: 'P5D', calendar: 'office' },
+  };
+  const draft = fromRule(stored);
+  assert.equal(draft.trigger.calendar, 'office');
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, {
+    kind: 'RELATIVE_DATE',
+    anchor: 'COMPLETED_AT',
+    offset: 'P5D',
+    calendar: 'office',
+  });
+  // Cleared in the inspector, the offset counts every day again.
+  draft.trigger = { ...draft.trigger, calendar: undefined };
+  assert.deepEqual(toRuleDraft(draft, 'n').trigger, { kind: 'RELATIVE_DATE', anchor: 'COMPLETED_AT', offset: 'P5D' });
 });
 
 test('a path names one step through the arms, and translates to the pointer a refusal carries', () => {
@@ -412,3 +448,30 @@ test('describing a rule is offered only where asking could succeed', () => {
   }
 });
 
+
+test('a rule on a step sends its workflow and step, and is found on that step (UC-FLW-04 check 4)', () => {
+  const draft = stepDraft('purchase', 'order');
+  const sent = toRuleDraft(draft, 'n');
+  assert.deepEqual(sent.trigger, { kind: 'STEP_TAKEN', workflow: 'purchase', step: 'order' });
+  assert.deepEqual(fromRule({ ...({} as Rule), ...sent, id: 'r', enabled: false, failure_count: 0, version: 1, on_error: 'STOP' }).trigger, sent.trigger);
+  assert.equal(onStep({ trigger: sent.trigger }, 'purchase', 'order'), true);
+  assert.equal(onStep({ trigger: sent.trigger }, 'purchase', 'approve'), false);
+  assert.equal(onStep({ trigger: { kind: 'EVENT' } }, 'purchase', 'order'), false);
+});
+
+// A person's own rule (UC-AUT-01 check 10): scope PERSON on their account, run as them, started by
+// an event - the editor fixes the three rather than letting the server refuse them.
+test("a rule of one's own is scoped to its owner, runs as them and starts on an event", () => {
+  const own = asOwn({ ...emptyDraft(), runAs: 'svc-1', trigger: { kind: 'SCHEDULE', rrule: 'FREQ=DAILY' } }, 'acc-1', 'de.hubtask.work.item.created.v1');
+  assert.deepEqual(own.scope, { type: 'PERSON', id: 'acc-1' });
+  assert.equal(own.runAs, 'acc-1');
+  assert.deepEqual(own.trigger, { kind: 'EVENT', event_type: 'de.hubtask.work.item.created.v1' });
+  const kept = asOwn(emptyDraft('de.hubtask.work.item.moved.v1'), 'acc-1', 'other');
+  assert.deepEqual(kept.trigger, { kind: 'EVENT', event_type: 'de.hubtask.work.item.moved.v1' });
+  assert.deepEqual(toRuleDraft(own, 'n').scope, { type: 'PERSON', id: 'acc-1' });
+  assert.deepEqual(OWN_TRIGGERS, ['EVENT']);
+  assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-1' } }, 'acc-1'), true);
+  assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-2' } }, 'acc-1'), false);
+  assert.equal(isOwnRule({ scope: { type: 'TENANT' } }, 'acc-1'), false);
+  assert.equal(isOwnRule({ scope: { type: 'PERSON', id: 'acc-1' } }, undefined), false);
+});

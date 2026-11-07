@@ -415,7 +415,8 @@ func (o AutoAssignOutcome) output(item usecase.Output) usecase.Output {
 // REST, MCP and automation at once (arc42 §4).
 func (h AutoAssignWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AutoAssignWorkItemName,
+		Name:       AutoAssignWorkItemName,
+		Permission: service.PermissionWriteItems,
 		Summary: "Hands an entry out by the collection's assignment policy - FIXED, " +
 			"RANDOM_MEMBER, RANDOM_GROUP_MEMBER, ROUND_ROBIN or LEAST_LOADED - instead of a " +
 			"named person. Refused when the collection has no policy. Candidates who cannot see " +

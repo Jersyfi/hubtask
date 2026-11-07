@@ -25,8 +25,8 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
-import type { WebhookScope } from './webhooks.ts';
+import { engine, INTENT } from './engine.ts';
+import type { WebhookFormat, WebhookScope } from './webhooks.ts';
 
 const WEBHOOKS = '/integrations/webhooks';
 
@@ -46,6 +46,10 @@ export interface Subscription {
   readonly filter?: string | null;
   /** Where it listens; absent is the whole workspace. */
   readonly scope?: WebhookScope | null;
+  /** What it delivers; absent is the CloudEvent. A chat room's Matrix room and language beside it. */
+  readonly format?: WebhookFormat | null;
+  readonly room?: string | null;
+  readonly locale?: string | null;
   readonly created_at: string;
   readonly version: number;
 }
@@ -157,6 +161,10 @@ class Webhooks {
     event_types: readonly string[];
     filter?: string;
     scope?: WebhookScope;
+    format?: WebhookFormat;
+    room?: string;
+    credential?: string;
+    locale?: string;
   }): Promise<SubscriptionWithSecret> {
     return engine.mutate<SubscriptionWithSecret>('POST', WEBHOOKS, draft, {
       idempotencyKey: crypto.randomUUID(),
@@ -200,14 +208,14 @@ class Webhooks {
       'POST',
       `${WEBHOOKS}/${webhookId}/deliveries/${deliveryId}:replay`,
       {},
-      { idempotencyKey: crypto.randomUUID() },
+      { idempotencyKey: INTENT },
     );
   }
 
   /** Delivers one event to this subscription by hand, through the pipeline every delivery takes. */
   async send(webhookId: string, eventId: string): Promise<Delivery> {
     return engine.mutate<Delivery>('POST', `${WEBHOOKS}/${webhookId}:send`, { event_id: eventId }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
   }
 

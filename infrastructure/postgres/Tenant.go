@@ -34,6 +34,7 @@ var (
 	_ persistence.Snapshot    = (*UnitOfWork)(nil)
 	_ persistence.Writable    = (*UnitOfWork)(nil)
 	_ persistence.Independent = (*UnitOfWork)(nil)
+	_ persistence.Savepoint   = (*UnitOfWork)(nil)
 )
 
 // contextKey is unexported, so nothing outside this package can put a transaction into a
@@ -69,6 +70,35 @@ func (u *UnitOfWork) WithinWritable(ctx context.Context, scope persistence.Scope
 		return u.run(outsideTransaction(ctx), scope, pgx.ReadWrite, fn)
 	}
 	return u.Within(ctx, scope, fn)
+}
+
+// WithinSavepoint runs fn under a savepoint of the running transaction (persistence.Savepoint).
+// Without a running transaction there is nothing to keep apart from, and it is refused.
+func (u *UnitOfWork) WithinSavepoint(ctx context.Context, fn func(context.Context) error) error {
+	tx, ok := txFromContext(ctx)
+	if !ok {
+		return shared.ErrInternal.WithDetail("postgres.savepoint_without_transaction")
+	}
+	// pgx answers Begin on a transaction with a savepoint.
+	point, err := tx.Begin(ctx)
+	if err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("setting a savepoint: %w", err))
+	}
+	if err := fn(withTx(ctx, point)); err != nil {
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
+		defer cancel()
+		if rollbackErr := point.Rollback(rollbackCtx); rollbackErr != nil {
+			return errors.Join(err, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("rolling back to a savepoint: %w", rollbackErr)))
+		}
+		return err
+	}
+	if err := point.Commit(ctx); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("releasing a savepoint: %w", err))
+	}
+	return nil
 }
 
 // WithinIndependent runs fn in a read-write transaction of its own, beside any the context carries.

@@ -20,6 +20,11 @@ Requeue it, or copy what the issue needs, within the week.
 
 ## Immediate action
 
+*Installation → Failed jobs* (`/instance/dead-letters`) lists them, newest first, with the kind, the
+workspace, the attempts and the code of the last failure; so does `hubctl admin dead-letter list`
+(both behind `admin:tenants` and the operator register). What a job was given is not shown there;
+for that, and on an installation whose API is down:
+
 ```bash
 psql -c "SELECT id, kind, tenant_id, attempts, last_error, finished_at, payload
          FROM job WHERE state = 'DEAD_LETTER' ORDER BY finished_at DESC LIMIT 20;"
@@ -35,19 +40,39 @@ content (rule 10). The codes and what they mean:
 | `dependency.unavailable` | Something the job needs stayed down through every retry | Fix the dependency, then requeue |
 | `outbox.dispatch_without_tenant` | A malformed job row | A defect; keep the row for the issue |
 
+A duty kept as one row - a connected mailbox's poll, a CMDB connector's or LDAP directory's
+pull, a workspace's retention, recurrence, privacy-deadline or backup-schedule pass, the platform
+sweep - is not here for a transient failure (`dependency.unavailable`, a timeout, a rate limit): its
+last attempt becomes its next round at the backoff's ceiling (`queue.Perpetual`), logged as
+`job failed` with `duty_held=true` and counted as a retry. Such a duty is here only for a permanent
+answer or a defect, and not for long: the scheduler's leader revives it on the first tick of each
+hour once it has waited an hour, doubled by each earlier revival up to a day (`job.revivals`, zero
+again after a round that works), unless its key already has an open job - logged as `dead duties
+revived` with the kind and the count. A duty that keeps failing returns here, and this alert with
+it; fix the cause and the next revival carries on. Requeueing it by hand below is only faster.
+
 A job that met a refusal — an AI suggestion whose workspace spent its budget or switched AI off
 before the job ran — is never here: it ends `FAILED` at once with the refusal's code, for the
 person who asked, and counts toward no alert.
 
 ## Requeueing, once the cause is fixed
 
+*Run again* on the screen, or `hubctl admin dead-letter requeue <job id>`: the job is due now with
+its attempts from zero, and the installation's journal records it (`instance.dead_letter_requeued`).
+It is refused with `admin.job_already_open` while another job of the same kind and key is waiting or
+running - that one does the work. Without the API:
+
 ```sql
 UPDATE job SET state = 'PENDING', attempts = 0, run_at = now(), last_error = NULL
 WHERE id = '<the job id>';
 ```
 
-Safe for every job kind in this project: handlers write their effect in the same transaction that
-completes the job, so a re-run either happens completely or not at all (test RT-3).
+Safe for every job kind in this project, for one of two reasons. Most handlers write their effect
+in the same transaction that completes the job, so a re-run either happens completely or not at all
+(test RT-3). A detached handler (`queue.Detached`: mail delivery, backup, export, import, polls)
+commits its own writes before the job is completed, so part of its work may already be done; each
+declares itself safe to run twice - receipts, dedupe keys and run rows make the second pass take
+nothing twice - which is the assertion the interface asks for.
 
 ## Diagnostic queries
 

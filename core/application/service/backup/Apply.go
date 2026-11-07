@@ -48,8 +48,10 @@ type Applier struct {
 	Opener    backupstorage.Opener
 	Encryptor crypto.Encryptor
 	Keys      crypto.KeyMaterialiser
-	Cipher    crypto.StreamCipher
-	Objects   storage.ObjectStore
+	// Deriver turns the passphrase a restore holds into the key of an archive encrypted to one.
+	Deriver crypto.KeyDeriver
+	Cipher  crypto.StreamCipher
+	Objects storage.ObjectStore
 	// Holds are the workspace's legal holds in force. A replace reads them in the transaction that
 	// empties the workspace, under the shared hold lock, and refuses while any stands
 	// (backup-restore.md §8.2): a hold placed after the request is met here.
@@ -66,6 +68,9 @@ type Applier struct {
 	Epochs EpochAdvancer
 	Clock  clock.Clock
 	IDs    clock.IDGenerator
+	// Clocks re-arm the durable timers of what a restore wrote: the archive carries no timers
+	// (§8.4), so a goal, an approval or a page review it brought back would otherwise never fire.
+	Clocks []ClockRearmer
 	// SchemaVersion is the migration this build stands at. An archive from a newer one is refused
 	// rather than half-read: a restore migrates upwards and cannot go the other way.
 	SchemaVersion string
@@ -73,6 +78,12 @@ type Applier struct {
 	// transaction per batch size", which is what this is: a cancelled restore loses the batch in
 	// flight and keeps everything before it.
 	Batch int
+}
+
+// ClockRearmer arms again, from the records a restore wrote, the clocks of one purpose in the
+// workspace the transaction is in.
+type ClockRearmer interface {
+	Rearm(ctx context.Context, tenant shared.ID) error
 }
 
 // EpochAdvancer is the slice of the synchronisation epoch a restore moves.
@@ -127,6 +138,8 @@ type claimed struct {
 	// only for NEW_TENANT.
 	into        persistence.Scope
 	safetyRunID shared.ID
+	// passphrase is the sealed passphrase the run holds, zero where it was asked without one.
+	passphrase crypto.Sealed
 }
 
 // claim takes the tenant's restore lock and reads the run's surroundings, in one short
@@ -153,6 +166,9 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 		}
 		out.restore = restore
 		out.safetyRunID = restore.SafetyRunID
+		if out.passphrase, err = a.Restores.Passphrase(ctx, in.RestoreID); err != nil {
+			return err
+		}
 
 		target, err := a.Targets.Find(ctx, restore.TargetID)
 		if err != nil {
@@ -189,7 +205,14 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.Report, error) {
 	reader := archive.NewReader(ready.store, a.Cipher)
 
-	chain, keys, err := a.precheck(ctx, reader, ready.restore, in.TenantID)
+	// Opened here rather than at the claim, so that a passphrase that no longer opens fails the
+	// run, and the run's end empties it.
+	passphrase, err := heldPassphrase(ctx, a.Encryptor, ready.passphrase, in.RestoreID)
+	if err != nil {
+		return domain.Report{}, err
+	}
+	given := ArchivePassphrase{Deriver: a.Deriver, Passphrase: passphrase}
+	chain, keys, err := a.precheck(ctx, reader, ready.restore, in.TenantID, given)
 	if err != nil {
 		return domain.Report{}, err
 	}
@@ -223,7 +246,28 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 			return domain.Report{}, err
 		}
 	}
-	return a.apply(ctx, plan)
+	report, err := a.apply(ctx, plan)
+	if err != nil || plan.dry {
+		return report, err
+	}
+	return report, a.rearm(ctx, ready.into)
+}
+
+// rearm arms the clocks of what the restore wrote, in one transaction of the workspace the rows
+// landed in. Idempotent - each clock replaces what stands under its name - so a restore resumed
+// after a failure here re-arms the same clocks once.
+func (a Applier) rearm(ctx context.Context, into persistence.Scope) error {
+	if len(a.Clocks) == 0 {
+		return nil
+	}
+	return a.UnitOfWork.Within(ctx, into, func(ctx context.Context) error {
+		for _, clocks := range a.Clocks {
+			if err := clocks.Rearm(ctx, into.TenantID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // IngestInput is what an importer hands the applier (backup-restore.md §9).
@@ -239,6 +283,8 @@ type IngestInput struct {
 	Progress func(ctx context.Context, report domain.Report, decided map[string]int) error
 	Resume   domain.Restore
 	Report   func(float64)
+	// DryRun decides every record and writes none, as a restore's dry run does.
+	DryRun bool
 }
 
 // Ingest applies an archive somebody built rather than backed up: the importer's records, in
@@ -265,7 +311,7 @@ func (a Applier) Ingest(ctx context.Context, in IngestInput) (domain.Report, err
 	p := plan{
 		restore: restore, chain: []archive.Description{description},
 		reader: reader, scope: persistence.Scope{TenantID: in.TenantID}, asker: in.TenantID,
-		report: in.Report, progress: in.Progress,
+		report: in.Report, progress: in.Progress, dry: in.DryRun,
 	}
 	return a.apply(ctx, p)
 }
@@ -286,6 +332,7 @@ func (a Applier) AdvanceEpoch(ctx context.Context) error {
 // manifests, not data.
 func (a Applier) precheck(
 	ctx context.Context, reader *archive.Reader, restore domain.Restore, asking shared.ID,
+	given ArchivePassphrase,
 ) ([]archive.Description, archive.Keys, error) {
 	chain, err := reader.Chain(ctx, restore.SourceArchive)
 	if err != nil {
@@ -349,7 +396,7 @@ func (a Applier) precheck(
 
 	// Decryptability, before anything is read. An archive that cannot be opened is worth finding
 	// out about now rather than after the first batch has landed.
-	keys, err := openableKeys(ctx, a.Keys, reader, chain, restore.TargetID)
+	keys, err := openableKeys(ctx, a.Keys, reader, chain, restore.TargetID, given)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -667,6 +714,10 @@ type state struct {
 	// grows: a record that references a withheld object is withheld too, or the restore would
 	// write a row pointing at something it deliberately did not create.
 	withheld map[string]map[string]bool
+	// withheldKeys is the same for what other rows name by key (archive.Entity.ByKey), by table
+	// and "column=value": a link type the journal keeps out keeps out the links naming it, which
+	// its identity alone cannot do.
+	withheldKeys map[string]map[string]bool
 	// selected is a SELECTIVE restore's closure, by table. Nil when everything is selected, which
 	// is every other mode - a nil map answers "not selected" for everything, so the check has to
 	// ask whether the map exists at all rather than what it says.
@@ -725,6 +776,8 @@ func (a Applier) prepare(ctx context.Context, p plan) (*state, error) {
 		landed:   map[string]map[string]bool{},
 		deferred: map[string][]staged{},
 		passed:   map[string]int{},
+
+		withheldKeys: map[string]map[string]bool{},
 		// What an earlier attempt got through, and the report it had counted by then. A resumed
 		// restore continues both rather than starting either again (BK-7).
 		resumeFrom: p.restore.Progress,
@@ -880,6 +933,35 @@ func (s *state) withhold(table, id string) {
 	s.withheld[table][id] = true
 }
 
+// withholdRecord keeps a record out that is gone since the archive, by its identity and by every
+// key another entity names it by.
+func (s *state) withholdRecord(entity archive.Entity, record archive.Record) {
+	s.withhold(entity.Table, record.ID)
+	for _, column := range namedByKey[entity.Table] {
+		value, named := record.Data[column].(string)
+		if !named || value == "" {
+			continue
+		}
+		if s.withheldKeys[entity.Table] == nil {
+			s.withheldKeys[entity.Table] = map[string]bool{}
+		}
+		s.withheldKeys[entity.Table][column+"="+value] = true
+	}
+}
+
+// namedByKey is, by table, the columns some entity names that table's rows by.
+var namedByKey = func() map[string][]string {
+	out := map[string][]string{}
+	for _, entity := range archive.Entities() {
+		for _, named := range entity.ByKey {
+			if !slices.Contains(out[named.Table], named.Key) {
+				out[named.Table] = append(out[named.Table], named.Key)
+			}
+		}
+	}
+	return out
+}()
+
 // stage decides one record and puts it in the batch.
 //
 // A record an earlier attempt already decided is skipped rather than decided again. The archive is
@@ -888,14 +970,20 @@ func (s *state) withhold(table, id string) {
 // would meet the rows the first one wrote and duplicate them (BK-7).
 func (s *state) stage(ctx context.Context, entity archive.Entity, record archive.Record) error {
 	if s.skip(entity) {
-		return nil
+		// Decided and counted by an earlier attempt, but what it kept out still keeps out what
+		// points at it: the journal names only the deleted rows themselves.
+		if _, out := s.keptOut(entity, record); out {
+			s.withholdRecord(entity, record)
+			return nil
+		}
+		return s.recallIdentity(ctx, entity, record.ID)
 	}
 	s.decided[entity.Name]++
 
 	// §7 first, before anything else is asked. An object deleted after the archive was taken does
 	// not come back, and neither does anything that would point at it.
 	if reason, out := s.keptOut(entity, record); out {
-		s.withhold(entity.Table, record.ID)
+		s.withholdRecord(entity, record)
 		s.report.Withhold(reason)
 		return nil
 	}
@@ -1042,6 +1130,14 @@ func (s *state) keptOut(entity archive.Entity, record archive.Record) (string, b
 	for _, reference := range entity.References {
 		id, named := record.Data[reference.Field].(string)
 		if named && !reference.Clearable && s.withheld[reference.Table][id] {
+			return domain.WithheldDeleted, true
+		}
+	}
+	// A key names the row as surely as an identity does. Every one of them is a reference the
+	// row cannot lose and stay itself - an entry's type, a link's kind, a policy's calendar.
+	for _, named := range entity.ByKey {
+		value, given := record.Data[named.Field].(string)
+		if given && s.withheldKeys[named.Table][named.Key+"="+value] {
 			return domain.WithheldDeleted, true
 		}
 	}
@@ -1273,6 +1369,41 @@ func (s *state) write(ctx context.Context, item staged) error {
 	if id, named := data["id"].(string); named && (written || collided) {
 		s.land(item.entity.Table, id)
 	}
+	if outcome != domain.ConflictDuplicate {
+		s.keepIdentity(item.entity, item.record.ID)
+	}
+	return nil
+}
+
+// keepIdentity remembers that a row kept its original identity - written new, or left alone - so
+// that what points at it keeps pointing there. Without it the remap's question "does the tenant
+// hold this?" would answer yes for a row this restore just wrote, and a comment on a new entry in
+// a duplicated collection would be pointed at a copy of the entry nobody writes.
+func (s *state) keepIdentity(entity archive.Entity, id string) {
+	if s.plan.remapAll || ruleOf(s.plan.restore) != domain.ConflictDuplicate || !entity.HasOwnIdentity() {
+		return
+	}
+	s.live[entity.Table+"/"+id] = false
+}
+
+// recallIdentity is keepIdentity for a record an earlier attempt decided: the copy it would have
+// been given is in the tenant if and only if it was duplicated, because a copy is written in the
+// batch that decides its original.
+func (s *state) recallIdentity(ctx context.Context, entity archive.Entity, id string) error {
+	if s.plan.remapAll || ruleOf(s.plan.restore) != domain.ConflictDuplicate ||
+		!entity.Duplicable || !entity.HasOwnIdentity() {
+		return nil
+	}
+	copied := domain.DuplicateID(s.plan.restore.ID, entity.Name, id).String()
+	held, err := s.applier.Import.Holds(ctx, entity.Table, map[string]any{"id": copied})
+	if err != nil {
+		return err
+	}
+	if held {
+		s.remap[entity.Table+"/"+id] = copied
+		return nil
+	}
+	s.live[entity.Table+"/"+id] = false
 	return nil
 }
 

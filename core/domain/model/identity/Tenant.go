@@ -163,7 +163,7 @@ func ValidDefaultTimeZone(value string) (string, error) {
 	zone := strings.TrimSpace(value)
 	// Empty is refused explicitly: `LoadLocation("")` answers UTC without complaining, and a
 	// workspace that meant UTC says so.
-	if _, err := time.LoadLocation(zone); zone == "" || err != nil {
+	if _, known := shared.LoadZone(zone); !known {
 		return "", shared.ErrValidation.
 			WithDetail("admin.time_zone_invalid").
 			WithParams(map[string]string{"value": zone}).

@@ -1,0 +1,1 @@
+channel_id=abcdefghijklmnopqrstuvwxyz&channel_name=ops&command=%2Ftask&response_url=https%3A%2F%2Fchat.example.org%2Fhooks%2Fcommands%2Fq7m3&team_domain=example&team_id=k3xn5o8sifd1fbn4imgyjyrt7c&text=Renew+the+certificate&token=cmdtoken9pqm3sj6b5z7rgb6xw&trigger_id=dHJpZ2dlcg&user_id=u5fhf1ohujgo8brxkx1hb5chwa&user_name=ada

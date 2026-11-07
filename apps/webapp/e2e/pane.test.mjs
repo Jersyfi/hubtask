@@ -71,6 +71,8 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   await pane.waitFor({ timeout: 5_000 });
   await pane.getByRole('radio', { name: 'Full page' }).click();
   await page.waitForURL(`**/items/${ENTRY.id}`, { timeout: 5_000 });
+  // The entry's page is its own chunk and draws a moment after the address changes.
+  await page.getByRole('heading', { level: 1, name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   // The back button returns to the collection with the pane, because opening was a navigation.
   await page.goBack();

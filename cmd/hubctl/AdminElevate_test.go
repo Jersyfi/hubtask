@@ -167,7 +167,7 @@ func TestTheOperatorListNamesItsPeople(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
-	for _, want := range []string{"Ada Lovelace", "ada@acme.example", "acme", "The shop", "service account", machineID} {
+	for _, want := range []string{"Ada Lovelace", "ada@acme.example", "acme", "The shop", "SERVICE_ACCOUNT", machineID} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the list lacks %q: %q", want, out)
 		}

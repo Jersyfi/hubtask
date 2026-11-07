@@ -356,3 +356,58 @@ func TestReapplyingErasuresIsGuardedAtTheDoor(t *testing.T) {
 		t.Errorf("answered %v, %d proofs consumed", out, f.proof.consumed)
 	}
 }
+
+// An erasure by address the rewind undid: the requester record, the receipts, the jumble entries
+// and the intake lines are back in the recovered workspace, and the re-application erases them
+// again rather than answering that nothing is here.
+func TestAnErasureByAddressTheRewindUndidIsCarriedOutAgain(t *testing.T) {
+	f := newReapplyFixture()
+	addresses := &addressStore{held: 3}
+	lines, entries := intakeLines(), &entryCatalogue{}
+	f.handler.Eraser.Addresses = addresses
+	f.handler.Eraser.IntakeLines = stripWith(lines, entries)
+	record := lostCase(domain.ModeFullDelete)
+	record.SubjectAccountID, record.SubjectEmail = "", "Kunde@Shop.test"
+
+	got := f.run(t, record)
+	if got[0].Outcome != ErasureReapplied {
+		t.Fatalf("answered %+v", got[0])
+	}
+	if len(addresses.erased) != 1 || addresses.erased[0] != "kunde@shop.test" || addresses.held != 0 {
+		t.Errorf("the requester's record, receipts and jumble entries: erased %v, %d left", addresses.erased, addresses.held)
+	}
+	if len(entries.calls) != 3 {
+		t.Errorf("the intake lines were changed by %d edits, want 3", len(entries.calls))
+	}
+	if held := f.cases.stored[reappliedID]; held.Status != domain.StatusCompleted {
+		t.Errorf("the case reads %+v", held)
+	}
+}
+
+// Only intake lines came back: they alone make the address present.
+func TestIntakeLinesAloneMakeTheAddressPresent(t *testing.T) {
+	f := newReapplyFixture()
+	entries := &entryCatalogue{}
+	f.handler.Eraser.Addresses = &addressStore{}
+	f.handler.Eraser.IntakeLines = stripWith(intakeLines(), entries)
+	record := lostCase(domain.ModeAnonymize)
+	record.SubjectAccountID, record.SubjectEmail = "", "kunde@shop.test"
+
+	if got := f.run(t, record); got[0].Outcome != ErasureReapplied || len(entries.calls) != 3 {
+		t.Fatalf("answered %+v after %d edits", got[0], len(entries.calls))
+	}
+}
+
+// An address nothing here names any more is answered as absent, with nothing erased.
+func TestAnAddressNothingNamesIsAbsent(t *testing.T) {
+	f := newReapplyFixture()
+	addresses := &addressStore{}
+	f.handler.Eraser.Addresses = addresses
+	f.handler.Eraser.IntakeLines = stripWith(&lineStore{}, &entryCatalogue{})
+	record := lostCase(domain.ModeFullDelete)
+	record.SubjectAccountID, record.SubjectEmail = "", "kunde@shop.test"
+
+	if got := f.run(t, record); got[0].Outcome != ErasureSubjectAbsent || len(addresses.erased) != 0 {
+		t.Fatalf("answered %+v, erased %v", got[0], addresses.erased)
+	}
+}

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { matchesPath } from '@hubtask/sync-engine';
 
-import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, TOUCHES_ANY_ENTRY, entryDocument, touchesOf } from './touches.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS, entryDocument, touchesOf } from './touches.ts';
 
 const ID = '0192f000-0000-7000-8000-000000000001';
 const OTHER = '0192f000-0000-7000-8000-000000000002';
@@ -20,6 +20,8 @@ const OPEN = {
   recurrence: `/items/${ID}/recurrence`,
   attachments: `/items/${ID}/attachments`,
   list: '/items:query',
+  steps: `/items/${ID}/steps`,
+  sla: `/items/${ID}/sla`,
   other: `/items/${OTHER}?expand=labels`,
 };
 
@@ -33,6 +35,10 @@ test('a write to one entry re-reads its document, its history and the lists - an
 
 test('a write that may reach other entries re-reads every open document, and still no thread', () => {
   assert.deepEqual(covered(TOUCHES_ANY_ENTRY), ['document', 'history', 'list', 'other']);
+});
+
+test('ticking an entry off re-reads its status, its steps and its clocks, which a workflow moves with it', () => {
+  assert.deepEqual(covered(TOUCHES_ANY_STATUS), ['document', 'history', 'list', 'steps', 'sla', 'other']);
 });
 
 test('the names are the engine\'s marks, spelled once', () => {

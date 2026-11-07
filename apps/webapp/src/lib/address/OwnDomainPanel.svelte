@@ -16,6 +16,7 @@
   import { formatLongDay, formatTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem, type RenderedProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
   import { canBecomeMain, isRemovable, recordsShown, toneOf, zoneOf } from './owndomain.ts';
 
   interface Props {
@@ -98,7 +99,7 @@
       <p class="prose">{t('app.address.own.intro')}</p>
       {#if isOwner && isAllowed}
         {#if failure && !fieldError}
-          <Banner tone="danger" title={failure.message} />
+          <FailureNote problem={failure} />
         {/if}
         <Input
           label={t('app.address.own.field')}
@@ -156,7 +157,7 @@
       {/if}
 
       {#if failure}
-        <Banner tone="danger" title={failure.message} />
+        <FailureNote problem={failure} />
       {/if}
       {#if isOwner && (isRemovable(own.state) || canBecomeMain(own))}
         <div class="row">

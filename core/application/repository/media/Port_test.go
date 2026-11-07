@@ -24,6 +24,8 @@ func (objectDouble) Find(context.Context, shared.ID) (media.Object, error) {
 	return media.Object{}, shared.ErrNotFound
 }
 func (objectDouble) Seal(context.Context, media.Object) error             { return nil }
+func (objectDouble) Held(context.Context, int) ([]media.Object, error)    { return nil, nil }
+func (objectDouble) Settle(context.Context, media.Object) error           { return nil }
 func (objectDouble) AdjustRefCount(context.Context, shared.ID, int) error { return nil }
 func (objectDouble) MarkDeleted(context.Context, shared.ID, time.Time) (bool, error) {
 	return false, nil
@@ -40,6 +42,15 @@ func (objectDouble) ReferencingItems(context.Context, shared.ID) ([]ItemRef, err
 	return nil, nil
 }
 func (objectDouble) ServesAvatar(context.Context, shared.ID) (bool, error) { return false, nil }
+func (objectDouble) ServedDesks(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
+func (objectDouble) ReferencingBoards(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
+func (objectDouble) ReferencingPages(context.Context, shared.ID) ([]shared.ID, error) {
+	return nil, nil
+}
 func (objectDouble) ListForItem(context.Context, shared.ID, repository.Page) (ObjectPage, error) {
 	return ObjectPage{}, nil
 }

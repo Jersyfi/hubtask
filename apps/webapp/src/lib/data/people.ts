@@ -77,7 +77,44 @@ export function scopesInForce(path: Path, isPrivate: boolean): readonly Scope[] 
 export function membershipsPath(scope: Scope): string {
   const query = new URLSearchParams({ scope_type: scope.scopeType });
   if (scope.scopeId) query.set('scope_id', scope.scopeId);
+  query.set('size', String(MEMBERSHIP_PAGE));
   return `/memberships?${query.toString()}`;
+}
+
+/** One read of a scope's memberships: the contract's largest page. */
+export const MEMBERSHIP_PAGE = 200;
+/** How many pages one scope is read through at most - 4,000 grants at one level. */
+export const MEMBERSHIP_PAGES = 20;
+
+/** The part of a membership page the walk reads. */
+interface PageShape {
+  readonly page?: { readonly has_more?: boolean };
+}
+
+/**
+ * Reads a scope on to its last page, from the first one held: a role worked out from the newest
+ * grants alone is a wrong answer - an owner whose grant is older reads as nobody - so a scope
+ * counts only once it is whole. `next` is the engine's loadMore, which appends; it answers
+ * `undefined` where a page did not arrive, and the scope then stays incomplete, its roles unknown
+ * rather than wrong. Answers how many pages were asked for.
+ */
+export async function readWhole<T extends PageShape>(first: T, next: () => Promise<T | undefined>, maxPages = MEMBERSHIP_PAGES): Promise<number> {
+  let held: T | undefined = first;
+  let asked = 0;
+  for (let pages = 1; pages < maxPages && held?.page?.has_more === true; pages += 1) {
+    held = await next();
+    asked += 1;
+  }
+  return asked;
+}
+
+/**
+ * What a scope contributes to a role: its rows once all of them are held, `'refused'` where the
+ * reader may not list it, and `undefined` - unknown - while pages are still to come.
+ */
+export function scopeAnswer(rows: readonly Membership[] | undefined, isComplete: boolean, isRefused: boolean): ScopeAnswer {
+  if (isRefused) return 'refused';
+  return isComplete ? rows : undefined;
 }
 
 /** The groups named by any of these memberships, each once. */
@@ -105,6 +142,18 @@ export function candidatesOf(
     }
   }
   return [...accounts];
+}
+
+/**
+ * Who may change the workspace itself, by the memberships of the workspace: the accounts holding
+ * a role there that may, a group's members once read. A hub's grant changes nothing above it.
+ */
+export function administratorsOf(
+  memberships: readonly Membership[],
+  groupMembers: Readonly<Record<string, readonly string[]>>,
+  may: (role: MembershipRole) => boolean,
+): readonly string[] {
+  return candidatesOf(memberships.filter((membership) => membership.scope_type === 'TENANT' && may(membership.role)), groupMembers);
 }
 
 /** One row of the members screen: who, what they hold here, and where it was granted. */
@@ -210,6 +259,25 @@ export function mayIssueWayIn(
 ): boolean {
   if (!grantableAtWorkspace) return false;
   return roles.every((role) => grantableAtWorkspace.includes(role));
+}
+
+/**
+ * Whether a row offers *Reset second factor* (fifth answers 6): a person, not a group, active, not
+ * the reader themselves (their own factor is turned off in their own settings), and within the role
+ * ceiling as every new way in is - so an administrator never sees it on an owner's row - and holding
+ * an authenticator app (`POST /accounts:sign-in-details`). `hasApp` undefined is not known, where
+ * that read failed: the control stays and the server's `auth.mfa_not_enrolled` answers it.
+ */
+export function mayResetFactor(
+  holder: { readonly accountId?: string; readonly groupId?: string; readonly role: MembershipRole },
+  ownAccountId: string | undefined,
+  status: string | undefined,
+  grantableAtWorkspace: readonly MembershipRole[] | undefined,
+  hasApp: boolean | undefined,
+): boolean {
+  if (holder.groupId !== undefined || holder.accountId === undefined) return false;
+  if (holder.accountId === ownAccountId || status !== 'ACTIVE' || hasApp === false) return false;
+  return mayIssueWayIn([holder.role], grantableAtWorkspace);
 }
 
 /**

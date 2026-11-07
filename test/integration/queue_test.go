@@ -53,10 +53,17 @@ func enqueue(ctx context.Context, t *testing.T, request queue.Request) {
 // claim takes a batch under a lease that ends at now+lease.
 func claim(ctx context.Context, t *testing.T, now time.Time, lease time.Duration, batch int) []queue.Job {
 	t.Helper()
+	return claimOf(ctx, t, now, lease, batch)
+}
+
+// claimOf is claim narrowed to the given kinds: a test counting attempts claims only a kind of its
+// own, since the jobs the package's other tests leave behind are due at the fixed clock too.
+func claimOf(ctx context.Context, t *testing.T, now time.Time, lease time.Duration, batch int, only ...queue.Kind) []queue.Job {
+	t.Helper()
 	var claimed []queue.Job
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
 		var err error
-		claimed, err = jobQueue(t).Claim(ctx, queue.Lease{Now: now, Until: now.Add(lease), Batch: batch})
+		claimed, err = jobQueue(t).Claim(ctx, queue.Lease{Now: now, Until: now.Add(lease), Batch: batch, Only: only})
 		return err
 	}); err != nil {
 		t.Fatalf("claiming: %v", err)
@@ -86,8 +93,11 @@ const testKind = queue.Kind("test.claim")
 func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 	ctx := context.Background()
 	dedupe := freshID(t).String()
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: dedupe + "-1", RunAt: queueClock.Now()})
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: dedupe + "-2", RunAt: queueClock.Now()})
+	// A kind of its own, claimed alone: a claim of one job across every kind takes another test's
+	// leftover first, and the two left pending here would be the next test's surplus.
+	kind := queue.Kind("test.claim.disjoint")
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: dedupe + "-1", RunAt: queueClock.Now()})
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: dedupe + "-2", RunAt: queueClock.Now()})
 
 	// The first claim stays open while the second runs, which is the only arrangement in which
 	// the row lock of the first is visible to the second.
@@ -102,7 +112,7 @@ func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 		err := systemWrite(ctx, t, func(txCtx context.Context) error {
 			var err error
 			jobs, err = jobQueue(t).Claim(txCtx, queue.Lease{
-				Now: queueClock.Now(), Until: queueClock.Now().Add(time.Minute), Batch: 1,
+				Now: queueClock.Now(), Until: queueClock.Now().Add(time.Minute), Batch: 1, Only: []queue.Kind{kind},
 			})
 			firstClaimed <- jobs
 			<-release
@@ -114,7 +124,7 @@ func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 	})
 
 	first := <-firstClaimed
-	second := claim(ctx, t, queueClock.Now(), time.Minute, 1)
+	second := claimOf(ctx, t, queueClock.Now(), time.Minute, 1, kind)
 	close(release)
 	wg.Wait()
 
@@ -131,30 +141,38 @@ func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 	ctx := context.Background()
 	now := queueClock.Now()
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+	kind := queue.Kind("test.lease.ran_out")
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: freshID(t).String(), RunAt: now})
 
-	first := claim(ctx, t, now, time.Second, 1)
+	first := claimOf(ctx, t, now, time.Second, 1, kind)
 	if len(first) != 1 {
 		t.Fatalf("%d jobs claimed, want one", len(first))
 	}
 	if first[0].Attempts != 1 {
 		t.Errorf("attempts = %d on the first claim, want 1", first[0].Attempts)
 	}
+	if first[0].Reclaimed {
+		t.Error("a pending job's first claim says it was taken over from a dead worker")
+	}
 
 	// Still leased: another worker passing by leaves it alone.
-	if again := claim(ctx, t, now, time.Minute, 10); containsJob(again, first[0].ID) {
+	if again := claimOf(ctx, t, now, time.Minute, 10, kind); containsJob(again, first[0].ID) {
 		t.Error("a job was claimed twice while its lease was still running")
 	}
 
 	// The lease ends, and with it the claim.
 	after := now.Add(2 * time.Second)
-	recovered := claim(ctx, t, after, time.Minute, 10)
+	recovered := claimOf(ctx, t, after, time.Minute, 10, kind)
 	if !containsJob(recovered, first[0].ID) {
 		t.Fatal("a job whose lease ran out was not picked up again")
 	}
 	for _, job := range recovered {
 		if job.ID == first[0].ID && job.Attempts != 2 {
 			t.Errorf("attempts = %d on the second claim, want 2", job.Attempts)
+		}
+		// The runner counts it and, past the budget, dead-letters it without running it.
+		if job.ID == first[0].ID && !job.Reclaimed {
+			t.Error("a job taken over after its lease ran out does not say so")
 		}
 	}
 }
@@ -165,11 +183,12 @@ func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 func TestAWorkerWhoseLeaseExpiredCannotFinishTheJob(t *testing.T) {
 	ctx := context.Background()
 	now := queueClock.Now()
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+	kind := queue.Kind("test.lease.fenced")
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: freshID(t).String(), RunAt: now})
 
-	slow := claim(ctx, t, now, time.Second, 1)[0]
+	slow := claimOf(ctx, t, now, time.Second, 1, kind)[0]
 	// Somebody else takes it over after the lease ends.
-	taken := claim(ctx, t, now.Add(2*time.Second), time.Minute, 10)
+	taken := claimOf(ctx, t, now.Add(2*time.Second), time.Minute, 10, kind)
 	if !containsJob(taken, slow.ID) {
 		t.Fatal("the successor did not get the job")
 	}
@@ -451,5 +470,370 @@ func TestAFloodingTenantDoesNotMonopoliseTheClaim(t *testing.T) {
 	if counts[flooder] > counts[modest]+1 && counts[modest] != 3 {
 		t.Errorf("the flooder took %d while the modest tenant still had work (%d of 3 claimed)",
 			counts[flooder], counts[modest])
+	}
+}
+
+// Fairness across workers (F-10): a tenant whose jobs already run under live leases ranks behind
+// one that runs none, so a worker claiming a single job beside the others serves the waiting
+// tenant rather than the one that holds every slot.
+func TestATenantWithJobsRunningWaitsBehindOneWithNone(t *testing.T) {
+	ctx := context.Background()
+
+	busy := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb01")
+	waiting := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb02")
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO tenant (id, slug, display_name)
+		VALUES ($1, 'busy-workers', 'Busy'), ($2, 'waiting-workers', 'Waiting')
+		ON CONFLICT (id) DO NOTHING`, busy.String(), waiting.String()); err != nil {
+		t.Fatalf("seeding tenants: %v", err)
+	}
+
+	// The busy tenant's jobs already run: five leases held by other workers.
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO job (id, tenant_id, kind, payload, run_at, max_attempts, state, attempts, locked_until)
+		SELECT gen_random_uuid(), $1, 'test.fair_workers', '{}'::jsonb, now() - interval '1 hour', 3,
+		       'RUNNING', 1, now() + interval '10 minutes'
+		  FROM generate_series(1, 5)`, busy.String()); err != nil {
+		t.Fatalf("seeding running jobs: %v", err)
+	}
+	moment := time.Now().UTC().Add(-time.Hour)
+	// The busy tenant's next job is older, so age alone would hand it the slot.
+	enqueue(ctx, t, queue.Request{
+		Kind: queue.Kind("test.fair_workers"), TenantID: busy, DedupeKey: "busy-next", RunAt: moment,
+	})
+	enqueue(ctx, t, queue.Request{
+		Kind: queue.Kind("test.fair_workers"), TenantID: waiting, DedupeKey: "waiting-first",
+		RunAt: moment.Add(30 * time.Minute),
+	})
+
+	// One job per claim, as a worker beside the others takes its share: the order of the claims
+	// is the order of service (other tests' leftovers may be served in between).
+	for range 200 {
+		claimed := claim(ctx, t, time.Now().UTC(), time.Minute, 1)
+		if len(claimed) == 0 {
+			break
+		}
+		switch claimed[0].TenantID {
+		case waiting:
+			return
+		case busy:
+			t.Fatal("the tenant holding five running jobs was served before the one holding none")
+		}
+	}
+	t.Fatal("neither of this test's jobs was claimed")
+}
+
+// The held-upload gauge counts a kind's unfinished jobs, whatever moment they wait for: due,
+// parked between rounds or running, never finished (alert A-23, hubtask_media_scan_held_workspaces).
+func TestOpenJobsCountsEveryUnfinishedJobOfTheKind(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.open." + freshID(t).String())
+	now := queueClock.Now()
+	ids := make([]shared.ID, 0, 4)
+	for i, runAt := range []time.Time{now, now.Add(time.Hour), now, now} {
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			id, err := jobQueue(t).Enqueue(ctx, queue.Request{
+				Kind: kind, DedupeKey: strconv.Itoa(i), RunAt: runAt,
+			})
+			ids = append(ids, id)
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+	}
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `UPDATE job SET state = 'RUNNING', locked_until = $2 WHERE id = $1`,
+		ids[2].String(), now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `UPDATE job SET state = 'SUCCEEDED', finished_at = $2 WHERE id = $1`,
+		ids[3].String(), now); err != nil {
+		t.Fatal(err)
+	}
+
+	var open int
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		open, err = jobQueue(t).OpenJobs(ctx, kind)
+		return err
+	}); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	if open != 3 {
+		t.Errorf("open jobs = %d, want 3 (due, parked, running; not the finished one)", open)
+	}
+}
+
+// The held-upload gauge counts a duty's keys with work left: an open job, and a dead letter no
+// later success settled - so a dead-lettered scan pass keeps A-23 firing until its revival scans the
+// files - but neither a key whose newer job succeeded nor a finished one (RB-A23).
+func TestUnsettledDutiesCountADeadLetterUntilALaterSuccess(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.unsettled." + freshID(t).String())
+	now := queueClock.Now()
+	admin := adminPool(ctx, t)
+	add := func(key, state string, finished time.Time) {
+		t.Helper()
+		var id shared.ID
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			var err error
+			id, err = jobQueue(t).Enqueue(ctx, queue.Request{Kind: kind, DedupeKey: key, RunAt: now})
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+		if state == "PENDING" {
+			return
+		}
+		if _, err := admin.Exec(ctx, `UPDATE job SET state = $2, finished_at = $3 WHERE id = $1`,
+			id.String(), state, finished); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add("open", "PENDING", time.Time{})
+	add("dead", "DEAD_LETTER", now.Add(-time.Hour))
+	add("settled", "DEAD_LETTER", now.Add(-2*time.Hour))
+	add("settled", "SUCCEEDED", now.Add(-time.Hour))
+	add("done", "SUCCEEDED", now)
+
+	var unsettled int
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		unsettled, err = jobQueue(t).UnsettledDuties(ctx, kind)
+		return err
+	}); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	if unsettled != 2 {
+		t.Errorf("unsettled duties = %d, want 2 (the open one and the dead letter nothing settled)", unsettled)
+	}
+}
+
+// TestOpenKeysNameEachLivingJobsWorkspaceAndKey: a mailbox's read lives as one job keyed by the
+// mailbox, so the open jobs' keys are the mailboxes a watcher holds; a finished job and a job of
+// no workspace are not among them, and another kind's never are.
+func TestOpenKeysNameEachLivingJobsWorkspaceAndKey(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.keys." + freshID(t).String())
+	tenantA, tenantB := freshID(t), freshID(t)
+	now := queueClock.Now()
+	requests := []queue.Request{
+		{Kind: kind, TenantID: tenantA, DedupeKey: "a", RunAt: now},
+		{Kind: kind, TenantID: tenantB, DedupeKey: "b", RunAt: now.Add(time.Hour)},
+		{Kind: kind, TenantID: tenantA, DedupeKey: "finished", RunAt: now},
+		{Kind: kind, DedupeKey: "nobody", RunAt: now},
+		{Kind: queue.Kind(kind + ".other"), TenantID: tenantA, DedupeKey: "other", RunAt: now},
+	}
+	ids := make([]shared.ID, 0, len(requests))
+	for _, request := range requests {
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			id, err := jobQueue(t).Enqueue(ctx, request)
+			ids = append(ids, id)
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE job SET state = 'SUCCEEDED', finished_at = $2 WHERE id = $1`,
+		ids[2].String(), now); err != nil {
+		t.Fatal(err)
+	}
+	var keys []queue.OpenKey
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		keys, err = jobQueue(t).OpenKeys(ctx, kind, queue.Shard{}, 10)
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	want := []queue.OpenKey{{TenantID: tenantA, DedupeKey: "a"}, {TenantID: tenantB, DedupeKey: "b"}}
+	if len(keys) != len(want) || keys[0] != want[0] || keys[1] != want[1] {
+		t.Errorf("open keys = %+v, want %+v", keys, want)
+	}
+}
+
+// A batch's later job extends its lease before it starts: the extended lease holds the job against
+// another worker, and a worker whose job was taken over after the lease ran out extends nothing.
+func TestAnExtendedLeaseHoldsAndATakenOverJobIsNotExtended(t *testing.T) {
+	ctx := context.Background()
+	now := queueClock.Now()
+	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+
+	batch := claim(ctx, t, now, time.Second, 2)
+	if len(batch) != 2 {
+		t.Fatalf("%d jobs claimed, want two", len(batch))
+	}
+	var extended queue.Job
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		extended, err = jobQueue(t).Extend(ctx, batch[0], now.Add(time.Minute))
+		return err
+	}); err != nil {
+		t.Fatalf("extending: %v", err)
+	}
+	// Past the batch's lease: the extended job stays, the other is taken over.
+	taken := claim(ctx, t, now.Add(2*time.Second), time.Minute, 10)
+	if containsJob(taken, batch[0].ID) {
+		t.Error("a job whose lease was extended was claimed by another worker")
+	}
+	if !containsJob(taken, batch[1].ID) {
+		t.Fatal("the job whose lease ran out was not taken over")
+	}
+	err := systemWrite(ctx, t, func(ctx context.Context) error {
+		_, err := jobQueue(t).Extend(ctx, batch[1], now.Add(time.Minute))
+		return err
+	})
+	if err == nil || shared.AsError(err).DetailCode != "queue.lease_lost" {
+		t.Errorf("error %v, want the taken-over job's extension refused", err)
+	}
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Complete(ctx, extended, "")
+	}); err != nil {
+		t.Errorf("completing under the extended lease: %v", err)
+	}
+}
+
+// The automation role's bulkhead (deployment.md §2.2): a claim narrowed to some kinds takes only
+// those, and a claim that excludes some never takes them - so a rule storm queued behind a
+// worker's jobs drains on the automation pods and nowhere else.
+func TestAClaimTakesOnlyTheKindsItsRoleRuns(t *testing.T) {
+	ctx := context.Background()
+	rule, other := queue.Kind("test.bulkhead.rule"), queue.Kind("test.bulkhead.other")
+	dedupe := freshID(t).String()
+	enqueue(ctx, t, queue.Request{Kind: rule, DedupeKey: dedupe + "-rule", RunAt: queueClock.Now()})
+	enqueue(ctx, t, queue.Request{Kind: other, DedupeKey: dedupe + "-other", RunAt: queueClock.Now()})
+
+	claimKinds := func(only, except []queue.Kind) []queue.Job {
+		var jobs []queue.Job
+		if err := systemWrite(ctx, t, func(txCtx context.Context) error {
+			var err error
+			jobs, err = jobQueue(t).Claim(txCtx, queue.Lease{
+				Now: queueClock.Now(), Until: queueClock.Now().Add(time.Minute), Batch: 50,
+				Only: only, Except: except,
+			})
+			return err
+		}); err != nil {
+			t.Fatalf("claiming: %v", err)
+		}
+		return jobs
+	}
+
+	worker := claimKinds([]queue.Kind{rule, other}, []queue.Kind{rule})
+	if len(worker) != 1 || worker[0].Kind != other {
+		t.Fatalf("the worker's claim took %v, want the one %s job", kindsOf(worker), other)
+	}
+	automation := claimKinds([]queue.Kind{rule}, nil)
+	if len(automation) != 1 || automation[0].Kind != rule {
+		t.Fatalf("the automation claim took %v, want the one %s job", kindsOf(automation), rule)
+	}
+}
+
+func kindsOf(jobs []queue.Job) []queue.Kind {
+	kinds := make([]queue.Kind, 0, len(jobs))
+	for _, job := range jobs {
+		kinds = append(kinds, job.Kind)
+	}
+	return kinds
+}
+
+// A limit below the open jobs lists every workspace's oldest before any workspace's second: the
+// workspace whose mailboxes were connected later is not left out by an older one that has several.
+func TestOpenKeysTakeTurnsByWorkspace(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.turns." + freshID(t).String())
+	older, newer := freshID(t), freshID(t)
+	now := queueClock.Now()
+	for _, request := range []queue.Request{
+		{Kind: kind, TenantID: older, DedupeKey: "o1", RunAt: now},
+		{Kind: kind, TenantID: older, DedupeKey: "o2", RunAt: now},
+		{Kind: kind, TenantID: older, DedupeKey: "o3", RunAt: now},
+		{Kind: kind, TenantID: newer, DedupeKey: "n1", RunAt: now},
+	} {
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			_, err := jobQueue(t).Enqueue(ctx, request)
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+	}
+	var keys []queue.OpenKey
+	var count int64
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		if keys, err = jobQueue(t).OpenKeys(ctx, kind, queue.Shard{}, 2); err != nil {
+			return err
+		}
+		count, err = jobQueue(t).OpenKeyCount(ctx, kind, queue.Shard{})
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	want := []queue.OpenKey{{TenantID: older, DedupeKey: "o1"}, {TenantID: newer, DedupeKey: "n1"}}
+	if len(keys) != 2 || keys[0] != want[0] || keys[1] != want[1] {
+		t.Errorf("open keys = %+v, want %+v", keys, want)
+	}
+	if count != 4 {
+		t.Errorf("open key count = %d, want 4", count)
+	}
+}
+
+// The shards split the workspaces: each workspace's keys are answered by exactly one shard, whole,
+// and the shards' counts add up to every open key.
+func TestTheShardsSplitTheOpenKeysByWorkspace(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.shards." + freshID(t).String())
+	now := queueClock.Now()
+	tenants := make([]shared.ID, 8)
+	for i := range tenants {
+		tenants[i] = freshID(t)
+		// A dedupe key is the queue's, across workspaces: each mailbox's own.
+		for _, key := range []string{"first", "second"} {
+			request := queue.Request{Kind: kind, TenantID: tenants[i], DedupeKey: key + "." + tenants[i].String(), RunAt: now}
+			if err := systemWrite(ctx, t, func(ctx context.Context) error {
+				_, err := jobQueue(t).Enqueue(ctx, request)
+				return err
+			}); err != nil {
+				t.Fatalf("enqueueing: %v", err)
+			}
+		}
+	}
+	const shards = 3
+	seen := map[shared.ID]int{}
+	var total int64
+	for index := range shards {
+		shard := queue.Shard{Index: index, Count: shards}
+		var keys []queue.OpenKey
+		var count int64
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			var err error
+			if keys, err = jobQueue(t).OpenKeys(ctx, kind, shard, 100); err != nil {
+				return err
+			}
+			count, err = jobQueue(t).OpenKeyCount(ctx, kind, shard)
+			return err
+		}); err != nil {
+			t.Fatalf("listing shard %d: %v", index, err)
+		}
+		if int64(len(keys)) != count {
+			t.Errorf("shard %d lists %d keys and counts %d", index, len(keys), count)
+		}
+		total += count
+		inShard := map[shared.ID]int{}
+		for _, key := range keys {
+			inShard[key.TenantID]++
+		}
+		for tenant, n := range inShard {
+			if n != 2 {
+				t.Errorf("shard %d holds %d of a workspace's two keys", index, n)
+			}
+			if _, twice := seen[tenant]; twice {
+				t.Errorf("a workspace is in shard %d and shard %d", seen[tenant], index)
+			}
+			seen[tenant] = index
+		}
+	}
+	if total != int64(2*len(tenants)) || len(seen) != len(tenants) {
+		t.Errorf("the shards answer %d keys of %d workspaces, want %d of %d", total, len(seen), 2*len(tenants), len(tenants))
 	}
 }

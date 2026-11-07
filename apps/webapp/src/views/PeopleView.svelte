@@ -19,11 +19,14 @@
 
   import { tick, untrack } from 'svelte';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import {
     Badge,
     Banner,
     Button,
     Input,
+    Menu,
     OneTimeSecret,
     PageHeader,
     RoleBadge,
@@ -33,23 +36,27 @@
     Table,
     Tabs,
   } from '@hubtask/design-system/components';
-  import type { MembershipRole } from '@hubtask/sync-engine';
+  import type { InvitationDelivery, MembershipRole, SignInDetail } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { viewAs } from '../lib/data/viewas.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { endsTheLastOwner, grantableOf, mayIssueWayIn, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
+  import { endsTheLastOwner, grantableOf, mayIssueWayIn, mayResetFactor, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
   import RenewDialog from '../lib/people/RenewDialog.svelte';
+  import ResetFactorDialog from '../lib/people/ResetFactorDialog.svelte';
   import StartPasswordResult from '../lib/people/StartPasswordResult.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
-  import { inviteWay } from '../lib/people/invitation.ts';
+  import { collectionChoice, deliveryLine, invitePlaceOf, inviteRoleChoices, inviteWay } from '../lib/people/invitation.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { roles as workspaceRoles } from '../lib/data/roles.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -63,15 +70,19 @@
   import { sorting } from '../lib/sorting.svelte.ts';
   import GroupsView from './GroupsView.svelte';
   import PermissionsView from './PermissionsView.svelte';
+  import RolesView from './RolesView.svelte';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
 
   interface Props {
     /** The tab the address names (`?tab=`); the people where it names none or an unknown one. */
     tab?: string;
+    /** The person *view as* chose (`?person=`), for the permissions tab. */
+    person?: string;
     /** Replaces the address when the tab changes, so a reload or a link keeps it. */
     onnavigate?: (path: string) => void;
   }
 
-  let { tab, onnavigate }: Props = $props();
+  let { tab, person, onnavigate }: Props = $props();
 
   // The groups and what each role means are tabs here (ux-inventory §E8): both answer "who may do
   // what in this workspace", and a reader comparing a group's reach with a role's meaning should
@@ -79,9 +90,28 @@
   const TABS = [
     { id: 'people', code: 'app.people.tab_people' },
     { id: 'groups', code: 'app.groups.title' },
+    { id: 'roles', code: 'app.people.tab_roles' },
     { id: 'permissions', code: 'app.people.tab_permissions' },
   ] as const;
   const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'people');
+
+  /** Whether the reader may ask what somebody else holds: what `GET /access/explain` asks. */
+  const mayViewAs = $derived(holdsHere('MANAGE_MEMBERS') === true || holdsHere('READ_CONFIGURATION') === true);
+  /** Whether the reader may look at somebody's screens (UC-ID-29): what `POST /auth/sessions:view-as` asks. */
+  const mayViewScreens = $derived(holdsHere('MANAGE_MEMBERS') === true && !viewAs.running);
+  const mayManage = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  let viewingScreens = $state<string | undefined>(undefined);
+
+  async function viewScreens(accountId: string): Promise<void> {
+    viewingScreens = accountId;
+    failure = undefined;
+    try {
+      await viewAs.start(accountId);
+    } catch (error) {
+      failure = renderProblem(error as never, messages).message;
+      viewingScreens = undefined;
+    }
+  }
 
   function select(next: string): void {
     onnavigate?.(next === 'people' ? '/administration/people' : `/administration/people?tab=${next}`);
@@ -122,9 +152,9 @@
   let inviteName = $state('');
   let inviteRole = $state('');
   /**
-   * Where the invited person is given their role: the whole workspace, or one hub (UC-WRK-21 check
-   * 5, UC-ID-15) - a child or a guest limited to one hub from the start rather than given the
-   * workspace first. A collection or a single entry is chosen from that place's own *People*.
+   * Where the invited person is given their role: the whole workspace, one hub or one collection
+   * (UC-WRK-21 check 5, UC-ID-15) - a child, a guest or a requester limited to it from the start
+   * rather than given more first. A single entry is chosen from that entry's own *People*.
    */
   let inviteWhere = $state(WORKSPACE_PLACE);
   let invited = $state<string | undefined>(undefined);
@@ -180,6 +210,8 @@
   let renewing = $state<Holder | undefined>(undefined);
   /** The one answer that carried the new start password, until the reader dismisses it. */
   let renewed = $state<{ signInName: string; startPassword: string; who: string } | undefined>(undefined);
+  /** The row a second factor's reset is being confirmed for (fifth answers 6). */
+  let resettingFactor = $state<Holder | undefined>(undefined);
   /** The person an address is being added for. */
   let addressing = $state<{ accountId: string; who: string } | undefined>(undefined);
 
@@ -212,6 +244,17 @@
     }, t('app.people.renewed_announced', { who }));
   }
 
+  async function resetFactor(): Promise<void> {
+    const holder = resettingFactor;
+    resettingFactor = undefined;
+    if (!holder?.accountId) return;
+    const who = nameOf(holder);
+    await attempt(
+      () => people.resetSecondFactor(holder.accountId as string),
+      t('app.people.factor_reset_announced', { who }),
+    );
+  }
+
   async function revoke(): Promise<void> {
     const holder = revoking;
     revoking = undefined;
@@ -242,25 +285,45 @@
    * that place's path (domain-model.md §3.2), so a hub's answer is read when the hub is chosen and
    * nothing is offered until it arrives.
    */
-  const invitePlace = $derived(inviteWhere === WORKSPACE_PLACE ? TENANT : { scopeType: 'HUB' as const, scopeId: inviteWhere });
+  const invitePlace = $derived(inviteWhere === WORKSPACE_PLACE ? TENANT : invitePlaceOf(inviteWhere));
   $effect(() => {
     const place = invitePlace;
-    if (place.scopeType === 'HUB') untrack(() => people.openScope(place));
+    if (place.scopeType !== 'TENANT') untrack(() => people.openScope(place));
   });
+  // The workspace's own roles beside the shipped ones, as the role-grant screens offer them: a
+  // requester is invited with a role holding Raise requests at the desk alone (UC-SVC-05).
+  $effect(() => untrack(() => workspaceRoles.open()));
   const inviteRoleOptions = $derived(
-    grantableOf(roles, people.grantableAt(invitePlace)).map((role) => ({
-      value: role,
-      label: t(`app.people.role.${role.toLowerCase()}`),
-    })),
+    inviteRoleChoices(
+      grantableOf(roles, people.grantableAt(invitePlace)).map((role) => ({
+        value: role,
+        label: t(`app.people.role.${role.toLowerCase()}`),
+      })),
+      workspaceRoles.catalogue?.custom,
+    ),
   );
   // A role chosen for one place is not carried to a place that does not offer it.
   $effect(() => {
     if (inviteRole && !inviteRoleOptions.some((option) => option.value === inviteRole)) inviteRole = '';
   });
   $effect(() => untrack(() => containers.start()));
+  // Each hub's collections too, under the hub's name: a desk's requester is placed at the desk.
+  $effect(() => {
+    const ids = containers.hubs.map((hub) => hub.id);
+    return untrack(() => {
+      const stops = ids.map((id) => containers.openLevel(id));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
   const inviteWhereOptions = $derived([
     { value: WORKSPACE_PLACE, label: t('app.people.managed_where_workspace') },
-    ...containers.hubs.map((hub) => ({ value: hub.id, label: hub.name })),
+    ...containers.hubs.flatMap((hub) => [
+      { value: hub.id, label: hub.name },
+      ...containers.collectionsOf(hub.id).map((collection) => ({
+        value: collectionChoice(collection.id),
+        label: t('app.people.invite_where_collection', { hub: hub.name, collection: collection.name }),
+      })),
+    ]),
   ]);
 
   /** Who could be granted something: the people this workspace already knows about. */
@@ -272,6 +335,7 @@
 
   const columns = $derived([
     { id: 'who', label: t('app.people.who'), isSortable: true },
+    ...(mayManage ? [{ id: 'email', label: t('app.people.email_column'), isSortable: true }] : []),
     { id: 'role', label: t('app.people.role_column'), isSortable: true },
     { id: 'status', label: t('app.people.status'), isSortable: true },
     { id: 'actions', label: t('app.people.actions'), isLabelHidden: true },
@@ -291,6 +355,7 @@
     read: (holder, columnId) => {
       if (columnId === 'role') return t(`app.people.role.${holder.role.toLowerCase()}`);
       if (columnId === 'status') return statusOf(holder.accountId);
+      if (columnId === 'email') return (holder.accountId && signIn.details[holder.accountId]?.email) || '';
       return nameOf(holder);
     },
   });
@@ -304,6 +369,56 @@
 
   function statusOf(accountId: string | undefined): string | undefined {
     return accountId ? accounts.statusOf(accountId) : undefined;
+  }
+
+  /**
+   * How the last mail to each person on the list went (user-experience.md §8.3) - the invitation,
+   * or a newer mail of any kind -, for whoever may invite, where invitations go by mail. Read again
+   * after a renewal; a refusal leaves the rows without the line rather than failing the list.
+   */
+  let deliveries = $state<Readonly<Record<string, InvitationDelivery>>>({});
+  const invitedIds = $derived(
+    way === 'mail' && holdsHere('MANAGE_MEMBERS') === true
+      ? [...new Set(holders.map((holder) => holder.accountId).filter((id): id is string => !!id))].sort().slice(0, 200)
+      : [],
+  );
+  const invitedKey = $derived(invitedIds.join(','));
+  function readDeliveries(ids: readonly string[]): void {
+    void people.invitationDeliveries(ids)
+      .then((answer) => (deliveries = Object.fromEntries(answer.map((delivery) => [delivery.account_id, delivery]))))
+      .catch(() => (deliveries = {}));
+  }
+  $effect(() => {
+    void invitedKey;
+    const ids = invitedIds;
+    untrack(() => readDeliveries(ids));
+  });
+
+  /**
+   * Each person's address and authenticator app, for whoever manages members: the address column,
+   * and *Reset second factor* only where an app stands. Until the read answers the reset is not
+   * offered; where it failed the reset stays, and the server answers a person without an app.
+   */
+  let signIn = $state<{ readonly state: 'reading' | 'ready' | 'failed'; readonly details: Readonly<Record<string, SignInDetail>> }>({ state: 'reading', details: {} });
+  const peopleIds = $derived(
+    mayManage
+      ? [...new Set(holders.map((holder) => holder.accountId).filter((id): id is string => !!id))].sort().slice(0, 200)
+      : [],
+  );
+  const peopleKey = $derived(peopleIds.join(','));
+  function readSignIn(ids: readonly string[]): void {
+    void people.signInDetails(ids)
+      .then((answer) => (signIn = { state: 'ready', details: Object.fromEntries(answer.map((detail) => [detail.account_id, detail])) }))
+      .catch(() => (signIn = { state: 'failed', details: {} }));
+  }
+  $effect(() => {
+    void peopleKey;
+    const ids = peopleIds;
+    untrack(() => readSignIn(ids));
+  });
+  function hasApp(accountId: string | undefined): boolean | undefined {
+    if (signIn.state === 'failed') return undefined;
+    return accountId ? signIn.details[accountId]?.authenticator_app === true : false;
   }
 
   /** Whether the account counts as an owner who can act: active or restricted, as the server counts. */
@@ -353,7 +468,7 @@
     isWriting = true;
     let answer: Awaited<ReturnType<typeof people.invite>>;
     try {
-      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, invitePlace);
+      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole, invitePlace);
     } catch (error) {
       // Nothing went out: the address stays to be corrected, the sentence is at its field, the
       // reader is taken there, and it is said once.
@@ -398,7 +513,24 @@
       } else {
         invited = nameOf(holder);
         announcer.say(t('app.people.invited_announced'));
+        readDeliveries(invitedIds);
       }
+    });
+  }
+
+  /**
+   * Hands an invitation over by link where mail is sent: the mail still waiting is cancelled, so
+   * the mailed link never replaces this one.
+   */
+  async function handOver(holder: Holder): Promise<void> {
+    if (!holder.accountId) return;
+    invited = undefined;
+    handedOver = undefined;
+    const accountId = holder.accountId;
+    await attempt(async () => {
+      const link = await people.handOverInvitation(accountId);
+      if (link !== undefined) await showLink(nameOf(holder), link, t('app.people.renew_link_announced'));
+      readDeliveries(invitedIds);
     });
   }
 
@@ -452,6 +584,15 @@
   );
 </script>
 
+{#snippet mailLine(delivery: InvitationDelivery | undefined)}
+  {#if delivery}
+    {@const line = deliveryLine(delivery)}
+    <p class="delivery" class:failed={delivery.state === 'FAILED'} data-delivery={delivery.state} data-mail-kind={delivery.category ?? 'INVITATION'}>
+      {t(line.code, { at: formatDateTime(delivery.at, messages.locale), kind: line.kind ? t(line.kind) : '' })}{#if line.reason}<br />{t(line.reason.code, line.reason.params)}{/if}
+    </p>
+  {/if}
+{/snippet}
+
 <Stack gap="300">
   <!-- The section's page pattern (ADR-0063 decision 7): the trail says where in the
      administration this screen is and leads back to its index, the title is read rather than
@@ -487,14 +628,16 @@
   >
     {#if current === 'groups'}
       <GroupsView />
+    {:else if current === 'roles'}
+      <RolesView />
     {:else if current === 'permissions'}
-      <PermissionsView />
+      <PermissionsView {person} />
     {:else}
     <Stack gap="300">
     <p class="quiet">{t('app.people.intro')}</p>
 
     {#if failure}
-      <Banner tone="danger">{failure}</Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     {#if renewed}
@@ -629,7 +772,7 @@
     {#if holders.length === 0}
       <p class="quiet"><Spinner label={t('app.people.reading')} /> <span>{t('app.people.reading')}</span></p>
     {:else}
-      <Table
+      <Table isStacked
         label={t('app.people.title')}
         isLabelHidden
         {columns}
@@ -637,12 +780,30 @@
         onSort={(next) => order.by(next)}
       >
         {#each order.rows as holder (holder.membershipId)}
+          {@const rare = [
+            ...(holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && statusOf(holder.accountId) === 'ACTIVE'
+              ? [{ id: 'screens', label: viewingScreens === holder.accountId ? t('app.people.working') : t('app.view_as.start'), icon: 'eye' as const }]
+              : []),
+            ...(mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT), hasApp(holder.accountId))
+              ? [{ id: 'factor', label: t('app.people.factor_reset'), icon: 'key' as const }]
+              : []),
+          ]}
           <tr>
             <th scope="row" class="who">
               <!-- A membership granted to a group reaches the people in it. The group's own
                    screen is where that list lives; here it is named as what it is. -->
               {nameOf(holder)}
             </th>
+            {#if mayManage}
+              {@const detail = holder.accountId ? signIn.details[holder.accountId] : undefined}
+              <td class="address">
+                {#if detail?.email}
+                  {detail.email}
+                {:else if detail}
+                  <span class="quiet">{t('app.people.no_address')}</span>
+                {/if}
+              </td>
+            {/if}
             <td>
               <RoleBadge
                 label={t(`app.people.role.${holder.role.toLowerCase()}`)}
@@ -651,15 +812,25 @@
               />
             </td>
             <td>
-              {#if statusOf(holder.accountId) === 'INVITED'}
-                <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
-                <Badge tone="info">{t('app.people.invited')}</Badge>
-              {:else if statusOf(holder.accountId)}
-                <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
-              {/if}
+              <div class="standing">
+                {#if statusOf(holder.accountId) === 'INVITED'}
+                  <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
+                  <Badge tone="info">{t('app.people.invited')}</Badge>
+                {:else if statusOf(holder.accountId)}
+                  <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
+                {/if}
+                {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
+              </div>
             </td>
             <td>
               <div class="actions">
+                {#if holder.accountId && mayViewAs}
+                  <!-- View as (A6): the administration's answer for this person - their roles at a
+                       place, what they may do, and whether and why for a chosen permission. -->
+                  <Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/administration/people?tab=permissions&person=${holder.accountId}`)}>
+                    {t('app.people.view_as')}
+                  </Button>
+                {/if}
                 {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}
                   <!-- An invitation not yet accepted can be given a new way to arrive: a link lost
                        or run out would otherwise leave the address taken for good. A link is a way
@@ -672,6 +843,19 @@
                   >
                     {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
                   </Button>
+                  {#if way === 'mail' && mayWayIn(holder)}
+                    <!-- Where the mail does not arrive: a link to hand over instead, the waiting
+                         mail cancelled - never both (identity.md §12). -->
+                    <Button
+                      size="sm"
+                      tone="secondary"
+                      isBusy={isWriting}
+                      busyLabel={t('app.people.working')}
+                      onclick={() => void handOver(holder)}
+                    >
+                      {t('app.people.copy_invitation_link')}
+                    </Button>
+                  {/if}
                 {/if}
                 {#if isManaged(holder) && mayWayIn(holder)}
                   <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
@@ -686,6 +870,23 @@
                       {t('app.people.address_add')}
                     </Button>
                   {/if}
+                {/if}
+                <!-- The rarer acts fold under the row's More (UX-4): their screens, and a second
+                     factor's reset, which is for the day somebody lost theirs. -->
+                {#if rare.length > 0}
+                  <Menu
+                    label={t('app.people.more_for', { name: nameOf(holder) })}
+                    items={rare}
+                    placement={{ side: 'block-end', align: 'end' }}
+                    onselect={(id) => {
+                      if (id === 'screens') void viewScreens(holder.accountId as string);
+                      else if (id === 'factor') resettingFactor = holder;
+                    }}
+                  >
+                    {#snippet trigger(props)}
+                      <Button size="sm" tone="subtle" icon="ellipsis" aria-label={t('app.people.more_for', { name: nameOf(holder) })} {...props}>{t('app.people.more')}</Button>
+                    {/snippet}
+                  </Menu>
                 {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. Absent for a role above the reader's own: taking it away
@@ -722,6 +923,13 @@
       onCancel={() => (renewing = undefined)}
     />
 
+    <ResetFactorDialog
+      who={resettingFactor ? nameOf(resettingFactor) : undefined}
+      isBusy={isWriting}
+      onConfirm={() => void resetFactor()}
+      onCancel={() => (resettingFactor = undefined)}
+    />
+
     <AddressDialog target={addressing} onClose={() => (addressing = undefined)} />
 
     <RevokeDialog
@@ -739,6 +947,9 @@
 </Stack>
 
 <style>
+  .delivery { margin: var(--sp-050) 0 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  .delivery.failed { color: var(--text-danger); }
+
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
      input as wide as the region is a target nobody aims at, so the fields carry a measure of
      their own while the lists and tables beside them take the width. */
@@ -767,7 +978,12 @@
 
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
 
+  /* An address is one word to the line breaker; it breaks where it must rather than widen the table. */
+  .address { overflow-wrap: anywhere; color: var(--text-secondary); }
+
   /* A row still invited carries two actions; they wrap rather than widen the table on a phone. */
+  /* In a phone's stacked row the standing is a word, not a bar across the row's width. */
+  .standing { justify-self: start; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; white-space: nowrap; }
 
   /* Focused when drawn, so that a renewal pressed in the table reaches the reader here; the ring

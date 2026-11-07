@@ -55,6 +55,27 @@ type RunRetention struct {
 	Deliveries ExpiringDeliveries
 	// MailReceipts is the mail intake's log's remover (ADR-0094). Optional, the deliveries' reason.
 	MailReceipts ExpiringRows
+	// DocumentHistory is a live document's compacted history's remover (DOCUMENT_HISTORY).
+	// Optional, the deliveries' reason.
+	DocumentHistory ExpiringRows
+	// AgentLedger, AgentRequests and AgentJobs are the agents' rows' removers (AGENT_LEDGER,
+	// AGENT_REQUEST, AGENT_JOB). Optional, the deliveries' reason.
+	AgentLedger   ExpiringRows
+	AgentRequests ExpiringRows
+	AgentJobs     ExpiringRows
+	// Timers and ConnectorRuns are the ended timers' and the connector runs' removers (TIMER,
+	// CONNECTOR_RUN): bookkeeping that would otherwise only grow.
+	Timers        ExpiringRows
+	ConnectorRuns ExpiringRows
+	// Documents are pages' and boards' trash, page versions and boards' history (TRASH,
+	// PAGE_VERSION, WHITEBOARD_HISTORY).
+	Documents DocumentSweep
+	// Requesters is the record of requesters without an account (REQUESTER). Optional, the
+	// deliveries' reason.
+	Requesters ExpiringRows
+	// RequesterLines removes the intake's "From:" line of each requester the batch removes, before
+	// it goes (third answers 2). Optional: without it the lines stay, as before.
+	RequesterLines RequesterLines
 	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
@@ -265,6 +286,13 @@ func (h RunRetention) Execute(
 		ObserveRestrictions: true,
 	}, started)
 
+	// Pages and boards trashed on their own share the trash's period and its log row.
+	if sweepErr == nil {
+		var documents Outcome
+		documents, sweepErr = h.sweepTrashedDocuments(ctx, actor.TenantID, policy.Cutoff(started), started)
+		outcome.add(documents)
+	}
+
 	// The log is closed either way. A failed pass that left no trace would be indistinguishable from
 	// one that never ran, which is the state this log exists to make visible.
 	finished := h.Clock.Now()
@@ -316,6 +344,52 @@ func (h RunRetention) Execute(
 	receipts := Outcome{}
 	if h.MailReceipts != nil {
 		if receipts, err = h.sweepHeldByTenant(ctx, started, domain.KindMailReceipt, h.MailReceipts); err != nil {
+			return outcome, err
+		}
+	}
+
+	documents := Outcome{}
+	if h.DocumentHistory != nil {
+		if documents, err = h.sweepHeldByTenant(ctx, started, domain.KindDocumentHistory, h.DocumentHistory); err != nil {
+			return outcome, err
+		}
+	}
+
+	var agentSweeps []Outcome
+	for _, each := range []struct {
+		kind domain.DataKind
+		rows ExpiringRows
+	}{
+		{domain.KindAgentLedger, h.AgentLedger}, {domain.KindAgentRequest, h.AgentRequests}, {domain.KindAgentJob, h.AgentJobs},
+		{domain.KindTimer, h.Timers}, {domain.KindConnectorRun, h.ConnectorRuns},
+	} {
+		if each.rows == nil {
+			continue
+		}
+		swept, err := h.sweepHeldByTenant(ctx, started, each.kind, each.rows)
+		if err != nil {
+			return outcome, err
+		}
+		agentSweeps = append(agentSweeps, swept)
+	}
+
+	versions, err := h.sweepPageVersions(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
+	boards, err := h.sweepWhiteboardHistory(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
+	requesters := Outcome{}
+	if h.Requesters != nil {
+		rows := h.Requesters
+		if h.RequesterLines != nil {
+			rows = requesterRows{rows: rows, lines: h.RequesterLines, tenantID: actor.TenantID}
+		}
+		if requesters, err = h.sweepHeldByTenant(ctx, started, domain.KindRequester, rows); err != nil {
 			return outcome, err
 		}
 	}
@@ -390,6 +464,13 @@ func (h RunRetention) Execute(
 	outcome.add(inbox)
 	outcome.add(deliveries)
 	outcome.add(receipts)
+	outcome.add(documents)
+	for _, swept := range agentSweeps {
+		outcome.add(swept)
+	}
+	outcome.add(versions)
+	outcome.add(boards)
+	outcome.add(requesters)
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed
@@ -927,17 +1008,110 @@ func (h RunRetention) sweepWebhookDeliveries(ctx context.Context, started time.T
 func (h RunRetention) sweepHeldByTenant(
 	ctx context.Context, started time.Time, kind domain.DataKind, rows ExpiringRows,
 ) (Outcome, error) {
-	policy, err := h.Policies.Find(ctx, kind)
-	if err != nil {
+	cutoff, sweep, err := h.tenantCutoff(ctx, started, kind)
+	if err != nil || !sweep {
 		return Outcome{}, err
 	}
+	return h.sweepHeldUntil(ctx, started, kind, cutoff, rows)
+}
 
+// RequesterLines removes the intake's lines of up to a batch of expired requesters, and answers the
+// addresses whose lines are all gone and how many requesters it kept.
+type RequesterLines interface {
+	BeforeExpiry(ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int) ([]string, int, error)
+}
+
+// holdingRows are expiring rows some of which a pass keeps for a reason the next pass meets again:
+// they answer how many, which the pass counts as held (RunRetention.Exhausted).
+type holdingRows interface {
+	DeleteExpiredHolding(ctx context.Context, cutoff time.Time, batch int) (removed, held int, err error)
+}
+
+// ExpiringRequesters removes expired requesters by address: the ones whose intake lines are gone.
+type ExpiringRequesters interface {
+	DeleteExpiredAmong(ctx context.Context, cutoff time.Time, addresses []string) (int, error)
+}
+
+// requesterRows strips the batch's intake lines before the batch goes, in the same transaction and
+// only when no hold stopped the sweep.
+type requesterRows struct {
+	rows     ExpiringRows
+	lines    RequesterLines
+	tenantID shared.ID
+}
+
+func (r requesterRows) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	return r.rows.CountExpired(ctx, cutoff, ceiling)
+}
+
+// DeleteExpired removes only the requesters whose lines all went: one still named on an entry that
+// cannot be changed now stays, so the address is never left in a note with no record of it.
+func (r requesterRows) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
+	removed, _, err := r.DeleteExpiredHolding(ctx, cutoff, batch)
+	return removed, err
+}
+
+// DeleteExpiredHolding is DeleteExpired that also answers how many requesters stayed.
+func (r requesterRows) DeleteExpiredHolding(ctx context.Context, cutoff time.Time, batch int) (int, int, error) {
+	cleared, kept, err := r.lines.BeforeExpiry(ctx, r.tenantID, cutoff, batch)
+	if err != nil {
+		return 0, 0, err
+	}
+	among, ok := r.rows.(ExpiringRequesters)
+	if !ok {
+		removed, err := r.rows.DeleteExpired(ctx, cutoff, batch)
+		return removed, 0, err
+	}
+	if len(cleared) == 0 {
+		return 0, kept, nil
+	}
+	removed, err := among.DeleteExpiredAmong(ctx, cutoff, cleared)
+	return removed, kept, err
+}
+
+// tenantCutoff is the cutoff of a kind with a default period: the workspace's TENANT-scope rule
+// where it has one, raised to the kind's lower bound, else the shipped default (data-retention.md
+// §4.3, third answers 10). A workspace rule that only announces, or one switched off, removes
+// nothing: the workspace decided, and the default is not a fallback past its decision.
+func (h RunRetention) tenantCutoff(
+	ctx context.Context, started time.Time, kind domain.DataKind,
+) (time.Time, bool, error) {
+	rules := h.Rules
+	if rules == nil {
+		rules = h.Documents.Rules
+	}
+	if rules != nil {
+		all, err := rules.List(ctx)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		for _, rule := range all {
+			if rule.DataKind != kind || rule.Scope.Kind != domain.ScopeTenant {
+				continue
+			}
+			if !rule.Enabled || rule.Action != domain.ActionHardDelete {
+				return time.Time{}, false, nil
+			}
+			return domain.Policy{DataKind: kind, RetainDays: rule.RetainDays}.Cutoff(started), true, nil
+		}
+	}
+	policy, err := h.Policies.Find(ctx, kind)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return policy.Cutoff(started), true, nil
+}
+
+// sweepHeldUntil is sweepHeldByTenant past the period's reading: one batch of rows older than the
+// cutoff, logged as a run and stopped by a hold on the whole workspace.
+func (h RunRetention) sweepHeldUntil(
+	ctx context.Context, started time.Time, kind domain.DataKind, cutoff time.Time, rows ExpiringRows,
+) (Outcome, error) {
 	runID := h.IDs.NewID()
 	if err := h.Runs.Start(ctx, runID, kind, started); err != nil {
 		return Outcome{}, err
 	}
 
-	cutoff := policy.Cutoff(started)
 	matched, err := rows.CountExpired(ctx, cutoff, h.Purger.BatchSize)
 	if err != nil {
 		return Outcome{}, err
@@ -972,14 +1146,26 @@ func (h RunRetention) sweepHeldByTenant(
 		return outcome, nil
 	}
 
-	removed, sweepErr := rows.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	var removed, held int
+	var sweepErr error
+	if holding, ok := rows.(holdingRows); ok {
+		removed, held, sweepErr = holding.DeleteExpiredHolding(ctx, cutoff, h.Purger.BatchSize)
+		// Held only while the pass could not fill its batch: past kept rows to a full one, more
+		// may wait and the job comes straight back.
+		held = min(held, max(matched-removed, 0))
+		if removed >= h.Purger.BatchSize {
+			held = 0
+		}
+	} else {
+		removed, sweepErr = rows.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	}
 
 	finished := h.Clock.Now()
 	status := repository.RunSucceeded
 	if sweepErr != nil {
 		status = repository.RunFailed
 	}
-	outcome := Outcome{Matched: matched, Removed: removed}
+	outcome := Outcome{Matched: matched, Removed: removed, Held: held}
 	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
 		Matched: outcome.Matched, Removed: outcome.Removed,
 		Status: status, FinishedAt: finished,

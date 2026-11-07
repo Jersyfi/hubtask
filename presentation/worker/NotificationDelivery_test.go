@@ -4,6 +4,7 @@
 package worker
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -99,5 +100,32 @@ func TestTheInvitationJobNeedsAnAccountAndATenant(t *testing.T) {
 				t.Errorf("detail %q, want %q", got, tc.detail)
 			}
 		})
+	}
+}
+
+// deliverer is the delivery use case, answering what the test gives it.
+type deliverer struct{ err error }
+
+func (d deliverer) Execute(context.Context, shared.ID, shared.ID, bool) error { return d.err }
+
+// A recipient refused for good ends the job as a refusal - FAILED at once, never a dead letter -
+// while an unavailable server stays an error the queue retries.
+func TestARefusedRecipientEndsTheJobAsARefusal(t *testing.T) {
+	job := queue.Job{
+		Kind: queue.KindNotificationDeliver, TenantID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000a1"),
+		Payload: map[string]any{"notification_id": "01936f2a-7c1e-7000-8000-0000000000e1"},
+	}
+	result, err := NotificationDelivery{Delivery: deliverer{
+		err: shared.ErrValidation.WithDetail("mail.recipient_rejected"),
+	}}.Run(t.Context(), job)
+	if err != nil || result.Refusal == nil || result.Refusal.Code != "mail.recipient_rejected" {
+		t.Errorf("a refused recipient answered %+v, %v; want the refusal", result, err)
+	}
+
+	result, err = NotificationDelivery{Delivery: deliverer{
+		err: shared.ErrUnavailable.WithDetail("dependency.unavailable"),
+	}}.Run(t.Context(), job)
+	if err == nil || result.Refusal != nil {
+		t.Errorf("an unavailable server answered %+v, %v; want an error to retry", result, err)
 	}
 }

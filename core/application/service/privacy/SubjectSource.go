@@ -57,6 +57,103 @@ var subjectColumns = map[string][]string{
 	"legal_hold":       {"placed_by", "released_by"},
 	// The emergency accesses they opened, with the reason they wrote (ADR-0073 §4).
 	"private_hub_access": {"opened_by"},
+	// The workspace's own roles they hold, and their own settings: a person's level of the settings
+	// catalogue is the one whose scope is their account.
+	"custom_role_grant": {"account_id"},
+	"setting_value":     {"scope_id"},
+	// The configuration they published, linked, proposed, decided or wrote a template of.
+	"workflow":   {"published_by"},
+	"entry_link": {"created_by"},
+	// The baselines of a plan they took (M2).
+	"plan_baseline": {"taken_by"},
+	// The sprints they planned and the estimates they gave (M2).
+	"sprint": {"created_by"},
+	// The releases they planned (M2).
+	"release": {"created_by"},
+	// The time they recorded, their running timer, their weeks and the weeks they decided, and the
+	// time policy they set (M7).
+	"time_record": {"account_id"},
+	"time_timer":  {"account_id"},
+	"timesheet":   {"account_id", "decided_by"},
+	"time_policy": {"updated_by"},
+	// Their capacity and absences, the ones they recorded for others, and the rates and budgets
+	// they set or that price them (M7).
+	"time_capacity":  {"account_id", "updated_by"},
+	"time_absence":   {"account_id", "created_by"},
+	"time_cost_rate": {"account_id", "updated_by"},
+	"time_budget":    {"updated_by"},
+	// The goals they own or set, the entries they linked, their check-ins, the portfolios they
+	// own and the updates they wrote, and their dashboards (M8).
+	"goal_period":      {"created_by", "closed_by"},
+	"goal":             {"owner_id", "created_by", "updated_by"},
+	"goal_entry":       {"created_by"},
+	"goal_check_in":    {"author_id"},
+	"portfolio":        {"owner_id", "created_by", "updated_by"},
+	"portfolio_update": {"author_id"},
+	"dashboard":        {"owner_id", "updated_by"},
+	"dashboard_digest": {"account_id"},
+	// Approvals a person asked for, decided or decided for somebody away, and their delegation.
+	"approval":            {"requested_by"},
+	"approval_decision":   {"approver_id", "on_behalf_of"},
+	"approval_delegation": {"account_id", "delegate_id"},
+	// The agents they own, approved or stopped, the acts they decided, the cases they wrote and the
+	// AI values they accepted (M9).
+	"agent_model":     {"consent_by"},
+	"agent":           {"owner_id", "approved_by", "suspended_by", "created_by"},
+	"agent_halt":      {"set_by"},
+	"agent_request":   {"decided_by"},
+	"agent_eval_case": {"created_by"},
+	"agent_eval_run":  {"run_by"},
+	"agent_job":       {"started_by"},
+	"ai_provenance":   {"accepted_by"},
+	"entry_estimate":  {"updated_by"},
+	// The pages they wrote, own or checked, their versions and their comments (M3).
+	"page":         {"created_by", "updated_by", "owner_id", "verified_by"},
+	"page_version": {"author_id"},
+	"page_comment": {"author_id", "resolved_by"},
+	// The pages restricted to them or shared with them, by whom, and their own notes' hub.
+	"page_restriction":      {"account_id", "granted_by"},
+	"page_share":            {"account_id", "granted_by"},
+	"personal_space":        {"account_id"},
+	"page_public_link":      {"created_by"},
+	"portfolio_public_link": {"created_by"},
+	"page_draft":            {"updated_by"},
+	// The public forms they made, whose requests are filed as them.
+	"public_form": {"created_by"},
+	// The articles they published to a portal and the ones they rated.
+	"page_article":        {"published_by"},
+	"page_article_rating": {"account_id"},
+	// The whiteboards they made or last drew on (M4).
+	"whiteboard":         {"created_by", "updated_by"},
+	"whiteboard_version": {"author_id"},
+	"whiteboard_comment": {"author_id", "resolved_by"},
+	// The updates they wrote to a live page or board (F-8); an erased author leaves none.
+	"realtime_update": {"author_id"},
+	// The configuration items they made, changed or own, the relations they made, the
+	// reconciliations they ran and the holds and duplicates they closed (M6).
+	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id"},
+	"cmdb_relation":  {"created_by"},
+	"cmdb_run":       {"actor_id"},
+	"cmdb_hold":      {"resolved_by"},
+	"cmdb_duplicate": {"resolved_by"},
+	// The CIs they named on entries, the campaigns they ran and the CIs they attested or were asked
+	// to, the groups and aliases they defined, and the assets they hold or last changed (M6).
+	"cmdb_affected":       {"added_by"},
+	"cmdb_campaign":       {"started_by", "closed_by"},
+	"cmdb_attestation":    {"owner_id", "attested_by"},
+	"cmdb_ci_group":       {"updated_by"},
+	"cmdb_asset":          {"assigned_to", "updated_by"},
+	"cmdb_software_alias": {"updated_by"},
+	// The connectors that run with their rights (M6).
+	"cmdb_connector": {"run_as"},
+	// The forge hooks that write as the person who defined them (UC-INT-13).
+	"code_hook": {"run_as"},
+	// The files they linked on entries (UC-INT-14).
+	"file_link":       {"added_by"},
+	"config_revision": {"actor_id", "proposed_by"},
+	"config_proposal": {"proposed_by", "decided_by"},
+	"config_template": {"created_by"},
+	"config_draft":    {"saved_by"},
 	// The trail's own entries about them. An access request that left these out would be
 	// incomplete: they are personal data, and they are the record of what was done with the
 	// person's data.
@@ -67,6 +164,8 @@ var subjectColumns = map[string][]string{
 // identifier - somebody who wrote in before they ever had an account.
 var subjectEmailColumns = map[string][]string{
 	"jumble_entry": {"sender"},
+	// A requester without an account (accepted.md B): their address, name and contacts.
+	"requester": {"address"},
 }
 
 // notThePersons is every table an archive carries that is deliberately **not** in a subject export,
@@ -93,6 +192,43 @@ var notThePersons = map[string]string{
 	"retention_policy":        "the workspace's periods",
 	"webhook_subscription":    "an integration of the workspace's",
 	"container_milestone":     "the moment a collection or hub was finished, which names nobody",
+	"custom_role":             "a role of the workspace's own is its vocabulary of permissions; whom it is granted to is in the map above",
+	"entry_type":              "the workspace's own kinds of entries",
+	"workflow_scheme":         "which workflow a hub or collection runs for a type, which names nobody",
+	"link_type":               "the workspace's vocabulary of links",
+	"config_template_use":     "which template the workspace took at which version, which names nobody",
+	"config_hub_template_use": "which template a hub took at which version, which names nobody",
+	"sample_entry":            "which entry a template brought as a sample, which names nobody; the entry itself is in the map above",
+	"sample_object":           "which object was marked as the workspace's sample content, which names nobody; each object is in the map above",
+	"template_page":           "which page a template brought, which names nobody; the page itself is in the map above",
+	"realtime_document":       "a live document's head - its last place and its snapshot's - which names nobody",
+	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",
+	"whiteboard_media":        "which media object lies on which board - the file itself is in media_objects, filtered by who uploaded it",
+	"page_media":              "which media object a page holds - the file itself is in media_objects, filtered by who uploaded it",
+	"page_label":              "a page's labels name no writer; the page they belong to is filtered by its author",
+	"cmdb_class":              "the workspace's own classes of configuration items",
+	"cmdb_relation_type":      "the workspace's vocabulary of relations between configuration items",
+	"cmdb_source":             "a source of the inventory is an integration of the workspace's, not a person",
+	"cmdb_ci_identifier":      "the identifying values of a configuration item, which arrive with nobody's name; the CI itself is in the map above",
+	"cmdb_alert":              "a monitoring program's problem bound to a configuration item, which names nobody; its entry is the entry's",
+	"business_calendar":       "the workspace's working hours and holidays",
+	"hub_business_calendar":   "a hub's own working hours and holidays",
+	"sla_policy":              "the workspace's promised response and resolution times",
+	"entry_sla":               "how an entry's promised times stood, which names nobody; the entry is the entry's",
+	"entry_ola":               "how a team's promised times on an entry stood, which names a group and nobody; the entry is the entry's",
+	"entry_status_change":     "when an entry entered each status, which names nobody; the entry is the entry's",
+	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",
+	"requester_organisation":  "a portal's organisation: a name and mail domains, which name nobody; who belongs is read from each account's address",
+	"entry_schedule":          "whether the scheduler may move an entry, which names nobody; the entry is the entry's",
+	"plan_baseline_entry":     "an entry's dates as a baseline holds them, which name nobody; the baseline names who took it",
+	"sprint_entry":            "an entry's membership in a sprint, which names nobody; the sprint names who planned it",
+	"release_entry":           "an entry's membership in a release, which names nobody; the release names who planned it",
+	"code_link":               "a forge's commit, branch or pull request on an entry; its author is the forge's account name, never a person of the workspace",
+	"time_work_type":          "the workspace's kinds of work, which name nobody",
+	"portfolio_item":          "which hub or collection a portfolio holds with its dates and status, which names nobody; the portfolio names its owner",
+	"agent_action":            "the ledger of an agent's acts, which names no person; the agent names its owner and an act held for a person is in agent_request",
+	"requester_contact":       "which entries a requester without an account wrote on; the requester is in the map by address, and the entries are the team's",
+	"satisfaction_rating":     "a score of a resolved request, which names nobody; the rater is who raised the entry, and their words are a comment of theirs",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,
@@ -112,6 +248,33 @@ var kudosSection = archive.Entity{
 	Name: "kudos", Table: "kudos", Whole: true, Keys: []string{"item_id", "given_by", "given_to"},
 }
 
+// mailReceiptSection and ratingLinkSection are the files of an address's copy that hold the mail
+// intake's log of it and the rating links mailed to it.
+//
+// Sections for kudosSection's reason turned around: neither is in a workspace archive - the log
+// lasts 30 days, a link is a credential a restore must not bring back - yet both are about the
+// person, and an access request answered without them would be short (data-protection.md §4.1).
+// A link goes without its token. No restore reads either.
+var (
+	mailReceiptSection = archive.Entity{Name: "mail_receipts", Table: "mail_receipt", Whole: true, Keys: []string{"id"}}
+	ratingLinkSection  = archive.Entity{
+		Name: "rating_links", Table: "satisfaction_link", Whole: true, Keys: []string{"item_id"},
+	}
+)
+
+// copySections answers the sections a person's copy carries: kudos name accounts, receipts and
+// links an address.
+func copySections(subject shared.ID, email string) []archive.Entity {
+	var sections []archive.Entity
+	if !subject.IsZero() {
+		sections = append(sections, kudosSection)
+	}
+	if email != "" {
+		sections = append(sections, mailReceiptSection, ratingLinkSection)
+	}
+	return sections
+}
+
 // subjectSource hands the writer only what belongs to the person.
 type subjectSource struct {
 	inner   archive.Source
@@ -121,6 +284,37 @@ type subjectSource struct {
 	counted *int
 	// kudos reads the person's kudos section; the archive's own source never carries any.
 	kudos repository.OwnKudos
+	// mail reads the address's receipts and rating links, which no archive carries either.
+	mail repository.AddressMail
+	// lines is, per table, the rows whose intake line names the address: the entries a requester's
+	// mail created and the comments their replies became, which an account filed and which name
+	// them by nothing else (data-protection.md §4.1).
+	lines map[string]map[string]bool
+}
+
+// intakeRecords keeps the lines whose first line names the address exactly - the query's prefix
+// test is only the cheap filter - as the rows they are in.
+func intakeRecords(lines []repository.IntakeLine, address string) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, line := range lines {
+		// A page is the workspace's knowledge, not what the requester's mail became: only its line
+		// is theirs, and that is removed rather than handed out.
+		if line.Page {
+			continue
+		}
+		if _, named := stripAny(line.Text, []string{address}); !named {
+			continue
+		}
+		table := "work_item"
+		if line.Comment {
+			table = "comment"
+		}
+		if out[table] == nil {
+			out[table] = map[string]bool{}
+		}
+		out[table][line.ID.String()] = true
+	}
+	return out
 }
 
 var _ archive.Source = subjectSource{}
@@ -133,8 +327,13 @@ var _ archive.Source = subjectSource{}
 func (s subjectSource) Records(
 	ctx context.Context, entity archive.Entity, since time.Time, yield func(archive.Record) error,
 ) error {
-	if entity.Name == kudosSection.Name {
+	switch entity.Name {
+	case kudosSection.Name:
 		return s.ownKudos(ctx, yield)
+	case mailReceiptSection.Name:
+		return s.ownReceipts(ctx, yield)
+	case ratingLinkSection.Name:
+		return s.ownRatingLinks(ctx, yield)
 	}
 	byID, hasID := subjectColumns[entity.Table]
 	byEmail, hasEmail := subjectEmailColumns[entity.Table]
@@ -143,7 +342,7 @@ func (s subjectSource) Records(
 	}
 
 	return s.inner.Records(ctx, entity, since, func(record archive.Record) error {
-		if !s.owns(record, byID, byEmail) {
+		if !s.owns(record, byID, byEmail) && !s.lines[entity.Table][record.ID] {
 			return nil
 		}
 		if s.counted != nil {
@@ -173,6 +372,75 @@ func (s subjectSource) ownKudos(ctx context.Context, yield func(archive.Record) 
 			},
 		})
 	})
+}
+
+// ownReceipts writes the intake's log of the address.
+func (s subjectSource) ownReceipts(ctx context.Context, yield func(archive.Record) error) error {
+	if s.mail == nil {
+		return shared.ErrInternal.WithDetail("privacy.export_mail_unwired").
+			WithCause(errors.New("the person's copy has no reader for their mail receipts"))
+	}
+	receipts, err := s.mail.MailReceiptsFrom(ctx, s.email)
+	if err != nil {
+		return err
+	}
+	for _, receipt := range receipts {
+		if err := s.yieldCounted(yield, archive.Record{
+			ID: receipt.ID.String(), Op: archive.OpUpsert, UpdatedAt: receipt.ReceivedAt,
+			Data: map[string]any{
+				"id": receipt.ID.String(), "message_id": receipt.MessageID,
+				"received_at": receipt.ReceivedAt.UTC().Format(time.RFC3339Nano), "sender": receipt.Sender,
+				"subject": receipt.Subject, "outcome": receipt.Outcome, "reason": receipt.Reason,
+				"item_id": idOrNil(receipt.ItemID), "entry_id": idOrNil(receipt.EntryID), "door": receipt.Door,
+			},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ownRatingLinks writes the rating links mailed to the address, each without its token.
+func (s subjectSource) ownRatingLinks(ctx context.Context, yield func(archive.Record) error) error {
+	if s.mail == nil {
+		return shared.ErrInternal.WithDetail("privacy.export_mail_unwired").
+			WithCause(errors.New("the person's copy has no reader for their rating links"))
+	}
+	links, err := s.mail.RatingLinksTo(ctx, s.email)
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		data := map[string]any{
+			"item_id":    link.ItemID.String(),
+			"created_at": link.CreatedAt.UTC().Format(time.RFC3339Nano),
+			"expires_at": link.ExpiresAt.UTC().Format(time.RFC3339Nano),
+			"used_at":    nil,
+		}
+		if link.UsedAt != nil {
+			data["used_at"] = link.UsedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if err := s.yieldCounted(yield, archive.Record{
+			ID: link.ItemID.String(), Op: archive.OpUpsert, UpdatedAt: link.CreatedAt, Data: data,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s subjectSource) yieldCounted(yield func(archive.Record) error, record archive.Record) error {
+	if s.counted != nil {
+		*s.counted++
+	}
+	return yield(record)
+}
+
+func idOrNil(id shared.ID) any {
+	if id.IsZero() {
+		return nil
+	}
+	return id.String()
 }
 
 // owns decides whether one record is about the person.

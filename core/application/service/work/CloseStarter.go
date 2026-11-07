@@ -24,9 +24,8 @@ const CloseStarterName = "CloseStarter"
 const StarterClosedAction audit.Action = "workspace.starter_closed"
 
 // Starter is the workspace's first start (UC-WRK-30 check 5): whom a client asks, once, what the
-// workspace is used for. The starter set itself is the client's - hubs and collections with
-// translated names, created through CreateContainer - because rule 8 keeps names out of the
-// backend; the server holds only that the question was asked.
+// workspace is used for. The set's names are the client's, translated, because rule 8 keeps names
+// out of the backend; ApplyStarter makes it and closes the question in one transaction.
 type Starter struct {
 	Starts     repository.Starter
 	Permits    access.Permitter
@@ -34,6 +33,8 @@ type Starter struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Baseline keeps the configuration as the start left it. Optional.
+	Baseline StarterBaseline
 }
 
 // structureAtWorkspace is the right the question needs: to change the workspace's shape.
@@ -69,8 +70,26 @@ func (s Starter) StarterOffered(ctx context.Context, actor appshared.ActorContex
 	return pending, err
 }
 
-// CloseStarter answers the first start's question for good, answered or skipped alike. A client
-// closes it before creating the starter set, so an interruption never makes the set twice.
+// StarterSkipped reports whether the reader is offered the first start again after a skip: the
+// question was skipped, nothing was made since, and the reader may change the workspace's shape.
+func (s Starter) StarterSkipped(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if s.Starts == nil || s.Permits == nil {
+		return false, nil
+	}
+	may, err := s.Permits.Permits(ctx, actor, structureAtWorkspace(StarterClosedAction, actor))
+	if err != nil || !may {
+		return false, err
+	}
+	var skipped bool
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		skipped, err = s.Starts.Skipped(ctx)
+		return err
+	})
+	return skipped, err
+}
+
+// CloseStarter answers the first start's question for good: a skip. An answer is ApplyStarter.
 type CloseStarter struct{ Starter Starter }
 
 // Execute closes it.
@@ -85,11 +104,16 @@ func (h CloseStarter) Execute(ctx context.Context, actor appshared.ActorContext)
 			return err
 		}
 		now := s.Clock.Now()
-		if err := s.Starts.Close(ctx, now); err != nil {
+		if _, err := s.Starts.Close(ctx, now); err != nil {
 			return err
 		}
 		if !pending {
 			return nil
+		}
+		if s.Baseline != nil {
+			if err := s.Baseline.Baseline(ctx, actor, ""); err != nil {
+				return err
+			}
 		}
 		return s.Audit.Append(ctx, audit.Entry{
 			TenantID:   actor.TenantID,
@@ -110,12 +134,14 @@ func (h CloseStarter) Execute(ctx context.Context, actor appshared.ActorContext)
 // Descriptor is the catalogue entry.
 func (h CloseStarter) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CloseStarterName,
+		Permission: service.PermissionStructure,
+		Name:       CloseStarterName,
 		Summary: "Records that the workspace's first start - what it is used for, and a starter set " +
 			"of hubs and collections on matching presets - was answered or skipped, so nobody is " +
 			"asked again. Needs the right to change the workspace's shape. Closing it again changes nothing.",
-		SideEffects: "Writes the moment it was closed and, the first time, an audit entry.",
-		TokenScope:  workspaceManageScope,
+		SideEffects: "Writes the moment it was closed and, the first time, an audit entry and the " +
+			"workspace's configuration as a version where it has none or moved.",
+		TokenScope: workspaceManageScope,
 		Audit: usecase.AuditDeclaration{
 			Action: StarterClosedAction, TargetType: workspaceStructureTarget,
 			Severity: audit.SeverityInfo, Required: true,

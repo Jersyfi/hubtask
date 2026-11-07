@@ -82,6 +82,7 @@ func listPreferences(accounts *accountStore, prefs *preferenceStore, auth *autho
 
 // Every category and channel is in the answer, the stored row where there is one and the default
 // marked as such where there is not.
+// UC-NOT-03 check 1: both switches on for somebody who never changed anything.
 func TestTheOwnPreferencesAreAnsweredWithDefaultsMarked(t *testing.T) {
 	off := notification.DefaultPreference(tenant, adminID, notification.CategoryComment, notification.ChannelEmail)
 	off.Enabled = false
@@ -231,6 +232,7 @@ func TestWithholdingTheTitleLeavesTheCategoryOn(t *testing.T) {
 	}
 }
 
+// UC-NOT-03 check 7.
 func TestAnUnknownCategoryOrChannelIsRefusedByName(t *testing.T) {
 	cases := []struct {
 		name string
@@ -255,7 +257,8 @@ func TestAnUnknownCategoryOrChannelIsRefusedByName(t *testing.T) {
 	}
 }
 
-// A viewer changes their own and cannot change another account's; an administrator can.
+// A viewer changes their own and cannot change another account's; an administrator can
+// (UC-NOT-03 check 5).
 func TestAnotherAccountsPreferenceAsksTheMemberManagementPermission(t *testing.T) {
 	refused := &authorizer{refuse: shared.ErrForbidden.WithDetail("access.not_permitted")}
 	prefs := &preferenceStore{}

@@ -244,7 +244,7 @@
 
   {#snippet actions()}
     <Button tone="secondary" onclick={finish}>{t('app.workspace.cancel')}</Button>
-    <Button
+    <Button tone="primary"
       isBusy={isSaving}
       busyLabel={t('app.workspace.saving')}
       disabledReason={problem ? t(problem.code, problem.params) : structure.status === 'permitted' ? undefined : t('app.fields.deciding')}

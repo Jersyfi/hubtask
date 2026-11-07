@@ -108,7 +108,14 @@ type Membership struct {
 	AccountID shared.ID
 	Scope     Scope
 	Role      Role
+	// Custom is the key of a custom role the membership grants instead of a built-in one, empty
+	// otherwise; Role is then empty and Permissions is what the custom role carries (UC-ID-26).
+	Custom      string
+	Permissions []string
 }
+
+// IsCustom reports whether the membership grants a custom role.
+func (m Membership) IsCustom() bool { return m.Custom != "" }
 
 // Grant is a membership as it is stored: a role at a scope, held by an account or by a group.
 //

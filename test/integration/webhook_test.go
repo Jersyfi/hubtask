@@ -206,6 +206,57 @@ func TestADeliveryOfOneTenantIsInvisibleInAnother(t *testing.T) {
 	}
 }
 
+// A dead letter replayed once is superseded by its replay, and only within its own workspace: in
+// another the row is not there to hold.
+func TestADeadLetterIsSupersededByItsReplay(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	subscription := seedSubscription(ctx, t, tenantA)
+	work := postgres.NewUnitOfWork(appPool(ctx, t))
+	deliveries := postgres.NewWebhookDeliveryRepository()
+
+	dead, err := domain.NewWebhookDelivery(
+		freshID(t), tenantA, subscription.ID, freshID(t), domain.MaxDeliveryAttempts, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("building the delivery: %v", err)
+	}
+	dead = dead.Failed(502, "webhooks.target_refused", time.Time{})
+	superseded := func(scope shared.ID) (bool, error) {
+		var answer bool
+		err := work.Within(ctx, persistence.Scope{TenantID: scope}, func(txCtx context.Context) error {
+			var err error
+			answer, err = deliveries.Superseded(txCtx, dead)
+			return err
+		})
+		return answer, err
+	}
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		return deliveries.Insert(txCtx, dead)
+	}); err != nil {
+		t.Fatalf("seeding the dead letter: %v", err)
+	}
+	if later, err := superseded(tenantA); err != nil || later {
+		t.Fatalf("before the replay: superseded = %v, %v", later, err)
+	}
+
+	replay, err := dead.Replayed(freshID(t), time.Now().UTC())
+	if err != nil {
+		t.Fatalf("replaying: %v", err)
+	}
+	if err := work.Within(ctx, persistence.Scope{TenantID: tenantA}, func(txCtx context.Context) error {
+		return deliveries.Insert(txCtx, replay)
+	}); err != nil {
+		t.Fatalf("seeding the replay: %v", err)
+	}
+	if later, err := superseded(tenantA); err != nil || !later {
+		t.Errorf("after the replay: superseded = %v, %v", later, err)
+	}
+	if _, err := superseded(tenantB); !isNotFound(err) {
+		t.Errorf("another tenant: error = %v, want not found", err)
+	}
+}
+
 // A webhook aggregate read back has to be one the domain can act on, and the field that decides it
 // is one a query can leave out without anything looking wrong.
 //

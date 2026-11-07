@@ -222,6 +222,8 @@ func (r *intakeRig) deliver(t *testing.T, message ReceivedMail) MailDeliveryResu
 	return result
 }
 
+// UC-JUM-12 checks 2 and 4: a handle files an entry under its subject without the routing words,
+// written by the member who sent it.
 func TestAHandleInTheSubjectMakesAnEntryInItsCollection(t *testing.T) {
 	rig := newIntakeRig()
 	result := rig.deliver(t, ReceivedMail{
@@ -247,6 +249,8 @@ func TestAHandleInTheSubjectMakesAnEntryInItsCollection(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 2, UC-JUM-10 check 2: a ticket key makes the reply a comment by its sender on
+// that entry, the quoted text cut.
 func TestATicketKeyMakesACommentAndWinsOverAHandle(t *testing.T) {
 	rig := newIntakeRig()
 	result := rig.deliver(t, ReceivedMail{
@@ -255,11 +259,13 @@ func TestATicketKeyMakesACommentAndWinsOverAHandle(t *testing.T) {
 	if result.Outcome != mail.OutcomeComment || result.ItemID != mailItem {
 		t.Fatalf("became %+v", result)
 	}
-	if comment := rig.catalogue.calls[0]; comment.name != addCommentName || comment.in["body"] != "Erledigt." {
+	if comment := rig.catalogue.calls[0]; comment.name != addCommentName || comment.in["body"] != "Erledigt." ||
+		comment.actor.AccountID != account {
 		t.Errorf("commented %+v", comment)
 	}
 }
 
+// UC-JUM-12 check 2: the key on the address routes as the key in the subject does.
 func TestAPlusTagOnAConnectedMailboxRoutes(t *testing.T) {
 	rig := newIntakeRig()
 	result := rig.deliver(t, ReceivedMail{
@@ -274,6 +280,7 @@ func TestAPlusTagOnAConnectedMailboxRoutes(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 3.
 func TestASenderRuleAndTheDefaultFileWhatNamesNoPlace(t *testing.T) {
 	rig := newIntakeRig()
 	rig.store.settings.SenderRoutes = []mail.SenderRoute{{Match: "@example.org", CollectionID: otherPlace}}
@@ -290,6 +297,7 @@ func TestASenderRuleAndTheDefaultFileWhatNamesNoPlace(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 3.
 func TestWhatNamesNothingWaitsInTheJumbleWithItsReason(t *testing.T) {
 	rig := newIntakeRig()
 	result := rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "Hallo", MessageID: "m6"})
@@ -305,6 +313,7 @@ func TestWhatNamesNothingWaitsInTheJumbleWithItsReason(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 4.
 func TestAStrangerWaitsUnlessTheLevelAdmitsThem(t *testing.T) {
 	rig := newIntakeRig()
 	result := rig.deliver(t, ReceivedMail{Sender: "kunde@shop.test", Subject: "#einkauf Angebot", MessageID: "m8"})
@@ -328,8 +337,13 @@ func TestAStrangerWaitsUnlessTheLevelAdmitsThem(t *testing.T) {
 	if create.actor.AccountID != opener || !strings.HasPrefix(create.in.String("notes"), "From: Kunde <kunde@shop.test>") {
 		t.Errorf("written as %s with %q", create.actor.AccountID, create.in.String("notes"))
 	}
+	if !create.actor.ForSender {
+		t.Error("the sender's words are not marked as theirs (UC-SVC-12)")
+	}
 }
 
+// UC-JUM-12 check 5, UC-JUM-10 check 3: a blocked sender, an automatic answer and a flood store
+// nothing.
 func TestABlockedOrAutomaticOrFloodingSenderIsDropped(t *testing.T) {
 	rig := newIntakeRig()
 	rig.store.settings.Senders.Blocked = []string{"@spam.test"}
@@ -350,6 +364,7 @@ func TestABlockedOrAutomaticOrFloodingSenderIsDropped(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 5.
 func TestSpamUnparseableAndForbiddenGoToTheJumble(t *testing.T) {
 	rig := newIntakeRig()
 	if result := rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "#einkauf", Spam: true, MessageID: "s1"}); result.Reason != mail.ReasonSpam {
@@ -364,6 +379,7 @@ func TestSpamUnparseableAndForbiddenGoToTheJumble(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 6.
 func TestAMessageIsTakenOnce(t *testing.T) {
 	rig := newIntakeRig()
 	first := rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "#einkauf Milch", MessageID: "<same@x>"})
@@ -378,6 +394,7 @@ func TestAMessageIsTakenOnce(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 7.
 func TestAnAddressNamingNoWorkspaceOrAnIntakeOffIsNotFound(t *testing.T) {
 	rig := newIntakeRig()
 	for _, message := range []ReceivedMail{
@@ -398,6 +415,7 @@ func TestAnAddressNamingNoWorkspaceOrAnIntakeOffIsNotFound(t *testing.T) {
 	}
 }
 
+// UC-JUM-12 check 5: a failed authentication sends the mail to the jumble.
 func TestAForgedOrUnknownSenderIsNobodyTheWorkspaceKnows(t *testing.T) {
 	rig := newIntakeRig()
 	result := rig.deliver(t, ReceivedMail{Sender: "anna@example.org", AuthFailed: true, Subject: "#einkauf", MessageID: "a1"})
@@ -474,5 +492,45 @@ func TestAPlaceThatKeepsNoNotesStillTakesTheMail(t *testing.T) {
 	rig.catalogue.refuse = shared.ErrValidation
 	if result := rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "#einkauf", MessageID: "n2"}); result.Outcome != mail.OutcomeJumble || result.Reason != mail.ReasonRefusedByPlace {
 		t.Errorf("a refused write became %+v", result)
+	}
+}
+
+type requesterLog struct {
+	address, name string
+	item          shared.ID
+	at            time.Time
+	calls         int
+}
+
+func (r *requesterLog) RecordContact(_ context.Context, address, name string, item shared.ID, at time.Time) error {
+	r.address, r.name, r.item, r.at = address, name, item, at
+	r.calls++
+	return nil
+}
+
+// accepted.md B: a sender without an account whose mail an account filed on their behalf is
+// recorded as a requester, with the entry and the moment; a member's own mail records none.
+func TestASenderWithoutAnAccountIsRecordedAsARequester(t *testing.T) {
+	rig := newIntakeRig()
+	requesters := &requesterLog{}
+	rig.receive.Requesters = requesters
+	rig.store.settings.Senders = mail.Senders{Level: mail.LevelAnyone}
+	result := rig.deliver(t, ReceivedMail{
+		Sender: "Kunde@Shop.test", SenderName: "Kunde", Subject: "#einkauf Angebot", Body: "Preis", MessageID: "r1",
+	})
+	if result.Outcome != mail.OutcomeEntry {
+		t.Fatalf("became %+v", result)
+	}
+	if requesters.calls != 1 || requesters.address != "kunde@shop.test" || requesters.name != "Kunde" ||
+		requesters.item != result.ItemID || !requesters.at.Equal(now) {
+		t.Errorf("recorded %+v", requesters)
+	}
+
+	rig = newIntakeRig()
+	requesters = &requesterLog{}
+	rig.receive.Requesters = requesters
+	rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "#einkauf Milch", MessageID: "r2"})
+	if requesters.calls != 0 {
+		t.Errorf("a member's own mail recorded a requester: %+v", requesters)
 	}
 }

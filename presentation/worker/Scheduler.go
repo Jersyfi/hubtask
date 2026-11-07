@@ -11,7 +11,9 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
@@ -19,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 )
 
 // SchedulerSignals is the slice of the metrics adapter the scheduler uses.
@@ -29,15 +32,23 @@ import (
 type SchedulerSignals interface {
 	QueueDepth(ctx context.Context, kind string, pending int64)
 	SchedulerTickLag(ctx context.Context, seconds float64)
+	// SchedulerTicked is when the leader last ran its duties - alert A-30's number.
+	SchedulerTicked(ctx context.Context, at time.Time)
 	// BackupLastSuccess is when a target last had a backup that worked - alert A-12's number
 	// (observability-reliability.md §10).
 	BackupLastSuccess(ctx context.Context, targetID string, at time.Time)
+	// BackupCadence is how often a target is owed a backup by its schedules - what A-12 measures
+	// the last success against.
+	BackupCadence(ctx context.Context, targetID string, every time.Duration)
 	// WebhookRetryBacklog is the deliveries waiting out their backoff
 	// (observability-reliability.md §4).
 	WebhookRetryBacklog(ctx context.Context, waiting int64)
 	// PlatformDeadLetters is the installation's deliveries to a purchase platform waiting to be
 	// redelivered - alert A-21's number (UC-INS-14).
 	PlatformDeadLetters(ctx context.Context, waiting int64)
+	// MediaScanHeldWorkspaces is how many workspaces hold uploads a scan has not settled - alert
+	// A-23's number (UC-MED-01 check 10).
+	MediaScanHeldWorkspaces(ctx context.Context, workspaces int64)
 	// JobsPurged counts the finished jobs the leader removed, by terminal state - never a kind's
 	// payload or a tenant (rule 10).
 	JobsPurged(ctx context.Context, state string, count int64)
@@ -47,6 +58,59 @@ type SchedulerSignals interface {
 	// AuditDefaultAgedRows is how many entries in the trail's default partition are past their
 	// period: rows no partition drop can reach, which an operator moves out (data-retention.md §3).
 	AuditDefaultAgedRows(ctx context.Context, rows int64)
+	// OldestTransaction is the age of the database's oldest open transaction - alert A-25's
+	// number: vacuum cannot reclaim what changed after it began.
+	OldestTransaction(ctx context.Context, seconds float64)
+	// DatabaseHorizon is the share of the NOTIFY queue in use and the transaction-ID age vacuum
+	// has not frozen - alerts A-36 and A-37: each, at its limit, stops every write - and the
+	// database's size on disk, alert A-42's number.
+	DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge, databaseBytes int64)
+	// InvalidIndexes is how many indexes PostgreSQL holds invalid - alert A-28's number.
+	InvalidIndexes(ctx context.Context, count int64)
+	// MailApp is one installation mail app's mailboxes and the failing ones - alert A-29's numbers.
+	MailApp(ctx context.Context, app string, connected, failing int64)
+	// SAMLCertificatesEnding is the installation's SAML providers by their certificates' end.
+	SAMLCertificatesEnding(ctx context.Context, count identity.SAMLCertificateCount)
+}
+
+// QuotaCensus counts the workspaces near and at each bounded quota (quota.Census).
+type QuotaCensus interface {
+	Count(ctx context.Context) (map[string]quotaservice.Band, []quotaservice.Near, error)
+}
+
+// QuotaCensusSignals publishes the census: two series per quota, never a tenant.
+type QuotaCensusSignals interface {
+	QuotaWorkspaces(ctx context.Context, quota string, approaching, atLimit int64)
+}
+
+// quotaCensusEvery is how often the census reads every workspace's standing: often enough for a
+// 15-minute alert, rarely enough that a count over every workspace is not the leader's whole tick.
+const quotaCensusEvery = 5 * time.Minute
+
+// SAMLCertificateEnds counts the installation's SAML providers by their certificates' end.
+type SAMLCertificateEnds interface {
+	SAMLCertificatesEnding(ctx context.Context) (identity.SAMLCertificateCount, error)
+}
+
+// InstallationMailApps answers how the installation's own mail apps fare across workspaces.
+type InstallationMailApps interface {
+	InstallationApps(ctx context.Context) ([]mail.AppHealth, error)
+}
+
+// InvalidIndexes answers how many indexes PostgreSQL holds invalid.
+type InvalidIndexes interface {
+	InvalidIndexCount(ctx context.Context) (int64, error)
+}
+
+// OldestTransactions answers the age of the database's oldest open transaction, in seconds.
+type OldestTransactions interface {
+	OldestTransactionSeconds(ctx context.Context) (float64, error)
+}
+
+// DatabaseHorizons answers the share of the NOTIFY queue in use, the unfrozen transaction-ID age
+// and the database's size on disk.
+type DatabaseHorizons interface {
+	DatabaseHorizon(ctx context.Context) (notifyQueueUsage float64, xidAge, databaseBytes int64, err error)
 }
 
 // FinishedJobs removes the jobs whose catalogue period has run out. The queue's own table, read
@@ -54,6 +118,15 @@ type SchedulerSignals interface {
 type FinishedJobs interface {
 	PurgeFinished(ctx context.Context, before time.Time, batch int) (map[string]int, error)
 }
+
+// DeadDuties brings duties back from the dead letter (queue.Perpetual), in the installation's
+// scope: the job table has no tenant (multi-tenancy.md §2.1).
+type DeadDuties interface {
+	ReviveDeadDuties(ctx context.Context, kinds []queue.Kind, batch int) (map[queue.Kind]int, error)
+}
+
+// deadDutyBatch bounds one revival pass.
+const deadDutyBatch = 1_000
 
 // UsageSweep removes the use counts older than the day it is given, inside workspaces and in the
 // installation's ledger (multi-tenancy.md §4.3).
@@ -89,15 +162,25 @@ type RetryBacklog interface {
 	ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, error)
 }
 
+// UnsettledDuties answers how many keys of one duty kind have work left: an open job, or a dead
+// letter no later success of its key settled. A media.scan duty is one per workspace and lives
+// exactly while that workspace holds unscanned uploads, so this is the held backlog without
+// crossing a tenant-bounded table - and a dead letter waiting for its revival still counts.
+type UnsettledDuties interface {
+	UnsettledDuties(ctx context.Context, kind queue.Kind) (int, error)
+}
+
 // InstanceBackups is the slice of the schedule pass the leader runs: the instance-wide schedules,
 // which belong to no tenant and which nothing else can fire.
 type InstanceBackups interface {
 	Run(ctx context.Context, scope persistence.Scope) (backupservice.PassResult, error)
 }
 
-// BackupFreshness answers when each target last had a backup that worked.
+// BackupFreshness answers when each target last had a backup that worked, and how often its
+// schedules owe one.
 type BackupFreshness interface {
 	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
+	CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error)
 }
 
 // EnvironmentOperators is the operator list the installation's environment names.
@@ -127,6 +210,11 @@ type Scheduler struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	Signals    SchedulerSignals
+	// Quotas counts the workspaces near and at each bounded quota every five minutes, for A-18:
+	// the guard's own ratio is written on a create and carries whichever workspace created last.
+	// Nil samples nothing.
+	Quotas       QuotaCensus
+	QuotaSignals QuotaCensusSignals
 	// PlatformDeliveries counts the dead letters waiting for a purchase platform. Nil samples
 	// nothing: an installation without the feed has none.
 	PlatformDeliveries PlatformDeadLetters
@@ -139,6 +227,18 @@ type Scheduler struct {
 	// Backlog is where the webhook retry ladder is counted. Optional, like everything
 	// below: a build without it publishes no backlog series rather than a wrong one.
 	Backlog RetryBacklog
+	// Unsettled is where the workspaces with held uploads are counted. Optional, like Backlog.
+	Unsettled UnsettledDuties
+	// Transactions answers the oldest open transaction's age. Optional, like Backlog.
+	Transactions OldestTransactions
+	// Horizon answers the NOTIFY queue's use and the unfrozen transaction-ID age. Optional.
+	Horizon DatabaseHorizons
+	// Indexes answers the indexes held invalid. Optional, like Backlog.
+	Indexes InvalidIndexes
+	// MailApps answers the installation mail apps' mailboxes. Optional, like Backlog.
+	MailApps InstallationMailApps
+	// SAMLProviders answers the SAML providers' certificate ends. Optional, like Backlog.
+	SAMLProviders SAMLCertificateEnds
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -166,6 +266,12 @@ type Scheduler struct {
 	// FinishedJobs removes finished jobs past FinishedJobPeriod, on the first tick of every hour.
 	// Nil skips.
 	FinishedJobs FinishedJobs
+	// DeadDuties revives the dead-lettered jobs of DutyKinds, on the first tick of every hour: a
+	// mailbox's poll, a connector's pull or a workspace's sweep that died is a duty nothing else
+	// re-seeds, and an outage or a fixed defect must not end it for good. Nil skips.
+	DeadDuties DeadDuties
+	// DutyKinds are the kinds whose handler is queue.Perpetual.
+	DutyKinds []queue.Kind
 	// Usage removes the use counts older than UsageMonths, on the first tick of every day. Nil
 	// skips.
 	Usage UsageSweep
@@ -263,10 +369,18 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 			lag = 0
 		}
 		s.Signals.SchedulerTickLag(ctx, lag.Seconds())
+		s.Signals.SchedulerTicked(ctx, s.Clock.Now())
 	}
 
 	s.sampleQueueDepth(ctx)
 	s.sampleRetryBacklog(ctx)
+	s.sampleHeldScans(ctx)
+	s.sampleOldestTransaction(ctx)
+	s.sampleDatabaseHorizon(ctx)
+	s.sampleInvalidIndexes(ctx)
+	s.sampleMailApps(ctx)
+	s.sampleSAMLCertificates(ctx)
+	s.sampleQuotaCensus(ctx, due)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -274,6 +388,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.ensureStreamPartitions(ctx)
 	s.dropAgedStreamPartitions(ctx)
 	s.applyOperators(ctx, due)
+	s.reviveDeadDuties(ctx, due)
 	s.purgeFinishedJobs(ctx, due)
 	s.sweepUsage(ctx, due)
 	s.dropAgedAuditPartitions(ctx, due)
@@ -366,6 +481,37 @@ func (s Scheduler) dropAgedAuditPartitions(ctx context.Context, due time.Time) {
 	}
 }
 
+// reviveDeadDuties puts dead-lettered duties back to work: hourly and stateless, like the purge,
+// before it, so a duty dead for a week is revived rather than purged. Each revival doubles the
+// next wait (an hour to a day), so a duty that fails for good costs a few attempts a day; the
+// dead letter's alert (A-07) still fires each time it dies.
+func (s Scheduler) reviveDeadDuties(ctx context.Context, due time.Time) {
+	if s.DeadDuties == nil || len(s.DutyKinds) == 0 {
+		return
+	}
+	if due.Truncate(time.Hour).Equal(due.Add(-s.TickInterval).Truncate(time.Hour)) {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var revived map[queue.Kind]int
+	err := s.UnitOfWork.Within(dutyCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		revived, err = s.DeadDuties.ReviveDeadDuties(txCtx, s.DutyKinds, deadDutyBatch)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "dead duties could not be revived", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for kind, count := range revived {
+		slog.WarnContext(ctx, "dead duties revived", slog.String("kind", string(kind)), slog.Int("count", count))
+	}
+}
+
 // purgeFinishedJobs keeps the catalogue's promise for the queue's own rows: a finished job goes
 // seven days after it ended, whatever its state. Hourly and stateless - the first tick of each
 // hour - so a new leader keeps the pace and an idle installation pays one bounded statement an
@@ -420,6 +566,29 @@ func (s Scheduler) sweepUsage(ctx context.Context, due time.Time) {
 	})
 	if err != nil && ctx.Err() == nil {
 		slog.WarnContext(ctx, "the use counts could not be swept", slog.String("error", shared.AsError(err).Code))
+	}
+}
+
+// sampleQuotaCensus publishes how many workspaces stand near and at each quota (A-18), on the
+// first tick of every five minutes - stateless, so a new leader keeps the pace.
+func (s Scheduler) sampleQuotaCensus(ctx context.Context, due time.Time) {
+	if s.Quotas == nil || s.QuotaSignals == nil {
+		return
+	}
+	if due.Truncate(quotaCensusEvery).Equal(due.Add(-s.TickInterval).Truncate(quotaCensusEvery)) {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, 4*bookkeepingTimeout)
+	defer cancel()
+	bands, _, err := s.Quotas.Count(sampleCtx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "the quota census failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for quota, band := range bands {
+		s.QuotaSignals.QuotaWorkspaces(ctx, quota, band.Approaching, band.AtLimit)
 	}
 }
 
@@ -499,8 +668,7 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 
-	now := s.Clock.Now().UTC()
-	for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+	for _, month := range thisMonthAndNext(s.Clock.Now()) {
 		name, err := s.AuditPartitions.Ensure(dutyCtx, month)
 		if err != nil {
 			if ctx.Err() == nil {
@@ -517,6 +685,14 @@ func (s Scheduler) ensureAuditPartitions(ctx context.Context) {
 	}
 }
 
+// thisMonthAndNext counts from the first of the month: AddDate on the 31st overflows a short month,
+// so 31 October plus one month would be December and November never ensured ahead.
+func thisMonthAndNext(now time.Time) []time.Time {
+	now = now.UTC()
+	first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	return []time.Time{first, first.AddDate(0, 1, 0)}
+}
+
 // ensureStreamPartitions is the audit duty for the three partitioned streams:
 // activity_entry, outbox_event and rule_run get this month and next kept existing, policies and
 // grants repaired - ensureAuditPartitions' reasoning verbatim, over ensure_stream_partition.
@@ -527,9 +703,9 @@ func (s Scheduler) ensureStreamPartitions(ctx context.Context) {
 	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 
-	now := s.Clock.Now().UTC()
+	months := thisMonthAndNext(s.Clock.Now())
 	for _, table := range streams.Tables() {
-		for _, month := range []time.Time{now, now.AddDate(0, 1, 0)} {
+		for _, month := range months {
 			name, err := s.StreamPartitions.Ensure(dutyCtx, table, month)
 			if err != nil {
 				if ctx.Err() == nil {
@@ -641,6 +817,17 @@ func (s Scheduler) sampleBackupFreshness(ctx context.Context) {
 	for targetID, at := range moments {
 		s.Signals.BackupLastSuccess(ctx, targetID.String(), at)
 	}
+	cadences, err := s.BackupFreshness.CadencePerTarget(sampleCtx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the backup cadence failed",
+				slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for targetID, every := range cadences {
+		s.Signals.BackupCadence(ctx, targetID.String(), every)
+	}
 }
 
 // sampleQueueDepth publishes the backlog per job kind.
@@ -678,6 +865,128 @@ func (s Scheduler) sampleQueueDepth(ctx context.Context) {
 	}
 }
 
+// sampleOldestTransaction publishes how long the oldest open transaction has run (A-25). A backup's
+// or an export's snapshot held for hours is the usual one, and the cost is invisible until the
+// tables have bloated: vacuum keeps every row version that snapshot might still read.
+func (s Scheduler) sampleOldestTransaction(ctx context.Context) {
+	if s.Signals == nil || s.Transactions == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var seconds float64
+	// On the primary, never a replica: a replica's sessions are not the ones that pin its vacuum.
+	err := s.UnitOfWork.Within(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		seconds, err = s.Transactions.OldestTransactionSeconds(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the oldest transaction failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.OldestTransaction(ctx, seconds)
+}
+
+// sampleDatabaseHorizon publishes how close the database is to the two limits that stop every
+// write (A-36, A-37): a NOTIFY queue a stuck listener filled fails each notifying transaction at
+// commit, and an unfrozen transaction-ID age near two billion makes PostgreSQL refuse writes.
+func (s Scheduler) sampleDatabaseHorizon(ctx context.Context) {
+	if s.Signals == nil || s.Horizon == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var usage float64
+	var age, size int64
+	// On the primary: its queue is the one writers notify into.
+	err := s.UnitOfWork.Within(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		usage, age, size, err = s.Horizon.DatabaseHorizon(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the database's horizon failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.DatabaseHorizon(ctx, usage, age, size)
+}
+
+// sampleInvalidIndexes publishes how many indexes are invalid (A-28): an interrupted concurrent
+// build leaves one that every write maintains, no query uses and, if unique, nothing enforces.
+func (s Scheduler) sampleInvalidIndexes(ctx context.Context) {
+	if s.Signals == nil || s.Indexes == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var count int64
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		count, err = s.Indexes.InvalidIndexCount(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "counting the invalid indexes failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.InvalidIndexes(ctx, count)
+}
+
+// sampleMailApps publishes each installation mail app's mailboxes and failing ones (A-29): when an
+// app's secret runs out every workspace's mailbox on it fails, and only the operator can fix it.
+func (s Scheduler) sampleMailApps(ctx context.Context) {
+	if s.Signals == nil || s.MailApps == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var apps []mail.AppHealth
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		apps, err = s.MailApps.InstallationApps(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "counting the installation's mail apps failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for _, app := range apps {
+		s.Signals.MailApp(ctx, app.App, app.Connected, app.Failing)
+	}
+}
+
+// sampleSAMLCertificates publishes how many workspaces' SAML sign-in ends soon or has ended
+// (identity.md §26.1): each workspace's administrators are told, and the operator sees the sum.
+func (s Scheduler) sampleSAMLCertificates(ctx context.Context) {
+	if s.Signals == nil || s.SAMLProviders == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var count identity.SAMLCertificateCount
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		count, err = s.SAMLProviders.SAMLCertificatesEnding(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "counting the SAML certificates' ends failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.SAMLCertificatesEnding(ctx, count)
+}
+
 // sampleRetryBacklog publishes the webhook retries waiting out their backoff. The queue depth
 // above counts what is due; what this adds is the ladder - deliveries that failed and wait for
 // their next rung, which is the number that says a target is down before the dead letters do.
@@ -701,6 +1010,32 @@ func (s Scheduler) sampleRetryBacklog(ctx context.Context) {
 		return
 	}
 	s.Signals.WebhookRetryBacklog(ctx, int64(waiting))
+}
+
+// sampleHeldScans publishes the workspaces whose uploads wait for a scan. Unsettled duties rather
+// than due jobs: the job is due for a moment every five minutes, and a gauge falling to zero then
+// would reset A-23's waiting period each time; a dead letter counts until its revival settles it,
+// or A-23 would resolve while the files stay held.
+func (s Scheduler) sampleHeldScans(ctx context.Context) {
+	if s.Signals == nil || s.Unsettled == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var open int
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		open, err = s.Unsettled.UnsettledDuties(txCtx, queue.KindMediaScan)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the held uploads failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.MediaScanHeldWorkspaces(ctx, int64(open))
 }
 
 // samplePlatformDeadLetters publishes the dead letters waiting for a purchase platform. Sampled

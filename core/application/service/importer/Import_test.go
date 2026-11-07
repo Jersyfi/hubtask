@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
@@ -269,8 +271,17 @@ func acceptor(auth *authorizer, run *runs, object media.Object, hub work.Contain
 		Runs: run, Objects: &objects{rows: map[shared.ID]media.Object{object.ID: object}},
 		Containers: containers{rows: map[shared.ID]work.Container{hub.ID: hub}},
 		Authorizer: auth, Jobs: queued, Kinds: []domain.Kind{domain.KindCSV},
+		Audit:      &trail{},
 		UnitOfWork: unitOfWork{}, Clock: fixedClock{}, IDs: ids{},
 	}
+}
+
+// trail keeps what the import writes to the audit trail.
+type trail struct{ entries []audit.Entry }
+
+func (s *trail) Append(_ context.Context, entry audit.Entry) error {
+	s.entries = append(s.entries, entry)
+	return nil
 }
 
 /* ── ImportEntries ─────────────────────────────────────────────────────────────────────── */
@@ -292,12 +303,22 @@ func TestAnImportIsAcceptedWithItsRunAndItsJob(t *testing.T) {
 	if len(queued.requests) != 1 || queued.requests[0].Kind != queue.KindImport || queued.requests[0].Payload["import_id"] != runID.String() || queued.requests[0].DedupeKey == "" {
 		t.Errorf("job = %+v", queued.requests)
 	}
-	// STRUCTURE on the hub, asked before anything is written.
+	// STRUCTURE on the hub, asked before anything is written (UC-IMP-01 check 8).
 	if len(auth.requests) != 1 || string(auth.requests[0].Permission) != "STRUCTURE" || auth.requests[0].TargetID != hubID {
 		t.Errorf("authorisation = %+v", auth.requests)
 	}
+	// UC-IMP-01 check 9: the import is in the trail as `import.requested`, naming the run and none
+	// of the file's content.
+	entries := h.Audit.(*trail).entries
+	if len(entries) != 1 || entries[0].Action != importer.ImportedAction || entries[0].Outcome != audit.OutcomeSuccess ||
+		entries[0].TargetID != runID || entries[0].TenantID != tenantID {
+		t.Errorf("the trail holds %+v", entries)
+	}
 }
 
+// Among them UC-IMP-05 check 4: a wiki lands in the hub, never in a named collection; UC-IMP-01
+// check 8: the file must be the person's own, uploaded for an import and confirmed; UC-IMP-02
+// check 7: a kind this build does not convert is refused by name.
 func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 	hub := work.Container{ID: hubID, Type: work.ContainerHub}
 	cases := map[string]struct {
@@ -307,13 +328,18 @@ func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 		auth   error
 		code   string
 	}{
-		"no hub":            {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV}, nil, domain.CodeHubRequired},
-		"a kind not served": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindTrello, HubID: hubID}, nil, domain.CodeKindUnsupported},
-		"not a hub":         {readyObject(), work.Container{ID: hubID, Type: work.ContainerCollection}, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeNotAHub},
-		"not an import":     {func() media.Object { o := readyObject(); o.Usage = media.UsageAttachment; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotImport},
-		"not confirmed":     {func() media.Object { o := readyObject(); o.Status = media.StatusPending; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotReady},
-		"somebody else's":   {func() media.Object { o := readyObject(); o.CreatedBy = hubID; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotOwned},
-		"forbidden":         {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, shared.ErrForbidden.WithDetail("access.forbidden"), "access.forbidden"},
+		"no hub":                   {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV}, nil, domain.CodeHubRequired},
+		"a kind not served":        {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindTrello, HubID: hubID}, nil, domain.CodeKindUnsupported},
+		"not a hub":                {readyObject(), work.Container{ID: hubID, Type: work.ContainerCollection}, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeNotAHub},
+		"not an import":            {func() media.Object { o := readyObject(); o.Usage = media.UsageAttachment; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotImport},
+		"not confirmed":            {func() media.Object { o := readyObject(); o.Status = media.StatusPending; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotReady},
+		"somebody else's":          {func() media.Object { o := readyObject(); o.CreatedBy = hubID; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotOwned},
+		"a wiki into a collection": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindWiki, HubID: hubID, CollectionID: runID}, nil, domain.CodeKindTakesNoCollection},
+		"forbidden":                {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, shared.ErrForbidden.WithDetail("access.forbidden"), "access.forbidden"},
+		// The run keeps its mapping as JSON, which holds no zero byte: refused here by name rather
+		// than answered as the database being away.
+		"a mapping with a zero byte": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID, Mapping: map[string]string{"title": "Auf\x00gabe"}}, nil, domain.CodeMappingUnknown},
+		"a mapping of many columns":  {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID, Mapping: manyColumns()}, nil, domain.CodeMappingUnknown},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -338,6 +364,14 @@ func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 	if _, err := h.Execute(context.Background(), actor(), importer.ImportCommand{MediaID: hubID, Kind: domain.KindCSV, HubID: hubID}); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("unknown file: %v", err)
 	}
+}
+
+func manyColumns() map[string]string {
+	mapping := map[string]string{}
+	for i := 0; i < 65; i++ {
+		mapping["field"+strconv.Itoa(i)] = "column"
+	}
+	return mapping
 }
 
 func TestTheDescriptorInvokesWithTheContractsFields(t *testing.T) {
@@ -366,6 +400,7 @@ func TestTheDescriptorInvokesWithTheContractsFields(t *testing.T) {
 
 /* ── GetImport ─────────────────────────────────────────────────────────────────────────── */
 
+// UC-IMP-03 check 6.
 func TestAnImportIsReadByWhoeverMayReadTheHubAndAbsentOtherwise(t *testing.T) {
 	run := newRuns()
 	finished := now.Add(time.Minute)
@@ -431,6 +466,10 @@ func pendingRun() domain.Run {
 	return domain.Run{ID: runID, TenantID: tenantID, RequestedBy: accountID, Kind: domain.KindCSV, MediaID: mediaID, HubID: hubID, Status: domain.StatusPending, CreatedAt: now, Zone: "Europe/Berlin"}
 }
 
+// UC-IMP-01 checks 6 and 9: the file is deleted once the import has run, and the same file a
+// second time creates nothing new and says the entries were left as they are.
+// UC-IMP-03 checks 2 and 5: the report counts per kind what was created and what was left, in a restore's shape, and
+// the epoch advances so every device loads the workspace afresh.
 func TestTheRunnerLandsTheFileAndFinishesTheRun(t *testing.T) {
 	run := newRuns()
 	run.rows[runID] = pendingRun()
@@ -536,7 +575,8 @@ func TestTheRunnerRecordsAFileThatIsNotItsKindAndRetriesTheStoreBeingAway(t *tes
 	}
 }
 
-// A second, different file into a hub that already holds a collection of the same name is the
+// UC-IMP-01 check 7: a second, different file into a hub that already holds a collection of the
+// same name is the
 // run's outcome in the import's own words, not a retried database error: nothing of
 // the batch lands, the file goes, and the epoch stands.
 func TestASecondFileUnderATakenNameIsRefusedWithACode(t *testing.T) {
@@ -570,5 +610,72 @@ func TestASecondFileUnderATakenNameIsRefusedWithACode(t *testing.T) {
 	}
 	if epoch.advanced != 1 || len(stored.deleted) != 2 {
 		t.Error("the epoch stood and the second file went")
+	}
+}
+
+// UC-IMP-03 check 7.
+func TestADryRunReportsWhatTheImportWouldDoAndChangesNothing(t *testing.T) {
+	run, queued := newRuns(), &jobs{}
+	h := acceptor(&authorizer{}, run, readyObject(), work.Container{ID: hubID, Type: work.ContainerHub}, queued)
+	if _, err := h.Descriptor().Handler.Invoke(context.Background(), actor(), usecase.Input{
+		"media_id": mediaID.String(), "kind": "CSV", "hub_id": hubID.String(), "dry_run": true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !run.rows[runID].DryRun {
+		t.Fatalf("the run is accepted as a dry run: %+v", run.rows[runID])
+	}
+
+	object := readyObject()
+	r, landed, stored, epoch := runner(run, object, map[string][]byte{object.StorageKey: []byte("one\n@two\nbad three\n")}, converter{})
+	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil {
+		t.Fatal(err)
+	}
+	planned := run.rows[runID]
+	if planned.Status != domain.StatusSucceeded || planned.Report.New != 3 || planned.Report.Entities["work_items"] != 2 {
+		t.Fatalf("the dry run reports what the import would do: %+v", planned)
+	}
+	if len(planned.Refused) != 1 {
+		t.Errorf("a row the converter refuses is reported by the dry run too: %+v", planned.Refused)
+	}
+	if len(landed.rows["work_item"]) != 0 || len(landed.rows["container"]) != 1 {
+		t.Errorf("a dry run writes nothing: %v", landed.rows)
+	}
+	if len(stored.deleted) != 0 {
+		t.Error("the file is kept, so that the same media_id can be imported afterwards")
+	}
+	if epoch.advanced != 0 {
+		t.Error("nothing was written, so no device has to resynchronise")
+	}
+}
+
+// A job the queue has given up on - the store or the database away for every attempt - leaves no
+// run standing RUNNING for ever: the person reading the run is told it failed, the file goes, and
+// a run that had ended already is left as it ended.
+func TestAnImportWhoseJobWasGivenUpOnEndsFailed(t *testing.T) {
+	run := newRuns()
+	running := pendingRun()
+	running.Status = domain.StatusRunning
+	run.rows[runID] = running
+	object := readyObject()
+	r, _, stored, epoch := runner(run, object, nil, converter{})
+	if err := r.Abandon(context.Background(), runID, tenantID); err != nil {
+		t.Fatalf("abandoning: %v", err)
+	}
+	if got := run.rows[runID]; got.Status != domain.StatusFailed || got.ErrorCode != domain.CodeRunAbandoned || got.FinishedAt == nil {
+		t.Errorf("run = %+v", got)
+	}
+	if len(stored.deleted) != 1 || epoch.advanced != 0 {
+		t.Errorf("deleted %v, epoch %d: the file goes and the epoch stands", stored.deleted, epoch.advanced)
+	}
+
+	done := pendingRun()
+	done.Status = domain.StatusSucceeded
+	run.rows[runID] = done
+	if err := r.Abandon(context.Background(), runID, tenantID); err != nil || run.rows[runID].Status != domain.StatusSucceeded {
+		t.Errorf("a finished run was changed: %v %+v", err, run.rows[runID])
+	}
+	if err := r.Abandon(context.Background(), shared.MustParseID("0192f000-0000-7000-8000-0000000000ff"), tenantID); err != nil {
+		t.Errorf("a run that is not there: %v", err)
 	}
 }

@@ -6,14 +6,15 @@ import assert from 'node:assert/strict';
 
 import { matchesPath, type ChangeRecord } from '@hubtask/sync-engine';
 
-import { pathsFor, revokedContainerOf } from './live.ts';
+import { pathsFor, revokedContainerOf, unaffected } from './live.ts';
 
 const record = (over: Partial<ChangeRecord>): ChangeRecord =>
   ({ op: 'UPSERT', entity: 'item', entity_id: 'i-1', ...over }) as ChangeRecord;
 
-test('an entry makes its lists, its own document and its history stale - and nothing under it', () => {
+test('an entry makes its lists, its own document, its history and its status stale - and nothing under it', () => {
   const paths = pathsFor(record({ entity_id: 'i-1', container_id: 'c-1' }));
-  assert.deepEqual(paths, ['/items:query', '/items/i-1$', '/items/i-1/activity']);
+  // Its steps and clocks too: somebody else's tick or step moves a workflow entry's status.
+  assert.deepEqual(paths, ['/items:query', '/items/i-1$', '/items/i-1/activity', '/items/i-1/steps', '/items/i-1/sla']);
   // Naming `/items` would cover the thread, the reminders and the series of a retitled entry.
   assert.equal(paths.some((name) => matchesPath(name, '/items/i-1/comments')), false);
   assert.equal(paths.some((name) => matchesPath(name, '/items/i-1?expand=labels')), true, 'the document, as the page reads it');
@@ -64,4 +65,20 @@ test('a revocation names the container that was lost', () => {
   );
   assert.equal(revokedContainerOf(record({ op: 'UPSERT' })), undefined);
   assert.equal(revokedContainerOf(record({ op: 'DELETE' })), undefined);
+});
+
+test('an entry of another collection leaves a collection level or board alone, unless it was on it', () => {
+  const level = (container: string, descendants: boolean) =>
+    ({ path: '/items:query', body: { scope: { container_id: container, include_descendants: descendants } } });
+  const empty = { data: [], groups: [] };
+  const elsewhere = record({ entity_id: 'i-9', container_id: 'c-a' });
+
+  assert.equal(unaffected(elsewhere, level('c-b', false), empty), true, 'a move in A reloads the board of B');
+  assert.equal(unaffected(elsewhere, level('c-a', false), empty), false, 'its own collection is not reloaded');
+  assert.equal(unaffected(elsewhere, level('c-b', true), empty), false, 'a subtree may span collections');
+  // Moved out of B into A: B shows it, so B reloads - in a list or in a board's column.
+  assert.equal(unaffected(elsewhere, level('c-b', false), { data: [{ id: 'i-9' }], groups: [] }), false);
+  assert.equal(unaffected(elsewhere, level('c-b', false), { data: [], groups: [{ data: [{ id: 'i-9' }] }] }), false);
+  assert.equal(unaffected(record({ entity_id: 'i-9' }), level('c-b', false), empty), false, 'a record without a container');
+  assert.equal(unaffected(record({ entity: 'label', container_id: 'c-a' }), level('c-b', false), empty), false);
 });

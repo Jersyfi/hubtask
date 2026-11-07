@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10]
 state: verified
 tasks: [UX-09, UX-10, UX-17]
-checked_by: [core/domain/model/work/StructureSettings_test.go, core/application/service/work/ListPresets_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/SetWorkspaceStructure_test.go, presentation/rest/StructureController_test.go, cmd/hubctl/Structure_test.go, test/integration/container_structure_test.go, apps/webapp/src/lib/data/offer.test.ts, apps/webapp/src/lib/data/levels.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/data/query.test.ts, apps/webapp/e2e/structure.test.mjs]
+checked_by: [core/domain/model/work/StructureSettings_test.go, core/application/service/work/ListPresets_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/SetWorkspaceStructure_test.go, presentation/rest/StructureController_test.go, cmd/hubctl/Structure_test.go, test/integration/container_structure_test.go, apps/webapp/src/lib/data/offer.test.ts, apps/webapp/src/lib/data/levels.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/data/query.test.ts, apps/webapp/e2e/structure.test.mjs, apps/webapp/src/lib/workspace/placeSections.test.ts]
 ---
 
 # Choose how much structure a collection has
@@ -22,7 +22,7 @@ In `D1` the person creates the collection "Groceries" and picks the preset *List
 
 ## How to check
 
-1. A person who may change a collection's shape chooses one of the presets *List*, *Tasks*, *Project* and *Flow* when creating a hub or a collection, and changes it later from the collection's settings (*Settings → Structure*).
+1. A person who may change a collection's shape chooses one of the presets *List*, *Tasks*, *Project* and *Flow* when creating a hub or a collection, and changes it later from the collection's settings (*Settings → Template*).
 2. Each preset is a set of values for eight settings — levels and their names, fields, views, what counts, what completion does, what capture recognises, how success is shown, and what runs by itself — and every setting can be changed on its own for a hub or a collection.
 3. The settings name, for every setting, where its value comes from (Hubtask's default, the installation, the plan, the workspace, the hub, this collection) and whether it is locked, and offers to reset a value set here.
 4. A collection offers only what its settings allow: on an entry of a *List* collection there is no date, person, label, note editor or child entry, and the list offers no board or timeline.

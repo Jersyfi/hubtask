@@ -74,10 +74,13 @@ type passQueue struct{ jobs }
 
 func (p *passQueue) Claim(context.Context, queue.Lease) ([]queue.Job, error) { return nil, nil }
 func (p *passQueue) Hold(context.Context, queue.Job) error                   { return nil }
-func (p *passQueue) Complete(context.Context, queue.Job, string) error       { return nil }
-func (p *passQueue) Repeat(context.Context, queue.Job, time.Time) error      { return nil }
-func (p *passQueue) Fail(context.Context, queue.Failure) error               { return nil }
-func (p *passQueue) Depth(context.Context) ([]queue.Depth, error)            { return nil, nil }
+func (p *passQueue) Extend(_ context.Context, job queue.Job, _ time.Time) (queue.Job, error) {
+	return job, nil
+}
+func (p *passQueue) Complete(context.Context, queue.Job, string) error  { return nil }
+func (p *passQueue) Repeat(context.Context, queue.Job, time.Time) error { return nil }
+func (p *passQueue) Fail(context.Context, queue.Failure) error          { return nil }
+func (p *passQueue) Depth(context.Context) ([]queue.Depth, error)       { return nil, nil }
 
 // expander is the recurrence port, answering a fixed step so that a test states the moments rather
 // than the library does. The library's own answers are the golden files' subject
@@ -229,6 +232,7 @@ func TestOneRoundIsBounded(t *testing.T) {
 // A rule is written switched off, so the write that makes something owed is the *enable* - and the
 // moment is recomputed from now rather than fired from wherever the rule was left, because "from
 // now on, at three in the morning" is what somebody switching a rule on means.
+// UC-AUT-04 check 8.
 func TestEnablingAScheduledRuleSeedsItsOwnTenantsPoller(t *testing.T) {
 	rule := scheduledRule(time.Time{})
 	rule.Enabled = false
@@ -271,6 +275,7 @@ func TestEnablingAScheduledRuleSeedsItsOwnTenantsPoller(t *testing.T) {
 
 // Switching a rule off seeds nothing, and a rule of another kind seeds nothing either: a poller
 // woken for a rule that does not act would wake up to find nothing due.
+// UC-AUT-04 check 8.
 func TestNothingIsSeededForARuleThatOwesNothing(t *testing.T) {
 	for _, name := range []string{"switched off", "not a schedule"} {
 		t.Run(name, func(t *testing.T) {
@@ -332,6 +337,7 @@ func TestAnUnreadableRecurrenceIsRefusedAtTheWrite(t *testing.T) {
 // One catch-up run, not a burst. A worker that was down over a weekend leaves three missed nights
 // on a nightly rule; advancing occurrence by occurrence would fire three runs on Monday morning,
 // one after another, for a rule whose author asked for "every night at three".
+// UC-AUT-04 check 4.
 func TestAMissedWeekFiresOnceAndThenGoesForward(t *testing.T) {
 	store := newSchedules(scheduledRule(now.Add(-7 * 24 * time.Hour)))
 	pass, q := newPass(store, 24*time.Hour)

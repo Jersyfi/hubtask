@@ -80,7 +80,7 @@ included. Inside the trust zone the tenant boundary still applies (TB-5).
 | T-04 | TB-5 | Info disclosure | IDOR: another tenant's `item_id` in the URL | Authorisation in the application layer through scope inheritance; RLS hides foreign IDs → `404`, not `403` | A test per resource |
 | T-05 | TB-1 | Info disclosure | Mass extraction through the query DSL | A field allowlist, a maximum filter depth, a capped `limit`, rate limit plus quota, a bounded `expand` depth | Fuzz test of the DSL |
 | T-06 | TB-1 | Tampering | SQL injection through filter expressions | Only parameterised queries (`sqlc`); the DSL produces an AST → parameters; `fmt.Sprintf` in query building forbidden by `depguard` | Lint + fuzz |
-| T-07 | TB-3 | Elevation | SSRF through a webhook or HTTP action | `GuardedClient`: resolve first, block RFC 1918/loopback/link-local/ULA, pin the checked IP, `http(s)` only, redirects re-checked, a timeout, a response size limit, an allowlist (mandatory in provider operation) | Unit test with malicious DNS |
+| T-07 | TB-3 | Elevation | SSRF through a webhook or HTTP action | `GuardedClient`: resolve first, block RFC 1918/loopback/link-local/ULA, pin the checked IP, `http(s)` only, redirects re-checked, a timeout, a response size limit, an allowlist (mandatory in provider operation); IMAP, LDAP, SFTP and clamd dial through `GuardedDialer` with the same allowlist and address checks | Unit test with malicious DNS |
 | T-08 | TB-3 | Elevation | An automation rule as a "confused deputy" | Actions run with the rights of `run_as`, which can never exceed the author's rights at save time; revoking rights disables the rule | "Rights revocation" test |
 | T-09 | Internal | DoS | An automation loop (A triggers B triggers A) | A causality chain of maximum depth 5, loop detection over the `causation_id` path, a throttle per rule, deactivation after *n* failed runs | Golden loop test |
 | T-10 | TB-1 | Elevation | Prompt injection through item content against the MCP agent | User content reaches the model as **data**, never instruction; destructive MCP tools blocked by default; agent tokens with their own scope; every agent action audited with actor `AI_AGENT` | "Injected instruction" test case |
@@ -94,7 +94,7 @@ included. Inside the trust zone the tenant boundary still applies (TB-5).
 | T-18 | Operations | Info disclosure | Secrets in logs, traces or error messages | A redaction layer in the logger, the `Secret` type with a masking `String()`, no `%+v` over config structs (lint), a "the log contains no token" test; the one secret written to the console on purpose, the first start's setup code, is T-24's and never passes through the logger | Test |
 | T-19 | TB-1 | Spoofing | A forged inbound webhook | A 32-byte token per rule in the address, hashed under its purpose label, rotatable; every refusal one identical `404`; the run acts as `run_as`, the body enters CEL as data ([automation.md](./automation.md) §1.1) | Test |
 | T-20 | Operations | Info disclosure | A backup or export containing another tenant | The export runs through the API's RLS path; the restore drill includes an isolation check; an archive is restored only from its own workspace, except the operator's new-workspace restore of a workspace this installation does not hold ([backup-restore.md](./backup-restore.md) §8.2) | Restore drill, BK-10 |
-| T-21 | TB-1 | Info disclosure | A calendar feed URL leaks (a log, a `Referer`, a shared screen, a client's history, a synchronised device) | Revocable at once; stored only as an HMAC under its own purpose label; never logged, its type masking every print; one unique-hash seek, every refusal (unknown, revoked, view-less, owner-less) one identical `404`; its own rate-limit bucket; read as its **owner** at fetch time, so a lost membership narrows it and a disabled account silences it; the document holds a title, a date and a link, never notes | The feed suite: the token refused as a bearer, the refusals compared byte for byte, the masking test, the golden `.ics` |
+| T-21 | TB-1 | Info disclosure | A calendar feed URL leaks (a log, a `Referer`, a shared screen, a client's history, a synchronised device) | Revocable at once; stored only as an HMAC under its own purpose label; never logged, its type masking every print; one unique-hash seek, every refusal (unknown, revoked, view-less, owner-less) one identical `404`; its own rate-limit bucket; read as its **owner** at fetch time, so a lost membership narrows it and a disabled account silences it; the document holds a title, a date and a link, never notes; a data feed's token (UC-INT-15) is a feed of its own kind, refused by the calendar's routes and CalDAV as a calendar's is by the OData routes, its rows never carrying notes | The feed suite: the token refused as a bearer, the refusals compared byte for byte, the masking test, the golden `.ics` |
 | T-22 | TB-1 | Tampering, Info disclosure | The CalDAV tree parses client XML and takes HTTP Basic: an entity bomb, a document naming another account's tree, a password guessed by a silently retrying client | `encoding/xml` (no DTD entity expanded, a document naming one refused) under the body limit; the rate-limit buckets shed a guesser before the token lookup; Basic **only** on the tree (refused before any lookup elsewhere), its password a personal access token, never the account password; a title is XML text, never markup; another account's tree is `404`; calendars read as the owner through the ICS feed's use case, carrying what the feed carries; a write is the ordinary use case through the registry behind `If-Match` (`428`/`412`), an unmodelled property refused by name; no `sync-token`, since one hiding deletions would lie | `presentation/calendar/CalDav_test.go`, `CalDavWrite_test.go`, `presentation/rest/Auth_test.go` |
 | T-23 | TB-2 | Spoofing, Elevation | A provider asserts somebody else's address, connecting to their account and skipping its second factor | Connecting needs the account's own proof or a mailbox link plus a fresh sign-in, never skipping an armed factor; a provider is trusted only for addresses it hosts ([identity.md](./identity.md) §10.4, §11) | `OidcLinking_test.go` (`TestAProviderCannotOpenAnAccountThatHoldsAPasswordAndAFactor`), `OidcAdmission_test.go` |
 | T-24 | TB-1, Operations | Spoofing, Elevation | The first start's setup code is guessed, or read by somebody who should not run the installation | Issued only while there is no workspace and nobody in the operator register; sixty bits, valid thirty minutes, spent on first use with every other code, stored only as a hash under its own purpose label; the setup route is in the auth rate class. The code is written once, as a banner, to the process's standard error - the one deliberate secret on the console, outside the redacting logger so that T-18's "no token in the log" test stands as it is; whoever reads the container's output can reach its database too. After the first workspace the way back is the machine's command, never a route (UC-INS-01, UC-INS-03) | `test/integration/first_start_test.go`, `cmd/server/FirstStart_test.go`, `core/application/service/identity/Setup_test.go` |
@@ -102,6 +102,11 @@ included. Inside the trust zone the tenant boundary still applies (TB-5).
 | T-26 | TB-1 | Elevation | A purchase platform's credential reaches more of the installation than provisioning, or ends a workspace without anybody's proof | `admin:provisioning` admits only the verbs its use cases declare (`AlsoScope`, UC-INS-06 check 6), minted behind a step-up by a registered operator and dropped when the register no longer names the holder, like `admin:tenants`; no consent hands an app an `admin:*` scope; the step-up of the deletion and of the installation's subscriptions is waived only for a service account whose own register row is a service account's - never a person, an agent or the empty register's owner, and never on an unreadable register - and the typed name, the 30-day grace, the cancellation and the legal-hold refusal stay ([multi-tenancy.md](./multi-tenancy.md) §4.3, §5) | `test/security/provisioning_scope_test.go`, `core/application/service/admin/ProvisioningScope_test.go`, `Deletion_test.go`, `test/integration/tenant_deletion_test.go`, `core/application/service/identity/Oauth_test.go` |
 | T-27 | TB-1 | DoS | Whoever holds a workspace's intake address makes things arrive in its jumble, and with *Prepare proposals for new jumble entries* on, each arrival spends the workspace's AI | Off by default and the workspace's own switch; the intake doors are capped and answer every refusal with one `404`; each arrival is asked about at most once (a job per entry, deduplicated), counted against `ai_arrival_proposals_per_day` (200 a day by default in both modes, [multi-tenancy.md](./multi-tenancy.md) §4) before the call and against the token budget of the source that answers; past either, nothing is sent and every other feature works; the queue's growth per kind is alert A-06 | `test/integration/arrival_proposals_flow_test.go` (the day's cap and the spent budget), `core/application/service/quota/Quota_test.go` |
 | T-28 | TB-1 | Spoofing, Info disclosure | A workspace's own domain whose DNS still points at the installation after its owner gave it up, or a forged `Host` header, puts a stranger in front of a workspace's address or sends a person to a host nobody verified | *Built:* a host names a workspace only through a serving `tenant_host` row; a host that is neither that nor the installation's own names nothing - `404` before a credential, header or not, and `403 access.tenant_mismatch` after one - and the header speaks only at the installation's own host; the provider's return forwards only to the main address the server answers; an own domain answers only once a CNAME to the installation's target and a TXT mark at `_hubtask.<domain>` are found, is re-proven by a job and turns `BROKEN` - answering nothing - when the mark is gone, a lookup without an answer moving nothing; the ingress gets a certificate only for a serving, unblocked host, asked on the operations port; a blocked domain stops answering at once and no workspace sets it up again ([deployment.md](./deployment.md) §6.1). *Decided, not built - milestone CD* ([ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md)): the subdomain taking over when a main own domain breaks; every redirect and forward goes to the main address the server knows, never to a value in the request; a changed address frees the old host at once and answers it like an unknown one | CD-02, CD-03, CD-07 |
+| T-29 | TB-1 | Spoofing, Tampering | A forged or replayed forge delivery links code to entries, or turns a merged pull request back | The hook's secret proven by the forge's HMAC signature of the body or GitLab's token, derived from `HUBTASK_SECRET_KEY` under its own purpose label and never stored; a delivery remembered three days by its identifier; every refusal one identical `404`; written as the hook's definer only while they hold WRITE_ITEMS on the hub, on the hub's own entries alone; a link follows the forge's own moment and a merge is never undone ([automation.md](./automation.md) §3.5) | `core/application/service/forge/Forge_test.go`, `infrastructure/security/CodeHookSecrets_test.go` |
+| T-30 | TB-1 | Info disclosure, Elevation | A calendar push writes more than its owner may see, or into somebody else's calendar, or its grant is used for more than the calendar | The consent asks for the calendar's events alone; the grant sealed under the push's own purpose label, never answered; the feed read as its owner at every run, so a lost membership narrows it; a push listed, connected and disconnected by its owner alone, a sign-in state hashed, good once, for ten minutes and for whoever started it; an event holds a title, a moment and a link, never notes ([automation.md](./automation.md) §3.6) | `core/application/service/calendarpush/CalendarPush_test.go`, `infrastructure/calendarpush/Calendar_test.go` |
+| T-31 | TB-1 | Info disclosure, Elevation | A file store connection reads more than its owner may, is used by somebody else, sends the login or the poll to another host, or shares a file its owner did not choose | A connection listed, browsed with, shared through and disconnected by its owner alone; Microsoft's consent reads files and sites alone; a Nextcloud over https, its login and poll addresses held to its origin; a folder reference never steps out of the person's own files; a share is read-only and made on the owner's own act; the grant sealed under the connection's own purpose label, never answered ([automation.md](./automation.md) §3.7) | `core/application/service/filestore/FileStore_test.go`, `infrastructure/filestore/Store_test.go` |
+| T-32 | TB-1 | Info disclosure, Spoofing | A room learns of an entry its bot's setter may not show it, another hub's entry, or the entry's notes; a room member creates entries in a collection of their choosing; the bot's token leaks; a forged or replayed delivery to a Slack, Teams or Mattermost bot's intake makes entries or reads titles, or steers a reply to another host | Unfurls only for entries of the bot's own hub, read as the setter through the entry use case, title, status and link alone; `!task` lands in the bot's one collection, created as the setter while they may; seating, changing and removing need STRUCTURE on the hub; the token sealed under the bot's own purpose label, never answered; a platform's delivery held to Slack's signature over a timestamp at most five minutes off, the Bot Framework's RS256 token for the bot's application naming a Bot Framework service address, or Mattermost's per-door token in constant time, every refusal one `404`, a delivery from another channel not answered ([automation.md](./automation.md) §3.8, §3.9) | `core/application/service/chatbot/ChatBot_test.go`, `infrastructure/chatbot/Matrix_test.go`, `core/application/service/chatbot/Intake_test.go`, `infrastructure/chatbot/Platforms_test.go` |
+| T-33 | TB-1 | Info disclosure | A portal requester - a customer holding `REQUEST` and nothing else - reads what the workspace answers any member: its groups and who is in them, the team's names, the shared calendar of absences, its types, workflows and fields, its saved presets, and its whole event stream polled as a trigger | Every such read asks the authoriser's member question (`access.Request.AnyMember`, [domain-model.md](./domain-model.md) §3.2) instead of the token scope alone: a built-in role anywhere or a role of the workspace's own carrying `READ`; a requester is refused as `READ`, recorded, through every door, and a device's copy carries none of it; their own name stays theirs to read, alone or in a batch; a group read refused for its scope is recorded like any other | `core/application/service/access/AnyMember_test.go`, `test/integration/group_list_test.go`, `core/application/service/sync/StreamChanges_test.go`, `core/application/service/work/ListPresets_test.go`, `core/application/service/identity/ResolveAccounts_test.go`, `core/application/service/identity/ReadGroups_test.go`, `core/application/service/integration/TriggerPolling_test.go`, `test/integration/trigger_polling_test.go` |
 
 A new bounded context gets a short STRIDE analysis at design time, added here (Definition of Ready,
 "security assessment").
@@ -146,6 +151,35 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   sender is provenance, never an identity (the intake address is the credential); every bound is
   checked before allocation. A client draws it as text, never markup or a live link, and labels the
   sender as what the transport claimed.
+* **Uploads can be scanned** where the operator runs a ClamAV daemon (the instance file's
+  `upload_scanner` with `address` and `timeout`, `HUBTASK_CLAMD_ADDRESS` overriding it;
+  `storage.Scanner`, `infrastructure/clamd`). A TCP daemon is dialled through the outbound guard
+  (rule 6): the egress allowlist, resolution and the address at dial time, private networks open
+  and its host allowed beside a non-empty `HUBTASK_HTTP_ALLOWED_HOSTS` for this one operator-named
+  service (naming it is the operator's word for that host), metadata addresses refused always, a connect timeout of
+  `HUBTASK_HTTP_CONNECT_TIMEOUT`; a `unix:` socket is a local file and needs none. The confirmation streams the whole file to it, and
+  a mail's attachment is scanned before it is stored. A malicious file is refused with
+  `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an
+  error reply - is held `PENDING_SCAN`: it may be attached, is never downloaded, and the
+  `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). The
+  confirmation's scan stops five seconds before the request's deadline (`HUBTASK_REQUEST_TIMEOUT`)
+  and the hold is written past it, so a file slower to scan than the request is held, never an
+  error; `HUBTASK_CLAMD_TIMEOUT` bounds every scan inside its caller's own deadline. The job
+  is a duty (`queue.Perpetual`): a pass failing for a storage or database error is its next round,
+  and a dead letter is revived hourly, counted as held until a later pass succeeds. A scanner
+  that is down never stops an upload and never lets an unscanned file out; files held for an hour
+  raise A-23 (`hubtask_media_scan_held_workspaces`), and `/meta/health` warns
+  `media.uploads_held` (workspaces, the oldest hold's age) for an installation without Prometheus;
+  with no daemon named any more, the warning is `media.uploads_held_without_scanner`, critical,
+  and said at start. A held file is never released unscanned, by any switch or command: only a
+  scan settles it (`Object.Scanned`, `TestAHeldObjectJoinsButIsSettledOnlyByAScan`). The operator
+  names a scanner again, or an administrator trashes the file; the critical warning stays while
+  any is held. Without a daemon nothing is scanned. A file
+  the daemon refuses for its size is not "cannot answer": a confirmation refuses it with
+  `media.too_large_to_scan`, and a held one is settled `UNSCANNABLE` (never downloaded) so the
+  pass goes on to the next. A daemon that answers an error for one file holds that file and the
+  pass goes on too; only a daemon that cannot be reached ends the pass. With a daemon, uploads are capped to `HUBTASK_CLAMD_STREAM_MAX_BYTES`
+  (default 25 MiB, clamd's `StreamMaxLength`).
 * **CEL expressions** run under a time, depth and cost limit (`cel-go` cost budget), with no network
   or time functions beyond the ones provided.
 
@@ -158,9 +192,10 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
 | Password hash | Argon2id ([identity.md](./identity.md) §5.3) |
 | Token storage | HMAC-SHA-256 keyed on a pepper derived from `HUBTASK_SECRET_KEY` (not in the database), under a purpose label per credential kind, so a hash of one kind cannot be replayed as another |
 | Signed tokens | The session access token, cursors and media tokens: HMAC-SHA-256 under a key derived from `HUBTASK_SECRET_KEY` with their own purpose label; none is JOSE |
+| Derived secrets | A forge hook's secret: HMAC-SHA-256 under a pepper derived from `HUBTASK_SECRET_KEY` with its own purpose label, over the workspace, the hook and a salt the hook stores; a forge signs with the secret itself, so a hash would not do, and derived it is in no store a rotation of the encryption keys must reach. A new salt is a new secret; another installation's key derives another one |
 | Audit fingerprints | The hash of a sensitive value in the audit trail: HMAC-SHA-256 under a pepper derived from `HUBTASK_SECRET_KEY` with its own purpose label, over the workspace and the value, prefixed `hmac-sha256:` ([audit.md](./audit.md) §4). Comparable within one workspace and one secret; a guess cannot be checked without the secret |
 | Integration credentials, webhook secrets, backup target credentials | AES-256-GCM envelope encryption: a data key **per value** (the master key only encrypts random keys, within GCM's per-key bound), wrapped by a master key from `HUBTASK_ENCRYPTION_KEYS` (§8.1) whose ID is stored. The ciphertext is bound to a caller-supplied purpose and cannot move between rows |
-| Backup archives | AES-256-GCM under a key derived from the master key with HKDF-SHA256, bound to the target; no passphrase is accepted ([backup-restore.md](./backup-restore.md) §4) |
+| Backup archives | AES-256-GCM under a key derived from the master key with HKDF-SHA256 and the archive's own salt; a target accepts no passphrase. The owner's direct download may instead be encrypted under a key derived from the owner's passphrase with Argon2id, held sealed for a restore only while it runs ([backup-restore.md](./backup-restore.md) §4) |
 | Signatures on outbound webhooks | HMAC-SHA-256, a secret per subscription, the header `X-Hubtask-Signature` with a timestamp |
 | Transport | TLS 1.2+ (target 1.3); mTLS inside the cluster optional; HSTS where TLS is terminated |
 | Randomness | Only `crypto/rand` for tokens, IDs and nonces; the `RandomSource` port uses it in production |
@@ -197,10 +232,11 @@ value, a rotation is a configuration change. The procedure is drilled
    written under it are kept, yearly generations included ([backup-restore.md](./backup-restore.md)
    §4).
 
-**What a round touches.** The seven sealed places — the second factor, an identity provider's client
+**What a round touches.** The eight sealed places — the second factor, an identity provider's client
 secret, the AI provider's key, a webhook's current and previous signing secret, a backup target's
-credential, a rule's HTTP header secret at any depth, and the header secret of an HTTP call still
-waiting to be made or retried (in its job, until the job ends) — each re-sealed by its owning service
+credential, a rule's HTTP header secret at any depth, the header secret of an HTTP call still
+waiting to be made or retried (in its job, until the job ends), and a CMDB connector's credential
+or alert intake secret (`cmdb_connector`, purpose `cmdb.connector:<id>`) — each re-sealed by its owning service
 under its purpose. A call's secret is moved under the purpose it was sealed for, its request's or the
 rule's it was carried over from; one the envelope refuses under that purpose is skipped and counted,
 and it drains with its job. The installation's own round - a job without a tenant, run in the scope whose writes the
@@ -219,6 +255,7 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 | Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-site`, a minimal `Permissions-Policy`; a `Content-Security-Policy` per origin (below) |
 | CORS | Empty by default; an explicit allowlist; never `*` with credentials. The installed apps' two webview origins, `tauri://localhost` and `http://tauri.localhost`, pass always, whatever `HUBTASK_CORS_ALLOWED_ORIGINS` says - a person installs the app without an operator - for bearer requests only: no answer carries `Access-Control-Allow-Credentials`, and there is no cookie to send ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)) |
 | Rate limits | Per IP (unauthenticated), per token, per tenant; stricter for login, password reset, invitation, search and bulk; `429` with `Retry-After` and `RateLimit-*` |
+| Client address | The peer of the connection; `X-Forwarded-For` (or `Forwarded`) only from a peer inside `HUBTASK_TRUSTED_PROXIES`, and then the right-most hop outside them. Resolved once at the edge, so every per-IP bucket, the sign-in ledger and a session's recorded network count the same address; a forwarded header with no proxy trusted warns in `/meta/health` |
 | Request sizes | A global body limit (1 MiB by default), a separate upload limit, a header limit |
 | Deadlines | A server-side request timeout; every handler receives a `context` with a deadline |
 | Methods | State changes never over `GET`; `OPTIONS` only for CORS |
@@ -231,7 +268,7 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 | Origin | Policy | Why |
 |---|---|---|
 | The API (`/api/*`, `/mcp`) | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | It answers JSON only; a body reaching a browser as HTML could load or send nothing |
-| The web interface (everything else, when enabled) | `default-src 'none'`, then `'self'` for script, style, font, connect, manifest and worker; `img-src 'self' data: blob:`; no `'unsafe-inline'` or `'unsafe-eval'` — a **constraint on the frontend framework**. Under `HUBTASK_STORAGE_KIND=s3` the media origin is added to `connect-src` and `img-src` only ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)) | Bundle and API share one origin ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)); the upload flow needs the media origin |
+| The web interface (everything else, when enabled) | `default-src 'none'`, then `'self'` for script, style, font, connect, manifest and worker; `img-src 'self' data: blob:`; no `'unsafe-inline'` or `'unsafe-eval'` — a **constraint on the frontend framework**. Under `HUBTASK_STORAGE_KIND=s3` the media origin is added to `connect-src` and `img-src` only ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). `frame-ancestors 'none'` unless `HUBTASK_UI_FRAME_ANCESTORS` names the complete origins that may embed the interface (a portal such as openDesk's); a wildcard is refused at start, and the API's policy never takes them. `frame-src` only where `HUBTASK_UI_FRAME_SOURCES` names complete https origins a page's embed may frame; the editor frames only those (`sandbox="allow-scripts allow-popups allow-presentation"`, never `allow-same-origin`, no referrer), every other embed is a link card | Bundle and API share one origin ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)); the upload flow needs the media origin |
 | The media origin | `sandbox` | T-11 |
 
 `presentation/webui` sets its policy on every answer, 404 and 405 included. **The upload's middle
@@ -247,7 +284,10 @@ Rules trigger HTTP calls and agents write, so:
    ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)); no primitive executes arbitrary code.
 2. **`run_as` is the permission boundary** (T-08), not the triggering user.
 3. **Outbound calls only through `GuardedClient`** (T-07), plus a network egress allowlist in
-   provider operation. The object store, an operator-configured endpoint in the database DSN's trust
+   provider operation. It trusts the system's roots; an installation setting,
+   `HUBTASK_HTTP_CA_FILE`, adds the roots of a PEM file beside them - a self-hoster's private CA -
+   for these calls only, never replacing the system's, and a file that is unreadable or holds no
+   certificate refuses the start. The object store, an operator-configured endpoint in the database DSN's trust
    class, may use its own client, listed in the architecture test's exceptions, with deadlines,
    refused redirects, the breaker and the bulkhead.
 4. **A causality bound** against loops and amplification (T-09).
@@ -312,11 +352,123 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 ## 14. Handling incidents
 
 1. **Reporting and aims** are in [`SECURITY.md`](../../SECURITY.md): a private GitHub security advisory or `security@hubtask.eu`; acknowledgement, a CVSS assessment and a fix are best-effort aims; disclosure is coordinated.
-2. **Remediation** goes into the current minor version ([versioning-release.md](./versioning-release.md)).
+2. **Remediation** goes into every line inside its support period ([versioning-release.md](./versioning-release.md) §5).
 3. **Communication** through a GitHub security advisory with the affected versions, a workaround and detection guidance (log patterns).
 4. **Follow-up**: a blameless post-mortem note in the repository; the fix includes a regression test, without which the incident is not closed.
 
+### 14.1 Coordinated vulnerability disclosure
+
+The process `SECURITY.md` publishes is aligned with ISO/IEC 29147 (what the reporter and the public
+see) and ISO/IEC 30111 (what happens inside). The internal half:
+
+| Step | What is done | Record |
+|---|---|---|
+| Intake | The report lives in a private GitHub security advisory; a mailed report is moved there | The advisory draft |
+| Triage | Reproduced; CVSS scored; the affected lines named; **actively exploited or not** decided on evidence (the reporter's, a public exploit, a known-exploited list) | The advisory draft |
+| Root cause and variants | The flaw's class is searched for in the rest of the code, not only at the reported place | The fix's pull request |
+| Fix | On every line in its support period, with a regression test; a private fork of the advisory where the fix must not be public before release | The release notes |
+| Disclosure | The advisory published with the release that fixes it, or on the date agreed with the reporter | The advisory, a CVE (GitHub is a CNA) |
+| Dependency findings | A vulnerability in a dependency Hubtask does not reach (`govulncheck` reports reachability, SG-1) gets a VEX statement *not affected* (§14.2); one it reaches is a vulnerability of Hubtask's. A flaw found in a dependency is reported to its maintainers | The VEX document, the upstream report |
+
+### 14.2 The advisory format
+
+| What | Where | Format |
+|---|---|---|
+| The advisory itself | The repository's GitHub security advisories, with its CVE; mirrored by GitHub into its advisory database in OSV form | GitHub advisory, CVE record |
+| The machine-readable advisory | `https://hubtask.eu/.well-known/csaf/`, beside the provider metadata `/.well-known/csaf/provider-metadata.json` | CSAF 2.0, profile *security advisory* |
+| *Not affected* statements | The same directory | CSAF 2.0, profile *VEX* |
+| The components a release contains | Attached to the GitHub release (`sbom.cdx.json`) | CycloneDX, produced by `release.yml` (SG-10) |
+| The contacts | `https://hubtask.eu/.well-known/security.txt`, built by the website (`apps/website/src/routes/.well-known/security.txt/`) | RFC 9116 |
+
+The CSAF directory and its provider metadata are **published with the first advisory, not before**:
+an empty feed would claim a publishing process that has never run (the website's rule, *only what
+is true today*). The documents are written, not typed: an advisory is one file
+`security/advisories/HUBTASK-YYYY-NNNN.yaml` - `id`, `title`, `kind` (`advisory` for a flaw of
+Hubtask's, `vex` for a dependency's flaw it does not reach), `cve`, `initial_release`, `summary`,
+`cvss_v3` (`vector`, `score`, `severity`), the `affected`, `fixed` and `not_affected` versions, a VEX
+statement's `component` and `justification` (one of CSAF's five), `remediation`, `references` -
+committed with the fix. `make csaf` (`tools/csaf`) turns them into the directory: one CSAF 2.0
+document per advisory at `<year>/<id>.json` with its `.sha256` and `.sha512`, `index.txt`,
+`changes.csv` newest first, and `provider-metadata.json` (role `csaf_publisher`). `release.yml`
+writes it, signs each document keyless (`.sigstore.json` beside it) and attaches `csaf.tar.gz`;
+`website.yml` writes it into the site's static files, so `/.well-known/csaf/` carries exactly what
+the repository's advisories say. With no file there, both write nothing. A malformed advisory
+fails the release rather than publishing half of it. The GitHub advisory and its CVE stay the
+advisory of record; the CSAF document is its machine-readable form.
+
 ---
+
+### 14.3 Reporting under the Cyber Resilience Act
+
+**Not legal advice.** This section is the project's reading of Regulation (EU) 2024/2847 as the
+research of 2026-10 records it
+([foundation-law-standards-2026-10.md](../backlog/suite/research/foundation-law-standards-2026-10.md)
+§1.4); the role question in particular deserves a lawyer's view before anybody sells Hubtask.
+
+**The project's role.** Hubtask has no paid edition and sells nothing
+([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)), so the project is not a manufacturer of it.
+It acts as an **open-source software steward** would (Art. 24): a documented cybersecurity policy
+(this document and `SECURITY.md`), coordinated disclosure (§14.1), cooperation with market
+surveillance authorities on request, and Art. 14 reporting to the extent it is involved in the
+development. Art. 3(14) defines a steward as a legal person and the project is held by a natural
+person, so this is followed voluntarily — the process is the same either way, and it is what
+providers and NIS2 customers ask of a supplier.
+
+**What is reported, since 2026-09-11** (Art. 14): an **actively exploited vulnerability** in
+Hubtask, and a **severe incident** having an impact on its security (for the project: a compromise
+of the repository, the release pipeline, the signing identity or the image registry). Reports go
+through ENISA's single reporting platform to the CSIRT designated as coordinator of the Member State
+of the main establishment — for an owner in Germany, the research reads that as the BSI
+(unverified).
+
+| Clock (from becoming aware) | Actively exploited vulnerability | Severe incident |
+|---|---|---|
+| 24 hours | Early warning: that it is exploited, and the Member States where Hubtask is known to be affected if known | Early warning: whether it is suspected to be caused by an unlawful or malicious act |
+| 72 hours | Notification: the product, the general nature of the exploit and of the vulnerability, the corrective or mitigating measures taken and those users can take, how sensitive the information is | Notification: the nature of the incident, an initial assessment, the measures |
+| 14 days after a fix or mitigation is available | Final report: description and severity, the actor if known, the security update or other measures | — |
+| 1 month after the notification | — | Final report: description and severity, the likely root cause, the measures |
+
+**The runbook.** The clock starts at *awareness*, not at understanding, so the first hour decides
+whether it has to be reported, not how to fix it:
+
+1. **Decide the case** — in the advisory draft (§14.1): is there evidence of exploitation (a report
+   saying so, a public exploit used against an installation, an entry on a known-exploited list)?
+   Is it a severe incident of the project's own infrastructure? If neither, it is ordinary
+   coordinated disclosure and nothing below applies. Write down the moment of awareness.
+2. **24 h — early warning** on the reporting platform, with what is known; uncertainty is said, not
+   estimated away.
+3. **Inform the users** (Art. 14(8)) as soon as it is safe: a GitHub security advisory, published or
+   — where publishing would help the attacker more than the users — a short notice naming the
+   affected lines and the mitigation; providers learn it from the same advisory.
+4. **72 h — notification** with the mitigation the users can apply now.
+5. **Fix** on every line in its support period ([versioning-release.md](./versioning-release.md)
+   §5), release, publish the advisory, its CVE and its CSAF document (§14.2).
+6. **Final report** within 14 days of the fix (1 month after the notification for an incident).
+7. **Close** with the post-mortem note and the regression test (§14 item 4).
+
+A vulnerability the project finds in a **dependency** is reported to that dependency's maintainers
+(Art. 13(6)); if it is actively exploited, the steps above apply to Hubtask's exposure.
+
+### 14.4 What the project supplies to a provider who is a manufacturer
+
+A provider who sells Hubtask, a hosted service built on it, or its own distribution is a
+**manufacturer** under the CRA for what it places on the market (from 2027-12-11 in full, with
+Art. 14 reporting already since 2026-09-11), and receives from the project what it needs to be one:
+
+| The manufacturer needs | The project supplies | Where |
+|---|---|---|
+| The components (Annex I Part II (1)) | A CycloneDX SBOM per release image, a provenance attestation, a cosign signature | The GitHub release; `release.yml` (SG-10) |
+| Known vulnerabilities and their state | Advisories with CVE, CSAF 2.0, VEX *not affected* statements | §14.2 |
+| A support period to build on (Art. 13(8)) | The published support period of every line; every release kept available | [versioning-release.md](./versioning-release.md) §5, `SECURITY.md` |
+| A disclosure channel upstream | Coordinated disclosure, and the report of an exploited vulnerability shared with providers through the advisory | §14.1, `SECURITY.md` |
+| Secure-by-default evidence (Annex I Part I) | The principles and the gates | §1, §13 |
+| Controls to cite in its own attestation | The control mapping to ISO/IEC 27001, BSI C5 and OWASP ASVS | [control-mapping.md](../privacy/control-mapping.md) |
+| Answers for its NIS2 customers' supply-chain questions | The NIS2 supplier pack: SBOM, signatures, release records, disclosure, advisories, patch aims, support periods, the product's measures | [nis2-supplier-pack.md](../privacy/nis2-supplier-pack.md) |
+
+The manufacturer declares its own support period (at least five years unless the product's expected
+use is shorter), runs its own conformity assessment, CE marking and Art. 14 reporting, and carries
+fixes into a line after the project's support for it has ended — the Apache-2.0 licence allows that
+without asking.
 
 ## 15. Deliberately not included
 
@@ -325,7 +477,6 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | End-to-end encryption of content | Incompatible with server-side search, automation and AI |
 | Our own WAF/IDS | The operator's job (ingress/reverse proxy); the application supplies clean signals |
 | Certifications (ISO 27001, SOC 2) | Organisational, not architectural |
-| SAML/SCIM | After `1.0.0` |
 
 ---
 

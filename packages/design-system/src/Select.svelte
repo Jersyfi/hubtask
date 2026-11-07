@@ -34,6 +34,8 @@
      * with no options is not drawn.
      */
     groups?: readonly OptionGroup[];
+    /** Kept for assistive technology and hidden from sight, where a column head already names it. */
+    isLabelHidden?: boolean;
     hint?: string;
     error?: string;
     isRequired?: boolean;
@@ -52,6 +54,7 @@
 
   let {
     label,
+    isLabelHidden = false,
     options,
     hint,
     error,
@@ -89,7 +92,7 @@
 
 <!-- An unavailable select refuses the press as well: the platform opens its picker on the press,
      and a picker opened over a reason is a list with nothing to choose. -->
-<Field {label} {hint} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEveryKeyRefused: true }} {isRequired}>
+<Field {label} {isLabelHidden} {hint} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEveryKeyRefused: true }} {isRequired}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       <select

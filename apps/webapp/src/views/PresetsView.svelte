@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's *Presets* (UC-WRK-30 checks 3, 4): its saved presets - renamed and withdrawn
+  // The workspace's *Templates* (configuration/ui.md §4): the gallery of every template by origin,
+  // above the presets it holds as their structure part (UC-WRK-30 checks 3, 4): its saved presets - renamed and withdrawn
   // here, changed from a collection's *Save as preset* -, the preset a new hub starts from, and the
   // settings locked for every hub and collection.
   //
@@ -18,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { Preset, TransportError } from '@hubtask/sync-engine';
 
   import { presetChoice, presetName, presets, presetValue } from '../lib/data/presets.svelte.ts';
@@ -28,8 +29,14 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import TemplatesGallery from '../lib/settings/TemplatesGallery.svelte';
   import { SETTINGS } from '../lib/workspace/structureDraft.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { pagePart } from '../lib/settings/asFile.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
+  const { onnavigate, template }: { onnavigate?: (path: string) => void; template?: string } = $props();
 
   $effect(() => untrack(() => workspace.open()));
   $effect(() => untrack(() => presets.open()));
@@ -126,6 +133,7 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/presets')} /></div>
 
   {#if reading.status === 'loading' || reading.status === 'idle'}
     <p class="quiet">
@@ -133,23 +141,21 @@
       <span>{t('app.presets.reading')}</span>
     </p>
   {:else if refusal}
-    <Banner tone="danger" title={refusal.message}>
-      {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={refusal} />
   {:else if structure}
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     <WorkspaceGate permission="STRUCTURE">
       <Stack gap="400">
+        <TemplatesGallery {onnavigate} preselect={template} />
+
         <section class="block" aria-labelledby="presets-saved" data-presets-saved>
           <h2 id="presets-saved">{t('app.presets.saved_title')}</h2>
           <p class="quiet">{t('app.presets.saved_about')}</p>
           {#if presets.workspace.length === 0}
-            <p class="quiet" data-presets-empty>{t('app.presets.none')}</p>
+            <div data-presets-empty><EmptyState kind="unused" title={t('app.presets.none')} /></div>
           {:else}
             <ul class="rows">
               {#each presets.workspace as preset (preset.id)}
@@ -226,4 +232,5 @@
   .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-150); }
   .row :global(> :first-child) { flex: 1 1 auto; }
   .actions { display: flex; gap: var(--sp-100); }
+  .file { display: flex; justify-content: flex-end; }
 </style>

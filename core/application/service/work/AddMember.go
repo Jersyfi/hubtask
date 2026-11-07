@@ -470,7 +470,8 @@ func memberSetOutput(set ItemMemberSet) usecase.Output {
 // Descriptor is the catalogue entry.
 func (h AddMember) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: AddMemberName,
+		Permission: service.PermissionWriteItems,
+		Name:       AddMemberName,
 		Summary: "Puts an account on an entry's member list. The account has to be able to see the " +
 			"entry - it has to hold a membership somewhere on the path above it - and the entry's " +
 			"type has to carry a member list at all: an activity has one assignee and no members. " +
@@ -492,7 +493,8 @@ func (h AddMember) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h RemoveMember) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: RemoveMemberName,
+		Permission: service.PermissionWriteItems,
+		Name:       RemoveMemberName,
 		Summary: "Takes an account off an entry's member list. Idempotent: an entry that does not " +
 			"carry it succeeds and announces nothing. The removal is recorded either way, so that " +
 			"a device which never saw the account added still merges the decision. Somebody who " +

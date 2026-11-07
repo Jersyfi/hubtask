@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,8 +16,12 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/whiteboard"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
@@ -45,13 +50,17 @@ const (
 	// "we stopped calling your server" is the wrong news about a rule.
 	subjectRuleDisabled = "email.rule_disabled.subject"
 	bodyRuleDisabled    = "email.rule_disabled.body"
-	bodyAssignment      = "email.assignment.body"
-	bodyMembership      = "email.membership.body"
-	bodyComment         = "email.comment.body"
-	bodyInvitation      = "email.invitation.body"
-	bodyReminder        = "email.reminder.body"
-	bodyIntegration     = "email.integration.body"
-	bodyRetention       = "email.retention.body"
+	// What a rule's notification step tells (UC-AUT-09): SLA's category; nobody's act, so no
+	// {actor} in it.
+	subjectRuleNotice = "email.rule_notice.subject"
+	bodyRuleNotice    = "email.rule_notice.body"
+	bodyAssignment    = "email.assignment.body"
+	bodyMembership    = "email.membership.body"
+	bodyComment       = "email.comment.body"
+	bodyInvitation    = "email.invitation.body"
+	bodyReminder      = "email.reminder.body"
+	bodyIntegration   = "email.integration.body"
+	bodyRetention     = "email.retention.body"
 	// A private hub nobody was left in went to the trash: MEMBERSHIP's category, its own sentence,
 	// and never a title - there is none it may carry (ADR-0073 §5).
 	subjectPrivateHubTrashed = "email.private_hub_trashed.subject"
@@ -66,6 +75,44 @@ const (
 	bodyRoleGranted             = "email.role_granted.body"
 	subjectRoleGrantedWorkspace = "email.role_granted.workspace.subject"
 	bodyRoleGrantedWorkspace    = "email.role_granted.workspace.body"
+	// A page whose verification ran out, told to its owner (UC-DOC-12 check 4): REMINDER's
+	// category, its own sentence - nobody asked for this reminder, the page's verification did.
+	subjectPageReview = "email.page_review.subject"
+	bodyPageReview    = "email.page_review.body"
+	// An agent that did what its policy lets it do with its owner told (UC-AGT-02, NOTIFY).
+	subjectAgentNotice = "email.agent_notice.subject"
+	bodyAgentNotice    = "email.agent_notice.body"
+	// A connected mailbox that has refused for over an hour (ADR-0094).
+	subjectMailboxFailing = "email.mailbox_failing.subject"
+	bodyMailboxFailing    = "email.mailbox_failing.body"
+	// A SAML provider whose last certificate ends within 30, 7 or 1 days (identity.md §26.1).
+	subjectSAMLCertificateEnding = "email.saml_certificate_ending.subject"
+	bodySAMLCertificateEnding    = "email.saml_certificate_ending.body"
+	// A calendar push its provider refused for good (UC-INT-16), told to its owner.
+	subjectCalendarPushStopped = "email.calendar_push_stopped.subject"
+	bodyCalendarPushStopped    = "email.calendar_push_stopped.body"
+	// A CMDB connector that switched itself off after its failures in a row.
+	subjectConnectorSwitchedOff = "email.connector_switched_off.subject"
+	bodyConnectorSwitchedOff    = "email.connector_switched_off.body"
+	// A forge hook that switched itself off because its writer may no longer write in the hub.
+	subjectHookSwitchedOff = "email.code_hook_switched_off.subject"
+	bodyHookSwitchedOff    = "email.code_hook_switched_off.body"
+	// A person a whiteboard's comment named (UC-CNV-09): COMMENT's category, its own sentence - the
+	// subject is a board, not an entry.
+	subjectWhiteboardMention = "email.whiteboard_mention.subject"
+	bodyWhiteboardMention    = "email.whiteboard_mention.body"
+	// An approval waiting for the recipient's yes, a reminder of it, and a level overdue told to
+	// the person who asked (UC-SVC-09 check 4): the subject is an approval, its title the entry's.
+	subjectApprovalAsked    = "email.approval_asked.subject"
+	bodyApprovalAsked       = "email.approval_asked.body"
+	subjectApprovalReminder = "email.approval_reminder.subject"
+	bodyApprovalReminder    = "email.approval_reminder.body"
+	subjectApprovalOverdue  = "email.approval_overdue.subject"
+	bodyApprovalOverdue     = "email.approval_overdue.body"
+	// A plan beyond its time tolerance, told to whoever decided it (configuration.md §10): the subject
+	// is a baseline, its title the plan's place.
+	subjectPlanException = "email.plan_exception.subject"
+	bodyPlanException    = "email.plan_exception.body"
 	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
 	rolePrefix  = "email.role."
 	placePrefix = "email.role_granted.place."
@@ -108,14 +155,39 @@ type DeliverNotification struct {
 	// membership's withheld sentence; Places nil leaves the place's name out.
 	Grants GrantReader
 	Places PlaceReader
+	// Pages names the page whose review fell due. Optional: nil leaves its title out.
+	Pages PageReader
+	// Agents names the agent its owner is told of. Optional: nil leaves its name out.
+	Agents AgentReader
+	// Mailboxes names the connected mailbox that turned failing by its address. Optional: nil
+	// leaves it out.
+	Mailboxes MailboxReader
+	// SAMLProviders names the SAML provider whose certificates end and says when. Optional: nil
+	// leaves both out.
+	SAMLProviders SAMLProviderReader
+	// Connections names the calendar push or the CMDB connector that stopped. Optional: nil leaves
+	// its name out.
+	Connections ConnectionReader
+	// Boards names the whiteboard a comment named the recipient on. Optional: nil leaves its title
+	// out.
+	Boards BoardReader
+	// Approvals names the approval a message is about, and through it the entry. Optional: nil
+	// leaves the entry's title out.
+	Approvals ApprovalReader
+	// Baselines names the baseline a plan slipped from, and through it the plan; its place is read
+	// through Places. Optional: nil leaves the plan's name and its link out.
+	Baselines BaselineReader
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
-	Replies    ReplyAddresses
-	Mail       mail.Sender
-	Renderer   i18n.Renderer
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
+	Replies ReplyAddresses
+	Mail    mail.Sender
+	// WithoutMail is an installation without a mail server (environment.MailConfig.Configured
+	// false): every message is suppressed at once instead of retried. The zero value mails.
+	WithoutMail bool
+	Renderer    i18n.Renderer
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
 	// Workspaces answers the workspace's own default language, the second link of the chain a
 	// recipient's locale is resolved down (i18n-l10n.md §2) - an invited person has not chosen
 	// one yet, by definition, and the invitation is the first thing they read. Optional: nil
@@ -126,6 +198,9 @@ type DeliverNotification struct {
 	// Addresses answers the workspace's address, so an email carries a link somebody can click. Nil
 	// composes none: a relative path in an email is a dead link.
 	Addresses WorkspaceAddresses
+	// Undeliverable holds the addresses the mail server refused for good: a recipient whose
+	// address is marked is suppressed, and a refusal marks it. Nil marks and skips nothing.
+	Undeliverable repository.Undeliverable
 	// Redemptions mints the credential an invitation mail carries: minted here, at
 	// delivery, so the queue's payload stays identifiers-only and the plaintext exists exactly
 	// once, in the message on its way out. Nil composes the plain link, which is what an
@@ -160,6 +235,50 @@ type PlaceReader interface {
 	Find(ctx context.Context, id shared.ID) (work.Container, error)
 }
 
+// PageReader answers a page by its identifier - the knowledge repository's Find.
+type PageReader interface {
+	Find(ctx context.Context, id shared.ID) (knowledge.Page, error)
+}
+
+// ConnectionReader answers the name a stopped connection is known by: a calendar push's address
+// at its provider, a connector's key.
+type ConnectionReader interface {
+	CalendarPushName(ctx context.Context, id shared.ID) (string, error)
+	ConnectorName(ctx context.Context, id shared.ID) (string, error)
+	// CodeHook answers a forge hook's name and the hub whose settings hold it.
+	CodeHook(ctx context.Context, id shared.ID) (name string, hubID shared.ID, err error)
+}
+
+// SAMLProviderReader answers a SAML provider's name and when its last certificate ends.
+type SAMLProviderReader interface {
+	SAMLProviderEnd(ctx context.Context, id shared.ID) (name string, end time.Time, err error)
+}
+
+// MailboxReader answers a connected mailbox's address by its identifier.
+type MailboxReader interface {
+	MailboxAddress(ctx context.Context, id shared.ID) (string, error)
+}
+
+// AgentReader answers an agent's name by its identifier - the agents' store.
+type AgentReader interface {
+	AgentName(ctx context.Context, id shared.ID) (string, error)
+}
+
+// BoardReader answers a whiteboard by its identifier - the whiteboard repository's Find.
+type BoardReader interface {
+	Find(ctx context.Context, id shared.ID) (whiteboard.Board, error)
+}
+
+// ApprovalReader answers an approval by its identifier - the service desk repository's Find.
+type ApprovalReader interface {
+	Find(ctx context.Context, id shared.ID) (servicedesk.Approval, error)
+}
+
+// BaselineReader answers a baseline by its identifier - the planning repository's Find.
+type BaselineReader interface {
+	Find(ctx context.Context, id shared.ID) (planning.Baseline, error)
+}
+
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
 // longer waiting, and the mail carries the plain link.
 type RedemptionMinter interface {
@@ -183,8 +302,20 @@ type subject struct {
 	access work.EmergencyAccess
 	// grant is the role the record names, zero for every other message.
 	grant identity.Grant
+	// approval is the approval the record names, zero for every other message.
+	approval servicedesk.Approval
+	// plan is the hub or collection a baseline's plan is, zero for every other message.
+	plan work.Container
+	// samlEnd is when the SAML provider the record names stops admitting anybody, zero for every
+	// other message.
+	samlEnd time.Time
+	// hookHub is the hub a forge hook the record names belongs to, zero for every other message.
+	hookHub shared.ID
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
+	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
+	// which a member reaches without the administration.
+	personalRule bool
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -224,6 +355,9 @@ func (d DeliverNotification) Execute(
 		// Switched off, or nowhere to send, since the record was written. Suppressed with the
 		// reason rather than sent, and the job is done rather than failed.
 		return d.write(ctx, scope, loaded.record.Suppress(loaded.decision.Reason))
+	}
+	if d.WithoutMail {
+		return d.write(ctx, scope, loaded.record.Suppress(domain.ReasonNoMailServer))
 	}
 
 	started := d.Clock.Now()
@@ -287,6 +421,17 @@ func (d DeliverNotification) load(
 		loaded.decision = domain.Decide(record, domain.Recipient{
 			AccountID: record.RecipientID, HasAddress: recipient.Email != "",
 		}, preference)
+		if loaded.decision.Send && d.Undeliverable != nil {
+			address, _, err := d.Undeliverable.Find(ctx, record.RecipientID)
+			switch {
+			case errors.Is(err, shared.ErrNotFound):
+			case err != nil:
+				return err
+			case strings.EqualFold(address, recipient.Email):
+				// A mark at an address the person has since changed holds nothing.
+				loaded.decision = domain.Decision{Reason: domain.ReasonUndeliverable}
+			}
+		}
 
 		if !record.ActorID.IsZero() {
 			actor, err := d.Accounts.Find(ctx, record.ActorID)
@@ -312,6 +457,7 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = rule.Name
+			loaded.personalRule = rule.Scope.Type == automation.ScopePerson
 		case !record.SubscriptionID.IsZero() && d.Subscriptions != nil:
 			stored, err := d.Subscriptions.Find(ctx, record.SubscriptionID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -342,6 +488,86 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = title
+		case !record.PageID.IsZero() && d.Pages != nil:
+			page, err := d.Pages.Find(ctx, record.PageID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = page.Title
+		case !record.WhiteboardID.IsZero() && d.Boards != nil:
+			board, err := d.Boards.Find(ctx, record.WhiteboardID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			// A trashed board's title stays out: the link will say it is gone.
+			if board.DeletedAt == nil {
+				loaded.title = board.Title
+			}
+		case !record.ApprovalID.IsZero() && d.Approvals != nil:
+			approval, err := d.Approvals.Find(ctx, record.ApprovalID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.approval = approval
+			if !approval.ItemID.IsZero() {
+				item, err := d.Items.Find(ctx, approval.ItemID)
+				if err != nil && !errors.Is(err, shared.ErrNotFound) {
+					return err
+				}
+				if item.DeletedAt == nil {
+					loaded.title = item.Title
+				}
+			}
+		case !record.BaselineID.IsZero() && d.Baselines != nil:
+			baseline, err := d.Baselines.Find(ctx, record.BaselineID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			if !baseline.PlanID.IsZero() && d.Places != nil {
+				place, err := d.Places.Find(ctx, baseline.PlanID)
+				if err != nil && !errors.Is(err, shared.ErrNotFound) {
+					return err
+				}
+				if place.DeletedAt == nil {
+					loaded.plan, loaded.title = place, place.Name
+				}
+			}
+		case !record.IdentityProviderID.IsZero() && d.SAMLProviders != nil:
+			name, end, err := d.SAMLProviders.SAMLProviderEnd(ctx, record.IdentityProviderID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title, loaded.samlEnd = name, end
+		case !record.CalendarPushID.IsZero() && d.Connections != nil:
+			name, err := d.Connections.CalendarPushName(ctx, record.CalendarPushID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = name
+		case !record.ConnectorID.IsZero() && d.Connections != nil:
+			name, err := d.Connections.ConnectorName(ctx, record.ConnectorID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = name
+		case !record.CodeHookID.IsZero() && d.Connections != nil:
+			name, hubID, err := d.Connections.CodeHook(ctx, record.CodeHookID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title, loaded.hookHub = name, hubID
+		case !record.MailboxID.IsZero() && d.Mailboxes != nil:
+			address, err := d.Mailboxes.MailboxAddress(ctx, record.MailboxID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = address
+		case !record.AgentID.IsZero() && d.Agents != nil:
+			name, err := d.Agents.AgentName(ctx, record.AgentID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = name
 		case !record.ItemID.IsZero():
 			item, err := d.Items.Find(ctx, record.ItemID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -431,21 +657,61 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		return domain.Message{
 			SubjectCode: subjectPrivateHubTrashed,
 			BodyCode:    bodyPrivateHubTrashed,
-			Link:        link(loaded.base, loaded.record),
+			Link:        link(loaded),
 		}
 	}
 	subjectCode, bodyCode := codesFor(loaded.record.Category)
 	if !loaded.record.RuleID.IsZero() {
 		subjectCode, bodyCode = subjectRuleDisabled, bodyRuleDisabled
 	}
+	if !loaded.record.PageID.IsZero() {
+		subjectCode, bodyCode = subjectPageReview, bodyPageReview
+	}
+	if !loaded.record.AgentID.IsZero() {
+		subjectCode, bodyCode = subjectAgentNotice, bodyAgentNotice
+	}
+	if !loaded.record.MailboxID.IsZero() {
+		subjectCode, bodyCode = subjectMailboxFailing, bodyMailboxFailing
+	}
+	if !loaded.record.IdentityProviderID.IsZero() {
+		subjectCode, bodyCode = subjectSAMLCertificateEnding, bodySAMLCertificateEnding
+	}
+	if !loaded.record.CalendarPushID.IsZero() {
+		subjectCode, bodyCode = subjectCalendarPushStopped, bodyCalendarPushStopped
+	}
+	if !loaded.record.ConnectorID.IsZero() {
+		subjectCode, bodyCode = subjectConnectorSwitchedOff, bodyConnectorSwitchedOff
+	}
+	if !loaded.record.CodeHookID.IsZero() {
+		subjectCode, bodyCode = subjectHookSwitchedOff, bodyHookSwitchedOff
+	}
+	if !loaded.record.WhiteboardID.IsZero() {
+		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
+	}
+	isOverdue := false
+	if !loaded.record.ApprovalID.IsZero() {
+		subjectCode, bodyCode = approvalCodes(loaded)
+		isOverdue = subjectCode == subjectApprovalOverdue
+	}
 
 	message := domain.Message{
 		SubjectCode: subjectCode,
 		BodyCode:    bodyCode,
 		ActorName:   loaded.actorName,
-		Link:        link(loaded.base, loaded.record),
+		Link:        link(loaded),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
+	if !loaded.samlEnd.IsZero() {
+		message.Until = inZone(loaded.samlEnd, loaded.recipient.zone)
+	}
+	if !loaded.record.BaselineID.IsZero() {
+		message.SubjectCode, message.BodyCode = subjectPlanException, bodyPlanException
+		message.Link = planLink(loaded.base, loaded.plan)
+	}
+	if isOverdue && loaded.base != "" {
+		// The person who asked decides nothing; the entry is where they look.
+		message.Link = strings.TrimSuffix(loaded.base, "/") + "/items/" + url.PathEscape(loaded.approval.ItemID.String())
+	}
 	if !loaded.grant.ID.IsZero() {
 		message.SubjectCode, message.BodyCode = subjectRoleGranted, bodyRoleGranted
 		message.RoleCode = rolePrefix + strings.ToLower(string(loaded.grant.Role))
@@ -476,6 +742,40 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	return message
 }
 
+// planLink is the plan's screen, where the exception is drawn; the workspace when the plan is
+// gone or unread.
+func planLink(base string, plan work.Container) string {
+	base = strings.TrimSuffix(base, "/")
+	if base == "" || plan.ID.IsZero() {
+		return base
+	}
+	kind := "/collections/"
+	if plan.Type == work.ContainerHub {
+		kind = "/hubs/"
+	}
+	return base + kind + url.PathEscape(plan.ID.String()) + "/plan"
+}
+
+// approvalCodes is an approval message's pair: asked where a level began counting the recipient, a
+// reminder while it still counts them, overdue for anybody else - the person who asked. An approval
+// that is gone reads as a reminder, which the link then shows decided.
+func approvalCodes(loaded subject) (subjectCode, bodyCode string) {
+	switch {
+	case loaded.record.Category == domain.CategoryAssignment:
+		return subjectApprovalAsked, bodyApprovalAsked
+	case loaded.approval.ID.IsZero() || slices.Contains(currentCounted(loaded.approval), loaded.record.RecipientID):
+		return subjectApprovalReminder, bodyApprovalReminder
+	}
+	return subjectApprovalOverdue, bodyApprovalOverdue
+}
+
+func currentCounted(approval servicedesk.Approval) []shared.ID {
+	if approval.Current < 0 || approval.Current >= len(approval.Levels) {
+		return nil
+	}
+	return approval.Levels[approval.Current].Counted
+}
+
 // codesFor is the category's pair of catalogue keys. A switch rather than a map, so that a
 // category added without its messages does not compile.
 func codesFor(category domain.Category) (subjectCode, bodyCode string) {
@@ -501,6 +801,11 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		return subjectRetention, bodyRetention
 	case domain.CategoryEmergencyAccess:
 		return subjectEmergencyAccess, bodyEmergencyAccess
+	case domain.CategorySLA:
+		return subjectRuleNotice, bodyRuleNotice
+	case domain.CategoryRequestReply:
+		// The comment's sentence: somebody wrote on the request; only the link differs.
+		return subjectComment, bodyComment
 	}
 	// Not reachable through New, which refuses an unknown category. Answered rather than panicked:
 	// a message with the wrong words is better than a worker that dies on a row.
@@ -508,8 +813,12 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 }
 
 // link is where to look, absolute so that a mail client has something to click.
-func link(base string, record domain.Notification) string {
-	base = strings.TrimSuffix(base, "/")
+//
+// Every link leads to a screen the recipient reaches: a personal rule's and an agent's are the
+// profile's, because their owner need hold no administration permission.
+func link(loaded subject) string {
+	record := loaded.record
+	base := strings.TrimSuffix(loaded.base, "/")
 	if base == "" {
 		return ""
 	}
@@ -517,12 +826,36 @@ func link(base string, record domain.Notification) string {
 	// it is escaped anyway, because a link built by concatenation is the shape of an injection
 	// even when this particular value cannot be one.
 	switch {
+	case record.Category == domain.CategoryRequestReply && !record.ItemID.IsZero():
+		// A requester reads their request in the portal; the entry's own screen is the team's.
+		return base + "/portal/requests/" + url.PathEscape(record.ItemID.String())
+	case !record.RuleID.IsZero() && loaded.personalRule:
+		return base + "/profile/rules/" + url.PathEscape(record.RuleID.String())
 	case !record.RuleID.IsZero():
 		return base + "/administration/rules/" + url.PathEscape(record.RuleID.String())
 	case !record.SubscriptionID.IsZero():
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case !record.PageID.IsZero():
+		return base + "/pages/" + url.PathEscape(record.PageID.String())
+	case !record.AgentID.IsZero():
+		return base + "/profile/agents"
+	case !record.MailboxID.IsZero():
+		return base + "/administration/mail"
+	case !record.IdentityProviderID.IsZero():
+		return base + "/administration/sign-in"
+	case !record.CalendarPushID.IsZero():
+		return base + "/profile/calendars"
+	case !record.ConnectorID.IsZero():
+		return base + "/administration/configuration-items"
+	case !record.CodeHookID.IsZero() && !loaded.hookHub.IsZero():
+		return base + "/hubs/" + url.PathEscape(loaded.hookHub.String()) + "/settings/code"
+	case !record.WhiteboardID.IsZero():
+		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
+	case !record.ApprovalID.IsZero():
+		// The list where the reader decides; it opens the app and signs nobody in (P-02).
+		return base + "/approvals"
 	case !record.MembershipID.IsZero():
 		// The place the role is on; compose has the grant and names it.
 		return base
@@ -556,8 +889,19 @@ func placeLink(base string, scope identity.Scope) string {
 func (d DeliverNotification) recordFailure(
 	ctx context.Context, scope persistence.Scope, loaded subject, lastAttempt bool, cause error,
 ) error {
-	if err := d.write(ctx, scope, loaded.record.Failed(lastAttempt)); err != nil {
+	// A refusal (a recipient the mail server rejected for good) is final on any attempt: the queue
+	// is told so by the handler (queue.Refusal) and does not ask again.
+	final := lastAttempt || shared.AsError(cause).Category == shared.CategoryValidation
+	if err := d.write(ctx, scope, loaded.record.Failed(final)); err != nil {
 		return err
+	}
+	if d.Undeliverable != nil && shared.AsError(cause).DetailCode == mail.RecipientRejected &&
+		loaded.recipient.address != "" {
+		if err := d.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+			return d.Undeliverable.Mark(ctx, loaded.record.RecipientID, loaded.recipient.address, d.Clock.Now())
+		}); err != nil {
+			return err
+		}
 	}
 	if d.Signals != nil {
 		d.Signals.NotificationFailed(ctx,

@@ -5,6 +5,9 @@ package identity
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -64,6 +67,17 @@ type GetOwnAccount struct {
 	// one reading for both, so a screen that hides *Create hub* hides it exactly where the server
 	// would refuse it. Nil answers true, the shape before it was asked.
 	Access AccessHolder
+	// Portals answers the collections where the account is a requester, so a person who holds
+	// nothing else is sent to their portal rather than told they have no access (UC-SVC-05).
+	Portals repository.RequesterPortals
+	// Undeliverable answers whether the mail server refuses the account's address for good, so the
+	// profile can say why no mail arrives and offer to try again. Nil answers that it takes mail.
+	Undeliverable UndeliverableReader
+}
+
+// UndeliverableReader reads the address an account's mail was refused at for good, or ErrNotFound.
+type UndeliverableReader interface {
+	Find(ctx context.Context, accountID shared.ID) (address string, since time.Time, err error)
 }
 
 // AccessHolder answers whether an account holds a role anywhere in the workspace, directly or
@@ -120,12 +134,17 @@ type OwnAccount struct {
 	// HasAccess is whether the account holds a role anywhere - false is somebody an administrator
 	// still has to give access to.
 	HasAccess bool
+	// Portals are the collections whose portal the account uses as a requester.
+	Portals []repository.RequesterPortal
 	// RecoveryCodesRemaining is -1 where there is nothing to count: an installation wired without
 	// the second factor, or an account that holds none. Its codes are not "zero left", they are a
 	// thing that does not exist yet, and a screen told zero sends somebody to make codes the server
 	// would refuse to make. Where a factor is armed, zero is answered as zero, because there zero
 	// is the number to act on.
 	RecoveryCodesRemaining int
+	// MailUndeliverableSince is when the mail server refused the account's present address for
+	// good; zero where it takes mail.
+	MailUndeliverableSince time.Time
 }
 
 func (h GetOwnAccount) Execute(
@@ -198,6 +217,35 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 			return OwnAccount{}, err
 		}
 	}
+	if h.Portals != nil {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			portals, err := h.Portals.PortalsOf(ctx, actor.AccountID)
+			answer.Portals = portals
+			return err
+		})
+		if err != nil {
+			return OwnAccount{}, err
+		}
+	}
+	if h.Undeliverable != nil && account.Email != "" {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			address, since, err := h.Undeliverable.Find(ctx, actor.AccountID)
+			switch {
+			case errors.Is(err, shared.ErrNotFound):
+				return nil
+			case err != nil:
+				return err
+			}
+			// A mark at an address the person has since changed holds nothing, as delivery reads it.
+			if strings.EqualFold(address, account.Email) {
+				answer.MailUndeliverableSince = since
+			}
+			return nil
+		})
+		if err != nil {
+			return OwnAccount{}, err
+		}
+	}
 	if h.Factor != nil {
 		required, err := h.Factor.DemandsFactorOf(ctx, actor)
 		if err != nil {
@@ -256,6 +304,14 @@ func (h GetOwnAccount) invoke(
 	out["second_factor_required"] = own.SecondFactorRequired
 	out["has_password"] = own.HasPassword
 	out["has_access"] = own.HasAccess
+	portals := make([]usecase.Output, 0, len(own.Portals))
+	for _, portal := range own.Portals {
+		portals = append(portals, usecase.Output{"collection_id": portal.CollectionID.String(), "name": portal.Name})
+	}
+	out["portals"] = portals
+	if !own.MailUndeliverableSince.IsZero() {
+		out["mail_undeliverable_since"] = own.MailUndeliverableSince
+	}
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

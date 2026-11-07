@@ -20,12 +20,14 @@ one subject document, linked from the chapter that needs it; an ADR records why 
   [the data catalogue](../privacy/data-catalog.md), [data-retention.md](./data-retention.md),
   [backup-restore.md](./backup-restore.md), [tenant-export.md](./tenant-export.md).
 * Behaviour: [offline-sync.md](./offline-sync.md), [automation.md](./automation.md),
+  [configuration.md](./configuration.md),
   [ai-first.md](./ai-first.md), [i18n-l10n.md](./i18n-l10n.md).
 * Operation and delivery: [observability-reliability.md](./observability-reliability.md),
   [deployment.md](./deployment.md), [support-matrix.md](./support-matrix.md),
   [ci-cd.md](./ci-cd.md), [versioning-release.md](./versioning-release.md),
   [licensing-editions.md](./licensing-editions.md).
-* Clients: [the design system and the shell](../design/design-system.md).
+* Clients: [the design system and the shell](../design/design-system.md),
+  [the user-experience direction](./user-experience.md).
 * Decisions and plan: [the ADRs](../adr/README.md), [the roadmap](../roadmap.md).
 
 ---
@@ -139,6 +141,7 @@ The architecture's roles; the people who use the product are
 | C-14 | The backend makes no assumptions about clients; the API stays client-blind. The first-party client stack is [ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](../adr/ADR-0033-shared-client-architecture.md) |
 | C-15 | Backup targets are not limited to particular providers; target, timing and retention are freely configurable |
 | C-16 | Offline operation is compatible with collaboration — other people's changes are never silently lost |
+| C-17 | EU product law: Cyber Resilience Act reporting and disclosure ([security.md](./security.md) §14), the AI Act's transparency and its high-risk line ([ai-first.md](./ai-first.md) §2.1), Data Act and DORA exit ([tenant-export.md](./tenant-export.md) §12); the controls mapped to ISO 27001, BSI C5 and ASVS in [the control mapping](../privacy/control-mapping.md) |
 
 ### 2.3 Conventions
 
@@ -161,7 +164,7 @@ The architecture's roles; the people who use the product are
 | AI agents | Both | MCP (tools = use cases), or REST with a service account |
 | Identity provider | Outbound | OIDC ([identity.md](./identity.md) §10); local accounts beside it |
 | Object storage | Outbound | S3 with presigned URLs; fallback: a local volume |
-| Email | Both | SMTP out; intake into the jumble **webhook-only**, to a token-protected URL per tenant, no IMAP ([ADR-0040](../adr/ADR-0040-no-imap-intake.md)) |
+| Email | Both | SMTP out. In: the operator's inbound service posts each raw message to `POST /mail/inbound`, and connected mailboxes are read every minute (IMAP with TLS through the egress guard, or JMAP through the guarded HTTP client), signing in by password or by OAuth 2.0 with PKCE, the secrets and refresh tokens sealed; one worker holds IMAP mailboxes in IDLE so mail lands in seconds. No SMTP receiver; the jumble's token-protected webhook doors stay ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md), [automation.md](./automation.md) §5) |
 | Calendar | Both | An ICS feed per view; CalDAV with a personal access token, writing through the use cases ([security.md](./security.md) T-22) |
 | LLM provider | Outbound | `core/port/ai`, OpenAI-compatible and Ollama; off by default |
 | Operator/SRE | Inbound | Health, metrics, traces (§3.2) |
@@ -172,6 +175,7 @@ The architecture's roles; the people who use the product are
 |---|---|---|---|
 | Public API and web app | HTTP/1.1 + HTTP/2, JSON | 8080 | TLS terminated at the ingress/reverse proxy |
 | Real-time updates | Server-sent events (`/api/v1/stream`) | 8080 | |
+| Live documents (pages, boards) | WebSocket (`/api/v1/realtime/documents/{kind}/{id}`) | 8080 | A reverse proxy must pass the upgrade ([deployment.md](./deployment.md) §2.1); without it every page and board is read-only, and the editor says so |
 | MCP | HTTP (streamable) | 8080 (`/mcp`) | Its own auth scope |
 | Operations | HTTP (Prometheus, health) | 9090 (`HUBTASK_OPS_ADDR`) | Not publicly exposed |
 | Database | PostgreSQL wire protocol | 5432 | Required |
@@ -185,7 +189,7 @@ The architecture's roles; the people who use the product are
 | Goal/constraint | Approach |
 |---|---|
 | Extensibility (quality goal 1, Q-03) | **Generalisation:** one `WorkItem` with a **capability profile** per type and typed custom fields — a new level is configuration, not schema |
-| Integrability (quality goal 2, Q-05) | **One use case catalogue:** every use case is a REST operation, an MCP tool and an automation action (the parity gate) |
+| Integrability (quality goal 2, Q-05) | **One use case catalogue:** every use case is a REST operation, an MCP tool and an automation action (the parity gate); MCP and automation derive from the registry, and REST and `hubctl` are generated from the contract operation by operation (`tools/doors`, [api-guidelines.md](./api-guidelines.md) §1) |
 | Operability (quality goal 5, Q-01, Q-02) | **One artefact, several roles** chosen by configuration (§7.1) |
 | Few dependencies (C-05) | PostgreSQL is database, job queue, outbox, full-text search and pub/sub fallback; NATS and S3 are optional |
 | Tenant isolation (quality goal 3, F-15) | `tenant_id` in every table plus **row level security** under a role without `BYPASSRLS` ([multi-tenancy.md](./multi-tenancy.md)) |
@@ -213,7 +217,7 @@ Dependencies point inwards: presentation and infrastructure depend on the core, 
 | `core/domain` | The business model, invariants, state transitions, domain events, pure domain services |
 | `core/application` | Use cases, orchestration, transaction boundaries, permission checks, event publication |
 | `core/port` | Interfaces to the outside (clock, IDs, storage, mail, bus, AI, environment, …) |
-| `presentation/*` | Inbound adapters — REST incl. admin, MCP, the change stream, ICS/CalDAV, jumble intake, worker, web UI: protocol ↔ use case, serialisation, localisation of messages; the web UI serves bytes only |
+| `presentation/*` | Inbound adapters — REST incl. admin, MCP, the change stream, live documents over a WebSocket ([offline-sync.md](./offline-sync.md) §13), ICS/CalDAV, jumble intake, worker, web UI: protocol ↔ use case, serialisation, localisation of messages; the web UI serves bytes only |
 | `infrastructure/*` | Outbound adapters — PostgreSQL (repositories, outbox, queue), object storage, SMTP, HTTP client, AI provider, OIDC, OpenTelemetry, NATS — without business rules |
 
 What each may import, and where each package lives: [project-structure.md](./project-structure.md) §1, §2.
@@ -228,6 +232,14 @@ graph LR
   AUTOM[Automation] -->|Events| WORK
   AUTOM --> INTEG[Integration]
   NOTIF[Notification] --> SCHED
+  FLOW[Workflow] & PLAN[Planning] & TIME[Timekeeping] & DESK[Service desk] & CMDB[CMDB] --> WORK
+  KNOW[Knowledge] & BOARD[Whiteboard] & GOAL[Goals & Portfolio] & CAL[Calendars] --> WORK
+  DESK --> CAL
+  DESK & CMDB --> CONN[Connectors]
+  CFG[Configuration] --> FLOW & AUTOM & VIEW & PLAN
+  AGENT[Agents] --> CFG & SUGG
+  RT[Realtime] --> KNOW & BOARD
+  FLOW & DESK & GOAL & PLAN & KNOW & BOARD & AGENT & CFG --> IAM
 ```
 
 | Context | Aggregates / key terms | Note |
@@ -241,7 +253,7 @@ graph LR
 | **Lifecycle** | Trash, archive, retention rules, legal holds, the deletion journal | [data-retention.md](./data-retention.md) |
 | **Automation** | `AutomationRule`, `Run`, scheduled triggers, outbound calls | Separately deployable |
 | **Integration** | `WebhookSubscription`, `CalendarFeed`, inbound tokens, AI provider settings | |
-| **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the only channel that sends; webhook and push are named channels not yet built |
+| **Notification** | `Notification`, `NotificationPreference`, channel ports | Email is the only channel that sends; webhook and push are named channels not yet built (an outbound webhook of an event is Integration's) |
 | **Audit & Activity** | `ActivityEntry`, the audit trail | Append-only; the activity entry is the item history |
 | **Media** | `MediaObject` | Covers and attachments, presigned upload (§8.4) |
 | **Search** | Full text, optionally vector | |
@@ -250,6 +262,19 @@ graph LR
 | **Privacy** | Data subject requests, consent | [data-protection.md](./data-protection.md) |
 | **Sync** | Devices, mutations, the change log | [offline-sync.md](./offline-sync.md) |
 | **Suggestions** | `Suggestion` | AI proposals; nothing changes until a person accepts ([ai-first.md](./ai-first.md)) |
+| **Workflow** | an entry type's statuses in categories, steps with who may take them, the scheme per hub, forms per channel | A workflow is published as a draft first; its preview says what it moves (UC-FLW-*) |
+| **Configuration** | `Revision`, `Proposal`, `Sandbox`, `Template`, `Finding` | One document per workspace and hub: plan, apply, versions, rollback, templates, the check ([configuration.md](./configuration.md)) |
+| **Knowledge** | `Page`, `Article`, `Comment`, `Share`, `File` | Pages in a hub's space, versions, review dates, references (UC-DOC-*) |
+| **Whiteboard** | `Board`, `Element`, `Scene`, `Comment` | A live document beside its saved projection (UC-CNV-*) |
+| **Realtime** | `Ref`, `Update`, `Snapshot`, `Head` | Live documents of pages and boards: the server relays and keeps the updates, clients merge ([offline-sync.md](./offline-sync.md) §13) |
+| **Planning** | `Baseline`, `Variance`, `Estimate`, `Release`, sprints, dependencies, the time tolerance | Scheduling with lags, critical path, baselines; the roadmap is read from Goals' portfolio (UC-PLN-*) |
+| **Timekeeping** | time records, `CostRate`, `BillingRate`, `Budget`, `Burn` | Approved records are kept, a person erased is pseudonymised (UC-TIM-*) |
+| **Goals & Portfolio** | `Goal`, `KeyResult`, `Dashboard`, `Widget`, `Digest` | Goals, a portfolio's health and roadmap, dashboards and their mailed digests (UC-GOL-*) |
+| **Service desk** | `Calendar` (business hours), SLA policies, `Approval`, `Organisation`, the portal, replies, satisfaction | Requests from people without an account, SLA clocks (UC-SVC-*) |
+| **CMDB** | configuration items (`Asset`), relations, `Affected`, change windows, `Disposal` | CIs are switched off, never deleted (UC-AST-*) |
+| **Calendars** | `BusinessCalendar`, `Span`, `Timer` | Working time shared by SLAs, planning and rules; an installation's calendar is the fallback |
+| **Connectors** | file links, forge hooks, mailboxes, inventory connectors | Each outbound call through `GuardedClient` (rule 6) |
+| **Agents** | `Agent`, `Policy`, `Budget`, `Run`, `Action`, provenance marks | Registered agents with a policy per act class; the ledger is kept 13 months (UC-AGT-*) |
 
 Imports and jobs are supporting packages (`importer`, `job`), not contexts of their own.
 
@@ -262,6 +287,8 @@ The rules behind each element are in [domain-model.md](./domain-model.md).
 | `WorkItem` | Aggregate root | The item, with `version` for optimistic locking |
 | `ItemCapabilityProfile` | Domain policy | An `ItemType`'s features, maximum depth and permitted child types |
 | `Hierarchy` | Domain service | Parent-child rules, depth, no cycles, moving subtrees |
+| `LinkType`, `EntryLink` | Entities | Typed relations between entries; cardinality and cycle rule decided under the workspace's link lock |
+| `Reference` | Value object | A pointer to any object (P-19), resolved for the reader by `ResolveReferences` |
 | `Ordering` | Value object | The sort key, a fractional index |
 | `CompletionPolicy` | Domain policy | Optional, per collection: a parent completes once all its children have |
 | `AssignmentStrategy` | Interface + strategies | `FIXED`, `RANDOM_MEMBER`, `RANDOM_GROUP_MEMBER`, `ROUND_ROBIN`, `LEAST_LOADED` (§3.6 there) |
@@ -363,6 +390,21 @@ have no other home.
 ### 8.1 Domain model and generalisation
 [domain-model.md](./domain-model.md): one `WorkItem` with an `ItemType` and a capability profile,
 containers generalised the same way, extension through configuration and typed custom fields.
+A field's values live in the entry's `custom_fields` document, which every read answers, and in
+its typed projection `entry_field_value`, which a trigger keeps in the same transaction and which
+the query language ranges, sorts and groups over (domain-model.md §6, F-2).
+Entries relate by typed links (`LinkType`, `EntryLink`): six shipped types and a workspace's own,
+each with a direction, a cardinality, a cycle rule and which end waits - the dependencies a
+timeline draws. Anything points at anything by one reference (`kind`, `id`, `anchor`), drawn as a
+mention, a card or a live view and resolved for the reader, never carrying a copy; what an entry's
+notes and comments point at is a projection a trigger keeps, which backlinks read (F-3, P-19).
+A workspace's configuration is one document of sections by stable key, read and written only
+through the use cases each section declares, so a plan applied by `hubctl`, an agent or the
+*Changes* screen is held to what the settings screens are held to; every apply is a version, an
+agent's plan waits for a person by default, and templates are versioned documents taken with
+provenance and upgraded three ways; a hub has its own document by the same doors, and a sandbox
+lets an agent change a copy freely, promoted with a plan (domain-model.md, "The configuration
+document"; F-6).
 
 ### 8.2 Persistence
 PostgreSQL is the only mandatory component ([ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md)):
@@ -522,6 +564,11 @@ Where a scenario has been walked, its evidence file is linked; QS-24 to QS-27 ar
 | QS-25 | A device offline for 90 days knows items deleted since | `sync.cursor_too_old` forces a full sync; deleted objects stay gone (SY-5, RE-6) |
 | QS-26 | Access to a collection lost while offline | `ACCESS_REVOKED` in the pull stream, local deletion, mutations refused (SY-6) |
 | QS-27 | A device clock three hours out | The HLC bound stops it outvoting everyone else (SY-2) |
+| QS-28 | 10⁶ and 10⁷ entries in a long tail of workspaces | Each read path that grows with a workspace holds without a server error; requests per vCPU and P95 per path and workspace from `make capacity` (F-10): 10⁶ measured on 2026-10-31 (`docs/evidence/capacity-1000000-2026-10-31.md`), 10⁷ *not measured* |
+| QS-29 | One workspace's job storm beside another's single job, several workers claiming | The quiet workspace's job is claimed first: a tenant's turn starts after the jobs it already runs (`ClaimJobs`, multi-tenancy.md §4) |
+| QS-30 | A four-hour SLA armed on Friday at 15:00, office hours, a holiday ahead | Due on Monday at 11:00 working time, through a restart: the timer is a row fired by `timer.fire` (domain-model.md §3.7) |
+| QS-31 | Two people type into one page at once, one of them on a second API replica, a third loses access mid-session | Both see each other's updates within a second of the commit (the change stream's doorbell); the third's connection closes with `4403` on the next update; the snapshot and the updates after it open the page whatever retention removed ([offline-sync.md](./offline-sync.md) §13; `presentation/realtime`'s and the realtime service's tests) |
+| QS-32 | A board of 5,000 objects on a mid-range laptop, two people drawing on it | The canvas draws only the objects the viewport shows (`culled`) and each object is one map of the live document, so both people's objects and changes survive; a scene past 5,000 objects is refused (`whiteboards.too_many_elements`; `packages/whiteboard`'s tests, domain-model.md §3.9). Carried and zoomed at its own size and zoomed out as far as the view goes, it keeps 50 frames a second or more and opens in under 3 seconds (UC-CNV-01 check 10, a Playwright run in Chromium, `apps/webapp/e2e/whiteboardframes.test.mjs`; 60 fps measured) |
 
 ---
 

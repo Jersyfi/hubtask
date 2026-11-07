@@ -16,14 +16,15 @@
  * and re-reading it per picker would be a request per keystroke's worth of nothing.
  */
 
-import type { GroupDetail, Membership, MembershipPage, MembershipRole, MembershipScope } from '@hubtask/sync-engine';
+import type { GroupDetail, InvitationDelivery, Membership, MembershipPage, MembershipRole, MembershipScope, SignInDetail } from '@hubtask/sync-engine';
 
 import { accounts } from './accounts.svelte.ts';
 import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
-import { handedOverLink } from '../people/invitation.ts';
-import { candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
+import { customRoleOf, handedOverLink } from '../people/invitation.ts';
+import { roles } from './roles.svelte.ts';
+import { administratorsOf, candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, readWhole, scopeAnswer, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
 const TOUCHES = ['/memberships'];
@@ -44,6 +45,8 @@ class People {
   #groups = $state<Record<string, readonly string[]>>({});
   #openScopes = new Map<string, () => void>();
   #askedGroups = new Set<string>();
+  /** The scopes being read on to their last page. */
+  #walking = new Set<string>();
 
   /**
    * Starts reading every scope along a path, and stops when the caller lets go.
@@ -90,7 +93,8 @@ class People {
 
   /**
    * The reader's effective role along a path - the role the server decides an entry by - or
-   * `undefined` while any part of the answer is still out (`effectiveRole`). Opens nothing: the
+   * `undefined` while any part of the answer is still out (`effectiveRole`), a scope whose later
+   * pages are still being read included (`scopeAnswer`). Opens nothing: the
    * caller has opened the path, as every screen reading people along one does.
    *
    * A path through a hub whose standing is not yet known is unknown too: on a private hub the
@@ -101,7 +105,7 @@ class People {
     const isPrivate = path.hubId ? containers.find(path.hubId)?.private === true : false;
     const answers = scopesInForce(path, isPrivate).map((scope) => {
       const key = membershipsPath(scope);
-      return this.#refused[key] ? ('refused' as const) : this.#scopes[key];
+      return scopeAnswer(this.#scopes[key], this.#complete[key] ?? false, this.#refused[key] ?? false);
     });
     this.#resolveGroups(answers.flatMap((answer) => (Array.isArray(answer) ? answer : [])));
     return effectiveRole({ answers, accountId, groupMembers: this.#groups, order });
@@ -113,6 +117,18 @@ class People {
     this.#resolveGroups(memberships);
     const ids = candidatesOf(memberships, this.#groups);
     // The names come from the accounts cache, which is where every other screen gets them.
+    accounts.resolve(ids);
+    return ids;
+  }
+
+  /**
+   * Who may change the workspace, of the workspace's memberships read so far (`open({})` first):
+   * whom *Ask an administrator* names. Empty where the reader may not read them.
+   */
+  administrators(may: (role: MembershipRole) => boolean): readonly string[] {
+    const memberships = this.#scopes[membershipsPath({ scopeType: 'TENANT' })] ?? [];
+    this.#resolveGroups(memberships);
+    const ids = administratorsOf(memberships, this.#groups, may);
     accounts.resolve(ids);
     return ids;
   }
@@ -196,7 +212,7 @@ class People {
   async invite(
     email: string,
     displayName: string | undefined,
-    role: MembershipRole,
+    role: string,
     scope: Scope,
   ): Promise<{ readonly link?: string; readonly grantFailure?: unknown }> {
     const intent = crypto.randomUUID();
@@ -209,11 +225,45 @@ class People {
     const link = handedOverLink(answer);
     try {
       if (!answer?.id) throw new Error('the invitation answered no account');
-      await this.grant({ accountId: answer.id }, role, scope);
+      // A role of the workspace's own is a role grant, not a membership (domain-model.md §3.2).
+      const custom = customRoleOf(role);
+      if (custom === undefined) await this.grant({ accountId: answer.id }, role as MembershipRole, scope);
+      else if (scope.scopeType === 'ITEM') throw new Error('a role of the workspace is not granted on an entry here');
+      else {
+        await roles.grant({ role: custom, scope_type: scope.scopeType, ...(scope.scopeId ? { scope_id: scope.scopeId } : {}), account_id: answer.id });
+        await this.#reread(scope);
+      }
     } catch (grantFailure) {
       return link === undefined ? { grantFailure } : { link, grantFailure };
     }
     return link === undefined ? {} : { link };
+  }
+
+  /**
+   * How the last invitation mail to each of these accounts went (user-experience.md §8.3), read
+   * afresh: it answers a question about the queue, which moves on its own.
+   */
+  async invitationDeliveries(accountIds: readonly string[]): Promise<InvitationDelivery[]> {
+    if (accountIds.length === 0) return [];
+    const state = await engine.refresh<{ data: InvitationDelivery[] }>({
+      path: '/accounts:invitation-deliveries', body: { ids: accountIds.slice(0, 200) },
+    });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
+  }
+
+  /**
+   * Each person's address and whether an authenticator app stands, for whoever manages members:
+   * what the summary every member reads leaves out. Read afresh, since a person sets up or removes
+   * an app on their own.
+   */
+  async signInDetails(accountIds: readonly string[]): Promise<SignInDetail[]> {
+    if (accountIds.length === 0) return [];
+    const state = await engine.refresh<{ data: SignInDetail[] }>({
+      path: '/accounts:sign-in-details', body: { ids: accountIds.slice(0, 200) },
+    });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
   }
 
   /**
@@ -226,6 +276,24 @@ class People {
       `/accounts/${accountId}:renew-invitation`,
       undefined,
       { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES },
+    );
+    return handedOverLink(answer);
+  }
+
+  /**
+   * *Copy invitation link* where mail is sent (user-experience.md §8.3): a renewal that answers a
+   * link instead of queuing the mail, and cancels the mail still waiting. The link is a way in for
+   * the reader, so it asks for a fresh proof first. No idempotency key: the answer carries the
+   * link, which the server stores nowhere a replay could read it back from.
+   */
+  async handOverInvitation(accountId: string): Promise<string | undefined> {
+    const answer = await stepUp.around((stepUpToken) =>
+      engine.mutate<{ invitation_link?: string | null } | undefined>(
+        'POST',
+        `/accounts/${accountId}:renew-invitation`,
+        { delivery: 'LINK' },
+        { invalidates: TOUCHES, stepUpToken },
+      ),
     );
     return handedOverLink(answer);
   }
@@ -285,6 +353,19 @@ class People {
   }
 
   /**
+   * Resets the second factor of a person who lost the app and the recovery codes (fifth answers
+   * 6): behind a fresh proof, every session of that account ended. Nothing a screen holds changes.
+   */
+  async resetSecondFactor(accountId: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate<void>('POST', `/accounts/${accountId}:reset-second-factor`, undefined, {
+        invalidates: [],
+        stepUpToken,
+      }),
+    );
+  }
+
+  /**
    * Sends the link that gives a managed account an address (ADR-0074 §6). Nothing changes until
    * somebody holding that mailbox follows it, so nothing a screen holds is stale.
    */
@@ -319,8 +400,25 @@ class People {
       }
       if (next.status !== 'ready') return;
       this.#keep(path, next.data);
+      void this.#readOn(path, next.data);
     });
     this.#openScopes.set(path, stop);
+  }
+
+  /** Reads a scope on to its last page; each page arrives through the subscription above. */
+  async #readOn(path: string, first: MembershipPage): Promise<void> {
+    if (this.#walking.has(path)) return;
+    this.#walking.add(path);
+    try {
+      await readWhole(first, async () => {
+        const state = await engine.loadMore<MembershipPage>({ path });
+        return state.status === 'ready' ? state.data : undefined;
+      });
+    } catch {
+      // A page that did not arrive leaves the scope incomplete: its roles stay unknown, never wrong.
+    } finally {
+      this.#walking.delete(path);
+    }
   }
 
   /**

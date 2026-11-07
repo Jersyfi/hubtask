@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import * as Y from 'yjs';
+
+import { Board, MAX_ELEMENTS, type Element } from '../src/index.ts';
+
+const sticky = (id: string, x = 0): Element => ({ id, kind: 'STICKY', x, y: 0, width: 160, height: 160, text: id, color_token: 'amber' });
+
+/** Two devices' documents kept in step, as the live document's connection does. */
+function pair(): [Board, Board] {
+  const a = new Y.Doc();
+  const b = new Y.Doc();
+  a.on('update', (update: Uint8Array) => Y.applyUpdate(b, update, 'remote'));
+  b.on('update', (update: Uint8Array, origin: unknown) => {
+    if (origin !== 'remote') Y.applyUpdate(a, update, 'remote');
+  });
+  return [new Board(a), new Board(b)];
+}
+
+test('objects are drawn in the order they were put on the board, and to the front on asking (UC-CNV-01 check 1)', () => {
+  const board = new Board(new Y.Doc());
+  board.add(sticky('a'));
+  board.add({ id: 'b', kind: 'SHAPE', shape: 'DIAMOND', x: 300, y: 0, width: 120, height: 120 });
+  board.add({ id: 'l', kind: 'CONNECTOR', from: 'a', to: 'b', route: 'ELBOW', end: 'ARROW', x: 0, y: 0, width: 0, height: 0 });
+  assert.deepEqual(board.elements().map((e) => e.id), ['a', 'b', 'l']);
+  board.front('a');
+  assert.deepEqual(board.scene().map((e) => e.id), ['b', 'l', 'a']);
+  assert.equal(board.get('b')?.shape, 'DIAMOND');
+  assert.equal(board.get('l')?.from, 'a');
+});
+
+test('two people drawing at the same time both keep their objects and their changes (UC-CNV-01 check 4)', () => {
+  const [anna, bert] = pair();
+  anna.add(sticky('a'));
+  bert.add(sticky('b', 300));
+  anna.update('b', { text: 'Anna wrote here' });
+  bert.move(['a'], 40, 0);
+  for (const board of [anna, bert]) {
+    assert.deepEqual(board.elements().map((e) => e.id).sort(), ['a', 'b']);
+    assert.equal(board.get('a')?.x, 40);
+    assert.equal(board.get('b')?.text, 'Anna wrote here');
+  }
+});
+
+test('taking an object off the board takes the connectors attached to it; a locked one does not move', () => {
+  const board = new Board(new Y.Doc());
+  board.add(sticky('a'));
+  board.add({ ...sticky('b', 300), locked: true });
+  board.add({ id: 'l', kind: 'CONNECTOR', from: 'a', to: 'b', x: 0, y: 0, width: 0, height: 0 });
+  board.move(['a', 'b'], 10, 10);
+  assert.equal(board.get('a')?.x, 10);
+  assert.equal(board.get('b')?.x, 300);
+  board.remove(['a']);
+  assert.deepEqual(board.elements().map((e) => e.id), ['b']);
+});
+
+test('a sticky note becomes the card of its entry in its place, its connectors still attached (UC-CNV-02 check 1)', () => {
+  const board = new Board(new Y.Doc());
+  board.add(sticky('a', 50));
+  board.add(sticky('b', 400));
+  board.add({ id: 'l', kind: 'CONNECTOR', from: 'a', to: 'b', x: 0, y: 0, width: 0, height: 0 });
+  assert.equal(board.toCard('a', '0192f000-0000-7000-8000-000000000001'), true);
+  const card = board.get('a');
+  assert.equal(card?.kind, 'CARD');
+  assert.deepEqual(card?.target, { kind: 'ENTRY', id: '0192f000-0000-7000-8000-000000000001' });
+  assert.equal(card?.x, 50);
+  assert.equal(card?.text, undefined);
+  assert.equal(board.get('l')?.from, 'a');
+  assert.equal(board.toCard('l', 'x'), false, 'only a sticky note or a shape becomes a card');
+});
+
+test('a shape with words becomes the card of its entry in its place (UC-CNV-02 check 8)', () => {
+  const board = new Board(new Y.Doc());
+  board.add({ id: 'd', kind: 'SHAPE', shape: 'DIAMOND', x: 70, y: 20, width: 120, height: 120, text: 'Approve?' });
+  assert.equal(board.toCard('d', '0192f000-0000-7000-8000-000000000002'), true);
+  const card = board.get('d');
+  assert.equal(card?.kind, 'CARD');
+  assert.equal(card?.shape, undefined);
+  assert.equal(card?.x, 70);
+});
+
+test('a saved scene seeds an empty document only, and the board stops at its limit (UC-CNV-01 check 5)', () => {
+  const board = new Board(new Y.Doc());
+  assert.equal(board.seed([sticky('a'), sticky('b')]), true);
+  assert.equal(board.seed([sticky('c')]), false);
+  assert.deepEqual(board.scene().map((e) => e.id), ['a', 'b']);
+  const full = new Board(new Y.Doc());
+  full.seed(Array.from({ length: MAX_ELEMENTS }, (_, i) => sticky(`e${i}`)));
+  assert.equal(full.add(sticky('one-more')), false);
+  assert.equal(full.size, MAX_ELEMENTS);
+});
+
+test('a picture keeps the upload it draws through the live document (UC-CNV-08 check 1)', () => {
+  const [a, b] = pair();
+  a.add({ id: 'i', kind: 'IMAGE', x: 0, y: 0, width: 320, height: 200, media_id: 'm1' });
+  assert.equal(b.scene()[0]?.media_id, 'm1');
+});
+
+test('a removal is undone and redone on the device that made it, and the seed is not undone', () => {
+  const [anna, bert] = pair();
+  anna.seed([sticky('s')]);
+  const history = anna.history();
+  assert.equal(history.canUndo, false, 'the seed is nobody\'s step');
+  anna.add(sticky('a'));
+  anna.add({ id: 'f', kind: 'FRAME', x: 0, y: 0, width: 400, height: 400 });
+  history.stopCapturing();
+  anna.remove(['a', 'f']);
+  assert.equal(bert.get('a'), undefined);
+  assert.equal(history.undo(), true);
+  assert.equal(anna.get('a')?.text, 'a');
+  assert.equal(bert.get('f')?.kind, 'FRAME', 'everyone gets the objects back');
+  assert.equal(history.redo(), true);
+  assert.equal(bert.get('a'), undefined);
+  assert.equal(anna.get('s')?.text, 's');
+});
+
+test('undo takes back only this device\'s changes, never another participant\'s', () => {
+  const [anna, bert] = pair();
+  const history = anna.history();
+  anna.add(sticky('a'));
+  history.stopCapturing();
+  bert.add(sticky('b', 300));
+  bert.update('a', { x: 50 });
+  assert.equal(history.undo(), true);
+  assert.equal(anna.get('b')?.text, 'b', 'the other participant\'s object stays');
+  assert.equal(history.undo(), false);
+});
+
+test('a version brought back is undone in one step', () => {
+  const board = new Board(new Y.Doc());
+  const history = board.history();
+  board.add(sticky('a'));
+  board.add(sticky('b', 300));
+  history.stopCapturing();
+  board.replace([sticky('old')]);
+  assert.deepEqual(board.elements().map((e) => e.id), ['old']);
+  history.undo();
+  assert.deepEqual(board.elements().map((e) => e.id).sort(), ['a', 'b']);
+});
+
+test('a connector attached, offline or at the same moment, to an object someone else took off is gone with it, so the scene still saves', () => {
+  const anna = new Board(new Y.Doc());
+  anna.add(sticky('a'));
+  anna.add(sticky('b', 300));
+  const bert = new Board(new Y.Doc());
+  Y.applyUpdate(bert.doc, Y.encodeStateAsUpdate(anna.doc));
+  anna.remove(['a']);
+  bert.add({ id: 'l', kind: 'CONNECTOR', from: 'a', to: 'b', x: 0, y: 0, width: 0, height: 0 });
+  Y.applyUpdate(anna.doc, Y.encodeStateAsUpdate(bert.doc));
+  Y.applyUpdate(bert.doc, Y.encodeStateAsUpdate(anna.doc));
+  for (const board of [anna, bert]) {
+    assert.deepEqual(board.scene().map((e) => e.id), ['b']);
+    assert.equal(board.get('l'), undefined);
+  }
+});

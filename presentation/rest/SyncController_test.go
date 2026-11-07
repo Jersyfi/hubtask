@@ -102,9 +102,13 @@ func TestAPullMapsTheRequestAndThePage(t *testing.T) {
 		HasMore             bool             `json:"has_more"`
 		ServerTime          string           `json:"server_time"`
 		TombstoneWindowDays int              `json:"tombstone_window_days"`
+		SkippedKinds        []string         `json:"skipped_kinds"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decoding: %v", err)
+	}
+	if strings.Contains(recorder.Body.String(), "skipped_kinds") {
+		t.Error("a page that skipped nothing carries skipped_kinds")
 	}
 	if body.Cursor != "cursor-8" || !body.HasMore || body.TombstoneWindowDays != 90 ||
 		body.ServerTime != "2026-08-24T09:00:00Z" {
@@ -251,7 +255,9 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 			{OpID: shared.MustParseID("0192f000-0000-7000-8000-000000000f01"), Result: "APPLIED",
 				EntityID: itemID, ServerState: map[string]any{"title": "Fix the tap"}},
 			{OpID: shared.MustParseID("0192f000-0000-7000-8000-000000000f02"), Result: "REJECTED",
-				Error: &syncservice.ResultError{Code: "gone", MessageCode: "sync.gone"}},
+				Error: &syncservice.ResultError{Code: "gone", MessageCode: "sync.gone",
+					Params: map[string]string{"since": "2026-01-01"},
+					Fields: []shared.FieldError{{Path: "/title", Code: "work.title_too_long", Params: map[string]string{"max": "500"}}}}},
 		},
 		Cursor: syncservice.Position{Seq: 9, IssuedAt: streamNow}, ServerTime: streamNow,
 	}}
@@ -269,7 +275,10 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 				 "payload": {"type": "TASK", "title": "Fix the tap"}},
 				{"op_id": "0192f000-0000-7000-8000-000000000f02", "kind": "ITEM_PATCH",
 				 "item_id": "0192f000-0000-7000-8000-0000000000e1", "base_version": 3,
-				 "fields": {"title": {"value": "x", "hlc": "1757937600000:00002:dev-a"}}}
+				 "fields": {"title": {"value": "x", "hlc": "1757937600000:00002:dev-a"}}},
+				{"op_id": "0192f000-0000-7000-8000-000000000f03", "kind": "ENTITY_UPSERT",
+				 "entity": "link_type", "entity_key": "feeds", "base_version": 2,
+				 "payload": {"name": "Feeds"}}
 			]}`)))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -280,8 +289,12 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 
 	// The queue, mapped field for field.
 	if pusher.request.DeviceID != "0192f000-0000-7000-8000-0000000000d1" || pusher.request.Platform != "hubctl" ||
-		len(pusher.request.Mutations) != 2 {
+		len(pusher.request.Mutations) != 3 {
 		t.Fatalf("the request reached the service as %+v", pusher.request)
+	}
+	if third := pusher.request.Mutations[2]; third.Kind != "ENTITY_UPSERT" || third.Entity != "link_type" ||
+		third.EntityKey != "feeds" || *third.BaseVersion != 2 || third.Payload["name"] != "Feeds" {
+		t.Errorf("the entity mutation is %+v", third)
 	}
 	first, second := pusher.request.Mutations[0], pusher.request.Mutations[1]
 	if first.Kind != "ITEM_CREATE" || first.ItemID != itemID || first.HLC != "1757937600000:00001:dev-a" ||
@@ -307,8 +320,14 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 		body.Results[0]["server_state"].(map[string]any)["title"] != "Fix the tap" {
 		t.Errorf("the first result is %v", body.Results[0])
 	}
-	if failure, ok := body.Results[1]["error"].(map[string]any); !ok || failure["message_code"] != "sync.gone" {
+	failure, ok := body.Results[1]["error"].(map[string]any)
+	if !ok || failure["message_code"] != "sync.gone" || failure["params"].(map[string]any)["since"] != "2026-01-01" {
 		t.Errorf("the second result is %v", body.Results[1])
+	}
+	if fields, _ := failure["field_errors"].([]any); len(fields) != 1 ||
+		fields[0].(map[string]any)["path"] != "/title" || fields[0].(map[string]any)["code"] != "work.title_too_long" ||
+		fields[0].(map[string]any)["params"].(map[string]any)["max"] != "500" {
+		t.Errorf("the refusal's fields are %v", failure["field_errors"])
 	}
 	if len(signals.results) != 2 || signals.results[1] != "REJECTED" {
 		t.Errorf("counted %v", signals.results)
@@ -324,5 +343,21 @@ func TestAnInstallationWithoutThePushAnswersPending(t *testing.T) {
 	controller.Routes().ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusNotFound {
 		t.Errorf("status %d, want the pending 404", recorder.Code)
+	}
+}
+
+// A kind the walk skipped is named to the device (offline-sync.md §3.1).
+func TestAPullNamesTheKindsItSkipped(t *testing.T) {
+	puller := &fakePuller{page: syncservice.Page{
+		Cursor: syncservice.Position{Seq: 8, IssuedAt: streamNow, Skipped: "label"}, ServerTime: streamNow,
+		Window: 90 * 24 * time.Hour, SkippedKinds: []string{"label"},
+	}}
+	recorder, _ := pull(t, puller, `{"device_id": "0192f000-0000-7000-8000-0000000000d1"}`, true)
+	var body struct {
+		SkippedKinds []string `json:"skipped_kinds"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil || len(body.SkippedKinds) != 1 ||
+		body.SkippedKinds[0] != "label" {
+		t.Errorf("the page answered %s", recorder.Body.String())
 	}
 }

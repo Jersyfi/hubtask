@@ -1,0 +1,190 @@
+{
+  "key": "travel",
+  "version": 2,
+  "document": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "fields": {
+      "trip_kind": {
+        "name": "Kind",
+        "kind": "SELECT",
+        "applies_to": [
+          "TASK"
+        ],
+        "options": [
+          "Flight",
+          "Train",
+          "Accommodation",
+          "Car",
+          "Ticket",
+          "Insurance"
+        ]
+      },
+      "trip_starts_at": {
+        "name": "Starts at",
+        "kind": "DATE_TIME",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "trip_reference": {
+        "name": "Booking reference",
+        "kind": "TEXT",
+        "applies_to": [
+          "TASK"
+        ]
+      },
+      "trip_cost": {
+        "name": "Cost",
+        "kind": "MONEY",
+        "applies_to": [
+          "TASK"
+        ],
+        "currency": "EUR"
+      },
+      "trip_document": {
+        "name": "Document",
+        "kind": "FILE",
+        "applies_to": [
+          "TASK"
+        ]
+      }
+    },
+    "types": {
+      "trip_booking": {
+        "level": "TASK",
+        "name": "Booking",
+        "icon": "globe",
+        "color_token": "blue",
+        "workflow": true,
+        "form": {
+          "sections": [
+            {
+              "key": "booking",
+              "name": "Booking"
+            },
+            {
+              "key": "details",
+              "name": "Details"
+            }
+          ],
+          "fields": [
+            {
+              "key": "title",
+              "section": "booking",
+              "required": true
+            },
+            {
+              "key": "custom_fields.trip_kind",
+              "section": "booking"
+            },
+            {
+              "key": "custom_fields.trip_starts_at",
+              "section": "booking"
+            },
+            {
+              "key": "custom_fields.trip_reference",
+              "section": "details"
+            },
+            {
+              "key": "custom_fields.trip_cost",
+              "section": "details"
+            },
+            {
+              "key": "custom_fields.trip_document",
+              "section": "details"
+            },
+            {
+              "key": "notes",
+              "section": "details"
+            }
+          ]
+        }
+      }
+    },
+    "workflows": {
+      "trip_booking": {
+        "name": "Booking",
+        "shape": {
+          "initial": "planned",
+          "statuses": [
+            {
+              "key": "planned",
+              "name": "Planned",
+              "category": "TODO",
+              "color_token": "slate"
+            },
+            {
+              "key": "booked",
+              "name": "Booked",
+              "category": "IN_PROGRESS",
+              "color_token": "blue"
+            },
+            {
+              "key": "done",
+              "name": "Done",
+              "category": "DONE",
+              "color_token": "green"
+            },
+            {
+              "key": "cancelled",
+              "name": "Cancelled",
+              "category": "DONE",
+              "color_token": "slate"
+            }
+          ],
+          "steps": [
+            {
+              "key": "book",
+              "name": "Booked",
+              "from": [
+                "planned"
+              ],
+              "to": "booked"
+            },
+            {
+              "key": "finish",
+              "name": "Done",
+              "from": [
+                "booked"
+              ],
+              "to": "done"
+            },
+            {
+              "key": "cancel",
+              "name": "Cancel",
+              "from": [
+                "planned",
+                "booked"
+              ],
+              "to": "cancelled"
+            },
+            {
+              "key": "replan",
+              "name": "Plan again",
+              "from": [
+                "cancelled"
+              ],
+              "to": "planned"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hub": {
+    "modules": {
+      "workflows": {
+        "switch": "ON"
+      }
+    },
+    "scheme": {
+      "trip_booking": {
+        "workflow": "trip_booking"
+      }
+    }
+  }
+}

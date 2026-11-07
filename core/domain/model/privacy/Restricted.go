@@ -4,6 +4,7 @@
 package privacy
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -63,3 +64,14 @@ func (r Restricted) HasAddress(address string) bool {
 
 // Empty reports that nobody is restricted.
 func (r Restricted) Empty() bool { return len(r.accounts) == 0 }
+
+// Accounts are the restricted accounts, in a stable order, for a statement that keeps their rows
+// back by itself.
+func (r Restricted) Accounts() []shared.ID {
+	ids := make([]shared.ID, 0, len(r.accounts))
+	for id := range r.accounts {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}

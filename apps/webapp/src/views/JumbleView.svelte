@@ -27,6 +27,8 @@
 
   import { untrack } from 'svelte';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import {
     Banner,
     Button,
@@ -298,8 +300,8 @@
       {#if intakeAddress}<IntakeAddress address={intakeAddress} lead={t('app.mail.jumble_lead')} />{/if}
     </div>
 
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
-    {#if askFailure}<Banner tone="danger">{askFailure}</Banner>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
+    {#if askFailure}<FailureNote problem={askFailure} />{/if}
     <!-- Said once for the page rather than on every card it held back: proposals prepared on
          arrival met a spent budget, and the arrivals wait for somebody to ask. -->
     {#if hasAi && suggestions.arrivalBudgetSpent}

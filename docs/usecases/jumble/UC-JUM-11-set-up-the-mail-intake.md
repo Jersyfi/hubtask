@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
 state: built
 tasks: []
-checked_by: [core/application/service/mail/Settings_test.go, core/application/service/mail/Mailboxes_test.go, core/domain/model/mail/Settings_test.go, core/domain/model/mail/Mailbox_test.go, infrastructure/mailbox/IMAP_test.go, infrastructure/mailbox/JMAP_test.go, infrastructure/mailbox/OAuth_test.go, core/application/service/mail/OAuth_test.go, core/domain/model/mail/OAuth_test.go, test/integration/mail_intake_test.go, apps/webapp/e2e/mail.test.mjs]
+checked_by: [core/application/service/mail/Settings_test.go, core/application/service/mail/Mailboxes_test.go, core/domain/model/mail/Settings_test.go, core/domain/model/mail/Mailbox_test.go, infrastructure/mailbox/IMAP_test.go, infrastructure/mailbox/IMAPIdle_test.go, core/application/service/mail/Watch_test.go, presentation/worker/MailboxWatch_test.go, infrastructure/mailbox/JMAP_test.go, infrastructure/mailbox/Graph_test.go, infrastructure/mailbox/OAuth_test.go, core/application/service/mail/OAuth_test.go, core/domain/model/mail/OAuth_test.go, test/integration/mail_intake_test.go, apps/webapp/e2e/mail.test.mjs, core/domain/model/lifecycle/Retention_test.go]
 ---
 
 # Set up the mail intake
@@ -60,10 +60,22 @@ says *In the jumble · Sender not allowed*.
    the page and connects the mailbox after one sign-in with the token; a refusal, an answer later
    than ten minutes, a used or someone else's state connect nothing and say why. The refresh token
    is sealed, and a grant the provider withdraws shows on the mailbox.
+9. *Connect with Microsoft 365 (Graph)* connects a Microsoft 365 or Outlook.com mailbox whose
+   organisation switched IMAP off: the same sign-in through the operator's Microsoft app, asking
+   for Graph's mail scope, and a mailbox read as `GRAPH` with no server named - the inbox oldest
+   first since connecting, each filed message marked read and moved to *Hubtask*, which is made
+   the first time; a token Graph refuses is said as a refused sign-in.
+10. An IMAP mailbox whose server announces new mail (IDLE) is held open by one server of the
+   installation, and a message that arrives is read within seconds instead of at the next minute;
+   a server without IDLE, a hold that breaks off or a server of the installation that stops leave
+   the read every minute, which stays.
 
 ## Where it ends
 
 * Custom domains are a later step on the same intake
   ([ADR-0094](../../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)).
-* At most five mailboxes per workspace; no IDLE yet - a minute is the delay.
+* A workspace connects as many mailboxes as its quota `mailboxes` allows, 5 by default in both
+  modes (multi-tenancy.md §4); past it a new one is refused `422 capacity.mailboxes`, and the
+  connected ones keep being read. IDLE is IMAP's alone: a JMAP or Graph mailbox, and the
+  mailboxes past the first 1000 an installation holds, are read every minute.
 * No per-collection sender level: the level is the workspace's, the rules file by sender.

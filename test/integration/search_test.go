@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -554,5 +555,90 @@ func TestAWordlessSearchStaysInsideItsWorkspace(t *testing.T) {
 	elsewhere := searched(ctx, t, tenantB, wordless)
 	if len(elsewhere.Hits) != 0 {
 		t.Errorf("the other workspace's search found %d of this one's entries", len(elsewhere.Hits))
+	}
+}
+
+// An entry is found by what was said about it (F-9): a word only its comment carries finds the
+// entry, through the index migration 0232 built.
+func TestAnEntryIsFoundByItsComment(t *testing.T) {
+	ctx := context.Background()
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	word := "Kommentarwort" + shortSuffix(t)
+
+	task := taskIn(tenantA, authorA, collection, freshID(t), "Plain title", "a0")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return insertErr(itemRepo().Insert(ctx, task))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	seedComment(ctx, t, tenantA, task.ID, authorA, "Noted: "+word, time.Now().UTC())
+
+	titles := found(ctx, t, tenantA, searchWithin(collection, word, "en"))
+	if len(titles) != 1 || titles[0] != "Plain title" {
+		t.Errorf("a word in a comment found %v", titles)
+	}
+}
+
+// An entry found by its comment ranks by how well the comment matched (F-9): the comment that holds
+// every word comes before the one that holds only one of them, where before both ranked at zero.
+func TestACommentHitIsRankedByTheComment(t *testing.T) {
+	ctx := context.Background()
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	word := "Rangwort" + shortSuffix(t)
+
+	weak := taskIn(tenantA, authorA, collection, freshID(t), "Weak match", "a0")
+	strong := taskIn(tenantA, authorA, collection, freshID(t), "Strong match", "a1")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := insertErr(itemRepo().Insert(ctx, weak)); err != nil {
+			return err
+		}
+		return insertErr(itemRepo().Insert(ctx, strong))
+	}); err != nil {
+		t.Fatalf("seeding the entries: %v", err)
+	}
+	seedComment(ctx, t, tenantA, weak.ID, authorA, word+" and much else beside it in a long remark", time.Now().UTC())
+	seedComment(ctx, t, tenantA, strong.ID, authorA, word+" "+word+" "+word, time.Now().UTC())
+
+	titles := found(ctx, t, tenantA, searchWithin(collection, word, "en"))
+	if len(titles) != 2 || titles[0] != "Strong match" {
+		t.Errorf("the comment hits came back as %v", titles)
+	}
+}
+
+// An entry is found by the file it carries (F-9): a word only an attachment's name holds finds the
+// entry, through the index migration 0233 built, and a removed file no longer does.
+func TestAnEntryIsFoundByItsAttachmentName(t *testing.T) {
+	ctx := context.Background()
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	word := "Anhangwort" + shortSuffix(t)
+
+	task := taskIn(tenantA, authorA, collection, freshID(t), "Plain title", "a0")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return insertErr(itemRepo().Insert(ctx, task))
+	}); err != nil {
+		t.Fatalf("seeding the entry: %v", err)
+	}
+	media := freshID(t)
+	pool := adminPool(ctx, t)
+	if _, err := pool.Exec(ctx, `INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status, file_name)
+		VALUES ($1, $2, $3, 'application/pdf', 12, 'ATTACHMENT', 'READY', $4)`,
+		media.String(), tenantA.String(), "test/"+media.String(), word+"_2026.pdf"); err != nil {
+		t.Fatalf("the file: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO item_attachment (tenant_id, item_id, media_id) VALUES ($1, $2, $3)`,
+		tenantA.String(), task.ID.String(), media.String()); err != nil {
+		t.Fatalf("attaching: %v", err)
+	}
+
+	titles := found(ctx, t, tenantA, searchWithin(collection, word, "en"))
+	if len(titles) != 1 || titles[0] != "Plain title" {
+		t.Errorf("a word in an attachment's name found %v", titles)
+	}
+
+	if _, err := pool.Exec(ctx, `UPDATE media_object SET deleted_at = now() WHERE id = $1`, media.String()); err != nil {
+		t.Fatalf("removing the file: %v", err)
+	}
+	if titles := found(ctx, t, tenantA, searchWithin(collection, word, "en")); len(titles) != 0 {
+		t.Errorf("a removed file still found %v", titles)
 	}
 }

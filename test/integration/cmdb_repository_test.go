@@ -1,0 +1,331 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+//go:build integration
+
+package integration
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+)
+
+func seedCIs(ctx context.Context, t *testing.T) (hub, app, vm shared.ID) {
+	t.Helper()
+	seedContainerTenants(ctx, t)
+	hub, app, vm = freshID(t), freshID(t), freshID(t)
+	at := time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC)
+	repo := postgres.NewCmdbRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, freshName(t), "a0")); err != nil {
+			return err
+		}
+		for _, ci := range []cmdb.CI{
+			{ID: app, HubID: hub, Class: "application_service", Name: "Shop", Stage: cmdb.StageInUse, Status: cmdb.StatusOK,
+				Compliance: cmdb.Compliance{Quantity: 1, Protection: cmdb.OwnProtection{Protection: cmdb.Protection{A: cmdb.LevelHigh}}}},
+			{ID: vm, HubID: hub, Class: "virtual_machine", Name: "web1", Stage: cmdb.StageInUse, Status: cmdb.StatusOK,
+				Attributes: map[string]any{"hostname": "web1"}, Compliance: cmdb.Compliance{Quantity: 1}, LastSeen: &at},
+		} {
+			ci.CreatedBy, ci.CreatedAt, ci.UpdatedBy, ci.UpdatedAt, ci.Version = authorA, at, authorA, at, 1
+			if err := repo.InsertCI(ctx, ci); err != nil {
+				return err
+			}
+		}
+		if err := repo.PutIdentifiers(ctx, cmdb.CI{ID: vm, HubID: hub}, map[string]string{"hostname": "web1", "source:netbox": "7"}); err != nil {
+			return err
+		}
+		_, _, err := repo.PutRelation(ctx, cmdb.Relation{ID: freshID(t), HubID: hub, Type: cmdb.RelRunsOn, SourceCI: app, TargetCI: vm,
+			DataSource: cmdb.ManualSource, LastSeen: at, CreatedBy: authorA})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return hub, app, vm
+}
+
+// A CI is read as written, found by its identifiers, and the impact walks its relation's way
+// (migration 0243).
+func TestACIIsFoundByItsIdentifiersAndItsImpact(t *testing.T) {
+	ctx := context.Background()
+	hub, app, vm := seedCIs(ctx, t)
+	repo := postgres.NewCmdbRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		read, err := repo.FindCI(ctx, app, false)
+		if err != nil || read.Compliance.Protection.A != cmdb.LevelHigh || read.Class != "application_service" {
+			t.Errorf("CI %+v, %v", read, err)
+		}
+		rows, err := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"hostname": "web1"}})
+		if err != nil || len(rows) != 1 || rows[0].CI != vm || rows[0].Class != "virtual_machine" {
+			t.Errorf("identifiers %+v, %v", rows, err)
+		}
+		down, err := repo.Walk(ctx, vm, true, []string{cmdb.RelRunsOn}, nil, 5)
+		if err != nil || len(down) != 1 || down[0].CI != app || down[0].Depth != 1 {
+			t.Errorf("downstream %+v, %v", down, err)
+		}
+		up, err := repo.Walk(ctx, app, false, []string{cmdb.RelRunsOn}, nil, 5)
+		if err != nil || len(up) != 1 || up[0].CI != vm {
+			t.Errorf("upstream %+v, %v", up, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A value thousands of CIs share narrows nothing: the item's own native key and its rule's pairs
+// are found beside it, and a lookup wider than the bound is refused, never answered in part.
+// UC-AST-02 check 1: no second CI where a hub holds many CIs of one value.
+func TestALookupIsNotCrowdedOutByASharedValue(t *testing.T) {
+	ctx := context.Background()
+	hub, _, vm := seedCIs(ctx, t)
+	const sharing = cmdb.MaxLookupRows
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		WITH c AS (
+		  INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, created_by, created_at, updated_by, updated_at)
+		  SELECT gen_random_uuid(), $1, $2, 'server', 'host-' || g, 'IN_USE', 'OK', $3, now(), $3, now()
+		  FROM generate_series(1, $4::int) g RETURNING id, name)
+		INSERT INTO cmdb_ci_identifier (tenant_id, ci_id, hub_id, name, value)
+		SELECT $1, id, $2, n.name, CASE n.name WHEN 'manufacturer' THEN 'acme' ELSE c.name END
+		FROM c, (VALUES ('manufacturer'), ('serial_number')) n(name)`,
+		tenantA.String(), hub.String(), authorA.String(), sharing); err != nil {
+		t.Fatalf("seeding the CIs: %v", err)
+	}
+	repo := postgres.NewCmdbRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.PutIdentifiers(ctx, cmdb.CI{ID: vm, HubID: hub},
+			map[string]string{"hostname": "web1", "source:netbox": "7", "manufacturer": "acme", "serial_number": "s-7"}); err != nil {
+			return err
+		}
+		rows, err := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"source:netbox": "7"}, {"serial_number": "s-7", "manufacturer": "acme"}})
+		if err != nil {
+			return err
+		}
+		found := map[string]bool{}
+		for _, r := range rows {
+			if r.CI != vm {
+				t.Errorf("another CI answered: %+v", r)
+			}
+			found[r.Name] = true
+		}
+		if !found["source:netbox"] || !found["serial_number"] || !found["manufacturer"] || len(rows) != 3 {
+			t.Errorf("the item's rows %+v", rows)
+		}
+		if _, err := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"manufacturer": "acme"}}); !errors.Is(err, cmdb.ErrLookupTooWide) {
+			t.Errorf("a lookup of %d CIs past the bound of %d answered %v", sharing+1, cmdb.MaxLookupRows, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Another workspace finds no CI, no identifier, no relation and walks nothing.
+// UC-AST-01 check 6, UC-AST-05 check 4: the workspace half.
+func TestACIIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
+	ctx := context.Background()
+	hub, app, vm := seedCIs(ctx, t)
+	repo := postgres.NewCmdbRepository()
+	at := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.FindCI(ctx, app, true); err == nil {
+			t.Error("the workspace next door found the CI")
+		}
+		if err := repo.UpdateCI(ctx, cmdb.CI{ID: app, Name: "x", Stage: cmdb.StageInUse, Status: cmdb.StatusOK,
+			Compliance: cmdb.Compliance{Quantity: 1}, UpdatedBy: authorB, UpdatedAt: at}, 1); err == nil {
+			t.Error("the workspace next door wrote the CI")
+		}
+		if list, _ := repo.ListCIs(ctx, hub, nil, "", 10); len(list) != 0 {
+			t.Error("the workspace next door listed the CIs")
+		}
+		if rows, _ := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"hostname": "web1"}}); len(rows) != 0 {
+			t.Error("the workspace next door read the identifiers")
+		}
+		if rels, _ := repo.RelationsOf(ctx, vm); len(rels) != 0 {
+			t.Error("the workspace next door read the relations")
+		}
+		if down, _ := repo.Walk(ctx, vm, true, []string{cmdb.RelRunsOn}, nil, 5); len(down) != 0 {
+			t.Error("the workspace next door walked the impact")
+		}
+		if list, _ := repo.CIsByID(ctx, []shared.ID{app, vm}); len(list) != 0 {
+			t.Error("the workspace next door resolved the CIs")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The CIs an account owns are read across its workspace's hubs by name, merged and disposed ones
+// left out, and never in the workspace next door (UC-SVC-03 check 9, migration 0333).
+func TestTheCIsAnAccountOwnsStayInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, app, _ := seedCIs(ctx, t)
+	repo := postgres.NewCmdbRepository()
+	owner := freshID(t)
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	laptop, disposed, merged := freshID(t), freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, ci := range []cmdb.CI{
+			{ID: laptop, Name: "B laptop", Stage: cmdb.StageInUse},
+			{ID: disposed, Name: "A old laptop", Stage: cmdb.StageDisposed},
+			{ID: merged, Name: "A duplicate", Stage: cmdb.StageInUse, MergedInto: app},
+		} {
+			ci.HubID, ci.Class, ci.Status = hub, "laptop", cmdb.StatusOK
+			ci.Compliance = cmdb.Compliance{Quantity: 1, OwnerAccount: owner}
+			ci.CreatedBy, ci.CreatedAt, ci.UpdatedBy, ci.UpdatedAt, ci.Version = authorA, at, authorA, at, 1
+			if err := repo.InsertCI(ctx, ci); err != nil {
+				return err
+			}
+		}
+		list, err := repo.CIsOwnedBy(ctx, owner, 10)
+		if err != nil || len(list) != 1 || list[0].ID != laptop {
+			t.Errorf("owned %+v, %v; want the living laptop alone", list, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if list, _ := repo.CIsOwnedBy(ctx, owner, 10); len(list) != 0 {
+			t.Error("the workspace next door read the CIs the account owns")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A text's `hubtask:ci/<id>` is a reference the database keeps, as reference.Extract reads it
+// (migration 0244), and a reference table takes the kind.
+func TestACIAddressIsAReferenceOfTheText(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+	ci := freshID(t)
+	var kind, strength string
+	if err := admin.QueryRow(ctx,
+		`SELECT target_kind, strength FROM entry_references_of($1) WHERE target_id = $2`,
+		"runs on ![](hubtask:ci/"+ci.String()+")", ci.String(),
+	).Scan(&kind, &strength); err != nil || kind != "CI" || strength != "CARD" {
+		t.Fatalf("the address reads as %q %q, %v", kind, strength, err)
+	}
+	var allowed bool
+	if err := admin.QueryRow(ctx,
+		`SELECT pg_get_constraintdef(oid) LIKE '%''CI''%' FROM pg_constraint WHERE conname = 'whiteboard_reference_target_kind_check'`,
+	).Scan(&allowed); err != nil || !allowed {
+		t.Fatalf("a whiteboard reference takes the kind CI: %v, %v", allowed, err)
+	}
+}
+
+// The initial sync's walk of the inventory (offline reading) answers a workspace's own CIs and
+// relations, and none of the workspace next door's.
+func TestTheInventoryWalkStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	_, app, vm := seedCIs(ctx, t)
+	snapshot := postgres.NewSnapshotRepository()
+	seen := func(tenant shared.ID) (map[shared.ID]bool, int) {
+		found, relations := map[shared.ID]bool{}, 0
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			cis, err := snapshot.CIs(ctx, "", 5000)
+			if err != nil {
+				return err
+			}
+			for _, ci := range cis {
+				found[ci.ID] = true
+			}
+			rels, err := snapshot.CIRelations(ctx, "", 5000)
+			for _, r := range rels {
+				if r.SourceCI == app && r.TargetCI == vm {
+					relations++
+				}
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return found, relations
+	}
+	own, ownRelations := seen(tenantA)
+	if !own[app] || !own[vm] || ownRelations != 1 {
+		t.Errorf("the workspace's walk holds %v and %d relations, want both CIs and their relation", own, ownRelations)
+	}
+	next, nextRelations := seen(tenantB)
+	if next[app] || next[vm] || nextRelations != 0 {
+		t.Errorf("the workspace next door walked %v and %d relations", next, nextRelations)
+	}
+}
+
+// A connector, its sealed credential, its run record and its alerts are kept in its workspace
+// (migration 0245); the workspace next door finds none of them and cannot write them.
+func TestAConnectorAndItsAlertsStayInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, _, vm := seedCIs(ctx, t)
+	repo := postgres.NewCmdbConnectorRepository()
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	started := at.Add(-time.Hour)
+	conn := cmdb.Connector{ID: freshID(t), HubID: hub, Key: fmt.Sprintf("am_%d", fixtureCounter.Add(1)), Kind: cmdb.ConnectorAlertmanager,
+		Source: "alerts", Settings: map[string]string{}, Enabled: true, RunAs: authorA, CreatedAt: at, UpdatedAt: at, Version: 1}
+	alert := cmdb.Alert{ID: freshID(t), HubID: hub, Connector: conn.ID, Key: "disk", Status: cmdb.AlertFiring,
+		Title: "disk full", CI: vm, FirstAt: at, LastAt: at, Count: 1, StartedAt: &started}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.PutConnector(ctx, conn, 0); err != nil {
+			return err
+		}
+		if err := repo.SetCredential(ctx, conn.ID, []byte("sealed"), "k1", at); err != nil {
+			return err
+		}
+		if err := repo.PutAlert(ctx, alert); err != nil {
+			return err
+		}
+		seen, err := repo.SeeDigest(ctx, conn.ID, []byte("d1"), at, at.Add(-10*time.Minute))
+		if err != nil || !seen {
+			t.Errorf("a first delivery is new: %v %v", seen, err)
+		}
+		if again, _ := repo.SeeDigest(ctx, conn.ID, []byte("d1"), at, at.Add(-10*time.Minute)); again {
+			t.Error("a replayed delivery was taken as new")
+		}
+		read, err := repo.FindConnector(ctx, conn.ID, true)
+		if err != nil || !read.HasCredential || read.Version != 2 {
+			t.Errorf("connector %+v, %v", read, err)
+		}
+		found, err := repo.FindAlert(ctx, conn.ID, "disk")
+		if err != nil || found.CI != vm || found.Title != "disk full" || found.StartedAt == nil || !found.StartedAt.Equal(started) {
+			t.Errorf("alert %+v, %v", found, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.FindConnector(ctx, conn.ID, false); err == nil {
+			t.Error("the workspace next door found the connector")
+		}
+		if _, err := repo.Credential(ctx, conn.ID); err == nil {
+			t.Error("the workspace next door read the sealed credential")
+		}
+		if err := repo.SetCredential(ctx, conn.ID, []byte("x"), "k2", at); err == nil {
+			t.Error("the workspace next door replaced the credential")
+		}
+		if list, _ := repo.ListConnectors(ctx, ""); len(list) != 0 {
+			t.Error("the workspace next door listed the connectors")
+		}
+		if list, _ := repo.ListAlerts(ctx, hub, "", 10); len(list) != 0 {
+			t.Error("the workspace next door listed the alerts")
+		}
+		if _, err := repo.FindAlert(ctx, conn.ID, "disk"); err == nil {
+			t.Error("the workspace next door found the alert")
+		}
+		if sealed, _ := repo.SealedNotUnder(ctx, "k9"); len(sealed) != 0 {
+			t.Error("the workspace next door saw the sealed credentials")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

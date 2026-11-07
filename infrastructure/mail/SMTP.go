@@ -13,6 +13,7 @@ package mail
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"mime"
@@ -20,6 +21,7 @@ import (
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -77,9 +79,9 @@ func (s SMTP) Send(ctx context.Context, message port.Message) error {
 		return err
 	}
 	if s.config.Host == "" {
-		// Not configured is a dependency that is down rather than a programming error: an
-		// installation that never set HUBTASK_SMTP_HOST is one whose notifications wait, which is
-		// what /meta/health says about it (observability-reliability.md §7).
+		// Not configured is a dependency that is down rather than a programming error. A
+		// notification never gets here then - it is suppressed before the send
+		// (observability-reliability.md §7).
 		return unavailable(errors.New("no mail server is configured"))
 	}
 
@@ -202,7 +204,15 @@ func (s SMTP) compose(message port.Message) string {
 	}
 	out.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", message.Subject) + "\r\n")
 	out.WriteString("MIME-Version: 1.0\r\n")
-	out.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	// The boundary is fixed: no line of a quoted-printable or base64 part can contain it, because
+	// '=' followed by '_' is neither (RFC 2045 §6.7, §6.8) - which is why a body beside an
+	// attachment is always quoted-printable, ASCII or not.
+	const boundary = "=_hubtask_part"
+	if len(message.Attachments) > 0 {
+		out.WriteString("Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n")
+	} else {
+		out.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	}
 	// So that a mail client and an autoresponder both know this is machine-generated: RFC 3834
 	// asks for it, and it is what stops an out-of-office reply bouncing around a notification.
 	out.WriteString("Auto-Submitted: auto-generated\r\n")
@@ -215,7 +225,11 @@ func (s SMTP) compose(message port.Message) string {
 	// the relay's choice. Quoted-printable is what every receiver decodes and no relay touches;
 	// an ASCII body keeps the default, because encoding it would only fold its lines.
 	body := strings.ReplaceAll(message.Body, "\n", "\r\n")
-	if !isASCII(body) {
+	if len(message.Attachments) > 0 {
+		out.WriteString("\r\n--" + boundary + "\r\n")
+		out.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	}
+	if !isASCII(body) || len(message.Attachments) > 0 {
 		out.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
 		body = quotedPrintable(body)
 	}
@@ -223,6 +237,21 @@ func (s SMTP) compose(message port.Message) string {
 	// Dot-stuffing: a line that is a single dot would end the DATA command. net/smtp's writer
 	// does this itself, so the body goes in as it stands.
 	out.WriteString(body)
+	for _, attachment := range message.Attachments {
+		out.WriteString("\r\n--" + boundary + "\r\n")
+		out.WriteString("Content-Type: " + attachment.ContentType + "; charset=utf-8; name=\"" + attachment.Name + "\"\r\n")
+		out.WriteString("Content-Disposition: attachment; filename=\"" + attachment.Name + "\"\r\n")
+		out.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+		encoded := base64.StdEncoding.EncodeToString(attachment.Content)
+		for len(encoded) > 76 {
+			out.WriteString(encoded[:76] + "\r\n")
+			encoded = encoded[76:]
+		}
+		out.WriteString(encoded + "\r\n")
+	}
+	if len(message.Attachments) > 0 {
+		out.WriteString("\r\n--" + boundary + "--\r\n")
+	}
 	return out.String()
 }
 
@@ -276,7 +305,28 @@ func validate(message port.Message) error {
 		containsLineBreak(message.ReplyTo) {
 		return port.ErrHeaderInjection
 	}
+	total := 0
+	for _, attachment := range message.Attachments {
+		total += len(attachment.Content)
+		if !slices.Contains(port.AttachmentTypes, attachment.ContentType) || !plainFileName(attachment.Name) ||
+			total > port.MaxAttachmentBytes {
+			return port.ErrAttachmentRefused
+		}
+	}
 	return nil
+}
+
+// plainFileName holds a name to what needs no header encoding and cannot leave its quotes.
+func plainFileName(name string) bool {
+	if name == "" || len(name) > 100 {
+		return false
+	}
+	for _, r := range name {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '.' && r != '-' && r != '_' {
+			return false
+		}
+	}
+	return true
 }
 
 func containsLineBreak(value string) bool {
@@ -293,6 +343,10 @@ func unavailable(cause error) error {
 		WithCause(cause)
 }
 
+// RecipientRejected is the code of a message the mail server refused for good (a 5xx reply at RCPT
+// or DATA).
+const RecipientRejected = port.RecipientRejected
+
 // replyFailure is what a refusal from the server becomes: the step and the reply code, never the
 // reply text.
 //
@@ -301,10 +355,19 @@ func unavailable(cause error) error {
 // personal data in a log (rule 10). The number says as much as an operator can act on, and the
 // step says where the conversation stopped. The same reasoning the S3 adapter applies to an error
 // body that carries the key and the bucket.
+//
+// A permanent reply (5xx) at RCPT or DATA refuses this one message - a bounced address, a body the
+// server will not take - and is a validation error: asking again meets the same answer, and it must
+// not count against the breaker every workspace's mail shares. A 5xx at MAIL refuses the sender,
+// which every message shares, so it stays the dependency's failure, as does a 4xx anywhere.
 func replyFailure(step string, err error) error {
 	var reply *textproto.Error
 	if errors.As(err, &reply) {
-		return unavailable(fmt.Errorf("the mail server answered %d at %s", reply.Code, step))
+		cause := fmt.Errorf("the mail server answered %d at %s", reply.Code, step)
+		if reply.Code >= 500 && reply.Code < 600 && (step == "RCPT" || step == "DATA") {
+			return shared.ErrValidation.WithDetail(RecipientRejected).WithCause(cause)
+		}
+		return unavailable(cause)
 	}
 	// Not a reply but a transport failure: the connection went away mid-conversation, and what it
 	// carries is this side's view of a socket rather than anything the server said.

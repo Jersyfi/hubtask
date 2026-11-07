@@ -101,6 +101,8 @@ func TestADeviceRegistersByTurningUpAndEveryContactMovesIt(t *testing.T) {
 	}
 }
 
+// UC-SYN-03 check 2.
+// UC-SYN-03 check 5.
 func TestAnIdentifierAnotherAccountHoldsIsForeignAndAForgottenOneIsRevoked(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

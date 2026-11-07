@@ -17,8 +17,8 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "lint": "node ../../packages/design-system/build/lint-no-literals.js && node ../../packages/design-system/build/lint-direction.js && node ../../packages/design-system/build/lint-status.js",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
-    "test": "node --test \"src/**/*.test.ts\" \"build/*.test.js\"",
-    "test:engines": "node --test \"e2e/*.test.mjs\"",
+    "test": "node --test \"src/**/*.test.ts\" \"build/*.test.js\" && TZ=America/New_York node --test \"src/**/*.test.ts\" && TZ=Pacific/Kiritimati node --test \"src/**/*.test.ts\"",
+    "test:engines": "node --test \"e2e/!(whiteboardframes).test.mjs\" && node --test e2e/whiteboardframes.test.mjs",
     "desktop:icons": "tauri icon ../../packages/design-system/dist/mark/app-icon.svg --output src-tauri/icons && node build/check-shell-icons.js",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
@@ -27,8 +27,12 @@
   },
   "dependencies": {
     "@hubtask/design-system": "workspace:*",
+    "@hubtask/editor": "workspace:*",
+    "@hubtask/expression": "workspace:*",
     "@hubtask/sync-engine": "workspace:*",
-    "@tauri-apps/api": "2.12.4"
+    "@hubtask/whiteboard": "workspace:*",
+    "@tauri-apps/api": "2.12.4",
+    "emojibase-data": "18.0.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

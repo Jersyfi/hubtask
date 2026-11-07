@@ -1,0 +1,476 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package agent
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/agent"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/queue"
+)
+
+var (
+	ticket     = shared.MustParseID("01936f2a-7c1e-7000-8000-000000000101")
+	collection = shared.MustParseID("01936f2a-7c1e-7000-8000-000000000102")
+	hubID      = shared.MustParseID("01936f2a-7c1e-7000-8000-000000000103")
+	printer    = shared.MustParseID("01936f2a-7c1e-7000-8000-000000000104")
+	router     = shared.MustParseID("01936f2a-7c1e-7000-8000-000000000105")
+	dupID      = shared.MustParseID("01936f2a-7c1e-7000-8000-000000000106")
+)
+
+type queued struct{ requests []queue.Request }
+
+func (q *queued) Enqueue(_ context.Context, r queue.Request) (shared.ID, error) {
+	q.requests = append(q.requests, r)
+	return shared.MustParseID("01936f2a-7c1e-7000-8000-000000000999"), nil
+}
+
+// workspace answers the reads a shipped agent makes and records what it attempts, behind the
+// gate as the composition root puts it.
+type workspace struct {
+	gate      Gate
+	completed bool
+	// notes replace the ticket's own notes where set.
+	notes     string
+	performed []call
+	actors    []appshared.ActorContext
+	// The routing's material: who holds the ticket, the CIs it names as affected, what each CI's
+	// impact reaches, the group an offering names, a group's members and their open entries.
+	assignee string
+	affected []string
+	impact   map[string][]usecase.Output
+	support  map[string]string
+	members  map[string][]string
+	open     map[string]int
+}
+
+func (w *workspace) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	notes := "Since the Router-2 update, the printer stops."
+	if w.notes != "" {
+		notes = w.notes
+	}
+	reads := map[string]usecase.Output{
+		getWorkItemName: {"id": ticket.String(), "collection_id": collection.String(), "title": "Printer on floor 3 jams",
+			"notes": notes, "is_completed": w.completed},
+		getContainerName: {"id": collection.String(), "parent_id": hubID.String()},
+		listCisName: {"data": []usecase.Output{
+			{"id": printer.String(), "name": "Printer"}, {"id": router.String(), "name": "Router-2"},
+			{"id": "01936f2a-7c1e-7000-8000-000000000107", "name": "Scanner"},
+		}, "next": nil},
+		listCiDuplicatesName: {"data": []usecase.Output{{"id": dupID.String(), "ci_ids": []string{printer.String(), router.String()}}}},
+		readCiName:           nil,
+		listEntryCisName:     nil,
+		readCiImpactName:     nil,
+		getGroupName:         nil,
+		searchItemsName:      nil,
+	}
+	_, read := reads[name]
+	handler := usecase.HandlerFunc(func(_ context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+		w.actors = append(w.actors, actor)
+		switch name {
+		case getWorkItemName:
+			entry := usecase.Output{}
+			for k, v := range reads[name] {
+				entry[k] = v
+			}
+			entry["assignee_id"] = nil
+			if w.assignee != "" {
+				entry["assignee_id"] = w.assignee
+			}
+			return entry, nil
+		case listEntryCisName:
+			var data []usecase.Output
+			for _, ci := range w.affected {
+				data = append(data, usecase.Output{"ci_id": ci})
+			}
+			return usecase.Output{"data": data}, nil
+		case readCiImpactName:
+			var services []string
+			for _, row := range w.impact[in.String("ci_id")] {
+				services = append(services, row.String("ci_id"))
+			}
+			return usecase.Output{"reached": w.impact[in.String("ci_id")], "services": services}, nil
+		case getGroupName:
+			return usecase.Output{"members": w.members[in.String("group_id")]}, nil
+		case searchItemsName:
+			filter, _ := in["filter"].(map[string]any)
+			nodes, _ := filter["nodes"].([]any)
+			who, _ := nodes[0].(map[string]any)["value"].(string)
+			data := make([]usecase.Output, w.open[who])
+			return usecase.Output{"data": data, "page": map[string]any{"has_more": false, "next_cursor": nil}}, nil
+		}
+		if name == readCiName && w.support[in.String("ci_id")] != "" {
+			return usecase.Output{"id": in.String("ci_id"), "attributes": map[string]any{"support_group": w.support[in.String("ci_id")]}}, nil
+		}
+		if name == readCiName {
+			seen := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+			if in.String("ci_id") == router.String() {
+				return usecase.Output{"id": router.String(), "last_seen_at": seen}, nil
+			}
+			return usecase.Output{"id": printer.String(), "last_seen_at": nil}, nil
+		}
+		if read {
+			return reads[name], nil
+		}
+		w.performed = append(w.performed, call{name, actor, in})
+		return usecase.Output{}, nil
+	})
+	return w.gate.Wrap(nil)(usecase.Descriptor{Name: name, ReadOnly: read}, handler).Invoke(ctx, actor, in)
+}
+
+type classifier struct{ tokens int64 }
+
+func (c classifier) Classify(context.Context, appshared.ActorContext, shared.ID) (Proposal, error) {
+	return Proposal{Recorded: true, Code: "suggestions.proposed", Tokens: c.tokens}, nil
+}
+
+func (f fixture) shipped(t *testing.T, kind string, in usecase.Input) (domain.Agent, *queued) {
+	t.Helper()
+	q := &queued{}
+	f.desk.Queue = q
+	base := usecase.Input{"kind": kind, "policy": map[string]any{"reversible": "ALLOW"}}
+	for k, v := range in {
+		base[k] = v
+	}
+	return f.live(t, f.register(t, base)), q
+}
+
+func (f fixture) start(t *testing.T, a domain.Agent, target shared.ID, q *queued) domain.Job {
+	t.Helper()
+	desk := f.desk
+	desk.Queue = q
+	out, err := (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana),
+		usecase.Input{"agent_id": a.ID.String(), "target_id": target.String()})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	return f.store.jobs[shared.MustParseID(out.String("id"))]
+}
+
+func (f fixture) run(t *testing.T, job domain.Job, ws *workspace, proposer Proposer) domain.Job {
+	t.Helper()
+	desk := f.desk
+	ws.gate = Gate{Desk: desk}
+	desk.Catalogue = ws
+	ended, err := Runner{Desk: desk, Proposer: proposer}.Run(context.Background(), tenantID, job.ID)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	return ended
+}
+
+// UC-AGT-07 checks 1 and 3: a job is started by the agent's owner, queued, and acts as the agent's
+// own account; the CI suggestion proposes the CIs a ticket names and applies nothing, though its
+// policy would allow the write.
+func TestTheCiSuggestionProposesTheCisATicketNames(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "CI_SUGGESTION", nil)
+	job := f.start(t, a, ticket, q)
+	if job.Status != domain.JobRunning || len(q.requests) != 1 || q.requests[0].Kind != queue.KindAgentJob {
+		t.Fatalf("job = %+v, queued %+v", job, q.requests)
+	}
+	ws := &workspace{}
+	ended := f.run(t, job, ws, nil)
+	if ended.Status != domain.JobDone || ended.Code != OutcomeJobProposed || ended.Proposals != 1 {
+		t.Fatalf("ended = %+v", ended)
+	}
+	if len(ws.performed) != 0 {
+		t.Fatalf("a shipped agent applied: %+v", ws.performed)
+	}
+	var held domain.Request
+	for _, r := range f.store.requests {
+		held = r
+	}
+	body, _ := held.Input["body"].(string)
+	if held.UseCase != addCommentName || !strings.Contains(body, "hubtask:ci/"+printer.String()) ||
+		!strings.Contains(body, "hubtask:ci/"+router.String()) || strings.Contains(body, "Scanner") {
+		t.Fatalf("held = %+v", held)
+	}
+	for _, actor := range ws.actors {
+		if actor.AccountID != a.AccountID || actor.OnBehalfOf != ana || actor.Kind != appshared.ActorAIAgent {
+			t.Fatalf("acted as %+v", actor)
+		}
+	}
+}
+
+// UC-AGT-07 check 2: the triage's labels are a suggestion, the tokens it spent are in the job and
+// the ledger, and a job beyond its runs at once is refused.
+func TestTheTriageSpendsItsTokensIntoTheLedger(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "TICKET_TRIAGE", usecase.Input{"budget": map[string]any{"concurrent_runs": float64(1), "tokens_per_day": float64(100), "actions_per_hour": float64(50)}})
+	job := f.start(t, a, ticket, q)
+	desk := f.desk
+	desk.Queue = q
+	if _, err := (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana),
+		usecase.Input{"agent_id": a.ID.String(), "target_id": ticket.String()}); code(err) != "agents.budget_spent" {
+		t.Fatalf("a second run at once: %v", err)
+	}
+	ended := f.run(t, job, &workspace{}, classifier{tokens: 120})
+	if ended.Tokens != 120 || ended.Proposals != 2 {
+		t.Fatalf("ended = %+v", ended)
+	}
+	var spent int64
+	for _, action := range f.store.actions {
+		if action.UseCase == runAgentJobName {
+			spent += action.Tokens
+		}
+	}
+	if spent != 120 {
+		t.Fatalf("ledger tokens = %d", spent)
+	}
+	if _, err := (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana),
+		usecase.Input{"agent_id": a.ID.String(), "target_id": ticket.String()}); code(err) != "agents.budget_spent" ||
+		shared.AsError(err).Params["budget"] != "tokens_per_day" {
+		t.Fatalf("a run past the day's tokens: %v", err)
+	}
+}
+
+// UC-AGT-07 check 4: the duplicate review proposes the CI a source saw last as the survivor; the
+// knowledge draft proposes a page only from a resolved ticket.
+func TestTheDuplicateReviewAndTheKnowledgeDraftPropose(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "DUPLICATE_REVIEW", nil)
+	if ended := f.run(t, f.start(t, a, hubID, q), &workspace{}, nil); ended.Proposals != 1 {
+		t.Fatalf("review = %+v", ended)
+	}
+	for _, r := range f.store.requests {
+		if r.UseCase != resolveCiDuplicateName || r.Input["survivor_id"] != router.String() || r.Input["duplicate_id"] != dupID.String() {
+			t.Fatalf("held = %+v", r)
+		}
+	}
+
+	g := newFixture()
+	k, kq := g.shipped(t, "KNOWLEDGE_DRAFT", nil)
+	if ended := g.run(t, g.start(t, k, ticket, kq), &workspace{}, nil); ended.Code != OutcomeJobEntryOpen || ended.Proposals != 0 {
+		t.Fatalf("an open ticket was drafted from: %+v", ended)
+	}
+	ended := g.run(t, g.start(t, k, ticket, kq), &workspace{completed: true}, nil)
+	if ended.Proposals != 1 {
+		t.Fatalf("draft = %+v", ended)
+	}
+	found := false
+	for _, r := range g.store.requests {
+		body, _ := r.Input["body"].(string)
+		if r.UseCase == createPageName && r.Input["hub_id"] == hubID.String() && strings.Contains(body, "hubtask:entry/"+ticket.String()) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no page proposed: %+v", g.store.requests)
+	}
+}
+
+// A ticket filed from a requester's mail opens with the intake's "From:" line; the knowledge draft
+// leaves it out, so that no page carries the name and address where an erasure of the address
+// does not look.
+func TestTheKnowledgeDraftLeavesOutTheRequestersFromLine(t *testing.T) {
+	g := newFixture()
+	k, kq := g.shipped(t, "KNOWLEDGE_DRAFT", nil)
+	ws := &workspace{completed: true, notes: "From: Max Muster <max@example.org>\n\nThe printer stops."}
+	if ended := g.run(t, g.start(t, k, ticket, kq), ws, nil); ended.Proposals != 1 {
+		t.Fatalf("draft = %+v", ended)
+	}
+	for _, r := range g.store.requests {
+		body, _ := r.Input["body"].(string)
+		if r.UseCase != createPageName {
+			continue
+		}
+		if strings.Contains(body, "max@example.org") || strings.Contains(body, "Max Muster") {
+			t.Fatalf("the draft carries the requester: %q", body)
+		}
+		if !strings.HasPrefix(body, "The printer stops.") {
+			t.Fatalf("the draft lost the notes: %q", body)
+		}
+	}
+}
+
+// UC-AGT-07 check 5: an agent built elsewhere runs no job, a job of a stopped agent ends refused,
+// and no agent starts a job.
+func TestAJobIsRefusedWhereItMayNotRun(t *testing.T) {
+	f := newFixture()
+	ext := f.live(t, f.register(t, usecase.Input{"kind": "EXTERNAL"}))
+	desk := f.desk
+	desk.Queue = &queued{}
+	if _, err := (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana),
+		usecase.Input{"agent_id": ext.ID.String(), "target_id": ticket.String()}); code(err) != "agents.runs_elsewhere" {
+		t.Fatalf("external = %v", err)
+	}
+	a, q := f.shipped(t, "CI_SUGGESTION", nil)
+	if _, err := (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(),
+		appshared.ActorContext{Kind: appshared.ActorAIAgent, TenantID: tenantID, AccountID: ext.AccountID},
+		usecase.Input{"agent_id": a.ID.String(), "target_id": ticket.String()}); code(err) != "agents.agent_starts_not" {
+		t.Fatalf("an agent started a job: %v", err)
+	}
+	job := f.start(t, a, ticket, q)
+	if _, err := (SuspendAgent{Desk: f.desk}).Descriptor().Handler.Invoke(context.Background(), person(ana), usecase.Input{"agent_id": a.ID.String()}); err != nil {
+		t.Fatal(err)
+	}
+	ws := &workspace{}
+	if ended := f.run(t, job, ws, nil); ended.Status != domain.JobFailed || ended.Code != "agents.suspended" || len(ws.actors) != 0 {
+		t.Fatalf("a stopped agent's job = %+v", ended)
+	}
+}
+
+func TestTheSurvivorIsTheCiSeenLastElseTheOldest(t *testing.T) {
+	old := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		cis  []usecase.Output
+		want string
+	}{
+		{"one is no duplicate", []usecase.Output{{"id": "a"}}, ""},
+		{"seen last", []usecase.Output{{"id": "a", "last_seen_at": old}, {"id": "b", "last_seen_at": old.Add(time.Hour)}}, "b"},
+		{"seen beats unseen", []usecase.Output{{"id": "a", "created_at": old}, {"id": "b", "last_seen_at": old}}, "b"},
+		{"the oldest", []usecase.Output{{"id": "a", "created_at": old.Add(time.Hour)}, {"id": "b", "created_at": old}}, "b"},
+	}
+	for _, c := range cases {
+		if got := Survivor(c.cis); got != c.want {
+			t.Errorf("%s = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+type notices struct{ told []shared.ID }
+
+func (n *notices) AgentActed(_ context.Context, _, _, owner shared.ID, _ time.Time) error {
+	n.told = append(n.told, owner)
+	return nil
+}
+
+// UC-AGT-02 check 3: an act its policy lets run with its owner told runs, and tells the owner -
+// once an hour, not once an act.
+func TestAnActRunWithItsOwnerToldTellsThemOnceAnHour(t *testing.T) {
+	f := newFixture()
+	told := &notices{}
+	f.desk.Notices = told
+	a := f.live(t, f.register(t, usecase.Input{"kind": "EXTERNAL", "policy": map[string]any{"reversible": "NOTIFY"}}))
+	actor := appshared.ActorContext{Kind: appshared.ActorAIAgent, TenantID: tenantID, AccountID: a.AccountID}
+	next := usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+		return usecase.Output{}, nil
+	})
+	for i := 0; i < 2; i++ {
+		if _, err := (Gate{Desk: f.desk}).Wrap(nil)(usecase.Descriptor{Name: "UpdateWorkItem"}, next).Invoke(context.Background(), actor, nil); err != nil {
+			t.Fatalf("a told write: %v", err)
+		}
+	}
+	if len(told.told) != 1 || told.told[0] != ana {
+		t.Fatalf("told = %v", told.told)
+	}
+}
+
+// UC-AGT-07 check 8: a rule's run on a ticket's arrival or resolution starts the job on the entry
+// the run is about (`item_id`, supplied by the run); a hub's job is not started from an entry, and
+// a start naming no target is refused.
+func TestARuleStartsAJobOnTheTicketItIsAbout(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "TICKET_TRIAGE", nil)
+	desk := f.desk
+	desk.Queue = q
+	start := func(agent domain.Agent, in usecase.Input) (usecase.Output, error) {
+		in["agent_id"] = agent.ID.String()
+		return (StartAgentJob{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana), in)
+	}
+	out, err := start(a, usecase.Input{"item_id": ticket.String()})
+	if err != nil {
+		t.Fatalf("a rule's start: %v", err)
+	}
+	if job := f.store.jobs[shared.MustParseID(out.String("id"))]; job.TargetID != ticket || job.TargetType != domain.TargetEntry {
+		t.Fatalf("job = %+v", job)
+	}
+	dup, _ := f.shipped(t, "DUPLICATE_REVIEW", nil)
+	if _, err := start(dup, usecase.Input{"item_id": ticket.String()}); code(err) != "agents.target_invalid" {
+		t.Fatalf("a hub's job from an entry = %v", err)
+	}
+	if _, err := start(a, usecase.Input{}); code(err) != "agents.target_required" {
+		t.Fatalf("no target = %v", err)
+	}
+}
+
+// UC-AGT-07 check 9: the triage routes a ticket nobody holds by its offering - the one it names,
+// else the nearest one a CI it names affects, none where two are equally near - and proposes
+// AssignWorkItem to the member of the offering's support group with the fewest open entries in
+// the hub, held for a person to approve; a group itself is never proposed.
+func TestTheTriageRoutesATicketByItsOffering(t *testing.T) {
+	printing := "01936f2a-7c1e-7000-8000-000000000201"
+	network := "01936f2a-7c1e-7000-8000-000000000202"
+	printDesk := "01936f2a-7c1e-7000-8000-000000000301"
+	netDesk := "01936f2a-7c1e-7000-8000-000000000302"
+	busy, idle, ben := "01936f2a-7c1e-7000-8000-000000000401", "01936f2a-7c1e-7000-8000-000000000402", "01936f2a-7c1e-7000-8000-000000000403"
+	ws := func() *workspace {
+		return &workspace{
+			support: map[string]string{printing: printDesk, network: netDesk},
+			members: map[string][]string{printDesk: {busy, idle}, netDesk: {ben}},
+			open:    map[string]int{busy: 3, idle: 1},
+		}
+	}
+	cases := []struct {
+		name   string
+		setup  func(*workspace)
+		wanted string
+	}{
+		{"the offering the ticket names", func(w *workspace) { w.affected = []string{printing} }, idle},
+		{"the nearest offering a named CI affects", func(w *workspace) {
+			w.impact = map[string][]usecase.Output{router.String(): {
+				{"ci_id": network, "depth": 1}, {"ci_id": printing, "depth": 2},
+			}}
+		}, ben},
+		{"two offerings equally near", func(w *workspace) {
+			w.impact = map[string][]usecase.Output{router.String(): {
+				{"ci_id": network, "depth": 1}, {"ci_id": printing, "depth": 1},
+			}}
+		}, ""},
+		{"two offerings named", func(w *workspace) { w.affected = []string{printing, network} }, ""},
+		{"a ticket somebody holds", func(w *workspace) { w.affected, w.assignee = []string{printing}, ben }, ""},
+		{"no offering at all", func(*workspace) {}, ""},
+	}
+	for _, c := range cases {
+		f := newFixture()
+		a, q := f.shipped(t, "TICKET_TRIAGE", nil)
+		w := ws()
+		c.setup(w)
+		f.run(t, f.start(t, a, ticket, q), w, nil)
+		assigned := ""
+		for _, r := range f.store.requests {
+			if r.UseCase == assignWorkItemName {
+				if assigned != "" || r.Input["item_id"] != ticket.String() {
+					t.Fatalf("%s: held %+v", c.name, r)
+				}
+				assigned, _ = r.Input["account_id"].(string)
+			}
+		}
+		if assigned != c.wanted {
+			t.Errorf("%s: proposed %q, want %q", c.name, assigned, c.wanted)
+		}
+		if len(w.performed) != 0 {
+			t.Errorf("%s: a shipped agent applied %+v", c.name, w.performed)
+		}
+	}
+}
+
+// A job the queue has given up on ends FAILED under its own code rather than standing RUNNING in
+// the agent's list for ever; a job that ended already keeps its end.
+func TestAJobGivenUpOnEndsFailed(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "CI_SUGGESTION", nil)
+	job := f.start(t, a, ticket, q)
+	runner := Runner{Desk: f.desk}
+	if err := runner.Abandon(context.Background(), tenantID, job.ID); err != nil {
+		t.Fatalf("abandoning: %v", err)
+	}
+	if got := f.store.jobs[job.ID]; got.Status != domain.JobFailed || got.Code != OutcomeJobAbandoned {
+		t.Fatalf("job = %+v", got)
+	}
+	if err := runner.Abandon(context.Background(), tenantID, job.ID); err != nil || f.store.jobs[job.ID].Code != OutcomeJobAbandoned {
+		t.Errorf("a second release: %v %+v", err, f.store.jobs[job.ID])
+	}
+	if err := runner.Abandon(context.Background(), tenantID, shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")); err != nil {
+		t.Errorf("a job that is not there: %v", err)
+	}
+}

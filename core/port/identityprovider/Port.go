@@ -41,6 +41,13 @@ type Config struct {
 	// The zero value is an issuer this installation knows no such statement of, and its addresses
 	// are never authoritative.
 	Authority Authority
+	// SSOURL and Certificate are a SAML provider's single sign-on address and the PEM its
+	// assertions are signed with (identity.md §26). For SAML, Issuer is the provider's entity ID,
+	// ClientID this workspace's entity ID, RedirectURL the assertion consumer service, an
+	// Exchange's Code the provider's base64 answer and its Nonce the request's identifier. Empty for
+	// OpenID Connect.
+	SSOURL      string
+	Certificate string
 }
 
 // Authority is a provider's own way of saying "this mailbox is mine", as its preset reads it

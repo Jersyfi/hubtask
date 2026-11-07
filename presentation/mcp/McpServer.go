@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/presentation/stream"
 )
@@ -50,6 +51,9 @@ type Server struct {
 	// sent because something happened rather than because a timer fired.
 	Wakeups Wakeups
 	Signals StreamSignals
+	// CredentialRecheck is how often a held stream asks its credential again; zero is thirty
+	// seconds, the change stream's.
+	CredentialRecheck time.Duration
 	// Clock is injectable so the tests do not have to wait. Nil means the system clock.
 	Clock func() time.Time
 	// Name and Version identify the server on initialize.
@@ -196,6 +200,8 @@ func actorOf(r *http.Request) (appshared.ActorContext, bool) {
 		return appshared.ActorContext{}, false
 	}
 	actor.Kind = appshared.ActorAIAgent
+	// The door a type's form narrows (domain-model.md §2, "Forms").
+	actor.Channel = string(work.ChannelMCP)
 	return actor, true
 }
 
@@ -426,6 +432,13 @@ func (s Server) list(ctx context.Context, params json.RawMessage) (map[string]an
 
 	resources := make([]Resource, 0, 16)
 	next := ""
+	if call.Cursor == "" {
+		for _, fixed := range FixedResources() {
+			resources = append(resources, Resource{
+				URI: fixed.URI, Name: fixed.Name, Title: fixed.Title, Description: fixed.Description, MimeType: MimeType,
+			})
+		}
+	}
 
 	for _, kind := range ResourceKinds() {
 		switch {
@@ -472,9 +485,15 @@ func (s Server) read(ctx context.Context, params json.RawMessage) (map[string]an
 		return nil, &rpcError{Code: codeInvalidParams, Message: "invalid params"}
 	}
 
-	kind, id, err := ParseResourceURI(call.URI)
-	if err != nil {
-		return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
+	useCase, input := "", usecase.Input{}
+	if fixed, found := fixedResourceOf(call.URI); found {
+		useCase = fixed.UseCase
+	} else {
+		kind, id, err := ParseResourceURI(call.URI)
+		if err != nil {
+			return nil, &rpcError{Code: codeInvalidParams, Message: err.Error()}
+		}
+		useCase, input = kind.UseCase, usecase.Input{kind.Field: id.String()}
 	}
 
 	actor, rpcErr := agentFrom(ctx)
@@ -482,9 +501,7 @@ func (s Server) read(ctx context.Context, params json.RawMessage) (map[string]an
 		return nil, rpcErr
 	}
 
-	out, err := s.Catalogue.Invoke(ctx, kind.UseCase, actor, usecase.Input{
-		kind.Field: id.String(),
-	})
+	out, err := s.Catalogue.Invoke(ctx, useCase, actor, input)
 	if err != nil {
 		return nil, refusal(err)
 	}
@@ -515,6 +532,8 @@ func agentFromContext(ctx context.Context) (appshared.ActorContext, bool) {
 		return appshared.ActorContext{}, false
 	}
 	actor.Kind = appshared.ActorAIAgent
+	// The door a type's form narrows (domain-model.md §2, "Forms").
+	actor.Channel = string(work.ChannelMCP)
 	return actor, true
 }
 

@@ -68,3 +68,20 @@ func TestIDListReadsASetAndRefusesHalfOfOne(t *testing.T) {
 		t.Error("a list with a number in it was accepted")
 	}
 }
+
+// An integer no JSON client can say exactly is refused rather than read as whatever the platform's
+// conversion makes of it: 2^63 converts to the largest int on one processor and to the smallest on
+// another, and a page size or a position read from it would overflow the arithmetic after it.
+func TestAnIntegerBeyondWhatJSONHoldsExactlyIsRefused(t *testing.T) {
+	fields := []Field{{Name: "count", Kind: KindInt}}
+	for _, number := range []float64{9.223372036854775807e18, -9.223372036854775808e18, 1e300, 9007199254740993} {
+		if err := validate(fields, Input{"count": number}); err == nil {
+			t.Errorf("%g was accepted as an integer", number)
+		}
+	}
+	for _, number := range []any{float64(9007199254740991), float64(-3), 42, int64(7)} {
+		if err := validate(fields, Input{"count": number}); err != nil {
+			t.Errorf("%v was refused: %v", number, err)
+		}
+	}
+}

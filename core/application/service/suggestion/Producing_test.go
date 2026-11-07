@@ -45,7 +45,27 @@ func TestAskingRecordsWhatTheProviderAnsweredWithItsProvenance(t *testing.T) {
 	}
 }
 
-// The whole of ai-first.md §1.3, from the producer's side: an entry whose body issues an
+// UC-AGT-05 check 1: a suggestion a registered agent asked for names that agent, so the mark an
+// acceptance leaves does too.
+func TestASuggestionNamesTheAgentThatAsked(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	triage := shared.MustParseID("0192f000-0000-7000-8000-0000000000ab")
+	asAgent := person()
+	asAgent.AsAgent = triage
+
+	if err := produce.Execute(context.Background(), asAgent, Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+	for _, recorded := range world.store.proposals {
+		if recorded.AgentID != triage {
+			t.Fatalf("the suggestion names agent %q", recorded.AgentID)
+		}
+	}
+}
+
+// UC-AI-04 check 1, and the whole of ai-first.md §1.3 from the producer's side: an entry whose body issues an
 // instruction produces a suggestion and no action, and the instruction never leaves the system
 // prompt's place.
 func TestAnEntryThatIssuesInstructionsProducesASuggestionAndNoAction(t *testing.T) {

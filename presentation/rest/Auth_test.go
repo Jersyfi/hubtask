@@ -6,6 +6,7 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 const (
@@ -61,7 +63,10 @@ func serveAuthenticated(
 	mux := NewMux()
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/meta/capabilities", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/realtime/probe", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/mail/inbound", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/code-intake/{tenantId}/{hookId}", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/cmdb/alert-intake/{tenantId}/{connectorId}", func(http.ResponseWriter, *http.Request) {})
 	// The CalDAV tree beside the routes, as main.go mounts it: the one place Basic is taken.
 	routes := Mounted{Router: mux, Path: calendar.Prefix, Prefix: true,
 		Mount: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}
@@ -104,6 +109,17 @@ func TestAPublicRouteIsServedWithoutACredential(t *testing.T) {
 	}
 	if actor.IsAuthenticated() {
 		t.Error("an anonymous request produced an authenticated actor")
+	}
+}
+
+// The installation's own probe opens a socket through its public address with no credential
+// (infrastructure/health.RealtimeProbe): refused here, it reads as a proxy that drops WebSockets
+// while live editing works for every signed-in person.
+func TestTheRealtimeProbeIsServedWithoutACredential(t *testing.T) {
+	auth := &authenticator{}
+	response, actor, reached := serveAuthenticated(t, auth, request(t, "/realtime/probe"))
+	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
+		t.Fatalf("the probe was refused or authenticated: status %d, reached %v", response.Code, reached)
 	}
 }
 
@@ -457,5 +473,74 @@ func TestTheInboundKeyIsLeftToItsRoute(t *testing.T) {
 	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
 		t.Errorf("reached %t, authentication asked %d times, actor %+v, status %d",
 			reached, auth.calls, actor, response.Code)
+	}
+}
+
+// A forge's delivery and a CMDB intake's post come from no account: served without a bearer, and a
+// CMDB intake's secret presented as one is left to the route rather than verified as a token.
+func TestTheIntakesAreServedWithTheirOwnSecret(t *testing.T) {
+	auth := &authenticator{}
+	forge := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/code-intake/"+string(tenantID)+"/0d1e3c3c-4c8e-4b8e-9b1e-0e9f6c1a2b3c", nil)
+	if response, _, reached := serveAuthenticated(t, auth, forge); !reached {
+		t.Errorf("a forge's delivery was refused: %d", response.Code)
+	}
+
+	alert := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/cmdb/alert-intake/"+string(tenantID)+"/0d1e3c3c-4c8e-4b8e-9b1e-0e9f6c1a2b3c", nil)
+	alert.Header.Set("Authorization", "Bearer the-intake-secret")
+	response, actor, reached := serveAuthenticated(t, auth, alert)
+	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
+		t.Errorf("reached %t, authentication asked %d times, actor %+v, status %d",
+			reached, auth.calls, actor, response.Code)
+	}
+}
+
+func TestABearerOffersItselfAsASubprotocolOnlyOnAWebSocketUpgrade(t *testing.T) {
+	upgrade := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/realtime/documents/page/x", nil)
+	upgrade.Header.Set("Upgrade", "websocket")
+	upgrade.Header.Set("Sec-WebSocket-Protocol", "hubtask.v1, hubtask.bearer.hbt_pat_abc")
+	if got, err := bearerCredential(upgrade); err != nil || got != "hbt_pat_abc" {
+		t.Errorf("an upgrade's subprotocol bearer read %q, %v", got, err)
+	}
+
+	plain := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/items", nil)
+	plain.Header.Set("Sec-WebSocket-Protocol", "hubtask.bearer.hbt_pat_abc")
+	if got, _ := bearerCredential(plain); got != "" {
+		t.Errorf("a request that is no upgrade presented %q through the subprotocol header", got)
+	}
+}
+
+// A held connection asks its credential again with what the request presented: still the same
+// actor while the session lives, refused once it was revoked or names somebody else.
+func TestAHeldConnectionAsksItsCredentialAgain(t *testing.T) {
+	auth := &authenticator{actor: authenticatedActor()}
+	mux := NewMux()
+	var still func(context.Context) error
+	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(_ http.ResponseWriter, r *http.Request) {
+		actor, _ := appshared.ActorFrom(r.Context())
+		still = stream.CredentialStill(r.Context(), actor)
+	})
+	r := request(t, "/containers")
+	r.Header.Set("Authorization", "Bearer "+credential)
+	Authenticated{Routes: mux, Authenticator: auth, Next: mux}.ServeHTTP(httptest.NewRecorder(), r)
+	if still == nil {
+		t.Fatal("the request carries no way to ask its credential again")
+	}
+
+	if err := still(t.Context()); err != nil {
+		t.Errorf("a live credential was refused: %v", err)
+	}
+	if auth.command.Credential != credential || auth.calls != 2 {
+		t.Errorf("asked %d times with %q", auth.calls, auth.command.Credential)
+	}
+	auth.err = shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+	if err := still(t.Context()); !errors.Is(err, shared.ErrUnauthenticated) {
+		t.Errorf("a revoked credential answered %v", err)
+	}
+	auth.err = nil
+	auth.actor.AccountID = shared.MustParseID("0192f000-0000-7000-8000-0000000009f1")
+	if err := still(t.Context()); !errors.Is(err, shared.ErrUnauthenticated) {
+		t.Errorf("a credential now naming somebody else answered %v", err)
 	}
 }

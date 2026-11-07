@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-09, P-10, P-11]
 state: built
 tasks: [C-09, K-06]
-checked_by: [infrastructure/mail/SMTP_test.go, infrastructure/mail/Health_test.go, test/integration/notification_delivery_test.go]
+checked_by: [infrastructure/mail/SMTP_test.go, infrastructure/mail/Health_test.go, test/integration/notification_delivery_test.go, core/application/service/notification/DeliverNotification_test.go]
 ---
 
 # Connect the installation to a mail server

@@ -9,9 +9,14 @@
 package environment
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/fs"
+	"net"
+	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -38,6 +43,17 @@ type EnvConfig struct {
 func New(version, commit string) *EnvConfig { return &EnvConfig{version: version, commit: commit} }
 
 func (e *EnvConfig) Load() (env.Config, error) {
+	tenancy := env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single"))
+	// The per-workspace walls default by mode (multi-tenancy.md §4): in single mode the workspace is
+	// the installation, so a wall of its own below the process's would only refuse the company.
+	tokenRate, tenantRate, streamsPerTenant := 600, 3000, 512
+	if tenancy != env.TenancyMulti {
+		tokenRate, tenantRate, streamsPerTenant = 6000, 0, 0
+	}
+	streamsPerProcess := getInt("HUBTASK_STREAM_PER_PROCESS", 1024)
+	if streamsPerTenant == 0 {
+		streamsPerTenant = streamsPerProcess
+	}
 	cfg := env.Config{
 		Version:              e.version,
 		Commit:               e.commit,
@@ -46,7 +62,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		BaseURL:              get("HUBTASK_BASE_URL", ""),
 		LogFormat:            get("HUBTASK_LOG_FORMAT", "json"),
 		LogLevel:             get("HUBTASK_LOG_LEVEL", "info"),
-		Tenancy:              env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single")),
+		Tenancy:              tenancy,
 		WorkspaceHosts:       env.WorkspaceHosts(get("HUBTASK_WORKSPACE_HOSTS", "subdomain")),
 		InstanceFile:         get("HUBTASK_INSTANCE_FILE", ""),
 		InstanceFileMode:     get("HUBTASK_INSTANCE_FILE_MODE", "seed"),
@@ -83,6 +99,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Timeout:  getDuration("HUBTASK_SMTP_TIMEOUT", 10*time.Second),
 			// Lowercase, as every address on it is compared.
 			InboundDomain: strings.ToLower(strings.TrimSpace(get("HUBTASK_MAIL_INBOUND_DOMAIN", ""))),
+			WatchLimit:    getInt("HUBTASK_MAILBOX_WATCH_LIMIT", 1000),
+			WatchShards:   getInt("HUBTASK_MAILBOX_WATCH_SHARDS", 1),
+			// Zero: as many as there are shards, so one worker alone holds every one.
+			WatchShardsPerWorker: getInt("HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER", 0),
 		},
 		Voice: env.VoiceConfig{AlexaSkillIDs: listOf(get("HUBTASK_ALEXA_SKILL_IDS", ""))},
 		AI: env.AIConfig{
@@ -96,15 +116,18 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		},
 		RateLimit: env.RateLimitConfig{
 			AnonymousPerMinute: getInt("HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE", 60),
-			TokenPerMinute:     getInt("HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE", 600),
-			TenantPerMinute:    getInt("HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE", 3000),
-			AuthPerMinute:      getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
+			TokenPerMinute:     getInt("HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE", tokenRate),
+			// Zero is no workspace wall, single mode's default.
+			TenantPerMinute: getInt("HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE", tenantRate),
+			AuthPerMinute:   getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
 			// Sixty, because a browser opening a page *is* a burst: it does not pace itself, and
 			// the product's own first paint of a cold entry page is 24 requests (F9 brought it
 			// down from 38). At 20 two of them were answered 429 and retried, which works and is
 			// slower for no gain — the minute's budget above is what bounds a caller, and the
 			// burst only decides whether an honest client's first screen stutters.
 			Burst: getInt("HUBTASK_RATE_LIMIT_BURST", 60),
+			// Zero takes the default, RateLimitConfig.TenantDepth.
+			TenantBurst: getInt("HUBTASK_RATE_LIMIT_TENANT_BURST", 0),
 		},
 		Bus: env.BusConfig{
 			// No default URL, and that is the off switch: an installation that never names a bus
@@ -123,14 +146,23 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// latency starts to tip (observability-reliability.md §6).
 			Inflight:   getInt("HUBTASK_LOAD_SHED_INFLIGHT", 64),
 			RetryAfter: getDuration("HUBTASK_LOAD_SHED_RETRY_AFTER", 5*time.Second),
+			// Eight per client: tabs, boards and pages open at once, each a stream or a side
+			// connection with a share of its own. 512 per workspace (in multi mode; the process's
+			// in single) and 1024 per pod: a company of a few hundred on one pod is never refused,
+			// and a full complement of goroutines and sockets stays far inside a container's
+			// default memory and file limits.
+			StreamsPerCredential: getInt("HUBTASK_STREAM_PER_CREDENTIAL", 8),
+			StreamsPerTenant:     getInt("HUBTASK_STREAM_PER_TENANT", streamsPerTenant),
+			StreamsPerProcess:    streamsPerProcess,
 		},
 		Request: env.RequestConfig{
 			MaxBodyBytes:   int64(getInt("HUBTASK_MAX_BODY_BYTES", 1<<20)),   // 1 MiB
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
 			// 25 MiB, which is what the mail providers people actually use accept: a message
 			// bigger than that is one their sender could not have delivered either.
-			MaxMailBytes: int64(getInt("HUBTASK_MAX_MAIL_BYTES", 25<<20)),
-			Timeout:      getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
+			MaxMailBytes:   int64(getInt("HUBTASK_MAX_MAIL_BYTES", 25<<20)),
+			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
+			TrustedProxies: getList("HUBTASK_TRUSTED_PROXIES"),
 		},
 		CORS: env.CORSConfig{
 			AllowedOrigins: getList("HUBTASK_CORS_ALLOWED_ORIGINS"),
@@ -143,11 +175,15 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxRedirects:         getInt("HUBTASK_HTTP_MAX_REDIRECTS", 3),
 			AllowedHosts:         getList("HUBTASK_HTTP_ALLOWED_HOSTS"),
 			AllowPrivateNetworks: getBool("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", false),
+			CAFile:               get("HUBTASK_HTTP_CA_FILE", ""),
+			CARoots:              readOptional(get("HUBTASK_HTTP_CA_FILE", "")),
 		},
 		Queue: env.QueueConfig{
 			PollInterval:      getDuration("HUBTASK_QUEUE_POLL_INTERVAL", 2*time.Second),
 			BatchSize:         getInt("HUBTASK_QUEUE_BATCH_SIZE", 10),
+			Concurrency:       getInt("HUBTASK_QUEUE_CONCURRENCY", 4),
 			JobTimeout:        getDuration("HUBTASK_JOB_TIMEOUT", 60*time.Second),
+			LongJobTimeout:    getDuration("HUBTASK_LONG_JOB_TIMEOUT", 6*time.Hour),
 			MaxAttempts:       getInt("HUBTASK_JOB_MAX_ATTEMPTS", 8),
 			RetryBase:         getDuration("HUBTASK_JOB_RETRY_BASE", 5*time.Second),
 			RetryMax:          getDuration("HUBTASK_JOB_RETRY_MAX", 15*time.Minute),
@@ -181,6 +217,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			OrphanGrace:       getDuration("HUBTASK_MEDIA_ORPHAN_GRACE", time.Hour),
 			BatchSize:         getInt("HUBTASK_MEDIA_RECONCILE_BATCH_SIZE", 100),
 			Interval:          getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
+			ScannerAddress:    get("HUBTASK_CLAMD_ADDRESS", ""),
+			ScannerTimeout:    getDuration("HUBTASK_CLAMD_TIMEOUT", 2*time.Minute),
+			// clamd's own default StreamMaxLength, 25 MiB.
+			ScannerStreamMaxBytes: int64(getInt("HUBTASK_CLAMD_STREAM_MAX_BYTES", 25<<20)),
 		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),
@@ -194,6 +234,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			LocalRoot:              get("HUBTASK_BACKUP_LOCAL_PATH", "/var/lib/hubtask/backups"),
 			TenantTargets:          getBool("HUBTASK_BACKUP_TENANT_TARGETS", false),
 			RestoreDrillRecordFile: get("HUBTASK_RESTORE_DRILL_RECORD_FILE", ""),
+			ConcurrentDownloads:    getInt("HUBTASK_BACKUP_CONCURRENT_DOWNLOADS", 2),
 		},
 		Locale: env.LocaleConfig{
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),
@@ -201,7 +242,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Directory:       get("HUBTASK_LOCALE_DIR", ""),
 		},
 		UI: env.UIConfig{
-			Enabled: getBool("HUBTASK_UI_ENABLED", true),
+			Enabled:        getBool("HUBTASK_UI_ENABLED", true),
+			FrameAncestors: getList("HUBTASK_UI_FRAME_ANCESTORS"),
+			FrameSources:   getList("HUBTASK_UI_FRAME_SOURCES"),
 		},
 	}
 
@@ -275,8 +318,18 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 			w = append(w, env.Warning{Code: "config.smtp_missing", Severity: "info"})
 		}
 	}
+	if cfg.Encryption.ActiveKeyID() == "" {
+		// Not an error: an installation without a keyring runs, and refuses each secret it is
+		// asked to keep (crypto.no_encryption_key). The operator learns it here, before a
+		// workspace administrator meets the refusal on the webhook form.
+		w = append(w, env.Warning{Code: "config.encryption_keys_missing", Severity: "warn"})
+	}
 	if cfg.BaseURL == "" {
 		w = append(w, env.Warning{Code: "config.base_url_missing", Severity: "warn"})
+	} else if loopbackAddress(cfg.BaseURL) {
+		// Never empty, so the warning above stays quiet - while every link in a mail and every
+		// redirect URI points at a machine only this one reaches.
+		w = append(w, env.Warning{Code: "config.base_url_loopback", Severity: "warn"})
 	}
 	// No warning about a missing identity provider: a provider is configured per tenant, in the
 	// database, and a multi-tenant installation whose workspaces sign in with
@@ -297,7 +350,48 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 			Params:   map[string]string{"host": cfg.Mail.Host},
 		})
 	}
+	if path := cfg.Backup.RestoreDrillRecordFile; path != "" && !restoreDrillRecordReachable(path) {
+		w = append(w, env.Warning{
+			Code:     "config.restore_drill_record_unreadable",
+			Severity: "warn",
+			Params:   map[string]string{"path": path},
+		})
+	}
 	return w
+}
+
+// loopbackAddress reports whether the address names a host only this machine reaches.
+func loopbackAddress(address string) bool {
+	parsed, err := url.Parse(address)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// restoreDrillRecordReachable is whether the record can be read once a drill writes it: a readable
+// file, or none yet in a directory that exists. An unreadable record would read as "no drill on
+// record" at every scrape, and A-20 would never fire (backup-restore.md §8.6).
+func restoreDrillRecordReachable(path string) bool {
+	info, err := os.Stat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		dir, err := os.Stat(filepath.Dir(path))
+		return err == nil && dir.IsDir()
+	}
+	if err != nil || info.IsDir() {
+		return false
+	}
+	file, err := os.Open(path) //nolint:gosec // G304: the path is configuration, and reading it is the point
+	if err != nil {
+		return false
+	}
+	_ = file.Close()
+	return true
 }
 
 // configError builds a startup error: category VALIDATION, the stable code config_invalid, and
@@ -306,6 +400,13 @@ func configError(detailCode, variable string) *shared.Error {
 	return shared.New(shared.CategoryValidation, "config_invalid").
 		WithDetail(detailCode).
 		WithParams(map[string]string{"variable": variable})
+}
+
+// rangeError is a variable outside minimum..maximum.
+func rangeError(variable string, minimum, maximum int) *shared.Error {
+	return configError("config.range_invalid", variable).WithParams(map[string]string{
+		"variable": variable, "minimum": strconv.Itoa(minimum), "maximum": strconv.Itoa(maximum),
+	})
 }
 
 func validate(cfg env.Config) error {
@@ -376,8 +477,13 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
 	errs = append(errs, validateBus(cfg.Bus)...)
 	errs = append(errs, validateLoadShed(cfg.LoadShed)...)
+	if cfg.Backup.ConcurrentDownloads < 0 {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_BACKUP_CONCURRENT_DOWNLOADS"))
+	}
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateCORS(cfg.CORS)...)
+	errs = append(errs, validateFrameAncestors(cfg.UI.FrameAncestors)...)
+	errs = append(errs, validateFrameSources(cfg.UI.FrameSources)...)
 	errs = append(errs, validateOutbound(cfg.Outbound)...)
 	errs = append(errs, validateLocale(cfg.Locale)...)
 	errs = append(errs, validateTracing(cfg.Tracing)...)
@@ -434,6 +540,7 @@ func validateQueue(q env.QueueConfig) []error {
 	var errs []error
 	for variable, count := range map[string]int{
 		"HUBTASK_QUEUE_BATCH_SIZE":  q.BatchSize,
+		"HUBTASK_QUEUE_CONCURRENCY": q.Concurrency,
 		"HUBTASK_JOB_MAX_ATTEMPTS":  q.MaxAttempts,
 		"HUBTASK_OUTBOX_BATCH_SIZE": q.OutboxBatch,
 	} {
@@ -444,6 +551,7 @@ func validateQueue(q env.QueueConfig) []error {
 	for variable, d := range map[string]time.Duration{
 		"HUBTASK_QUEUE_POLL_INTERVAL":     q.PollInterval,
 		"HUBTASK_JOB_TIMEOUT":             q.JobTimeout,
+		"HUBTASK_LONG_JOB_TIMEOUT":        q.LongJobTimeout,
 		"HUBTASK_JOB_RETRY_BASE":          q.RetryBase,
 		"HUBTASK_JOB_RETRY_MAX":           q.RetryMax,
 		"HUBTASK_SCHEDULER_TICK_INTERVAL": q.SchedulerTick,
@@ -454,6 +562,9 @@ func validateQueue(q env.QueueConfig) []error {
 		if d <= 0 {
 			errs = append(errs, configError("config.duration_invalid", variable))
 		}
+	}
+	if q.Concurrency > env.MaxPoolConns {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_QUEUE_CONCURRENCY"))
 	}
 	// A maximum below the base would make the backoff shrink with every attempt, which is the
 	// opposite of what a backoff is for.
@@ -492,6 +603,16 @@ func validateStorage(s env.StorageConfig) []error {
 }
 
 func validateMail(m env.MailConfig) []error {
+	if m.WatchLimit < 0 {
+		return []error{configError("config.limit_invalid", "HUBTASK_MAILBOX_WATCH_LIMIT")}
+	}
+	if m.WatchShards < 1 || m.WatchShards > env.MaxMailboxWatchShards {
+		return []error{rangeError("HUBTASK_MAILBOX_WATCH_SHARDS", 1, env.MaxMailboxWatchShards)}
+	}
+	// Zero is the default, as many as the shards.
+	if m.WatchShardsPerWorker < 0 || m.WatchShardsPerWorker > m.WatchShards {
+		return []error{rangeError("HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER", 1, m.WatchShards)}
+	}
 	var errs []error
 	if m.Host == "" {
 		// No SMTP at all is a warning, not an error: notifications degrade, nothing breaks.
@@ -519,7 +640,6 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 	for variable, v := range map[string]int{
 		"HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE": r.AnonymousPerMinute,
 		"HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE":     r.TokenPerMinute,
-		"HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE":    r.TenantPerMinute,
 		"HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE":      r.AuthPerMinute,
 		"HUBTASK_RATE_LIMIT_BURST":                r.Burst,
 	} {
@@ -528,6 +648,12 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 			// a rate limit that is off by accident is exactly what T-17 is about.
 			errs = append(errs, configError("config.rate_limit_invalid", variable))
 		}
+	}
+	if r.TenantPerMinute < 0 {
+		errs = append(errs, configError("config.rate_limit_invalid", "HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE"))
+	}
+	if r.TenantBurst < 0 {
+		errs = append(errs, configError("config.rate_limit_invalid", "HUBTASK_RATE_LIMIT_TENANT_BURST"))
 	}
 	return errs
 }
@@ -565,6 +691,18 @@ func validateLoadShed(l env.LoadShedConfig) []error {
 	if l.RetryAfter <= 0 {
 		errs = append(errs, configError("config.duration_invalid", "HUBTASK_LOAD_SHED_RETRY_AFTER"))
 	}
+	for _, limit := range []struct {
+		variable string
+		value    int
+	}{
+		{"HUBTASK_STREAM_PER_CREDENTIAL", l.StreamsPerCredential},
+		{"HUBTASK_STREAM_PER_TENANT", l.StreamsPerTenant},
+		{"HUBTASK_STREAM_PER_PROCESS", l.StreamsPerProcess},
+	} {
+		if limit.value < 0 {
+			errs = append(errs, configError("config.limit_invalid", limit.variable))
+		}
+	}
 	return errs
 }
 
@@ -581,6 +719,12 @@ func validateRequest(r env.RequestConfig) []error {
 	}
 	if r.Timeout <= 0 {
 		errs = append(errs, configError("config.duration_invalid", "HUBTASK_REQUEST_TIMEOUT"))
+	}
+	for _, proxy := range r.TrustedProxies {
+		if _, err := env.ParseTrustedProxy(proxy); err != nil {
+			errs = append(errs, configError("config.trusted_proxy_invalid", "HUBTASK_TRUSTED_PROXIES").
+				WithParams(map[string]string{"variable": "HUBTASK_TRUSTED_PROXIES", "value": proxy}))
+		}
 	}
 	return errs
 }
@@ -606,6 +750,17 @@ func validateOutbound(o env.OutboundConfig) []error {
 				"variable": "HUBTASK_HTTP_MAX_REDIRECTS",
 				"maximum":  strconv.Itoa(env.MaxOutboundRedirects),
 			}))
+	}
+	// A root that cannot be read or holds no certificate refuses the start: running on without it
+	// would fail every call to the private CA's hosts later, one by one, with nothing saying why.
+	if o.CAFile != "" {
+		if o.CARoots == nil {
+			errs = append(errs, configError("config.http_ca_file_unreadable", "HUBTASK_HTTP_CA_FILE").
+				WithParams(map[string]string{"variable": "HUBTASK_HTTP_CA_FILE"}))
+		} else if !x509.NewCertPool().AppendCertsFromPEM(o.CARoots) {
+			errs = append(errs, configError("config.http_ca_file_invalid", "HUBTASK_HTTP_CA_FILE").
+				WithParams(map[string]string{"variable": "HUBTASK_HTTP_CA_FILE"}))
+		}
 	}
 	for _, host := range o.AllowedHosts {
 		// A scheme or a path in the allowlist means somebody expected URL matching. Silently
@@ -645,6 +800,42 @@ func validateCORS(c env.CORSConfig) []error {
 		if !found || (scheme != "http" && scheme != "https") ||
 			rest == "" || strings.ContainsAny(rest, "/?#") {
 			errs = append(errs, corsOriginError(origin))
+		}
+	}
+	return errs
+}
+
+// validateFrameAncestors holds the embedding origins to what validateCORS holds the CORS list to,
+// and refuses a wildcard outright: a policy that lets any page frame the interface is the
+// clickjacking it exists to prevent.
+func validateFrameAncestors(origins []string) []error {
+	var errs []error
+	for _, origin := range origins {
+		scheme, rest, found := strings.Cut(origin, "://")
+		if !found || (scheme != "http" && scheme != "https") || rest == "" ||
+			strings.ContainsAny(rest, "/?#*; '\"") {
+			errs = append(errs, configError("config.frame_ancestor_invalid", "HUBTASK_UI_FRAME_ANCESTORS").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_UI_FRAME_ANCESTORS",
+					"value":    origin,
+				}))
+		}
+	}
+	return errs
+}
+
+// validateFrameSources holds the framed origins to complete https origins: a wildcard would frame
+// the whole web, and an http frame on an https interface is mixed content the browser refuses.
+func validateFrameSources(origins []string) []error {
+	var errs []error
+	for _, origin := range origins {
+		rest, found := strings.CutPrefix(origin, "https://")
+		if !found || rest == "" || strings.ContainsAny(rest, "/?#*; '\"") {
+			errs = append(errs, configError("config.frame_source_invalid", "HUBTASK_UI_FRAME_SOURCES").
+				WithParams(map[string]string{
+					"variable": "HUBTASK_UI_FRAME_SOURCES",
+					"value":    origin,
+				}))
 		}
 	}
 	return errs
@@ -947,4 +1138,17 @@ func listOf(raw string) []string {
 		}
 	}
 	return out
+}
+
+// readOptional reads a file the operator names, nil for none or one that cannot be read; the
+// validation says which.
+func readOptional(path string) []byte {
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path) //nolint:gosec // G304: the operator names the file
+	if err != nil {
+		return nil
+	}
+	return content
 }

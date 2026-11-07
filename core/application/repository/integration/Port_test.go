@@ -89,6 +89,9 @@ func (deliveries) FindPendingOfPush(context.Context, shared.ID, domain.CollapseK
 	return domain.WebhookDelivery{}, false, nil
 }
 func (deliveries) Repoint(context.Context, shared.ID, shared.ID) (bool, error) { return false, nil }
+func (deliveries) Superseded(context.Context, domain.WebhookDelivery) (bool, error) {
+	return false, nil
+}
 
 var (
 	_ WebhookSubscriptions = subscriptions{}

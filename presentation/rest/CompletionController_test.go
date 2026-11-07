@@ -79,8 +79,8 @@ func TestBothCompletionActionsReachTheirUseCase(t *testing.T) {
 		suffix string
 		want   string
 	}{
-		"complete": {"complete", completeWorkItemUseCase},
-		"reopen":   {"reopen", reopenWorkItemUseCase},
+		"complete": {"complete", "CompleteWorkItem"},
+		"reopen":   {"reopen", "ReopenWorkItem"},
 	}
 
 	for name, c := range cases {

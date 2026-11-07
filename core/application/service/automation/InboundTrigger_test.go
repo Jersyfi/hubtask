@@ -118,6 +118,7 @@ func TestMintingAnAddressAnswersTheTokenOnce(t *testing.T) {
 
 // Rotating *is* revoking. There is one address per rule, and the replacement happens in one
 // statement - a window in which both open the same rule would be the one thing this must not mean.
+// UC-AUT-05 check 6.
 func TestRotatingReplacesTheAddressRatherThanAddingOne(t *testing.T) {
 	handler, open, _, _ := rotator(inboundRule())
 
@@ -158,6 +159,7 @@ func TestOnlyAnInboundRuleGetsAnAddress(t *testing.T) {
 	}
 }
 
+// UC-AUT-05 check 6.
 func TestMintingAnAddressNeedsThePermissionAtTheRulesScope(t *testing.T) {
 	handler, open, auth, sink := rotator(inboundRule())
 	auth.refuse = true

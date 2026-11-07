@@ -1,0 +1,26 @@
+[
+  {
+    "source": "postgres",
+    "level": "ERROR",
+    "message": "canceling statement due to user request",
+    "count": 1965
+  },
+  {
+    "source": "browser",
+    "level": "ERROR",
+    "message": "Failed to load resource: the server responded with a status of ? (Forbidden)",
+    "count": 23
+  },
+  {
+    "source": "browser",
+    "level": "ERROR",
+    "message": "Failed to load resource: the server responded with a status of ? (Forbidden)",
+    "count": 23
+  },
+  {
+    "source": "browser",
+    "level": "ERROR",
+    "message": "Failed to load resource: the server responded with a status of ? (Forbidden)",
+    "count": 23
+  }
+]

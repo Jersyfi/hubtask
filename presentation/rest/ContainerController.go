@@ -4,7 +4,6 @@
 package rest
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,68 +14,10 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
-
-// CreateContainer answers POST /containers.
-//
-// The handler holds no rules. It reads the request, hands it to the catalogue, and maps the
-// result - the permission check, the invariants, the event, the change log entry and the audit
-// entry all happen in the application layer, once, for every channel (ADR-0005, arc42 §4).
-//
-// It goes through the catalogue rather than calling the use case directly, which is what makes
-// this identical to the same operation reached through MCP or from an automation rule: one
-// handler, one audit entry, one metric, whichever door the call came in by (test AT-6).
-func (c *RestController) CreateContainer(w http.ResponseWriter, r *http.Request, _ openapi.CreateContainerParams) {
-	requestID := correlation.RequestIDFrom(r.Context())
-
-	if c.UseCases == nil {
-		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	actor, _ := appshared.ActorFrom(r.Context())
-
-	var body openapi.ContainerCreate
-	if err := decodeJSON(r, &body); err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	var preset any
-	if body.Preset != nil {
-		preset = string(*body.Preset)
-	}
-	out, err := c.UseCases.Invoke(r.Context(), createContainerUseCase, actor, usecase.Input{
-		"preset":      preset,
-		"preset_id":   optionalUUIDField(body.PresetId),
-		"type":        string(body.Type),
-		"name":        body.Name,
-		"parent_id":   optionalUUIDField(body.ParentId),
-		"description": optionalStringField(body.Description),
-		"icon":        optionalStringField(body.Icon),
-		"color_token": optionalStringField(body.ColorToken),
-		"private":     optionalBoolField(body.Private),
-	})
-	if err != nil {
-		WriteProblem(w, err, requestID)
-		return
-	}
-
-	container := containerResponse(out)
-	// Location and ETag are what let a client follow up without guessing: where the container is,
-	// and which version it may write against (api-guidelines.md §5).
-	w.Header().Set("Location", APIBasePath+"/containers/"+container.Id.String())
-	w.Header().Set("ETag", etag(out.Int("version")))
-	writeJSON(w, r, http.StatusCreated, container)
-}
-
-// createContainerUseCase is the catalogue name. The route it is reached through comes from the
-// specification; the two are reconciled by the parity test rather than by this constant.
-const createContainerUseCase = "CreateContainer"
 
 // etag is the version as a strong entity tag. Strong rather than weak because If-Match requires
 // strong comparison (RFC 9110 §13.1.1), and this is what optimistic locking is built on.
@@ -90,38 +31,6 @@ func etag(version int) string { return `"` + strconv.Itoa(version) + `"` }
 // applies to what a client *reads*, not to what it sends).
 func decodeJSON(r *http.Request, into any) error {
 	return decodeFrom(r.Body, into)
-}
-
-// decodeJSONWithPresence decodes the body and also reports which fields the client actually sent.
-//
-// It exists for one distinction the generated types cannot express: a field declared `[string, "null"]` and
-// optional decodes to a nil pointer whether the client sent `null` or sent nothing at all. For
-// `target_parent_id` those are different requests - null is "move to the top level", absent is "leave the
-// parent alone" - and reading them as the same would move items nobody asked to move.
-//
-// The body is read once and decoded twice from the same bytes, so the typed decode still refuses an unknown
-// field and the presence map cannot disagree with it about what arrived.
-func decodeJSONWithPresence(r *http.Request, into any) (map[string]bool, error) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err)
-	}
-	if err := decodeFrom(bytes.NewReader(raw), into); err != nil {
-		return nil, err
-	}
-
-	// Unmarshalled rather than decoded field by field: the typed pass above has already established that this
-	// is an object with known keys, so this one cannot fail on anything the first one accepted.
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return nil, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err)
-	}
-
-	present := make(map[string]bool, len(fields))
-	for name := range fields {
-		present[name] = true
-	}
-	return present, nil
 }
 
 func decodeFrom(body io.Reader, into any) error {
@@ -206,6 +115,9 @@ func containerResponse(out usecase.Output) openapi.Container {
 	if handle := out.String("handle"); handle != "" {
 		container.Handle = &handle
 	}
+	if keyPrefix := out.String("key_prefix"); keyPrefix != "" {
+		container.KeyPrefix = &keyPrefix
+	}
 	if policies, ok := out["policies"].(map[string]any); ok {
 		container.Policies = &openapi.ContainerPolicies{}
 		if policy, ok := policies["completion_policy"].(string); ok {
@@ -232,6 +144,9 @@ func containerResponse(out usecase.Output) openapi.Container {
 	}
 	if milestone, held := out["milestone"].(map[string]any); held {
 		container.Milestone = &openapi.ContainerMilestone{ReachedAt: timeValue(milestone["reached_at"])}
+		if openSince, counted := milestone["open_since"].(int); counted {
+			container.Milestone.OpenSince = &openSince
+		}
 	}
 	return container
 }
@@ -269,22 +184,6 @@ func autoAssignResponse(value any) *openapi.AutoAssignPolicy {
 		policy.Candidates = candidates
 	}
 	return policy
-}
-
-// optionalStringField turns an absent field into an absent entry rather than an empty string, so
-// that the catalogue sees the same thing whichever channel the call came through.
-func optionalStringField(value *string) any {
-	if value == nil {
-		return nil
-	}
-	return *value
-}
-
-func optionalUUIDField(value *openapi_types.UUID) any {
-	if value == nil {
-		return nil
-	}
-	return value.String()
 }
 
 // uuidValue is the generated type's form of an identifier. A value the use case produced is

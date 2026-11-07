@@ -339,8 +339,24 @@ func (o Offset) apply(moment time.Time) time.Time {
 	if o.Negative {
 		sign = -1
 	}
-	shifted := moment.AddDate(sign*o.Years, sign*o.Months, sign*o.Days)
+	shifted := addMonthsClamped(moment, sign*(o.Years*12+o.Months)).AddDate(0, 0, sign*o.Days)
 	return shifted.Add(time.Duration(sign) * o.Clock)
+}
+
+// addMonthsClamped moves a moment by whole months and keeps the day inside the month it lands in:
+// the 31st a month on is the last day of the next month. AddDate alone normalises 31 February to
+// 3 March, which would let "a month back" on 31 March leave most of February out.
+func addMonthsClamped(moment time.Time, months int) time.Time {
+	if months == 0 {
+		return moment
+	}
+	first := time.Date(moment.Year(), moment.Month(), 1,
+		moment.Hour(), moment.Minute(), moment.Second(), moment.Nanosecond(), moment.Location())
+	target := first.AddDate(0, months, 0)
+	lastDay := target.AddDate(0, 1, -1).Day()
+	day := min(moment.Day(), lastDay)
+	return time.Date(target.Year(), target.Month(), day,
+		moment.Hour(), moment.Minute(), moment.Second(), moment.Nanosecond(), moment.Location())
 }
 
 // Resolve replaces every placeholder in the tree with the value it stands for.
@@ -369,6 +385,9 @@ func (n Node) Resolve(at Resolution, path string) (Node, error) {
 				return Node{}, err
 			}
 			value = computed
+		}
+		if n.Field.Name == FieldGroupQueueOf && value.ID != at.ActorID {
+			return Node{}, fieldError(path+"/value", "query.group_queue_not_yours", nil)
 		}
 		resolved.Values = append(resolved.Values, value)
 	}
