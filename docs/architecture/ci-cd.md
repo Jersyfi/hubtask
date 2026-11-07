@@ -373,6 +373,12 @@ matrix cells run on native `arm64` runners. No runner is bought for load: the ni
 regression guard, and the capacity ramp runs per release on the integration server
 ([observability-reliability.md](./observability-reliability.md) §13.2).
 
+A timed check of a use case that a pull request proves on a shared runner — the frames of a board
+of 5,000 objects (UC-CNV-01 check 10) — keeps the use case's bounds and measures each gesture up to
+three times, judged by its best: a slow build fails all three, one stall of the runner only one.
+A bound that falls on a frame boundary allows half a millisecond for the timestamps' jitter, since
+six frames at 60 Hz read either side of 100 ms (decision #1805).
+
 ---
 
 ## 8. Open points
