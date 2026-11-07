@@ -1,0 +1,955 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!--
+  Mockup of docs/backlog/page-system/README.md, second round: the page kinds at the five widths,
+  the surfaces, the dialog ladder, sheets on a phone, list-to-detail, the column that stays.
+  Draws the generated token sheet only (rule 15) and reads the breakpoints from tokens.json, so
+  serve it from the checkout's root (python3 -m http.server) after `make tokens`.
+  A picture to build from: none of the names are real.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — one page system</title>
+<link rel="stylesheet" href="../../../packages/design-system/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/design-system/dist/fonts.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg-emphasis); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--fs-200); line-height: var(--lh-normal); overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  h1, h2, h3, p { margin: 0; }
+  a { color: inherit; text-decoration: none; cursor: pointer; }
+
+  /* ===== presentation chrome (not the product) ===== */
+  .ctl { height: var(--sp-800); display: flex; align-items: center; gap: var(--sp-100); padding: 0 var(--sp-200); overflow-x: auto; white-space: nowrap; color: var(--text-inverse); font-size: var(--fs-100); }
+  .ctl .grp { display: flex; gap: var(--sp-050); align-items: center; }
+  .ctl .grp + .grp { margin-inline-start: var(--sp-200); padding-inline-start: var(--sp-200); border-inline-start: var(--bw-hairline) solid var(--border-strong); }
+  .ctl button { border: var(--bw-hairline) solid var(--border-strong); background: var(--bg-surface); color: var(--text-primary); border-radius: var(--r-full); padding: var(--sp-050) var(--sp-150); font-size: var(--fs-100); }
+  .ctl button[aria-pressed="true"] { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); }
+  .ctl .w { margin-inline-start: auto; }
+  .stage { height: calc(100vh - var(--sp-800)); display: grid; justify-items: center; overflow: hidden; }
+  .device { width: 100%; height: 100%; overflow: hidden; background: var(--bg-canvas); position: relative; transform: translateZ(0); }
+  .scroller { height: 100%; overflow: auto; }
+  .stage[data-mode="tablet"] .device { width: calc(var(--layout-pane-width) * 2); border-radius: var(--r-2xl); border: var(--bw-thick) solid var(--border-strong); height: calc(100% - var(--sp-300)); margin-top: var(--sp-150); }
+  .stage[data-mode="phone"] .device { width: var(--layout-pane-width); border-radius: var(--r-2xl); border: var(--bw-thick) solid var(--border-strong); height: calc(100% - var(--sp-300)); margin-top: var(--sp-150); }
+  .note { border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-md); padding: var(--sp-150) var(--sp-200); color: var(--text-secondary); font-size: var(--fs-100); background: transparent; }
+  .note b { color: var(--text-primary); }
+  .ctxtag { font-size: var(--fs-050); color: var(--text-subtle); border: var(--bw-hairline) dashed var(--border-default); border-radius: var(--r-sm); padding: 0 var(--sp-050); }
+
+  /* ===== app frame ===== */
+  .appbar { position: sticky; top: 0; z-index: 3; height: var(--layout-appbar-height); display: flex; align-items: center; gap: var(--sp-150); padding: 0 var(--sp-300); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .appbar .logo { font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-400); }
+  .appbar .barsearch { margin-inline: auto; width: var(--layout-barsearch-width); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-150); color: var(--text-subtle); font-size: var(--fs-100); }
+  .appbar .bartitle { display: none; font-weight: var(--fw-semibold); }
+  .avatar { display: inline-grid; place-items: center; width: var(--sp-400); height: var(--sp-400); border-radius: var(--r-full); background: var(--bg-surface-sunken); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+  .appbar .burger { display: none; }
+  .frame { display: grid; grid-template-columns: var(--layout-sidenav-width) minmax(0, 1fr); align-items: start; }
+  .col { position: sticky; top: var(--layout-appbar-height); max-height: calc(100vh - var(--sp-800) - var(--layout-appbar-height)); overflow: auto; background: var(--bg-surface); border-inline-end: var(--bw-hairline) solid var(--border-subtle); padding: var(--sp-200) var(--sp-150); display: grid; align-content: start; gap: var(--sp-025); color: var(--text-secondary); font-size: var(--fs-100); box-sizing: border-box; min-height: calc(100vh - var(--sp-800) - var(--layout-appbar-height)); }
+  .col .g { margin-top: var(--sp-200); padding-inline: var(--sp-150); font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-subtle); }
+  .col a { padding: var(--sp-050) var(--sp-150); border-radius: var(--r-md); }
+  .col a:hover { background: var(--bg-surface-hover); }
+  .col a.cur { background: var(--bg-surface-pressed); color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .colscrim { display: none; }
+  main { padding: var(--sp-300) var(--sp-400) var(--sp-600); display: grid; align-content: start; gap: var(--sp-250); min-width: 0; max-width: var(--layout-content-max); }
+  .bottombar { display: none; }
+
+  /* ===== page head ===== */
+  .crumb { font-size: var(--fs-100); color: var(--text-secondary); display: flex; gap: var(--sp-050); align-items: center; }
+  .crumb a:hover { color: var(--text-brand); }
+  .head { display: flex; align-items: flex-start; gap: var(--sp-200); flex-wrap: wrap; }
+  .head .t { flex: 1 1 var(--layout-barsearch-side); min-width: 0; }
+  .head h1 { font-family: var(--font-display); font-size: var(--fs-600); line-height: var(--lh-tight); }
+  .head .eyebrow { font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-subtle); text-transform: uppercase; margin-bottom: var(--sp-050); }
+  .head .fig { color: var(--text-secondary); font-size: var(--fs-100); margin-top: var(--sp-050); }
+  .head .acts { display: flex; gap: var(--sp-100); align-items: center; }
+  .btn { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); min-height: var(--sp-400); font-size: var(--fs-100); font-weight: var(--fw-medium); white-space: nowrap; }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .btn.p { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); box-shadow: var(--shadow-glow); }
+  .btn.q { border-color: transparent; background: transparent; color: var(--text-secondary); }
+  .btn.d { color: var(--text-danger); border-color: var(--status-danger-border); }
+  .ib { display: inline-grid; place-items: center; width: var(--sp-400); height: var(--sp-400); border-radius: var(--r-md); border: 0; background: transparent; color: var(--text-secondary); }
+  .ib:hover { background: var(--bg-surface-hover); }
+
+  /* ===== one strip, segmented ===== */
+  .strip { display: flex; gap: var(--sp-300); border-bottom: var(--bw-hairline) solid var(--border-subtle); overflow-x: auto; scrollbar-width: none; }
+  .strip a { padding: var(--sp-100) 0; color: var(--text-secondary); white-space: nowrap; }
+  .strip a.cur { color: var(--text-brand); font-weight: var(--fw-semibold); box-shadow: inset 0 calc(var(--bw-thick) * -1) 0 var(--accent-primary); }
+  .strip .n { font-size: var(--fs-075); color: var(--text-subtle); margin-inline-start: var(--sp-050); }
+
+  /* ===== FilterBar ===== */
+  .fbar { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
+  .search { display: flex; align-items: center; gap: var(--sp-100); width: var(--layout-barsearch-side); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-150); background: var(--bg-surface); color: var(--text-subtle); font-size: var(--fs-100); min-height: var(--sp-400); box-sizing: border-box; }
+  .chip { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-full); padding: var(--sp-025) var(--sp-150); font-size: var(--fs-100); color: var(--text-secondary); white-space: nowrap; }
+  .chip.on { background: var(--accent-primary-subtle); border-color: var(--accent-primary); color: var(--text-brand); font-weight: var(--fw-medium); }
+  .count { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-100); }
+  .lk { color: var(--text-brand); font-size: var(--fs-100); background: none; border: 0; padding: 0; }
+  .filtersbtn { display: none; }
+
+  /* ===== Region + DataTable ===== */
+  .region { background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); overflow: clip; }
+  .dt { width: 100%; border-collapse: collapse; font-size: var(--fs-100); }
+  .dt th { position: sticky; top: var(--layout-appbar-height); z-index: 1; text-align: start; font-weight: var(--fw-semibold); color: var(--text-secondary); padding: var(--sp-100) var(--sp-200); border-bottom: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); white-space: nowrap; }
+  .dt td { padding: var(--sp-100) var(--sp-200); border-bottom: var(--bw-hairline) solid var(--border-subtle); vertical-align: middle; }
+  .dt tbody tr { cursor: pointer; }
+  .dt tbody tr:hover td { background: var(--bg-surface-hover); }
+  .dt .end { text-align: end; white-space: nowrap; width: 1%; }
+  .dt tr.grp td { background: var(--bg-surface-sunken); color: var(--text-secondary); font-weight: var(--fw-semibold); font-size: var(--fs-075); cursor: default; }
+  .dt .sub { display: block; color: var(--text-subtle); font-size: var(--fs-075); }
+  .name { font-weight: var(--fw-medium); color: var(--text-primary); }
+  .muted { color: var(--text-subtle); }
+  .tfoot { display: flex; align-items: center; gap: var(--sp-200); padding: var(--sp-150) var(--sp-200); color: var(--text-subtle); font-size: var(--fs-100); flex-wrap: wrap; }
+  .tfoot .btn { margin-inline: auto; }
+  .badge { display: inline-block; font-size: var(--fs-075); border-radius: var(--r-full); padding: 0 var(--sp-100); border: var(--bw-hairline) solid var(--status-neutral-border); background: var(--status-neutral-surface); color: var(--status-neutral-text); white-space: nowrap; }
+  .badge.ok { border-color: var(--status-success-border); background: var(--status-success-surface); color: var(--status-success-text); }
+  .badge.warn { border-color: var(--status-warning-border); background: var(--status-warning-surface); color: var(--status-warning-text); }
+  .badge.bad { border-color: var(--status-danger-border); background: var(--status-danger-surface); color: var(--status-danger-text); }
+  .faces { display: inline-flex; }
+  .face { display: inline-grid; place-items: center; width: var(--sp-300); height: var(--sp-300); border-radius: var(--r-full); background: var(--label-blue-bg); color: var(--label-blue-fg); font-size: var(--fs-050); font-weight: var(--fw-semibold); border: var(--bw-ring) solid var(--bg-surface); margin-inline-start: calc(var(--sp-050) * -1); }
+  .face:first-child { margin-inline-start: 0; }
+  .sw { display: inline-block; width: var(--sp-400); height: var(--sp-250); border-radius: var(--r-full); background: var(--accent-primary); position: relative; vertical-align: middle; flex: none; }
+  .sw::after { content: ""; position: absolute; inset-block: var(--sp-025); inset-inline-end: var(--sp-025); width: var(--sp-200); border-radius: var(--r-full); background: var(--bg-surface); }
+  .sw.off { background: var(--border-strong); }
+  .sw.off::after { inset-inline-end: auto; inset-inline-start: var(--sp-025); }
+  .mono { font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-subtle); }
+  .rmenu { position: relative; }
+
+  /* ===== headings on the canvas ===== */
+  .rh { display: flex; align-items: baseline; gap: var(--sp-100); }
+  .rh h2 { font-size: var(--fs-400); }
+  .rh .n { color: var(--text-subtle); font-size: var(--fs-100); }
+  .rh .acts { margin-inline-start: auto; display: flex; gap: var(--sp-100); }
+  .rp { color: var(--text-secondary); font-size: var(--fs-100); margin-top: calc(var(--sp-150) * -1); }
+
+  /* ===== SettingRow ===== */
+  .glabel { padding: var(--sp-150) var(--sp-250) var(--sp-050); font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-subtle); text-transform: uppercase; background: var(--bg-surface); }
+  .srow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-300); padding: var(--sp-200) var(--sp-250); border-top: var(--bw-hairline) solid var(--border-subtle); align-items: center; }
+  .glabel + .srow { border-top: 0; }
+  .srow .nm { font-weight: var(--fw-medium); display: flex; gap: var(--sp-100); align-items: center; flex-wrap: wrap; }
+  .srow .hp { font-size: var(--fs-100); color: var(--text-secondary); margin-top: var(--sp-025); }
+  .srow .cv { display: flex; gap: var(--sp-150); align-items: center; flex-wrap: wrap; }
+  .srow.chg { box-shadow: inset var(--bw-thick) 0 0 var(--accent-primary); }
+  .src { font-size: var(--fs-075); border-radius: var(--r-full); padding: 0 var(--sp-100); background: var(--bg-surface-sunken); color: var(--text-secondary); border: var(--bw-hairline) solid var(--border-subtle); font-weight: var(--fw-regular); }
+  .src.here { background: var(--accent-primary-subtle); color: var(--text-brand); border-color: var(--accent-primary); }
+  .src.lock { background: var(--status-warning-surface); color: var(--status-warning-text); border-color: var(--status-warning-border); }
+  .adv { display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-150) var(--sp-250); border-top: var(--bw-hairline) solid var(--border-subtle); color: var(--text-secondary); font-size: var(--fs-100); }
+  .in { border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); background: var(--bg-surface); font-size: var(--fs-100); box-sizing: border-box; max-width: 100%; min-height: var(--sp-500); }
+  .in.xs { width: var(--sp-1000); } .in.sm { width: calc(var(--sp-1000) * 2); } .in.md { width: calc(var(--sp-1000) * 4); } .in.lg { width: calc(var(--sp-1000) * 6); } .in.full { width: 100%; }
+  .in.focus { border: var(--bw-ring) solid var(--focus-ring); }
+  .in.sel::after { content: " ▾"; color: var(--text-subtle); float: inline-end; }
+  .savebar { position: sticky; bottom: var(--sp-200); z-index: 2; display: flex; align-items: center; gap: var(--sp-150); background: var(--bg-emphasis); color: var(--text-inverse); border-radius: var(--r-lg); padding: var(--sp-150) var(--sp-250); box-shadow: var(--shadow-overlay); font-size: var(--fs-100); flex-wrap: wrap; }
+  .savebar .sp { margin-inline-start: auto; }
+  .savebar .btn.q { color: var(--text-inverse); }
+
+  /* ===== list ↔ detail (settings, editor) ===== */
+  .twopane { display: grid; grid-template-columns: var(--layout-sidenav-min) minmax(0, 1fr); gap: var(--sp-500); align-items: start; }
+  .snav { position: sticky; top: calc(var(--layout-appbar-height) + var(--sp-300)); max-height: calc(100vh - var(--sp-800) - var(--layout-appbar-height) - var(--sp-600)); overflow: auto; display: grid; gap: var(--sp-025); font-size: var(--fs-100); align-content: start; }
+  .snav a { display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-100) var(--sp-150); border-radius: var(--r-md); color: var(--text-secondary); }
+  .snav a:hover { background: var(--bg-surface-hover); }
+  .snav a.cur { background: var(--bg-surface); color: var(--text-primary); font-weight: var(--fw-semibold); box-shadow: inset var(--bw-thick) 0 0 var(--accent-primary); }
+  .snav a .st { white-space: nowrap; margin-inline-start: auto; font-size: var(--fs-075); color: var(--text-subtle); font-weight: var(--fw-regular); }
+  .snav a .st.set { color: var(--text-brand); }
+  .snav a .chev { display: none; color: var(--text-subtle); }
+  .snav .search { width: 100%; margin-bottom: var(--sp-100); }
+  .detail { display: grid; gap: var(--sp-250); min-width: 0; }
+  .back { display: none; }
+
+  /* ===== ResourceGrid ===== */
+  .rgrid { display: grid; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: var(--sp-200); }
+  .item { background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); padding: var(--sp-200); display: grid; gap: var(--sp-075, var(--sp-050)); align-content: start; cursor: pointer; }
+  .item:hover { border-color: var(--border-default); background: var(--bg-surface-hover); }
+  .item .mk { width: var(--sp-400); height: var(--sp-400); border-radius: var(--r-md); background: var(--accent-primary-subtle); color: var(--text-brand); display: grid; place-items: center; font-size: var(--fs-200); }
+  .item h3 { font-size: var(--fs-200); }
+  .item p { font-size: var(--fs-100); color: var(--text-secondary); }
+  .item > .badge { justify-self: start; }
+  .item .chips { display: flex; gap: var(--sp-050); flex-wrap: wrap; }
+
+  /* ===== BlockList ===== */
+  .blocks { display: grid; }
+  .blk { display: flex; align-items: center; gap: var(--sp-150); padding: var(--sp-150) var(--sp-200); border-top: var(--bw-hairline) solid var(--border-subtle); font-size: var(--fs-100); cursor: pointer; }
+  .blk:first-child { border-top: 0; }
+  .blk:hover { background: var(--bg-surface-hover); }
+  .blk .grip { color: var(--text-subtle); cursor: grab; }
+  .blk .nm { font-weight: var(--fw-semibold); font-size: var(--fs-200); white-space: nowrap; }
+  .blk .sum { color: var(--text-secondary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .flow { display: flex; gap: var(--sp-100); align-items: center; flex-wrap: wrap; background: var(--bg-surface-sunken); border-radius: var(--r-lg); padding: var(--sp-200); }
+  .flow .arr { color: var(--text-subtle); }
+  .draft { position: sticky; top: calc(var(--layout-appbar-height) + var(--sp-100)); z-index: 2; display: flex; align-items: center; gap: var(--sp-150); background: var(--status-info-surface); border: var(--bw-hairline) solid var(--status-info-border); color: var(--status-info-text); border-radius: var(--r-lg); padding: var(--sp-100) var(--sp-200); font-size: var(--fs-100); flex-wrap: wrap; }
+  .draft .sp { margin-inline-start: auto; }
+  .seg { display: inline-flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); overflow: hidden; font-size: var(--fs-100); }
+  .seg span { padding: var(--sp-050) var(--sp-150); color: var(--text-secondary); }
+  .seg span.on { background: var(--accent-primary-subtle); color: var(--text-brand); font-weight: var(--fw-semibold); }
+
+  /* ===== facts, danger ===== */
+  .facts { display: grid; }
+  .facts > div { display: flex; gap: var(--sp-200); padding: var(--sp-150) var(--sp-250); border-top: var(--bw-hairline) solid var(--border-subtle); font-size: var(--fs-100); }
+  .facts > div:first-child { border-top: 0; }
+  .facts .k { color: var(--text-subtle); width: var(--layout-barsearch-side); flex: none; }
+  .danger { border: var(--bw-hairline) solid var(--status-danger-border); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .danger .ln { display: flex; align-items: center; gap: var(--sp-200); padding: var(--sp-200) var(--sp-250); font-size: var(--fs-100); color: var(--text-secondary); flex-wrap: wrap; }
+  .danger .ln + .ln { border-top: var(--bw-hairline) solid var(--border-subtle); }
+  .danger .ln .btn { margin-inline-start: auto; }
+  .danger .ln b { color: var(--text-primary); display: block; }
+
+  /* ===== overview ===== */
+  .sgrid { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: var(--sp-200); }
+  .scard { padding: var(--sp-200) var(--sp-250); display: grid; gap: var(--sp-100); align-content: start; }
+  .scard h3 { font-size: var(--fs-200); }
+  .scard .big { font-family: var(--font-display); font-size: var(--fs-600); }
+  .focal { background: var(--bg-raised); box-shadow: var(--shadow-raised); border-radius: var(--r-lg); padding: var(--sp-250); display: grid; gap: var(--sp-150); }
+  .pbar { height: var(--sp-100); border-radius: var(--r-full); background: var(--bg-surface-sunken); overflow: hidden; }
+  .pbar i { display: block; height: 100%; width: 40%; background: var(--accent-primary); }
+
+  /* ===== overlays ===== */
+  .scrim { position: fixed; inset: 0; z-index: 10; background: var(--bg-scrim); display: none; place-items: center; padding: var(--sp-600); }
+  .scrim.on { display: grid; }
+  .dlg { background: var(--bg-raised); border-radius: var(--r-xl); box-shadow: var(--shadow-overlay); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-height: 100%; width: var(--w); max-width: 100%; box-sizing: border-box; }
+  .dlg[hidden], [hidden] { display: none !important; }
+  .dlg[data-size="s"] { --w: var(--layout-pane-width); }
+  .dlg[data-size="m"] { --w: var(--layout-dialog-wide); }
+  .dlg[data-size="l"] { --w: calc(var(--layout-pane-width) * 2); }
+  .dlg .dh { display: flex; align-items: center; gap: var(--sp-150); padding: var(--sp-300) var(--sp-300) var(--sp-150); }
+  .dlg .dh h2 { font-size: var(--fs-500); flex: 1; }
+  .dlg .dh .xs { order: 3; }
+  .dlg .dh .bp { display: none; }
+  .dlg .db { padding: var(--sp-100) var(--sp-300) var(--sp-200); overflow: auto; display: grid; gap: var(--sp-250); align-content: start; }
+  .dlg .df { display: flex; justify-content: flex-end; gap: var(--sp-150); padding: var(--sp-200) var(--sp-300); border-top: var(--bw-hairline) solid var(--border-subtle); }
+  .dlg .sizetag { font-size: var(--fs-075); color: var(--text-subtle); }
+  .fld { display: grid; gap: var(--sp-050); }
+  .fld label { font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  .fld .help { font-size: var(--fs-075); color: var(--text-subtle); }
+  .req { color: var(--text-danger); }
+  .fgrp { display: grid; gap: var(--sp-200); }
+  .fgrp > h3 { font-size: var(--fs-200); padding-bottom: var(--sp-050); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-200); }
+  .checks { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-250); font-size: var(--fs-100); }
+  .pick { display: grid; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); }
+  .pick > div { display: flex; align-items: center; gap: var(--sp-150); padding: var(--sp-100) var(--sp-150); border-top: var(--bw-hairline) solid var(--border-subtle); font-size: var(--fs-100); }
+  .pick > div:first-child { border-top: 0; }
+  .pick .x { margin-inline-start: auto; }
+  .menu { position: absolute; inset-inline-end: 0; top: 100%; z-index: 5; background: var(--bg-raised); border-radius: var(--r-lg); box-shadow: var(--shadow-overlay); padding: var(--sp-050); display: none; min-width: var(--layout-barsearch-side); font-size: var(--fs-100); text-align: start; }
+  .menu.on { display: grid; }
+  .menu span { padding: var(--sp-100) var(--sp-150); border-radius: var(--r-sm); white-space: nowrap; }
+  .menu span:hover { background: var(--bg-surface-hover); }
+  .menu hr { border: 0; border-top: var(--bw-hairline) solid var(--border-subtle); margin: var(--sp-050) 0; width: 100%; }
+  .menu .dz { color: var(--text-danger); }
+  .sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 11; background: var(--bg-raised); border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: var(--shadow-overlay); padding: var(--sp-100) var(--sp-250) var(--sp-300); display: none; gap: var(--sp-150); max-height: 50%; overflow: auto; }
+  .sheet.on { display: grid; }
+  .sheet .grab { width: var(--sp-500); height: var(--sp-050); border-radius: var(--r-full); background: var(--border-strong); justify-self: center; }
+  .sheet h3 { font-size: var(--fs-300); }
+  .sheet .acts { display: grid; }
+  .sheetchips { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  .sheet .acts span { padding: var(--sp-150) 0; border-top: var(--bw-hairline) solid var(--border-subtle); }
+  .sheet .acts .dz { color: var(--text-danger); }
+  .sheetscrim { position: fixed; inset: 0; z-index: 10; background: var(--bg-scrim); display: none; }
+  .sheetscrim.on { display: block; }
+  .toast { position: fixed; bottom: var(--sp-300); inset-inline-start: 50%; transform: translateX(-50%); z-index: 12; background: var(--bg-emphasis); color: var(--text-inverse); border-radius: var(--r-lg); padding: var(--sp-150) var(--sp-250); font-size: var(--fs-100); display: none; gap: var(--sp-200); box-shadow: var(--shadow-overlay); }
+  .toast.on { display: flex; }
+
+  /* ===== doc scene ===== */
+  .doc { padding: var(--sp-400); display: grid; gap: var(--sp-400); max-width: var(--layout-content-max); margin: 0 auto; }
+  .doc h2 { font-family: var(--font-display); font-size: var(--fs-500); }
+  .doc > section { display: grid; gap: var(--sp-200); }
+  .doc p.lead { color: var(--text-secondary); max-width: var(--layout-dialog-wide); }
+  .ladder { display: grid; grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr)); gap: var(--sp-150); }
+  .rung { display: grid; gap: var(--sp-100); align-content: start; padding: var(--sp-200); font-size: var(--fs-100); }
+  .rung b { font-size: var(--fs-200); }
+  .rung .pic { height: var(--sp-1000); border-radius: var(--r-md); background: var(--bg-canvas); border: var(--bw-hairline) solid var(--border-subtle); position: relative; overflow: hidden; }
+  .rung .pic i { position: absolute; background: var(--bg-raised); box-shadow: var(--shadow-overlay); border-radius: var(--r-sm); }
+  .levels { display: grid; gap: var(--sp-150); }
+  .rung .pic .r1 { inset: var(--sp-200) var(--sp-800) var(--sp-300) var(--sp-300); }
+  .rung .pic .r2 { inset: var(--sp-250) var(--sp-500); }
+  .rung .pic .r3 { inset: var(--sp-150) var(--sp-400); }
+  .rung .pic .r4 { inset: var(--sp-100) var(--sp-200); }
+  .rung .pic .r5 { inset: 0; box-shadow: none; border-radius: 0; background: var(--bg-surface); }
+  .lv { display: grid; grid-template-columns: var(--sp-1600) minmax(0, 1fr); gap: var(--sp-200); align-items: center; font-size: var(--fs-100); }
+  .lv .sw2 { height: var(--sp-600); border-radius: var(--r-lg); display: grid; place-items: center; font-size: var(--fs-075); color: var(--text-secondary); }
+  .lv .c0 { background: var(--bg-canvas); border: var(--bw-hairline) dashed var(--border-default); }
+  .lv .c1 { background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); }
+  .lv .cs { background: var(--bg-surface-sunken); }
+  .lv .c2 { background: var(--bg-raised); box-shadow: var(--shadow-raised); }
+  .lv .c3 { background: var(--bg-raised); box-shadow: var(--shadow-overlay); }
+  .wtable { width: 100%; border-collapse: collapse; font-size: var(--fs-100); }
+  .wtable th, .wtable td { text-align: start; padding: var(--sp-100) var(--sp-150); border-bottom: var(--bw-hairline) solid var(--border-subtle); vertical-align: top; }
+  .wtable th { color: var(--text-secondary); font-weight: var(--fw-semibold); }
+  .wrapx { overflow-x: auto; }
+
+  #app { display: flex; flex-direction: column; min-height: 100%; }
+  #app .frame { flex: 1; }
+  .scene { display: none; }
+  .scene.on { display: block; }
+
+  /* =====================================================================
+     Widths — the device carries data-w (compact · medium · expanded · large · xlarge)
+     ===================================================================== */
+  .device[data-w="expanded"] .rgrid { --cols: 3; }
+  .device[data-w="xlarge"] .rgrid { --cols: 5; }
+  .device[data-w="expanded"] .ladder { --cols: 3; }
+
+  /* below expanded: the column is a drawer */
+  .device[data-narrow] .frame { grid-template-columns: minmax(0, 1fr); }
+  .device[data-narrow] .col { display: none; }
+  .device[data-narrow][data-drawer] .col { display: grid; position: fixed; z-index: 9; top: 0; inset-inline-start: 0; bottom: 0; width: var(--layout-sidenav-width); max-height: none; min-height: 0; box-shadow: var(--shadow-overlay); }
+  .device[data-narrow][data-drawer] .colscrim { display: block; position: fixed; inset: 0; z-index: 8; background: var(--bg-scrim); }
+  .device[data-narrow] .appbar .burger { display: inline-grid; }
+  .device[data-narrow] .twopane { grid-template-columns: minmax(0, 1fr); }
+  .device[data-narrow] .twopane[data-view="list"] .detail { display: none; }
+  .device[data-narrow] .twopane[data-view="detail"] .snav { display: none; }
+  .device[data-narrow] .snav { position: static; max-height: none; background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); padding: 0; gap: 0; }
+  .device[data-narrow] .snav a { border-radius: 0; padding: var(--sp-200); border-top: var(--bw-hairline) solid var(--border-subtle); font-size: var(--fs-200); }
+  .device[data-narrow] .snav a:first-of-type { border-top: 0; }
+  .device[data-narrow] .snav a.cur { box-shadow: none; background: transparent; font-weight: var(--fw-medium); }
+  .device[data-narrow] .snav a .chev { display: inline; }
+  .device[data-narrow] .snav .search { margin: var(--sp-150); width: auto; }
+  .device[data-narrow] .back { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-brand); font-size: var(--fs-100); background: none; border: 0; padding: 0; }
+  .device[data-narrow] .hide-narrow { display: none; }
+  .device[data-narrow] .rgrid { --cols: 2; }
+  .device[data-narrow] .sgrid { --cols: 2; }
+  .device[data-narrow] .ladder { --cols: 2; }
+  .device[data-narrow] main { padding-inline: var(--sp-300); }
+  .device[data-narrow] .appbar { padding-inline: var(--sp-200); }
+  .device[data-narrow] .appbar .barsearch { width: auto; flex: 1; }
+  .device[data-narrow] .fbar .chip.more2 { display: none; }
+  .device[data-narrow] .dt .p3 { display: none; }
+
+  /* compact: the phone */
+  .device[data-w="compact"] main { padding: var(--sp-200) var(--sp-200) calc(var(--layout-bottombar-height) + var(--sp-400)); gap: var(--sp-200); }
+  .device[data-w="compact"] .appbar .logo, .device[data-w="compact"] .appbar .barsearch { display: none; }
+  .device[data-w="compact"] .appbar .bartitle { display: block; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .device[data-w="compact"] .head h1 { font-size: var(--fs-500); }
+  .device[data-w="compact"] .head .acts .btn:not(.p), .device[data-w="compact"] .head .acts .hide-compact { display: none; }
+  .device[data-w="compact"] .head .acts:has(.btn.p) { width: 100%; }
+  .device[data-narrow] .scene:has(.twopane[data-view="detail"]) .head:not(.detail .head), .device[data-narrow] .scene:has(.twopane[data-view="detail"]) .crumb { display: none; }
+  .device[data-w="compact"] .head .acts .btn.p { flex: 1; min-height: var(--sp-500); }
+  .device[data-w="compact"] .crumb .mid { display: none; }
+  .device[data-w="compact"] .bottombar { display: grid; grid-template-columns: repeat(5, 1fr); position: sticky; bottom: 0; z-index: 3; height: var(--layout-bottombar-height); align-items: center; background: var(--bg-surface); border-top: var(--bw-hairline) solid var(--border-subtle); text-align: center; font-size: var(--fs-075); color: var(--text-secondary); }
+  .device[data-w="compact"] .bottombar .cap { color: var(--text-inverse); background: var(--accent-primary); border-radius: var(--r-full); margin: 0 var(--sp-100); padding: var(--sp-050) 0; }
+  .device[data-w="compact"] .fbar .search { flex: 1; width: auto; }
+  .device[data-w="compact"] .fbar .chip, .device[data-w="compact"] .fbar .lk { display: none; }
+  .device[data-w="compact"] .fbar .filtersbtn { display: inline-flex; }
+  .device[data-w="compact"] .fbar .count { width: 100%; margin: 0; }
+  .device[data-w="compact"] .dt thead { display: none; }
+  .device[data-w="compact"] .dt tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "a s m" "b s m"; align-items: center; column-gap: var(--sp-150); padding: var(--sp-150) var(--sp-200); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .device[data-w="compact"] .dt tbody tr.grp { display: block; padding: var(--sp-100) var(--sp-200); background: var(--bg-surface-sunken); }
+  .device[data-w="compact"] .dt td { display: none; padding: 0; border: 0; }
+  .device[data-w="compact"] .dt td.p1 { display: block; grid-area: a; }
+  .device[data-w="compact"] .dt td.p2 { display: block; grid-area: b; color: var(--text-subtle); font-size: var(--fs-075); }
+  .device[data-w="compact"] .dt td.st { display: block; grid-area: s; }
+  .device[data-w="compact"] .dt td.mn { display: block; grid-area: m; }
+  .device[data-w="compact"] .dt tr.grp td { display: block; }
+  .device[data-w="compact"] .dt .sub { display: none; }
+  .device[data-w="compact"] .tfoot .rows { display: none; }
+  .device[data-w="compact"] .rgrid, .device[data-w="compact"] .sgrid, .device[data-w="compact"] .ladder { --cols: 1; }
+  .device[data-w="compact"] .srow { grid-template-columns: minmax(0, 1fr); gap: var(--sp-150); padding: var(--sp-200); }
+  .device[data-w="compact"] .glabel, .device[data-w="compact"] .adv { padding-inline: var(--sp-200); }
+  .device[data-w="compact"] .facts > div { flex-direction: column; gap: var(--sp-025); padding: var(--sp-150) var(--sp-200); }
+  .device[data-w="compact"] .blk .sum { white-space: normal; }
+  .device[data-w="compact"] .blk { flex-wrap: wrap; }
+  .device[data-w="compact"] .savebar { bottom: calc(var(--layout-bottombar-height) + var(--sp-100)); }
+  .device[data-w="compact"] .two { grid-template-columns: 1fr; }
+  .device[data-w="compact"] .scrim { padding: 0; }
+  .device[data-w="compact"] .dlg[data-size="m"], .device[data-w="compact"] .dlg[data-size="l"] { width: 100%; height: 100%; max-height: none; border-radius: 0; }
+  .device[data-w="compact"] .dlg[data-size="m"] .dh, .device[data-w="compact"] .dlg[data-size="l"] .dh { padding: var(--sp-100) var(--sp-150); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .device[data-w="compact"] .dlg[data-size="m"] .dh h2, .device[data-w="compact"] .dlg[data-size="l"] .dh h2 { font-size: var(--fs-300); }
+  .device[data-w="compact"] .dlg[data-size="m"] .dh .xs, .device[data-w="compact"] .dlg[data-size="l"] .dh .xs { order: -1; }
+  .device[data-w="compact"] .dlg[data-size="m"] .dh .bp, .device[data-w="compact"] .dlg[data-size="l"] .dh .bp { display: inline-block; }
+  .device[data-w="compact"] .dlg[data-size="m"] .df, .device[data-w="compact"] .dlg[data-size="l"] .df { display: none; }
+  .device[data-w="compact"] .dlg .db { padding: var(--sp-200); }
+  .device[data-w="compact"] .dlg[data-size="s"] { margin: var(--sp-300); }
+  .device[data-w="compact"] .facts .k { width: auto; }
+  .device[data-w="compact"] .in.md, .device[data-w="compact"] .in.lg { width: 100%; }
+</style>
+</head>
+<body>
+<div class="ctl">
+  <div class="grp" id="scenes">
+    <button data-s="system" aria-pressed="true">The system</button>
+    <button data-s="people">ListPage · People</button>
+    <button data-s="group">RecordPage · a group</button>
+    <button data-s="signin">SettingsPage · Sign-in</button>
+    <button data-s="templates">ListPage · Templates</button>
+    <button data-s="workflows">EditorPage · Workflows</button>
+    <button data-s="audit">LogPage · Audit</button>
+    <button data-s="token">CreatePage · New token</button>
+    <button data-s="overview">OverviewPage</button>
+  </div>
+  <div class="grp" id="modes">
+    <button data-m="auto" aria-pressed="true">Auto (window)</button>
+    <button data-m="desktop">Desktop</button>
+    <button data-m="tablet">Tablet</button>
+    <button data-m="phone">Phone</button>
+  </div>
+  <span class="w" id="wlabel"></span>
+</div>
+
+<div class="stage" id="stage" data-mode="auto">
+<div class="device" id="device" data-w="large">
+<div class="scroller" id="scroller">
+
+  <!-- ================= THE SYSTEM (document scene, no frame) ================= -->
+  <section class="scene on" id="system">
+    <div class="doc">
+      <section>
+        <h2>One page system</h2>
+        <p class="lead">Every screen is one of seven page kinds, built from compositions the design system ships. Switch the width above, or narrow the window: every scene follows the five widths.</p>
+      </section>
+      <section>
+        <h2>Levels: two at most</h2>
+        <p class="lead">Separate by space, a heading and a hairline first. A container only where an object stands on its own — never a container in a container. A shadow only for what moves or lies over.</p>
+        <div class="levels">
+          <div class="lv"><div class="sw2 c0">0 Canvas</div><span><b>The page.</b> Head, strip, filter bar, headings sit here directly.</span></div>
+          <div class="lv"><div class="sw2 c1">1 Region</div><span><b>One per thing the page is about:</b> a table, a settings section's rows, a block list. Hairline, no shadow. Never a region in a region.</span></div>
+          <div class="lv"><div class="sw2 c1">1′ Item</div><span><b>Items to pick from</b> (templates, hubs) directly on the canvas, never inside a region.</span></div>
+          <div class="lv"><div class="sw2 cs">Sunken</div><span><b>A backdrop</b> inside the canvas or a region: a group row, a board column, a flow diagram.</span></div>
+          <div class="lv"><div class="sw2 c2">2 Raised</div><span><b>Only what moves</b>, and at most one focal card per screen.</span></div>
+          <div class="lv"><div class="sw2 c3">3 Overlay</div><span><b>Dialogs, sheets, menus.</b> One at a time; <i>Discard changes?</i> is the only one over another.</span></div>
+        </div>
+      </section>
+      <section>
+        <h2>Where a task opens — the ladder</h2>
+        <p class="lead">Take the first rung that fits. Never a split between a list and a form.</p>
+        <div class="ladder">
+          <div class="region rung"><div class="pic"></div><b>In place</b><span>one value that is the row's state — a switch, a title</span></div>
+          <div class="region rung"><div class="pic"><i class="r1"></i></div><b>Popover</b><span>1–3 values from a short set · phone: sheet</span></div>
+          <div class="region rung"><div class="pic"><i class="r2"></i></div><b>Dialog S · 400</b><span>a confirmation or one field</span></div>
+          <div class="region rung"><div class="pic"><i class="r3"></i></div><b>Dialog M · 600</b><span>2–6 fields, one group, no scroll · phone: full screen</span></div>
+          <div class="region rung"><div class="pic"><i class="r4"></i></div><b>Dialog L · 800</b><span>7–12 fields in ≤ 3 groups, or a list to pick from · phone: full screen</span></div>
+          <div class="region rung"><div class="pic"><i class="r5"></i></div><b>Page</b><span>more, steps, lists of its own, tables inside — a create page or a record page</span></div>
+        </div>
+      </section>
+      <section>
+        <h2>The five widths</h2>
+        <div class="region wrapx">
+          <table class="wtable">
+            <thead><tr><th>Part</th><th>compact &lt; 600</th><th>medium 600–904</th><th>expanded 905–1239</th><th>large · xlarge</th></tr></thead>
+            <tbody>
+              <tr><td>Column</td><td>☰ drawer · bottom bar</td><td>☰ drawer</td><td>pinned, sticky, own scroll</td><td>pinned, sticky, own scroll</td></tr>
+              <tr><td>Page primary</td><td>full-width under the title</td><td>in the head</td><td>in the head</td><td>in the head</td></tr>
+              <tr><td>Sections, editor objects</td><td>list → detail with ‹ back</td><td>list → detail</td><td>two panes, the list sticky</td><td>two panes</td></tr>
+              <tr><td>Filters</td><td>search + <i>Filters (n)</i> → sheet</td><td>search, two chips, more</td><td>all chips</td><td>all chips</td></tr>
+              <tr><td>Table</td><td>list rows: title, one line, status, ⋯</td><td>priority 1–2 columns</td><td>chosen columns</td><td>chosen columns</td></tr>
+              <tr><td>Dialog M · L</td><td>full screen, ✕ and the act in its bar</td><td>centred</td><td>centred</td><td>centred</td></tr>
+              <tr><td>Menus, pickers</td><td>bottom sheet ≤ half height</td><td>anchored</td><td>anchored</td><td>anchored</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================= APP SCENES share the frame ================= -->
+  <div id="app" hidden>
+    <header class="appbar">
+      <button class="ib burger" data-drawer aria-label="Navigation">☰</button>
+      <span class="logo">hubtask</span>
+      <span class="bartitle" id="bartitle">People</span>
+      <span class="barsearch">Search or run a command ⌘K</span>
+      <button class="ib" aria-label="Help">?</button>
+      <span class="avatar">JK</span>
+    </header>
+    <div class="frame">
+      <nav class="col" aria-label="Administration">
+        <a data-go="overview">‹ The workspace</a>
+        <a data-go="overview" data-k="overview">Overview</a>
+        <span class="g">How we work</span>
+        <a>Workspace</a><a data-go="templates" data-k="templates">Templates</a><a>Modules</a><a>Types</a><a data-go="workflows" data-k="workflows">Workflows</a><a>Link types</a><a>Rules</a><a>Rule runs</a>
+        <span class="g">People &amp; access</span>
+        <a data-go="people" data-k="people">People</a><a data-go="signin" data-k="signin">Sign-in</a><a>Legal links</a><a>Machines and apps</a>
+        <span class="g">Connections</span>
+        <a>E-mail</a><a>Webhooks</a><a>Voice assistants</a>
+        <span class="g">Data</span>
+        <a>Backup</a><a>Retention</a><a>Privacy requests</a><a data-go="audit" data-k="audit">Audit log</a>
+        <span class="g">You</span>
+        <a data-go="token" data-k="token">Access tokens</a>
+        <span class="g"><span class="ctxtag">column: other concept — stays while the page scrolls</span></span>
+      </nav>
+      <div class="colscrim" data-drawer></div>
+
+      <main>
+        <!-- ---------- PEOPLE ---------- -->
+        <section class="scene" id="people" data-title="People">
+          <div style="display:grid;gap:var(--sp-250)">
+            <span class="crumb"><a data-go="overview">Administration</a> › People</span>
+            <div class="head">
+              <div class="t"><h1>People</h1><p class="fig">9 people · 3 groups · 12 roles</p></div>
+              <div class="acts"><button class="btn hide-compact">Import</button><button class="btn p" data-open="dlg-invite">＋ Add people</button><span class="rmenu hide-compact"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Export the list</span><span>Show removed people</span></span></span></div>
+            </div>
+            <nav class="strip"><a class="cur">People<span class="n">9</span></a><a>Groups<span class="n">3</span></a><a>Roles<span class="n">12</span></a><a>Who may do what</a></nav>
+            <div class="fbar">
+              <span class="search">⌕ Search people</span>
+              <button class="chip on">Role: any ▾</button><button class="chip">Standing: active ▾</button><button class="chip more2">Group ▾</button><button class="chip more2">Last seen ▾</button>
+              <button class="lk">Clear</button>
+              <button class="btn filtersbtn" data-sheet="sh-filters">Filters (1)</button>
+              <span class="count">9 of 9</span>
+            </div>
+            <div class="region">
+              <table class="dt">
+                <thead><tr><th>Name ↑</th><th>E-mail</th><th>Role</th><th class="p3">Groups</th><th>Standing</th><th class="p3">Last seen</th><th class="end"></th></tr></thead>
+                <tbody>
+                  <tr data-go="group"><td class="p1"><span class="name">Jana Krüger</span></td><td class="p2">owner@nordlicht.example.org</td><td><span class="badge">Owner</span></td><td class="p3 muted">—</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">now</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More for Jana Krüger">⋯</button><span class="menu"><span>Open</span><span>Change role…</span><span>View as</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Lukas Brandt</span></td><td class="p2">lukas.brandt@nordlicht.example.org</td><td><span class="badge">Administrator</span></td><td class="p3">CAB</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">2 h ago</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More for Lukas Brandt">⋯</button><span class="menu"><span>Open</span><span>Change role…</span><span>View as</span><hr><span class="dz" data-open="dlg-revoke">Revoke access…</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Amelia Hughes</span></td><td class="p2">amelia.hughes@nordlicht.example.org</td><td><span class="badge">Member</span></td><td class="p3">Platform team</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">yesterday</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span><span>Change role…</span><span>View as</span><hr><span class="dz" data-open="dlg-revoke">Revoke access…</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Mehmet Yılmaz</span></td><td class="p2">mehmet.yilmaz@nordlicht.example.org</td><td><span class="badge">Member</span></td><td class="p3">Platform team, 1st level</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">3 days ago</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span><span>Change role…</span><hr><span class="dz" data-open="dlg-revoke">Revoke access…</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Priya Natarajan</span></td><td class="p2">priya.natarajan@nordlicht.example.org</td><td><span class="badge">Member</span></td><td class="p3">CAB</td><td class="st"><span class="badge warn">Invited</span></td><td class="p3 muted">—</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span><span>Renew the invitation</span><hr><span class="dz" data-open="dlg-revoke">Withdraw…</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Sofia Rossi</span></td><td class="p2">sofia.rossi@nordlicht.example.org</td><td><span class="badge">Member</span></td><td class="p3">1st level</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">today</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span><span>Change role…</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Jonas Weber</span></td><td class="p2">jonas.weber@nordlicht.example.org</td><td><span class="badge">Contributor</span></td><td class="p3">Platform team</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">today</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Clara Neumann</span></td><td class="p2">clara.neumann@nordlicht.example.org</td><td><span class="badge">Viewer</span></td><td class="p3 muted">—</td><td class="st"><span class="badge ok">Active</span></td><td class="p3 muted">last week</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span></span></span></td></tr>
+                  <tr data-go="group"><td class="p1"><span class="name">Thomas Becker</span></td><td class="p2">thomas.becker@nordlicht.example.org</td><td><span class="badge">Auditor</span></td><td class="p3 muted">—</td><td class="st"><span class="badge">Suspended</span></td><td class="p3 muted">a month ago</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open</span><span>Resume</span></span></span></td></tr>
+                </tbody>
+              </table>
+              <div class="tfoot"><span>Showing 9 of 9</span><span class="rows">Rows per page: 50 ▾</span></div>
+            </div>
+            <div class="note"><b>What changed.</b> The table is one region flat on the canvas, the filter bar above it on the canvas (§4.2). A row opens the person's record page; the row's verbs are in ⋯ — on a phone as a bottom sheet. <i>Add people</i> opens a Dialog M (2–6 fields), on a phone full screen. On a phone the page with nine people is 1.5 screens, head included (today 2.5).</div>
+          </div>
+        </section>
+
+        <!-- ---------- GROUP RECORD ---------- -->
+        <section class="scene" id="group" data-title="Change Advisory Board">
+          <div style="display:grid;gap:var(--sp-300)">
+            <span class="crumb"><a data-go="overview" class="mid">Administration ›</a> <a data-go="people">‹ Groups</a></span>
+            <div class="head">
+              <div class="t"><div class="eyebrow">Group</div><h1>Change Advisory Board</h1><p class="fig">Approves normal and emergency changes · 2 members · 1 role · changed 2 days ago</p></div>
+              <div class="acts"><button class="btn" data-open="dlg-editgroup">Edit</button><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Copy as new group</span><span>View as file</span><hr><span class="dz" data-open="dlg-delgroup">Delete group…</span></span></span></div>
+            </div>
+            <div class="rh"><h2>Members</h2><span class="n">2</span><span class="acts"><button class="btn" data-open="dlg-addpeople">＋ Add people</button></span></div>
+            <div class="region">
+              <table class="dt">
+                <thead><tr><th>Name</th><th>Role in the workspace</th><th class="p3">Added</th><th class="end"></th></tr></thead>
+                <tbody>
+                  <tr><td class="p1"><span class="name">Lukas Brandt</span></td><td class="p2">Administrator</td><td class="p3 muted">Oct 2, 2026</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open person</span><hr><span class="dz">Take out of the group</span></span></span></td></tr>
+                  <tr><td class="p1"><span class="name">Priya Natarajan</span></td><td class="p2">Member</td><td class="p3 muted">Oct 2, 2026</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>Open person</span><hr><span class="dz">Take out of the group</span></span></span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="rh"><h2>Roles it grants</h2><span class="n">1</span><span class="acts"><button class="btn">＋ Grant a role</button></span></div>
+            <div class="region">
+              <table class="dt">
+                <thead><tr><th>Role</th><th>Where</th><th class="end"></th></tr></thead>
+                <tbody><tr><td class="p1"><span class="badge">CAB member</span></td><td class="p2">IT-Service-Desk</td><td class="end mn"><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span class="dz">Withdraw…</span></span></span></td></tr></tbody>
+              </table>
+            </div>
+            <div class="rh"><h2>Danger zone</h2></div>
+            <div class="danger"><div class="ln"><span><b>Delete this group</b>Its 2 people keep their own roles; the role it grants ends for them.</span><button class="btn d" data-open="dlg-delgroup">Delete group…</button></div></div>
+            <div class="note"><b>Why a page, not a dialog:</b> the group has lists of its own (members, roles) — that is the record-page rung (§5.1). Its own fields (name, description) are a Dialog M behind <i>Edit</i>; adding members is a Dialog L with search. No split view, no form open on arrival; every region sits flat on the canvas.</div>
+          </div>
+        </section>
+
+        <!-- ---------- SIGN-IN SETTINGS ---------- -->
+        <section class="scene" id="signin" data-title="Sign-in">
+          <div style="display:grid;gap:var(--sp-250)">
+            <span class="crumb"><a data-go="overview">Administration</a> › Sign-in</span>
+            <div class="head">
+              <div class="t"><h1>Sign-in</h1><p class="fig">How people prove who they are · 3 set here · 1 locked by the installation</p></div>
+              <div class="acts"><button class="btn q hide-compact">View as file</button><span class="rmenu"><button class="ib" data-menu aria-label="More">⋯</button><span class="menu"><span>View as file</span><hr><span class="dz" data-open="dlg-forcepw">Require a new password from everyone…</span></span></span></div>
+            </div>
+            <div class="twopane" data-view="list" id="signin-pane">
+              <nav class="snav" aria-label="Sections of Sign-in">
+                <a class="cur" data-detail>Passwords <span class="st set">2 set here</span><span class="chev">›</span></a>
+                <a data-detail>Second factor <span class="st">🔒 Locked</span><span class="chev">›</span></a>
+                <a data-detail>Sessions <span class="st">Default</span><span class="chev">›</span></a>
+                <a data-detail>Ways and providers <span class="st set">1 set here</span><span class="chev">›</span></a>
+                <a data-detail>Directory <span class="st">Off</span><span class="chev">›</span></a>
+                <a data-detail>Accounts without mail <span class="st">On</span><span class="chev">›</span></a>
+              </nav>
+              <div class="detail">
+                <button class="back" data-list>‹ Sign-in</button>
+                <div class="rh"><h2>Passwords</h2><span class="n">2 set here</span></div>
+                <p class="rp">What a new password must be. Existing passwords stay valid until they are changed.</p>
+                <div class="region">
+                  <div class="glabel">Strength</div>
+                  <div class="srow chg"><div><div class="nm">Minimum length <span class="src here">Set here</span></div><div class="hp">Length protects more than kinds of characters.</div></div><div class="cv"><span class="in xs focus">14</span><span class="muted">characters</span><button class="lk">Reset</button></div></div>
+                  <div class="srow"><div><div class="nm">Refuse commonly used passwords <span class="src">Default</span></div><div class="hp">Adds a line to every password screen.</div></div><div class="cv"><span class="sw"></span></div></div>
+                  <div class="srow chg"><div><div class="nm">Check against known breaches <span class="src here">Set here</span></div><div class="hp">Five characters of a hash leave this server.</div></div><div class="cv"><span class="sw"></span></div></div>
+                  <div class="glabel">Change and reuse</div>
+                  <div class="srow"><div><div class="nm">Expires after <span class="src">Default</span></div><div class="hp">Empty means never — what is recommended.</div></div><div class="cv"><span class="in xs">—</span><span class="muted">days</span></div></div>
+                  <div class="srow"><div><div class="nm">Remember previous passwords <span class="src">Default</span></div><div class="hp">0 to 10.</div></div><div class="cv"><span class="in xs">0</span></div></div>
+                  <div class="adv">▸ Advanced · kinds of characters, repeats, earliest change <span class="muted">— 5 settings, all default</span></div>
+                </div>
+                <div class="savebar"><span>2 changes · reach all 9 people at their next password change</span><span class="sp"></span><button class="btn q">Discard</button><button class="btn p">Save</button></div>
+                <div class="note"><b>What changed.</b> One section at its own address; the list says what is set where and stays in place while the section scrolls. Sections are flat regions of setting rows — no raised card per section (§4.2). On a tablet and a phone the list is the page and a section opens with <i>‹ Sign-in</i>. The forced reset is in ⋯ behind a Dialog S.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- TEMPLATES ---------- -->
+        <section class="scene" id="templates" data-title="Templates">
+          <div style="display:grid;gap:var(--sp-250)">
+            <span class="crumb"><a data-go="overview">Administration</a> › Templates</span>
+            <div class="head">
+              <div class="t"><h1>Templates</h1><p class="fig">40 in the catalogue · 4 in use · 2 updates waiting</p></div>
+              <div class="acts"><button class="btn p" data-open="dlg-savehub">＋ Save from a hub</button></div>
+            </div>
+            <nav class="strip"><a class="cur">Catalogue<span class="n">40</span></a><a>In use<span class="n">4</span></a><a>Presets<span class="n">0</span></a></nav>
+            <div class="fbar">
+              <span class="search">⌕ Search templates</span>
+              <button class="chip on">All</button><button class="chip">Teams</button><button class="chip">Projects</button><button class="chip more2">Service</button><button class="chip more2">Processes</button><button class="chip more2">Registers</button>
+              <button class="btn filtersbtn" data-sheet="sh-families">Family: all</button>
+              <span class="count">40</span>
+            </div>
+            <div class="rgrid">
+              <div class="item" data-open="dlg-template"><span class="mk">▦</span><h3>Scrum team</h3><p>Stories and bugs from backlog to done in sprints.</p><div class="chips"><span class="badge">Pages</span><span class="badge">Planning</span></div><span class="badge ok">In use · update</span></div>
+              <div class="item" data-open="dlg-template"><span class="mk">◎</span><h3>ITIL service desk</h3><p>Incidents, requests, problems and changes with targets.</p><div class="chips"><span class="badge">Service desk</span></div><span class="badge ok">In use</span></div>
+              <div class="item" data-open="dlg-template"><span class="mk">▤</span><h3>Classic project</h3><p>Deliverables, risks and changes on a timeline.</p><div class="chips"><span class="badge">Planning</span></div><span class="badge ok">In use</span></div>
+              <div class="item" data-open="dlg-template"><span class="mk">▥</span><h3>Kanban team</h3><p>Cards through To do, Doing, Review and Done.</p><div class="chips"></div><span class="badge ok">In use</span></div>
+              <div class="item" data-open="dlg-template"><span class="mk">✓</span><h3>Approvals</h3><p>Purchase, leave and travel requests, each decided.</p><div class="chips"><span class="badge">Service desk</span></div></div>
+              <div class="item" data-open="dlg-template"><span class="mk">!</span><h3>Bug tracking</h3><p>Defects from report to fix, confirmed or closed.</p><div class="chips"></div></div>
+              <div class="item" data-open="dlg-template"><span class="mk">◇</span><h3>OKR</h3><p>Objectives and key results, measured by the work.</p><div class="chips"><span class="badge">Goals</span></div></div>
+              <div class="item" data-open="dlg-template"><span class="mk">⌂</span><h3>Household</h3><p>The chores of a household.</p><div class="chips"></div></div>
+            </div>
+            <div class="note"><b>What changed — the levels.</b> Today a raised section card holds a filter bar that holds raised template cards, with the default preset and the locks after 3.4 screens. Now: the catalogue is its own page; the filter bar and the items sit <i>directly on the canvas</i>, the items are flat (hairline, no shadow) — one level, like the People table. A template opens as a Dialog L (preview beside three questions); the default preset and the locks moved to <i>Workspace › New hubs</i>, where settings belong.</div>
+          </div>
+        </section>
+
+        <!-- ---------- WORKFLOWS EDITOR ---------- -->
+        <section class="scene" id="workflows" data-title="Workflows">
+          <div style="display:grid;gap:var(--sp-250)">
+            <span class="crumb"><a data-go="overview">Administration</a> › Workflows</span>
+            <div class="head">
+              <div class="t"><h1>Workflows</h1><p class="fig">How work moves: statuses and the steps between them · 12 workflows</p></div>
+              <div class="acts"><button class="btn p" data-open="dlg-newwf">＋ New workflow</button></div>
+            </div>
+            <div class="twopane" data-view="list" id="wf-pane">
+              <nav class="snav" aria-label="Workflows">
+                <span class="search">⌕ Find a workflow</span>
+                <a class="cur" data-detail>Standard <span class="st">4 types</span><span class="chev">›</span></a>
+                <a data-detail>Incident <span class="st"><span class="badge ok">live</span></span><span class="chev">›</span></a>
+                <a data-detail>Change <span class="st"><span class="badge warn">draft</span></span><span class="chev">›</span></a>
+                <a data-detail>Problem <span class="st">1 type</span><span class="chev">›</span></a>
+                <a data-detail>Service request <span class="st">1 type</span><span class="chev">›</span></a>
+                <a data-detail>Story <span class="st">1 type</span><span class="chev">›</span></a>
+                <a data-detail>Bug <span class="st">1 type</span><span class="chev">›</span></a>
+                <a data-detail>Risk <span class="st">1 type</span><span class="chev">›</span></a>
+              </nav>
+              <div class="detail">
+                <button class="back" data-list>‹ Workflows</button>
+                <div class="draft"><span>Draft · 2 changes since the published version</span><span class="sp"></span><button class="btn q">Discard</button><button class="btn hide-compact">Try a step</button><button class="btn p">Publish…</button></div>
+                <div class="head"><div class="t"><h1 style="font-size:var(--fs-500)">Standard</h1><p class="fig">Used by Task, Story, Bug and Karte in 4 collections</p></div><div class="acts"><span class="seg"><span class="on">Design</span><span>Where it runs</span><span>History</span></span></div></div>
+                <div class="flow"><span class="badge">Backlog</span><span class="arr">→</span><span class="badge">To do</span><span class="arr">→</span><span class="badge warn">In progress</span><span class="arr">→</span><span class="badge ok">Done</span></div>
+                <div class="rh"><h2>Statuses</h2><span class="n">4</span><span class="acts"><button class="btn" data-open="dlg-status">＋ Add status</button></span></div>
+                <div class="region blocks">
+                  <div class="blk" data-open="dlg-status"><span class="grip">⠿</span><span class="badge">Backlog</span><span class="sum">To do · not on the board</span><span>⋯</span></div>
+                  <div class="blk" data-open="dlg-status"><span class="grip">⠿</span><span class="badge">To do</span><span class="sum">To do · new entries start here</span><span>⋯</span></div>
+                  <div class="blk" data-open="dlg-status"><span class="grip">⠿</span><span class="badge warn">In progress</span><span class="sum">In progress</span><span>⋯</span></div>
+                  <div class="blk" data-open="dlg-status"><span class="grip">⠿</span><span class="badge ok">Done</span><span class="sum">Done · completes the entry</span><span>⋯</span></div>
+                </div>
+                <div class="rh"><h2>Steps</h2><span class="n">3</span><span class="acts"><button class="btn" data-open="dlg-step">＋ Add step</button></span></div>
+                <div class="region blocks">
+                  <div class="blk" data-open="dlg-step"><span class="grip">⠿</span><span class="nm">Start work</span><span class="sum">To do → In progress · anyone who may write</span><span>⋯</span></div>
+                  <div class="blk" data-open="dlg-step"><span class="grip">⠿</span><span class="nm">Finish</span><span class="sum">In progress → Done · Owner, Member · needs approval</span><span>⋯</span></div>
+                  <div class="blk" data-open="dlg-step"><span class="grip">⠿</span><span class="nm">Reopen</span><span class="sum">Done → To do · Owner</span><span>⋯</span></div>
+                </div>
+                <div class="note"><b>What changed.</b> The workflow list is its own column with a wide gutter to the editor, sticky while the editor scrolls — they no longer touch. Each status and step is one line saying what it does; pressing one opens its dialog (a step: Dialog L with three groups; a status: Dialog M). The draft bar stays at the top. Tablet and phone: the list is the page; a workflow opens with <i>‹ Workflows</i>. Today: 63 fields open, 3.9 screens (7.1 on a phone).</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- AUDIT ---------- -->
+        <section class="scene" id="audit" data-title="Audit log">
+          <div style="display:grid;gap:var(--sp-250)">
+            <span class="crumb"><a data-go="overview">Administration</a> › Audit log</span>
+            <div class="head">
+              <div class="t"><h1>Audit log</h1><p class="fig">Who did what and when — never what anybody wrote</p></div>
+              <div class="acts"><button class="btn" data-open="dlg-export">Export…</button></div>
+            </div>
+            <div class="fbar">
+              <span class="search">⌕ Action, e.g. sign-in</span>
+              <button class="chip on">Last 7 days ▾</button><button class="chip">Who ▾</button><button class="chip more2">Kind of thing ▾</button><button class="chip on">Outcome: refused ▾</button><button class="chip more2">＋ More</button>
+              <button class="lk">Clear</button>
+              <button class="btn filtersbtn" data-sheet="sh-audit">Filters (2)</button>
+              <span class="count">23 found</span>
+            </div>
+            <div class="region">
+              <table class="dt">
+                <thead><tr><th>When</th><th>Who</th><th>What</th><th class="p3">About</th><th>Outcome</th></tr></thead>
+                <tbody>
+                  <tr class="grp"><td colspan="5">Today</td></tr>
+                  <tr data-open="dlg-record"><td class="p2">16:50 · Jana Krüger</td><td class="hide-narrow">Jana Krüger</td><td class="p1">Read an approval<span class="sub">Change “Firewall rule”</span></td><td class="p3">Change “Firewall rule”</td><td class="st"><span class="badge bad">Refused</span></td></tr>
+                  <tr data-open="dlg-record"><td class="p2">16:42 · Lukas Brandt</td><td class="hide-narrow">Lukas Brandt</td><td class="p1">Changed a role</td><td class="p3">Role “Agent”</td><td class="st"><span class="badge bad">Refused</span></td></tr>
+                  <tr data-open="dlg-record"><td class="p2">09:13 · Rule “Escalate SLA”</td><td class="hide-narrow">Rule “Escalate SLA”</td><td class="p1">Moved an entry</td><td class="p3">SA-4</td><td class="st"><span class="badge bad">Refused</span></td></tr>
+                  <tr class="grp"><td colspan="5">Yesterday</td></tr>
+                  <tr data-open="dlg-record"><td class="p2">18:05 · Sofia Rossi</td><td class="hide-narrow">Sofia Rossi</td><td class="p1">Signed in</td><td class="p3">—</td><td class="st"><span class="badge bad">Refused</span></td></tr>
+                </tbody>
+              </table>
+              <div class="tfoot"><span>Showing 50 · more to read</span><button class="btn">Show 50 more</button><span class="rows">Rows: 50 ▾</span></div>
+            </div>
+            <div class="note"><b>What changed.</b> No query form: filters are chips, the time range first; on a phone <i>Filters (2)</i> opens a sheet and the count stays. A table by day with words instead of keys; a row opens its record in a Dialog M with the key, the chain and the request under <i>Details for support</i>. Today: 9 screens on desktop, 10.9 on a phone.</div>
+          </div>
+        </section>
+
+        <!-- ---------- CREATE TOKEN ---------- -->
+        <section class="scene" id="token" data-title="New access token">
+          <div style="display:grid;gap:var(--sp-250)">
+            <span class="crumb"><a>Your settings</a> › <a>Access tokens</a> › New</span>
+            <div class="head"><div class="t"><h1>New access token</h1><p class="fig">A token lets a script act as you, within what you may do and the scopes you give it.</p></div><div class="acts"><button class="btn q hide-compact">Cancel</button><button class="btn p">Create token</button></div></div>
+            <div class="rh"><h2>About it</h2></div>
+            <div class="region">
+              <div class="srow"><div><div class="nm">What it is for <span class="req">*</span></div><div class="hp">What you will read in a year.</div></div><div class="cv"><span class="in md focus">Nightly export</span></div></div>
+              <div class="srow"><div><div class="nm">Expires <span class="req">*</span></div><div class="hp">At most a year away.</div></div><div class="cv"><span class="in sm sel">In 90 days</span></div></div>
+            </div>
+            <div class="rh"><h2>What it may do</h2><span class="n">3 chosen</span></div>
+            <div class="region">
+              <div class="srow"><div><div class="nm">Entries, hubs and collections</div><div class="hp">Read · create and change</div></div><div class="cv"><span class="chip on">Read</span><span class="chip">Write</span></div></div>
+              <div class="srow"><div><div class="nm">People and roles</div><div class="hp">See who is here · invite and change</div></div><div class="cv"><span class="chip on">Read</span><span class="chip">Write</span></div></div>
+              <div class="srow"><div><div class="nm">Audit and privacy</div><div class="hp">Read the trail · export · requests</div></div><div class="cv"><span class="chip on">Read</span><span class="chip">Export</span></div></div>
+              <div class="srow"><div><div class="nm">Automation and agents</div><div class="hp">Rules, agents and their ledger</div></div><div class="cv"><span class="chip">Read</span><span class="chip">Write</span></div></div>
+              <div class="adv">▸ The configuration — 31 scopes by part, for tools that apply a configuration</div>
+            </div>
+            <div class="note"><b>Why a page:</b> more than twelve choices in several groups is past Dialog L (§5.1). Like every page it takes the full width, its sections are flat regions of rows as on a settings page, and its act is the head's primary. Scopes are grouped by area with read and write, the 31 configuration scopes folded, no keys in sight. Today: 69 checkboxes with their keys, open under an empty list.</div>
+          </div>
+        </section>
+
+        <!-- ---------- OVERVIEW ---------- -->
+        <section class="scene" id="overview" data-title="Administration">
+          <div style="display:grid;gap:var(--sp-250)">
+            <div class="head"><div class="t"><h1>Administration</h1><p class="fig">Nordlicht GmbH · 9 people · 4 hubs</p></div></div>
+            <div class="focal"><div class="rh"><h2>Getting started</h2><span class="acts muted">2 of 5 done</span></div><div class="pbar"><i></i></div><span>Next: <a class="lk">Connect a mailbox</a>, so mail to the desk becomes requests.</span></div>
+            <div class="sgrid">
+              <div class="region scard"><h3>What is not working</h3><span><span class="badge warn">1</span> Mail is not sent: the installation has no mail server.</span><a class="lk">Details</a></div>
+              <div class="region scard"><h3>Limits</h3><span class="big">1 / 1 000</span><span class="muted">automation runs this hour</span><a class="lk">All limits</a></div>
+              <div class="region scard"><h3>Rules</h3><span><span class="badge ok">All working</span></span><a class="lk" data-go="workflows">All rules</a></div>
+              <div class="region scard"><h3>Backup</h3><span><span class="badge bad">No target</span> nothing is backed up</span><a class="lk">Back up every night</a></div>
+              <div class="region scard"><h3>Privacy requests</h3><span class="muted">None owed in the next 7 days</span><a class="lk">All requests</a></div>
+              <div class="region scard"><h3>Waiting for your word</h3><span class="muted">No proposal or update waiting</span><a class="lk">All changes</a></div>
+            </div>
+            <div class="note"><b>Levels.</b> One raised focal card (<i>Getting started</i>), every other card a flat region — the page reads calmer than today's row of shadows.</div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <nav class="bottombar" aria-label="Destinations"><span>Today</span><span>Search</span><span class="cap">＋</span><span>Inbox</span><span>More</span></nav>
+  </div>
+
+</div><!-- /scroller -->
+
+  <!-- ================= OVERLAYS ================= -->
+  <div class="scrim" id="scrim">
+    <!-- Dialog M: invite -->
+    <div class="dlg" data-size="m" id="dlg-invite" hidden>
+      <div class="dh"><h2>Add people</h2><button class="btn p bp" data-close data-toast="2 invitations sent">Send</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db">
+        <span class="sizetag">Dialog M · 3 fields, one group, no scrolling</span>
+        <div class="fld"><label>E-mail addresses <span class="req">*</span></label><span class="in full focus">anna@nordlicht.example.org, ben@…</span><span class="help">Several at once, separated by commas.</span></div>
+        <div class="fld"><label>Role in the workspace</label><span class="in sm sel">Member</span></div>
+        <div class="fld"><label>Groups</label><span class="in full muted">Add to groups…</span></div>
+      </div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close data-toast="2 invitations sent">Send invitations</button></div>
+    </div>
+    <!-- Dialog M: edit group -->
+    <div class="dlg" data-size="m" id="dlg-editgroup" hidden>
+      <div class="dh"><h2>Edit group</h2><button class="btn p bp" data-close data-toast="Group saved">Save</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db">
+        <span class="sizetag">Dialog M · the object's own fields</span>
+        <div class="fld"><label>Name <span class="req">*</span></label><span class="in md focus">Change Advisory Board</span></div>
+        <div class="fld"><label>Description</label><span class="in full">Approves normal and emergency changes</span><span class="help">Shown under the name in lists.</span></div>
+      </div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close data-toast="Group saved">Save</button></div>
+    </div>
+    <!-- Dialog L: add people to group -->
+    <div class="dlg" data-size="l" id="dlg-addpeople" hidden>
+      <div class="dh"><h2>Add people to Change Advisory Board</h2><button class="btn p bp" data-close data-toast="2 people added">Add 2</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db">
+        <span class="sizetag">Dialog L · one list to pick from, with search; the body scrolls, head and foot stay</span>
+        <span class="search" style="width:100%">⌕ Search people and groups</span>
+        <div class="pick">
+          <div>☑ <span class="name">Amelia Hughes</span><span class="muted">Member · Platform team</span></div>
+          <div>☑ <span class="name">Mehmet Yılmaz</span><span class="muted">Member · 1st level</span></div>
+          <div>☐ <span class="name">Sofia Rossi</span><span class="muted">Member</span></div>
+          <div>☐ <span class="name">Jonas Weber</span><span class="muted">Contributor</span></div>
+          <div>☐ <span class="name">Clara Neumann</span><span class="muted">Viewer</span></div>
+          <div>☐ <span class="name">Thomas Becker</span><span class="muted">Auditor · suspended</span></div>
+        </div>
+      </div>
+      <div class="df"><span class="muted" style="margin-inline-end:auto">2 chosen</span><button class="btn q" data-close>Cancel</button><button class="btn p" data-close data-toast="2 people added">Add 2 people</button></div>
+    </div>
+    <!-- Dialog L: edit step -->
+    <div class="dlg" data-size="l" id="dlg-step" hidden>
+      <div class="dh"><h2>Step “Finish”</h2><button class="btn p bp" data-close data-toast="Step changed in the draft">Done</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db">
+        <span class="sizetag">Dialog L · 9 fields in three groups, the rare ones folded</span>
+        <div class="fgrp"><h3>The step</h3>
+          <div class="two"><div class="fld"><label>Name <span class="req">*</span></label><span class="in full focus">Finish</span></div><div class="fld"><label>Leads to</label><span class="in full sel">Done</span></div></div>
+          <div class="fld"><label>Leaves from</label><div class="checks"><span>☑ In progress</span><span>☐ To do</span><span>☐ Backlog</span></div><span class="help">None chosen: from any other status.</span></div>
+        </div>
+        <div class="fgrp"><h3>Who may take it</h3>
+          <div class="checks"><span>☑ Owner</span><span>☐ Administrator</span><span>☑ Member</span><span>☐ Contributor</span><span>☐ Change Advisory Board</span></div>
+          <div class="srow" style="padding:0;border:0;grid-template-columns:1fr auto"><div><div class="nm">Wait for people's yes</div><div class="hp">The entry moves once the last level approves.</div></div><div class="cv"><span class="sw"></span></div></div>
+        </div>
+        <div class="fgrp"><h3>▸ Advanced</h3><span class="muted">Conditions, fields that must be filled, checks, rules on this step — folded</span></div>
+      </div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close data-toast="Step changed in the draft">Done</button></div>
+    </div>
+    <!-- Dialog M: status -->
+    <div class="dlg" data-size="m" id="dlg-status" hidden>
+      <div class="dh"><h2>Status “In progress”</h2><button class="btn p bp" data-close>Done</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db">
+        <span class="sizetag">Dialog M · 3 fields</span>
+        <div class="fld"><label>Name</label><span class="in md">In progress</span></div>
+        <div class="two"><div class="fld"><label>Category</label><span class="in full sel">In progress</span></div><div class="fld"><label>Colour</label><span class="in full sel">Amber</span></div></div>
+        <div class="checks"><span>☐ New entries start here</span></div>
+      </div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close>Done</button></div>
+    </div>
+    <!-- Dialog M: new workflow -->
+    <div class="dlg" data-size="m" id="dlg-newwf" hidden>
+      <div class="dh"><h2>New workflow</h2><button class="btn p bp" data-close>Create</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db"><span class="sizetag">Dialog M · then the editor</span>
+        <div class="fld"><label>Name <span class="req">*</span></label><span class="in md focus">Purchase approval</span></div>
+        <div class="fld"><label>Start from</label><span class="in md sel">A copy of “Standard”</span></div></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close>Create workflow</button></div>
+    </div>
+    <!-- Dialog L: template -->
+    <div class="dlg" data-size="l" id="dlg-template" hidden>
+      <div class="dh"><h2>Scrum team</h2><button class="btn p bp" data-close data-toast="Template taken">Take</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db"><span class="sizetag">Dialog L · a preview beside three questions</span>
+        <div class="two">
+          <div class="fgrp"><h3>What it creates</h3><div class="pick"><div>＋ Types Story, Bug</div><div>＋ Workflow “Scrum”</div><div>＋ Board To do · Doing · Review · Done</div><div>＋ Sprints every 2 weeks</div><div>＋ 6 sample entries</div></div></div>
+          <div class="fgrp"><h3>Your answers</h3><div class="fld"><label>In which hub</label><span class="in full sel">Produktentwicklung</span></div><div class="fld"><label>Sprint length</label><span class="in sm sel">2 weeks</span></div><div class="checks"><span>☑ Add sample entries</span></div></div>
+        </div></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close data-toast="Template taken">Take template</button></div>
+    </div>
+    <!-- Dialog M: save from hub -->
+    <div class="dlg" data-size="m" id="dlg-savehub" hidden>
+      <div class="dh"><h2>Save a hub as a template</h2><button class="btn p bp" data-close>Save</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db"><span class="sizetag">Dialog M</span><div class="fld"><label>Hub</label><span class="in md sel">Produktentwicklung</span></div><div class="fld"><label>Name</label><span class="in md">Our product team</span></div><div class="fld"><label>Family</label><span class="in sm sel">Teams</span></div></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close>Save template</button></div>
+    </div>
+    <!-- Dialog M: audit record -->
+    <div class="dlg" data-size="m" id="dlg-record" hidden>
+      <div class="dh"><h2>Read an approval</h2><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db"><span class="sizetag">Dialog M · read only</span>
+        <div class="region facts"><div><span class="k">When</span><span>Nov 7, 2026, 16:50</span></div><div><span class="k">Who</span><span>Jana Krüger</span></div><div><span class="k">About</span><span>Change “Firewall rule”</span></div><div><span class="k">Outcome</span><span><span class="badge bad">Refused</span></span></div><div><span class="k">Why</span><span>Not a member of the CAB</span></div></div>
+        <span class="muted">▸ Details for support · <span class="mono">approval.read</span> · chain 856 · request 7f3a…</span></div>
+      <div class="df"><button class="btn" data-close>Close</button></div>
+    </div>
+    <!-- Dialog M: export -->
+    <div class="dlg" data-size="m" id="dlg-export" hidden>
+      <div class="dh"><h2>Export the audit log</h2><button class="btn p bp" data-close>Export</button><button class="ib xs" data-close aria-label="Close">✕</button></div>
+      <div class="db"><span class="sizetag">Dialog M</span><div class="fld"><label>What</label><span class="in md sel">The 23 records found</span></div><div class="fld"><label>Format</label><span class="in sm sel">CSV</span></div></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn p" data-close>Export</button></div>
+    </div>
+    <!-- Dialog S: confirmations -->
+    <div class="dlg" data-size="s" id="dlg-delgroup" hidden>
+      <div class="dh"><h2>Delete “Change Advisory Board”?</h2></div>
+      <div class="db"><span class="sizetag">Dialog S · a confirmation</span><span>Its 2 people keep their own roles. The role “CAB member” it grants ends for them. This cannot be undone.</span></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn d" data-close data-toast="Group deleted">Delete group</button></div>
+    </div>
+    <div class="dlg" data-size="s" id="dlg-revoke" hidden>
+      <div class="dh"><h2>Revoke Lukas Brandt's access?</h2></div>
+      <div class="db"><span class="sizetag">Dialog S</span><span>He is signed out everywhere and can no longer sign in to Nordlicht. His entries stay.</span></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn d" data-close data-toast="Access revoked · Undo">Revoke access</button></div>
+    </div>
+    <div class="dlg" data-size="s" id="dlg-forcepw" hidden>
+      <div class="dh"><h2>Require a new password from everyone?</h2></div>
+      <div class="db"><span class="sizetag">Dialog S</span><span>All 9 people choose a new password at their next sign-in, and every session opened before now ends — yours too.</span></div>
+      <div class="df"><button class="btn q" data-close>Cancel</button><button class="btn d" data-close>Require it</button></div>
+    </div>
+  </div>
+
+  <div class="sheetscrim" id="sheetscrim"></div>
+  <div class="sheet" id="sh-filters"><span class="grab"></span><h3>Filters</h3><div class="sheetchips"><button class="chip on">Role: any</button><button class="chip">Standing: active</button><button class="chip">Group</button><button class="chip">Last seen</button></div><div style="display:flex;gap:var(--sp-150)"><button class="btn q" data-closesheet>Clear</button><button class="btn p" data-closesheet style="flex:1">Show 9 people</button></div></div>
+  <div class="sheet" id="sh-audit"><span class="grab"></span><h3>Filters</h3><div class="sheetchips"><button class="chip on">Last 7 days</button><button class="chip">Who</button><button class="chip">Kind of thing</button><button class="chip on">Outcome: refused</button></div><div style="display:flex;gap:var(--sp-150)"><button class="btn q" data-closesheet>Clear</button><button class="btn p" data-closesheet style="flex:1">Show 23 records</button></div></div>
+  <div class="sheet" id="sh-families"><span class="grab"></span><h3>Family</h3><div class="acts"><span>All</span><span>Teams</span><span>Projects</span><span>Service</span><span>Processes</span><span>Registers</span></div></div>
+  <div class="sheet" id="sh-rowmenu"><span class="grab"></span><h3 id="sh-rowmenu-title">Lukas Brandt</h3><div class="acts" id="sh-rowmenu-acts"></div></div>
+  <div class="toast" id="toast"><span id="toast-text">Saved</span><button class="lk">Undo</button></div>
+</div>
+</div>
+
+<script type="module">
+  const device = document.getElementById('device');
+  const stage = document.getElementById('stage');
+  const app = document.getElementById('app');
+  const wlabel = document.getElementById('wlabel');
+  const scroller = document.getElementById('scroller');
+  let bp = null; // the breakpoints, read from tokens.json — never written here (rule 15)
+  try {
+    const tokens = await (await fetch('../../../packages/design-system/tokens/tokens.json')).json();
+    const raw = tokens.primitive.breakpoint;
+    bp = Object.entries(raw).filter(([, v]) => v && v.$value).map(([k, v]) => [k, parseFloat(v.$value)]).sort((a, b) => a[1] - b[1]);
+  } catch { wlabel.textContent = 'Serve from the checkout root to read the breakpoints'; }
+
+  const widthName = (px) => { let name = 'large'; if (bp) for (const [k, v] of bp) if (px >= v) name = k; return name; };
+  function applyWidth() {
+    const name = widthName(device.clientWidth);
+    device.dataset.w = name;
+    if (name === 'compact' || name === 'medium') device.dataset.narrow = ''; else { delete device.dataset.narrow; delete device.dataset.drawer; }
+    wlabel.textContent = `${name} · ${device.clientWidth} px`;
+  }
+  new ResizeObserver(applyWidth).observe(device);
+
+  const scenes = [...document.querySelectorAll('.scene')];
+  function show(id) {
+    for (const s of scenes) s.classList.toggle('on', s.id === id);
+    app.hidden = id === 'system';
+    for (const b of document.querySelectorAll('#scenes button')) b.setAttribute('aria-pressed', String(b.dataset.s === id));
+    const s = document.getElementById(id);
+    document.getElementById('bartitle').textContent = s.dataset.title ?? '';
+    for (const a of document.querySelectorAll('.col a')) a.classList.toggle('cur', a.dataset.k === id || (id === 'group' && a.dataset.k === 'people'));
+    for (const p of document.querySelectorAll('.twopane')) p.dataset.view = 'list';
+    delete device.dataset.drawer;
+    closeAll();
+    scroller.scrollTo(0, 0);
+    history.replaceState(null, '', '#' + id);
+  }
+  for (const b of document.querySelectorAll('#scenes button')) b.addEventListener('click', () => show(b.dataset.s));
+  for (const b of document.querySelectorAll('#modes button')) b.addEventListener('click', () => {
+    stage.dataset.mode = b.dataset.m;
+    for (const o of document.querySelectorAll('#modes button')) o.setAttribute('aria-pressed', String(o === b));
+    requestAnimationFrame(applyWidth);
+  });
+
+  const scrim = document.getElementById('scrim');
+  const sheetscrim = document.getElementById('sheetscrim');
+  function closeAll() {
+    scrim.classList.remove('on'); for (const d of scrim.querySelectorAll('.dlg')) d.hidden = true;
+    sheetscrim.classList.remove('on'); for (const s of document.querySelectorAll('.sheet')) s.classList.remove('on');
+    for (const m of document.querySelectorAll('.menu.on')) m.classList.remove('on');
+  }
+  function toast(text) {
+    const t = document.getElementById('toast'); document.getElementById('toast-text').textContent = text;
+    t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2400);
+  }
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-open],[data-close],[data-sheet],[data-closesheet],[data-menu],[data-go],[data-detail],[data-list],[data-drawer]');
+    if (!el) { for (const m of document.querySelectorAll('.menu.on')) m.classList.remove('on'); return; }
+    if (el.matches('[data-menu]')) {
+      e.stopPropagation();
+      const menu = el.nextElementSibling;
+      if (device.dataset.w === 'compact') {
+        closeAll();
+        const row = el.closest('tr'); document.getElementById('sh-rowmenu-title').textContent = row ? row.querySelector('.name, .badge')?.textContent ?? 'Actions' : 'Actions';
+        const acts = document.getElementById('sh-rowmenu-acts'); acts.innerHTML = '';
+        for (const s of menu.querySelectorAll('span')) acts.append(s.cloneNode(true));
+        sheetscrim.classList.add('on'); document.getElementById('sh-rowmenu').classList.add('on');
+      } else {
+        const was = menu.classList.contains('on'); for (const m of document.querySelectorAll('.menu.on')) m.classList.remove('on');
+        if (!was) menu.classList.add('on');
+      }
+      return;
+    }
+    if (el.matches('[data-open]')) {
+      e.stopPropagation(); closeAll();
+      scrim.classList.add('on'); document.getElementById(el.dataset.open).hidden = false; return;
+    }
+    if (el.matches('[data-close]')) { closeAll(); if (el.dataset.toast) toast(el.dataset.toast); return; }
+    if (el.matches('[data-sheet]')) { closeAll(); sheetscrim.classList.add('on'); document.getElementById(el.dataset.sheet).classList.add('on'); return; }
+    if (el.matches('[data-closesheet]')) { closeAll(); return; }
+    if (el.matches('[data-drawer]')) { if ('drawer' in device.dataset) delete device.dataset.drawer; else device.dataset.drawer = ''; return; }
+    if (el.matches('[data-detail]')) {
+      const pane = el.closest('.twopane'); for (const a of pane.querySelectorAll('.snav a')) a.classList.toggle('cur', a === el);
+      pane.dataset.view = 'detail'; scroller.scrollTo(0, 0); return;
+    }
+    if (el.matches('[data-list]')) { el.closest('.twopane').dataset.view = 'list'; scroller.scrollTo(0, 0); return; }
+    if (el.matches('[data-go]')) { show(el.dataset.go); }
+  });
+  scrim.addEventListener('click', (e) => { if (e.target === scrim) closeAll(); });
+  sheetscrim.addEventListener('click', closeAll);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
+
+  applyWidth();
+  const start = location.hash.slice(1);
+  show(document.getElementById(start)?.classList.contains('scene') ? start : 'system');
+</script>
+</body>
+</html>
