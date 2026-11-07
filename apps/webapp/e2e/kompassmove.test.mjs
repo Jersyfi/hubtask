@@ -299,6 +299,9 @@ test('UC-WRK-38 check 9: Change order opens reorder mode - grips at the end, Don
   await page.getByRole('button', { name: 'Done' }).waitFor();
   const grips = page.locator('[data-reordering] .reorder');
   assert.ok((await grips.count()) >= 3);
+  // Only the part being ordered stands: no tools, and the contents are not taken for empty.
+  assert.equal(await page.getByRole('list', { name: 'Tools of Product development' }).count(), 0);
+  assert.equal(await page.getByText('Create the first page').count(), 0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/phone-8.png` });
   // The last collection carried by its grip above the first.
   const ordered = page.locator('[data-reordering] li[data-id]');

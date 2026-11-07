@@ -1240,6 +1240,8 @@
       {/each}
     </ul>
   {:else if hub && step.kind === 'hub'}
+    <!-- Reorder mode shows the one part being ordered, as its own screen would (§9). -->
+    {#if !reordering}
     <ul class="card-list" aria-label={t('app.nav.tools_of', { hub: hub.name })}>
       <NavItem label={t('app.nav.overview')} icon="hub" href={`/hubs/${hub.id}`} size="touch" isDrillDown onnavigate={() => onnavigate(`/hubs/${hub.id}`)} />
       {#each hubToolRows as each (each.id)}
@@ -1251,6 +1253,7 @@
         {/if}
       {/each}
     </ul>
+    {/if}
     {#if reordering}
       <div class="order-head">
         <p class="order-hint">{t('app.nav.order_hint', { part: t(reordering === 'collections' ? 'app.nav.collections' : 'app.nav.contents'), place: hub.name })}</p>
@@ -1267,7 +1270,7 @@
         {/each}
       </NavGroup>
       </div>
-    {:else if mayStructure}
+    {:else if mayStructure && !reordering}
       <NavGroup label={t('app.nav.collections')} size="touch">
         <NavItem label={t('app.nav.create_first_collection')} icon="plus" tone="link" size="touch" onnavigate={() => { collectionHubId = hub.id; isCreatingCollection = true; }} />
       </NavGroup>
@@ -1289,7 +1292,7 @@
         {/if}
       </NavGroup>
       </div>
-    {:else if hasContents && contentsAdd}
+    {:else if hasContents && contentsAdd && !reordering}
       <NavGroup label={t('app.nav.contents')} size="touch">
         <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" size="touch" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
       </NavGroup>
