@@ -20,6 +20,12 @@ enforces it: a colour anywhere under `apps/` and `packages/`, a length or a dura
 code (`apps/` and `packages/design-system/src/`). A line that genuinely holds no design value carries
 `design-system-lint-ignore` with its reason, on the line or the comment above it.
 
+**The system goes the way of the leading work-management suite's design system** (the owner,
+2026-11-07, [`docs/backlog/page-system/`](../backlog/page-system/README.md)): tokens → primitives →
+components → prescribed page compositions. A screen is **assembled, not designed**: it picks one of
+seven page kinds (wave 6, §4), fills its slots with the compositions of the same wave, and adds
+nothing beside them.
+
 ---
 
 ## 1. The layers
@@ -428,6 +434,38 @@ the mark the bar carries; how the product uses them is §11.
 `RecordHead` · `DangerZone` · `SummaryCard` · `ListPage` · `RecordPage` · `SettingsLayout` ·
 `EditorPage` · `OverviewPage` · `LogPage` · `CreatePage`
 
+The layer above waves 1–5 that the page system concept adds
+([`docs/backlog/page-system/`](../backlog/page-system/README.md) §4–§7; its mockups are the look).
+Every routed view renders exactly one page kind; the kinds take compositions in fixed slots.
+
+* **L1 `Grid`** — columns per width (`{ compact: 1, medium: 2, … }`) as `data-` attributes, read at
+  the five breakpoints.
+* **L2 `Sheet`** — the bottom sheet of a phone: grabber, title, a body or a list of `items`,
+  actions; at most half the height, pulled to full; a pull down, ✕ or Escape closes it; the
+  `overlay` rank of `layers.ts`. **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
+  head and foot fixed, the body scrolls; below `medium` an `m` or `l` is full screen with ✕ at
+  the start and the `primary` in its bar; `onDismiss` lets the caller ask *Discard changes?*.
+  Without `size` a dialog keeps its earlier look.
+* **L3 compositions** — `SectionNav` (a page's sections as links with their state; the page
+  itself below `expanded`), `FilterBar` (search, chips, *Clear*, the count; *Filters (n)* and a
+  `Sheet` on a phone), `DataTable` (a `Table` region: column priority 1–3 and `isHideable`, sort,
+  the row as a link or a press, one quiet verb and a ⋯ menu, selection with `BulkBar`, rows
+  grouped by day, the foot with the count, `LoadMore` and rows per page; list rows on a phone),
+  `ResourceGrid` and `ResourceCard` (items flat on the canvas), `SettingsSection` and `SettingRow`
+  (one region of rows, the control at its `layout.field.*` width), `BlockList` (one line per
+  block, a block opens its dialog), `FormLayout` and `FormSection` (one column in a dialog, regions
+  of `SettingRow`s on a page), `RecordHead`, `DangerZone` and `SummaryCard`.
+* **L4 page kinds** — `ListPage`, `RecordPage`, `SettingsLayout`, `EditorPage`, `OverviewPage`,
+  `LogPage`, `CreatePage`, each with `data-page-kind` on its root and a *Pages/* story with full,
+  empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, because the
+  web app already has a `SettingsPage` (its settings shell); its `data-page-kind` is `settings`.
+  `WorkPage` and `DetailPage` stay as built (§11).
+
+Their breakpoints are the window's, written as media queries from `primitive.breakpoint` — so a
+story shows its widths when the window is narrowed, not the workbench's width axis. What sticks
+while the page scrolls sticks under `--page-sticky-top`, the app bar's height unless the frame says
+otherwise.
+
 ---
 
 ## 5. Naming in code
@@ -458,10 +496,12 @@ below it.
 
 ## 6. The six rules
 
-1. **Depth carries meaning.** Raised = standalone element, recessed = child element, glass =
-   temporary overlay. No shadow without one of those three reasons. A card or panel that stands on
-   its own is raised with the soft `elevation.raised` and differs from the canvas by at least
-   1.18:1, and the one primary action of a page may carry the accent's glow (decision #1624). The
+1. **Depth carries meaning.** Separation comes from space, a heading and a hairline first; a
+   container only where an object stands on its own, never a container in a container (the
+   surfaces and levels below). **No shadow without movement or an overlay**: `elevation.raised`
+   for what moves and for at most one focal card per screen, the overlay shadow for dialogs, sheets
+   and menus. A region differs from the canvas by at least 1.18:1, and the one primary action of a
+   page may carry the accent's glow (decision #1624). The
    frame — app bar, navigation column, bottom bar — is a plane of `bg.surface` above the content's
    `bg.canvas`, separated by hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
@@ -497,6 +537,23 @@ below it.
    first eight of one arrival a `--dur-stagger` apart), a keyed card travels to its new place
    (`animate:flip`), an opened section's content is revealed; each reads its role's custom
    properties at run time and does nothing under reduced motion.
+
+**The surfaces and levels** (page-system §4.2, PS-16). Two levels of containment at most in the
+content: the canvas and one region.
+
+| Level | Tokens | What sits on it | Never |
+|---|---|---|---|
+| 0 Canvas | `bg.canvas` | the page: head, strip, filter bar, headings, the regions | a shadow |
+| 1 Region | `bg.surface`, a `border.subtle` hairline, `r.lg`, no shadow | one per thing the page is about: a table, a settings section's rows, a block list, a form on a page | a region in a region; raised cards inside |
+| 1′ Item | as a region; hover `bg.surface-hover` and `border.default` | items picked from (templates, hubs), directly on the canvas | a form, scrolling inside |
+| 2 Raised | `bg.raised` + `elevation.raised` | only what moves (a board's card) and at most one focal card | grouping |
+| 3 Overlay | `bg.raised` + the overlay shadow, `bg.scrim` behind a dialog | dialogs, sheets, menus, popovers | a second dialog over the first, except *Discard changes?* |
+| Sunken | `bg.surface-sunken` | a backdrop inside level 0 or 1: a board's column, a code sample, a group row | on raised or overlay |
+
+Inside a region, rows are parted by hairlines and groups by a quiet uppercase label. A table's
+filter bar stands on the canvas above it and its foot inside it; a settings section's heading on
+the canvas above its region; a grid of items on the canvas, never inside a section. The elevation
+ladder is therefore canvas → region → raised → overlay, each step with one job.
 
 **The layering scale.** `primitive.layer` is the only source of a `z-index`: `base` · `raised` ·
 `sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten apart so a component may sit
