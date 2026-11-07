@@ -501,7 +501,6 @@
         load={views.WhiteboardsView}
         props={{
           boardId: route.params.id,
-          isCreateAsked: route.query['new'] === '1',
           onnavigate: (path: string) => router.navigate(path),
         }}
       />

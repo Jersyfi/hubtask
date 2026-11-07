@@ -6,9 +6,10 @@
   // its words, labels, the reader's own pages and how recently a page changed (UC-DOC-01 check 9).
   // The tree itself is the sidebar's *Contents*. A whiteboard is made here under a page or at the
   // top (UC-CNV-10 check 6), as ＋ in *Contents* asks; a page is made on the pages' own screen.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
   import { untrack } from 'svelte';
   import {
-    Button, EmptyState, Inline, PageHeader, SearchField, Select, Skeleton, Stack, Switch, Table, ViewSwitcher,
+    Banner, Button, Disclosure, EmptyState, Inline, PageHeader, SearchField, Select, Skeleton, Stack, Switch, Table, UploadField, ViewSwitcher,
   } from '@hubtask/design-system/components';
   import type { PageHitList, PageLabelCounts, PageList, WhiteboardList } from '@hubtask/sync-engine';
 
@@ -19,7 +20,8 @@
   import { engine } from '../lib/data/engine.ts';
   import { CHANGED_WITHIN, changedFrom, pages, pagesPath, spaceLabelsPath, type ChangedWithin } from '../lib/data/pages.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { boardsPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
+  import { boardsPath, placeCarried, readNative, whiteboards } from '../lib/data/whiteboards.svelte.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
@@ -173,6 +175,18 @@
     });
   });
   const under = $derived(parentAsked ? pageList?.find((each) => each.id === parentAsked) : undefined);
+
+  // A board may start from an exported native document instead of a template (UC-CNV-01).
+  let imported = $state<ReturnType<typeof readNative>>(undefined);
+  let importFailure = $state<string | undefined>(undefined);
+  let isImportOpen = $state(false);
+  async function readFile(file: File) {
+    const native = readNative(await file.text());
+    importFailure = native ? undefined : t('app.whiteboards.import_not_native');
+    imported = native ?? undefined;
+    if (native) titleDraft = native.title || titleDraft;
+  }
+
   async function make() {
     const title = titleDraft.trim();
     if (!title) return;
@@ -180,12 +194,16 @@
     makeFailure = undefined;
     try {
       const name = templateOf(start, format);
-      const elements = name ? startElements(name, (key) => t(`app.whiteboards.word_${key}`), elementId) : undefined;
+      const elements = imported?.elements ?? (name ? startElements(name, (key) => t(`app.whiteboards.word_${key}`), elementId) : undefined);
       const made = await whiteboards.create(hubId, {
         title,
         ...(parentAsked ? { parent_page_id: parentAsked } : {}),
         ...(elements && elements.length > 0 ? { elements: elements as never } : {}),
       });
+      // An export's pictures and files are placed on the new board, or its readers read none.
+      const failed = imported ? await placeCarried(imported.elements, (id) => whiteboards.placeMedia(made.id, id)) : [];
+      if (failed.length > 0) toast.show({ text: t('app.whiteboards.carried_unplaced', { count: String(failed.length) }), tone: 'warning' });
+      imported = undefined;
       isMaking = false;
       titleDraft = '';
       onnavigate(`/whiteboards/${made.id}`);
@@ -204,7 +222,8 @@
     primary={mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => startMaking() } : undefined}
     breadcrumb={hub
       ? {
-          trail: [{ id: 'place', label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],
+          trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],
+          mark: placeMark,
           label: t('app.pages.trail'),
           expandLabel: t('app.admin.expand_trail'),
           onnavigate: () => onnavigate(`/hubs/${hubId}`),
@@ -287,9 +306,26 @@
     isWide
     failure={makeFailure}
     primary={{ label: t('app.whiteboards.create'), busyLabel: isBusy ? t('app.whiteboards.making') : undefined, disabledReason: titleDraft.trim() ? undefined : t('app.whiteboards.needs_title'), onclick: () => void make() }}
-    onClose={() => { titleDraft = ''; makeFailure = undefined; start = 'BLANK'; }}
+    onClose={() => { titleDraft = ''; makeFailure = undefined; start = 'BLANK'; imported = undefined; importFailure = undefined; isImportOpen = false; }}
   >
-    {#snippet gallery()}<BoardTemplates bind:chosen={start} bind:format />{/snippet}
+    {#snippet gallery()}
+      {#if imported}
+        <Banner tone="info">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</Banner>
+      {:else}
+        <BoardTemplates bind:chosen={start} bind:format />
+      {/if}
+    {/snippet}
+    <Disclosure label={t('app.whiteboards.import_fold')} description={t('app.whiteboards.import_fold_hint')} tone="quiet" bind:isOpen={isImportOpen}>
+      <UploadField
+        label={t('app.whiteboards.import')}
+        chooseLabel={t('app.import.choose')}
+        dropLabel={t('app.media.drop')}
+        accept="application/json,.json"
+        error={importFailure}
+        onChoose={(file) => void readFile(file)}
+      />
+      {#if imported}<Button size="sm" tone="subtle" icon="x" onclick={() => (imported = undefined)}>{t('app.whiteboards.import_drop')}</Button>{/if}
+    </Disclosure>
   </CreateDialog>
 {/if}
 
