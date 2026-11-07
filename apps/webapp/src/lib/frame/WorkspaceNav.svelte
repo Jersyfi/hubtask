@@ -28,7 +28,7 @@
   import FailureState from './FailureState.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
-  import { chosenSymbol, markOf } from '../workspace/look.ts';
+  import { DEFAULT_TILE, chosenSymbol, markOf } from '../workspace/look.ts';
   import { placeMenu } from '../workspace/placeMenu.ts';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
@@ -190,8 +190,6 @@
   const hubId = $derived(level.kind === 'hub' ? level.hubId : undefined);
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
   const tool = $derived(toolOf(route));
-  /** A place without a chosen colour still stands on a tile, as the mockup draws every row. */
-  const DEFAULT_TILE = 'blue';
 
   // Every hub's level is read, as the tree always did: a collection's hub is then known on a deep
   // link, and a starred collection has its name.

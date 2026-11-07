@@ -12,6 +12,8 @@
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // reads the tree and the page and is offered no write; the page's own `writable` says the same
   // for the page.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { untrack } from 'svelte';
@@ -476,12 +478,13 @@
     breadcrumb={hub
       ? {
           trail: [
-            { id: 'place', label: hub.name, href: `/hubs/${hubId}` },
+            { id: hubId, label: hub.name, href: `/hubs/${hubId}` },
             current ? { id: 'pages', label: t('app.pages.title'), href: `/hubs/${hubId}/pages` } : { id: 'pages', label: t('app.pages.title') },
           ],
+          mark: placeMark,
           label: t('app.pages.trail'),
           expandLabel: t('app.admin.expand_trail'),
-          onnavigate: (id) => onnavigate(id === 'place' ? `/hubs/${hubId}` : `/hubs/${hubId}/pages`),
+          onnavigate: (id) => onnavigate(id === hubId ? `/hubs/${hubId}` : `/hubs/${hubId}/pages`),
         }
       : undefined}
   />
@@ -545,6 +548,7 @@
           <Breadcrumb
             label={t('app.pages.breadcrumb')}
             expandLabel={t('app.pages.breadcrumb_more')}
+            mark={placeMark}
             trail={[
               ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
               ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
@@ -554,22 +558,25 @@
           <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
                comments' toggle, sharing, and the rest in the page's menu. -->
           <div class="head" data-page-head>
-            {#if current.writable}
-              <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
-                   heading is read, the field is what is seen: the title appears once. -->
-              <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
-              <textarea
-                class="title"
-                rows="1"
-                aria-label={t('app.pages.page_title')}
-                value={titleDraft ?? current.title}
-                oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
-                onblur={rename}
-                onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
-              ></textarea>
-            {:else}
-              <h1 class="title">{current.title}</h1>
-            {/if}
+            <div class="title-line">
+              {#if current.writable}
+                <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
+                     heading is read, the field is what is seen: the title appears once. -->
+                <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
+                <textarea
+                  class="title"
+                  rows="1"
+                  aria-label={t('app.pages.page_title')}
+                  value={titleDraft ?? current.title}
+                  oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
+                  onblur={rename}
+                  onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
+                ></textarea>
+              {:else}
+                <h1 class="title">{current.title}</h1>
+              {/if}
+              <StarToggle kind="PAGE" id={current.id} name={current.title} />
+            </div>
             <Inline gap="100" align="center">
               {#if present.length > 0}
                 <span class="here" data-page-here>
@@ -584,18 +591,18 @@
               {/if}
               <Button
                 size="sm"
-                tone={side === 'comments' ? 'secondary' : 'subtle'}
+                tone="secondary"
                 icon="message-square"
                 aria-pressed={side === 'comments'}
                 data-page-comments
                 onclick={() => toggleSide('comments')}
               >{t('app.pages.side_comments', { count: String(openThreads) })}</Button>
               {#if !current.shared && hubId}
-                <Button size="sm" tone={side === 'access' ? 'secondary' : 'subtle'} icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
+                <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
               {/if}
               <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
                 {#snippet trigger(props)}
-                  <IconButton icon="ellipsis" label={t('app.pages.page_menu')} data-page-menu {...props} />
+                  <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
                 {/snippet}
               </Menu>
             </Inline>
@@ -857,6 +864,7 @@
     justify-content: space-between;
     gap: var(--sp-100);
   }
+  .title-line { display: flex; flex: 1 1 24ch; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
   .here { display: inline-flex; }
   .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .excerpt, .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
@@ -865,7 +873,7 @@
   .page { min-inline-size: 0; }
   .title {
     margin: 0;
-    flex: 1 1 24ch;
+    flex: 0 1 auto;
     min-inline-size: 0;
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
@@ -877,6 +885,8 @@
     background: none;
     color: var(--text-primary);
     padding: var(--sp-025) var(--sp-050);
+    /* The text, not the field's edge, lines up with the trail above it. */
+    margin-inline-start: calc(-1 * (var(--sp-050) + var(--bw-hairline)));
   }
   textarea.title { resize: none; overflow: hidden; field-sizing: content; font-family: var(--font-display); }
   textarea.title:hover { border-color: var(--border-subtle); }

@@ -8,6 +8,7 @@
   // **The server counts**: the rolling up, the remaining hours that never fall below zero, and
   // whether an aggregated workspace lets this reader see it at all (check 4). Above it, for whoever
   // manages costs, the plan's budget and its burn (UC-TIM-08 check 8) and its billing rates (check 9).
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
   import { PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
@@ -74,7 +75,8 @@
     secondary={place && !isHub ? [{ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`/collections/${planId}/workload`) }] : []}
     breadcrumb={place
       ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'actuals', label: title }],
+          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'actuals', label: title }],
+          mark: placeMark,
           label: t('app.actuals.trail'),
           expandLabel: t('app.actuals.expand_trail'),
           onnavigate: () => onnavigate(placePath),

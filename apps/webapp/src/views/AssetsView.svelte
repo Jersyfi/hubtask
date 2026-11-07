@@ -11,9 +11,10 @@
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // is offered no write: the import is not offered to them at all, the other operator sections are
   // not shown, and the register and the software, which only list, stand in the first strip.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Icon, Menu, PageHeader, Skeleton, Spinner, ViewBar } from '@hubtask/design-system/components';
+  import { Badge, Icon, Menu, PageHeader, Skeleton, Spinner, ViewBar } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CiAlert, CiAlertList, CiClassList, CiRelationTypeList, CmdbHealth, ConfigurationItem } from '@hubtask/sync-engine';
 
@@ -163,7 +164,8 @@
       isTitleInBar={viewport.isCompact}
       breadcrumb={hub
         ? {
-            trail: [{ id: 'place', label: hub.name, href: `/hubs/${hub.id}` }, { id: 'assets', label: t('app.nav.tool_inventory') }],
+            trail: [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }, { id: 'assets', label: t('app.nav.tool_inventory') }],
+            mark: placeMark,
             label: t('app.assets.trail'),
             expandLabel: t('app.admin.expand_trail'),
             onnavigate: () => onnavigate(`/hubs/${hubId}`),
@@ -226,12 +228,13 @@
         sheetTitle={t('app.nav.tool_inventory')}
         closeLabel={t('app.nav.close')}
         onnavigate={go}
-        tools={strips.manage.length > 0 ? manage : undefined}
+        more={strips.manage.length > 0 ? manage : undefined}
       />
       {#snippet manage()}
+        <!-- *Manage ▾* among the parts, drawn as one of them (the mockup's inventory). -->
         <Menu label={t('app.assets.manage_sections')} items={manageItems} onselect={go}>
           {#snippet trigger(props)}
-            <Button size="sm" tone={strips.selected === 'manage' ? 'primary' : 'secondary'} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></Button>
+            <button type="button" aria-current={strips.selected === 'manage' ? 'page' : undefined} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></button>
           {/snippet}
         </Menu>
       {/snippet}

@@ -14,6 +14,7 @@
   //
   // **The server computes every number**: progress is what it answers for this reader (P-05), and
   // a refusal is said where it happened, in its words.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
@@ -283,7 +284,8 @@
     isTitleInBar={viewport.isCompact}
     {primary}
     breadcrumb={hub ? (hubName ? {
-      trail: [{ id: 'place', label: hubName, href: `/hubs/${hub}` }, { id: 'goals', label: t('app.nav.tool_goals') }],
+      trail: [{ id: hub, label: hubName, href: `/hubs/${hub}` }, { id: 'goals', label: t('app.nav.tool_goals') }],
+      mark: placeMark,
       label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
       onnavigate: () => onnavigate(`/hubs/${hub}`),

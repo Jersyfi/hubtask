@@ -11,6 +11,8 @@
   // The breadcrumb is built from the **route** rather than from a remembered click, which is what
   // makes a deep link land with a correct trail: ADR-0028's `index.html` fallback exists so a deep
   // link survives a reload, and a trail assembled from navigation history would be empty after one.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import {
     AvatarGroup,
@@ -94,8 +96,6 @@
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import { collectionViews } from '../lib/workspace/placeViews.ts';
   import PlaceViews from '../lib/workspace/PlaceViews.svelte';
-  import { stars } from '../lib/data/stars.svelte.ts';
-  import { isStarred } from '../lib/data/stars.ts';
   import { isOwnPage, layoutOfView, viewOfLayout } from '../lib/workspace/placeViews.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
@@ -1280,11 +1280,6 @@
     {/if}
   {/snippet}
   {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
-  <!-- A hub's or a collection's tile on the trail, where the mockup draws it - not before the title. -->
-  {#snippet crumbMark(crumb: { readonly id: string })}
-    {@const place = containers.find(crumb.id)}
-    {#if place}<ContainerMark look={place} size="xs" />{/if}
-  {/snippet}
   {#if isSettings}
     <Stack gap="300">
       <!-- The place's settings (design-system.md §11.8): the trail back to the place, one title,
@@ -1417,7 +1412,7 @@
       {/if}
     </Stack>
   {:else}
-  <Stack gap={container.type === 'HUB' ? '150' : '300'}>
+  <Stack gap="150">
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
          for - a collection - with import beside it; the collection's is an entry, with the filter
@@ -1431,7 +1426,7 @@
       onmenu={(offered) => page.offer(offered)}
       breadcrumb={{
         trail,
-        mark: crumbMark,
+        mark: placeMark,
         label: t('app.workspace.trail'),
         expandLabel: t('app.workspace.expand_trail'),
         onnavigate: (crumbId) => {
@@ -1445,17 +1440,7 @@
     >
       {#snippet titleEnd()}
         <!-- ☆ right after the title (UC-WRK-37, the mockup's head): the same star as the sidebar's. -->
-        {@const starKind = container.type === 'HUB' ? 'HUB' : 'COLLECTION'}
-        {@const starred = isStarred(stars.all, starKind, container.id)}
-        <span class="star" data-starred={starred ? '' : undefined}>
-          <IconButton
-            icon="star"
-            size="sm"
-            label={t(starred ? 'app.nav.unstar' : 'app.nav.star', { name: container.name })}
-            aria-pressed={starred}
-            onclick={() => void stars.toggle(starKind, container.id)}
-          />
-        </span>
+        <StarToggle kind={container.type === 'HUB' ? 'HUB' : 'COLLECTION'} id={container.id} name={container.name} />
       {/snippet}
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the
@@ -1867,8 +1852,6 @@
   /* The entries' toolbar stays under the bar while the list scrolls (design-system.md §11.1): the
      layouts at the start, the rest at the end, one line where it fits. */
   /* A starred place's star is filled in gold (the mockup's head), as the sidebar's. */
-  .star[data-starred] :global(button) { color: var(--accent-star); }
-  .star[data-starred] :global(svg) { fill: currentColor; }
 
   /* The view bar stays under the app bar while the entries scroll, as the toolbar it replaced. */
 

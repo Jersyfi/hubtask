@@ -15,6 +15,7 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the collection the
   // screen shows values, not controls.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
@@ -342,7 +343,8 @@
     figure={detail && detail.burndown.length > 0 ? burndownPicture : undefined}
     breadcrumb={place
       ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'sprints', label: t('app.sprints.title') }],
+          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'sprints', label: t('app.sprints.title') }],
+          mark: placeMark,
           label: t('app.sprints.trail'),
           expandLabel: t('app.sprints.expand_trail'),
           onnavigate: () => onnavigate(placePath),

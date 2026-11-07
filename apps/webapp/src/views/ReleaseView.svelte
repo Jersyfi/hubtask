@@ -12,6 +12,7 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the hub the screen
   // shows the releases and their entries, not controls.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
@@ -186,7 +187,7 @@
 
   // The head's figure (§5.1): what is coming, the next one and its day, what went out.
   const groups = $derived(list ? releaseGroups(list, today) : undefined);
-  const figure = $derived.by(() => {
+  const figureText = $derived.by(() => {
     if (!groups || (groups.planned.length === 0 && groups.released.length === 0)) return undefined;
     const next = groups.planned[0];
     return [
@@ -216,14 +217,16 @@
   ]);
 </script>
 
+{#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
 <Stack gap="200">
   <PageHeader
     title={t('app.releases.title')}
     isTitleInBar={viewport.isCompact}
-    subtitle={figure}
+    figure={figureText ? headFigure : undefined}
     breadcrumb={place
       ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'releases', label: t('app.releases.title') }],
+          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'releases', label: t('app.releases.title') }],
+          mark: placeMark,
           label: t('app.releases.trail'),
           expandLabel: t('app.releases.expand_trail'),
           onnavigate: () => onnavigate(placePath),

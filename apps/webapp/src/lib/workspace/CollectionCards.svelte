@@ -91,11 +91,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--sp-100);
-    padding: var(--sp-200);
+    padding: var(--sp-150);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-raised);
-    box-shadow: var(--shadow-raised);
   }
 
   .card:hover { border-color: var(--border-default); }

@@ -35,7 +35,7 @@ export function toolViews(hubId: string, tool: string, input: ToolInput = {}): r
     case 'plan':
       return [
         { id: 'schedule', code: 'app.nav.view_schedule', icon: 'calendar', href: `${base}/plan` },
-        { id: 'releases', code: 'app.releases.title', icon: 'flag', href: `${base}/plan/releases` },
+        { id: 'releases', code: 'app.releases.title', href: `${base}/plan/releases` },
         { id: 'sprints', code: 'app.sprints.title', icon: 'repeat', href: `${base}/plan/sprints` },
       ];
     case 'time':

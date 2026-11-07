@@ -10,17 +10,19 @@
 
   import { Icon } from '@hubtask/design-system/components';
 
-  import { chosenColour, markOf, type Look } from './look.ts';
+  import { DEFAULT_TILE, chosenColour, markOf, type Look } from './look.ts';
 
   interface Props {
     look: Look;
     /** `md` for a page head, `sm` beside a line of text, `xs` on a trail's small type. */
     size?: 'xs' | 'sm' | 'md';
+    /** Whether a place without a colour stands on the default tile, as the navigation draws it; not where "no colour" is offered as a choice. */
+    hasDefaultTile?: boolean;
   }
 
-  const { look, size = 'sm' }: Props = $props();
+  const { look, size = 'sm', hasDefaultTile = true }: Props = $props();
 
-  const colour = $derived(chosenColour(look));
+  const colour = $derived(chosenColour(look) ?? (hasDefaultTile ? DEFAULT_TILE : undefined));
 </script>
 
 <span class="mark" data-size={size} data-token={colour} aria-hidden="true">

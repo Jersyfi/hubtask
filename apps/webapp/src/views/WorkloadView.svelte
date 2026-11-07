@@ -7,6 +7,7 @@
   // sums and the reader does not approve time here, one row of the team's weeks, naming nobody.
   //
   // **The server counts**: capacity, holidays, absences, the remaining estimates and their spread.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
   import { Button, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
@@ -68,7 +69,8 @@
     isTitleInBar={viewport.isCompact}
     breadcrumb={place
       ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'workload', label: t('app.workload.title') }],
+          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'workload', label: t('app.workload.title') }],
+          mark: placeMark,
           label: t('app.workload.trail'),
           expandLabel: t('app.workload.expand_trail'),
           onnavigate: () => onnavigate(placePath),

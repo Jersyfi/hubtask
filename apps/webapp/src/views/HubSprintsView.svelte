@@ -4,6 +4,7 @@
   // The tool *Plan*'s *Sprints* (the navigation concept §2.4): the sprints running in the hub's
   // collections, the soonest to end first, each opening its collection's *Sprint* view. A sprint
   // belongs to its collection; this page only gathers them, as the Plans home does across hubs.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
   import { untrack } from 'svelte';
   import { EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
   import type { SprintList } from '@hubtask/sync-engine';
@@ -62,7 +63,8 @@
     isTitleInBar={viewport.isCompact}
     breadcrumb={hub
       ? {
-          trail: [{ id: 'place', label: hub.name, href: `/hubs/${hubId}` }, { id: 'plan', label: t('app.nav.tool_plan') }],
+          trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'plan', label: t('app.nav.tool_plan') }],
+          mark: placeMark,
           label: t('app.product_home.trail'),
           expandLabel: t('app.admin.expand_trail'),
           onnavigate: () => onnavigate(`/hubs/${hubId}`),

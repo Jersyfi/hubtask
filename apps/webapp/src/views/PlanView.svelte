@@ -24,6 +24,7 @@
   //
   // **A baseline is deleted behind *Undo*** (§5.9): it leaves the screen at once and the deletion
   // is sent when its message leaves; *Undo* sends nothing, and a closed tab keeps the baseline.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
@@ -429,7 +430,7 @@
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
   // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
   // dates; the standing against the tolerance where it is kept and not exceeded.
-  const figure = $derived.by(() => {
+  const figureText = $derived.by(() => {
     if (!schedule || (rows.length === 0 && undated.length === 0)) return undefined;
     const parts = [
       schedule.finish ? t('app.planning.figure_ends', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates'),
@@ -442,14 +443,16 @@
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
 </script>
 
+{#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
 <Stack gap="200">
   <PageHeader
     title={t('app.planning.title')}
     isTitleInBar={viewport.isCompact}
-    subtitle={figure}
+    figure={figureText ? headFigure : undefined}
     breadcrumb={place
       ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
+          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
+          mark: placeMark,
           label: t('app.planning.trail'),
           expandLabel: t('app.planning.expand_trail'),
           onnavigate: () => onnavigate(placePath),
