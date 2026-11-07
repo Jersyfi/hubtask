@@ -1696,8 +1696,9 @@
   <Dialog title={t('app.nav.entry_move_title', { title: move.title, collection: move.collection.name })} isOpen dismissLabel={t('app.workspace.cancel')} onClose={() => (entryMove = undefined)}>
     <p>{t('app.nav.entry_move_hub', { collection: move.collection.name, hub: containers.find(move.collection.parent_id ?? '')?.name ?? '' })}</p>
     {#snippet actions()}
-      <Button tone="subtle" onclick={() => (entryMove = undefined)}>{t('app.workspace.cancel')}</Button>
-      <Button tone="primary" onclick={() => { entryMove = undefined; void moveEntry(move.entryId, move.collection); }}>{t('app.move.confirm')}</Button>
+      <Button tone="secondary" onclick={() => (entryMove = undefined)}>{t('app.workspace.cancel')}</Button>
+      <!-- `move` is derived from `entryMove`: read before it is cleared. -->
+      <Button tone="primary" onclick={() => { const { entryId, collection } = move; entryMove = undefined; void moveEntry(entryId, collection); }}>{t('app.move.confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}
