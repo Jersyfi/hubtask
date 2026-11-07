@@ -785,11 +785,11 @@ As built: the hub's *Assets* has a `PageHeader` with the trail, a figure (*40 co
 6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New configuration
 item* as the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
 campaign*, each opening its section's own dialog once. No licence count is drawn: no read answers
-which licences expire. The first strip is *Inventory · Health · Alerts · Groups and map · Manage*;
-*Manage* opens *Runs · Duplicates · Connectors · Campaigns · Register · Software · Import* as a
-second strip and is drawn for whoever may write or shape the hub, the import for a writer only;
-for a reader without it, *Register* and *Software*, which only list, join the first strip
-(UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
+which licences expire. The tool's view bar is *Inventory · Health · Alerts · Map · Manage ▾*
+(*Map* holds the groups and the service map); *Manage ▾* is a menu of *Runs · Duplicates ·
+Connectors · Campaigns · Register · Software · Import*, never a second strip, and is drawn for
+whoever may write or shape the hub, the import for a writer only; for a reader without it,
+*Register* and *Software*, which only list, join the view bar (UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
 `ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
 empty inventory offers the create and the import, a reader is told how CIs arrive. A connector is
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched

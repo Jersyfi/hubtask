@@ -11110,7 +11110,7 @@
   "app.assets.backlink_kind.COMMENT": "comment",
   "app.assets.backlink_kind.WHITEBOARD": "whiteboard",
   "app.assets.section.campaigns": "Campaigns",
-  "app.assets.section.groups": "Groups and map",
+  "app.assets.section.groups": "Map",
   "app.assets.section.register": "Register",
   "app.assets.section.software": "Software",
   "app.affected.title": "Affected configuration items",

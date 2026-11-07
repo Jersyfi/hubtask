@@ -131,7 +131,7 @@ test('chromium: the inventory comes first under its figure, the operator\'s sect
   const attention = figure.getByRole('link', { name: '6 need attention' });
   assert.equal(await attention.getAttribute('href'), `/hubs/${HUB.id}/inventory/health`);
   assert.match(await attention.getAttribute('title') ?? '', /incomplete, stale, orphaned/);
-  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Manage']);
+  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Map', 'Manage']);
   assert.equal(await page.getByRole('tablist').count(), 0, 'a second strip');
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 5_000 });
 
@@ -150,7 +150,7 @@ test('chromium: a reader is shown neither Manage nor a create, and a managed add
   t.after(() => context.close());
 
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 20_000 });
-  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Register', 'Software']);
+  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Map', 'Register', 'Software']);
   assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0);
 
   // The register lists for a reader, and offers nothing to write (UC-AST-12 check 5).
