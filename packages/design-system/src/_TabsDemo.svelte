@@ -5,7 +5,7 @@
   import Stack from './Stack.svelte';
   import Tabs, { type Tab } from './Tabs.svelte';
 
-  const { mode = 'views' }: { mode?: 'views' | 'gated' | 'long' | 'row' | 'table' } = $props();
+  const { mode = 'views' }: { mode?: 'views' | 'gated' | 'long' | 'row' | 'table' | 'counted' } = $props();
 
   const withReason = (reason: string | undefined): Tab[] => [
     { id: 'list', label: 'List' },
@@ -17,6 +17,13 @@
     { id: 'list', label: 'List' },
     { id: 'board', label: 'Board' },
     { id: 'activity', label: 'History' },
+  ];
+
+  const counted: Tab[] = [
+    { id: 'people', label: 'People', count: 9 },
+    { id: 'groups', label: 'Groups', count: 3 },
+    { id: 'roles', label: 'Roles', count: 12 },
+    { id: 'permissions', label: 'Who may do what' },
   ];
 
   const gated: Tab[] = [
@@ -37,7 +44,7 @@
   ];
 
   let selected = $state('list');
-  const tabs = $derived(mode === 'gated' ? gated : mode === 'long' ? long : views);
+  const tabs = $derived(mode === 'gated' ? gated : mode === 'long' ? long : mode === 'counted' ? counted : views);
 </script>
 
 {#if mode === 'row' || mode === 'table'}

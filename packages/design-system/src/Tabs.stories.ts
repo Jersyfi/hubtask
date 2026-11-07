@@ -17,6 +17,13 @@ export const views: Story = {
     'One stop in the tab order for the whole strip, and the arrows move within it — the ARIA practices, and the reason a reader does not press Tab six times to get past a single choice. In RTL the arrow that means “next” is the one pointing left, which `rovingIndex` answers rather than this component.',
 };
 
+export const counted: Story = {
+  name: 'Sibling lists with their counts',
+  about:
+    'A count after a label says how much each list holds before it is opened, quieter than the label. A tab without one draws nothing there.',
+  args: { mode: 'counted' },
+};
+
 export const gated: Story = {
   name: 'A view that cannot be opened',
   about:
