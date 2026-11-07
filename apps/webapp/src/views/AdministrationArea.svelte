@@ -15,6 +15,7 @@
   import MailView from './MailView.svelte';
   import ModulesView from './ModulesView.svelte';
   import PeopleView from './PeopleView.svelte';
+  import PersonView from './PersonView.svelte';
   import PresetsView from './PresetsView.svelte';
   import PrivacyView from './PrivacyView.svelte';
   import PrivateHubsView from './PrivateHubsView.svelte';
@@ -54,7 +55,11 @@
 {:else if route.name === 'presets'}
   <PresetsView template={route.query['template']} onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'people'}
-  <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => onreplace(path)} />
+  <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => onreplace(path)} onopen={(path) => onnavigate(path)} />
+{:else if route.name === 'person'}
+  {#key route.params.id}
+    <PersonView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'machines'}
   <MachinesView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
 {:else if route.name === 'rules'}

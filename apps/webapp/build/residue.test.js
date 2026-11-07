@@ -229,6 +229,7 @@ async function views() {
     ['workspace-address', await load('WorkspaceAddressView'), {}],
     ['presets', await load('PresetsView'), {}],
     ['people', await load('PeopleView'), {}],
+    ['person', await load('PersonView'), { id: '01a0e2e0-0000-7000-8000-0000000000a1', onnavigate: noop }],
     ['machines', await load('MachinesView'), {}],
     ['rules', await load('RulesView'), {}],
     ['rule-new', await load('RuleEditorView'), { id: 'new', onnavigate: noop }],
@@ -348,6 +349,9 @@ test('the route table and this test name the same screens', async () => {
     // (`movedTo`) draws nothing either - it replaces itself with the tab it became.
     .filter((name) => !['hub', 'hub-settings', 'hub-settings-section', 'collection-settings', 'oidc-callback', 'mail-oauth'].includes(name))
     .filter((name) => movedTo(name) === undefined)
+    // The record pages and sections the page-system concept gives an address before their screens
+    // land (page-system §13 step 4); each leaves this list with its view.
+    .filter((name) => !['group', 'role', 'service-account', 'app', 'sign-in-section', 'sign-in-provider'].includes(name))
     .sort();
   assert.deepEqual(named, routed);
 });
