@@ -14,7 +14,8 @@ import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, type SectionGroup } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath, type SectionGroup } from './navigation.ts';
+import { contentsCount, contentsTree, foot, forYou, levelOf, navProducts, orderHubs, placedIndex, queuePath, queueRows, type LevelRoute } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -422,4 +423,128 @@ test('the Android app keeps the administration\'s and the installation\'s rows, 
   // Somebody who does not reach the area is not offered its row on the phone either (P-05).
   const member = [...workspaceBand({ isAdministrationReachable: false }), ...account({ isAdministrationReachable: false, isInstanceReachable: false, holdsWorkspaces: true })];
   assert.equal(member.some((row) => leftToWebApp(row.id, android) !== undefined), false);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// The sidebar's two levels (the navigation concept, UC-WRK-36, UC-INS-21 check 11)
+// ---------------------------------------------------------------------------------------------------
+
+const LEVEL_HUBS: Record<string, string> = { h: 'h', c: 'h' };
+const level = (name: string, params: Record<string, string> = {}, query: Record<string, string> = {}, located?: string) =>
+  levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located);
+
+test('anything of a hub shows its hub\'s level; everything else the workspace level (§2.4, §6.1)', () => {
+  for (const name of ['hub', 'hub-plan', 'hub-releases', 'hub-desk', 'hub-assets', 'hub-actuals', 'hub-workload', 'hub-pages', 'hub-whiteboards', 'hub-settings']) {
+    assert.deepEqual(level(name, { id: 'h' }), { kind: 'hub', hubId: 'h' }, name);
+  }
+  for (const name of ['collection', 'collection-plan', 'collection-sprints', 'collection-settings']) {
+    assert.deepEqual(level(name, { id: 'c' }), { kind: 'hub', hubId: 'h' }, name);
+  }
+  assert.deepEqual(level('goals', {}, { hub: 'h' }), { kind: 'hub', hubId: 'h' });
+  assert.deepEqual(level('item', { id: 'i' }, {}, 'c'), { kind: 'hub', hubId: 'h' }, 'an entry shows its collection\'s hub');
+  assert.deepEqual(level('page', { id: 'p' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a page shows its space');
+  assert.deepEqual(level('item', { id: 'i' }), { kind: 'workspace' }, 'until the entry says where it lives');
+  for (const name of ['home', 'search', 'jumble', 'plans-home', 'pages-home', 'goals', 'trash', 'archive']) {
+    assert.deepEqual(level(name), { kind: 'workspace' }, name);
+  }
+});
+
+test('For you is Today, the inbox and what waits for a yes - never Search or Capture (§2.2)', () => {
+  assert.deepEqual(forYou({ hasJumble: true, modulesOn: ['SERVICE_DESK'] }).map((row) => row.id), ['workspace', 'jumble', 'approvals']);
+  assert.deepEqual(forYou({ hasJumble: false, modulesOn: [] }).map((row) => row.id), ['workspace']);
+});
+
+test('the foot is Administration where reached, then Archive and Trash (§2.5)', () => {
+  assert.deepEqual(foot({ isAdministrationReachable: true }).map((row) => row.id), ['administration', 'archive', 'trash']);
+  assert.deepEqual(foot({ isAdministrationReachable: false }).map((row) => row.id), ['archive', 'trash']);
+});
+
+test('the hub tools stand in one fixed order, each only where its module is on, Queues only with a desk (UC-INS-21 check 11)', () => {
+  const all = ['SERVICE_DESK', 'PLANNING', 'ASSETS', 'TIME', 'GOALS', 'KNOWLEDGE', 'AGENTS'];
+  assert.deepEqual(hubTools({ modulesOn: all, hasDesk: true }).map((tool) => tool.id), ['queues', 'plan', 'inventory', 'time', 'goals']);
+  assert.deepEqual(hubTools({ modulesOn: all, hasDesk: false }).map((tool) => tool.id), ['plan', 'inventory', 'time', 'goals']);
+  for (const tool of HUB_TOOLS) {
+    const without = hubTools({ modulesOn: all.filter((each) => each !== tool.module), hasDesk: true }).map((each) => each.id);
+    assert.ok(!without.includes(tool.id), `${tool.module} off keeps ${tool.id}`);
+    assert.equal(without.length, 4, `${tool.module} off takes more than its tool`);
+  }
+  assert.deepEqual(hubTools({ modulesOn: [], hasDesk: true }), [], 'a household sees no tool (D1)');
+});
+
+test('every tool opens a route that names it current, and the switch keeps the tool where the target has it', () => {
+  const routeOf: Record<string, LevelRoute> = {
+    '/hubs/h/desk': { name: 'hub-desk', params: {}, query: {} },
+    '/hubs/h/plan': { name: 'hub-plan', params: {}, query: {} },
+    '/hubs/h/assets': { name: 'hub-assets', params: {}, query: {} },
+    '/hubs/h/actuals': { name: 'hub-actuals', params: {}, query: {} },
+    '/goals?hub=h': { name: 'goals', params: {}, query: { hub: 'h' } },
+  };
+  for (const tool of HUB_TOOLS) assert.equal(toolOf(routeOf[toolPath('h', tool.id)]!), tool.id, tool.id);
+  assert.equal(toolOf({ name: 'hub', query: {} }), 'overview');
+  assert.equal(toolOf({ name: 'goals', query: {} }), undefined, 'the workspace\'s goals are no hub tool');
+  const planOnly = hubTools({ modulesOn: ['PLANNING'], hasDesk: false });
+  assert.equal(switchPath('x', 'plan', planOnly), '/hubs/x/plan');
+  assert.equal(switchPath('x', 'time', planOnly), '/hubs/x');
+  assert.equal(switchPath('x', 'overview', planOnly), '/hubs/x');
+});
+
+test('the products follow the person\'s order; hidden ones go behind More; one switched off is gone (§2.3)', () => {
+  const on = ['PLANNING', 'KNOWLEDGE', 'TIME'];
+  assert.deepEqual(navProducts({ modulesOn: on }).shown.map((row) => row.module), ['PLANNING', 'KNOWLEDGE', 'TIME']);
+  const sets = navProducts({ modulesOn: on, order: ['TIME', 'PLANNING'], hidden: ['KNOWLEDGE', 'ASSETS'] });
+  assert.deepEqual(sets.shown.map((row) => row.module), ['TIME', 'PLANNING']);
+  assert.deepEqual(sets.more.map((row) => row.module), ['KNOWLEDGE']);
+  assert.deepEqual(navProducts({ modulesOn: [] }), { shown: [], more: [] });
+});
+
+test('the hubs in the shared order, recently visited first, or A-Z (§2.3)', () => {
+  const hubs = [{ id: 'b', name: 'Beta' }, { id: 'a', name: 'alpha' }, { id: 'c', name: 'Gamma' }];
+  assert.deepEqual(orderHubs(hubs, 'MANUAL').map((each) => each.id), ['b', 'a', 'c']);
+  assert.deepEqual(orderHubs(hubs, null).map((each) => each.id), ['b', 'a', 'c']);
+  assert.deepEqual(orderHubs(hubs, 'RECENT', ['c']).map((each) => each.id), ['c', 'b', 'a']);
+  assert.deepEqual(orderHubs(hubs, 'NAME', [], 'en').map((each) => each.id), ['a', 'b', 'c']);
+});
+
+test('queues: the starred first, then the hub\'s order; a breaching one is urgent; a standard queue is named by its key', () => {
+  const rows = queueRows(
+    [
+      { view_id: 'v1', key: 'mine', name: 'Mine', count: 3, at_risk: 0 },
+      { view_id: 'v2', key: 'breach', name: 'About to breach', count: 1, at_risk: 1 },
+      { view_id: null, key: 'open', name: null, count: null, at_risk: null },
+    ],
+    ['v2', 'gone'],
+  );
+  assert.deepEqual(rows.map((row) => row.id), ['v2', 'v1', 'std:open']);
+  assert.deepEqual(rows.map((row) => row.isUrgent), [true, false, false]);
+  assert.equal(queuePath('h', rows[2]!), '/hubs/h/desk?queue=open');
+});
+
+test('the content tree: pages and boards by their shared key, keyless boards after A-Z, no templates, no child under a board', () => {
+  const pages = [
+    { id: 'p1', parent_id: null, title: 'Start', order_key: 'a1' },
+    { id: 'p2', parent_id: null, title: 'Team', order_key: 'a3' },
+    { id: 'p3', parent_id: 'p2', title: 'Onboarding', order_key: 'a1' },
+    { id: 't', parent_id: null, title: 'A template', order_key: 'a0', template: true },
+  ];
+  const boards = [
+    { id: 'b1', title: 'Retro', parent_page_id: 'p2', order_key: 'a2' },
+    { id: 'b2', title: 'Map', parent_page_id: null, order_key: 'a2' },
+    { id: 'b3', title: 'Zoo', parent_page_id: null, order_key: null },
+    { id: 'b4', title: 'Atlas', parent_page_id: null, order_key: null },
+    { id: 'b5', title: 'Hidden parent', parent_page_id: 'unseen', order_key: 'a9' },
+  ];
+  const tree = contentsTree(pages, boards);
+  assert.deepEqual(tree.map((node) => node.id), ['p1', 'b2', 'p2', 'b5', 'b4', 'b3']);
+  assert.deepEqual(tree[2]!.children.map((node) => node.id), ['p3', 'b1']);
+  assert.ok(tree.filter((node) => node.kind === 'whiteboard').every((node) => node.children.length === 0));
+  assert.equal(contentsCount(tree), 8);
+  assert.deepEqual(contentsTree(pages, boards, 'NAME', 'en').map((node) => node.title), ['Atlas', 'Hidden parent', 'Map', 'Onboarding', 'Retro', 'Start', 'Team', 'Zoo']);
+  const recent = contentsTree([{ id: 'x', parent_id: null, title: 'Old', updated_at: '2026-01-01' }], [{ id: 'y', title: 'New', updated_at: '2026-02-01' }], 'RECENT');
+  assert.deepEqual(recent.map((node) => node.id), ['y', 'x']);
+});
+
+test('a row placed after a sibling lands at that index among the others', () => {
+  assert.equal(placedIndex(['a', 'b', 'c'], 'c', null), 0);
+  assert.equal(placedIndex(['a', 'b', 'c'], 'a', 'c'), 2);
+  assert.equal(placedIndex(['a', 'b', 'c'], 'a', 'b'), 1);
 });
