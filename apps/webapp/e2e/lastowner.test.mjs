@@ -3,7 +3,7 @@
 
 // The workspace keeps an owner, and Owner held through a group stays behind a proof
 // (domain-model.md §3.2, identity.md §16.3), walked as the workspace's only owner: on *People* the
-// owner's own row offers no *Revoke* and says why while another row keeps it; on *Groups* taking
+// owner's own row offers no *Revoke* and says why while another row keeps it; on a group's page taking
 // somebody out of a group that holds OWNER asks for the proof and sends the change again with it.
 
 import { test } from 'node:test';
@@ -110,10 +110,11 @@ test('taking somebody out of a group that holds Owner asks for the proof and sen
 
   const failures = [];
   page.on('pageerror', (error) => failures.push(error.message));
-  await page.goto(`${served.origin}/administration/people?tab=groups`);
-  const owners = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Owners' }) });
-  await owners.getByRole('button', { name: 'Take out' }).first().waitFor({ timeout: 15_000 });
-  await owners.getByRole('button', { name: 'Take out' }).last().click();
+  // The group's own page lists its members; taking one out is in the member's row menu.
+  await page.goto(`${served.origin}/administration/groups/${OWNERS.id}`);
+  const other = page.getByRole('row').filter({ has: page.getByRole('link', { name: OTHER.display_name, exact: true }) });
+  await other.getByRole('button', { name: `More for ${OTHER.display_name}` }).click({ timeout: 15_000 });
+  await page.getByRole('menu').getByRole('menuitem', { name: 'Take out', exact: true }).click();
 
   const proof = page.getByRole('dialog', { name: 'Prove it is you' });
   await proof.waitFor();
