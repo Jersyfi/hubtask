@@ -6,6 +6,7 @@
   // (ADR-0032, `platform/target.ts`); loaded on its first visit, like the views beside it.
   import AdministrationOverviewView from './AdministrationOverviewView.svelte';
   import AiSettingsView from './AiSettingsView.svelte';
+  import AppView from './AppView.svelte';
   import AuditView from './AuditView.svelte';
   import BackupView from './BackupView.svelte';
   import ChangesView from './ChangesView.svelte';
@@ -26,6 +27,7 @@
   import RoleView from './RoleView.svelte';
   import RetentionView from './RetentionView.svelte';
   import RunsView from './RunsView.svelte';
+  import ServiceAccountView from './ServiceAccountView.svelte';
   import SignInSettingsView from './SignInSettingsView.svelte';
   import VoiceView from './VoiceView.svelte';
   import WebhooksView from './WebhooksView.svelte';
@@ -73,6 +75,14 @@
   {/key}
 {:else if route.name === 'machines'}
   <MachinesView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+{:else if route.name === 'service-account'}
+  {#key route.params.id}
+    <ServiceAccountView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'app'}
+  {#key route.params.id}
+    <AppView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'rules'}
   <LazyView load={loadRules} props={{ tab: route.query['tab'], onnavigate: (path: string) => onnavigate(path) }} />
 {:else if route.name === 'rule-new'}

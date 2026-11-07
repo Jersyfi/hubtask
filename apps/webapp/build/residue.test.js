@@ -233,6 +233,8 @@ async function views() {
     ['group', await load('GroupView'), { id: '01a0e2e0-0000-7000-8000-0000000000b1', onnavigate: noop }],
     ['role', await load('RoleView'), { id: 'ADMIN', onnavigate: noop }],
     ['machines', await load('MachinesView'), {}],
+    ['service-account', await load('ServiceAccountView'), { id: '01a0e2e0-0000-7000-8000-0000000000c1', onnavigate: noop }],
+    ['app', await load('AppView'), { id: '01a0e2e0-0000-7000-8000-0000000000c2', onnavigate: noop }],
     ['rules', await load('RulesView'), {}],
     ['rule-new', await load('RuleEditorView'), { id: 'new', onnavigate: noop }],
     ['rule', await load('RuleEditorView'), { id: ITEM, onnavigate: noop }],
@@ -353,9 +355,6 @@ test('the route table and this test name the same screens', async () => {
     // (`movedTo`) draws nothing either - it replaces itself with the tab it became.
     .filter((name) => !['hub', 'hub-settings', 'hub-settings-section', 'collection-settings', 'oidc-callback', 'mail-oauth'].includes(name))
     .filter((name) => movedTo(name) === undefined)
-    // The record pages and sections the page-system concept gives an address before their screens
-    // land (page-system §13 step 4); each leaves this list with its view.
-    .filter((name) => !['service-account', 'app'].includes(name))
     .sort();
   assert.deepEqual(named, routed);
 });
