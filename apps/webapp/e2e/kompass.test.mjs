@@ -152,6 +152,20 @@ test('UC-WRK-36 check 17: a workspace with no module on shows no tool and no Con
   assert.deepEqual(failures, []);
 });
 
+test('UC-WRK-37 check 5: a starred queue stands under Starred with its hub, its count and its queue page', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { modulesOn: ALL, stars: [{ kind: 'VIEW', id: id(500) }] });
+  t.after(close);
+  const row = side(page).locator('section', { hasText: 'Starred' }).getByRole('treeitem', { name: /^About to breach · IT operations/ });
+  await row.waitFor({ timeout: 10_000 });
+  await row.locator('[data-urgent]').waitFor({ timeout: 5_000 });
+  assert.ok((await row.innerText()).includes('1'));
+  await row.click();
+  await page.waitForURL(`**/hubs/${IT.id}/desk?queue=${id(500)}`);
+  assert.deepEqual(failures, []);
+});
+
 test('UC-WRK-37 check 5: ☆ in the hub\'s head stars it, and it stands under Starred', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

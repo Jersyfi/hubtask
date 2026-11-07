@@ -157,6 +157,18 @@ export function queueRows(
 export const queuePath = (hubId: string, row: Pick<QueueRow, 'viewId' | 'key'>): string =>
   `/hubs/${hubId}/desk?queue=${encodeURIComponent(row.viewId ?? row.key)}`;
 
+/**
+ * Where a starred view opens: a queue on its hub's queue page, a collection's view in its view bar,
+ * a hub's other view on the hub. A workspace's or a person's own view has no place of its own, so
+ * it is not drawn - there is no `/views/:id` screen.
+ */
+export function viewStarPath(view: { readonly id: string; readonly scope_type: string; readonly scope_id: string | null; readonly queue?: boolean }): string | undefined {
+  if (!view.scope_id) return undefined;
+  if (view.scope_type === 'HUB') return view.queue ? queuePath(view.scope_id, { viewId: view.id, key: '' }) : `/hubs/${view.scope_id}`;
+  if (view.scope_type === 'COLLECTION') return `/collections/${view.scope_id}?view=${encodeURIComponent(view.id)}`;
+  return undefined;
+}
+
 /** A page or a whiteboard in the content tree (§2.4 part 3). */
 export interface ContentNode {
   readonly id: string;

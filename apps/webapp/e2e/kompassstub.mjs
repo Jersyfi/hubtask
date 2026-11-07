@@ -113,6 +113,10 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
       return route.fulfill({ json: { data: [{ key: 'incident', name: 'Incident', level: 'TASK', hub_id: null, form: { channels: [{ channel: 'PORTAL' }] } }], page: PAGE.page } });
     }
     if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`)) return route.fulfill({ json: { data: QUEUES } });
+    // A queue is a saved view of its hub; a starred one is read by its own address.
+    const view = /\/api\/v1\/views\/([^/:]+)$/.exec(path);
+    const queue = view && QUEUES.find((each) => each.view_id === view[1]);
+    if (queue) return route.fulfill({ json: { id: queue.view_id, key: queue.key, name: queue.name, scope_type: 'HUB', scope_id: IT.id, queue: true, version: 1 } });
     if (/\/api\/v1\/hubs\/[^/]+\/queues$/.test(path)) return route.fulfill({ json: { data: [] } });
     if (path.endsWith(`/api/v1/hubs/${IT.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: [KB, VPN, RUNBOOKS, TEMPLATE], ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${IT.id}/whiteboards`)) return route.fulfill({ json: { data: [MAP], ...PAGE } });

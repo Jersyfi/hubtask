@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
 import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath, type SectionGroup } from './navigation.ts';
-import { contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navProducts, orderHubs, placedIndex, queuePath, queueRows, type LevelRoute } from './sidebar.ts';
+import { contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navProducts, orderHubs, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -518,6 +518,14 @@ test('queues: the starred first, then the hub\'s order; a breaching one is urgen
   assert.deepEqual(rows.map((row) => row.id), ['v2', 'v1', 'std:open']);
   assert.deepEqual(rows.map((row) => row.isUrgent), [true, false, false]);
   assert.equal(queuePath('h', rows[2]!), '/hubs/h/desk?queue=open');
+});
+
+test('a starred view opens where it lives: a queue on its hub\'s queue page, a collection\'s view in its bar, nothing for a personal one (UC-WRK-37)', () => {
+  assert.equal(viewStarPath({ id: 'v', scope_type: 'HUB', scope_id: 'h', queue: true }), '/hubs/h/desk?queue=v');
+  assert.equal(viewStarPath({ id: 'v', scope_type: 'HUB', scope_id: 'h', queue: false }), '/hubs/h');
+  assert.equal(viewStarPath({ id: 'v', scope_type: 'COLLECTION', scope_id: 'c' }), '/collections/c?view=v');
+  assert.equal(viewStarPath({ id: 'v', scope_type: 'ACCOUNT', scope_id: 'a' }), undefined);
+  assert.equal(viewStarPath({ id: 'v', scope_type: 'TENANT', scope_id: null }), undefined);
 });
 
 test('the content tree: pages and boards by their shared key, keyless boards after A-Z, no templates, no child under a board', () => {

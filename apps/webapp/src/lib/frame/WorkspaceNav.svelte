@@ -106,6 +106,7 @@
     placedIndex,
     queuePath,
     queueRows,
+    viewStarPath,
     switchPath,
     toolOf,
     toolPath,
@@ -739,6 +740,8 @@
 
   /** A star as a row: its name from what is already read, or from its own read. */
   let starNames = $state<Record<string, string>>({});
+  /** A starred view's place (there is no screen of a view by itself) and, for a queue, its hub. */
+  let starViews = $state<Record<string, { href: string | undefined; hubId: string | undefined }>>({});
   const READS: Partial<Record<Star['kind'], (id: string) => string>> = {
     PAGE: (id) => `/pages/${id}`,
     WHITEBOARD: (id) => `/whiteboards/${id}`,
@@ -758,6 +761,10 @@
           const inner = (data['page'] ?? data['whiteboard']) as Record<string, unknown> | undefined;
           const name = data['title'] ?? data['name'] ?? inner?.['title'];
           if (typeof name === 'string') starNames = { ...starNames, [key]: name };
+          if (kind === 'VIEW') {
+            const view = data as { id: string; scope_type: string; scope_id: string | null; queue?: boolean };
+            starViews = { ...starViews, [key]: { href: viewStarPath(view), hubId: view.scope_type === 'HUB' && view.queue ? (view.scope_id ?? undefined) : undefined } };
+          }
         });
       });
       return () => stops.forEach((stop) => stop());
@@ -773,19 +780,38 @@
     PORTFOLIO: (id) => `/portfolios/${id}`,
   };
   const STAR_ICONS = { HUB: 'hub', COLLECTION: 'collection', VIEW: 'columns-3', PAGE: 'file-text', WHITEBOARD: 'layout-template', DASHBOARD: 'gauge', PORTFOLIO: 'flag' } as const;
+  // A starred queue's count and its danger surface, from its hub's queues (§7.4) - one read per
+  // hub, the same the hub level makes.
+  let starQueues = $state<Record<string, HubQueueList['data']>>({});
+  const starQueueHubs = $derived([...new Set(Object.values(starViews).map((each) => each.hubId).filter((each) => each !== undefined))].join(','));
+  $effect(() => {
+    const ids = starQueueHubs === '' ? [] : starQueueHubs.split(',');
+    return untrack(() => {
+      const stops = ids.map((at) => engine.subscribe<HubQueueList>({ path: `/hubs/${at}/queues` }, (next) => {
+        if (next.status === 'ready') starQueues = { ...starQueues, [at]: next.data.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
   const starRows = $derived(
     stars.all
       .map((star) => {
         const container = star.kind === 'HUB' || star.kind === 'COLLECTION' ? containers.find(star.id) : undefined;
-        const label = container?.name ?? starNames[`${star.kind}:${star.id}`];
-        if (!label) return undefined;
-        const figure = container?.type === 'COLLECTION' ? figureOf(container) : undefined;
+        const key = `${star.kind}:${star.id}`;
+        const name = container?.name ?? starNames[key];
+        const view = star.kind === 'VIEW' ? starViews[key] : undefined;
+        if (!name || (star.kind === 'VIEW' && !view?.href)) return undefined;
+        const queueHub = view?.hubId ? containers.find(view.hubId) : undefined;
+        const queue = view?.hubId ? starQueues[view.hubId]?.find((each) => each.view_id === star.id) : undefined;
+        const figure = container?.type === 'COLLECTION' ? figureOf(container)
+          : queue && queue.count !== null ? { text: String(queue.count), isUrgent: (queue.at_risk ?? 0) > 0 } : undefined;
         return {
-          key: `${star.kind}:${star.id}`,
-          label,
+          key,
+          // A queue's name says little without its hub: *About to breach · IT operations*.
+          label: queueHub ? `${name} · ${queueHub.name}` : name,
           icon: container ? markOf(container) : STAR_ICONS[star.kind],
           color: container ? (container.color_token ?? DEFAULT_TILE) : undefined,
-          href: STAR_PATHS[star.kind](star.id),
+          href: view?.href ?? STAR_PATHS[star.kind](star.id),
           figure: figure?.text,
           isUrgent: figure?.isUrgent ?? false,
         };
