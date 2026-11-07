@@ -10,8 +10,13 @@
 // (UC-WRK-37 checks 1-5); the sign-in settings with their sections and states in the first
 // viewport, a section at its own address, as a detail with *Back* on a phone, short enough, with
 // one save model and the column and section list still in view at the section's end (UC-WRK-36
-// checks 1-5). Heights are read from `getBoundingClientRect`, never from a screenshot. Against the
-// stubbed API; Chromium, as the other walks.
+// checks 1-5). The same on *How we work* - Overview, Workspace, Templates, Modules, Types, Workflows,
+// Link types, Rules and Rule runs: one kind each, the types', rules' and runs' lists with their
+// search, count and foot, *New type* and *New workflow* opening a Dialog M, a type opening its
+// record page with its delete in the row's menu, a workflow at its own address with a status's
+// Dialog M, a step's Dialog L and the draft bar, and the workspace's sections each at its address.
+// Heights are read from `getBoundingClientRect`, never from a screenshot. Against the stubbed API;
+// Chromium, as the other walks.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +26,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, OTHER, OWNER_GRANTS, SERVICE_ACCOUNT, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, OTHER, OWNER_GRANTS, SERVICE_ACCOUNT, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -45,6 +50,53 @@ const NINE = [
   ...MORE.map((account, index) => ({ id: `m${index + 10}`, scope_type: 'TENANT', account_id: account.id, role: index === 0 ? 'ADMIN' : 'MEMBER' })),
 ];
 
+// *How we work* as an administrator meets it: the workflows module on, two types, two workflows,
+// two rules and two of their runs.
+const SHAPE = {
+  statuses: [
+    { key: 'todo', name: 'To do', category: 'TODO', color_token: 'slate' },
+    { key: 'doing', name: 'In progress', category: 'IN_PROGRESS', color_token: 'blue' },
+    { key: 'done', name: 'Done', category: 'DONE', color_token: 'green' },
+  ],
+  initial: 'todo',
+  steps: [{ key: 'start', name: 'Start work', from: ['todo'], to: 'doing' }, { key: 'finish', name: 'Finish', from: ['doing'], to: 'done', who: { roles: ['OWNER'] } }],
+};
+const WORKFLOWS = [
+  { key: 'default', system: true, name: null, published: SHAPE, draft: null, published_at: null, version: 1 },
+  { key: 'incident', system: false, name: 'Incident', published: SHAPE, draft: null, published_at: '2026-10-30T09:00:00Z', version: 1 },
+];
+const TYPES = [
+  { key: 'task', level: 'TASK', system: true, position: 0, archived: false, name: null, icon: 'check-square', color_token: 'slate', completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], translations: {}, version: 1 },
+  { key: 'bug', level: 'TASK', system: false, position: 1, archived: false, name: 'Bug', icon: 'tag', color_token: 'red', completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], translations: {}, version: 1, form: { fields: [{ key: 'title', required: true }] } },
+];
+const RUNNER = '01a0e2e0-0000-7000-8000-000000002901';
+const RULES = ['Escalate a missed target', 'Ask for more information'].map((name, index) => ({
+  id: `01a0e2e0-0000-7000-8000-00000000291${index}`, name, enabled: index === 0, scope: { type: 'TENANT' }, run_as: RUNNER,
+  trigger: { kind: 'MANUAL' }, conditions: [], actions: [{ kind: 'ADD_COMMENT', params: { body: 'More, please' } }],
+  throttle: { max_runs_per_hour: 100 }, on_error: 'CONTINUE', failure_count: 0, version: 1, created_by: RUNNER,
+  created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', findings: [],
+}));
+const RUNS = [0, 1].map((index) => ({
+  id: `01a0e2e0-0000-7000-8000-00000000292${index}`, rule_id: RULES[index].id, status: index === 0 ? 'SUCCEEDED' : 'FAILED', trigger: 'MANUAL',
+  started_at: `2026-11-0${index + 5}T06:00:00Z`, finished_at: `2026-11-0${index + 5}T06:00:01Z`, causation_depth: 1, condition_results: [],
+  action_results: [{ index: 0, kind: 'ADD_COMMENT', status: index === 0 ? 'SUCCEEDED' : 'FAILED', error_code: index === 0 ? null : 'items.not_found' }],
+}));
+
+/** What *How we work* reads, answered; nothing for any other path. */
+function howWeWork(route, request, path) {
+  if (request.method() !== 'GET') return undefined;
+  if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...new Set([...(MANIFEST.modules_on ?? []), 'WORKFLOWS'])] } });
+  // The fixture answers no module list; the workflows module, switched on here.
+  if (path === '/tenant/modules') return route.fulfill({ json: { modules: [{ module: 'WORKFLOWS', on: true, source: 'WORKSPACE', locked_by: null }] } });
+  if (path === '/entry-types') return route.fulfill({ json: { data: TYPES } });
+  if (path === '/workflows') return route.fulfill({ json: { data: WORKFLOWS, scheme: [] } });
+  if (path === '/automation/rules') return route.fulfill({ json: { data: RULES, page: { next_cursor: null, has_more: false } } });
+  if (path === '/automation/runs') return route.fulfill({ json: { data: RUNS, page: { next_cursor: null, has_more: false } } });
+  const run = RUNS.find((each) => path === `/automation/runs/${each.id}`);
+  if (run) return route.fulfill({ json: run });
+  return undefined;
+}
+
 /** Signed in as the fixture's owner, at a width; below `medium` as a phone. */
 async function open(browser, { width, height }, { isNine = false } = {}) {
   const isPhone = width < 768;
@@ -58,6 +110,8 @@ async function open(browser, { width, height }, { isNine = false } = {}) {
     }
     const account = MORE.find((each) => path === `/accounts/${each.id}`);
     if (account) return route.fulfill({ json: account });
+    const answered = howWeWork(route, request, path);
+    if (answered) return answered;
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -73,7 +127,9 @@ async function open(browser, { width, height }, { isNine = false } = {}) {
 async function visit(page, path) {
   await page.goto(`${served.origin}${path}`);
   await page.locator('main h1').first().waitFor({ state: 'attached', timeout: 15_000 });
-  await page.locator('[data-page-kind]').first().waitFor({ state: 'attached', timeout: 15_000 });
+  await page.locator('[data-page-kind]').first().waitFor({ state: 'attached', timeout: 15_000 }).catch((error) => {
+    throw new Error(`${path} draws no page kind: ${error.message}`);
+  });
 }
 
 const SCREENS = [
@@ -88,12 +144,43 @@ const SCREENS = [
   ['/administration/machines?tab=apps', 'list'],
   [`/administration/people/${OTHER.id}`, 'record'],
   [`/administration/machines/${SERVICE_ACCOUNT.id}`, 'record'],
+  ['/administration', 'overview'],
+  ['/administration/workspace', 'settings'],
+  ['/administration/workspace/language', 'settings'],
+  ['/administration/templates', 'list'],
+  ['/administration/modules', 'settings'],
+  ['/administration/types', 'list'],
+  ['/administration/types/bug', 'record'],
+  ['/administration/workflows', 'editor'],
+  ['/administration/workflows/incident', 'editor'],
+  ['/administration/link-types', 'list'],
+  ['/administration/rules', 'list'],
+  ['/administration/runs', 'log'],
 ];
+
+/** A sized dialog without a table, tabs or a second dialog, scrolling only as an L at 1280×800. */
+async function assertLadder(page, size, wanted) {
+  const dialog = page.locator('dialog[open]');
+  await dialog.waitFor({ timeout: 5_000 });
+  const shape = await dialog.evaluate((node) => {
+    const body = node.querySelector('.body');
+    return {
+      size: node.getAttribute('data-size'),
+      tables: node.querySelectorAll('table, [role="table"], [role="grid"]').length,
+      tabs: node.querySelectorAll('[role="tablist"]').length,
+      dialogs: node.querySelectorAll('dialog').length,
+      scrolls: body ? body.scrollHeight > body.clientHeight + 1 : false,
+    };
+  });
+  assert.equal(shape.size, wanted, `the dialog is ${shape.size}, not ${wanted}`);
+  assert.equal(shape.tables + shape.tabs + shape.dialogs, 0, 'the dialog holds a table, tabs or a second dialog');
+  if (size === DESKTOP && shape.size !== 'l') assert.equal(shape.scrolls, false, 'the dialog scrolls at 1280×800');
+}
 
 for (const size of [DESKTOP, PHONE]) {
   const at = `${size.width}×${size.height}`;
 
-  test(`chromium ${at}: every People & access screen is exactly one page kind (UC-WRK-38 check 1)`, async (t) => {
+  test(`chromium ${at}: every People & access and How we work screen is exactly one page kind (UC-WRK-38 check 1)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -243,6 +330,133 @@ for (const size of [DESKTOP, PHONE]) {
         assert.ok(box.bottom > 0 && box.top < size.height && box.height > 0, `${what} left the viewport`);
       }
     }
+    assert.deepEqual(failures, []);
+  });
+  test(`chromium ${at}: Types, Rules and Rule runs narrow, count and continue; nothing else is open on arrival (UC-WRK-37 checks 1-4)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    for (const [path, search, rows, hasChips] of [
+      ['/administration/types', 'Search types', 2, false],
+      ['/administration/rules', 'Search rules', 2, false],
+      ['/administration/runs', 'Search by rule', 2, true],
+    ]) {
+      await visit(page, path);
+      const main = page.getByRole('main');
+      await main.locator('tbody tr.row').nth(rows - 1).waitFor({ timeout: 15_000 });
+      // Check 1: the search, the filters - behind *Filters* on a phone - and the count.
+      await main.getByRole('searchbox', { name: search }).waitFor();
+      assert.ok(await main.locator('.filter-bar').getByText(/^\d+ (of \d+|runs?)$/).count() >= 1, `${path} has no count`);
+      if (hasChips) {
+        if (size === PHONE) await main.getByRole('button', { name: /^Filters/ }).waitFor();
+        else await main.getByRole('button', { name: 'Any time' }).waitFor();
+      }
+      // Check 2: no field but the search is open on arrival.
+      const fields = await main.locator('input:not([type="search"]):not([role="switch"]), select, textarea, form').evaluateAll((nodes) => nodes.filter((node) => node.getClientRects().length > 0).length);
+      assert.equal(fields, 0, `${path} opens a field on arrival`);
+      // Check 3: the foot says what is shown.
+      await main.getByText(`Showing ${rows}`, { exact: true }).waitFor();
+      // Check 4: a row carries at most one verb beside its menu.
+      const verbs = await main.locator('tbody tr.row').evaluateAll((all) =>
+        all.map((row) => [...row.querySelectorAll('button, [role="switch"]')].filter((each) => each.getClientRects().length > 0 && !each.getAttribute('aria-haspopup') && !each.classList.contains('press')).length),
+      );
+      assert.ok(verbs.every((count) => count <= 2), `${path}: a row has more than one verb beside its menu: ${verbs.join(', ')}`);
+    }
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.equal(overflow, 0, 'the page scrolls sideways');
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: New type and New workflow open a Dialog M, a type opens its record page, its delete sits in the row's menu (UC-WRK-38 checks 2-5)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+
+    await visit(page, '/administration/types');
+    const main = page.getByRole('main');
+    await main.getByRole('link', { name: 'Bug' }).first().waitFor({ timeout: 15_000 });
+    await main.getByRole('button', { name: 'New type', exact: true }).first().click();
+    await assertLadder(page, size, 'm');
+    await page.keyboard.press('Escape');
+    await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
+
+    // Check 5: deleting is in the row's menu, not a button on the row.
+    const row = main.locator('tbody tr.row').filter({ hasText: 'Bug' });
+    assert.equal(await row.getByRole('button', { name: /delete/i }).count(), 0, 'deleting is a button on the row');
+    await row.getByRole('button', { name: /More for Bug/ }).click();
+    await page.getByRole('menu').or(page.locator('dialog[open]')).getByText('Delete…').first().waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Escape');
+
+    // Check 4: a type has its form and where it is used, so the row opens its page.
+    await main.getByRole('link', { name: 'Bug' }).first().click();
+    await page.waitForFunction(() => location.pathname === '/administration/types/bug', null, { timeout: 10_000 });
+    await page.locator('[data-page-kind="record"]').waitFor({ timeout: 10_000 });
+    await page.getByRole('region', { name: 'Form of Bug' }).waitFor();
+
+    await visit(page, '/administration/workflows');
+    await page.getByRole('button', { name: 'New workflow', exact: true }).first().click();
+    await assertLadder(page, size, 'm');
+    await page.keyboard.press('Escape');
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: a workflow opens at its address, a status as a Dialog M, a step as a Dialog L, a change in the draft bar (page-system §7.4)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+
+    await visit(page, '/administration/workflows/incident');
+    await page.getByRole('heading', { name: 'Incident', level: 2 }).waitFor({ timeout: 15_000 });
+    const nav = page.locator('nav.section-nav');
+    if (size === PHONE) {
+      await page.getByRole('button', { name: 'Workflows', exact: true }).first().waitFor();
+      assert.equal(await nav.evaluate((node) => node.getClientRects().length), 0, 'the list stands beside the workflow on a phone');
+    } else {
+      assert.ok((await nav.evaluate((node) => node.getClientRects().length)) > 0, 'the list is not beside the workflow');
+    }
+
+    await page.locator('.block-list').first().getByRole('button', { name: /In progress/ }).first().click();
+    await assertLadder(page, size, 'm');
+    await page.keyboard.press('Escape');
+    await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
+    await page.locator('.block-list').nth(1).getByRole('button', { name: /Finish/ }).first().click();
+    await assertLadder(page, size, 'l');
+    await page.keyboard.press('Escape');
+    await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
+
+    // A new status is a change of the draft, which the bar counts.
+    assert.equal(await page.getByText(/^Draft · /).count(), 0, 'a draft bar without a change');
+    await page.getByRole('button', { name: 'Add status' }).click();
+    await page.locator('dialog[open]').getByLabel('Name').fill('Review');
+    await page.locator('dialog[open]').getByRole('button', { name: 'Done' }).first().click();
+    await page.getByText(/^Draft · 1 change since the published version/).waitFor({ timeout: 5_000 });
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: the workspace's sections are listed with their state and each opens at its address (UC-WRK-36 checks 1-2)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+
+    await visit(page, '/administration/workspace');
+    const nav = page.locator('nav.section-nav');
+    await nav.getByRole('link').first().waitFor({ timeout: 15_000 });
+    const links = await nav.getByRole('link').evaluateAll((nodes) => nodes.map((node) => ({ text: node.textContent?.trim() ?? '', bottom: node.getBoundingClientRect().bottom })));
+    assert.ok(links.length >= 3, `${links.length} sections listed`);
+    for (const link of links) assert.ok(link.bottom <= size.height, `${link.text} is below the first viewport`);
+
+    await visit(page, '/administration/workspace/language');
+    if (size === PHONE) {
+      assert.equal(await nav.evaluate((node) => node.getClientRects().length), 0, 'the section list stands beside the section on a phone');
+    } else {
+      assert.ok((await nav.evaluate((node) => node.getClientRects().length)) > 0, 'the section list is not beside the section');
+    }
+    const height = await page.evaluate(() => document.documentElement.scrollHeight);
+    assert.ok(height <= (size === PHONE ? 4 : 2) * size.height, `the section is ${height} px high`);
     assert.deepEqual(failures, []);
   });
 }
