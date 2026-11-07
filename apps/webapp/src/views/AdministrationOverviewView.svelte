@@ -409,7 +409,7 @@
                 <li><a href="/administration/changes">{t('app.admin_overview.waiting_proposals', { count: waiting.proposals })}</a></li>
               {/if}
               {#each waiting.updates.slice(0, 5) as update (update.key)}
-                <li><a href="/administration/presets">{t('app.admin_overview.waiting_update', { name: update.name })}</a></li>
+                <li><a href="/administration/templates?tab=in-use">{t('app.admin_overview.waiting_update', { name: update.name })}</a></li>
               {/each}
             </ul>
           {/if}

@@ -69,7 +69,7 @@ const VIEW_OF: Readonly<Record<string, string>> = {
   '/administration/legal': 'SignInSettingsView',
   '/administration/workspace': 'WorkspaceSettingsView',
   '/administration/ai': 'AiSettingsView',
-  '/administration/presets': 'PresetsView',
+  '/administration/templates': 'TemplatesView',
   '/agents?tab=settings': 'AgentsView',
   '/time?tab=settings': 'TimeSettingsView',
   '/administration/rules': 'RulesView',

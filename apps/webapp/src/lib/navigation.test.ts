@@ -244,7 +244,7 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
   // The desk's, the assets', time's and the agents' settings are their homes' last tabs (user-experience.md §8.2).
-  assert.deepEqual(of('how'), ['workspace', 'address', 'presets', 'modules', 'entry-types', 'workflows', 'link-types', 'rules', 'runs']);
+  assert.deepEqual(of('how'), ['workspace', 'address', 'templates', 'modules', 'entry-types', 'workflows', 'link-types', 'rules', 'runs']);
   assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
   assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);
@@ -398,7 +398,7 @@ test('the advanced rows fold while the workspace holds one person, and never wha
   assert.deepEqual(folded(administrationFor({ ...base, hasSeveralPeople: true, isOnePerson: false })), []);
   // Folded rows are still rows, so the palette, which reads the same list, finds them.
   const ids = administrationFor({ ...base, isOnePerson: true }).flatMap((group) => group.rows.map((row) => row.id));
-  assert.ok(ids.includes('voice') && ids.includes('presets'));
+  assert.ok(ids.includes('voice') && ids.includes('templates'));
 });
 
 test('the Android app keeps the administration\'s and the installation\'s rows, and leaves them to the web app (UC-SYN-07 check 7)', () => {

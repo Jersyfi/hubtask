@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, movedTo, paneFor } from './routes.ts';
+import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, movedTo, movedWith, paneFor } from './routes.ts';
 import { normalisePath, resolve } from './router.ts';
 
 test('the administration area is exactly the routes under its prefix', () => {
@@ -75,6 +75,7 @@ test('the administration area is exactly these screens, by name', () => {
     'sign-in-provider',
     'sign-in-section',
     'sign-in-settings',
+    'templates',
     'time-settings',
     'voice',
     'webhooks',
@@ -225,6 +226,7 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   assert.equal(movedTo(resolve(ROUTES, '/administration/configuration-items').name), '/assets/settings');
   assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time?tab=settings');
   assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents?tab=settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/presets').name), '/administration/templates');
   for (const route of ROUTES) {
     const target = movedTo(route.name);
     if (target === undefined) continue;
@@ -236,6 +238,12 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   assert.equal(movedTo(resolve(ROUTES, '/administration/sign-in').name), undefined);
   assert.equal(movedTo(resolve(ROUTES, '/administration/people').name), undefined);
   assert.equal(movedTo(null), undefined);
+});
+
+test('a moved address keeps its query where the new address does not set the same name', () => {
+  assert.equal(movedWith('/administration/templates', { template: 'itil_service_desk' }), '/administration/templates?template=itil_service_desk');
+  assert.equal(movedWith('/administration/people?tab=groups', { tab: 'roles', q: 'x' }), '/administration/people?tab=groups&q=x');
+  assert.equal(movedWith('/administration/machines', {}), '/administration/machines');
 });
 
 test('the detail pane is a place, not a feature: a pane from large, a redirect below, the entry page untouched', () => {

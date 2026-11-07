@@ -86,6 +86,8 @@ export const ROUTES: readonly Route[] = [
   // One section per address (page-system PS-9), as the sign-in screen's.
   { name: 'workspace-section', pattern: '/administration/workspace/:section', area: 'administration' },
   { name: 'workspace-address', pattern: '/administration/address', area: 'administration' },
+  { name: 'templates', pattern: '/administration/templates', area: 'administration' },
+  // Kept as an address that moved (`movedTo`): *Templates and presets* is *Templates* now.
   { name: 'presets', pattern: '/administration/presets', area: 'administration' },
   { name: 'people', pattern: '/administration/people', area: 'administration' },
   // An object with lists of its own opens as its record page at its own address (page-system
@@ -267,6 +269,7 @@ export const ADMINISTRATION_PREFIX = '/administration';
  */
 const MOVED: Readonly<Record<string, string>> = {
   'identity-provider': '/administration/sign-in/ways',
+  presets: '/administration/templates',
   groups: '/administration/people?tab=groups',
   permissions: '/administration/people?tab=permissions',
   'service-accounts': '/administration/machines',
@@ -281,6 +284,18 @@ const MOVED: Readonly<Record<string, string>> = {
 /** Where an address that moved now is, or nothing for one that did not. */
 export function movedTo(name: string | null): string | undefined {
   return name === null ? undefined : MOVED[name];
+}
+
+/**
+ * Where a moved address goes, its own query kept where the new address does not set the same
+ * name: `/administration/presets?template=itil` still opens that template.
+ */
+export function movedWith(target: string, query: Readonly<Record<string, string>>): string {
+  const [path, own = ''] = target.split('?');
+  const params = new URLSearchParams(own);
+  for (const [name, value] of Object.entries(query)) if (!params.has(name)) params.set(name, value);
+  const kept = params.toString();
+  return kept === '' ? (path ?? target) : `${path}?${kept}`;
 }
 
 /** The instance area's own prefix, for the same reason (ADR-0070 §5). */

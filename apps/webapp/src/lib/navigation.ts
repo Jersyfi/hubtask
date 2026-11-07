@@ -286,7 +286,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings', 'workspace-section'] },
       // The main address, and who may change it (UC-INS-19 check 3).
       { id: 'address', icon: 'globe', code: 'app.address.title', path: '/administration/address', routes: ['workspace-address'] },
-      { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
+      { id: 'templates', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/templates', routes: ['templates'] },
       { id: 'modules', icon: 'layout-template', code: 'app.modules.title', path: '/administration/modules', routes: ['modules'] },
       { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types'], module: 'WORKFLOWS' },
       { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },

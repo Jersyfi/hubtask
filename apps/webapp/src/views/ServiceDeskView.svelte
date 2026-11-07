@@ -52,7 +52,7 @@
   // workspace part's plan, in words, at the templates - the calendar and the P1-P4 policies with
   // the types, priorities and statuses they measure, which a policy alone would name in vain.
   const offersItil = $derived(mayShape && onnavigate !== undefined);
-  const startFromItil = () => onnavigate?.(`/administration/presets?template=${ITIL_TEMPLATE}`);
+  const startFromItil = () => onnavigate?.(`/administration/templates?template=${ITIL_TEMPLATE}`);
 
   const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
   let current = $state<(typeof TABS)[number]>('calendars');

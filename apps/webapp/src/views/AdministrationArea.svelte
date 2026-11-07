@@ -19,7 +19,6 @@
   import GroupView from './GroupView.svelte';
   import PeopleView from './PeopleView.svelte';
   import PersonView from './PersonView.svelte';
-  import PresetsView from './PresetsView.svelte';
   import PrivacyView from './PrivacyView.svelte';
   import PrivateHubsView from './PrivateHubsView.svelte';
   import QuotasView from './QuotasView.svelte';
@@ -28,6 +27,7 @@
   import RetentionView from './RetentionView.svelte';
   import RunsView from './RunsView.svelte';
   import ServiceAccountView from './ServiceAccountView.svelte';
+  import TemplatesView from './TemplatesView.svelte';
   import SignInSettingsView from './SignInSettingsView.svelte';
   import VoiceView from './VoiceView.svelte';
   import WebhooksView from './WebhooksView.svelte';
@@ -59,8 +59,8 @@
        what another section holds unsaved. -->
 {:else if route.name === 'workspace-address'}
   <WorkspaceAddressView onnavigate={(path) => onnavigate(path)} />
-{:else if route.name === 'presets'}
-  <PresetsView template={route.query['template']} onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'templates'}
+  <TemplatesView tab={route.query['tab']} template={route.query['template']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'people'}
   <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => onreplace(path)} onopen={(path) => onnavigate(path)} />
 {:else if route.name === 'person'}

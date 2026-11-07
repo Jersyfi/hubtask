@@ -228,7 +228,7 @@ async function views() {
     ['workspace-settings', await load('WorkspaceSettingsView'), {}],
     ['workspace-section', await load('WorkspaceSettingsView'), { section: 'new-hubs' }],
     ['workspace-address', await load('WorkspaceAddressView'), {}],
-    ['presets', await load('PresetsView'), {}],
+    ['templates', await load('TemplatesView'), {}],
     ['people', await load('PeopleView'), {}],
     ['person', await load('PersonView'), { id: '01a0e2e0-0000-7000-8000-0000000000a1', onnavigate: noop }],
     ['group', await load('GroupView'), { id: '01a0e2e0-0000-7000-8000-0000000000b1', onnavigate: noop }],

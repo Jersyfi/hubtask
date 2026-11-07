@@ -44,7 +44,7 @@ const NOT_YET_MIGRATED = [
   'InstanceUsageView', 'InstanceWorkspacesView', 'ItemView', 'JumbleView', 'LinkTypesView',
   'MailView', 'MyTokensView', 'NotesView', 'NotificationsView',
   'OidcCallbackView', 'PagesView', 'PlanView', 'PortalArticleView',
-  'PortalRequestView', 'PortalView', 'PortfolioView', 'PresetsView', 'PrivacyView',
+  'PortalRequestView', 'PortalView', 'PortfolioView', 'PrivacyView',
   'PrivateHubsView', 'ProductHomeView', 'ProfileView', 'PublicFormView', 'PublicRoadmapView',
   'QuotasView', 'RateView', 'RedeemView', 'ReleaseView', 'ResetView', 'RestoreView',
   'RetentionView', 'RoadmapView', 'RuleEditorView', 'RulesView', 'RunsView', 'SearchView',

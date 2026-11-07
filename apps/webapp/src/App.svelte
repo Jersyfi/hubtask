@@ -22,7 +22,7 @@
   import { leaveGuard } from './lib/frame/leave.svelte.ts';
   import LeaveDialog from './lib/frame/LeaveDialog.svelte';
   import { loadReleaseAt } from './lib/frame/release.ts';
-  import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
+  import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, movedWith, paneFor } from './lib/routes.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
@@ -156,10 +156,11 @@
     // default, and a desktop's `?item=` would be sent to the entry's page.
     if (pane.kind === 'redirect' && viewport.isMeasured) router.replace(pane.path);
   });
-  // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's.
+  // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's,
+  // its query kept.
   const moved = $derived(movedTo(route.name));
   $effect(() => {
-    if (moved) router.replace(moved);
+    if (moved) router.replace(movedWith(moved, route.query));
   });
 
   /**
