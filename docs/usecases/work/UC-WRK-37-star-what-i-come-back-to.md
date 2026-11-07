@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-handler, PE-planner, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-10, P-13]
-state: specified
+state: partial
 tasks: []
-checked_by: []
+checked_by: [core/domain/model/identity/Star_test.go, core/application/service/identity/Stars_test.go, test/integration/star_repository_test.go]
 ---
 
 # Star what I come back to
@@ -46,9 +46,5 @@ on his phone they are the same three, in the same order.
 
 ## Today
 
-* Check 1: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 2: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 3: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 4: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 5: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 6: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).

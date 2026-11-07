@@ -255,7 +255,7 @@ remaining.
 | Workflow | no hub-bound workflow | "Runs the workflow *Scrum* of this hub" → choose a workflow of the destination |
 | Access | nobody loses it | a warning, no obstacle: "2 people will no longer see it: …" (they are notified) |
 | Structure | — | a warning: "Takes the fields, views and rules of IT operations" |
-| Hub-bound things | — | a warning where it applies: "Releases of Product development that hold entries stay there" — **to be checked against the server in step 2** (the inventory found no `ContainerMoved` subscriber besides revocations) |
+| Hub-bound things | — | a warning where it applies, settled in step 2 (§ [Premises](#premises)): "4 entries stay in releases of Product development" (`containers.move_keeps_releases`) and "2 running SLA clocks keep the policies of Product development" (`containers.move_keeps_sla_policies`) |
 
 ### 5.4 Dragging
 
@@ -309,28 +309,34 @@ what the caller may read now (P-05). A star is not user content but it names obj
 records `account.stars_changed` with the count, never the ids (rule 10).
 Why not `PATCH /accounts/{id}/preferences`: a star points at an object with its own access, so it
 is read per caller and filtered; a preference is a plain value.
+As built: each star is read through its kind's own read use case as the caller (`GetContainer`,
+`GetSavedView`, `ReadPage`, `ReadWhiteboard`, `ReadDashboard`, `ReadPortfolio`), so the decision
+stays where every read makes it; a star the caller may no longer read therefore also leaves that
+read's refusal in the trail, as any refused read does. `version` is 0 before the first write.
 
 ### 7.2 Whiteboards in the content tree
 
 * `Whiteboard` gains `parent_page_id` (`[string, null]`, a page of the same hub) and `order_key`
   (read-only, fractional, the same key space as the sibling pages).
-* `createWhiteboard` takes `parent_page_id` and `after_id`.
+* `createWhiteboard` takes `parent_page_id` and `after_id`; without `after_id` the new board goes
+  after the last sibling (a move without one places it first, as `movePage` does).
 * `POST /whiteboards/{whiteboardId}:move` (`moveWhiteboard`, `WRITE_ITEMS` at the hub, `If-Match`)
   body `{ parent_page_id?, after_id? }` — absent parent is the top of the space; `after_id` names a
   sibling page or board, absent places it first. A page of another hub is refused
   `whiteboards.parent_other_space`; a board as a parent `whiteboards.no_children`.
-* `PageMove.after_id` and `createPage`'s `after_id` may name a sibling board; `parent_id` naming a
-  board is refused `whiteboards.no_children`.
-* `listWhiteboards` gains `order: TREE` (by `parent_page_id NULLS FIRST, order_key, id`); the
-  default stays last changed first.
-* Trashing a page lifts the boards directly under it to the page's parent, at its place; restoring
-  the page does not take them back.
+* `PageMove.after_id` may name a sibling board; `parent_id` naming a board is refused
+  `whiteboards.no_children`, in `movePage` and `createPage`. `createPage` has no `after_id` (it
+  never had one): a new page goes after the last sibling, pages and boards, and is moved from there.
+* `listWhiteboards` gains `order=TREE` (by `parent_page_id NULLS FIRST, order_key NULLS LAST`, then
+  title), whole and unpaged; the default `CHANGED` stays last changed first.
+* Trashing a page lifts the boards directly under it - and under the subpages that go into the trash
+  with it - to the page's parent, at its place; restoring the page does not take them back.
 * **Access stays the hub's** (`domain-model.md` §3.9): a board under a restricted page is not
   narrowed by it. A reader kept out of the page sees the board at its nearest ancestor they may
   read (or the top). *Move to…* says so when the target page is restricted (worker's choice,
   §10 item 7).
-* Migration: `whiteboard.parent_page_id uuid NULL` (a composite foreign key with `tenant_id` and
-  `hub_id`, `ON DELETE SET NULL` is not used — lifting is the application's), `order_key text`
+* Migration 0390: `whiteboard.parent_page_id uuid NULL` (no foreign key: pages are trashed, not
+  deleted, lifting is the application's, and a hub's purge removes both), `order_key text`
   nullable first; a backfill gives every existing board an `order_key` after its hub's last
   top-level page, by title A–Z; the `NOT NULL` lands as the contract step of expand/contract
   (rule 12). The offline replica and the sync protocol carry the two fields (`offline-sync.md`).
@@ -350,9 +356,13 @@ the only suffixed `GET`. Obstacles carry the codes `:move` refuses with (`contai
 `entry_types.hub_bound` with the type and the count, `workflows.hub_bound` with the workflow, the
 permission refusal), so the dialog and a refusal say the same thing (P-06). Consequences:
 `containers.move_loses_access` (the accounts who lose read access, as ids the client names through
-`GET /accounts`), `containers.move_takes_structure` (the destination hub), and whatever step 2 finds
-for hub-bound releases, SLA policies, calendars and portfolio projects. `STRUCTURE` at the source;
-a destination without it is an obstacle, not a refusal.
+`GET /accounts`), `containers.move_takes_structure` (the destination hub),
+`containers.move_keeps_releases` and `containers.move_keeps_sla_policies` (each with `count` and
+the `hub_id` left). `STRUCTURE` at the source; a destination without it is the obstacle
+`access.not_permitted` (with `permission` and `hub_id`), not a refusal. A finding's `params` are
+strings; `account_ids` is a comma-separated list. As built: the trial placement is written and
+rolled back, so a name taken is the unique index's answer and the loss of access is asked of the
+tree as it would stand.
 
 ### 7.4 Queues and their counts
 
@@ -498,7 +508,7 @@ What the research and the mockup state about today's code, checked against `main
 | **"A long press is 500 ms" (mockup §7)** | `design-system.md` §11.9, ADR-0088 | **corrected**: the coarse pointer's hold is 300 ms and opens the menu on release; the concept uses that (§12) |
 | **The pre-check as `GET /containers/{id}:move-check?to=` (mockup §9)** | `api-guidelines.md` §2, the `:preview` operations | **corrected** to `POST …:move-preview` (§7.3) |
 | A whiteboard under a page inherits its restriction (other suites) | `domain-model.md` §3.8, §3.9 | **not adopted**: a board is judged at its hub; inheriting would change an access rule (§7.2) |
-| Hub-scoped releases, SLA policies, calendars and portfolio projects after a collection's cross-hub move | no `ContainerMoved` subscriber besides `access/Revocations.go` | **open**, step 2 settles it and the pre-check's consequences follow (§5.3) |
+| Hub-scoped releases, SLA policies, calendars and portfolio projects after a collection's cross-hub move | step 2: migrations 0252, 0255, 0277, 0279, 0331; `planning/Releases.go`, `servicedesk/Clocks.go`, `MoveContainer.go` | **settled**: no constraint or trigger stops the move and nothing follows it. Sprints (`sprint.collection_id`), portfolio projects (`portfolio_item.container_id`), labels and time budgets move with the collection. A hub's **releases** keep the collection's entries (the entry then cannot join a release of its new hub while it stays, `releases.entry_in_another_release`), and **running SLA clocks** keep measuring by the old hub's policy (`entry_sla.policy_key`, no hub filter when followed). **Calendars** are resolved by the entry's current hub when a clock is rebuilt. Hub-level custom field values, code links and views or dashboard widgets naming the collection also point back. The move is not changed (fixing it is a data migration of releases and clocks, beyond this step); the pre-check reports releases and clocks as consequences (§7.3) |
 
 ## The cut checklist
 
@@ -519,16 +529,18 @@ What the research and the mockup state about today's code, checked against `main
    not write. Private hub: its contents never appear in another person's *Starred* or *Recent*.
    Requester: never sees the sidebar (portal shell). **Open:** whether a background job (the
    duplicate-review agent job) touches board order — none found.
-4. **The premise** — §Premises. **Open:** the cross-hub move's effect on hub-bound objects (step 2).
+4. **The premise** — §Premises; the cross-hub move's effect on hub-bound objects settled in step 2.
+   **Open:** hub-level custom field values, code links and views naming a moved collection still
+   point back and are not reported - a candidate `finding` if the owner wants the move to carry them.
 5. **Decisions** — the owner's approval (§12); the worker's choices named (§12). **Open:** none
    needs the owner before step 2.
 6. **The rules** — drafted on this branch: `user-experience.md` UX-1, §2, §5.1, §7.1, §7.2, §7.4,
    §7.9, §9, §11; `design-system.md` §4 wave 5, §11.3, §11.8, §11.9, §11.10; ADR-0100. **Open:** the
    mockup `user-experience/shell.html` still draws the hub's tab strip — step 5 replaces its *hub*
    scene.
-7. **Findings** — open `finding` issues of the area are to be searched by step 2's worker with
-   `gh issue list --label finding --search navigation` (this worker changes no code and had no
-   reason to take one in). **Open:** that search.
+7. **Findings** — searched in step 2 (`gh issue list --label finding` with *navigation*, *sidebar*,
+   *whiteboard*, *move*, *star*, *queue*, 2026-11-07): none of the open findings (#1387, #1513, #1577,
+   #1583, #1615, #1794) touches this area. **Open:** none.
 9. **The standing rules** — rule 3 (stars and queue counts through the tenant transaction), rule 8
    (queue names from data, standard ones by key), rule 10 (the trail names no star ids, no titles),
    rule 11 (contract first), rule 12 (the board migration expand/contract), rule 15 (every new
@@ -590,7 +602,7 @@ main..HEAD` against this table.
 | Step | Status | Commit |
 |---|---|---|
 | 1 Docs and use cases | done | see `git log --grep "Task: navigation-concept"` — concept, rules, use cases |
-| 2 Contracts and backend | open | |
+| 2 Contracts and backend | partial | `a169de885` preferences (§7.5, migrations 0387-0388) · `cac459453` stars (§7.1, 0389) · `b5785753d`, `54cbeb0a0` whiteboards in the tree (§7.2, 0390) · `133493da8` move pre-check (§7.3) · this commit, docs. **Left for step 2:** queues (§7.4) - `SavedView.queue` (migration, contract, `SaveView` input), `GET /hubs/{hubId}/queues` (`listHubQueues`) with `count` and `at_risk` and the four standard queues, the ITIL template's views marked as queues with its version raised, UC-SVC-03 check 10's read; a repository test with real releases and clocks for `MovePreviewRepository`; `make api-client` (no pnpm in the worker's checkout; the client is generated into `dist/` and nothing is committed) |
 | 3 Design-system pieces | open | |
 | 4 Navigation model and frame | open | |
 | 5 Hub, collection and product screens | open | |

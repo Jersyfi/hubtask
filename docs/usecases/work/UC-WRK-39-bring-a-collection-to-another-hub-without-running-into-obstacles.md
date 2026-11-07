@@ -5,9 +5,9 @@ context: work
 actors: [PE-admin, PE-member, PE-agent, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-08, P-11, P-12]
-state: specified
+state: partial
 tasks: []
-checked_by: []
+checked_by: [core/application/service/work/PreviewContainerMove_test.go]
 ---
 
 # Bring a collection to another hub without running into obstacles
@@ -54,11 +54,7 @@ and rules of IT operations. After he lifts the type, *Move* is enabled.
 
 ## Today
 
-* Check 1: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 2: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 3: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 4: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 5: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 5: not met — `hubctl container move preview` and the MCP tool come from the catalogue; no test runs them yet (step 8 of the navigation concept, `docs/backlog/navigation/README.md`).
 * Check 6: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 7: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 8: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
