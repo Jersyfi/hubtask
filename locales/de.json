@@ -6342,6 +6342,8 @@
   "app.people.title": "Leute",
   "app.people.tab_people": "Leute",
   "app.people.tab_permissions": "Wer darf was",
+  "app.people.tab_setting_writers": "Wer Einstellungen ändert",
+  "app.access.search_roles": "Die Rollen durchsuchen",
   "app.people.add": "Leute hinzufügen",
   "app.people.add_ways": "Wege, jemanden hinzuzufügen",
   "app.people.add_close": "Schließen",

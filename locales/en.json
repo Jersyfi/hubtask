@@ -6342,6 +6342,8 @@
   "app.people.title": "People",
   "app.people.tab_people": "People",
   "app.people.tab_permissions": "Who may do what",
+  "app.people.tab_setting_writers": "Who changes settings",
+  "app.access.search_roles": "Search the roles",
   "app.people.add": "Add people",
   "app.people.add_ways": "Ways to add somebody",
   "app.people.add_close": "Close",

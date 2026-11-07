@@ -12,5 +12,6 @@ test('the people are at the screen\'s own address, the other tabs by their name'
     '/administration/people?tab=groups',
     '/administration/people?tab=roles',
     '/administration/people?tab=permissions',
+    '/administration/people?tab=settings',
   ]);
 });

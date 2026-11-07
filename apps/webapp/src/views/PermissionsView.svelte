@@ -2,9 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Who may do what* (A11) and *view as* (A6) as *People*'s fourth list page (page-system §9.2):
-  // the person, the place and the permission are chips in the filter bar, the matrix is the list,
-  // and *who may change which setting* is its own table under its own heading, narrowed by the
-  // search (UC-ID-26 checks 7 and 8).
+  // the person, the place and the permission are chips in the filter bar, the matrix is the list.
+  // *Who may change which setting* is the fifth tab, the same page in its other `view`: its table,
+  // narrowed by the search and the place and continued at its foot (UC-ID-26 checks 7 and 8).
   //
   // **The matrix is the server's catalogue against the roles** - the shipped seven and the
   // workspace's own - from `GET /roles`; nothing is compiled in. For a chosen person and place it
@@ -45,6 +45,7 @@
   import PeopleStrip from '../lib/people/PeopleStrip.svelte';
   import { peopleHead } from '../lib/people/peoplehead.svelte.ts';
   import { matchesSearch } from '../lib/page/list.ts';
+  import { Continued } from '../lib/page/continued.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
 
@@ -52,9 +53,11 @@
     /** The person *view as* opened this for, from the address (`?person=`). */
     person?: string;
     onnavigate?: (path: string) => void;
+    /** The matrix, or who may change which setting. */
+    view?: 'matrix' | 'settings';
   }
 
-  const { person, onnavigate }: Props = $props();
+  const { person, onnavigate, view = 'matrix' }: Props = $props();
 
   const WORKSPACE_PLACE = '';
 
@@ -127,7 +130,7 @@
   const matrix = $derived(catalogue ? matrixOf(catalogue, explained?.roles) : undefined);
 
   const columns = $derived((matrix?.columns ?? []).map((id) => ({ id, label: permissionLabel(id) })));
-  const rows = $derived(
+  const allRows = $derived(
     (matrix?.rows ?? []).map((row) => ({ id: row.id, label: row.isCustom ? (row.name ?? row.id) : roleLabel(row.id), permissions: row.permissions })),
   );
 
@@ -167,11 +170,22 @@
 
   $effect(() => page.entitle(t('app.people.title')));
 
-  // The search narrows the settings' table, which the catalogue answers whole.
+  // The search and the place narrow the settings' table, which the catalogue answers whole: a
+  // chosen hub keeps the settings changed at a hub, a chosen collection those of a collection.
   let search = $state('');
+  const placeLevel = $derived(collection ? 'COLLECTION' : hub ? 'HUB' : undefined);
   const shownSettings = $derived(
-    settingRows.filter((row) => matchesSearch(search, [t(labelCode(row.key)), t(`app.access.level_${row.level}`), ...row.roles.map((role) => roleLabel(role, custom))])),
+    settingRows.filter((row) => (!placeLevel || row.level === placeLevel) && matchesSearch(search, [t(labelCode(row.key)), t(`app.access.level_${row.level}`), ...row.roles.map((role) => roleLabel(role, custom))])),
   );
+  // 87 settings in the seeded workspace: the first rows, continued at the table's foot; any
+  // narrowing starts again at the first.
+  const continued = new Continued(() => shownSettings);
+  $effect(() => {
+    void search;
+    void who;
+    void place;
+    untrack(() => continued.restart());
+  });
   const optionLabel = (options: readonly { value: string; label: string }[], value: string) => options.find((option) => option.value === value)?.label ?? '';
   const chips = $derived<Filter[]>([
     { id: 'person', label: t('app.access.person_chip', { name: who ? whoName : t('app.page.any') }), isActive: who !== '' },
@@ -179,7 +193,10 @@
     ...(hub ? [{ id: 'collection', label: t('app.access.collection_chip', { name: optionLabel(collectionOptions, collection) }), isActive: collection !== WORKSPACE_PLACE }] : []),
     { id: 'permission', label: t('app.access.permission_chip', { name: optionLabel(permissionOptions, asked) }), isActive: asked !== '' },
   ]);
-  const activeFilters = $derived(chips.filter((chip) => chip.isActive).length);
+  const viewChips = $derived(view === 'settings' ? chips.filter((chip) => chip.id !== 'permission') : chips);
+  const activeFilters = $derived(viewChips.filter((chip) => chip.isActive).length);
+  // On the matrix the search narrows the roles, the rows it has.
+  const rows = $derived(allRows.filter((row) => matchesSearch(search, [row.label])));
 
   function clearFilters(): void {
     who = '';
@@ -202,23 +219,25 @@
 </script>
 
 <ListPage head={peopleHead()}>
-  {#snippet strip()}<PeopleStrip current="permissions" {onnavigate} />{/snippet}
-  {#snippet intro()}<p class="quiet">{t('app.access.intro')}</p>{/snippet}
+  {#snippet strip()}<PeopleStrip current={view === 'settings' ? 'settings' : 'permissions'} {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t(view === 'settings' ? 'app.access.settings_intro' : 'app.access.intro')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
-      searchLabel={t('app.access.search')}
+      searchLabel={t(view === 'settings' ? 'app.access.search' : 'app.access.search_roles')}
       clearSearchLabel={t('app.page.clear_search')}
       bind:search
-      filters={chips}
+      filters={viewChips}
       moreLabel={t('app.page.more_filters')}
       filtersLabel={t('app.page.filters', { count: String(activeFilters) })}
       sheetTitle={t('app.page.filters', { count: '0' })}
       sheetDismissLabel={t('app.page.sheet_close')}
       sheetGrabLabel={t('app.page.sheet_grab')}
-      showLabel={t('app.page.show_results', { count: String(shownSettings.length) })}
+      showLabel={t('app.page.show_results', { count: String(view === 'settings' ? shownSettings.length : rows.length) })}
       clearLabel={t('app.page.clear')}
       onclear={clearFilters}
-      countLabel={settingRows.length > 0 ? t('app.access.settings_found', { shown: String(shownSettings.length), count: String(settingRows.length) }) : undefined}
+      countLabel={view === 'settings'
+        ? settingRows.length > 0 ? t('app.access.settings_found', { shown: String(shownSettings.length), count: String(settingRows.length) }) : undefined
+        : catalogue ? t('app.page.found', { shown: String(rows.length), count: String(allRows.length) }) : undefined}
     >
       {#snippet picker(filter: Filter)}
         {#if filter.id === 'person'}
@@ -274,7 +293,32 @@
     </section>
   {/if}
 
-  {#if !catalogue}
+  {#if view === 'settings'}
+    {#if settingRows.length > 0}
+      <DataTable
+        label={t('app.access.settings_title')}
+        columns={settingColumns}
+        rows={continued.shown}
+        key={(row: SettingRow) => `${row.key}:${row.level}`}
+        shownLabel={continued.shownLabel}
+        more={continued.more}
+        perPage={continued.perPage}
+      >
+        {#snippet cell(row: SettingRow, column: DataColumn)}
+          {#if column.id === 'setting'}
+            {t(labelCode(row.key))}
+          {:else if column.id === 'level'}
+            {t(`app.access.level_${row.level}`)}
+          {:else}
+            {row.roles.length > 0 ? row.roles.map((role) => roleLabel(role, custom)).join(', ') : t('app.access.no_role_carries')}
+          {/if}
+        {/snippet}
+        {#snippet empty()}<p class="quiet waiting">{t('app.access.settings_filtered')}</p>{/snippet}
+      </DataTable>
+    {:else}
+      <p class="waiting"><Spinner label={t('app.roles.reading')} /> <span>{t('app.roles.reading')}</span></p>
+    {/if}
+  {:else if !catalogue}
     {#if roles.state?.status === 'failed'}
       <Banner tone="warning">{renderProblem(roles.state.error as never, messages).message}</Banner>
     {:else}
@@ -288,37 +332,10 @@
       roles={rows}
       carriedLabel={t('app.permissions.yes')}
       notCarriedLabel={t('app.permissions.no')}
-      isStacked
     />
     <p class="quiet small">{t('app.access.families_note')}</p>
   {/if}
 
-  {#if settingRows.length > 0}
-    <section class="writers" aria-labelledby="setting-writers">
-      <Stack gap="100">
-        <h2 class="sub" id="setting-writers">{t('app.access.settings_title')}</h2>
-        <p class="quiet small">{t('app.access.settings_intro')}</p>
-        <DataTable
-          label={t('app.access.settings_title')}
-          columns={settingColumns}
-          rows={shownSettings}
-          key={(row: SettingRow) => `${row.key}:${row.level}`}
-          shownLabel={t('app.page.showing', { count: String(shownSettings.length) })}
-        >
-          {#snippet cell(row: SettingRow, column: DataColumn)}
-            {#if column.id === 'setting'}
-              {t(labelCode(row.key))}
-            {:else if column.id === 'level'}
-              {t(`app.access.level_${row.level}`)}
-            {:else}
-              {row.roles.length > 0 ? row.roles.map((role) => roleLabel(role, custom)).join(', ') : t('app.access.no_role_carries')}
-            {/if}
-          {/snippet}
-          {#snippet empty()}<p class="quiet waiting">{t('app.access.settings_filtered')}</p>{/snippet}
-        </DataTable>
-      </Stack>
-    </section>
-  {/if}
 </ListPage>
 
 <style>

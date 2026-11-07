@@ -994,7 +994,7 @@
 {:else if current === 'roles'}
   <RolesView {onnavigate} />
 {:else}
-  <PermissionsView {person} {onnavigate} />
+  <PermissionsView {person} {onnavigate} view={current === 'settings' ? 'settings' : 'matrix'} />
 {/if}
 
 <style>

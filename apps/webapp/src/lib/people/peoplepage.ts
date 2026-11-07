@@ -10,6 +10,7 @@ export const PEOPLE_TABS = [
   { id: 'groups', code: 'app.groups.title' },
   { id: 'roles', code: 'app.people.tab_roles' },
   { id: 'permissions', code: 'app.people.tab_permissions' },
+  { id: 'settings', code: 'app.people.tab_setting_writers' },
 ] as const;
 
 export const PEOPLE_PATH = '/administration/people';
