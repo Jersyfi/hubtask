@@ -388,6 +388,11 @@ export type WhiteboardExportRequest = components['schemas']['WhiteboardExportReq
 export type WhiteboardVersion = components['schemas']['WhiteboardVersion'];
 export type WhiteboardVersionRead = components['schemas']['WhiteboardVersionRead'];
 export type WhiteboardVersionList = components['schemas']['WhiteboardVersionList'];
+/** A person's stars and a hub's queues with their counts (the navigation concept). */
+export type Star = components['schemas']['Star'];
+export type StarList = components['schemas']['StarList'];
+export type HubQueue = components['schemas']['HubQueue'];
+export type HubQueueList = components['schemas']['HubQueueList'];
 export type WhiteboardBacklinkList = components['schemas']['WhiteboardBacklinkList'];
 export type WhiteboardComment = components['schemas']['WhiteboardComment'];
 export type WhiteboardCommentList = components['schemas']['WhiteboardCommentList'];
