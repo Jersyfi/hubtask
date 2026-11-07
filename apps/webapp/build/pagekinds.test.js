@@ -50,7 +50,7 @@ const NOT_YET_MIGRATED = [
   'RetentionView', 'RoadmapView', 'RuleEditorView', 'RulesView', 'RunsView', 'SearchView',
   'SecurityView', 'SessionsView', 'SetupView', 'SignInView', 'SprintView',
   'TimeView', 'TodayView', 'TrashView', 'VoiceView', 'WebhooksView', 'WhiteboardsView',
-  'WorkflowsView', 'WorkloadView', 'WorkspaceAddressView',
+  'WorkflowsView', 'WorkloadView',
   'YourWorkspacesView',
 ];
 

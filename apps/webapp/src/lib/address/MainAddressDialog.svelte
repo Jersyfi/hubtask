@@ -82,17 +82,15 @@
 </script>
 
 <Dialog
+  size="m"
   title={move ? t(toOwn ? 'app.address.main_move.title_own' : 'app.address.main_move.title_back', { host: move.to }) : ''}
   isOpen={move !== undefined}
-  isWide
   dismissLabel={t('app.instance.cancel')}
   onClose={onclose}
+  primary={{ label: t('app.address.main_move.submit'), isBusy: isWorking, busyLabel: t('app.instance.working'), onclick: () => void confirm() }}
 >
   {#snippet actions()}
     <Button tone="subtle" onclick={onclose}>{t('app.instance.cancel')}</Button>
-    <Button tone="primary" isBusy={isWorking} busyLabel={t('app.instance.working')} onclick={() => void confirm()}>
-      {t('app.address.main_move.submit')}
-    </Button>
   {/snippet}
   {#if move}
     <Stack gap="200">

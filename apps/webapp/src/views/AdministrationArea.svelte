@@ -58,7 +58,7 @@
   <!-- One branch for the list and its sections: a move between sections keeps the screen and
        what another section holds unsaved. -->
 {:else if route.name === 'workspace-address'}
-  <WorkspaceAddressView />
+  <WorkspaceAddressView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'presets'}
   <PresetsView template={route.query['template']} onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'people'}

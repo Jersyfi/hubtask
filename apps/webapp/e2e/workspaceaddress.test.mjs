@@ -82,7 +82,7 @@ test('chromium: with owners not allowed to change it, the address stands without
   const { context, page, sent } = await open(browser, OFF);
   t.after(() => context.close());
 
-  await page.getByRole('heading', { name: 'Address' }).waitFor();
+  await page.getByRole('heading', { name: 'Address', level: 1 }).waitFor();
   await page.getByText('meier.tasks.example.net').waitFor();
   await page.getByText("Changing it is up to this installation's operator.", { exact: false }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Change address' }).count(), 0, 'a control the owner may not use is drawn');
