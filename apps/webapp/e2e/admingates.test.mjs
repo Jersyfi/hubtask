@@ -116,6 +116,7 @@ test('chromium: emptying the trash is offered only to whom may delete a hub', as
 test('chromium: a service account\'s tokens are offered only to whom may manage members', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/machines', MACHINE.display_name, 'Its tokens'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/machines', MACHINE.display_name, 'Its tokens'), 0);
+  // The tokens are a list of the account's record page, with *New token* as its add (page-system §7.2).
+  assert.equal(await offered(browser, PERMISSIONS.ADMIN, `/administration/machines/${MACHINE.id}`, MACHINE.display_name, 'New token'), 1);
+  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, `/administration/machines/${MACHINE.id}`, MACHINE.display_name, 'New token'), 0);
 });
