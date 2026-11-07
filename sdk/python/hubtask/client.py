@@ -2871,6 +2871,10 @@ class Client:
         """POST /containers/{containerId}:move"""
         return self._call("POST", "/containers/{containerId}:move", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def preview_container_move(self, container_id: str, body: dict[str, Any]) -> "ContainerMovePreview":
+        """Preview a collection's move to another hub"""
+        return self._call("POST", "/containers/{containerId}:move-preview", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
     def reorder_container(self, container_id: str, body: dict[str, Any], *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:reorder"""
         return self._call("POST", "/containers/{containerId}:reorder", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")

@@ -3370,6 +3370,10 @@ func run() error {
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures, EntryTypes: entryTypes, Workflows: workflows}.Descriptor(),
+		work.PreviewContainerMove{
+			Move:    work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures, EntryTypes: entryTypes, Workflows: workflows},
+			Permits: authorizer, Leftovers: postgres.MovePreviewRepository{},
+		}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),

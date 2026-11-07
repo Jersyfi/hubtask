@@ -471,6 +471,7 @@ var restDoors = map[string]restDoor{
 	"planConfigTemplate":                {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
 	"planInstanceSettings":              {UseCase: "PlanInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"address_change_cooldown_days", "version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}},
 	"pollTriggerEvents":                 {UseCase: "PollTriggerEvents", Status: 200, Query: []string{"limit", "since"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}, QueryAs: map[string]string{"since": "cursor"}},
+	"previewContainerMove":              {UseCase: "PreviewContainerMove", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewContainerStructure":         {UseCase: "PreviewContainerStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewCustomFieldReach":           {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewErasure":                    {UseCase: "PreviewErasure", Status: 200, Query: []string{"mode"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3840,6 +3841,13 @@ func (c *RestController) PlanInstanceSettings(w http.ResponseWriter, r *http.Req
 // PollTriggerEvents answers GET /integrations/triggers/{eventType} by the generated mapping.
 func (c *RestController) PollTriggerEvents(w http.ResponseWriter, r *http.Request, eventType openapi.EventType, params openapi.PollTriggerEventsParams) {
 	c.door(w, r, restDoors["pollTriggerEvents"], usecase.Input{"event_type": string(eventType)}, params, nil, answerBy(triggerEventPageResponse))
+}
+
+// PreviewContainerMove answers POST /containers/{containerId}:move-preview by the generated mapping.
+func (c *RestController) PreviewContainerMove(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var body openapi.PreviewContainerMoveJSONRequestBody
+	var answer openapi.ContainerMovePreview
+	c.door(w, r, restDoors["previewContainerMove"], usecase.Input{"container_id": containerId.String()}, nil, &body, &answer)
 }
 
 // PreviewContainerStructure answers POST /containers/{containerId}/structure:preview by the generated mapping.

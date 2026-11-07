@@ -3613,6 +3613,11 @@ export class HubtaskClient {
     return this.call("POST", "/containers/{containerId}:move", { "containerId": containerId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Preview a collection's move to another hub */
+  previewContainerMove(containerId: string, body: NonNullable<operations["previewContainerMove"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["previewContainerMove"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}:move-preview", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /containers/{containerId}:reorder */
   reorderContainer(containerId: string, body: NonNullable<operations["reorderContainer"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string; readonly ifMatch?: string } = {}): Promise<operations["reorderContainer"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/containers/{containerId}:reorder", { "containerId": containerId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

@@ -28892,6 +28892,66 @@
         }
       }
     },
+    "/containers/{containerId}:move-preview": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "previewContainerMove",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "container move preview",
+        "summary": "Preview a collection's move to another hub",
+        "description": "Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "target_parent_id"
+                ],
+                "properties": {
+                  "target_parent_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The hub the collection would move into."
+                  },
+                  "before_container_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "description": "The sibling it would be placed before; null or omitted appends."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the move would meet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContainerMovePreview"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}:reorder": {
       "parameters": [
         {
@@ -37198,6 +37258,54 @@
               null
             ],
             "description": "How the sidebar shows a hub's contents. `null` clears it; the default is TREE."
+          }
+        }
+      },
+      "ContainerMovePreview": {
+        "type": "object",
+        "required": [
+          "movable",
+          "obstacles",
+          "consequences"
+        ],
+        "properties": {
+          "movable": {
+            "type": "boolean",
+            "description": "True while no obstacle remains; the move then succeeds unless something changes first."
+          },
+          "obstacles": {
+            "type": "array",
+            "description": "What would refuse the move, each with the code the refusal carries.",
+            "items": {
+              "$ref": "#/components/schemas/MoveFinding"
+            }
+          },
+          "consequences": {
+            "type": "array",
+            "description": "What changes with the move without stopping it.",
+            "items": {
+              "$ref": "#/components/schemas/MoveFinding"
+            }
+          }
+        }
+      },
+      "MoveFinding": {
+        "type": "object",
+        "required": [
+          "code",
+          "params"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "A message code the client words."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The code's parameters; `account_ids` is a comma-separated list the client names through `GET /accounts`.\n"
           }
         }
       },

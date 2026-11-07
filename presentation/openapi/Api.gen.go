@@ -16095,6 +16095,18 @@ type ContainerMilestone struct {
 	ReachedAt time.Time `json:"reached_at"`
 }
 
+// ContainerMovePreview defines model for ContainerMovePreview.
+type ContainerMovePreview struct {
+	// Consequences What changes with the move without stopping it.
+	Consequences []MoveFinding `json:"consequences"`
+
+	// Movable True while no obstacle remains; the move then succeeds unless something changes first.
+	Movable bool `json:"movable"`
+
+	// Obstacles What would refuse the move, each with the code the refusal carries.
+	Obstacles []MoveFinding `json:"obstacles"`
+}
+
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
 	Data []Container `json:"data"`
@@ -20195,6 +20207,15 @@ type ModuleSwitchSwitch string
 // ModulesOn defines model for ModulesOn.
 type ModulesOn struct {
 	ModulesOn []Module `json:"modules_on"`
+}
+
+// MoveFinding defines model for MoveFinding.
+type MoveFinding struct {
+	// Code A message code the client words.
+	Code string `json:"code"`
+
+	// Params The code's parameters; `account_ids` is a comma-separated list the client names through `GET /accounts`.
+	Params map[string]string `json:"params"`
 }
 
 // MoveResult defines model for MoveResult.
@@ -28106,6 +28127,15 @@ type MoveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// PreviewContainerMoveJSONBody defines parameters for PreviewContainerMove.
+type PreviewContainerMoveJSONBody struct {
+	// BeforeContainerId The sibling it would be placed before; null or omitted appends.
+	BeforeContainerId *openapi_types.UUID `json:"before_container_id,omitempty"`
+
+	// TargetParentId The hub the collection would move into.
+	TargetParentId openapi_types.UUID `json:"target_parent_id"`
+}
+
 // ReorderContainerJSONBody defines parameters for ReorderContainer.
 type ReorderContainerJSONBody struct {
 	// BeforeContainerId The sibling to place this container before, at its own level. Null or omitted appends to the end of the level. A sibling that is not at this level is refused rather than treated as an append.
@@ -30587,6 +30617,9 @@ type MakeEntriesJSONRequestBody = EntriesText
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
+// PreviewContainerMoveJSONRequestBody defines body for PreviewContainerMove for application/json ContentType.
+type PreviewContainerMoveJSONRequestBody PreviewContainerMoveJSONBody
+
 // ReorderContainerJSONRequestBody defines body for ReorderContainer for application/json ContentType.
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 
@@ -32686,6 +32719,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:move)
 	MoveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MoveContainerParams)
+	// PreviewContainerMove Preview a collection's move to another hub
+	// (POST /containers/{containerId}:move-preview)
+	PreviewContainerMove(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (POST /containers/{containerId}:reorder)
 	ReorderContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ReorderContainerParams)
@@ -44473,6 +44509,32 @@ func (siw *ServerInterfaceWrapper) MoveContainer(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.MoveContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewContainerMove operation middleware
+func (siw *ServerInterfaceWrapper) PreviewContainerMove(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewContainerMove(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -63493,6 +63555,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/structure:preview", wrapper.PreviewContainerStructure)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move-preview", wrapper.PreviewContainerMove)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:restore", wrapper.RestoreContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:archive", wrapper.ArchiveContainer)

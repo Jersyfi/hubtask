@@ -16101,6 +16101,18 @@ type ContainerMilestone struct {
 	ReachedAt time.Time `json:"reached_at"`
 }
 
+// ContainerMovePreview defines model for ContainerMovePreview.
+type ContainerMovePreview struct {
+	// Consequences What changes with the move without stopping it.
+	Consequences []MoveFinding `json:"consequences"`
+
+	// Movable True while no obstacle remains; the move then succeeds unless something changes first.
+	Movable bool `json:"movable"`
+
+	// Obstacles What would refuse the move, each with the code the refusal carries.
+	Obstacles []MoveFinding `json:"obstacles"`
+}
+
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
 	Data []Container `json:"data"`
@@ -20201,6 +20213,15 @@ type ModuleSwitchSwitch string
 // ModulesOn defines model for ModulesOn.
 type ModulesOn struct {
 	ModulesOn []Module `json:"modules_on"`
+}
+
+// MoveFinding defines model for MoveFinding.
+type MoveFinding struct {
+	// Code A message code the client words.
+	Code string `json:"code"`
+
+	// Params The code's parameters; `account_ids` is a comma-separated list the client names through `GET /accounts`.
+	Params map[string]string `json:"params"`
 }
 
 // MoveResult defines model for MoveResult.
@@ -28112,6 +28133,15 @@ type MoveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// PreviewContainerMoveJSONBody defines parameters for PreviewContainerMove.
+type PreviewContainerMoveJSONBody struct {
+	// BeforeContainerId The sibling it would be placed before; null or omitted appends.
+	BeforeContainerId *openapi_types.UUID `json:"before_container_id,omitempty"`
+
+	// TargetParentId The hub the collection would move into.
+	TargetParentId openapi_types.UUID `json:"target_parent_id"`
+}
+
 // ReorderContainerJSONBody defines parameters for ReorderContainer.
 type ReorderContainerJSONBody struct {
 	// BeforeContainerId The sibling to place this container before, at its own level. Null or omitted appends to the end of the level. A sibling that is not at this level is refused rather than treated as an append.
@@ -30592,6 +30622,9 @@ type MakeEntriesJSONRequestBody = EntriesText
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
+
+// PreviewContainerMoveJSONRequestBody defines body for PreviewContainerMove for application/json ContentType.
+type PreviewContainerMoveJSONRequestBody PreviewContainerMoveJSONBody
 
 // ReorderContainerJSONRequestBody defines body for ReorderContainer for application/json ContentType.
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
@@ -36433,6 +36466,24 @@ type ClientInterface interface {
 	//
 	// Moves a collection into another hub, and ranks it there. The name has to be free at the destination; a collision is refused rather than resolved. A hub sits in nothing and cannot be moved.
 	MoveContainer(ctx context.Context, containerId ContainerId, params *MoveContainerParams, body MoveContainerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewContainerMoveWithBody Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMoveWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewContainerMove Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMove(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReorderContainerWithBody performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 	// with any type of body and a specified content type.
@@ -52616,6 +52667,44 @@ func (c *Client) MoveContainerWithBody(ctx context.Context, containerId Containe
 // Moves a collection into another hub, and ranks it there. The name has to be free at the destination; a collision is refused rather than resolved. A hub sits in nothing and cannot be moved.
 func (c *Client) MoveContainer(ctx context.Context, containerId ContainerId, params *MoveContainerParams, body MoveContainerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMoveContainerRequest(c.Server, containerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewContainerMoveWithBody Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *Client) PreviewContainerMoveWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewContainerMoveRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewContainerMove Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *Client) PreviewContainerMove(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewContainerMoveRequest(c.Server, containerId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -81944,6 +82033,53 @@ func NewMoveContainerRequestWithBody(server string, containerId ContainerId, par
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewPreviewContainerMoveRequest calls the generic PreviewContainerMove builder with application/json body
+func NewPreviewContainerMoveRequest(server string, containerId ContainerId, body PreviewContainerMoveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPreviewContainerMoveRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewPreviewContainerMoveRequestWithBody constructs an http.Request for the PreviewContainerMove method, with any body, and a specified content type
+func NewPreviewContainerMoveRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s:move-preview", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -112335,6 +112471,24 @@ type ClientWithResponsesInterface interface {
 	// Moves a collection into another hub, and ranks it there. The name has to be free at the destination; a collision is refused rather than resolved. A hub sits in nothing and cannot be moved.
 	MoveContainerWithResponse(ctx context.Context, containerId ContainerId, params *MoveContainerParams, body MoveContainerJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveContainerResult, error)
 
+	// PreviewContainerMoveWithBodyWithResponse Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMoveWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error)
+
+	// PreviewContainerMoveWithResponse Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMoveWithResponse(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error)
+
 	// ReorderContainerWithBodyWithResponse performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -135301,6 +135455,54 @@ func (r MoveContainerResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r MoveContainerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PreviewContainerMoveResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ContainerMovePreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewContainerMoveResult) GetJSON200() *ContainerMovePreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewContainerMoveResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewContainerMoveResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewContainerMoveResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewContainerMoveResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewContainerMoveResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -169052,6 +169254,36 @@ func (c *ClientWithResponses) MoveContainerWithResponse(ctx context.Context, con
 	return ParseMoveContainerResult(rsp)
 }
 
+// PreviewContainerMoveWithBodyWithResponse Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *ClientWithResponses) PreviewContainerMoveWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error) {
+	rsp, err := c.PreviewContainerMoveWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewContainerMoveResult(rsp)
+}
+
+// PreviewContainerMoveWithResponse Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *ClientWithResponses) PreviewContainerMoveWithResponse(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error) {
+	rsp, err := c.PreviewContainerMove(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewContainerMoveResult(rsp)
+}
+
 // ReorderContainerWithBodyWithResponse performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -192105,6 +192337,39 @@ func ParseMoveContainerResult(rsp *http.Response) (*MoveContainerResult, error) 
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParsePreviewContainerMoveResult parses an HTTP response from a PreviewContainerMoveWithResponse call
+func ParsePreviewContainerMoveResult(rsp *http.Response) (*PreviewContainerMoveResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewContainerMoveResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ContainerMovePreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

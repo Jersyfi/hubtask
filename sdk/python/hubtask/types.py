@@ -184,6 +184,15 @@ class AccountPreferences(TypedDict, total=False):
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
 
+class ContainerMovePreview(TypedDict, total=False):
+    movable: Required[bool]
+    obstacles: Required[list["MoveFinding"]]
+    consequences: Required[list["MoveFinding"]]
+
+class MoveFinding(TypedDict, total=False):
+    code: Required[str]
+    params: Required[dict[str, Any]]
+
 class Star(TypedDict, total=False):
     kind: Required[Literal["HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "PORTFOLIO"]]
     id: Required[str]

@@ -1220,6 +1220,15 @@ var generatedCommands = []door{
 			{Name: "type", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "type", "name", "parent_id", "archived_at"}},
+	{Group: "container", Verb: "move preview", OperationID: "previewContainerMove", Method: "POST", Path: "/containers/{containerId}:move-preview", Summary: "Preview a collection's move to another hub",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "before_container_id", Kind: "uuid", Help: "The sibling it would be placed before; null or omitted appends", Required: false},
+			{Name: "target_parent_id", Kind: "uuid", Help: "The hub the collection would move into", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"movable"}},
 	{Group: "container", Verb: "structure preview", OperationID: "previewContainerStructure", Method: "POST", Path: "/containers/{containerId}/structure:preview", Summary: "Answers what a change of a hub's or collection's own structure would stop showing, before it is …",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
