@@ -9,7 +9,7 @@ import { TransportError } from '@hubtask/sync-engine';
 import { formatDateTime } from './i18n/datetime.ts';
 import { createMessages } from './i18n/messages.ts';
 import { SOURCE } from './i18n/source.ts';
-import { isNoSuchObject, isObjectId, renderProblem, renderRefusal } from './problem.ts';
+import { isNoSuchObject, isObjectId, needsConnection, renderProblem, renderRefusal } from './problem.ts';
 
 const messages = createMessages({ locale: 'en', catalogues: [SOURCE], onProblem: () => {} });
 
@@ -320,4 +320,13 @@ test('an address that names no object is told apart from a failure', () => {
   assert.equal(isNoSuchObject(new TransportError('malformed', { status: 200 })), false);
   assert.equal(isObjectId('01a0e2e0-0000-7000-8000-0000000018c1'), true);
   assert.equal(isObjectId('dashboards'), false);
+});
+
+// UC-WRK-38 check 8: a move the device keeps no queue for is told apart, so the sidebar says so.
+test('a write refused for want of a connection is told apart from a refusal', () => {
+  assert.equal(needsConnection(new TransportError('offline', { detailCode: 'sync.needs_connection' })), true);
+  assert.equal(needsConnection(new TransportError('offline', { code: 'sync.needs_connection' })), true);
+  assert.equal(needsConnection(new TransportError('offline', {})), true, 'the server out of reach');
+  assert.equal(needsConnection(new TransportError('timeout', {})), false);
+  assert.equal(needsConnection(new TransportError('problem', { status: 409, code: 'conflict', detailCode: 'pages.parent_other_space' })), false);
 });

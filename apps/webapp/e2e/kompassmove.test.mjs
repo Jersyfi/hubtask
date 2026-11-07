@@ -23,7 +23,10 @@ test.after(() => served.close());
 function recorder({ preview } = {}) {
   const moves = [];
   let held;
+  const state = { offline: false };
   const extra = async (route, request, url) => {
+    // Offline the browser's own emulation does not stop a route, so the stub refuses every request.
+    if (state.offline) return route.abort('internetdisconnected'), true;
     const path = url.pathname;
     if (/\/api\/v1\/(pages|whiteboards|containers)\/[^/]+:(move|reorder)$/.test(path) && request.method() === 'POST') {
       moves.push({ path: path.replace('/api/v1', ''), body: request.postDataJSON() });
@@ -48,7 +51,7 @@ function recorder({ preview } = {}) {
     }
     return false;
   };
-  return { moves, extra, hold: () => { let release; held = new Promise((done) => { release = done; }); return () => { held = undefined; release(); }; } };
+  return { moves, extra, state, hold: () => { let release; held = new Promise((done) => { release = done; }); return () => { held = undefined; release(); }; } };
 }
 
 const contents = (page) => side(page).getByRole('tree', { name: 'Contents of Product development' });
@@ -305,5 +308,25 @@ test('UC-WRK-38 check 9: Change order opens reorder mode - grips at the end, Don
   assert.ok(lastName.length > 0);
   await page.getByRole('button', { name: 'Done' }).click();
   await page.locator('.reorder').first().waitFor({ state: 'detached' });
+  assert.deepEqual(failures, []);
+});
+
+test('UC-WRK-38 check 8: offline a move is not kept to send later, and the sidebar says so', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const record = recorder();
+  const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
+  t.after(close);
+  await row(page, 'Onboarding').waitFor({ timeout: 10_000 });
+  record.state.offline = true;
+  await page.context().setOffline(true);
+  await row(page, 'Onboarding').focus();
+  await page.keyboard.press('Alt+ArrowRight');
+  await side(page).locator('.failure', { hasText: 'Moving needs a connection' }).waitFor({ timeout: 10_000 });
+  // It springs back: still at the top, nothing sent.
+  assert.equal(await row(page, 'Onboarding').getAttribute('aria-level'), '1');
+  assert.equal(record.moves.length, 0);
+  record.state.offline = false;
+  await page.context().setOffline(false);
   assert.deepEqual(failures, []);
 });

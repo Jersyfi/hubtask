@@ -120,7 +120,7 @@
   import { commands } from '../palette/commands.svelte.ts';
   import { actsAsDesk } from '../portal/portal.ts';
   import { platform } from '../platform/index.ts';
-  import { renderProblem } from '../problem.ts';
+  import { needsConnection, renderProblem } from '../problem.ts';
   import { recents } from '../recents.svelte.ts';
   import { isDueByTonight, productBandsOf, sprintDaysLeft, todayRowCountOf } from '../today.ts';
   import { webAppAddress, webAppHost } from '../webApp.ts';
@@ -587,7 +587,9 @@
     });
   }
   const failed = (error: unknown) => {
-    rankFailure = renderProblem(error as never, messages).message;
+    // Offline a move is refused rather than queued (the push frame carries no move of a page, a
+    // board or a container), so the sidebar says that, not only that the server is away.
+    rankFailure = needsConnection(error as never) ? t('app.nav.move_offline') : renderProblem(error as never, messages).message;
     announcer.say(rankFailure);
   };
 
