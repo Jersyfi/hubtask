@@ -153,7 +153,7 @@ export function queueRows(
   return [...starred, ...rows.filter((row) => !row.isStarred)];
 }
 
-/** Where a queue opens: the hub's desk with the queue named, until the queue page lands (step 5). */
+/** Where a queue opens: the queue page of the hub, the queue named. */
 export const queuePath = (hubId: string, row: Pick<QueueRow, 'viewId' | 'key'>): string =>
   `/hubs/${hubId}/desk?queue=${encodeURIComponent(row.viewId ?? row.key)}`;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The navigation concept's screens (step 5): the hub's overview without tabs, each hub tool's page
+// The navigation concept's screens: the hub's overview without tabs, each hub tool's page
 // with its one view bar, the queue page, a collection's one view bar, a page without a tree of its
 // own, *All contents*, ＋ under a page, and the former hub tabs' addresses (UC-WRK-36 checks 9, 10
 // and 12, UC-SVC-03 checks 10 and 11, UC-DOC-01 check 6, UC-CNV-10 check 6), the queue's *Filter* and

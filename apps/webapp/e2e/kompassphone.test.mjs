@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The navigation concept on a phone and a tablet (step 6, §9): the bottom bar, the Browse stack
+// The navigation concept on a phone and a tablet (§9): the bottom bar, the Browse stack
 // (workspace → hub → queues, contents), each tab's own stack, the bar's *‹ the level above*, ☆ and
 // ⋯, a collection's view as a chip and its sheet, *New* on *Contents*, the announcement of every
 // stack change, 44-pixel targets, a heading and *Close* on every sheet, the drawer between 600 and
