@@ -14,6 +14,8 @@
     head: PageHead;
     /** The one strip: `Tabs` or `PlaceTabs` of the sibling lists (People · Groups · Roles). */
     strip?: Snippet;
+    /** The page's one sentence of what it is for: under the head and the strip, above the `FilterBar`. */
+    intro?: Snippet;
     /** The `FilterBar`. */
     filters?: Snippet;
     /** The `BulkBar`, while selecting: it replaces the head. */
@@ -24,12 +26,13 @@
     children: Snippet;
   }
 
-  const { head, strip, filters, bulk, refused, children }: Props = $props();
+  const { head, strip, intro, filters, bulk, refused, children }: Props = $props();
 </script>
 
 <PageFrame kind="list" {head} isHeadHidden={bulk !== undefined} {refused}>
   {#if bulk}{@render bulk()}{/if}
   {#if strip}{@render strip()}{/if}
+  {#if intro}{@render intro()}{/if}
   {#if filters}{@render filters()}{/if}
   {@render children()}
 </PageFrame>

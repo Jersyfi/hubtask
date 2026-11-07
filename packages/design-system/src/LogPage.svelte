@@ -13,6 +13,8 @@
 
   interface Props {
     head: PageHead;
+    /** The page's one sentence of what it is for: under the head and the strip, above the `FilterBar`. */
+    intro?: Snippet;
     /** The `FilterBar`, the time range first. */
     filters?: Snippet;
     refused?: Snippet;
@@ -20,10 +22,11 @@
     children: Snippet;
   }
 
-  const { head, filters, refused, children }: Props = $props();
+  const { head, intro, filters, refused, children }: Props = $props();
 </script>
 
 <PageFrame kind="log" {head} {refused}>
+  {#if intro}{@render intro()}{/if}
   {#if filters}{@render filters()}{/if}
   {@render children()}
 </PageFrame>
