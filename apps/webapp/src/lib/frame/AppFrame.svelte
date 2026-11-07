@@ -435,19 +435,23 @@
       if (!first) announcer.say(t('app.nav.level_announced', { title, depth: depthOf(route, phoneHubId) }));
     });
   });
-  // An edge swipe goes one level up: a press that starts at the start edge and travels inward.
+  // An edge swipe goes one level up: a touch that starts at the start edge and travels inward.
+  // Touch events, not pointer events: the browser takes a sideways travel as its own pan and
+  // cancels the pointer, so `pointerup` never came; a touch still ends where the finger lifts.
   let swipe: { x: number; y: number; rtl: boolean } | null = null;
-  function swipeStart(event: PointerEvent) {
-    if (!isPhone || !phoneBack || event.pointerType === 'mouse') return;
+  function swipeStart(event: TouchEvent) {
+    const finger = event.touches[0];
+    if (!isPhone || !phoneBack || !finger || event.touches.length > 1) return void (swipe = null);
     const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
     const edge = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sp-200')) || 0;
-    const fromEdge = rtl ? window.innerWidth - event.clientX : event.clientX;
-    swipe = fromEdge <= edge ? { x: event.clientX, y: event.clientY, rtl } : null;
+    const fromEdge = rtl ? window.innerWidth - finger.clientX : finger.clientX;
+    swipe = fromEdge <= edge ? { x: finger.clientX, y: finger.clientY, rtl } : null;
   }
-  function swipeEnd(event: PointerEvent) {
-    if (!swipe) return;
-    const travel = (swipe.rtl ? -1 : 1) * (event.clientX - swipe.x);
-    const drift = Math.abs(event.clientY - swipe.y);
+  function swipeEnd(event: TouchEvent) {
+    const finger = event.changedTouches[0];
+    if (!swipe || !finger) return;
+    const travel = (swipe.rtl ? -1 : 1) * (finger.clientX - swipe.x);
+    const drift = Math.abs(finger.clientY - swipe.y);
     if (travel > window.innerWidth / 4 && drift < travel && phoneBack) go(phoneBack.path);
     swipe = null;
   }
@@ -854,7 +858,7 @@
     <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
          so it draws no ring when it does. -->
     <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}
-      onpointerdown={swipeStart} onpointerup={swipeEnd} onpointercancel={() => (swipe = null)}>
+      ontouchstart={swipeStart} ontouchend={swipeEnd} ontouchcancel={() => (swipe = null)}>
       <div class="content">
         <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
              app's update, the recovery codes, an emergency access, the AI notice, a step-up that

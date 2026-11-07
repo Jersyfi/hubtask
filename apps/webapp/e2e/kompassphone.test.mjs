@@ -188,3 +188,26 @@ test('no sideways scroll at 390 pixels on the main screens', async (t) => {
   }
   assert.deepEqual(failures, []);
 });
+
+test('UC-WRK-36 check 14: an edge swipe goes one level up; one from the middle of the screen goes nowhere', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await phone(browser, `/browse/hubs/${IT.id}/queues`);
+  t.after(close);
+  await step(page).getByRole('link', { name: /^About to breach/ }).waitFor({ timeout: 10_000 });
+  // A finger, through the browser's own touch input: the pointer events a phone sends.
+  const touch = await page.context().newCDPSession(page);
+  const swipe = async (fromX, toX, y = 500) => {
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: fromX, y }] });
+    for (let step = 1; step <= 8; step++) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: fromX + ((toX - fromX) * step) / 8, y }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  await swipe(150, 340);
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => location.pathname), `/browse/hubs/${IT.id}/queues`, 'a swipe from the middle went up');
+  await swipe(4, 220);
+  await at(page, `/browse/hubs/${IT.id}`);
+  await swipe(4, 220);
+  await at(page, '/browse');
+  assert.deepEqual(failures, []);
+});
