@@ -44,7 +44,7 @@
     {/snippet}
   </Sheet>
   {#if mode === 'layered'}
-    <Dialog bind:isOpen={isDialogOpen} title="Save these filters?" dismissLabel="Close">
+    <Dialog bind:isOpen={isDialogOpen} size="s" title="Save these filters?" dismissLabel="Close">
       They are kept on this device.
       {#snippet actions()}
         <Button tone="secondary" onclick={() => (isDialogOpen = false)}>Cancel</Button>

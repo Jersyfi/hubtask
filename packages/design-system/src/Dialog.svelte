@@ -21,12 +21,36 @@
   // the body holds a field, the focus goes into the field instead; where it holds none, the
   // browser's own answer stands, because focusing a destructive button for somebody would be
   // worse than focusing nothing.
+  //
+  // ## The three sizes (page-system §5)
+  //
+  // `size` is the rung of the dialog ladder: `s` a confirmation or one field, `m` two to six fields,
+  // `l` up to twelve in three groups or one list to pick from. A sized dialog keeps its head and
+  // foot and scrolls only its body. Below `medium` an `m` or an `l` takes the whole screen - the
+  // close control at the start of its bar, the title, and the primary at the end, where a thumb
+  // finds it - and its foot goes, since the bar now holds both ways out. Without `size` it keeps the
+  // look it had before the sizes, so no caller changes by accident; each names its rung in turn.
+  //
+  // `onDismiss` is asked before the close control, Escape or the backdrop close it. Answering
+  // `false` keeps it open, and the caller then opens its *Discard changes?* Dialog S - the one
+  // dialog allowed over another. A close by an action never asks.
 
   import type { Snippet } from 'svelte';
 
+  import Button from './Button.svelte';
   import IconButton from './IconButton.svelte';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
+
+  /** The primary of a sized dialog: drawn last in the foot, and in the bar when it is full screen. */
+  export interface DialogAction {
+    readonly label: string;
+    readonly onclick: () => void;
+    readonly tone?: 'primary' | 'danger';
+    readonly disabledReason?: string;
+    readonly isBusy?: boolean;
+    readonly busyLabel?: string;
+  }
 
   interface Props {
     /** The question or the subject, as a heading. Resolved text (ADR-0011). */
@@ -39,14 +63,31 @@
     dismissLabel?: string;
     /** Ran when it closes, however it closed. */
     onClose?: () => void;
-    /** A dialog worked in rather than answered - capture - takes the wide measure. */
+    /** A dialog worked in rather than answered - capture - takes the wide measure. Before `size`. */
     isWide?: boolean;
-    /** The buttons that answer it. The primary one is the caller's to name and to place last. */
+    /** The rung of the dialog ladder (page-system §5.1). */
+    size?: 's' | 'm' | 'l';
+    /** The one primary, named with the dialog's verb. With `size`, the component places it. */
+    primary?: DialogAction;
+    /** Asked before the person closes it without answering; `false` keeps it open. */
+    onDismiss?: () => boolean;
+    /** The buttons that answer it - *Cancel*; the primary goes into `primary` where there is one. */
     actions?: Snippet;
     children: Snippet;
   }
 
-  let { title, isOpen = $bindable(false), dismissLabel, onClose, isWide = false, actions, children }: Props = $props();
+  let {
+    title,
+    isOpen = $bindable(false),
+    dismissLabel,
+    onClose,
+    isWide = false,
+    size,
+    primary,
+    onDismiss,
+    actions,
+    children,
+  }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -74,6 +115,14 @@
     isOpen = false;
   }
 
+  /** A close the person asked for without answering: the caller may want to confirm it first. */
+  function dismiss(): boolean {
+    if (!isOpen) return false;
+    if (onDismiss && !onDismiss()) return false;
+    isOpen = false;
+    return true;
+  }
+
   $effect(() => {
     const dialog = node;
     if (!dialog) return;
@@ -87,7 +136,11 @@
     if (!dialog.open) dialog.showModal();
     firstField()?.focus();
 
-    const handle = layers.open('dialog', close);
+    // Refused, the dismissal leaves the dialog open, so it goes back into the register - below the
+    // confirmation the caller opens next, which is opened later at the same rank.
+    let handle = layers.open('dialog', function onEscape() {
+      if (!dismiss()) handle = layers.open('dialog', onEscape);
+    });
     const onKeydown = escapeHandler();
     document.addEventListener('keydown', onKeydown);
 
@@ -119,7 +172,8 @@
      opened again within that task; only an element still closed means it was closed. -->
 <dialog
   class="dialog"
-  data-wide={isWide ? '' : undefined}
+  data-wide={isWide && !size ? '' : undefined}
+  data-size={size}
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
@@ -127,19 +181,33 @@
     if (!event.currentTarget.open) close();
   }}
   onclick={(event) => {
-    if (dismissLabel !== undefined && event.target === node) close();
+    if (dismissLabel !== undefined && event.target === node) dismiss();
   }}
 >
   <div class="panel">
-    <header class="head">
+    <header class="head" data-dismissible={dismissLabel !== undefined ? '' : undefined}>
       <h2 id={titleId} class="title">{title}</h2>
+      {#if primary && size}
+        <span class="bar-primary">
+          <Button tone={primary.tone ?? 'primary'} size="sm" onclick={primary.onclick} disabledReason={primary.disabledReason} isBusy={primary.isBusy} busyLabel={primary.busyLabel}>
+            {primary.label}
+          </Button>
+        </span>
+      {/if}
       {#if dismissLabel}
-        <IconButton icon="x" label={dismissLabel} size="sm" onclick={() => close()} />
+        <span class="dismiss"><IconButton icon="x" label={dismissLabel} size="sm" onclick={() => dismiss()} /></span>
       {/if}
     </header>
     <div class="body" bind:this={body}>{@render children()}</div>
-    {#if actions}
-      <footer class="actions">{@render actions()}</footer>
+    {#if actions || primary}
+      <footer class="actions">
+        {@render actions?.()}
+        {#if primary}
+          <Button tone={primary.tone ?? 'primary'} onclick={primary.onclick} disabledReason={primary.disabledReason} isBusy={primary.isBusy} busyLabel={primary.busyLabel}>
+            {primary.label}
+          </Button>
+        {/if}
+      </footer>
     {/if}
   </div>
 </dialog>
@@ -164,6 +232,90 @@
   }
 
   .dialog[data-wide] { width: min(var(--layout-dialog-wide), 100% - var(--sp-400)); }
+
+  /* ── The sizes ─────────────────────────────────────────────────────────────
+
+     A sized dialog is a column of three: the head and the foot stay, the body between them
+     scrolls. It stands at most the window less two `sp.600` margins high, and is never wider than
+     the window less the same. */
+  .dialog[data-size] {
+    inline-size: min(var(--dialog-size), 100% - var(--sp-600) * 2);
+    max-inline-size: 100%;
+    max-block-size: calc(100% - var(--sp-600) * 2);
+    overflow: hidden;
+  }
+
+  .dialog[data-size='s'] { --dialog-size: var(--layout-dialog-s); }
+  .dialog[data-size='m'] { --dialog-size: var(--layout-dialog-m); }
+  .dialog[data-size='l'] { --dialog-size: var(--layout-dialog-l); }
+
+  .dialog[data-size][open] { display: flex; flex-direction: column; }
+
+  .dialog[data-size] .panel {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    gap: 0;
+    padding: 0;
+  }
+
+  .dialog[data-size] .head { align-items: center; gap: var(--sp-150); padding: var(--sp-300) var(--sp-300) var(--sp-150); }
+  .dialog[data-size] .title { flex: 1; font-size: var(--fs-500); }
+  .dialog[data-size] .body {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-250);
+    padding: var(--sp-100) var(--sp-300) var(--sp-200);
+  }
+  .dialog[data-size] .actions {
+    gap: var(--sp-150);
+    padding: var(--sp-200) var(--sp-300);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  .bar-primary { display: none; }
+  .dismiss { display: inline-flex; }
+
+  /* Below `medium` an M or an L is the whole screen: the close control first, the title, the
+     primary at the end of the bar; the foot goes, the bar holds both ways out. An S stays a
+     centred card - a confirmation is answered, not worked in. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .dialog[data-size='m'],
+    .dialog[data-size='l'] {
+      inline-size: 100%;
+      block-size: 100%;
+      max-block-size: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .dialog[data-size='m'] .head,
+    .dialog[data-size='l'] .head {
+      padding: var(--sp-100) var(--sp-150);
+      padding-block-start: calc(var(--sp-100) + env(safe-area-inset-top, 0));
+      border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    }
+
+    .dialog[data-size='m'] .title,
+    .dialog[data-size='l'] .title { font-size: var(--fs-300); }
+
+    .dialog[data-size='m'] .dismiss,
+    .dialog[data-size='l'] .dismiss { order: -1; }
+
+    .dialog[data-size='m'] .bar-primary,
+    .dialog[data-size='l'] .bar-primary { display: inline-flex; }
+
+    .dialog[data-size='m'] .head[data-dismissible] ~ .actions,
+    .dialog[data-size='l'] .head[data-dismissible] ~ .actions { display: none; }
+
+    .dialog[data-size] .body { padding: var(--sp-200); }
+
+    .dialog[data-size='s'] { inline-size: calc(100% - var(--sp-300) * 2); }
+  }
 
   .dialog::backdrop {
     background: var(--bg-scrim);
