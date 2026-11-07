@@ -158,7 +158,11 @@
     onnavigate: (path: string) => void;
   }
 
-  const { id, openItemId, section, template, layoutAsked, viewAsked, onnavigate }: Props = $props();
+  const { id: idAsked, openItemId, section, template, layoutAsked, viewAsked, onnavigate }: Props = $props();
+  // The id as a derived value: `LazyView` spreads a new props object on every change of address,
+  // and an effect reading the prop itself would re-run on a `?layout=` or `?item=` - its cleanup
+  // emptying the selection the screen keeps across its views (design-system.md §11.9).
+  const id = $derived(idAsked);
 
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
