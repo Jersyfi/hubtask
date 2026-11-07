@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, EmptyState, Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -350,7 +350,7 @@
         {#if portfolios === undefined}
           <Skeleton lines={3} />
         {:else if portfolios.length === 0}
-          <p class="why">{t('app.product_home.roadmaps_none')}</p>
+          <EmptyState kind="unused" icon="calendar" title={t('app.product_home.roadmaps_none_title')} description={t('app.product_home.roadmaps_none')} />
         {:else}
           <ul class="hubs">
             {#each portfolios as each (each.id)}
@@ -370,7 +370,7 @@
     {#if createPlaces.length > 0}
       <BoardTemplates bind:chosen={boardStart} bind:format={boardFormat} onpick={startBoard} />
     {:else if !isReading}
-      <p class="why">{t('app.product_home.templates_none')}</p>
+      <EmptyState kind="unused" icon="layout-template" title={t('app.product_home.templates_none_title')} description={t('app.product_home.templates_none')} />
     {/if}
   {:else}
     {#if isUnusedHere && currentTab === tabs[0]?.id}
