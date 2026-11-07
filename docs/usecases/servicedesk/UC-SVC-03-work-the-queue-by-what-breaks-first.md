@@ -5,7 +5,7 @@ context: servicedesk
 actors: [PE-handler]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
-state: verified
+state: partial
 tasks: []
 checked_by: [infrastructure/postgres/query/Sla_test.go, core/domain/model/view/Filter_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, apps/webapp/e2e/servicedeskwalk.test.mjs, apps/webapp/src/lib/servicedesk/queues.test.ts, apps/webapp/e2e/productsband.test.mjs]
 ---
@@ -32,7 +32,17 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 8. After a merge, a public reply on the request merged into reaches the merged request's requester too: a requester by mail gets the reply's mail with the ticket key of the request merged into, each address once, and a portal requester is told under *The team answers a request I raised* on their own request; an internal note reaches neither.
 9. Beside a request the handler also sees up to twenty configuration items its requester owns, by name, only of the hubs where the handler may read them and assets are switched on; merged and disposed ones are left out, and another workspace's never appear.
 
+10. In a hub with a desk and the service desk on, the sidebar's *Queues* lists the hub's queues -
+    its saved views marked as queues, or *Mine*, *Unassigned*, *About to breach* and *All open*
+    where it has none - each with its count from one read of the hub's queues
+    (`GET /hubs/{hubId}/queues`), a count holding entries about to breach or breached on the danger
+    surface; opening one shows its table over every desk of the hub.
+
 ## Where it ends
 
 * A merged request's portal requester is told of a reply on their own request and reads the request merged into through its `duplicates` link, its public replies only (UC-SVC-05 check 10, by the owner's fourth answers, item 7); the rest of the request merged into stays the team's.
 * A queue is a saved view with a filter and a sort. Handing a request out by round robin, by load or to a group is the collection's assignment policy (UC-WRK-11); canned replies and macros are UC-SVC-06.
+
+## Today
+
+* Check 10: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).

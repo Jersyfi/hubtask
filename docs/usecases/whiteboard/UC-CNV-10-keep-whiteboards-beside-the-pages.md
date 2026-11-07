@@ -1,0 +1,57 @@
+---
+id: UC-CNV-10
+title: Keep whiteboards beside the pages
+context: whiteboard
+actors: [PE-member, PE-person, PE-agent, PE-scripter]
+deployments: [D1, D2, D3, D4, D5, D6, D7]
+serves: [P-03, P-05, P-08, P-19]
+state: specified
+tasks: []
+checked_by: []
+---
+
+# Keep whiteboards beside the pages
+
+## Goal
+
+A team files its whiteboards where they belong among its pages — the retro under *Team*, the story
+map under *Product* — in the same tree, in the order it chooses.
+
+## Story
+
+After the sprint the team creates *Retro Sprint 41* from ＋ on the page *Team*. It stands under
+*Team* between two pages. Later somebody drags the old *Story map* from the top level under
+*Product*.
+
+## How to check
+
+1. A whiteboard carries its parent page (or none, at the top of the space) and its place among its
+   siblings, pages and boards in one order; `GET /hubs/{hubId}/whiteboards` with `order=TREE`
+   answers them in tree order.
+2. A whiteboard is created under a page and after a sibling; `POST /whiteboards/{id}:move` places it
+   under another page of the same hub or at the top, after a sibling page or board, with `WRITE_ITEMS`
+   at the hub.
+3. A page of another hub as the parent is refused `whiteboards.parent_other_space`; a whiteboard as
+   the parent of a page or a board is refused `whiteboards.no_children`.
+4. Trashing a page lifts the whiteboards directly under it to the page's parent at its place;
+   nothing of a board is lost.
+5. Boards that existed before stand at the top level after the pages, ordered by title.
+6. In the sidebar's *Contents*, ＋ on a page offers *Whiteboard*, and a board is dragged before,
+   after or under a page like a page, never into another board.
+7. A board under a restricted page is still read by the hub's readers; whoever may not read the page
+   sees the board under its nearest page they may read, or at the top.
+
+## Where it ends
+
+* A whiteboard has no children and moves to no other hub; copying stays export and import.
+* A board's access stays the hub's; a page's restriction does not reach it.
+
+## Today
+
+* Check 1: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 2: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 3: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 4: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 5: not met — built in step 2 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 6: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 7: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).

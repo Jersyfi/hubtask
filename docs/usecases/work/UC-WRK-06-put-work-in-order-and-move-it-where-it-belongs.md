@@ -5,7 +5,7 @@ context: work
 actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
-state: built
+state: partial
 tasks: [B-08, F2-12, F10-11]
 checked_by: [test/integration/move_test.go, core/domain/model/work/Path_test.go, apps/webapp/e2e/container.test.mjs, core/domain/service/Move_test.go, core/application/service/work/MoveWorkItem_test.go, apps/webapp/e2e/entrymenu.test.mjs]
 ---
@@ -42,6 +42,9 @@ by kind.
    removed from the entry and **listed to the person by kind** — nothing is dropped silently.
 7. The history of the entry records `item.moved` for a move and `item.reordered` for a change of
    rank, and a rule can react to either.
+8. An entry dragged from a list or a board onto a collection in the sidebar moves there: within the
+   same hub at once, with *Undo* for 8 seconds; to a collection of another hub through the dialog of
+   check 5, with its warning; a collection the person may not write in takes no drop.
 
 ## Where it ends
 
@@ -50,3 +53,7 @@ by kind.
 * No manual sort that is private to one person: the rank is the collection's. A personal order is
   a saved view's sort ([UC-WRK-17](./UC-WRK-17-filter-sort-and-save-a-view-of-my-work.md)).
 * Moving many entries at once is [UC-WRK-08](./UC-WRK-08-change-many-entries-at-once.md).
+
+## Today
+
+* Check 8: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
