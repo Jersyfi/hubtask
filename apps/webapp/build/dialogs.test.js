@@ -68,7 +68,6 @@ const NOT_YET_MIGRATED = [
   'lib/time/CostRates.svelte',
   'lib/time/RunningTimer.svelte',
   'lib/whiteboards/BoardCanvas.svelte',
-  'lib/workflows/PublishDialog.svelte',
   'lib/workspace/CreateContainerDialog.svelte',
   'lib/workspace/EmergencyAccessDialog.svelte',
   'lib/workspace/NarrowingDialog.svelte',
