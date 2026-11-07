@@ -16,6 +16,9 @@
     "./mark/*": "./dist/mark/*",
     "./tokens.json": "./tokens/tokens.json"
   },
+  "sideEffects": [
+    "**/*.css"
+  ],
   "files": [
     "dist",
     "src",
