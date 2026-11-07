@@ -42,6 +42,11 @@
     onreorder?: (id: string, to: number) => void;
     /** *Filter* and the like, at the end of the bar. */
     tools?: Snippet;
+    /**
+     * A menu among the views, after the last (the inventory's *Manage ▾*): the caller's menu, its
+     * trigger a plain button drawn as a view, `aria-current="page"` while one of its parts is open.
+     */
+    more?: Snippet;
     /** The compact drawing: the chip and its sheet. The width is the caller's to know. */
     isCompact?: boolean;
     /** The sheet's heading and its *Close*. */
@@ -49,7 +54,7 @@
     closeLabel?: string;
   }
 
-  const { label, views, current, onnavigate, addLabel, onadd, onreorder, tools, isCompact = false, sheetTitle, closeLabel }: Props = $props();
+  const { label, views, current, onnavigate, addLabel, onadd, onreorder, tools, more, isCompact = false, sheetTitle, closeLabel }: Props = $props();
 
   let list = $state<HTMLUListElement | null>(null);
   let isSheetOpen = $state(false);
@@ -139,6 +144,7 @@
     <span>{shown?.label}</span>
     <Icon name="chevron-down" size="sm" />
   </button>
+  {#if more}<span class="more">{@render more()}</span>{/if}
   <Sheet title={sheetTitle ?? label} closeLabel={closeLabel ?? ''} bind:isOpen={isSheetOpen}>
     <nav aria-label={label}>
       <ul>
@@ -183,6 +189,7 @@
           </a>
         </li>
       {/each}
+      {#if more}<li class="more">{@render more()}</li>{/if}
       {#if onadd && addLabel}
         <li>
           <button type="button" class="add" tabindex="-1" aria-label={addLabel} title={addLabel} onclick={onadd}>
@@ -224,7 +231,8 @@
   li[data-lifted] { opacity: 0.5; }
 
   a,
-  .add {
+  .add,
+  .more :global(button) {
     display: inline-flex;
     align-items: center;
     gap: calc(var(--sp-050) + var(--sp-025));
@@ -244,16 +252,19 @@
 
   a :global(.icon),
   .add :global(.icon),
+  .more :global(.icon),
   .chip :global(.icon) {
     inline-size: var(--layout-nav-actionglyph);
     block-size: var(--layout-nav-actionglyph);
   }
 
   a:hover,
-  .add:hover { color: var(--text-primary); }
+  .add:hover,
+  .more :global(button:hover) { color: var(--text-primary); }
 
   /* Rule 3: the colour, the weight and the bar under it - and `aria-current` without any of them. */
-  a[aria-current='page'] {
+  a[aria-current='page'],
+  .more :global(button[aria-current='page']) {
     color: var(--text-brand);
     font-weight: var(--fw-semibold);
     border-block-end-color: var(--accent-primary);
@@ -261,6 +272,7 @@
 
   a:focus-visible,
   .add:focus-visible,
+  .more :global(button:focus-visible),
   .chip:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);

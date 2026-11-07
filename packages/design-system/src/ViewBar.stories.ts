@@ -21,7 +21,7 @@ export const collection: Story = {
 export const tool: Story = {
   name: 'A hub tool’s tabs',
   about:
-    'The tool Plan: Schedule · Releases · Sprints, never a second strip.',
+    'The tool Plan: Schedule · Releases · Sprints, never a second strip; a menu among the views (the inventory’s Manage ▾) is drawn as one of them.',
   args: { mode: 'tool' },
 };
 

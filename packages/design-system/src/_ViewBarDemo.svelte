@@ -3,6 +3,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Button from './Button.svelte';
+  import Icon from './Icon.svelte';
+  import Menu from './Menu.svelte';
   import ViewBar, { type View } from './ViewBar.svelte';
 
   const { mode = 'collection' }: { mode?: 'collection' | 'tool' | 'home' | 'compact' } = $props();
@@ -54,6 +56,15 @@
   sheetTitle="Views"
   closeLabel="Close"
 >
+  {#snippet more()}
+    {#if mode === 'tool'}
+      <Menu label="Manage" items={[{ id: 'runs', label: 'Runs' }, { id: 'import', label: 'Import' }]} onselect={(id) => (current = id)}>
+        {#snippet trigger(props)}
+          <button type="button" aria-current={current === 'runs' || current === 'import' ? 'page' : undefined} {...props}>Manage <Icon name="chevron-down" size="sm" /></button>
+        {/snippet}
+      </Menu>
+    {/if}
+  {/snippet}
   {#snippet tools()}
     {#if mode === 'collection'}<Button size="sm" tone="secondary" icon="funnel">Filter</Button>{/if}
   {/snippet}
