@@ -328,7 +328,8 @@ test('chromium: 375 px — an action that opens a dialog takes focus into it and
 
 /** Opens the palette by its key with focus on the page, and types the words. */
 async function ask(page, words) {
-  await page.locator('body').click({ position: { x: 1, y: 300 } });
+  // Focus leaves any field without a click: the column's left edge is the sidebar, whose rows go places.
+  await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
   await page.keyboard.press('Control+k');
   await listOf(page).waitFor();
   if (words) await page.keyboard.type(words);

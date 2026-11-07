@@ -170,10 +170,13 @@ for (const width of [1280, 768, 375]) {
         (await page.locator('[data-proposed-collection]').textContent())?.trim(),
         `${DESTINATIONS[0].hub_name} · ${DESTINATIONS[0].name}`,
       );
-      // Nothing counts it: no figure beside the jumble anywhere it is named.
-      for (const link of await page.getByRole('link', { name: /Inbox/ }).all()) {
+      // Nothing counts the proposal (UC-JUM-07): the sidebar's *Inbox* counts the arrivals still
+      // undecided (the navigation concept, §2.2) - this one - and no other place names a figure.
+      for (const link of await page.locator('main').getByRole('link', { name: /Inbox/ }).all()) {
         assert.doesNotMatch((await link.textContent()) ?? '', /\d/, 'the jumble is counted');
       }
+      const inbox = page.locator('aside.sidenav ul.foryou li').filter({ hasText: 'Inbox' }).locator('.figure');
+      if (await inbox.count()) assert.equal((await inbox.textContent())?.trim(), '1', 'the sidebar counts more than the arrivals');
       await evidence(page, `arrival-2-proposed-${width}.png`);
 
       await page.getByRole('button', { name: 'Make this entry' }).first().click();
