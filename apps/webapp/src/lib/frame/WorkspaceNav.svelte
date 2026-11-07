@@ -574,7 +574,7 @@
           key: `${star.kind}:${star.id}`,
           label,
           icon: container ? markOf(container) : STAR_ICONS[star.kind],
-          color: container?.color_token ?? undefined,
+          color: container ? (container.color_token ?? DEFAULT_TILE) : undefined,
           href: STAR_PATHS[star.kind](star.id),
           figure: figure?.text,
           isUrgent: figure?.isUrgent ?? false,
