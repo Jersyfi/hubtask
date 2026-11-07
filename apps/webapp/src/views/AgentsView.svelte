@@ -400,7 +400,7 @@
     </Banner>
   {/if}
 
-  <ViewBar label={t('app.agents.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
+  <ViewBar label={t('app.agents.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

@@ -1491,7 +1491,8 @@
            the time and the saved views; ＋ saves a view; the filter and the entries' tools at its
            end. On a phone the bar is a chip and the filter one button whose sheet holds the rest. -->
       <!-- `data-tour`: where the tour points for "the same entries, two ways". -->
-      <div class="views" data-tour="layouts">
+      <!-- On a phone the chip and the filter stand on one line, as the concept's phone draws them. -->
+      <div class="views" data-tour="layouts" data-compact={viewport.isCompact ? '' : undefined}>
         <PlaceViews
           placeId={container.id}
           current={barCurrent}
@@ -1499,6 +1500,14 @@
           add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
           tools={viewport.isCompact ? undefined : barTools}
         />
+        {#if viewport.isCompact}
+          <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
+            <div class="tools">
+              {@render insideToggle()}
+              <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+            </div>
+          </div>
+        {/if}
       </div>
       {#snippet insideToggle()}
         {#if isListLayout(layout) && listsBoth}
@@ -1518,14 +1527,6 @@
         <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
         {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
       {/snippet}
-      {#if viewport.isCompact}
-        <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
-          <div class="tools">
-            {@render insideToggle()}
-            <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-          </div>
-        </div>
-      {/if}
     {/if}
 
     {#if container.type === 'HUB' && container.private}
@@ -1877,6 +1878,9 @@
   }
 
   .tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+
+  .views[data-compact] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); padding-block-end: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .views[data-compact] .toolbar { position: static; padding: 0; border: 0; }
 
   .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 

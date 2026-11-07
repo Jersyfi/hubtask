@@ -226,7 +226,7 @@
         current={strips.selected}
         isCompact={viewport.isCompact}
         sheetTitle={t('app.nav.tool_inventory')}
-        closeLabel={t('app.nav.close')}
+        closeLabel={t('app.sheet_close')}
         onnavigate={go}
         more={strips.manage.length > 0 ? manage : undefined}
       />

@@ -111,7 +111,7 @@
     {#snippet figure()}{#if figureText}<span class="figure" data-desk-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
 
-  <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
+  <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
 
   {#if current === 'settings' || current === 'reports'}
     <ServiceDeskView isEmbedded {onnavigate} parts={current === 'reports' ? ['report'] : ['calendars', 'policies', 'replies', 'organisations']} />

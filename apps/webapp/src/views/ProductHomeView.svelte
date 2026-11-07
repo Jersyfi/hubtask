@@ -336,7 +336,7 @@
   />
 
   {#if tabs.length > 1}
-    <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
+    <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
   {/if}
 
   {#if currentTab === 'notes'}

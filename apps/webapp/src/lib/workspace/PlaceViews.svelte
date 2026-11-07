@@ -99,8 +99,8 @@
     {views}
     {current}
     isCompact={viewport.isCompact}
-    sheetTitle={place.name}
-    closeLabel={t('app.nav.close')}
+    sheetTitle={t('app.nav.views_sheet')}
+    closeLabel={t('app.sheet_close')}
     onnavigate={(id) => onnavigate(views.find((each) => each.id === id)?.href ?? '/')}
   />
 {/if}

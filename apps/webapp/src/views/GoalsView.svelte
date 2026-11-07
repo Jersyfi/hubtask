@@ -304,7 +304,7 @@
   {#if hub}
     <PlaceViews placeId={hub} tool="goals" {current} {onnavigate} />
   {:else}
-    <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
+    <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
   {/if}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}

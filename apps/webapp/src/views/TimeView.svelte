@@ -376,7 +376,7 @@
        among it - stands under the header, where it wraps (user-experience.md §5.12). -->
   {#if viewport.isCompact}<div class="timer-line"><RunningTimer {onnavigate} /></div>{/if}
 
-  <ViewBar label={t('app.time.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={select} />
+  <ViewBar label={t('app.time.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={select} />
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
