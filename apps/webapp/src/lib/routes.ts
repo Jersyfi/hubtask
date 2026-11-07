@@ -86,6 +86,13 @@ export const ROUTES: readonly Route[] = [
   { name: 'workspace-address', pattern: '/administration/address', area: 'administration' },
   { name: 'presets', pattern: '/administration/presets', area: 'administration' },
   { name: 'people', pattern: '/administration/people', area: 'administration' },
+  // An object with lists of its own opens as its record page at its own address (page-system
+  // §5.1): a person, a group, a role, a service account, an app.
+  { name: 'person', pattern: '/administration/people/:id', area: 'administration' },
+  { name: 'group', pattern: '/administration/groups/:id', area: 'administration' },
+  { name: 'role', pattern: '/administration/roles/:id', area: 'administration' },
+  { name: 'service-account', pattern: '/administration/machines/:id', area: 'administration' },
+  { name: 'app', pattern: '/administration/apps/:id', area: 'administration' },
   // Kept as addresses that moved (`movedTo`): the groups and the roles are tabs of *People* now.
   { name: 'groups', pattern: '/administration/groups', area: 'administration' },
   { name: 'permissions', pattern: '/administration/permissions', area: 'administration' },
@@ -133,6 +140,9 @@ export const ROUTES: readonly Route[] = [
   // everybody for a new password. Beside the provider rather than inside the workspace screen,
   // because ADR-0065 decision 3 is one screen per question and this is a question of its own.
   { name: 'sign-in-settings', pattern: '/administration/sign-in', area: 'administration' },
+  // One section per address (page-system PS-9), and a sign-in provider as its record page.
+  { name: 'sign-in-provider', pattern: '/administration/sign-in/providers/:id', area: 'administration' },
+  { name: 'sign-in-section', pattern: '/administration/sign-in/:section', area: 'administration' },
   // The links the sign-in footer shows: the same rule, but nothing about how somebody signs in.
   { name: 'legal', pattern: '/administration/legal', area: 'administration' },
   // The AI provider and the consent that lets it be used: where a workspace's content may

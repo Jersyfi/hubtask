@@ -303,12 +303,12 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_people',
     rows: [
       // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
-      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'], words: 'app.nav.words_people' },
+      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions', 'person', 'group', 'role'], words: 'app.nav.words_people' },
       // The providers are the sign-in screen's *Ways and providers* tab (§E9); their old address
       // moved there and is claimed here, so the row is current the moment it lands.
-      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'sign-in-section', 'sign-in-provider', 'identity-provider'] },
       { id: 'legal', icon: 'book-open', code: 'app.signin_settings.legal', path: '/administration/legal', routes: ['legal'] },
-      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps'], isAdvanced: true },
+      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps', 'service-account', 'app'], isAdvanced: true },
     ],
   },
   {
