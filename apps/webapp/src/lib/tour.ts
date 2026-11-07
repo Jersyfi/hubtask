@@ -50,9 +50,12 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   const frame = workspace.frame ?? 'pinned';
   const steps: Step[] = [
     // Below `expanded` the tree is behind the bar's ☰, which is what the step points at and says.
+    // On a phone the hubs are the bottom bar's *Browse* (the navigation concept §9).
     frame === 'pinned'
       ? { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' }
-      : { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'block-end', words: 'hubs_drawer' },
+      : frame === 'phone'
+        ? { id: 'hubs', route: '/', selector: 'nav a[href="/browse"]', side: 'block-end', words: 'hubs_browse' }
+        : { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'block-end', words: 'hubs_drawer' },
     // *Your products live here*: the *Products* section's first row in the column, which only
     // `expanded` pins - found by its address, the one thing a row of that section is known by.
     ...(workspace.firstProduct && frame === 'pinned'
@@ -89,7 +92,7 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   steps.push(
     workspace.collectionId
       ? { id: 'make', route: `/collections/${workspace.collectionId}`, selector: '[data-opener="add-entry"]', side: 'block-end' }
-      : { id: 'make', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' },
+      : { id: 'make', route: '/', selector: frame === 'phone' ? 'nav a[href="/browse"]' : '[data-tour="hubs"]', side: frame === 'phone' ? 'block-end' : 'inline-end' },
   );
   return steps;
 }

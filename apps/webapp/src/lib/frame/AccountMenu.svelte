@@ -17,7 +17,7 @@
   // What choosing a row does is the frame's to decide - a route, the tour, signing out - so the
   // choice goes back as the destination's id.
 
-  import { Avatar, Drawer, Icon, ListRow, Menu, Stack } from '@hubtask/design-system/components';
+  import { Avatar, Menu, NavItem, Sheet } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
   import type { Destination } from '../navigation.ts';
@@ -37,10 +37,16 @@
      * line ("In the web app at …"), and the outward mark after it (UC-SYN-07 check 7).
      */
     elsewhere?: (id: string) => string | undefined;
+    /**
+     * The workspaces this device knows, for the phone's sheet: the switch stands in it (the
+     * navigation concept §9, UC-ID-25), the current one checked. Empty where there is none to list.
+     */
+    workspaces?: readonly { readonly host: string; readonly name: string; readonly isHere: boolean }[];
+    onworkspace?: (host: string) => void;
     onchoose: (id: string) => void;
   }
 
-  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, onchoose }: Props = $props();
+  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), elsewhere, workspaces = [], onworkspace, onchoose }: Props = $props();
 
   /**
    * The list in three bands: the places that are the reader's own, the ways through, and signing
@@ -61,6 +67,9 @@
         index > 0 && (destination.startsBand === true || index === destinations.length - 1),
     })),
   );
+
+  /** In the sheet the workspaces are listed, so *Switch workspace* is not a row of its own there. */
+  const sheetItems = $derived(workspaces.length > 0 ? items.filter((item) => item.id !== 'switch-workspace') : items);
 
   function choose(id: string) {
     isSheetOpen = false;
@@ -85,29 +94,29 @@
 {#if isSheet}
   <!-- The avatar in the bar on a phone too (user-experience.md §2.6): the bottom bar's fifth slot
        is *More*, so the account is opened where it is on every other width. -->
-  <button type="button" class="account" aria-label={name} aria-haspopup="dialog" onclick={() => (isSheetOpen = true)}>
+  <button type="button" class="account" data-sheet-trigger aria-label={name} aria-haspopup="dialog" onclick={() => (isSheetOpen = true)}>
     <span aria-hidden="true"><Avatar {name} src={picture} size="sm" /></span>
   </button>
-  <Drawer bind:isOpen={isSheetOpen} edge="block-end" title={t('app.nav.you')} dismissLabel={t('app.dismiss')}>
-    <Stack gap="200">
-      {@render who()}
-      <ul class="rows">
-        {#each items as item (item.id)}
-          <li class:apart={item.hasSeparatorBefore}>
-            <ListRow onactivate={() => choose(item.id)}>
-              {#snippet leading()}<Icon name={item.icon} size="sm" />{/snippet}
-              {#if item.sub}
-                <span class="label">{item.label}<span class="sub">{item.sub}</span></span>
-              {:else}
-                {item.label}
-              {/if}
-              {#snippet trailing()}{#if item.sub}<Icon name="external-link" size="sm" />{/if}{/snippet}
-            </ListRow>
-          </li>
+  <Sheet title={t('app.nav.you')} closeLabel={t('app.sheet_close')} bind:isOpen={isSheetOpen}>
+    {@render who()}
+    {#if workspaces.length > 0}
+      <h3 class="group-label">{t('app.nav.workspace_group')}</h3>
+      <ul class="rows" data-workspaces>
+        {#each workspaces as each (each.host)}
+          <NavItem label={each.name} icon={each.isHere ? 'check' : 'hub'} isCurrent={each.isHere} size="touch"
+            onnavigate={() => { isSheetOpen = false; if (!each.isHere) onworkspace?.(each.host); }} />
         {/each}
+        {#if items.some((item) => item.id === 'add-workspace')}
+          <NavItem label={t('app.app_workspaces.add')} icon="plus" size="touch" onnavigate={() => choose('add-workspace')} />
+        {/if}
       </ul>
-    </Stack>
-  </Drawer>
+    {/if}
+    <ul class="rows">
+      {#each sheetItems.filter((item) => workspaces.length === 0 || item.id !== 'add-workspace') as item (item.id)}
+        <NavItem label={item.label} icon={item.icon} figure={item.sub} size="touch" onnavigate={() => choose(item.id)} />
+      {/each}
+    </ul>
+  </Sheet>
 {:else}
   <Menu label={t('app.nav.you')} {items} placement={{ side: 'block-end', align: 'end' }} onselect={choose}>
     {#snippet head()}
@@ -168,13 +177,19 @@
 
   .rows { margin: 0; padding: 0; list-style: none; }
 
-  .label { display: flex; flex-direction: column; min-width: 0; }
-
-  .sub { color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
-
-  .apart {
-    margin-block-start: var(--sp-100);
-    padding-block-start: var(--sp-100);
-    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  /* In the phone's sheet: the rows as one card each band, the avatar a thumb's size. */
+  [data-sheet-trigger] { inline-size: var(--layout-nav-touchrow); block-size: var(--layout-nav-touchrow); }
+  .group-label {
+    margin: var(--sp-150) var(--sp-050) var(--sp-050);
+    color: var(--text-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--fs-065);
+    font-weight: var(--fw-medium);
+    /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
+  .who[data-sheet] + .rows, .group-label + .rows, .rows + .rows { margin-block-start: var(--sp-100); }
+  .rows + .rows { padding-block-start: var(--sp-100); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+
 </style>

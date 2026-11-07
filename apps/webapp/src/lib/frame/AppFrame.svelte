@@ -53,6 +53,11 @@
   import { homeModuleOf } from '../product/producttour.ts';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
+  import PhoneBar from './PhoneBar.svelte';
+  import { TabStacks, ascentOf, depthOf, phoneTabs, starOf, tabOf, type PhoneTab } from '../phone.ts';
+  import { levelOf } from '../sidebar.ts';
+  import { jumble } from '../data/jumble.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
   import { page } from './page.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
 
@@ -365,6 +370,118 @@
         : 'more',
   );
 
+  // ---- The phone (the navigation concept §9) ---------------------------------------------------
+  // On `compact` every screen of the workspace is a step of a stack: the bar shows the avatar on a
+  // tab's root and *‹ the level above* deeper, the bottom bar is *Today · Browse · ＋ · Inbox ·
+  // Search*, each tab keeping its own stack. A section (the administration, Your settings, the
+  // instance) keeps its own list behind ☰ instead.
+  const isPhone = $derived(session.isSignedIn && viewport.isCompact && !section);
+  const phoneTab = $derived<PhoneTab | undefined>(tabOf(route));
+  const tabs = new TabStacks();
+  $effect(() => {
+    if (!isPhone) return;
+    const tab = phoneTab;
+    void route.path;
+    void route.query;
+    untrack(() => tabs.seen(tab, location.pathname + location.search));
+  });
+  // Every hub's level is read on the phone too, as the sidebar reads it wider: a collection's
+  // name and hub are then known on a deep link, without the sidebar drawn.
+  const phoneHubIds = $derived(isPhone ? containers.hubs.map((each) => each.id).join(',') : '');
+  $effect(() => {
+    const ids = phoneHubIds === '' ? [] : phoneHubIds.split(',');
+    return untrack(() => {
+      const stops = ids.map((id) => containers.openLevel(id));
+      ids.forEach((id) => people.open({ hubId: id }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const hubOfPlace = (id: string) => {
+    const container = containers.find(id);
+    return container ? (container.type === 'HUB' ? container.id : (container.parent_id ?? undefined)) : undefined;
+  };
+  const phoneLevel = $derived(levelOf(route, hubOfPlace, page.place));
+  const phoneHubId = $derived(route.name?.startsWith('browse-') ? route.params['id'] : phoneLevel.kind === 'hub' ? phoneLevel.hubId : undefined);
+  const phoneBack = $derived.by(() => {
+    if (!isPhone) return undefined;
+    if (page.ascent) return page.ascent;
+    const ascent = ascentOf(route, phoneHubId);
+    if (!ascent) return undefined;
+    const label =
+      ascent.kind === 'hubs' ? t('app.nav.hubs')
+        : ascent.kind === 'browse' ? t('app.nav.browse')
+          : ascent.kind === 'contents' ? t('app.nav.contents')
+            : (containers.find(ascent.hubId)?.name ?? t('app.nav.hubs'));
+    return { label, path: ascent.path };
+  });
+  const phoneStar = $derived.by(() => {
+    const star = isPhone ? starOf(route) : undefined;
+    return star && page.title ? { ...star, name: page.title } : undefined;
+  });
+  // Every change of the stack is said with the place and its level ("IT operations, level 2"),
+  // once the screen has named itself.
+  let saidFor = '';
+  $effect(() => {
+    if (!isPhone || !page.title) return;
+    const key = `${route.path}?${new URLSearchParams(route.query).toString()}`;
+    const title = page.title;
+    untrack(() => {
+      if (key === saidFor) return;
+      const first = saidFor === '';
+      saidFor = key;
+      if (!first) announcer.say(t('app.nav.level_announced', { title, depth: depthOf(route, phoneHubId) }));
+    });
+  });
+  // An edge swipe goes one level up: a press that starts at the start edge and travels inward.
+  let swipe: { x: number; y: number; rtl: boolean } | null = null;
+  function swipeStart(event: PointerEvent) {
+    if (!isPhone || !phoneBack || event.pointerType === 'mouse') return;
+    const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
+    const edge = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sp-200')) || 0;
+    const fromEdge = rtl ? window.innerWidth - event.clientX : event.clientX;
+    swipe = fromEdge <= edge ? { x: event.clientX, y: event.clientY, rtl } : null;
+  }
+  function swipeEnd(event: PointerEvent) {
+    if (!swipe) return;
+    const travel = (swipe.rtl ? -1 : 1) * (event.clientX - swipe.x);
+    const drift = Math.abs(event.clientY - swipe.y);
+    if (travel > window.innerWidth / 4 && drift < travel && phoneBack) go(phoneBack.path);
+    swipe = null;
+  }
+  // The inbox's count on its tab: the arrivals still undecided.
+  const hasJumbleHere = $derived(holdsHere('READ') === true);
+  $effect(() => {
+    if (!isPhone || !hasJumbleHere) return;
+    return untrack(() => jumble.open('NEW'));
+  });
+  const phoneDestinations = $derived(
+    phoneTabs({ hasJumble: hasJumbleHere, hasCapture: isCaptureOffered }).map((tab) =>
+      tab.id === 'capture'
+        ? { id: tab.id, label: t(tab.code), icon: tab.icon, isAction: true }
+        : { id: tab.id, label: t(tab.code), icon: tab.icon, href: tab.path, count: tab.id === 'inbox' ? jumble.of('NEW').length || undefined : undefined },
+    ),
+  );
+  /** Hidden where the screen is the work's own canvas: a whiteboard (§9). */
+  const isBottomBarShown = $derived(route.name !== 'whiteboard');
+  function choosePhoneTab(id: string) {
+    if (id === 'capture') return capture.summon();
+    // Search opens the palette, the bar having no field to type in: its *All results* and *Open
+    // search* are the way to the search screen (UC-WRK-27 check 1).
+    if (id === 'search') return palette.summon();
+    const tab = phoneTabs({ hasJumble: hasJumbleHere, hasCapture: isCaptureOffered }).find((each) => each.id === id);
+    const target = tab ? tabs.target(tab, phoneTab) : undefined;
+    if (target) go(target);
+  }
+
+  // The account sheet lists this device's workspaces, the switch among them (UC-ID-25).
+  $effect(() => {
+    if (!isPhone || !isAccountOpen || deviceList.installation === undefined) return;
+    untrack(() => void deviceList.show());
+  });
+  const phoneWorkspaces = $derived(
+    deviceList.installation === undefined ? [] : deviceList.rows.map((row) => ({ host: row.host, name: row.name, isHere: row.host === location.hostname || row.host === location.host })),
+  );
+
   /** The drawer below `expanded`, closed by a navigation; focus returns to ☰. */
   let isDrawerOpen = $state(false);
   /** The account sheet on `compact`, opened by "You" in the bottom bar. */
@@ -567,7 +684,7 @@
 
 </script>
 
-<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn ? '' : undefined}>
+<div class="frame" data-density={viewport.isSpacious ? 'spacious' : undefined} data-filled={page.fills ? '' : undefined} data-bottombar={session.isSignedIn && (!isPhone || isBottomBarShown) ? '' : undefined}>
   <!-- The first stop on every page (2.4.1): the frame puts many stops between its top and the
        first control of the content, and this is the one that skips them.
        Hidden until it takes focus, so nobody with a pointer ever sees it. The click is handled
@@ -621,6 +738,18 @@
       </div>
     {/if}
   {/snippet}
+  {#if isPhone}
+    <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={go} star={phoneStar} menu={page.menu}>
+      {#snippet account()}
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
+          workspaces={phoneWorkspaces} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
+      {/snippet}
+      {#snippet marks()}
+        <NoticeMark />
+        <SyncLine />
+      {/snippet}
+    </PhoneBar>
+  {:else}
   <AppBar
     label={t('app.nav.bar')}
     search={session.isSignedIn && !viewport.isCompact ? barSearch : undefined}
@@ -666,6 +795,7 @@
       {/if}
     {/snippet}
   </AppBar>
+  {/if}
 
   <div class="body">
     <!-- The navigation is the frame's, not a view's: it is the same tree on every screen, and a
@@ -673,7 +803,7 @@
          the tour's `hubs` step finds it; below that the same tree is in the drawer and the step
          finds the bar's ☰ instead. -->
     {#if session.isSignedIn}
-      {#if viewport.isBelowExpanded}
+      {#if viewport.isBelowExpanded && !isPhone}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
             <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
@@ -681,7 +811,7 @@
             <WorkspaceNav {route} located={page.place} hasForYou={!viewport.isCompact} onnavigate={go} />
           {/if}
         </NavDrawer>
-      {:else}
+      {:else if !viewport.isBelowExpanded}
         <!-- The width a person dragged travels as a custom property through the CSS object model,
              which the content security policy allows where it refuses a `style` attribute. The pixels are
              the person's own drag, not a design value. design-system-lint-ignore -->
@@ -719,7 +849,8 @@
     {/if}
     <!-- `tabindex="-1"` so that the skip link has somewhere to land; a landmark is not a control,
          so it draws no ring when it does. -->
-    <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
+    <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}
+      onpointerdown={swipeStart} onpointerup={swipeEnd} onpointercancel={() => (swipe = null)}>
       <div class="content">
         <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
              app's update, the recovery codes, an emergency access, the AI notice, a step-up that
@@ -817,7 +948,14 @@
 
   <!-- The primary destinations where a thumb is, on `compact` only; "You" opens the account group
        as a sheet from the bottom, because there is no avatar in the bar on a phone. -->
-  {#if session.isSignedIn && viewport.isCompact}
+  {#if isPhone && isBottomBarShown}
+    <BottomBar
+      label={t('app.nav.label')}
+      destinations={phoneDestinations}
+      current={phoneTab}
+      onnavigate={choosePhoneTab}
+    />
+  {:else if session.isSignedIn && viewport.isCompact && !isPhone}
     <BottomBar
       label={t('app.nav.label')}
       destinations={bottomDestinations}
