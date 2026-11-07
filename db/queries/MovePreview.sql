@@ -9,7 +9,7 @@ JOIN work_item w ON w.tenant_id = re.tenant_id AND w.id = re.entry_id
 WHERE re.tenant_id = current_tenant_id() AND w.collection_id = sqlc.arg('collection_id')
   AND r.hub_id = sqlc.arg('hub_id');
 
--- name: MoveKeptSlaClocks :one
+-- name: MoveKeptSLAClocks :one
 -- The collection's running or paused clocks measured by a policy of the hub: they keep it.
 SELECT count(*)::int FROM entry_sla s
 JOIN work_item w ON w.tenant_id = s.tenant_id AND w.id = s.item_id

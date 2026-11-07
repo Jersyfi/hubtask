@@ -181,7 +181,7 @@ func (h PreviewContainerMove) leftovers(ctx context.Context, collection domain.C
 			Code: "containers.move_keeps_releases", Params: map[string]string{"count": strconv.Itoa(releases), "hub_id": collection.ParentID.String()},
 		})
 	}
-	clocks, err := h.Leftovers.KeptSlaClocks(ctx, collection.ID, collection.ParentID)
+	clocks, err := h.Leftovers.KeptSLAClocks(ctx, collection.ID, collection.ParentID)
 	if err != nil {
 		return err
 	}

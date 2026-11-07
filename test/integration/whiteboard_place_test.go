@@ -134,7 +134,7 @@ func TestTheBackfillFilesOldBoardsAfterThePagesByTitle(t *testing.T) {
 	if err := pool.QueryRow(ctx, "SELECT order_key FROM whiteboard WHERE id = $1", board.String()).Scan(&second); err != nil {
 		t.Fatal(err)
 	}
-	if !(first > "a3" && second > first && strings.HasPrefix(first, "a3")) {
+	if first <= "a3" || second <= first || !strings.HasPrefix(first, "a3") {
 		t.Errorf("keys %q (Archive map), %q (Retro); want both after the page a3, Archive map first", first, second)
 	}
 }

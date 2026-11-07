@@ -13393,5 +13393,22 @@
   "app.sync.draft.field.notes": "Notizen",
   "app.sync.draft.field.name": "Name",
   "app.sync.draft.field.description": "Beschreibung",
-  "app.sync.draft.field.body": "Text"
+  "app.sync.draft.field.body": "Text",
+  "accounts.nav_products_invalid": "{value} ist kein Produkt, das sich in der Seitenleiste ordnen lässt.",
+  "accounts.nav_products_hidden_invalid": "{value} ist kein Produkt, das sich in der Seitenleiste ausblenden lässt.",
+  "accounts.nav_hubs_order_invalid": "{value} ist keine Art, die Hubs zu ordnen.",
+  "accounts.nav_contents_mode_invalid": "{value} ist keine Art, die Inhalte eines Hubs zu zeigen.",
+  "stars.too_many": "Du kannst höchstens {max} Orte markieren.",
+  "stars.kind_invalid": "{value} lässt sich nicht markieren.",
+  "stars.id_required": "Eine Markierung braucht den Ort, auf den sie zeigt.",
+  "stars.member_invalid": "Eine Markierung braucht eine Art und den Ort, auf den sie zeigt.",
+  "stars.version_conflict": "Deine Markierungen wurden auf einem anderen Gerät geändert. Lade sie neu und versuche es noch einmal.",
+  "whiteboards.after_not_sibling": "Der Platz, hinter den es soll, liegt nicht auf dieser Ebene.",
+  "whiteboards.no_children": "Ein Whiteboard hat keine Unterseiten.",
+  "whiteboards.parent_not_found": "Die Seite, unter die es soll, gibt es nicht mehr.",
+  "whiteboards.parent_other_space": "Ein Whiteboard bleibt in seinem Hub; wähle eine Seite dieses Hubs.",
+  "containers.move_takes_structure": "Es übernimmt die Felder, Ansichten und Regeln des Ziel-Hubs.",
+  "containers.move_loses_access": "{count} Personen sehen es danach nicht mehr.",
+  "containers.move_keeps_releases": "{count} Einträge bleiben in Releases des Hubs, den es verlässt.",
+  "containers.move_keeps_sla_policies": "{count} laufende SLA-Uhren behalten die Richtlinien des Hubs, den es verlässt."
 }

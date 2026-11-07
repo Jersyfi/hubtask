@@ -24,7 +24,7 @@ WITH last_page AS (
   GROUP BY tenant_id, hub_id
 ), ranked AS (
   SELECT w.tenant_id, w.id, w.hub_id,
-         row_number() OVER (PARTITION BY w.tenant_id, w.hub_id ORDER BY lower(w.title), w.id) AS n
+         row_number() OVER (PARTITION BY w.tenant_id, w.hub_id ORDER BY w.title COLLATE hubtask_name, w.id) AS n
   FROM whiteboard w
   WHERE w.order_key IS NULL
 )

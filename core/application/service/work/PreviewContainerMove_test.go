@@ -29,7 +29,7 @@ type moveLeftovers struct{ releases, clocks int }
 func (l moveLeftovers) KeptReleaseEntries(context.Context, shared.ID, shared.ID) (int, error) {
 	return l.releases, nil
 }
-func (l moveLeftovers) KeptSlaClocks(context.Context, shared.ID, shared.ID) (int, error) {
+func (l moveLeftovers) KeptSLAClocks(context.Context, shared.ID, shared.ID) (int, error) {
 	return l.clocks, nil
 }
 

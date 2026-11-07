@@ -1595,6 +1595,6 @@ type Kudos interface {
 type MoveLeftovers interface {
 	// KeptReleaseEntries counts the collection's entries held by a release of the hub.
 	KeptReleaseEntries(ctx context.Context, collectionID, hubID shared.ID) (int, error)
-	// KeptSlaClocks counts the collection's running or paused clocks measured by a policy of the hub.
-	KeptSlaClocks(ctx context.Context, collectionID, hubID shared.ID) (int, error)
+	// KeptSLAClocks counts the collection's running or paused clocks measured by a policy of the hub.
+	KeptSLAClocks(ctx context.Context, collectionID, hubID shared.ID) (int, error)
 }

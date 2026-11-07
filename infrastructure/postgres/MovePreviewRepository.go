@@ -7,10 +7,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // MovePreviewRepository counts what a collection's move leaves at the hub it leaves, inside the
@@ -29,13 +30,13 @@ func (MovePreviewRepository) KeptReleaseEntries(ctx context.Context, collectionI
 	return leftovers("release entries", count, err)
 }
 
-// KeptSlaClocks counts the collection's running or paused clocks measured by a policy of the hub.
-func (MovePreviewRepository) KeptSlaClocks(ctx context.Context, collectionID, hubID shared.ID) (int, error) {
+// KeptSLAClocks counts the collection's running or paused clocks measured by a policy of the hub.
+func (MovePreviewRepository) KeptSLAClocks(ctx context.Context, collectionID, hubID shared.ID) (int, error) {
 	queries, collection, hub, err := leftoverArgs(ctx, collectionID, hubID)
 	if err != nil {
 		return 0, err
 	}
-	count, err := queries.MoveKeptSlaClocks(ctx, sqlc.MoveKeptSlaClocksParams{CollectionID: collection, HubID: hub})
+	count, err := queries.MoveKeptSLAClocks(ctx, sqlc.MoveKeptSLAClocksParams{CollectionID: collection, HubID: hub})
 	return leftovers("clocks", count, err)
 }
 

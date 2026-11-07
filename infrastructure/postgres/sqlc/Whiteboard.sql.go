@@ -525,7 +525,7 @@ SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.
        w.created_by, w.created_at, w.updated_by, w.updated_at, w.version, w.parent_page_id, w.order_key
 FROM whiteboard w
 WHERE w.tenant_id = current_tenant_id() AND w.hub_id = $1 AND w.deleted_at IS NULL
-ORDER BY w.parent_page_id NULLS FIRST, w.order_key NULLS LAST, lower(w.title), w.id
+ORDER BY w.parent_page_id NULLS FIRST, w.order_key NULLS LAST, w.title COLLATE hubtask_name, w.id
 LIMIT $2
 `
 
@@ -939,7 +939,7 @@ const whiteboardsUnderPages = `-- name: WhiteboardsUnderPages :many
 SELECT id FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL
   AND parent_page_id = ANY($1::uuid[])
-ORDER BY order_key NULLS LAST, lower(title), id
+ORDER BY order_key NULLS LAST, title COLLATE hubtask_name, id
 `
 
 // The boards outside the trash standing directly under any of these pages, in tree order - what a

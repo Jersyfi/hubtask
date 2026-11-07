@@ -35,7 +35,7 @@ func (q *Queries) MoveKeptReleaseEntries(ctx context.Context, arg MoveKeptReleas
 	return column_1, err
 }
 
-const moveKeptSlaClocks = `-- name: MoveKeptSlaClocks :one
+const moveKeptSLAClocks = `-- name: MoveKeptSLAClocks :one
 SELECT count(*)::int FROM entry_sla s
 JOIN work_item w ON w.tenant_id = s.tenant_id AND w.id = s.item_id
 JOIN sla_policy p ON p.tenant_id = s.tenant_id AND p.key = s.policy_key
@@ -43,14 +43,14 @@ WHERE s.tenant_id = current_tenant_id() AND w.collection_id = $1
   AND p.hub_id = $2 AND s.standing IN ('RUNNING', 'PAUSED')
 `
 
-type MoveKeptSlaClocksParams struct {
+type MoveKeptSLAClocksParams struct {
 	CollectionID pgtype.UUID
 	HubID        pgtype.UUID
 }
 
 // The collection's running or paused clocks measured by a policy of the hub: they keep it.
-func (q *Queries) MoveKeptSlaClocks(ctx context.Context, arg MoveKeptSlaClocksParams) (int32, error) {
-	row := q.db.QueryRow(ctx, moveKeptSlaClocks, arg.CollectionID, arg.HubID)
+func (q *Queries) MoveKeptSLAClocks(ctx context.Context, arg MoveKeptSLAClocksParams) (int32, error) {
+	row := q.db.QueryRow(ctx, moveKeptSLAClocks, arg.CollectionID, arg.HubID)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err

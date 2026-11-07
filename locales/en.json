@@ -13393,5 +13393,22 @@
   "app.sync.draft.field.notes": "Notes",
   "app.sync.draft.field.name": "Name",
   "app.sync.draft.field.description": "Description",
-  "app.sync.draft.field.body": "Text"
+  "app.sync.draft.field.body": "Text",
+  "accounts.nav_products_invalid": "{value} is not a product that can be ordered in the sidebar.",
+  "accounts.nav_products_hidden_invalid": "{value} is not a product that can be hidden in the sidebar.",
+  "accounts.nav_hubs_order_invalid": "{value} is not a way to order the hubs.",
+  "accounts.nav_contents_mode_invalid": "{value} is not a way to show a hub's contents.",
+  "stars.too_many": "You can star at most {max} places.",
+  "stars.kind_invalid": "{value} cannot be starred.",
+  "stars.id_required": "A star needs the place it points at.",
+  "stars.member_invalid": "A star needs a kind and the place it points at.",
+  "stars.version_conflict": "Your stars were changed on another device. Reload them and try again.",
+  "whiteboards.after_not_sibling": "The place to put it after is not at this level.",
+  "whiteboards.no_children": "A whiteboard has no subpages.",
+  "whiteboards.parent_not_found": "The page to put it under no longer exists.",
+  "whiteboards.parent_other_space": "A whiteboard stays in its own hub; choose a page of this hub.",
+  "containers.move_takes_structure": "It takes the fields, views and rules of the destination hub.",
+  "containers.move_loses_access": "{count} people will no longer see it.",
+  "containers.move_keeps_releases": "{count} entries stay in releases of the hub it leaves.",
+  "containers.move_keeps_sla_policies": "{count} running SLA clocks keep the policies of the hub it leaves."
 }
