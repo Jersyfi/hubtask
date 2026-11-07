@@ -328,7 +328,9 @@ jobs:
           # Exactly these versions, not the crate: r-efi offers "MIT OR Apache-2.0 OR
           # LGPL-2.1-or-later" and is taken under MIT, which the action cannot tell from the
           # expression. apps/webapp/src-tauri/deny.toml records the same choice for cargo-deny.
-          allow-dependencies-licenses: pkg:cargo/r-efi@5.3.0, pkg:cargo/r-efi@6.0.0
+          # elkjs offers "EPL-2.0 OR GPL-3.0-or-later" and is taken under EPL-2.0, as its earlier
+          # versions were (THIRD-PARTY-LICENSES.md).
+          allow-dependencies-licenses: pkg:cargo/r-efi@5.3.0, pkg:cargo/r-efi@6.0.0, pkg:npm/elkjs@0.12.1
           fail-on-severity: high
 
   licences:
