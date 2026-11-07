@@ -25,16 +25,24 @@
     Badge,
     Banner,
     Button,
+    DataTable,
+    Dialog,
+    EmptyState,
+    FilterBar,
     Input,
-    Menu,
+    ListPage,
     OneTimeSecret,
     PageHeader,
+    Radio,
     RoleBadge,
     Select,
     Spinner,
     Stack,
-    Table,
     Tabs,
+    type DataColumn,
+    type DataRowMenu,
+    type Filter,
+    type MenuItem,
   } from '@hubtask/design-system/components';
   import type { InvitationDelivery, MembershipRole, SignInDetail } from '@hubtask/sync-engine';
 
@@ -47,7 +55,11 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { endsTheLastOwner, grantableOf, mayIssueWayIn, mayResetFactor, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
-  import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
+  import ManagedAccountDialog from '../lib/people/ManagedAccountDialog.svelte';
+  import DiscardDialog from '../lib/page/DiscardDialog.svelte';
+  import { DiscardGuard } from '../lib/page/discard.svelte.ts';
+  import { matchesChoice, matchesSearch } from '../lib/page/list.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
   import RenewDialog from '../lib/people/RenewDialog.svelte';
   import ResetFactorDialog from '../lib/people/ResetFactorDialog.svelte';
@@ -80,9 +92,11 @@
     person?: string;
     /** Replaces the address when the tab changes, so a reload or a link keeps it. */
     onnavigate?: (path: string) => void;
+    /** Moves to another screen - a person's record - keeping this one in the history. */
+    onopen?: (path: string) => void;
   }
 
-  let { tab, person, onnavigate }: Props = $props();
+  let { tab, person, onnavigate, onopen }: Props = $props();
 
   // The groups and what each role means are tabs here (ux-inventory §E8): both answer "who may do
   // what in this workspace", and a reader comparing a group's reach with a role's meaning should
@@ -117,27 +131,43 @@
     onnavigate?.(next === 'people' ? '/administration/people' : `/administration/people?tab=${next}`);
   }
 
-  /**
-   * Which of the three ways in is open: an invitation, an account without an address, or a role
-   * for somebody already here. One at a time, opened from the head's one primary action, so the
-   * screen is the list first and a form only when somebody is being added.
-   */
-  type Way = 'invite' | 'managed' | 'grant';
-  let adding = $state<Way | undefined>(undefined);
-  let addingPanel = $state<HTMLElement | undefined>(undefined);
+  // The three ways in - an invitation, an account without an address, a role for somebody already
+  // here - each a Dialog M (page-system §5.1: two to six fields in one group), opened from the
+  // head's one primary, so the screen is the list first and a form only while somebody is added.
+  let isInviting = $state(false);
+  let isGranting = $state(false);
+  let isAddingManaged = $state(false);
+  let inviteForm = $state<HTMLFormElement | undefined>(undefined);
 
-  async function open(next: string): Promise<void> {
-    adding = next as Way;
+  function open(next: string): void {
     missing = {};
-    await tick();
-    addingPanel?.querySelector<HTMLElement>('input, select')?.focus();
+    inviteRefusal = undefined;
+    grantRefusal = undefined;
+    isInviting = next === 'invite';
+    isGranting = next === 'grant';
+    isAddingManaged = next === 'managed';
   }
 
   function close(): void {
-    adding = undefined;
     missing = {};
-    document.querySelector<HTMLElement>('[data-opener="add-person"]')?.focus();
+    isInviting = false;
+    isGranting = false;
+    inviteRefusal = undefined;
+    grantRefusal = undefined;
   }
+
+  const inviteGuard = new DiscardGuard(() => inviteEmail.trim() !== '' || inviteName.trim() !== '' || inviteRole !== '', () => {
+    inviteEmail = '';
+    inviteName = '';
+    inviteRole = '';
+    inviteWhere = WORKSPACE_PLACE;
+    close();
+  });
+  const grantGuard = new DiscardGuard(() => chosenSubject !== '' || chosenRole !== '', () => {
+    chosenSubject = '';
+    chosenRole = '';
+    close();
+  });
 
   /** The workspace itself. One scope, named once, so the read and the writes cannot disagree. */
   const TENANT = { scopeType: 'TENANT' } as const;
@@ -157,7 +187,6 @@
    * rather than given more first. A single entry is chosen from that entry's own *People*.
    */
   let inviteWhere = $state(WORKSPACE_PLACE);
-  let invited = $state<string | undefined>(undefined);
   /** Why the address was refused, said at the address field (UC-ID-14 check 6, WCAG 3.3.1). */
   let inviteRefusal = $state<string | undefined>(undefined);
   /** Why the role could not be given after the invitation went out, said at the form. */
@@ -168,7 +197,6 @@
    * the reader dismisses it. Held here only: the link is a credential, and nothing keeps it.
    */
   let handedOver = $state<{ readonly who: string; readonly link: string } | undefined>(undefined);
-  let handedOverPanel = $state<HTMLElement | undefined>(undefined);
 
   /** Whether an invitation goes out by mail or as a link, as the manifest says before the press. */
   const way = $derived(inviteWay(manifest.value?.features));
@@ -333,14 +361,42 @@
       .map((id) => ({ value: id, label: accounts.nameOf(id) ?? t('app.people.unnamed') })),
   );
 
-  const columns = $derived([
-    { id: 'who', label: t('app.people.who'), isSortable: true },
-    ...(mayManage ? [{ id: 'email', label: t('app.people.email_column'), isSortable: true }] : []),
-    { id: 'role', label: t('app.people.role_column'), isSortable: true },
-    { id: 'status', label: t('app.people.status'), isSortable: true },
-    { id: 'actions', label: t('app.people.actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'who', label: t('app.people.who'), isSortable: true, priority: 1 },
+    ...(mayManage ? [{ id: 'email', label: t('app.people.email_column'), isSortable: true, priority: 2 as const }] : []),
+    { id: 'role', label: t('app.people.role_column'), isSortable: true, priority: 3 },
+    { id: 'status', label: t('app.people.status'), isSortable: true, isStatus: true },
   ]);
 
+  // What narrows the list (PS-7). `GET /memberships` has no search or filter of its own and answers
+  // the workspace's people whole, so these narrow what is loaded - which is everything.
+  let search = $state('');
+  let roleChoice = $state('');
+  let standingChoice = $state('');
+  const roleChoices = $derived([...new Set(holders.map((holder) => holder.role))]);
+  const standingChoices = $derived(
+    [...new Set(holders.map((holder) => statusOf(holder.accountId)).filter((status): status is string => status !== undefined))],
+  );
+  const standingWord = (status: string) => (status === 'INVITED' ? t('app.people.invited') : t(`app.people.status_${status.toLowerCase()}`));
+  const roleWord = (role: string) => t(`app.people.role.${role.toLowerCase()}`);
+  const shown = $derived(
+    holders.filter(
+      (holder) =>
+        matchesChoice(roleChoice || undefined, holder.role) &&
+        matchesChoice(standingChoice || undefined, statusOf(holder.accountId)) &&
+        matchesSearch(search, [nameOf(holder), holder.accountId ? (signIn.details[holder.accountId]?.email ?? undefined) : undefined]),
+    ),
+  );
+  const chips = $derived<Filter[]>([
+    { id: 'role', label: t('app.people.filter_role', { role: roleChoice ? roleWord(roleChoice) : t('app.page.any') }), isActive: roleChoice !== '' },
+    { id: 'standing', label: t('app.people.filter_standing', { standing: standingChoice ? standingWord(standingChoice) : t('app.page.any') }), isActive: standingChoice !== '' },
+  ]);
+  const activeFilters = $derived(chips.filter((filter) => filter.isActive).length);
+  function clearFilters(): void {
+    search = '';
+    roleChoice = '';
+    standingChoice = '';
+  }
   // The list on this screen is the one that actually grows - a workspace of two hundred people is
   // two hundred rows, and the server answers `GET /memberships` in one response with no cursor.
   // It is sorted here, over the list the client is already holding whole, and it is **not** paged:
@@ -351,7 +407,7 @@
   // column is looking for "every administrator together", and `ADMIN` before `MEMBER` in a
   // language where the words run the other way would be an order that looks arbitrary.
   const order = sorting({
-    rows: () => holders,
+    rows: () => shown,
     read: (holder, columnId) => {
       if (columnId === 'role') return t(`app.people.role.${holder.role.toLowerCase()}`);
       if (columnId === 'status') return statusOf(holder.accountId);
@@ -459,7 +515,6 @@
       { kind: 'field', key: 'inviteRole', code: 'app.forms.choose', isFilled: inviteRole !== '' },
     ]);
     if (!isComplete(missing)) return;
-    invited = undefined;
     handedOver = undefined;
     inviteRefusal = undefined;
     grantRefusal = undefined;
@@ -480,15 +535,17 @@
     } finally {
       isWriting = false;
     }
+    // The invitation stands even where the role could not be given; the reason is said at the form,
+    // which stays open for it.
+    if (answer.grantFailure !== undefined) grantRefusal = renderProblem(answer.grantFailure as never, messages).message;
+    else isInviting = false;
     if (answer.link !== undefined) {
       // UC-ID-14 check 5: no mail went out, and the screen does not pretend one did.
+      isInviting = false;
       await showLink(address, answer.link, t('app.people.invite_link_announced'));
     } else {
-      invited = address;
-      announcer.say(t('app.people.invited_announced'));
+      sent(address);
     }
-    // The invitation stands even where the role could not be given; the reason is said at the form.
-    if (answer.grantFailure !== undefined) grantRefusal = renderProblem(answer.grantFailure as never, messages).message;
     // An invitation went out, so the form empties: a second press with the same address in it
     // would be a second invitation the reader did not mean to send.
     inviteEmail = '';
@@ -503,7 +560,6 @@
    */
   async function renew(holder: Holder): Promise<void> {
     if (!holder.accountId) return;
-    invited = undefined;
     handedOver = undefined;
     const accountId = holder.accountId;
     await attempt(async () => {
@@ -511,8 +567,7 @@
       if (link !== undefined) {
         await showLink(nameOf(holder), link, t('app.people.renew_link_announced'));
       } else {
-        invited = nameOf(holder);
-        announcer.say(t('app.people.invited_announced'));
+        sent(nameOf(holder));
         readDeliveries(invitedIds);
       }
     });
@@ -524,7 +579,6 @@
    */
   async function handOver(holder: Holder): Promise<void> {
     if (!holder.accountId) return;
-    invited = undefined;
     handedOver = undefined;
     const accountId = holder.accountId;
     await attempt(async () => {
@@ -534,12 +588,17 @@
     });
   }
 
-  /** Shows the one answer's link, and takes the reader to it: it may be drawn far from the press. */
+  /** Shows the one answer's link in its Dialog S, the only place it is ever drawn. */
   async function showLink(who: string, link: string, said: string): Promise<void> {
     handedOver = { who, link };
     announcer.say(said);
     await tick();
-    handedOverPanel?.focus();
+  }
+
+  /** An invitation went out by mail: said once, in a toast and through the live region. */
+  function sent(who: string): void {
+    toast.show({ text: t('app.people.invited_sent', { email: who }), tone: 'success' });
+    announcer.say(t('app.people.invited_announced'));
   }
 
   async function grant(): Promise<void> {
@@ -554,8 +613,11 @@
     await attempt(() =>
       people.grant({ accountId: chosenSubject }, chosenRole as MembershipRole, TENANT), t('app.people.granted_announced')
     );
+    if (failure !== undefined) return;
+    toast.show({ text: t('app.people.granted_announced'), tone: 'success' });
     chosenSubject = '';
     chosenRole = '';
+    close();
   }
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
@@ -571,6 +633,55 @@
           { id: 'grant', label: t('app.people.grant_title') },
         ],
   );
+  /** A row's ⋯ (PS-6): everything but its one verb, the destructive act last. */
+  function rowMenu(holder: Holder): DataRowMenu {
+    const status = statusOf(holder.accountId);
+    const items: MenuItem[] = [];
+    if (holder.accountId) items.push({ id: 'open', label: t('app.page.open') });
+    // View as (A6): the administration's answer for this person - their roles at a place, what they
+    // may do, and whether and why for a chosen permission.
+    if (holder.accountId && mayViewAs) items.push({ id: 'view_as', label: t('app.people.view_as'), icon: 'shield' });
+    if (holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && status === 'ACTIVE') {
+      items.push({ id: 'screens', label: viewingScreens === holder.accountId ? t('app.people.working') : t('app.view_as.start'), icon: 'eye' });
+    }
+    // Where the mail does not arrive: a link to hand over instead, the waiting mail cancelled -
+    // never both (identity.md §12).
+    if (status === 'INVITED' && way === 'mail' && mayWayIn(holder)) items.push({ id: 'hand_over', label: t('app.people.copy_invitation_link') });
+    if (isManaged(holder) && mayWayIn(holder) && addressOffered) items.push({ id: 'address', label: t('app.people.address_add') });
+    if (mayResetFactor(holder, actor.account?.id, status, people.grantableAt(TENANT), hasApp(holder.accountId))) {
+      items.push({ id: 'factor', label: t('app.people.factor_reset'), icon: 'key' });
+    }
+    // Absent for a role above the reader's own: taking it away is refused as handing it out is. On
+    // the workspace's last owner, which the server keeps, it stays, unavailable, with its reason
+    // (UC-WRK-32 check 1).
+    if (mayRevoke(holder.role, people.grantableAt(TENANT))) {
+      items.push({
+        id: 'revoke',
+        label: t('app.people.revoke_menu'),
+        isDestructive: true,
+        hasSeparatorBefore: items.length > 0,
+        disabledReason: endsTheLastOwner(holders, holder.membershipId, people.isCompleteAt(TENANT), canAct) ? t('app.people.last_owner') : undefined,
+      });
+    }
+    return { label: t('app.people.more_for', { name: nameOf(holder) }), items };
+  }
+
+  function onRowMenu(holder: Holder, id: string): void {
+    if (id === 'open' && holder.accountId) onopen?.(`/administration/people/${holder.accountId}`);
+    else if (id === 'view_as') onopen?.(`/administration/people?tab=permissions&person=${holder.accountId}`);
+    else if (id === 'screens') void viewScreens(holder.accountId as string);
+    else if (id === 'hand_over') void handOver(holder);
+    else if (id === 'address') addressing = { accountId: holder.accountId as string, who: nameOf(holder) };
+    else if (id === 'factor') resettingFactor = holder;
+    else if (id === 'revoke') revoking = holder;
+  }
+
+  const figure = $derived(
+    holders.length === 0
+      ? undefined
+      : t('app.people.figure', { people: String(holders.filter((holder) => holder.accountId).length), groups: String(groups.all.length) }),
+  );
+
   const addAction = $derived(
     current === 'people' && ways.length > 0
       ? {
@@ -593,72 +704,239 @@
   {/if}
 {/snippet}
 
-<Stack gap="300">
-  <!-- The section's page pattern (ADR-0063 decision 7): the trail says where in the
-     administration this screen is and leads back to its index, the title is read rather than
-     drawn where the bar carries it, and the content under the head keeps the reading measure.
-     The head is **not** in that measure - `PageHeader` folds by the width it has, so a head
-     inside a 60ch column folds like one on a phone and hides the trail behind the parent link.
+{#snippet strip()}
+  <!-- The page's one strip of sibling lists (page-system §4.3): a tab replaces the address, so a
+       reload or a link keeps it. -->
+  <Tabs label={t('app.people.title')} selected={current} onselect={select} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))} />
+{/snippet}
 
-     One primary action, *Add people*, with the three ways in its list (ux-inventory §E8): an
-     invitation is the verb, an account without an address and a role for somebody already here
-     are the other two. Each opens its form above the list.
-
-     No `onnavigate` on the trail: the crumb carries an `href` and the router takes every
-     same-origin link, so a handler here would be a second way to do what the link already does. -->
-  <PageHeader
-    title={t('app.people.title')}
-    isTitleInBar={viewport.isCompact}
-    primary={addAction}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'people', label: t('app.people.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
+{#if current === 'people'}
+  <ListPage
+    head={{
+      title: t('app.people.title'),
+      subtitle: figure,
+      breadcrumb: {
+        trail: [
+          { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+          { id: 'people', label: t('app.people.title') },
+        ],
+        label: t('app.admin.trail'),
+        expandLabel: t('app.admin.expand_trail'),
+      },
+      primary: addAction,
     }}
-  />
-
-  <Tabs
-    label={t('app.people.title')}
-    selected={current}
-    onselect={select}
-    tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
+    {strip}
   >
-    {#if current === 'groups'}
-      <GroupsView />
-    {:else if current === 'roles'}
-      <RolesView />
-    {:else if current === 'permissions'}
-      <PermissionsView {person} />
-    {:else}
-    <Stack gap="300">
-    <p class="quiet">{t('app.people.intro')}</p>
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.people.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        filters={chips}
+        moreLabel={t('app.page.more_filters')}
+        filtersLabel={t('app.page.filters', { count: String(activeFilters) })}
+        sheetTitle={t('app.page.filters', { count: '0' })}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+        showLabel={t('app.page.show_results', { count: String(shown.length) })}
+        clearLabel={t('app.page.clear')}
+        onclear={clearFilters}
+        countLabel={holders.length === 0 ? undefined : t('app.page.found', { shown: String(shown.length), count: String(holders.length) })}
+      >
+        {#snippet picker(filter: Filter)}
+          {#if filter.id === 'role'}
+            <Radio
+              label={t('app.people.role_column')}
+              bind:value={roleChoice}
+              options={[{ value: '', label: t('app.page.any') }, ...roleChoices.map((role) => ({ value: role, label: roleWord(role) }))]}
+            />
+          {:else}
+            <Radio
+              label={t('app.people.status')}
+              bind:value={standingChoice}
+              options={[{ value: '', label: t('app.page.any') }, ...standingChoices.map((status) => ({ value: status, label: standingWord(status) }))]}
+            />
+          {/if}
+        {/snippet}
+      </FilterBar>
+    {/snippet}
 
-    {#if failure}
+    {#if failure && !isGranting}
       <FailureNote problem={failure} />
     {/if}
 
-    {#if renewed}
-      <!-- The only time the new start password exists anywhere but the server's hash. -->
-      <Stack gap="150">
-        <StartPasswordResult
-          signInName={renewed.signInName}
-          startPassword={renewed.startPassword}
-          label={t('app.people.renewed_start_password', { who: renewed.who, name: renewed.signInName })}
-          onDismiss={() => (renewed = undefined)}
-        />
-      </Stack>
-    {/if}
+    <DataTable
+      label={t('app.people.title')}
+      {columns}
+      rows={holders.length === 0 ? [] : order.rows}
+      key={(holder: Holder) => holder.membershipId}
+      href={(holder: Holder) => (holder.accountId ? `/administration/people/${holder.accountId}` : undefined)}
+      rowLabel={(holder: Holder) => nameOf(holder)}
+      menu={rowMenu}
+      onmenu={onRowMenu}
+      actionsLabel={t('app.people.actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      sort={order.sort}
+      onSort={(next) => order.by(next)}
+      isBusy={isWriting}
+      shownLabel={holders.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(holder: Holder, column: DataColumn)}
+        {#if column.id === 'who'}
+          <!-- A membership granted to a group reaches the people in it; the group's own page is
+               where that list lives, and here it is named as what it is. -->
+          <span class="who">{nameOf(holder)}</span>
+        {:else if column.id === 'email'}
+          {@const detail = holder.accountId ? signIn.details[holder.accountId] : undefined}
+          {#if detail?.email}
+            <span class="address">{detail.email}</span>
+          {:else if detail}
+            <span class="quiet">{t('app.people.no_address')}</span>
+          {/if}
+        {:else if column.id === 'role'}
+          <RoleBadge label={roleWord(holder.role)} {scopeLabel} size="sm" />
+        {:else}
+          <span class="standing">
+            {#if statusOf(holder.accountId) === 'INVITED'}
+              <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
+              <Badge tone="info">{t('app.people.invited')}</Badge>
+            {:else if statusOf(holder.accountId)}
+              <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
+            {/if}
+            {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
+          </span>
+        {/if}
+      {/snippet}
+      {#snippet verb(holder: Holder)}
+        {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}
+          <!-- An invitation not yet accepted gets a new way to arrive: a link lost or run out would
+               otherwise leave the address taken for good. A link is a way in for whoever renews
+               it, so it is absent above the reader's own role. -->
+          <Button size="sm" tone="subtle" isBusy={isWriting} busyLabel={t('app.people.working')} onclick={() => void renew(holder)}>
+            {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
+          </Button>
+        {:else if isManaged(holder) && mayWayIn(holder)}
+          <Button size="sm" tone="subtle" onclick={() => (renewing = holder)}>{t('app.people.renew')}</Button>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if holders.length === 0}
+          <p class="quiet reading"><Spinner label={t('app.people.reading')} /> <span>{t('app.people.reading')}</span></p>
+        {:else}
+          <EmptyState kind="filtered" title={t('app.people.filtered_title')}>
+            {#snippet action()}<Button onclick={clearFilters}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
 
-    {#if invited}
-      <Banner tone="success">{t('app.people.invited_sent', { email: invited })}</Banner>
+    {#if addressWithheld}
+      <p class="quiet small">{t('app.people.address_needs_password')}</p>
     {/if}
+  </ListPage>
+
+  {#if ways.length > 0}
+  <!-- Invite somebody: four fields in one group, a Dialog M. -->
+  <Dialog
+    size="m"
+    title={t('app.people.invite_title')}
+    bind:isOpen={isInviting}
+    dismissLabel={t('app.people.add_close')}
+    onDismiss={inviteGuard.dismiss}
+    onClose={close}
+    primary={{
+      label: way === 'link' ? t('app.people.invite_link_button') : t('app.people.invite'),
+      isBusy: isWriting,
+      busyLabel: t('app.people.working'),
+      onclick: () => inviteForm?.requestSubmit(),
+    }}
+  >
+    <!-- What the press will do, said before it: a mail, or - where no mail goes out - a link to hand
+         over. Neither until the manifest has said which. -->
+    <p class="quiet small">
+      {way === 'link' ? t('app.people.invite_hint_link') : way === 'mail' ? t('app.people.invite_hint') : t('app.people.invite_hint_neutral')}
+    </p>
+    <form bind:this={inviteForm} onsubmit={invite}>
+      <Stack gap="150">
+        <div bind:this={inviteAddressField}>
+          <Input
+            label={t('app.people.invite_email')}
+            bind:value={inviteEmail}
+            type="email"
+            autocomplete="off"
+            spellcheck={false}
+            isRequired
+            error={inviteRefusal ?? (missing.email && !inviteEmail.trim() ? t(missing.email) : undefined)}
+            oninput={() => (inviteRefusal = undefined)}
+          />
+        </div>
+        <Input label={t('app.people.invite_name')} hint={t('app.people.invite_name_hint')} bind:value={inviteName} autocomplete="off" />
+        <Select label={t('app.people.invite_where')} hint={t('app.people.invite_where_hint')} bind:value={inviteWhere} options={inviteWhereOptions} />
+        <Select
+          label={t('app.people.role_column')}
+          hint={t('app.people.invite_role_hint')}
+          bind:value={inviteRole}
+          placeholder={t('app.people.choose_role')}
+          options={inviteRoleOptions}
+          error={missing.inviteRole && !inviteRole ? t(missing.inviteRole) : undefined}
+        />
+        {#if grantRefusal}
+          <Banner tone="warning">{grantRefusal}</Banner>
+        {/if}
+      </Stack>
+    </form>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => { if (inviteGuard.dismiss()) close(); }}>{t('app.page.cancel')}</Button>
+    {/snippet}
+  </Dialog>
+  <DiscardDialog guard={inviteGuard} />
+
+  <!-- A role for somebody already here: two fields, a Dialog M. -->
+  <Dialog
+    size="m"
+    title={t('app.people.grant_title')}
+    bind:isOpen={isGranting}
+    dismissLabel={t('app.people.add_close')}
+    onDismiss={grantGuard.dismiss}
+    onClose={close}
+    primary={{ label: t('app.people.grant'), isBusy: isWriting, busyLabel: t('app.people.working'), onclick: () => void grant() }}
+  >
+    <Stack gap="150">
+      <p class="quiet small">{t('app.people.grant_hint')}</p>
+      {#if failure}
+        <FailureNote problem={failure} />
+      {/if}
+      <Select
+        label={t('app.people.who')}
+        bind:value={chosenSubject}
+        placeholder={t('app.people.choose_person')}
+        options={candidates}
+        error={missing.subject && !chosenSubject ? t(missing.subject) : undefined}
+      />
+      <Select
+        label={t('app.people.role_column')}
+        bind:value={chosenRole}
+        placeholder={t('app.people.choose_role')}
+        options={roleOptions}
+        error={missing.grantRole && !chosenRole ? t(missing.grantRole) : undefined}
+      />
+    </Stack>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => { if (grantGuard.dismiss()) close(); }}>{t('app.page.cancel')}</Button>
+    {/snippet}
+  </Dialog>
+  <DiscardDialog guard={grantGuard} />
+  {/if}
+
+  {#if managedAllowed && grantable.length > 0}
+    <ManagedAccountDialog bind:isOpen={isAddingManaged} {roles} workspaceRoles={grantable} />
+  {/if}
+
+  <!-- The only time an invitation's link exists anywhere but as the server's hash: a Dialog S. -->
+  <Dialog size="s" title={t('app.people.invite_link_title')} isOpen={handedOver !== undefined} onClose={() => (handedOver = undefined)}>
     {#if handedOver}
-      <!-- The only time the link exists anywhere but as the server's hash. Focused when drawn: a
-           renewal pressed in the table above draws it here. -->
-      <div class="handed-over" tabindex="-1" bind:this={handedOverPanel} data-invitation-link>
+      <div data-invitation-link>
         <OneTimeSecret
           value={handedOver.link}
           label={t('app.people.invite_link', { name: handedOver.who })}
@@ -674,320 +952,78 @@
         />
       </div>
     {/if}
+  </Dialog>
 
-    {#if adding && ways.length > 0}
-      <div class="adding" bind:this={addingPanel}>
-        <Stack gap="150">
-          {#if adding === 'managed' && managedAllowed}
-            <ManagedAccountForm {roles} workspaceRoles={grantable} />
-          {:else if adding === 'grant'}
-            <h2 class="section">{t('app.people.grant_title')}</h2>
-            <p class="quiet small">{t('app.people.grant_hint')}</p>
-            <Select
-              label={t('app.people.who')}
-              bind:value={chosenSubject}
-              placeholder={t('app.people.choose_person')}
-              options={candidates}
-              error={missing.subject && !chosenSubject ? t(missing.subject) : undefined}
-            />
-            <Select
-              label={t('app.people.role_column')}
-              bind:value={chosenRole}
-              placeholder={t('app.people.choose_role')}
-              options={roleOptions}
-              error={missing.grantRole && !chosenRole ? t(missing.grantRole) : undefined}
-            />
-            <div>
-              <Button
-                tone="primary"
-                isBusy={isWriting}
-                busyLabel={t('app.people.working')}
-                onclick={() => void grant()}
-              >
-                {t('app.people.grant')}
-              </Button>
-            </div>
-          {:else}
-            <h2 class="section">{t('app.people.invite_title')}</h2>
-            <!-- What the press will do, said before it: a mail, or - where no mail goes out - a
-                 link to hand over. Neither until the manifest has said which. -->
-            <p class="quiet small">
-              {way === 'link' ? t('app.people.invite_hint_link') : way === 'mail' ? t('app.people.invite_hint') : t('app.people.invite_hint_neutral')}
-            </p>
-            <form class="panel" onsubmit={invite}>
-              <Stack gap="150">
-                <div bind:this={inviteAddressField}>
-                  <Input
-                    label={t('app.people.invite_email')}
-                    bind:value={inviteEmail}
-                    type="email"
-                    autocomplete="off"
-                    spellcheck={false}
-                    isRequired
-                    error={inviteRefusal ?? (missing.email && !inviteEmail.trim() ? t(missing.email) : undefined)}
-                    oninput={() => (inviteRefusal = undefined)}
-                  />
-                </div>
-                <Input
-                  label={t('app.people.invite_name')}
-                  hint={t('app.people.invite_name_hint')}
-                  bind:value={inviteName}
-                  autocomplete="off"
-                />
-                <Select
-                  label={t('app.people.invite_where')}
-                  hint={t('app.people.invite_where_hint')}
-                  bind:value={inviteWhere}
-                  options={inviteWhereOptions}
-                />
-                <Select
-                  label={t('app.people.role_column')}
-                  hint={t('app.people.invite_role_hint')}
-                  bind:value={inviteRole}
-                  placeholder={t('app.people.choose_role')}
-                  options={inviteRoleOptions}
-                  error={missing.inviteRole && !inviteRole ? t(missing.inviteRole) : undefined}
-                />
-                {#if grantRefusal}
-                  <Banner tone="warning">{grantRefusal}</Banner>
-                {/if}
-                <div>
-                  <Button
-                    type="submit"
-                    tone="primary"
-                    isBusy={isWriting}
-                    busyLabel={t('app.people.working')}
-                  >
-                    {way === 'link' ? t('app.people.invite_link_button') : t('app.people.invite')}
-                  </Button>
-                </div>
-              </Stack>
-            </form>
-          {/if}
-          <div><Button tone="subtle" onclick={close}>{t('app.people.add_close')}</Button></div>
-        </Stack>
-      </div>
+  <!-- The only time the new start password exists anywhere but the server's hash: a Dialog S. -->
+  <Dialog size="s" title={t('app.people.start_password_title')} isOpen={renewed !== undefined} onClose={() => (renewed = undefined)}>
+    {#if renewed}
+      <Stack gap="150">
+        <StartPasswordResult
+          signInName={renewed.signInName}
+          startPassword={renewed.startPassword}
+          label={t('app.people.renewed_start_password', { who: renewed.who, name: renewed.signInName })}
+          onDismiss={() => (renewed = undefined)}
+        />
+      </Stack>
     {/if}
+  </Dialog>
 
-    {#if holders.length === 0}
-      <p class="quiet"><Spinner label={t('app.people.reading')} /> <span>{t('app.people.reading')}</span></p>
-    {:else}
-      <Table isStacked
-        label={t('app.people.title')}
-        isLabelHidden
-        {columns}
-        sort={order.sort}
-        onSort={(next) => order.by(next)}
-      >
-        {#each order.rows as holder (holder.membershipId)}
-          {@const rare = [
-            ...(holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && statusOf(holder.accountId) === 'ACTIVE'
-              ? [{ id: 'screens', label: viewingScreens === holder.accountId ? t('app.people.working') : t('app.view_as.start'), icon: 'eye' as const }]
-              : []),
-            ...(mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT), hasApp(holder.accountId))
-              ? [{ id: 'factor', label: t('app.people.factor_reset'), icon: 'key' as const }]
-              : []),
-          ]}
-          <tr>
-            <th scope="row" class="who">
-              <!-- A membership granted to a group reaches the people in it. The group's own
-                   screen is where that list lives; here it is named as what it is. -->
-              {nameOf(holder)}
-            </th>
-            {#if mayManage}
-              {@const detail = holder.accountId ? signIn.details[holder.accountId] : undefined}
-              <td class="address">
-                {#if detail?.email}
-                  {detail.email}
-                {:else if detail}
-                  <span class="quiet">{t('app.people.no_address')}</span>
-                {/if}
-              </td>
-            {/if}
-            <td>
-              <RoleBadge
-                label={t(`app.people.role.${holder.role.toLowerCase()}`)}
-                scopeLabel={scopeLabel}
-                size="sm"
-              />
-            </td>
-            <td>
-              <div class="standing">
-                {#if statusOf(holder.accountId) === 'INVITED'}
-                  <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
-                  <Badge tone="info">{t('app.people.invited')}</Badge>
-                {:else if statusOf(holder.accountId)}
-                  <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
-                {/if}
-                {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
-              </div>
-            </td>
-            <td>
-              <div class="actions">
-                {#if holder.accountId && mayViewAs}
-                  <!-- View as (A6): the administration's answer for this person - their roles at a
-                       place, what they may do, and whether and why for a chosen permission. -->
-                  <Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/administration/people?tab=permissions&person=${holder.accountId}`)}>
-                    {t('app.people.view_as')}
-                  </Button>
-                {/if}
-                {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}
-                  <!-- An invitation not yet accepted can be given a new way to arrive: a link lost
-                       or run out would otherwise leave the address taken for good. A link is a way
-                       in for whoever renews it, so it is absent above the reader's own role. -->
-                  <Button
-                    size="sm"
-                    isBusy={isWriting}
-                    busyLabel={t('app.people.working')}
-                    onclick={() => void renew(holder)}
-                  >
-                    {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
-                  </Button>
-                  {#if way === 'mail' && mayWayIn(holder)}
-                    <!-- Where the mail does not arrive: a link to hand over instead, the waiting
-                         mail cancelled - never both (identity.md §12). -->
-                    <Button
-                      size="sm"
-                      tone="secondary"
-                      isBusy={isWriting}
-                      busyLabel={t('app.people.working')}
-                      onclick={() => void handOver(holder)}
-                    >
-                      {t('app.people.copy_invitation_link')}
-                    </Button>
-                  {/if}
-                {/if}
-                {#if isManaged(holder) && mayWayIn(holder)}
-                  <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
-                    {t('app.people.renew')}
-                  </Button>
-                  {#if addressOffered}
-                    <Button
-                      size="sm"
-                      tone="secondary"
-                      onclick={() => (addressing = { accountId: holder.accountId as string, who: nameOf(holder) })}
-                    >
-                      {t('app.people.address_add')}
-                    </Button>
-                  {/if}
-                {/if}
-                <!-- The rarer acts fold under the row's More (UX-4): their screens, and a second
-                     factor's reset, which is for the day somebody lost theirs. -->
-                {#if rare.length > 0}
-                  <Menu
-                    label={t('app.people.more_for', { name: nameOf(holder) })}
-                    items={rare}
-                    placement={{ side: 'block-end', align: 'end' }}
-                    onselect={(id) => {
-                      if (id === 'screens') void viewScreens(holder.accountId as string);
-                      else if (id === 'factor') resettingFactor = holder;
-                    }}
-                  >
-                    {#snippet trigger(props)}
-                      <Button size="sm" tone="subtle" icon="ellipsis" aria-label={t('app.people.more_for', { name: nameOf(holder) })} {...props}>{t('app.people.more')}</Button>
-                    {/snippet}
-                  </Menu>
-                {/if}
-                <!-- Asks first: a single keystroke on a focused control must not end
-                     somebody's access. Absent for a role above the reader's own: taking it away
-                     is refused as handing it out is. On the workspace's last owner, which the
-                     server keeps, it stays in its place, unavailable, and says why on hover,
-                     focus and tap (UC-WRK-32 check 1) - not a sentence in the row. -->
-                {#if mayRevoke(holder.role, people.grantableAt(TENANT))}
-                <Button
-                  size="sm"
-                  tone="danger"
-                  isBusy={isWriting}
-                  busyLabel={t('app.people.working')}
-                  disabledReason={endsTheLastOwner(holders, holder.membershipId, people.isCompleteAt(TENANT), canAct) ? t('app.people.last_owner') : undefined}
-                  onclick={() => (revoking = holder)}
-                >
-                  {t('app.people.revoke')}
-                </Button>
-                {/if}
-              </div>
-            </td>
-          </tr>
-        {/each}
-      </Table>
-
-      {#if addressWithheld}
-        <p class="quiet small">{t('app.people.address_needs_password')}</p>
+  <RenewDialog who={renewing ? nameOf(renewing) : undefined} isBusy={isWriting} onConfirm={() => void issueStartPassword()} onCancel={() => (renewing = undefined)} />
+  <ResetFactorDialog who={resettingFactor ? nameOf(resettingFactor) : undefined} isBusy={isWriting} onConfirm={() => void resetFactor()} onCancel={() => (resettingFactor = undefined)} />
+  <AddressDialog target={addressing} onClose={() => (addressing = undefined)} />
+  <RevokeDialog
+    holder={revoking}
+    ownership={revokingOwnership}
+    who={revoking ? nameOf(revoking) : ''}
+    where={scopeLabel}
+    isBusy={isWriting}
+    onConfirm={() => void revoke()}
+    onCancel={() => (revoking = undefined)}
+  />
+{:else}
+  <!-- The groups, the roles and who may do what keep their own layout until they move to their
+       list pages (page-system §13 step 4). -->
+  <Stack gap="300">
+    <PageHeader
+      title={t('app.people.title')}
+      isTitleInBar={viewport.isCompact}
+      breadcrumb={{
+        trail: [
+          { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+          { id: 'people', label: t('app.people.title') },
+        ],
+        label: t('app.admin.trail'),
+        expandLabel: t('app.admin.expand_trail'),
+      }}
+    />
+    <Tabs label={t('app.people.title')} selected={current} onselect={select} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>
+      {#if current === 'groups'}
+        <GroupsView />
+      {:else if current === 'roles'}
+        <RolesView />
+      {:else}
+        <PermissionsView {person} />
       {/if}
-    {/if}
-
-    <RenewDialog
-      who={renewing ? nameOf(renewing) : undefined}
-      isBusy={isWriting}
-      onConfirm={() => void issueStartPassword()}
-      onCancel={() => (renewing = undefined)}
-    />
-
-    <ResetFactorDialog
-      who={resettingFactor ? nameOf(resettingFactor) : undefined}
-      isBusy={isWriting}
-      onConfirm={() => void resetFactor()}
-      onCancel={() => (resettingFactor = undefined)}
-    />
-
-    <AddressDialog target={addressing} onClose={() => (addressing = undefined)} />
-
-    <RevokeDialog
-      holder={revoking}
-      ownership={revokingOwnership}
-      who={revoking ? nameOf(revoking) : ''}
-      where={scopeLabel}
-      isBusy={isWriting}
-      onConfirm={() => void revoke()}
-      onCancel={() => (revoking = undefined)}
-    />
-    </Stack>
-    {/if}
-  </Tabs>
-</Stack>
+    </Tabs>
+  </Stack>
+{/if}
 
 <style>
   .delivery { margin: var(--sp-050) 0 0; font-size: var(--fs-075); color: var(--text-secondary); }
   .delivery.failed { color: var(--text-danger); }
 
-  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
-     input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables beside them take the width. */
-  form { margin: 0; max-inline-size: 52ch; }
-
-  /* The surface a form stands on, as the other screens of the section draw one: a standalone
-     element in the sense of design-system.md rule 1, on the frame's canvas. */
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+  form { margin: 0; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }
 
+  .reading { padding: var(--sp-300); }
+
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
 
   /* An address is one word to the line breaker; it breaks where it must rather than widen the table. */
-  .address { overflow-wrap: anywhere; color: var(--text-secondary); }
+  .address { overflow-wrap: anywhere; }
 
-  /* A row still invited carries two actions; they wrap rather than widen the table on a phone. */
-  /* In a phone's stacked row the standing is a word, not a bar across the row's width. */
-  .standing { justify-self: start; }
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; white-space: nowrap; }
-
-  /* Focused when drawn, so that a renewal pressed in the table reaches the reader here; the ring
-     is the focus ring every control draws. */
-  .handed-over, .adding { max-inline-size: 52ch; }
-  .handed-over:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .standing { display: inline-flex; flex-direction: column; align-items: flex-start; }
 </style>

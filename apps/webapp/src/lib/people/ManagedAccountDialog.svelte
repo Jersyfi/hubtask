@@ -2,7 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Add someone without an address* (UC-ID-20 checks 1 and 2): a child, a grandparent, a shift
-  // worker gets an account with a sign-in name, and a role at the workspace or at one hub.
+  // worker gets an account with a sign-in name, and a role at the workspace or at one hub. Four
+  // fields in one group: a Dialog M (page-system §5.1), which shows the start password in its place
+  // once the account exists.
   //
   // **Nobody chooses the start password.** The server draws it and answers it once; it is shown
   // here in `OneTimeSecret`, to copy, and on a slip to print. Nothing keeps it: the answer is held
@@ -11,7 +13,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, Select, Stack } from '@hubtask/design-system/components';
 
   import FailureNote from '../frame/FailureNote.svelte';
   import type { MembershipRole } from '@hubtask/sync-engine';
@@ -25,15 +27,20 @@
   import { isComplete, type Missing } from '../forms/missing.ts';
   import { marked } from '../forms/press.ts';
   import StartPasswordResult from './StartPasswordResult.svelte';
+  import DiscardDialog from '../page/DiscardDialog.svelte';
+  import { DiscardGuard } from '../page/discard.svelte.ts';
 
   interface Props {
+    isOpen: boolean;
     /** The roles the installation reports, in its order. */
     roles: readonly MembershipRole[];
     /** The ones the reader may give at the workspace, already read by the screen. */
     workspaceRoles: readonly MembershipRole[];
   }
 
-  const { roles, workspaceRoles }: Props = $props();
+  let { isOpen = $bindable(false), roles, workspaceRoles }: Props = $props();
+
+  let form = $state<HTMLFormElement | undefined>(undefined);
 
   /** The workspace itself, or one hub - what a person is given a place in from this screen. */
   const WORKSPACE = '';
@@ -78,6 +85,16 @@
     ...containers.hubs.map((hub) => ({ value: hub.id, label: hub.name })),
   ]);
 
+  function close(): void {
+    isOpen = false;
+    created = undefined;
+    missing = {};
+    failure = undefined;
+    nameError = undefined;
+  }
+
+  const guard = new DiscardGuard(() => created === undefined && (signInName.trim() !== '' || displayName.trim() !== '' || role !== ''), close);
+
   async function create(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     missing = marked(event, [
@@ -114,77 +131,73 @@
 
 </script>
 
-<Stack gap="150">
-  <h2 class="section">{t('app.people.managed_title')}</h2>
-  <p class="quiet small">{t('app.people.managed_hint')}</p>
-
-  {#if failure}
-    <FailureNote problem={failure} />
-  {/if}
-
-  {#if created}
-    <!-- The only time the start password exists anywhere but the server's hash. -->
-    <StartPasswordResult
-      signInName={created.signInName}
-      startPassword={created.startPassword}
-      label={t('app.people.managed_start_password', { name: created.signInName })}
-      onDismiss={() => (created = undefined)}
-    />
-  {/if}
-
-  <form class="panel" onsubmit={create}>
-    <Stack gap="150">
-      <Input
-        label={t('app.people.managed_name')}
-        hint={t('app.people.managed_name_hint')}
-        bind:value={signInName}
-        error={nameError ?? (missing.signInName && !signInName.trim() ? t(missing.signInName) : undefined)}
-        autocomplete="off"
-        autocapitalize="none"
-        spellcheck={false}
-        isRequired
+<Dialog
+  size="m"
+  title={t('app.people.managed_title')}
+  bind:isOpen
+  dismissLabel={t('app.people.add_close')}
+  onDismiss={guard.dismiss}
+  onClose={close}
+  primary={created ? undefined : { label: t('app.people.managed_submit'), isBusy: isWriting, busyLabel: t('app.people.working'), onclick: () => form?.requestSubmit() }}
+>
+  <Stack gap="150">
+    {#if created}
+      <!-- The only time the start password exists anywhere but the server's hash. -->
+      <StartPasswordResult
+        signInName={created.signInName}
+        startPassword={created.startPassword}
+        label={t('app.people.managed_start_password', { name: created.signInName })}
+        onDismiss={close}
       />
-      <Input
-        label={t('app.people.invite_name')}
-        hint={t('app.people.managed_display_hint')}
-        bind:value={displayName}
-        autocomplete="off"
-        isRequired
-        error={missing.displayName && !displayName.trim() ? t(missing.displayName) : undefined}
-      />
-      <Select
-        label={t('app.people.role_column')}
-        bind:value={role}
-        placeholder={t('app.people.choose_role')}
-        options={roleOptions}
-        error={missing.role && !role ? t(missing.role) : undefined}
-      />
-      <Select
-        label={t('app.people.managed_where')}
-        bind:value={where}
-        options={whereOptions}
-      />
-      <div>
-        <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.people.working')}>
-          {t('app.people.managed_submit')}
-        </Button>
-      </div>
-    </Stack>
-  </form>
-</Stack>
+    {:else}
+      <p class="quiet small">{t('app.people.managed_hint')}</p>
+      {#if failure}
+        <FailureNote problem={failure} />
+      {/if}
+      <form bind:this={form} onsubmit={create}>
+        <Stack gap="150">
+          <Input
+            label={t('app.people.managed_name')}
+            hint={t('app.people.managed_name_hint')}
+            bind:value={signInName}
+            error={nameError ?? (missing.signInName && !signInName.trim() ? t(missing.signInName) : undefined)}
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck={false}
+            isRequired
+          />
+          <Input
+            label={t('app.people.invite_name')}
+            hint={t('app.people.managed_display_hint')}
+            bind:value={displayName}
+            autocomplete="off"
+            isRequired
+            error={missing.displayName && !displayName.trim() ? t(missing.displayName) : undefined}
+          />
+          <Select
+            label={t('app.people.role_column')}
+            bind:value={role}
+            placeholder={t('app.people.choose_role')}
+            options={roleOptions}
+            error={missing.role && !role ? t(missing.role) : undefined}
+          />
+          <Select
+            label={t('app.people.managed_where')}
+            bind:value={where}
+            options={whereOptions}
+          />
+        </Stack>
+      </form>
+    {/if}
+  </Stack>
+  {#snippet actions()}
+    {#if !created}<Button tone="subtle" onclick={() => { if (guard.dismiss()) close(); }}>{t('app.page.cancel')}</Button>{/if}
+  {/snippet}
+</Dialog>
+<DiscardDialog {guard} />
 
 <style>
-  form { margin: 0; max-inline-size: 52ch; }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+  form { margin: 0; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
