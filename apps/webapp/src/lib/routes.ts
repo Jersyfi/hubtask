@@ -117,6 +117,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'rule', pattern: '/administration/rules/:id', area: 'administration' },
   { name: 'runs', pattern: '/administration/runs', area: 'administration' },
   { name: 'webhooks', pattern: '/administration/webhooks', area: 'administration' },
+  // A webhook as its record page, with its deliveries (page-system §9.3).
+  { name: 'webhook', pattern: '/administration/webhooks/:id', area: 'administration' },
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
   // The suite's modules, switched for the workspace (UC-INS-21).
   { name: 'modules', pattern: '/administration/modules', area: 'administration' },

@@ -32,6 +32,7 @@
   import TemplatesView from './TemplatesView.svelte';
   import SignInSettingsView from './SignInSettingsView.svelte';
   import VoiceView from './VoiceView.svelte';
+  import WebhookView from './WebhookView.svelte';
   import WebhooksView from './WebhooksView.svelte';
   import WorkflowsView from './WorkflowsView.svelte';
   import WorkspaceAddressView from './WorkspaceAddressView.svelte';
@@ -98,7 +99,11 @@
 {:else if route.name === 'runs'}
   <RunsView />
 {:else if route.name === 'webhooks'}
-  <WebhooksView />
+  <WebhooksView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'webhook'}
+  {#key route.params.id}
+    <WebhookView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'quotas'}
   <QuotasView />
 {:else if route.name === 'modules'}

@@ -102,7 +102,6 @@ const NOT_YET_MIGRATED = [
   'views/TimeSettingsView.svelte',
   'views/TimeView.svelte',
   'views/TrashView.svelte',
-  'views/WebhooksView.svelte',
   'views/WhiteboardsView.svelte',
 ];
 

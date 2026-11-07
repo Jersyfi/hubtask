@@ -9,8 +9,9 @@ import { ROUTES } from '../routes.ts';
 
 // The administration's settings screens stand on the one shell (user-experience.md §5.4): its
 // sections, its save bar and its leave guard. Read from the route table and the administration
-// area's own route branches, so a screen that moves to another view is still held to it.
-const ON_THE_SHELL = ['mail', 'voice', 'retention', 'backup', 'webhooks', 'workspace-settings', 'sign-in-settings', 'legal', 'ai'];
+// area's own route branches, so a screen that moves to another view is still held to it. Webhooks
+// is a list page (page-system §9.3), not a settings screen.
+const ON_THE_SHELL = ['mail', 'voice', 'retention', 'backup', 'workspace-settings', 'sign-in-settings', 'legal', 'ai'];
 
 // A product's settings, drawn as its home's last tab (§8.2), stand on the same shell.
 const PRODUCT_SETTINGS = ['TimeSettingsView', 'CmdbView', 'ServiceDeskView'];

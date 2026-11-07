@@ -219,11 +219,11 @@ test('chromium: a page of a webhook\'s deliveries that did not arrive is said be
       : { data: [DELIVERY(1), DELIVERY(2)], page: { next_cursor: 'p2', has_more: true } }),
     also: (route, url) => (url.pathname.endsWith('/integrations/webhooks') ? route.fulfill({ json: [SUBSCRIPTION] }).then(() => true) : undefined),
   });
-  await page.goto(`${served.origin}/administration/webhooks`);
-  await page.getByRole('button', { name: 'What was delivered' }).click();
+  // The deliveries are the webhook's record page (page-system §9.3).
+  await page.goto(`${served.origin}/administration/webhooks/${SUBSCRIPTION.id}`);
   await failsThenRetries(page, {
     button: 'Show more',
-    rows: () => page.locator('ul.deliveries > li'),
+    rows: () => page.locator('main tbody tr.row'),
     failure: SERVER_FAULT,
     arrived: '1 more delivery is listed.',
   });

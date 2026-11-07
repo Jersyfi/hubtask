@@ -181,12 +181,20 @@ test('chromium: webhooks a plan leaves out rest with their secrets; pausing and 
   await page.getByText('2 subscriptions rest with their secrets; nothing is delivered.', { exact: false }).waitFor({ timeout: 5_000 });
   assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
   assert.equal(await page.getByText('Subscribe a system').count(), 0, 'a new subscription is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it back on' }).count(), 0, 'resuming is offered');
-  assert.equal(await page.getByRole('button', { name: 'Pause it' }).count(), 1);
-  assert.equal(await page.getByRole('button', { name: 'Unsubscribe' }).count(), 2);
-  // A dead letter is readable, and not sent again.
-  await page.getByRole('button', { name: 'What was delivered' }).first().click();
+  // Pausing and unsubscribing are in each row's menu; resuming is not (page-system §9.3).
+  await page.getByRole('button', { name: `More for ${SUBSCRIPTIONS[0].target_url}` }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Pause it' }).count(), 1);
+  assert.equal(await page.getByRole('menuitem', { name: 'Unsubscribe…' }).count(), 1);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: `More for ${SUBSCRIPTIONS[1].target_url}` }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Switch it back on' }).count(), 0, 'resuming is offered');
+  assert.equal(await page.getByRole('menuitem', { name: 'Unsubscribe…' }).count(), 1);
+  await page.keyboard.press('Escape');
+  // A dead letter is readable on the webhook's page, and not sent again.
+  await page.goto(`${served.origin}/administration/webhooks/${SUBSCRIPTIONS[0].id}`);
   await page.getByText('503', { exact: false }).first().waitFor({ timeout: 5_000 });
+  await page.locator('main tbody tr.row').first().getByRole('button').first().click();
+  await page.locator('dialog[open]').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('button', { name: 'Send it again' }).count(), 0, 'a replay is offered');
   assert.deepEqual(failures, []);
 });
