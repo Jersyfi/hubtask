@@ -6088,6 +6088,7 @@
   "app.board.card_actions": "{title} verschieben",
   "app.move.to_hub": "In einen anderen Hub verschieben …",
   "app.move.hub": "Hub",
+  "app.move.to": "Nach:",
   "app.move.choose_hub": "Hub wählen",
   "app.move.choose_hub_first": "Wähle zuerst einen Hub, in den es verschoben werden soll.",
   "app.move.no_hub": "In diesem Arbeitsbereich gibt es keinen anderen Hub, in den es verschoben werden könnte.",

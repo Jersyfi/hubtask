@@ -6,7 +6,8 @@
   // pre-check (`previewContainerMove`) as `MoveCheck` - each obstacle with its way out, the
   // consequences as warnings, in words. *Move* is enabled once no obstacle remains; on a phone it
   // names the destination. A name taken is resolved in the dialog: the rename is written first.
-  import { Button, Dialog, Input, MoveCheck, Sheet, type MoveCheckItem } from '@hubtask/design-system/components';
+  // On a desktop the hub is one field, *To: …*, that opens the list; on a phone the list stands.
+  import { Button, Dialog, Icon, Input, MoveCheck, Sheet, type MoveCheckItem } from '@hubtask/design-system/components';
   import type { Container, ContainerMovePreview, MoveFinding } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -19,6 +20,7 @@
   import { viewport } from '../frame/viewport.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import ContainerMark from './ContainerMark.svelte';
   import { findingWords, isObstacleResolved } from './moveCheck.ts';
 
   interface Props {
@@ -39,6 +41,8 @@
   );
 
   let target = $state<string | undefined>(undefined);
+  /** The list is open until a hub is chosen, and again from the field. */
+  let isPicking = $state(true);
   let newName = $state('');
   let preview = $state<ContainerMovePreview | undefined>(undefined);
   let isMoving = $state(false);
@@ -121,32 +125,50 @@
   const blocked = $derived(!target ? t('app.move.choose_hub_first') : !preview ? t('app.move.checking') : remaining.length > 0 ? t('app.move.obstacles_left', { count: remaining.length }) : undefined);
 </script>
 
+{#snippet hubList()}
+  <ul class="hubs" id="move-hubs" role="radiogroup" aria-label={t('app.move.hub')} data-touch={viewport.isCompact ? '' : undefined}>
+    {#each hubs as row (row.hub.id)}
+      <li>
+        <button
+          type="button"
+          class="hub"
+          role="radio"
+          aria-checked={target === row.hub.id}
+          aria-disabled={row.reason ? 'true' : undefined}
+          onclick={() => {
+            if (row.reason) return;
+            target = row.hub.id;
+            failure = undefined;
+            isPicking = false;
+          }}
+        >
+          <ContainerMark look={row.hub} size="xs" hasDefaultTile />
+          <span class="name">{row.hub.name}</span>
+          {#if row.reason}<small class="why">{row.reason}</small>{/if}
+        </button>
+      </li>
+    {/each}
+  </ul>
+{/snippet}
+
 {#snippet body()}
-  <p class="lead">{t('app.move.collection_to', { name: container.name })}</p>
   {#if hubs.length === 0}
     <p class="quiet">{t('app.move.no_hub')}</p>
+  {:else if viewport.isCompact}
+    <p class="lead">{t('app.move.collection_to', { name: container.name })}</p>
+    {@render hubList()}
   {:else}
-    <ul class="hubs" role="radiogroup" aria-label={t('app.move.hub')}>
-      {#each hubs as row (row.hub.id)}
-        <li>
-          <button
-            type="button"
-            class="hub"
-            role="radio"
-            aria-checked={target === row.hub.id}
-            aria-disabled={row.reason ? 'true' : undefined}
-            onclick={() => {
-              if (row.reason) return;
-              target = row.hub.id;
-              failure = undefined;
-            }}
-          >
-            <span class="name">{row.hub.name}</span>
-            {#if row.reason}<small class="why">{row.reason}</small>{/if}
-          </button>
-        </li>
-      {/each}
-    </ul>
+    <button type="button" class="to" aria-expanded={isPicking} aria-controls="move-hubs" onclick={() => (isPicking = !isPicking)}>
+      <span class="to-label">{t('app.move.to')}</span>
+      {#if destination}
+        <ContainerMark look={destination} size="xs" hasDefaultTile />
+        <span class="to-name">{destination.name}</span>
+      {:else}
+        <span class="quiet">{t('app.move.choose_hub')}</span>
+      {/if}
+      <Icon name="chevron-down" size="sm" />
+    </button>
+    {#if isPicking}{@render hubList()}{/if}
   {/if}
   {#if items.length > 0}
     <MoveCheck label={t('app.move.check_label')} {items} toneLabels={{ ok: t('app.move.tone_ok'), obstacle: t('app.move.tone_obstacle'), warning: t('app.move.tone_warning') }} />
@@ -158,7 +180,7 @@
 {/snippet}
 
 {#snippet actions()}
-  <Button tone="subtle" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
+  {#if !viewport.isCompact}<Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>{/if}
   <Button tone="primary" isBusy={isMoving} disabledReason={blocked} onclick={() => void move()}>{confirmLabel}</Button>
 {/snippet}
 
@@ -175,6 +197,25 @@
 
 <style>
   .lead { margin: 0 0 var(--sp-100); color: var(--text-subtle); }
+  .to {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--sp-050) + var(--sp-025));
+    inline-size: 100%;
+    min-block-size: var(--layout-nav-row);
+    margin: 0 0 var(--sp-100);
+    padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .to:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .to-label { color: var(--text-secondary); }
+  .to-name { font-weight: var(--fw-semibold); }
   .quiet { color: var(--text-subtle); }
   .hubs { display: flex; flex-direction: column; gap: var(--sp-025); margin: 0 0 var(--sp-150); padding: 0; list-style: none; }
 
@@ -194,6 +235,17 @@
     cursor: pointer;
   }
 
+  /* On a phone the hubs are one card of thumb rows, as the Browse stack's (§9: 44 px). */
+  .hubs[data-touch] {
+    gap: 0;
+    overflow: hidden;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
+  .hubs[data-touch] li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .hubs[data-touch] .hub { min-block-size: var(--layout-nav-touchrow); padding-inline: var(--sp-150); border-radius: 0; }
+  .hubs[data-touch] .hub[aria-checked='true'] { border-color: transparent; }
   .hub:hover:not([aria-disabled]) { background: var(--bg-surface-hover); }
   .hub[aria-checked='true'] { border-color: var(--focus-ring); background: var(--accent-primary-subtle); font-weight: var(--fw-semibold); }
   .hub:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--bw-ring)); }
@@ -201,5 +253,6 @@
   .name { flex: 1; min-width: 0; }
   .why { color: var(--text-subtle); }
   .failure { color: var(--text-danger); }
-  .sheet-actions { display: flex; justify-content: flex-end; gap: var(--sp-100); margin-block-start: var(--sp-200); }
+  /* On a phone one button, the width of the sheet, names the destination; *Close* cancels. */
+  .sheet-actions { display: grid; margin-block-start: var(--sp-200); }
 </style>

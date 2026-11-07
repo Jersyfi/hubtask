@@ -6088,6 +6088,7 @@
   "app.board.card_actions": "Move {title}",
   "app.move.to_hub": "Move to another hub…",
   "app.move.hub": "Hub",
+  "app.move.to": "To:",
   "app.move.choose_hub": "Choose a hub",
   "app.move.choose_hub_first": "Choose a hub to move it to first.",
   "app.move.no_hub": "There is no other hub in this workspace to move it to.",

@@ -240,6 +240,12 @@ async function walkMoveDialog(page, record, isPhone) {
   const confirm = dialog.getByRole('button', { name: /^Move/ });
   assert.equal(await confirm.getAttribute('aria-disabled'), 'true');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/move-${isPhone ? 'phone' : 'desk'}.png` });
+  // On a desktop the chosen hub folds the list into its field, *To: …*, which opens it again.
+  if (!isPhone) {
+    const field = dialog.getByRole('button', { name: /^To:\s*IT operations/ });
+    assert.equal(await field.getAttribute('aria-expanded'), 'false');
+    await field.click();
+  }
   await dialog.getByRole('radio', { name: /^People/ }).click();
   await checks.getByText('1 person will no longer see it: Tim Berg.').waitFor();
   assert.equal((await confirm.innerText()).trim(), isPhone ? 'Move to “People”' : 'Move');
