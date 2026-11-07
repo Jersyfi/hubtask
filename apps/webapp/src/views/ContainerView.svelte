@@ -1865,9 +1865,11 @@
 
   /* The entries' toolbar stays under the bar while the list scrolls (design-system.md §11.1): the
      layouts at the start, the rest at the end, one line where it fits. */
-  /* The view bar stays under the app bar while the entries scroll, as the toolbar it replaced. */
-  /* A starred place's star is filled (the mockup's head). */
+  /* A starred place's star is filled in gold (the mockup's head), as the sidebar's. */
+  .star[data-starred] :global(button) { color: var(--accent-star); }
   .star[data-starred] :global(svg) { fill: currentColor; }
+
+  /* The view bar stays under the app bar while the entries scroll, as the toolbar it replaced. */
 
   .views {
     position: sticky;
