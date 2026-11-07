@@ -274,9 +274,10 @@
       <div class="trail">
         <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} mark={breadcrumb.mark} />
       </div>
-      {#if parent}
+      {#if parent && !isTitleInBar}
         <!-- The way up, on a phone: one link, the parent, with the chevron pointing along the
-             reading direction's start. It mirrors in RTL because the icon set mirrors it. -->
+             reading direction's start. It mirrors in RTL because the icon set mirrors it. Not
+             where the bar carries the title: its *‹ the level above* is the way up there. -->
         <p class="parent">
           <a href={parent.href} onclick={(event) => { if (breadcrumb.onnavigate) { event.preventDefault(); breadcrumb.onnavigate(parent.id); } }}>
             <Icon name="chevron-left" size="sm" />

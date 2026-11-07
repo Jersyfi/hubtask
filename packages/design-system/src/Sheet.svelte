@@ -69,7 +69,8 @@
     <span class="grabber" aria-hidden="true"></span>
     <header class="head">
       <h2 class="title" id={titleId}>{title}</h2>
-      <IconButton icon="x" label={closeLabel} size="sm" tone="subtle" onclick={() => close()} />
+      <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
+      <IconButton icon="x" label={closeLabel} tone="subtle" onclick={() => close()} />
     </header>
     <div class="body">{@render children()}</div>
   </div>

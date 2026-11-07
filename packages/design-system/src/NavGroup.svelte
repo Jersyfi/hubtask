@@ -720,6 +720,14 @@
 
   [data-size='touch'] .head > .twist { display: none; }
 
+  /* The head's link a thumb's target (§9: 44 px), its words as small as the head's. */
+  [data-size='touch'] .head-link {
+    min-inline-size: var(--layout-nav-touchrow);
+    min-block-size: var(--layout-nav-touchrow);
+    margin-block: calc((var(--layout-nav-touchrow) - var(--fs-075)) / -2);
+    text-align: end;
+  }
+
   [data-size='touch'] .rows {
     margin-block-end: var(--sp-150);
     overflow: hidden;

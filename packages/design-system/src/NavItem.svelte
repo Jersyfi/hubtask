@@ -188,6 +188,9 @@
   }
 </script>
 
+{#snippet menuHeading()}<span class="menu-heading" data-menu-label>{menu?.heading}</span>{/snippet}
+{#snippet addHeading()}<span class="menu-heading" data-menu-label>{add?.heading}</span>{/snippet}
+
 {#snippet action(kind: 'menu' | 'add', act: RowAction)}
   {#if act.items}
     <Menu
@@ -196,9 +199,8 @@
       placement={act.heading ? { side: 'inline-end', align: 'start' } : { side: 'block-end', align: 'end' }}
       bind:isOpen={() => (kind === 'menu' ? isMenuOpen : isAddOpen), (open) => (kind === 'menu' ? (isMenuOpen = open) : (isAddOpen = open))}
       onselect={(itemId) => act.onselect(itemId)}
-      head={act.heading ? menuHeading : undefined}
+      head={act.heading ? (kind === 'menu' ? menuHeading : addHeading) : undefined}
     >
-      {#snippet menuHeading()}<span class="menu-heading" data-menu-label>{act.heading}</span>{/snippet}
       {#snippet trigger(props)}
         <button type="button" class="act" tabindex="-1" aria-label={act.label} title={act.label} {...props}>
           <Icon name={kind === 'menu' ? 'ellipsis' : 'plus'} size="sm" />
@@ -616,7 +618,8 @@
     display: grid;
     place-items: center;
     flex: none;
-    inline-size: calc(var(--sp-300) + var(--sp-050));
+    /* A thumb's square (§9: 44 px), its own target beside the name's. */
+    inline-size: var(--layout-nav-touchrow);
     block-size: var(--layout-nav-touchrow);
     margin: 0;
     padding: 0;

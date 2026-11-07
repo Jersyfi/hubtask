@@ -139,15 +139,18 @@
 </script>
 
 {#if isCompact}
+  <!-- The pill is small, its target a thumb's height (the navigation concept §9: 44 px). -->
   <button type="button" class="chip" aria-haspopup="dialog" aria-expanded={isSheetOpen} onclick={() => (isSheetOpen = true)}>
-    {#if shown?.icon}<Icon name={shown.icon} size="sm" />{/if}
-    <span>{shown?.label}</span>
-    <Icon name="chevron-down" size="sm" />
+    <span class="pill">
+      {#if shown?.icon}<Icon name={shown.icon} size="sm" />{/if}
+      <span>{shown?.label}</span>
+      <Icon name="chevron-down" size="sm" />
+    </span>
   </button>
   {#if more}<span class="more">{@render more()}</span>{/if}
   <Sheet title={sheetTitle ?? label} closeLabel={closeLabel ?? ''} bind:isOpen={isSheetOpen}>
     <nav aria-label={label}>
-      <ul>
+      <ul class="sheet-list">
         {#each views as view (view.id)}
           <NavItem
             label={view.label}
@@ -272,8 +275,7 @@
 
   a:focus-visible,
   .add:focus-visible,
-  .more :global(button:focus-visible),
-  .chip:focus-visible {
+  .more :global(button:focus-visible) {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
   }
@@ -311,15 +313,36 @@
   .chip {
     display: inline-flex;
     align-items: center;
+    min-block-size: var(--layout-nav-touchrow);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
     gap: calc(var(--sp-050) + var(--sp-025));
     padding: calc(var(--sp-050) + var(--sp-025)) calc(var(--sp-100) + var(--sp-025));
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-full);
     background: var(--bg-surface);
-    color: var(--text-primary);
-    font: inherit;
-    font-weight: var(--fw-medium);
-    cursor: pointer;
+  }
+
+  .chip:focus-visible { outline: none; }
+  .chip:focus-visible .pill { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* The sheet's views: one card of rows, top to bottom, in the bar's order. */
+  .sheet-list {
+    display: block;
+    overflow: hidden;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
   }
 
   @media (prefers-reduced-motion: reduce) {
