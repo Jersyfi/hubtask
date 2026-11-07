@@ -45,6 +45,7 @@ test('the administration area is exactly these screens, by name', () => {
     'backup',
     'changes',
     'cmdb',
+    'entry-type',
     'entry-types',
     'group',
     'groups',

@@ -10,6 +10,7 @@
   import AuditView from './AuditView.svelte';
   import BackupView from './BackupView.svelte';
   import ChangesView from './ChangesView.svelte';
+  import EntryTypeView from './EntryTypeView.svelte';
   import EntryTypesView from './EntryTypesView.svelte';
   import IdentityProviderView from './IdentityProviderView.svelte';
   import LinkTypesView from './LinkTypesView.svelte';
@@ -102,7 +103,11 @@
 {:else if route.name === 'modules'}
   <ModulesView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'entry-types'}
-  <EntryTypesView />
+  <EntryTypesView onopen={(path) => onnavigate(path)} />
+{:else if route.name === 'entry-type'}
+  {#key route.params.key}
+    <EntryTypeView typeKey={route.params.key ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'link-types'}
   <LinkTypesView />
 {:else if route.name === 'changes'}

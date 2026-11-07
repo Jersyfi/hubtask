@@ -247,6 +247,7 @@ async function views() {
     ['private-hubs', await load('PrivateHubsView'), {}],
     ['modules', await load('ModulesView'), {}],
     ['entry-types', await load('EntryTypesView'), {}],
+    ['entry-type', await load('EntryTypeView'), { typeKey: 'task', onnavigate: noop }],
     ['link-types', await load('LinkTypesView'), {}],
     ['changes', await load('ChangesView'), {}],
     ['workflows', await load('WorkflowsView'), { onnavigate: noop }],

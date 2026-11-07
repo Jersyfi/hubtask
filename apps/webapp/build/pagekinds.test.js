@@ -36,7 +36,7 @@ const NOT_YET_MIGRATED = [
   'ActualsView', 'AgentsView', 'AiSettingsView', 'AppearanceView',
   'ApprovalsView', 'ArchiveView', 'AssetsView', 'AuditView', 'BackupView', 'CalendarPushesView',
   'ChangesView', 'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
-  'DevicesView', 'EntryTypesView', 'FileStoresView', 'GoalView', 'GoalsView', 'GrantsView',
+  'DevicesView', 'FileStoresView', 'GoalView', 'GoalsView', 'GrantsView',
   'HubDeskView', 'InstallationView', 'InstanceAiView', 'InstanceDeadLettersView',
   'InstanceEncryptionView', 'InstanceFileView', 'InstanceJournalView', 'InstanceOperatorsView',
   'InstanceOverviewView', 'InstancePlanView', 'InstancePlansView', 'InstancePlatformView',

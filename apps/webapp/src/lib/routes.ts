@@ -122,6 +122,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'modules', pattern: '/administration/modules', area: 'administration' },
   // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
   { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
+  // A type opens as its record page, with its form (page-system §9.1).
+  { name: 'entry-type', pattern: '/administration/types/:key', area: 'administration' },
   { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
   // The time policy and the kinds of work, where the time module is on (UC-TIM-03 check 4).
   { name: 'time-settings', pattern: '/administration/time', area: 'administration' },

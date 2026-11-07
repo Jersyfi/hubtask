@@ -1,9 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A type's form, designed under *How we work → Types* (UC-FLW-01 check 2, D-13): its sections, its
-  // fields in order with required, read-only and hidden conditions, defaults and help, the checks
-  // that must hold, and the channels that narrow it.
+  // A type's form, designed on the type's own page (UC-FLW-01 check 2, D-13; page-system §9.1): its
+  // sections, its fields in order with required, read-only and hidden conditions, defaults and help,
+  // the checks that must hold, and the channels that narrow it. One region of the record page, its
+  // parts and fields separated by hairlines, never boxed (PS-16).
   //
   // **A draft, then one publish for the whole form** (ui.md A4). A form every door of the type is
   // held to is saved as a draft, which nobody else meets; publishing plans and applies it whole -
@@ -14,7 +15,7 @@
   // condition that does not compile comes back as a refusal naming where it sits.
 
   import { untrack } from 'svelte';
-  import { Button, Checkbox, Dialog, Disclosure, IconButton, Inline, Input, Select, Stack, Switch } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Disclosure, IconButton, Inline, Input, Select, Stack, Switch } from '@hubtask/design-system/components';
   import type { EntryType } from '@hubtask/sync-engine';
 
   import { customFields } from '../data/customfields.svelte.ts';
@@ -31,11 +32,9 @@
   interface Props {
     type: EntryType;
     name: string;
-    isOpen: boolean;
-    onClose: () => void;
   }
 
-  let { type, name, isOpen = $bindable(), onClose }: Props = $props();
+  const { type, name }: Props = $props();
 
   $effect(() => untrack(() => customFields.open()));
 
@@ -125,10 +124,12 @@
 
   /** A refusal of a part of the form: the server names `/fields/<n>/<part>` and the like. */
   const refusalAt = (path: string) => refusals.get(path);
+  /** How many ways in are set apart from their default: closed, opened or hiding a field. */
+  const narrowing = $derived(draft.channels.filter((rule) => (optsIn(rule.channel) ? !rule.closed : rule.closed) || rule.hidden.length > 0).length);
   const channelRefusal = $derived([...refusals].find(([key]) => key.startsWith('channels'))?.[1]);
 </script>
 
-<Dialog bind:isOpen title={t('app.entry_forms.title', { name })} dismissLabel={t('app.entry_types.cancel')} isWide {onClose}>
+<section class="form" data-type-form aria-label={t('app.entry_forms.title', { name })}>
   <Stack gap="300">
     <p class="quiet">{t('app.entry_forms.intro')}</p>
 
@@ -169,6 +170,10 @@
               <Inline gap="150" align="end">
                 <Select label={t('app.entry_forms.section')} size="sm" options={sectionOptions} bind:value={field.section} />
                 <Switch label={t('app.entry_forms.required')} bind:checked={field.required} />
+                {#if custom !== undefined}
+                  <Input label={t('app.entry_forms.default')} size="sm" bind:value={field.default} error={refusalAt(`fields.${index}.default`)} />
+                {/if}
+                <Input label={t('app.entry_forms.help')} size="sm" bind:value={field.help} />
               </Inline>
               <Disclosure tone="quiet" label={t('app.entry_forms.conditions')}
                 description={isConditional(field) ? t('app.entry_forms.conditions_set') : t('app.entry_forms.conditions_none')}
@@ -181,10 +186,6 @@
                   {/if}
                 </Stack>
               </Disclosure>
-              {#if custom !== undefined}
-                <Input label={t('app.entry_forms.default')} size="sm" bind:value={field.default} error={refusalAt(`fields.${index}.default`)} />
-              {/if}
-              <Input label={t('app.entry_forms.help')} size="sm" bind:value={field.help} />
               {#if refusalAt(`fields.${index}`) ?? refusalAt(`fields.${index}.key`)}
                 <p class="refusal" role="alert">{refusalAt(`fields.${index}`) ?? refusalAt(`fields.${index}.key`)}</p>
               {/if}
@@ -222,13 +223,16 @@
       <div><Button size="sm" tone="secondary" icon="plus" data-add-validation onclick={addValidation}>{t('app.entry_forms.add_validation')}</Button></div>
     </section>
 
+    <!-- The ways in are the rare part: folded, with how many narrow the form, open where a refusal names one. -->
     <section class="part" data-form-channels>
-      <h3 class="heading">{t('app.entry_forms.channels')}</h3>
+      <Disclosure tone="quiet" label={t('app.entry_forms.channels')} description={t('app.entry_forms.channels_set', { count: String(narrowing) })} isOpen={channelRefusal !== undefined}>
+      <Stack gap="100">
       <p class="quiet">{t('app.entry_forms.channels_intro')}</p>
       {#each doors as channel (channel)}
         {@const rule = draft.channels.find((each) => each.channel === channel)}
         <div class="field" data-form-channel={channel}>
           <Stack gap="100">
+            <div class="line">
             <strong>{t(`app.entry_forms.channel_${channel}`)}</strong>
             {#if optsIn(channel)}
               <!-- Closed until named: the switch opens it, and turning it off closes it again. -->
@@ -238,6 +242,7 @@
               <Switch label={t('app.entry_forms.channel_closed')} checked={rule?.closed ?? false}
                 onchange={(event) => (channelIn(draft, channel).closed = (event.currentTarget as HTMLInputElement).checked)} />
             {/if}
+            </div>
             {#if draft.fields.some((field) => field.key !== 'title')}
               <Inline gap="150">
                 {#each draft.fields.filter((field) => field.key !== 'title') as field (field.key)}
@@ -255,36 +260,41 @@
           </Stack>
         </div>
       {/each}
+      </Stack>
+      </Disclosure>
       {#if channelRefusal}<p class="refusal" role="alert">{channelRefusal}</p>{/if}
     </section>
 
     <DraftPublish section="types" key={type.key} block={() => ({ form: formOfDraft(draft, shape) })}
       onLoad={(saved) => { if (saved.form) draft = draftOfForm(saved.form as EntryType['form']); }}
-      onPublished={() => (isOpen = false)} onProblem={showRefusals} />
+      onPublished={() => (refusals = new Map())} onProblem={showRefusals} />
   </Stack>
-  {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.entry_types.cancel')}</Button>
-  {/snippet}
-</Dialog>
+</section>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .form {
+    padding: var(--sp-250);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
+
   .part { display: grid; gap: var(--sp-150); }
+  .part + .part { padding-block-start: var(--sp-300); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 
   .fields {
     margin: 0;
     padding: 0;
     list-style: none;
     display: grid;
-    gap: var(--sp-150);
   }
 
-  .field {
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-  }
+  .field { padding-block: var(--sp-150); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 
   .refusal { margin: 0; color: var(--text-danger); }
+
+  /* A way in reads as one setting row: its name at the start, its switch at the end. */
+  .line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100) var(--sp-200); }
 </style>
