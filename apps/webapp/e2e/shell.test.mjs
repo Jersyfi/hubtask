@@ -137,7 +137,9 @@ async function common(page, width) {
     });
     assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field and Capture are ${centred} px off centre`);
   }
-  assert.equal(await page.locator('[data-tour="hubs"]').count(), 1, `${width}: the tour's hubs step has ${await page.locator('[data-tour="hubs"]').count()} targets`);
+  // On a phone the hubs are the bottom bar's *Browse* (the navigation concept §9).
+  const hubsTarget = width < 600 ? 'nav a[href="/browse"]' : '[data-tour="hubs"]';
+  assert.equal(await page.locator(hubsTarget).count(), 1, `${width}: the tour's hubs step has ${await page.locator(hubsTarget).count()} targets`);
   // The tour's capture and palette steps (ux-inventory.md §E1): one capture control to point at on
   // every width - the bar's, or the bottom bar's ＋ on a phone - and the palette's field where the
   // bar draws it; a phone passes that step over.
@@ -155,72 +157,58 @@ async function common(page, width) {
   assert.equal(await page.getByRole('status').filter({ hasText: /Connected|Reconnecting|Offline|synced|copy/ }).count() > 0, true, `${width}: no sync line`);
 }
 
-test('chromium: 375 px — the bottom bar with More, the tree behind ☰ and More, the account behind the avatar', async (t) => {
+test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, the account behind the avatar', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, 375);
   t.after(close);
   await common(page, 375);
 
-  // Spacious for a thumb, and the bar the thumb reaches.
+  // Spacious for a thumb, and the bar the thumb reaches (the navigation concept §9).
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
   const bar = page.getByRole('navigation', { name: 'Sections' });
-  for (const name of PRIMARY) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
-  // The fifth slot is *More* (user-experience.md §2.6): it opens the drawer, so it is a button.
-  assert.equal(await bar.getByRole('button', { name: 'More' }).count(), 1, 'the bottom bar has no More');
-  // The ＋ between Search and the jumble is an act, so a button and never a link (UC-WRK-26 check 1).
+  for (const name of ['Today', 'Browse', 'Inbox', 'Search']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
+  // The ＋ is an act: a button, never a link (UC-WRK-26 check 1).
   assert.equal(await bar.getByRole('button', { name: 'Capture' }).count(), 1, 'the bottom bar has no capture');
   assert.equal(await bar.getByRole('link', { name: 'Capture' }).count(), 0, 'capture is drawn as a link');
   assert.equal(await bar.getByRole('link', { name: 'Today' }).getAttribute('aria-current'), 'page');
+  assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'a drawer beside the stack');
 
-  // ☰ is the tour's target and opens the workspace level alone: the hub, the trash last, and none
-  // of the destinations the bar below already has.
-  const toggle = page.getByRole('button', { name: 'Open the navigation' });
-  assert.equal(await toggle.getAttribute('data-tour'), 'hubs');
-  await toggle.click();
-  const drawer = page.locator('dialog[open]');
-  await drawer.waitFor({ timeout: 5_000 });
-  await drawer.getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 5_000 });
-  const rows = (await drawer.locator('a, [role="treeitem"]').allInnerTexts()).map((row) => row.split('\n')[0].trim());
-  assert.deepEqual(rows, ['House', 'Administration', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
-  assert.equal(await drawer.getByRole('button', { name: 'Create hub', exact: true }).count(), 1, 'the drawer has no way to create a hub');
-  // Pressing the hub's row goes to the hub and shows its level (the navigation concept, §2.4):
-  // a hub is a place before it is a container.
-  await drawer.getByRole('treeitem', { name: new RegExp(HUB.name) }).click();
-  await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
-  assert.equal(new URL(page.url()).pathname, `/hubs/${HUB.id}`, 'pressing a hub does not open the hub');
-  // Its level holds its collections: the way into one.
-  await toggle.click();
-  await drawer.waitFor({ timeout: 5_000 });
-  await drawer.getByRole('region', { name: HUB.name }).getByRole('treeitem', { name: 'Kitchen' }).click();
-  await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
-  assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`);
-  assert.equal(await bar.getByRole('link', { name: 'Today' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
+  // Browse is the workspace level as a step: the hub, the administration and the keeping, and
+  // none of the destinations the bar below already has.
+  await bar.getByRole('link', { name: 'Browse' }).click();
+  const browse = page.locator('[data-browse-step]');
+  await browse.getByRole('link', { name: new RegExp(HUB.name) }).waitFor({ timeout: 5_000 });
+  const rows = (await browse.locator('a').allInnerTexts()).map((row) => row.split('\n')[0].trim());
+  assert.deepEqual(rows, ['House', 'Administration', 'Archive', 'Trash'], `Browse holds ${JSON.stringify(rows)}`);
+  // Pressing the hub's row steps into the hub's level; its collection opens the collection.
+  await browse.getByRole('link', { name: new RegExp(HUB.name) }).click();
+  await page.waitForFunction((id) => location.pathname === `/browse/hubs/${id}`, HUB.id, { timeout: 5_000 });
+  await browse.getByRole('link', { name: 'Kitchen' }).click();
+  await page.waitForFunction((id) => location.pathname === `/collections/${id}`, COLLECTION.id, { timeout: 5_000 });
+  assert.equal(await bar.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page', 'a collection is not Browse\'s');
+  // ‹ the level above is the hub's step.
+  await page.locator('[data-phone-bar] [data-back]').click();
+  await page.waitForFunction((id) => location.pathname === `/browse/hubs/${id}`, HUB.id, { timeout: 5_000 });
 
-  // *More* opens the same drawer as ☰.
-  await bar.getByRole('button', { name: 'More' }).click();
-  await drawer.waitFor({ timeout: 5_000 });
-  assert.equal(await drawer.getByRole('link', { name: 'Administration' }).count(), 1, 'More does not open the drawer');
-  await page.keyboard.press('Escape');
-  await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
-
-  // The avatar in the bar opens the account group as a sheet: the name at its head, the rows,
+  // The avatar on a root opens the account group as a sheet: the name at its head, the rows,
   // sign out last.
-  await page.getByRole('banner').getByRole('button', { name: ACCOUNT.display_name }).click();
+  await bar.getByRole('link', { name: 'Today' }).click();
+  await page.locator('[data-phone-bar]').getByRole('button', { name: ACCOUNT.display_name }).click();
   const sheet = page.locator('dialog[open]');
   await sheet.waitFor({ timeout: 5_000 });
   assert.equal(await sheet.getByText(ACCOUNT.display_name).count(), 1, 'the sheet does not name the person');
-  const items = await sheet.getByRole('button').allTextContents();
+  const items = await sheet.locator('a, button').allTextContents();
   const named = items.map((item) => item.trim()).filter((item) => ACCOUNT_GROUP.includes(item));
   assert.deepEqual(named, ACCOUNT_GROUP, `the sheet holds ${JSON.stringify(items)}`);
-  await sheet.getByRole('button', { name: 'Your settings' }).click();
+  await sheet.getByRole('link', { name: 'Your settings' }).or(sheet.getByRole('button', { name: 'Your settings' })).first().click();
   await sheet.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, '/profile');
   assert.equal(await bar.locator('[aria-current="page"]').count(), 0, 'a place of the bar is current in Your settings');
 
-  // Your settings is a section of its own (ADR-0065 decision 3), so the drawer here holds the
-  // section's list rather than the workspace's tree - and its first row is the way out, which is
-  // what a section somebody cannot leave would be missing.
+  // Your settings is a section of its own (ADR-0065 decision 3), its list behind ☰ - and its first
+  // row is the way out, which is what a section somebody cannot leave would be missing.
+  const toggle = page.getByRole('button', { name: 'Open the navigation' });
   await toggle.click();
   const settings = page.locator('dialog[open]');
   await settings.waitFor({ timeout: 5_000 });
@@ -232,10 +220,14 @@ test('chromium: 375 px — the bottom bar with More, the tree behind ☰ and Mor
   await page.locator('dialog[open]').getByRole('treeitem', { name: 'The workspace', exact: true }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
 
-  // The trash, through the sidebar's foot, from anywhere in the workspace.
-  await toggle.click();
-  await page.locator('dialog[open]').getByRole('link', { name: 'Trash' }).click();
-  assert.equal(new URL(page.url()).pathname, '/trash');
+  // The trash, through Browse's foot: Browse returns to the hub's step where it was left, a
+  // second tap to its root.
+  await bar.getByRole('link', { name: 'Browse' }).click();
+  await page.waitForFunction((id) => location.pathname === `/browse/hubs/${id}`, HUB.id, { timeout: 5_000 });
+  await bar.getByRole('link', { name: 'Browse' }).click();
+  await page.waitForFunction(() => location.pathname === '/browse', null, { timeout: 5_000 });
+  await page.locator('[data-browse-step]').getByRole('link', { name: 'Trash' }).click();
+  await page.waitForFunction(() => location.pathname === '/trash', null, { timeout: 5_000 });
 
   // The bar gives way while a field has focus - the keyboard has that part of the screen.
   await page.goto(`${served.origin}/search`);

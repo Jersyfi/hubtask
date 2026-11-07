@@ -61,16 +61,15 @@ test('chromium: 1280 px — the archive holds what the tree does not, and brings
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: 375 px — the archive is reached from the drawer, at its foot', async (t) => {
+test('chromium: 375 px — the archive is reached from Browse, at its foot', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await signedIn(browser, 375, 812);
   t.after(close);
   await page.goto(`${served.origin}/`);
-  await page.getByRole('button', { name: 'Open the navigation' }).click();
-  const drawer = page.locator('dialog[open]');
-  await drawer.waitFor({ timeout: 10_000 });
-  const keeping = drawer.getByRole('list', { name: 'What is kept' });
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Browse' }).click();
+  const keeping = page.locator('[data-browse-step]').getByRole('list', { name: 'What is kept' });
+  await keeping.waitFor({ timeout: 10_000 });
   // The fixed foot (the navigation concept, §2.5): Administration for this owner, then the keeping.
   assert.deepEqual((await keeping.getByRole('link').allTextContents()).map((row) => row.trim()), ['Administration', 'Archive', 'Trash']);
   await keeping.getByRole('link', { name: 'Archive' }).click();

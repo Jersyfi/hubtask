@@ -86,8 +86,10 @@ for (const [width, height] of [[1280, 860], [390, 844]]) {
     const settings = isPhone ? 'Step 7 of 8' : 'Step 8 of 9';
     assert.ok(seen.includes(settings), `${settings} was not shown: ${JSON.stringify(seen)}`);
     seen.forEach((count, index) => assert.match(count, new RegExp(`^Step ${index + 1} of `), `the count skips at ${JSON.stringify(seen)}`));
-    // Below `expanded` the first step points at the bar's menu button, and says so.
-    if (width < 1280) assert.match(firstWords, /This button opens the tree/);
+    // Below `expanded` the first step points at the bar's menu button, and says so; on a phone at
+    // the bottom bar's *Browse*.
+    if (width < 600) assert.match(firstWords, /Browse opens the hubs/);
+    else if (width < 1280) assert.match(firstWords, /This button opens the tree/);
     else assert.doesNotMatch(firstWords, /This button/);
     // A tour walked to its end is the account's no more: the next sign-in does not start it again.
     assert.ok(completed(), `the walked tour was not written: ${JSON.stringify(written)}`);

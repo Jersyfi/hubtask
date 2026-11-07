@@ -148,7 +148,8 @@ async function open(browser, { width, scheme = 'light', path = '/', reducedMotio
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}${path}`);
-  await page.getByRole('button', { name: ACCOUNT.display_name }).waitFor({ timeout: 15_000 });
+  // A phone's deeper screen has the bar's ‹ where a root has the avatar (the navigation concept §9).
+  await page.getByRole('button', { name: ACCOUNT.display_name }).or(page.locator('[data-phone-bar] [data-back]')).first().waitFor({ timeout: 15_000 });
   return { page, failures, close: () => context.close() };
 }
 
@@ -226,7 +227,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
 });
 
 for (const scheme of ['dark']) {
-  test(`chromium 375 px, ${scheme}: More opens the drawer with the products first`, async (t) => {
+  test(`chromium 375 px, ${scheme}: Browse lists the products, the hub and the foot`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width: 375, scheme, modulesOn: ['SERVICE_DESK', 'ASSETS'] });
@@ -235,17 +236,16 @@ for (const scheme of ['dark']) {
     await page.getByRole('region', { name: 'More in Hubtask' }).waitFor({ timeout: 10_000 });
     await noSidewaysScroll(page, `Today 375 ${scheme}`);
     const bar = page.getByRole('navigation', { name: 'Sections' });
-    await bar.getByRole('button', { name: 'More' }).click();
-    const drawer = page.locator('dialog[open]');
-    await drawer.waitFor({ timeout: 5_000 });
-    await drawer.getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 5_000 });
-    const rows = (await drawer.locator('a, [role="treeitem"]').allInnerTexts()).map((row) => row.split('\n')[0].trim());
-    // What the bar does not carry: the approvals, then the products, the hub, the administration
-    // and the keeping.
+    await bar.getByRole('link', { name: 'Browse' }).click();
+    const browse = page.locator('[data-browse-step]');
+    await browse.getByRole('link', { name: new RegExp(HUB.name) }).waitFor({ timeout: 5_000 });
+    const rows = (await browse.locator('a').allInnerTexts()).map((row) => row.split('\n')[0].trim());
+    // What the bottom bar does not carry: the approvals, then the products, the hub, the
+    // administration and the keeping (the navigation concept §9).
     assert.deepEqual(rows, ['Waiting for your yes', 'Service desk', 'Assets', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
-    await drawer.getByRole('link', { name: 'Assets' }).click();
+    await browse.getByRole('link', { name: 'Assets' }).click();
     await page.waitForFunction(() => location.pathname === '/assets', null, { timeout: 5_000 });
-    assert.equal(await bar.getByRole('button', { name: 'More' }).getAttribute('aria-current'), 'page', 'More is not current on a place only the drawer lists');
+    assert.equal(await bar.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page', 'Browse is not current on a product home');
     await page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `375 ${scheme}`);
     assert.deepEqual(failures, []);

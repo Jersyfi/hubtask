@@ -119,6 +119,9 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith(`/api/v1/hubs/${PD.id}/releases`)) return route.fulfill({ json: { data: RELEASES, ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${IT.id}/cmdb-health`)) return route.fulfill({ json: { total: 120, problems: Array.from({ length: 6 }, (_, i) => ({ ci_id: id(980 + i), kind: 'STALE' })) } });
     if (path.endsWith('/api/v1/goals') && url.searchParams.get('hub_id') === PD.id) return route.fulfill({ json: { data: GOALS, ...PAGE } });
+    // The reader's week and timer, empty: *Today* draws its time line from them.
+    if (/\/api\/v1\/timesheets\/[^/]+$/.test(path)) return route.fulfill({ json: { week: url.pathname.split('/').pop(), days: [], minutes: 0, entries: [], state: 'OPEN' } });
+    if (path.endsWith('/api/v1/timer')) return route.fulfill({ json: { running: null } });
     if (path.endsWith('/api/v1/jumble/entries')) return route.fulfill({ json: { data: url.searchParams.get('status') === 'NEW' ? ARRIVALS : [], page: { next_cursor: null } } });
     if (path.endsWith('/api/v1/approvals')) return route.fulfill({ json: { data: APPROVALS, page: { next_cursor: null, has_more: false } } });
     if (path.endsWith('/api/v1/search') && (request.postDataJSON()?.filter?.nodes ?? []).some((node) => node.field === 'assignee_id')) {
@@ -153,8 +156,9 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
 
 export const served = await serve(DIST);
 
-export async function open(browser, { width = 1440, height = 900, path = '/', storage = {}, ...options }) {
-  const context = await browser.newContext({ viewport: { width, height } });
+/** `ready` says when the page is up: the avatar by default; a phone's deeper step has the bar's ‹ instead. */
+export async function open(browser, { width = 1440, height = 900, path = '/', storage = {}, hasTouch = false, ready, ...options }) {
+  const context = await browser.newContext({ viewport: { width, height }, hasTouch });
   const { handler, written } = stubFor(options);
   await context.route('**/api/v1/**', handler);
   await context.addInitScript((kept) => {
@@ -166,7 +170,7 @@ export async function open(browser, { width = 1440, height = 900, path = '/', st
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}${path}`);
-  await page.getByRole('button', { name: ACCOUNT.display_name }).waitFor({ timeout: 15_000 });
+  await (ready ? ready(page) : page.getByRole('button', { name: ACCOUNT.display_name })).waitFor({ timeout: 15_000 });
   return { page, failures, written, close: () => context.close() };
 }
 
