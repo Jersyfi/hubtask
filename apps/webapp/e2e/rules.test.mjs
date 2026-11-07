@@ -882,8 +882,8 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
   await page.getByText('Works', { exact: true }).waitFor();
   // The last run under the word: the rule that ran says when and how, the other says never.
-  assert.match(await page.locator('article', { hasText: RULE.name }).textContent(), /Last run.*Succeeded/);
-  assert.match(await page.locator('article', { hasText: STALE.name }).textContent(), /Last run\s*never/);
+  assert.match(await page.locator('tbody tr', { hasText: RULE.name }).textContent(), /Succeeded/);
+  assert.match(await page.locator('tbody tr', { hasText: STALE.name }).textContent(), /never/);
 
   // On the shell: one heading, from the PageHeader; the check's banner among its
   // notices; *Write a rule* the primary action, which opens the editor at its address.

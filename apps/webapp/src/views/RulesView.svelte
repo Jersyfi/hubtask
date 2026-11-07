@@ -1,7 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The rules (`automation.md` §1), as a list; each opens the editor that draws it.
+  // The rules (`automation.md` §1) as a list page (page-system §7.1, §9.1): one row each - name,
+  // what starts it, its health, its last run and its switch in place -, the strip *All · Mine* with
+  // their counts; a row opens the editor that draws it, as *Write a rule* in the head does.
   //
   // **The form is gone.** What a rule does is written on a canvas at `/administration/rules/{id}`
   // and `/administration/rules/new`; this screen is the way in, and the two switches somebody
@@ -9,21 +11,19 @@
   //
   // **The check runs when this screen opens** (ADR-0060): every rule's references resolved
   // against what exists now, the findings written on the rules and shown here - the banner with
-  // the count, the health word and the first finding on each card. That is what makes "after an
+  // the count, the health word and the first finding on each row. That is what makes "after an
   // update, the rules that need attention are shown" true without anything enumerating tenants:
   // the first person to open this screen asks, and the answer is stored for everybody after.
   //
-  // **The health here is the findings' and the switch's, not the runs'.** A page of runs per card
+  // **The health here is the findings' and the switch's, not the runs'.** A page of runs per row
   // would be a request per rule on every open; the rule's own screen reads its runs and says the
   // finer word.
   //
   // **Every list is read rather than compiled in**, and **nothing is pre-empted**: the server
   // refuses and this renders it, as before.
   //
-  // **On the shell (ADR-0061)** the page sits under a `PageHeader` like every other:
-  // *Write a rule* is its one primary action, the check's findings and a refusal are its notice
-  // lines, and on a phone the title is the bar's. The editor keeps its address - it is a screen
-  // of its own - and the primary navigates there the way the frame navigates.
+  // *Write a rule* is the head's one primary act; the editor keeps its address - it is the create
+  // page of a rule - and the primary navigates there the way the frame navigates.
   //
   // **A person's own rules (UC-AUT-01 check 10)** are the same list under *Your settings*
   // (`isOwn`): only theirs, written without the automation permission. The list and the check
@@ -32,10 +32,14 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, AutomationRuleCard, Banner, Button, PageHeader, Spinner, Stack, Tabs, type PageAction } from '@hubtask/design-system/components';
+  import {
+    Badge, Banner, Button, DataTable, EmptyState, FilterBar, ListPage, Spinner, Switch, Tabs,
+    type DataColumn, type DataRowMenu, type MenuItem, type PageAction,
+  } from '@hubtask/design-system/components';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
 
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { findingWords, listHealth } from '../lib/automation/findings.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -48,15 +52,16 @@
   import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { eventWords } from '../lib/automation/words.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { renderProblem } from '../lib/problem.ts';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -77,11 +82,16 @@
   const me = $derived(actor.account?.id);
   /** The administration's list shows every rule the reader may see, or only theirs (*Mine*). */
   const filter = $derived<'all' | 'mine'>(tab === 'mine' ? 'mine' : 'all');
-  const shown = $derived(isOwn || filter === 'mine' ? rules.all.filter((rule) => isOwnRule(rule, me)) : rules.all);
+  const mine = $derived(rules.all.filter((rule) => isOwnRule(rule, me)));
+  const listed = $derived(isOwn || filter === 'mine' ? mine : rules.all);
   const base = $derived(isOwn ? '/profile/rules' : '/administration/rules');
 
+  let search = $state('');
+  const shown = $derived(listed.filter((rule) => matchesSearch(search, [rule.name])));
+
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let isWorking = $state(false);
+  /** The rule whose switch is being pressed, so only its own switch shows the work. */
+  let working = $state<string | undefined>(undefined);
 
   $effect(() => untrack(() => rules.open()));
   $effect(() => {
@@ -120,8 +130,8 @@
     return t('app.rules.last_run_words', { when: formatRelative(last.at, messages.locale), outcome: messages.has(status) ? t(status) : last.status });
   }
 
-  const broken = $derived(shown.filter((rule) => (rule.findings ?? []).some((finding) => finding.level === 'BROKEN')).length);
-  const attention = $derived(shown.filter((rule) => (rule.findings ?? []).length > 0).length - broken);
+  const broken = $derived(listed.filter((rule) => (rule.findings ?? []).some((finding) => finding.level === 'BROKEN')).length);
+  const attention = $derived(listed.filter((rule) => (rule.findings ?? []).length > 0).length - broken);
 
   const HEALTH_TONE = { works: 'success', sometimes: 'warning', off: 'neutral', attention: 'warning', broken: 'danger' } as const;
 
@@ -137,20 +147,20 @@
   const reading = $derived(rules.state);
   const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
+  async function attempt(id: string, work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
-    isWorking = true;
+    working = id;
     try {
       await work();
       if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
-      isWorking = false;
+      working = undefined;
     }
   }
 
-  /** What a card says about a rule, in words rather than tokens. */
+  /** What starts a rule, in words rather than tokens. */
   function triggerWord(rule: Rule): string {
     const code = `app.rules.trigger_${rule.trigger.kind.toLowerCase()}`;
     const said = messages.has(code) ? t(code) : rule.trigger.kind;
@@ -177,10 +187,44 @@
   );
   /** Whether the reader may switch this rule: their own, or any with the automation permission. */
   const maySwitch = (rule: Rule): boolean => mayAutomate || isOwnRule(rule, me);
+  /** Switching on is refused while the plan leaves the rules out; switching off never is. */
+  const switchRefusal = (rule: Rule): string | undefined => (!rule.enabled && !rulesIncluded ? t('app.rules.switch_resting') : undefined);
+
+  function toggle(rule: Rule): void {
+    if (rule.enabled) void attempt(rule.id, () => rules.disable(rule.id), t('app.rules.disabled_announced'));
+    else if (rulesIncluded) void attempt(rule.id, () => rules.enable(rule.id), t('app.rules.enabled_announced'));
+  }
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.rules.name'), priority: 1 },
+    { id: 'trigger', label: t('app.rules.starts_on'), priority: 2 },
+    { id: 'health', label: t('app.rules.health'), priority: 2 },
+    { id: 'last', label: t('app.rules.last_run'), priority: 3 },
+  ]);
+
+  // The switch is the row's one verb from `medium` up; on a phone, where a row shows no verb, the
+  // same act is in its menu.
+  function rowMenu(rule: Rule): DataRowMenu {
+    const items: MenuItem[] = [
+      { id: 'open', label: t('app.page.open') },
+      ...(maySwitch(rule) && (rule.enabled || rulesIncluded)
+        ? [{ id: 'switch', label: rule.enabled ? t('app.rules.disable') : t('app.rules.enable'), hasSeparatorBefore: true }]
+        : []),
+    ];
+    return { label: t('app.page.more_for', { name: rule.name }), items };
+  }
+
+  function onRowMenu(rule: Rule, id: string): void {
+    if (id === 'open') onnavigate?.(`${base}/${rule.id}`);
+    else if (id === 'switch') toggle(rule);
+  }
 
   const settingsRow = SETTINGS.flatMap((group) => group.rows).find((row) => row.id === 'rules');
-  const trail = $derived(
-    isOwn
+  let isFileOpen = $state(false);
+  const fileAction = $derived(isOwn ? undefined : viewAsFileAction(() => (isFileOpen = true)));
+  const head = $derived({
+    title,
+    breadcrumb: isOwn
       ? {
           trail: [
             { id: 'settings', label: t('app.nav.profile'), href: '/profile' },
@@ -189,113 +233,128 @@
           label: t('app.you.trail'),
           expandLabel: t('app.you.expand_trail'),
         }
-      : {
-          trail: [
-            { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-            { id: 'screen', label: t('app.rules.title') },
-          ],
-          label: t('app.admin.trail'),
-          expandLabel: t('app.admin.expand_trail'),
-        },
-  );
+      : adminTrail({ id: 'screen', label: t('app.rules.title') }),
+    primary: headPrimary,
+    secondary: fileAction ? ([fileAction] as const) : ([] as const),
+  });
   $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
 </script>
 
-<div class="screen">
-  <Stack gap="300">
-    <PageHeader
-      {title}
-      subtitle={isOwn ? t('app.rules.mine_intro') : t('app.rules.intro')}
-      isTitleInBar={viewport.isCompact}
-      breadcrumb={trail}
-      primary={headPrimary}
-    >
-      {#snippet notices()}
-        {#if !isOwn}<WorkspaceRefusal permission="AUTOMATION" />{/if}
-        {#if resting}
-          <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rules_body', { count: rules.isComplete ? shown.length : 0 })} />
-        {/if}
-        {#if failure}
-          <FailureNote problem={failure} />
-        {/if}
-        {#if broken + attention > 0}
-          <Banner tone={broken > 0 ? 'danger' : 'warning'} title={broken + attention === 1 ? t('app.flow.check_banner_one') : t('app.flow.check_banner_title', { count: broken + attention })}>
-            {t('app.flow.check_banner_body', { broken, attention })}
-          </Banner>
-        {/if}
-        {#if isChecking}
-          <p class="waiting small"><Spinner label={t('app.flow.check_running')} /> <span>{t('app.flow.check_running')}</span></p>
-        {/if}
-      {/snippet}
-    </PageHeader>
+<ListPage {head}>
+  {#snippet strip()}
     {#if !isOwn}
-      <div class="file"><ViewSectionsAsFile {...pagePart('/administration/rules')} /></div>
-
-      <SectionFindings sections={['rules']} />
-
       <Tabs
         label={t('app.rules.filter')}
         selected={filter}
         onselect={(next) => onnavigate?.(next === 'mine' ? '/administration/rules?tab=mine' : '/administration/rules')}
-        tabs={[{ id: 'all', label: t('app.rules.filter_all') }, { id: 'mine', label: t('app.rules.filter_mine') }]}
+        tabs={[
+          { id: 'all', label: t('app.rules.filter_all'), count: reading.status === 'ready' ? rules.all.length : undefined },
+          { id: 'mine', label: t('app.rules.filter_mine'), count: reading.status === 'ready' ? mine.length : undefined },
+        ]}
       />
     {/if}
+  {/snippet}
+  {#snippet intro()}<p class="quiet">{isOwn ? t('app.rules.mine_intro') : t('app.rules.intro')}</p>{/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.rules.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(listed.length) }) : undefined}
+    />
+  {/snippet}
 
-    {#if reading.status === 'loading' || reading.status === 'idle'}
-      <p class="waiting"><Spinner label={t('app.rules.reading')} /> <span>{t('app.rules.reading')}</span></p>
-    {:else if refusal}
-      <FailureNote problem={refusal} />
-    {:else}
-      <Stack gap="150">
-        {#each shown as rule (rule.id)}
-          {@const health = listHealth(rule)}
+  {#if !isOwn}<WorkspaceRefusal permission="AUTOMATION" />{/if}
+  {#if resting}
+    <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rules_body', { count: rules.isComplete ? listed.length : 0 })} />
+  {/if}
+  {#if failure}<FailureNote problem={failure} />{/if}
+  {#if broken + attention > 0}
+    <Banner tone={broken > 0 ? 'danger' : 'warning'} title={broken + attention === 1 ? t('app.flow.check_banner_one') : t('app.flow.check_banner_title', { count: broken + attention })}>
+      {t('app.flow.check_banner_body', { broken, attention })}
+    </Banner>
+  {/if}
+  {#if isChecking}
+    <p class="quiet small"><Spinner label={t('app.flow.check_running')} /> <span>{t('app.flow.check_running')}</span></p>
+  {/if}
+  {#if !isOwn}<SectionFindings sections={['rules']} />{/if}
+
+  {#if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="quiet"><Spinner label={t('app.rules.reading')} /> <span>{t('app.rules.reading')}</span></p>
+  {:else if refusal}
+    <FailureNote problem={refusal} />
+  {:else}
+    <DataTable
+      label={title}
+      {columns}
+      rows={shown}
+      key={(rule: Rule) => rule.id}
+      href={(rule: Rule) => `${base}/${rule.id}`}
+      rowLabel={(rule: Rule) => rule.name}
+      menu={rowMenu}
+      onmenu={onRowMenu}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={listed.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(rule: Rule, column: DataColumn)}
+        {@const health = listHealth(rule)}
+        {#if column.id === 'name'}
           {@const first = rule.findings?.[0]}
-          <Stack gap="100">
-            <AutomationRuleCard
-              name={rule.name}
-              href={`${base}/${rule.id}`}
-              trigger={{ label: t('app.rules.starts_on'), value: triggerWord(rule) }}
-              actions={{ label: t('app.rules.actions'), value: String(rule.actions.length) }}
-              runAs={{ label: t('app.rules.runs_as'), value: runnerName(rule.run_as) }}
-              lastRun={{ label: t('app.rules.last_run'), value: lastRunWords(rule) }}
-              isEnabled={rule.enabled && !resting}
-              stateLabel={resting ? t('app.plan.resting') : rule.enabled ? t('app.rules.on') : t('app.rules.off')}
-              failureLabel={rule.failure_count > 0 ? t('app.rules.failing', { count: String(rule.failure_count) }) : undefined}
-              healthLabel={resting ? undefined : t(`app.flow.health_${health}`)}
-              healthTone={HEALTH_TONE[health]}
-              findingLabel={first ? t('app.flow.finding_at', { where: whereOf(first.path), finding: findingWords(words, first) }) : undefined}
-              isBroken={health === 'broken'}
-            />
-            {#if maySwitch(rule)}
-            <div class="row">
-              {#if rule.enabled}
-                <Button size="sm" tone="secondary" isBusy={isWorking} busyLabel={t('app.rules.working')}
-                  onclick={() => void attempt(() => rules.disable(rule.id), t('app.rules.disabled_announced'))}>
-                  {t('app.rules.disable')}
-                </Button>
-              {:else if rulesIncluded}
-                <Button size="sm" tone="primary" isBusy={isWorking} busyLabel={t('app.rules.working')}
-                  onclick={() => void attempt(() => rules.enable(rule.id), t('app.rules.enabled_announced'))}>
-                  {t('app.rules.enable')}
-                </Button>
-              {/if}
-            </div>
-            {/if}
-          </Stack>
+          <span class="name" data-rule={rule.id}>{rule.name}</span>
+          {#if first}<span class="finding" class:broken={health === 'broken'}>{t('app.flow.finding_at', { where: whereOf(first.path), finding: findingWords(words, first) })}</span>{/if}
+        {:else if column.id === 'trigger'}
+          <span class="quiet">{triggerWord(rule)}</span>
+          {#if !isOwn}<span class="quiet small block">{t('app.rules.runs_as')}: {runnerName(rule.run_as)}</span>{/if}
+        {:else if column.id === 'health'}
+          {#if resting}
+            <Badge tone="neutral">{t('app.plan.resting')}</Badge>
+          {:else}
+            <Badge tone={HEALTH_TONE[health]}>{t(`app.flow.health_${health}`)}</Badge>
+          {/if}
+          {#if rule.failure_count > 0}<span class="quiet small block">{t('app.rules.failing', { count: String(rule.failure_count) })}</span>{/if}
         {:else}
+          <span class="quiet">{lastRunWords(rule)}</span>
+        {/if}
+      {/snippet}
+      {#snippet verb(rule: Rule)}
+        {#if maySwitch(rule)}
+          <Switch
+            label={t('app.rules.switch_label', { name: rule.name })}
+            isLabelHidden
+            checked={rule.enabled}
+            isBusy={working === rule.id}
+            busyLabel={t('app.rules.working')}
+            disabledReason={switchRefusal(rule)}
+            onchange={() => toggle(rule)}
+          />
+        {:else}
+          <span class="quiet small">{rule.enabled && !resting ? t('app.rules.on') : t('app.rules.off')}</span>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if listed.length === 0}
           <EmptyState kind="unused" title={isOwn || filter === 'mine' ? t('app.rules.mine_none') : t('app.rules.none')} />
-        {/each}
-      </Stack>
-    {/if}
-  </Stack>
-</div>
+        {:else}
+          <EmptyState kind="filtered" title={t('app.rules.filtered_title')}>
+            {#snippet action()}<Button onclick={() => (search = '')}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
+  {/if}
+</ListPage>
+
+{#if !isOwn}
+  <ViewSectionsAsFile {...pagePart('/administration/rules')} bind:isOpen={isFileOpen} isTriggerHidden />
+{/if}
 
 <style>
-
-  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-
+  .quiet { margin: 0; color: var(--text-secondary); }
   .small { font-size: var(--fs-075); }
-
-  .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-  .file { display: flex; justify-content: flex-end; }
+  .block { display: block; }
+  .name { display: block; color: var(--text-primary); font-weight: var(--fw-medium); }
+  .finding { display: block; color: var(--text-secondary); font-size: var(--fs-075); font-weight: normal; }
+  .finding.broken { color: var(--text-danger); }
 </style>

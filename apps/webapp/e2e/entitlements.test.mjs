@@ -86,13 +86,16 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   assert.ok(await page.getByText('Your 3 rules rest and stay. When automation is included again, they run from then on.').isVisible());
 
   // Every rule is still listed and reads as resting.
-  for (const each of RULES) assert.ok(await page.getByText(each.name).isVisible(), `${each.name} is not listed`);
+  for (const each of RULES) assert.ok(await page.getByText(each.name, { exact: true }).isVisible(), `${each.name} is not listed`);
   assert.equal(await page.getByText('Resting', { exact: true }).count(), RULES.length);
 
   // No new rule and no switching on; switching off stays for the two that are on.
   assert.equal(await page.getByRole('button', { name: 'Write a rule' }).count(), 0, 'a new rule is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 0, 'switching on is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it off' }).count(), 2);
+  // The switch is in each row (page-system §9.1): the two that are on may be switched off, the
+  // one that is off stays off, with the reason.
+  const main = page.getByRole('main');
+  assert.equal(await main.locator('[role="switch"]:not(:checked):not([aria-disabled="true"])').count(), 0, 'switching on is offered');
+  assert.equal(await main.locator('[role="switch"]:checked:not([aria-disabled="true"])').count(), 2);
 
   // The editor reads only: no save, no switching on, no dry run; switching off and deleting stay.
   await page.goto(`${served.origin}/administration/rules/${RULES[2].id}`);
@@ -139,7 +142,7 @@ test('chromium: included, the rules screen offers what it always did', async (t)
   await page.goto(`${served.origin}/administration/rules`);
   await page.getByRole('button', { name: 'Write a rule' }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('Not included in your plan', { exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 1);
+  assert.equal(await page.getByRole('main').locator('[role="switch"]:not(:checked):not([aria-disabled="true"])').count(), 1);
 
   // The same failed run, opened where the rules are included, can be finished.
   await page.goto(`${served.origin}/administration/runs`);
