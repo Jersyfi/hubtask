@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The built web app over the walks' fixture, for a person to look at in their own browser:
-// `pnpm --filter @hubtask/webapp build`, then `node apps/webapp/e2e/preview.mjs`.
+// `pnpm --filter @hubtask/webapp build`, then `node apps/webapp/e2e/preview.mjs` (`PORT=` a free port,
+// `KOMPASS=1` the navigation concept's workspace).
 //
 // It answers "does this look right" without Go, PostgreSQL or a password: any email and password
 // sign in, and every read is the fixture the engine walks use. It proves nothing about behaviour -
@@ -15,8 +16,23 @@ import { fileURLToPath } from 'node:url';
 import { AI_MANIFEST, SERVICE_ACCOUNT, stub } from './fixture.mjs';
 
 // `AI=1` opens the workspace with AI available and a service account to run rules as - what a look
-// at the rule editor's *Describe it* needs. Everything else is the shared fixture.
+// at the rule editor's *Describe it* needs. `KOMPASS=1` serves the navigation concept's workspace
+// (kompassstub.mjs: Product development, IT operations, Household and eleven more hubs, their
+// queues, sprints, goals and contents) instead. Everything else is the shared fixture.
 const withAi = process.env.AI === '1';
+const kompass = process.env.KOMPASS === '1' ? await import('./kompassstub.mjs') : undefined;
+// The stub module serves the walks' copy on a port of its own; the preview needs only its reads.
+await kompass?.served.close();
+const kompassHandler = kompass?.stubFor({
+  modulesOn: kompass.ALL,
+  hubModules: {
+    [kompass.PD.id]: ['WORKFLOWS', 'PLANNING', 'TIME', 'GOALS', 'KNOWLEDGE', 'WHITEBOARD'],
+    [kompass.IT.id]: ['WORKFLOWS', 'SERVICE_DESK', 'ASSETS', 'GOALS', 'KNOWLEDGE', 'WHITEBOARD'],
+    [kompass.HOME.id]: ['WORKFLOWS'],
+  },
+  stars: [{ kind: 'COLLECTION', id: kompass.WEB.id }, { kind: 'VIEW', id: kompass.QUEUES[0].view_id }],
+  owner: true,
+}).handler;
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const port = Number(process.env.PORT ?? 5180);
@@ -37,8 +53,9 @@ function route(request, response, url, body) {
     return Promise.resolve();
   };
   return {
-    request: () => ({ url: () => url.href, method: () => request.method, postDataJSON: () => (body ? JSON.parse(body) : null) }),
+    request: () => ({ url: () => url.href, method: () => request.method, postDataJSON: () => (body ? JSON.parse(body) : null), headers: () => request.headers }),
     fulfill: send,
+    abort: () => send({ status: 503, contentType: 'text/plain', body: '' }),
   };
 }
 
@@ -60,6 +77,7 @@ createServer((request, response) => {
         return;
       }
       const routed = route(request, response, url, body);
+      if (kompassHandler) return void kompassHandler(routed);
       if (withAi && url.pathname === '/api/v1/meta/capabilities') return routed.fulfill({ json: AI_MANIFEST });
       if (withAi && url.pathname === '/api/v1/auth/service-accounts') return routed.fulfill({ json: [SERVICE_ACCOUNT] });
       stub(routed);
