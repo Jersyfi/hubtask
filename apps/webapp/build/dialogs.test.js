@@ -63,7 +63,6 @@ const NOT_YET_MIGRATED = [
   'lib/pages/PageAccess.svelte',
   'lib/palette/Palette.svelte',
   'lib/product/CreateDialog.svelte',
-  'lib/settings/TemplatesGallery.svelte',
   'lib/time/AbsenceCalendar.svelte',
   'lib/time/BillingRates.svelte',
   'lib/time/BudgetPanel.svelte',

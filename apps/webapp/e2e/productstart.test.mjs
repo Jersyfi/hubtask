@@ -355,7 +355,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
   await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`);
   const dialog = page.getByRole('dialog');
   await dialog.locator('[data-template-workspace-first]').waitFor({ timeout: 15_000 });
-  await dialog.locator('[data-apply-template]').click();
+  await dialog.getByRole('button', { name: 'Take template' }).click();
   await dialog.locator('[data-template-workspace-first]').waitFor({ state: 'detached', timeout: 10_000 });
   await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
   assert.deepEqual(applied, [''], 'the workspace part was not applied first, alone');
@@ -418,7 +418,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
   await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`);
   const dialog = page.getByRole('dialog');
   await dialog.locator('[data-template-workspace-first]').waitFor({ timeout: 15_000 });
-  await dialog.locator('[data-apply-template]').click();
+  await dialog.getByRole('button', { name: 'Take template' }).click();
   await dialog.locator('[data-template-workspace-first]').waitFor({ state: 'detached', timeout: 10_000 });
   await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
   assert.deepEqual(applied, [''], 'the workspace part was not applied first, alone');
