@@ -247,13 +247,15 @@
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: var(--density-row-gap);
-    padding: var(--density-row-block) var(--sp-150);
+    /* Set as the sidebar's rows are (design-system.md §11.3), a step under a field's text: a menu
+       opened from a row reads as that row's, not as a form. */
+    padding: calc(var(--density-row-block) - var(--sp-025)) var(--sp-100);
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     background: transparent;
     color: var(--text-primary);
     font: inherit;
-    font-size: var(--fs-100);
+    font-size: var(--fs-090);
     text-align: start;
     cursor: pointer;
   }
