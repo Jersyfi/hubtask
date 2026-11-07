@@ -159,6 +159,11 @@ export class Element {
     return this.session.elementCall('POST', this.id, '/clear', {});
   }
 
+  /** Whether the field takes typing: not read-only, not disabled. */
+  editable() {
+    return this.session.script('return !arguments[0].readOnly && !arguments[0].disabled;', { [ELEMENT]: this.id });
+  }
+
   value() {
     return this.session.script('return arguments[0].value;', { [ELEMENT]: this.id });
   }

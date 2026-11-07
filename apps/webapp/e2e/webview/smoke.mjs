@@ -298,6 +298,9 @@ async function walk(server, browser) {
   step('edit it');
   await session.click('main a', ENTRY);
   const title = await session.wait('input, textarea', 'Title', { exact: false });
+  // The title stays read-only until the reader's role is known (ItemView), and a driver refuses
+  // to clear a read-only field.
+  await until('the title to take typing', () => title.editable());
   await title.clear();
   await title.type(EDITED + ENTER);
   await until('the new title on the server', async () => (await items(server)).find((item) => item.id === created.id && item.title === EDITED));
