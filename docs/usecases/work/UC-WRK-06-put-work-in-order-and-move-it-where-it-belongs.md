@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
 state: partial
 tasks: [B-08, F2-12, F10-11]
-checked_by: [test/integration/move_test.go, core/domain/model/work/Path_test.go, apps/webapp/e2e/container.test.mjs, core/domain/service/Move_test.go, core/application/service/work/MoveWorkItem_test.go, apps/webapp/e2e/entrymenu.test.mjs]
+checked_by: [test/integration/move_test.go, core/domain/model/work/Path_test.go, apps/webapp/e2e/container.test.mjs, core/domain/service/Move_test.go, core/application/service/work/MoveWorkItem_test.go, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/kompassentry.test.mjs]
 ---
 
 # Put work in order and move it where it belongs
@@ -56,4 +56,4 @@ by kind.
 
 ## Today
 
-* Check 8: met in part — an entry carried from a list or a board onto a collection row of the sidebar or of *Starred* is moved there (`apps/webapp/src/lib/entries/dragging.svelte.ts`, `apps/webapp/src/lib/frame/entryDrop.svelte.ts`), within the hub at once with *Undo*, to another hub after the dialog with its warning; no walk drives a list's drag onto the sidebar yet (step 8 of the navigation concept, `docs/backlog/navigation/README.md`).
+* Check 8: met in part — an entry dragged from a list onto a collection of the sidebar in the same hub moves there at once with *Undo*, the collection outlined before the drop (`apps/webapp/e2e/kompassentry.test.mjs`); the way to another hub's collection through the dialog of check 5 and a collection that takes no drop are built (`apps/webapp/src/lib/frame/WorkspaceNav.svelte`) but walked by no test.

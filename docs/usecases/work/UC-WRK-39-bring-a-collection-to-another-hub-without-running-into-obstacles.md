@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-08, P-11, P-12]
 state: partial
 tasks: []
-checked_by: [core/application/service/work/PreviewContainerMove_test.go, cmd/hubctl/ContainerMovePreview_test.go, presentation/mcp/MovePreviewTool_test.go, apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/workspace/moveCheck.test.ts]
+checked_by: [core/application/service/work/PreviewContainerMove_test.go, cmd/hubctl/ContainerMovePreview_test.go, presentation/mcp/MovePreviewTool_test.go, apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/workspace/moveCheck.test.ts, test/integration/move_preview_repository_test.go]
 ---
 
 # Bring a collection to another hub without running into obstacles

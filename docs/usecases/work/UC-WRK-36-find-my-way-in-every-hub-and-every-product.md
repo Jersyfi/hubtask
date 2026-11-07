@@ -87,21 +87,5 @@ three lists, nothing else.
 
 ## Today
 
-* Check 1: met — `kompass.test.mjs` (the workspace level from the top; no *Starred* before a star, no *Administration* without the right); the order of the rows `navigation.test.ts` (`forYou`, `foot`). *Recent* is the device's last five places (`recents.ts` `MAX`), not twenty.
-* Check 2: met — `kompass.test.mjs` (a hub, a collection, a tool; focus on *‹ All hubs*); `navigation.test.ts` (`levelOf` for every route of a hub). A page, a board and an entry show their hub's level once their screen has named it (`page.locate`). The hub's ⋯ is the page menu's (`placeMenu`).
-* Check 3: met — `navigation.test.ts` (`hubTools`: the fixed order, each module, *Queues* only with a desk) and `kompass.test.mjs` (the hub's screen holds no tool as a tab).
-* Check 4: met — `kompass.test.mjs` (a starred queue first, the breaching count on the danger surface with its words as the figure's label); `navigation.test.ts` (`queueRows`).
-* Check 5: met — `kompass.test.mjs` (one tree, the template left out, a board without a twist; the mode written to `nav_contents_mode`); `navigation.test.ts` (`contentsTree`: the shared key, keyless boards A–Z, the modes). The filter from 30 is `NavGroup`'s (`packages/design-system/test/navtree.test.js`).
-* Check 6: met — `kompass.test.mjs` (the desk mark, the sprint mark, the figures); *n more* from 15 and the filter from 20 are `NavGroup`'s bounds, set from `sidebar.ts`.
-* Check 7: met — `kompass.test.mjs` (Plan to Plan; a hub without the tool opens its overview; the search); `navigation.test.ts` (`switchPath`).
-* Check 8: met — `kompass.test.mjs` (the kept width, a double-click to 264, the drag bounded at 400, `Ctrl+[`, the peek opening and closing).
-* Check 9: met — `kompassscreens.test.mjs` (Plan's, Goals' and Inventory's one bar, *Manage* a menu among the parts; a collection's bar, its former *Plan* its *Timeline*), `placeViews.test.ts`; the product homes' bars `home.test.ts`.
-* Check 10: met in part — `kompassscreens.test.mjs` (no tab, the tools' lines, the collection cards with their figures); *Recently changed* is `HubActivity`'s, not walked.
-* Check 11: met in part — `home.test.ts` (`homeTabs`: the eight homes' tabs, *For you* first, *Settings* last, *Roadmaps* on Plans); whether *Settings* is left out for a reader who may not read them is not walked.
-* Check 12: met — `routes.test.ts` (every former address and where it goes) and `kompassscreens.test.mjs` (each address walked, the desk's to the first queue, the pages' to the home page).
-* Check 13: met — `kompassphone.test.mjs` (the bar's five tabs; *Browse* the workspace level, a hub's three parts and *Queues* as steps; another tab and back returns to the step left, a second tap to the root); `phone.test.ts` (`phoneTabs`, `tabOf`, `TabStacks`).
-* Check 14: met — `kompassphone.test.mjs` (*‹ Hubs*, the title, ☆ and ⋯ on a hub's step, *‹ Product development* on a collection; a content row's name links the page and its › descends; the view chip's sheet lists the desk bar's views in their order); `phone.test.ts` (`ascentOf`, `starOf`).
-* Check 15: met — `kompassphone.test.mjs` (*IT operations, level 2* and *Queues, level 3* announced; every control of the bar, the bottom bar, each Browse step and the sheets 44 pixels or more; *New*, the account and the views' sheets with their heading and *Close*).
-* Check 16: met — `kompassphone.test.mjs` (at 768 no bottom bar, ☰ opens the drawer with the workspace level and, in a hub, its level; a Browse address opens the hub).
-* Check 17: met — `kompass.test.mjs` (no tool, no *Contents*) and `navigation.test.ts` (`hubTools` with nothing on).
-* Check 18: met — `kompassscreens.test.mjs` (*Desk* chosen sends *Tasks* and the hub's portal type as the collection's request types; without a portal type the card says so and its *Choose* is disabled); `portal.test.ts` (`portalTypesOf`).
+* Check 10: met in part — `kompassscreens.test.mjs` walks the overview without tabs, its tools' lines and the collection cards; its *Recently changed* is not walked.
+* Check 11: met in part — `home.test.ts` proves the eight homes' tabs; that *Settings* is left out for a reader who may not read them is not walked.

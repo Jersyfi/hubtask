@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-handler, PE-planner, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-10, P-13]
-state: partial
+state: built
 tasks: []
-checked_by: [apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/data/stars.test.ts, core/domain/model/identity/Star_test.go, core/application/service/identity/Stars_test.go, test/integration/star_repository_test.go]
+checked_by: [apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/data/stars.test.ts, core/domain/model/identity/Star_test.go, core/application/service/identity/Stars_test.go, test/integration/star_repository_test.go, apps/webapp/src/lib/shortcuts.test.ts]
 ---
 
 # Star what I come back to
@@ -43,7 +43,3 @@ on his phone they are the same three, in the same order.
 
 * No shared stars, no folders of stars; a team's shared order is the hubs' own order.
 * MCP and `hubctl` read and write stars through the same operations (P-08); no automation trigger.
-
-## Today
-
-* Check 5: met in part — ☆ in a hub's head stars and unstars it and the hub stands under *Starred* at once; *Starred* appears only with a star (`apps/webapp/e2e/kompass.test.mjs`, `apps/webapp/src/lib/data/stars.test.ts`). `S` and the ☆ in the heads of a collection, a queue, a page and a board come with step 5's screens.

@@ -60,4 +60,4 @@ chooses *Change order* and moves it with the grips.
 
 ## Today
 
-* Check 8: met in part — a move stands at once with the mark *waiting* until the server answers, and a refusal springs it back with its reason (`kompassmove.test.mjs`); offline a page's, a board's or a container's move is refused with `sync.needs_connection`, because the push frame carries no such move (`apps/webapp/src/lib/data/replica.ts` `mutationFor`) - a change to the sync protocol, tracked in step 8 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 8: met in part — a move stands at once with *waiting* until the server answers and a refusal springs it back with its reason; offline the sidebar says the move needs a connection and that nothing changed (`kompassmove.test.mjs`). It is not kept to be sent later: the push frame carries no move of a page, a board or a container (`apps/webapp/src/lib/data/replica.ts` `mutationFor`), a change to the sync protocol named in the navigation concept's open points (`docs/backlog/navigation/README.md`).
