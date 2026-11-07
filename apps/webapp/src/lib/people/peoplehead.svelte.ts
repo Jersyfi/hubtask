@@ -18,7 +18,7 @@ export function peopleFigure(): string | undefined {
   return t('app.people.figure', { people: String(holders.filter((holder) => holder.accountId).length), groups: String(groups.all.length) });
 }
 
-export function peopleHead(primary?: PageAction) {
+export function peopleHead(primary?: PageAction, secondary?: PageAction) {
   return {
     title: t('app.people.title'),
     subtitle: peopleFigure(),
@@ -31,5 +31,6 @@ export function peopleHead(primary?: PageAction) {
       expandLabel: t('app.admin.expand_trail'),
     },
     primary,
+    secondary: secondary ? ([secondary] as const) : ([] as const),
   };
 }

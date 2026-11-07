@@ -39,6 +39,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
+  import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
 
@@ -113,6 +114,7 @@
 
   const mayDefine = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
   let defining = $state<'new' | undefined>(undefined);
+  let isFileOpen = $state(false);
   const primary = $derived(
     mayDefine && catalogue ? { label: t('app.roles.new'), icon: 'plus' as const, opener: 'new-role', onclick: () => (defining = 'new') } : undefined,
   );
@@ -123,8 +125,9 @@
   }
 </script>
 
-<ListPage head={peopleHead(primary)}>
+<ListPage head={peopleHead(primary, viewAsFileAction(() => (isFileOpen = true)))}>
   {#snippet strip()}<PeopleStrip current="roles" {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t('app.roles.intro')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.roles.search')}
@@ -151,8 +154,6 @@
     </FilterBar>
   {/snippet}
 
-  <p class="quiet">{t('app.roles.intro')}</p>
-  <div class="file"><ViewSectionsAsFile sections={['roles']} /></div>
   <SectionFindings sections={['roles']} />
   <WorkspaceGate permission="MANAGE_MEMBERS" />
 
@@ -194,6 +195,8 @@
   {/if}
 </ListPage>
 
+<ViewSectionsAsFile sections={['roles']} bind:isOpen={isFileOpen} isTriggerHidden />
+
 {#if mayDefine}
   <RoleDialog role={defining} onClose={() => (defining = undefined)} />
 {/if}
@@ -202,5 +205,4 @@
   .quiet { margin: 0; color: var(--text-secondary); }
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
   .waiting { padding: var(--sp-200); }
-  .file { display: flex; justify-content: flex-end; }
 </style>

@@ -688,7 +688,7 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     },
-    secondary: mayReadFile ? [{ label: t('app.settings.view_as_file'), onclick: () => (isFileOpen = true) }] : [],
+    secondary: mayReadFile ? [{ label: t('app.settings.view_as_file'), isQuiet: true, onclick: () => (isFileOpen = true) }] : [],
     menu: menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: () => (confirming = true) } : undefined,
     figure: policy && (part === 'sign-in' || policy.plan) ? figure : undefined,
   }}
