@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { matchesChoice, matchesSearch } from './list.ts';
+import { matchesChoice, matchesSearch, rowsPerPageOf } from './list.ts';
 
 test('an empty search matches every row', () => {
   assert.equal(matchesSearch('  ', ['Lukas Brandt']), true);
@@ -21,4 +21,11 @@ test('a chip with nothing chosen narrows nothing', () => {
   assert.equal(matchesChoice(undefined, 'ADMIN'), true);
   assert.equal(matchesChoice('ADMIN', 'ADMIN'), true);
   assert.equal(matchesChoice('ADMIN', 'MEMBER'), false);
+});
+
+test('a list starts at 25 rows unless the device kept 50 or 100', () => {
+  assert.equal(rowsPerPageOf(null), 25);
+  assert.equal(rowsPerPageOf('50'), 50);
+  assert.equal(rowsPerPageOf('100'), 100);
+  assert.equal(rowsPerPageOf('37'), 25);
 });

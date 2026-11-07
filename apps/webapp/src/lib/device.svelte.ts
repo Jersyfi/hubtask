@@ -9,6 +9,7 @@
  */
 
 import { applyMotion, readMotionChoice, storeMotionChoice, type MotionChoice } from './motion.ts';
+import { ROWS_PER_PAGE, rowsPerPageOf, type RowsPerPage } from './page/list.ts';
 import { readThemeChoice, startTheme, storeThemeChoice, type ThemeChoice } from './theme.ts';
 
 /** `localStorage` where it can be reached; nothing where it cannot (a sandbox, a test). */
@@ -25,12 +26,14 @@ export type OpenMode = 'panel' | 'whole';
 
 const OPEN_KEY = 'hubtask.entries.open';
 const PANEL_KEY = 'hubtask.panel.width';
+const ROWS_KEY = 'hubtask.list.rows';
 
 class Device {
   #theme = $state<ThemeChoice>('system');
   #motion = $state<MotionChoice>('system');
   #openMode = $state<OpenMode>('panel');
   #panelWidth = $state<number | undefined>(undefined);
+  #rowsPerPage = $state<RowsPerPage>(ROWS_PER_PAGE[0]);
   #stopTheme: (() => void) | undefined;
 
   get theme(): ThemeChoice {
@@ -50,6 +53,11 @@ class Device {
     return this.#panelWidth;
   }
 
+  /** How many rows a long list shows at first. */
+  get rowsPerPage(): RowsPerPage {
+    return this.#rowsPerPage;
+  }
+
   /** Reads what this device kept and applies it. Before the first paint, like the theme always was. */
   start(): void {
     this.#theme = readThemeChoice(storage());
@@ -58,6 +66,7 @@ class Device {
       this.#openMode = storage()?.getItem(OPEN_KEY) === 'whole' ? 'whole' : 'panel';
       const width = Number.parseFloat(storage()?.getItem(PANEL_KEY) ?? '');
       this.#panelWidth = Number.isFinite(width) && width > 0 ? width : undefined;
+      this.#rowsPerPage = rowsPerPageOf(storage()?.getItem(ROWS_KEY));
     } catch {
       // A browser that refuses storage opens entries in the panel at its first width.
     }
@@ -85,6 +94,15 @@ class Device {
     this.#panelWidth = width;
     try {
       storage()?.setItem(PANEL_KEY, String(width));
+    } catch {
+      // Kept for as long as the page is open.
+    }
+  }
+
+  setRowsPerPage(rows: RowsPerPage): void {
+    this.#rowsPerPage = rows;
+    try {
+      storage()?.setItem(ROWS_KEY, String(rows));
     } catch {
       // Kept for as long as the page is open.
     }

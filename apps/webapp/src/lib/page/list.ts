@@ -24,3 +24,13 @@ export function matchesSearch(query: string, fields: readonly (string | undefine
 export function matchesChoice<T>(chosen: T | undefined, value: T | undefined): boolean {
   return chosen === undefined || chosen === value;
 }
+
+/** How many rows a long list shows before its *Show more* (page-system D-1): 25 · 50 · 100. */
+export const ROWS_PER_PAGE = [25, 50, 100] as const;
+export type RowsPerPage = (typeof ROWS_PER_PAGE)[number];
+
+/** A kept choice, or the first where nothing valid was kept. */
+export function rowsPerPageOf(kept: string | null | undefined): RowsPerPage {
+  const value = Number(kept);
+  return (ROWS_PER_PAGE as readonly number[]).includes(value) ? (value as RowsPerPage) : ROWS_PER_PAGE[0];
+}
