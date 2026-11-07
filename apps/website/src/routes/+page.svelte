@@ -39,19 +39,19 @@
     </p>
 
     <dl class="figures">
-      <div class="figure">
+      <div class="site-figure">
         <dt>5</dt>
         <dd>levels, from an area of life down to a single tick</dd>
       </div>
-      <div class="figure">
+      <div class="site-figure">
         <dt>200+</dt>
         <dd>use cases, each reachable from all three doors</dd>
       </div>
-      <div class="figure">
+      <div class="site-figure">
         <dt>1</dt>
         <dd>dependency to operate: PostgreSQL</dd>
       </div>
-      <div class="figure">
+      <div class="site-figure">
         <dt>0</dt>
         <dd>bytes sent anywhere you did not choose</dd>
       </div>
