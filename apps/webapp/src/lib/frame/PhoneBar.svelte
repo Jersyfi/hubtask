@@ -55,17 +55,17 @@
           <IconButton icon="star" label={t(starred ? 'app.nav.unstar' : 'app.nav.star', { name: star.name })} aria-pressed={starred} onclick={() => void stars.toggle(star.kind, star.id)} />
         </span>
       {/if}
-      {#if menu}
-        <span class="page-menu" data-bar="menu">
+    {:else if marks}
+      {@render marks()}
+    {/if}
+    {#if menu}
+      <span class="page-menu" data-bar="menu">
         <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={menu.label} data-opener={menu.opener} {...props} />
           {/snippet}
         </Menu>
-        </span>
-      {/if}
-    {:else if marks}
-      {@render marks()}
+      </span>
     {/if}
   </div>
 </header>

@@ -1492,7 +1492,8 @@
            end. On a phone the bar is a chip and the filter one button whose sheet holds the rest. -->
       <!-- `data-tour`: where the tour points for "the same entries, two ways". -->
       <!-- On a phone the chip and the filter stand on one line, as the concept's phone draws them. -->
-      <div class="views" data-tour="layouts" data-compact={viewport.isCompact ? '' : undefined}>
+      <div class="views" data-tour="layouts" data-compact={viewport.isCompact ? '' : undefined}
+        role={viewport.isCompact ? 'toolbar' : undefined} aria-label={viewport.isCompact ? t('app.toolbar.entries') : undefined}>
         <PlaceViews
           placeId={container.id}
           current={barCurrent}
@@ -1501,7 +1502,7 @@
           tools={viewport.isCompact ? undefined : barTools}
         />
         {#if viewport.isCompact}
-          <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
+          <div class="toolbar">
             <div class="tools">
               {@render insideToggle()}
               <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>

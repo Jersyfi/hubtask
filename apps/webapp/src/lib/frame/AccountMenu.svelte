@@ -94,7 +94,7 @@
 {#if isSheet}
   <!-- The avatar in the bar on a phone too (user-experience.md §2.6): the bottom bar's fifth slot
        is *More*, so the account is opened where it is on every other width. -->
-  <button type="button" class="account" data-sheet-trigger aria-label={name} aria-haspopup="dialog" onclick={() => (isSheetOpen = true)}>
+  <button type="button" class="account" aria-label={name} aria-haspopup="dialog" onclick={() => (isSheetOpen = true)}>
     <span aria-hidden="true"><Avatar {name} src={picture} size="sm" /></span>
   </button>
   <Sheet title={t('app.nav.you')} closeLabel={t('app.sheet_close')} bind:isOpen={isSheetOpen}>
@@ -177,8 +177,7 @@
 
   .rows { margin: 0; padding: 0; list-style: none; }
 
-  /* In the phone's sheet: the rows as one card each band, the avatar a thumb's size. */
-  [data-sheet-trigger] { inline-size: var(--layout-nav-touchrow); block-size: var(--layout-nav-touchrow); }
+  /* In the phone's sheet: the rows as one card each band. */
   .group-label {
     margin: var(--sp-150) var(--sp-050) var(--sp-050);
     color: var(--text-subtle);

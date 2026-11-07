@@ -405,6 +405,9 @@
   const phoneBack = $derived.by(() => {
     if (!isPhone) return undefined;
     if (page.ascent) return page.ascent;
+    // An entry's way up is its collection, where the screen has named it.
+    const located = route.name === 'item' && page.place ? containers.find(page.place) : undefined;
+    if (located?.type === 'COLLECTION') return { label: located.name, path: `/collections/${located.id}` };
     const ascent = ascentOf(route, phoneHubId);
     if (!ascent) return undefined;
     const label =
