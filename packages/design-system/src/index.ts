@@ -201,3 +201,4 @@ export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts'
 export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte';
 export { default as Sheet } from './Sheet.svelte';
 export { default as SectionNav, type SectionLink } from './SectionNav.svelte';
+export { default as FilterBar, type Filter } from './FilterBar.svelte';

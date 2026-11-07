@@ -423,7 +423,7 @@ the mark the bar carries; how the product uses them is §11.
   translated; with it the text is the accessible name, without it `label` is.
 
 ### Wave 6 — compositions and pages
-`Grid` · `Sheet` · `SectionNav`
+`Grid` · `Sheet` · `SectionNav` · `FilterBar`
 
 ---
 
