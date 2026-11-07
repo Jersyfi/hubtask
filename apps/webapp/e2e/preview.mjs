@@ -32,6 +32,56 @@ const kompassHandler = kompass?.stubFor({
   },
   stars: [{ kind: 'COLLECTION', id: kompass.WEB.id }, { kind: 'VIEW', id: kompass.QUEUES[0].view_id }],
   owner: true,
+  // What the walks answer beyond the stub: an opened page, a release, a workload and a queue's request
+  // (kompassscreens.test.mjs), and the move dialog's pre-check (kompassmove.test.mjs) - IT operations
+  // with obstacles, every other hub with warnings only.
+  extra: (route, request, url) => {
+    const path = url.pathname;
+    // A page opened, as kompassscreens.test.mjs answers it; a queue's one request.
+    if (path.endsWith('/api/v1/items:query') && (request.postDataJSON()?.filter?.nodes ?? []).some((node) => node.field === 'sla_standing')) {
+      const row = { id: kompass.id(1200), title: 'Printer on the 2nd floor does not print', collection_id: kompass.DESK.id, number: 41, created_by: kompass.id(1), assignee_id: null, status: null, completion: { is_completed: false } };
+      return route.fulfill({ json: { data: [row], total: 1, page: { next_cursor: null, has_more: false } } }).then(() => true);
+    }
+    if (/\/api\/v1\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { labels: [] } }).then(() => true);
+    if (/\/api\/v1\/pages\/[^/]+\/[a-z-]+$/.test(path)) return route.fulfill({ json: { data: [], page: { next_cursor: null, has_more: false } } }).then(() => true);
+    const opened = /\/api\/v1\/pages\/([^/]+)$/.exec(path);
+    if (opened && request.method() === 'GET') {
+      const found = kompass.PD_PAGES.find((each) => each.id === opened[1]);
+      if (!found) return false;
+      const parent = kompass.PD_PAGES.find((each) => each.id === found.parent_id);
+      const ancestors = parent ? [{ id: parent.id, title: parent.title }] : [];
+      return route.fulfill({ json: { ...found, body: 'Welcome to the team.', writable: false, labels: [], shared: false, drafts: false, unpublished: false, draft: null, ancestors, updated_at: '2026-11-06T10:00:00Z' } }).then(() => true);
+    }
+    // A release opened and a plan's workload, in the contract's shapes rather than a list's.
+    const release = /\/api\/v1\/releases\/([^/]+)$/.exec(path);
+    if (release && request.method() === 'GET') {
+      const found = kompass.RELEASES.find((each) => each.id === release[1]);
+      if (found) return route.fulfill({ json: { description: '', released_at: null, notes_page_id: null, ...found, entries: [], done_count: 0, open_count: 0 } }).then(() => true);
+    }
+    const plan = /\/api\/v1\/plans\/([^/]+)\/workload$/.exec(path);
+    if (plan) return route.fulfill({ json: { plan_id: plan[1], aggregated: false, cells: [], team: [], unscheduled_minutes: 0 } }).then(() => true);
+    // A week's timesheet and the other hubs' inventory health, which the shared stub answers in
+    // older or list shapes.
+    const week = /\/api\/v1\/timesheets\/(\d{4}-\d{2}-\d{2})$/.exec(path);
+    if (week && request.method() === 'GET') return route.fulfill({ json: { week: week[1], state: 'OPEN', minutes: 0, records: [], days: [] } }).then(() => true);
+    if (/\/api\/v1\/hubs\/[^/]+\/cmdb-health$/.test(path) && !path.includes(kompass.IT.id)) return route.fulfill({ json: { total: 0, problems: [], review_overdue: 0 } }).then(() => true);
+    if (!path.endsWith(':move-preview')) return false;
+    const to = request.postDataJSON()?.target_parent_id;
+    const { IT, PD, id } = kompass;
+    return route.fulfill({
+      json: to === IT.id
+        ? {
+            movable: false,
+            obstacles: [{ code: 'containers.name_taken', params: {} }, { code: 'entry_types.hub_bound', params: {} }],
+            consequences: [
+              { code: 'containers.move_loses_access', params: { count: '2', account_ids: `${id(61)},${id(62)}` } },
+              { code: 'containers.move_takes_structure', params: { hub_id: IT.id } },
+              { code: 'containers.move_keeps_releases', params: { count: '4', hub_id: PD.id } },
+            ],
+          }
+        : { movable: true, obstacles: [], consequences: [{ code: 'containers.move_loses_access', params: { count: '1', account_ids: id(61) } }] },
+    }).then(() => true);
+  },
 }).handler;
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
