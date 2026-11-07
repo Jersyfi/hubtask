@@ -91,6 +91,16 @@ func (pending) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// ListStars and ReplaceStars are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ListStars(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplaceStars(w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.ReplaceStarsParams) {
+	notAvailable(w, r)
+}
+
 // ListNotificationPreferences and SetNotificationPreference are overridden by RestController, for
 // the reason given at CreateContainer.
 func (pending) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {

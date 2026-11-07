@@ -424,6 +424,7 @@ var restDoors = map[string]restDoor{
 	"listSoftwareProducts":              {UseCase: "ListSoftwareProducts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSpaceLabels":                   {UseCase: "ListSpaceLabels", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSprints":                       {UseCase: "ListSprints", Status: 200, Query: []string{"state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listStars":                         {UseCase: "ListStars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listSuggestions":                   {UseCase: "ListSuggestions", Status: 200, Query: []string{"cursor", "size", "status", "target_id", "target_type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "page_size"}},
 	"listSyncDevices":                   {UseCase: "ListSyncDevices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listTemplates":                     {UseCase: "ListTemplates", Status: 200, Query: []string{"container_id", "cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
@@ -612,6 +613,7 @@ var restDoors = map[string]restDoor{
 	"reorderContainer":                  {UseCase: "ReorderContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderWorkItem":                   {UseCase: "ReorderWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"replaceLegalHolds":                 {UseCase: "ReplaceLegalHolds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"replaceStars":                      {UseCase: "ReplaceStars", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}, ReadOnly: []string{"version"}},
 	"replayRuleRun":                     {UseCase: "ReplayRuleRun", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"replayWebhookDelivery":             {UseCase: "ReplayWebhookDelivery", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reportPortfolioStatus":             {UseCase: "ReportPortfolioStatus", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3526,6 +3528,12 @@ func (c *RestController) ListSprints(w http.ResponseWriter, r *http.Request, col
 	c.door(w, r, restDoors["listSprints"], usecase.Input{"collection_id": collectionId.String()}, params, nil, &answer)
 }
 
+// ListStars answers GET /accounts/{accountId}/stars by the generated mapping.
+func (c *RestController) ListStars(w http.ResponseWriter, r *http.Request, accountId openapi.AccountId) {
+	var answer openapi.StarList
+	c.door(w, r, restDoors["listStars"], usecase.Input{"account_id": accountId.String()}, nil, nil, &answer)
+}
+
 // ListSuggestions answers GET /suggestions by the generated mapping.
 func (c *RestController) ListSuggestions(w http.ResponseWriter, r *http.Request, params openapi.ListSuggestionsParams) {
 	c.door(w, r, restDoors["listSuggestions"], usecase.Input{}, params, nil, answerBy(suggestionPageResponse))
@@ -4704,6 +4712,13 @@ func (c *RestController) ReplaceScimUser(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	c.Scim.ReplaceScimUser(w, r, scimUserId)
+}
+
+// ReplaceStars answers PUT /accounts/{accountId}/stars by the generated mapping.
+func (c *RestController) ReplaceStars(w http.ResponseWriter, r *http.Request, accountId openapi.AccountId, params openapi.ReplaceStarsParams) {
+	var body openapi.ReplaceStarsJSONRequestBody
+	var answer openapi.StarList
+	c.door(w, r, restDoors["replaceStars"], usecase.Input{"account_id": accountId.String()}, params, &body, &answer)
 }
 
 // ReplayRuleRun answers POST /automation/runs/{runId}:replay by the generated mapping.

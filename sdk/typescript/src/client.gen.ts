@@ -2060,6 +2060,16 @@ export class HubtaskClient {
     return this.call("PATCH", "/accounts/{accountId}/preferences", { "accountId": accountId }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** Read a person's stars */
+  listStars(accountId: string, options: CallOptions = {}): Promise<operations["listStars"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/{accountId}/stars", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a person's stars */
+  replaceStars(accountId: string, body: NonNullable<operations["replaceStars"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["replaceStars"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/accounts/{accountId}/stars", { "accountId": accountId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** What an account wants to be told about */
   listNotificationPreferences(accountId: string, options: CallOptions = {}): Promise<operations["listNotificationPreferences"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}/notification-preferences", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

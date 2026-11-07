@@ -184,6 +184,14 @@ class AccountPreferences(TypedDict, total=False):
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
 
+class Star(TypedDict, total=False):
+    kind: Required[Literal["HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "PORTFOLIO"]]
+    id: Required[str]
+
+class StarList(TypedDict, total=False):
+    stars: Required[list["Star"]]
+    version: int
+
 class NotificationPreference(TypedDict, total=False):
     category: Required[str]
     channel: Required[str]

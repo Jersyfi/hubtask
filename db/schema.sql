@@ -8114,4 +8114,22 @@ CREATE POLICY tenant_isolation ON sample_object
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON sample_object TO hubtask_app;
 
+
+-- Migration 0389: a person's stars, one ordered list per account (navigation concept §6.2).
+CREATE TABLE account_star (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  stars      jsonb NOT NULL DEFAULT '[]'
+             CHECK (jsonb_typeof(stars) = 'array' AND jsonb_array_length(stars) <= 100),
+  version    integer NOT NULL CHECK (version >= 1),
+  updated_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE account_star ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_star FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON account_star
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON account_star TO hubtask_app;
+
 COMMIT;

@@ -4150,3 +4150,22 @@ SELECT EXISTS (
 
 -- name: ClearEntryStatusChange :execrows
 DELETE FROM entry_status_change;
+
+-- name: ImportAccountStar :execrows
+INSERT INTO account_star (tenant_id, account_id, stars, version, updated_at)
+SELECT r.tenant_id, r.account_id, r.stars, r.version, r.updated_at
+FROM jsonb_populate_record(
+  NULL::account_star,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  stars = EXCLUDED.stars, version = EXCLUDED.version, updated_at = EXCLUDED.updated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsAccountStar :one
+SELECT EXISTS (
+  SELECT 1 FROM account_star WHERE account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearAccountStar :execrows
+DELETE FROM account_star;

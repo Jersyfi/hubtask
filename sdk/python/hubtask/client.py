@@ -1651,6 +1651,14 @@ class Client:
         """Set how the product speaks to an account"""
         return self._call("PATCH", "/accounts/{accountId}/preferences", {"accountId": account_id}, None, {}, body, "json", "application/merge-patch+json", "json")
 
+    def list_stars(self, account_id: str) -> "StarList":
+        """Read a person's stars"""
+        return self._call("GET", "/accounts/{accountId}/stars", {"accountId": account_id}, None, {}, None, "none", None, "json")
+
+    def replace_stars(self, account_id: str, body: "StarList", *, if_match: str | None = None) -> "StarList":
+        """Replace a person's stars"""
+        return self._call("PUT", "/accounts/{accountId}/stars", {"accountId": account_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def list_notification_preferences(self, account_id: str) -> "NotificationPreferenceList":
         """What an account wants to be told about"""
         return self._call("GET", "/accounts/{accountId}/notification-preferences", {"accountId": account_id}, None, {}, None, "none", None, "json")

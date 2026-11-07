@@ -51,6 +51,18 @@ func (q *Queries) ClearAccountGroupMember(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearAccountStar = `-- name: ClearAccountStar :execrows
+DELETE FROM account_star
+`
+
+func (q *Queries) ClearAccountStar(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAccountStar)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearActivityEntry = `-- name: ClearActivityEntry :execrows
 DELETE FROM activity_entry
 `
@@ -1723,6 +1735,19 @@ SELECT EXISTS (SELECT 1 FROM account_group_member WHERE group_id = ($1::jsonb->>
 
 func (q *Queries) HoldsAccountGroupMember(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsAccountGroupMember, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsAccountStar = `-- name: HoldsAccountStar :one
+SELECT EXISTS (
+  SELECT 1 FROM account_star WHERE account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsAccountStar(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAccountStar, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -3566,6 +3591,31 @@ type ImportAccountGroupMemberParams struct {
 
 func (q *Queries) ImportAccountGroupMember(ctx context.Context, arg ImportAccountGroupMemberParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importAccountGroupMember, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAccountStar = `-- name: ImportAccountStar :execrows
+INSERT INTO account_star (tenant_id, account_id, stars, version, updated_at)
+SELECT r.tenant_id, r.account_id, r.stars, r.version, r.updated_at
+FROM jsonb_populate_record(
+  NULL::account_star,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  stars = EXCLUDED.stars, version = EXCLUDED.version, updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportAccountStarParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAccountStar(ctx context.Context, arg ImportAccountStarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAccountStar, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

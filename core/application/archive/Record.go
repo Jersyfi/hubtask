@@ -1362,6 +1362,13 @@ var entities = []Entity{
 	{
 		Name: "sample_objects", Table: "sample_object", Whole: true, Later: true, Keys: []string{"key"},
 	},
+	// A person's stars (migration 0389, UC-WRK-37): one list per account. Its members name rows of
+	// the tables their kinds say, so they have no reference to remap; a copy would name the
+	// originals, so a DUPLICATE skips it.
+	{
+		Name: "account_stars", Table: "account_star", Whole: true, Later: true, Keys: []string{"account_id"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

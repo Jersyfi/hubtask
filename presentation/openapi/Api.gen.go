@@ -9499,6 +9499,39 @@ func (e SprintEntryOutcome) Valid() bool {
 	}
 }
 
+// Defines values for StarKind.
+const (
+	StarKindCOLLECTION StarKind = "COLLECTION"
+	StarKindDASHBOARD  StarKind = "DASHBOARD"
+	StarKindHUB        StarKind = "HUB"
+	StarKindPAGE       StarKind = "PAGE"
+	StarKindPORTFOLIO  StarKind = "PORTFOLIO"
+	StarKindVIEW       StarKind = "VIEW"
+	StarKindWHITEBOARD StarKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the StarKind enum.
+func (e StarKind) Valid() bool {
+	switch e {
+	case StarKindCOLLECTION:
+		return true
+	case StarKindDASHBOARD:
+		return true
+	case StarKindHUB:
+		return true
+	case StarKindPAGE:
+		return true
+	case StarKindPORTFOLIO:
+		return true
+	case StarKindVIEW:
+		return true
+	case StarKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StarterCollectionPreset.
 const (
 	StarterCollectionPresetFLOW        StarterCollectionPreset = "FLOW"
@@ -24313,6 +24346,26 @@ type SprintList struct {
 	RunsSprints bool `json:"runs_sprints"`
 }
 
+// Star defines model for Star.
+type Star struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// Kind What the star points at; a VIEW is a saved view, a queue among them.
+	Kind StarKind `json:"kind"`
+}
+
+// StarKind What the star points at; a VIEW is a saved view, a queue among them.
+type StarKind string
+
+// StarList defines model for StarList.
+type StarList struct {
+	// Stars The stars in the person's order.
+	Stars []Star `json:"stars"`
+
+	// Version The list's version, 0 before the first write; `If-Match` names it.
+	Version *int `json:"version,omitempty"`
+}
+
 // StartPasswordIssued defines model for StartPasswordIssued.
 type StartPasswordIssued struct {
 	Account Account `json:"account"`
@@ -27095,6 +27148,12 @@ type RemoveOwnPasskeyParams struct {
 type StartPasskeyRegistrationParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ReplaceStarsParams defines parameters for ReplaceStars.
+type ReplaceStarsParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
@@ -30028,6 +30087,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// ReplaceStarsJSONRequestBody defines body for ReplaceStars for application/json ContentType.
+type ReplaceStarsJSONRequestBody = StarList
+
 // RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
 type RequestAddressJSONRequestBody = AddressRequest
 
@@ -31668,6 +31730,12 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ListStars Read a person's stars
+	// (GET /accounts/{accountId}/stars)
+	ListStars(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ReplaceStars Replace a person's stars
+	// (PUT /accounts/{accountId}/stars)
+	ReplaceStars(w http.ResponseWriter, r *http.Request, accountId AccountId, params ReplaceStarsParams)
 	// RequestAddress Give a managed account a mail address
 	// (POST /accounts/{accountId}:add-address)
 	RequestAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -34715,6 +34783,82 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListStars operation middleware
+func (siw *ServerInterfaceWrapper) ListStars(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListStars(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceStars operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceStars(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReplaceStarsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceStars(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -62919,6 +63063,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:reset-second-factor", wrapper.ResetSecondFactor)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/stars", wrapper.ListStars)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/stars", wrapper.ReplaceStars)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions", wrapper.RevokeAllSessions)

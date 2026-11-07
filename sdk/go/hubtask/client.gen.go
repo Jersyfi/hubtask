@@ -9505,6 +9505,39 @@ func (e SprintEntryOutcome) Valid() bool {
 	}
 }
 
+// Defines values for StarKind.
+const (
+	StarKindCOLLECTION StarKind = "COLLECTION"
+	StarKindDASHBOARD  StarKind = "DASHBOARD"
+	StarKindHUB        StarKind = "HUB"
+	StarKindPAGE       StarKind = "PAGE"
+	StarKindPORTFOLIO  StarKind = "PORTFOLIO"
+	StarKindVIEW       StarKind = "VIEW"
+	StarKindWHITEBOARD StarKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the StarKind enum.
+func (e StarKind) Valid() bool {
+	switch e {
+	case StarKindCOLLECTION:
+		return true
+	case StarKindDASHBOARD:
+		return true
+	case StarKindHUB:
+		return true
+	case StarKindPAGE:
+		return true
+	case StarKindPORTFOLIO:
+		return true
+	case StarKindVIEW:
+		return true
+	case StarKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StarterCollectionPreset.
 const (
 	StarterCollectionPresetFLOW        StarterCollectionPreset = "FLOW"
@@ -24319,6 +24352,26 @@ type SprintList struct {
 	RunsSprints bool `json:"runs_sprints"`
 }
 
+// Star defines model for Star.
+type Star struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// Kind What the star points at; a VIEW is a saved view, a queue among them.
+	Kind StarKind `json:"kind"`
+}
+
+// StarKind What the star points at; a VIEW is a saved view, a queue among them.
+type StarKind string
+
+// StarList defines model for StarList.
+type StarList struct {
+	// Stars The stars in the person's order.
+	Stars []Star `json:"stars"`
+
+	// Version The list's version, 0 before the first write; `If-Match` names it.
+	Version *int `json:"version,omitempty"`
+}
+
 // StartPasswordIssued defines model for StartPasswordIssued.
 type StartPasswordIssued struct {
 	Account Account `json:"account"`
@@ -27101,6 +27154,12 @@ type RemoveOwnPasskeyParams struct {
 type StartPasskeyRegistrationParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ReplaceStarsParams defines parameters for ReplaceStars.
+type ReplaceStarsParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
@@ -30034,6 +30093,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// ReplaceStarsJSONRequestBody defines body for ReplaceStars for application/json ContentType.
+type ReplaceStarsJSONRequestBody = StarList
+
 // RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
 type RequestAddressJSONRequestBody = AddressRequest
 
@@ -32112,6 +32174,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListStars Read a person's stars
+	//
+	// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+	//
+	// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+	ListStars(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceStarsWithBody Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStarsWithBody(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceStars Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStars(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestAddressWithBody Give a managed account a mail address
 	//
@@ -43782,6 +43869,61 @@ func (c *Client) UpdateAccountPreferencesWithBody(ctx context.Context, accountId
 // Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateAccountPreferencesRequestWithApplicationMergePatchPlusJSONBody(c.Server, accountId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListStars Read a person's stars
+//
+// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+//
+// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+func (c *Client) ListStars(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListStarsRequest(c.Server, accountId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceStarsWithBody Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *Client) ReplaceStarsWithBody(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceStarsRequestWithBody(c.Server, accountId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceStars Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *Client) ReplaceStars(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceStarsRequest(c.Server, accountId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -67822,6 +67964,102 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListStarsRequest constructs an http.Request for the ListStars method
+func NewListStarsRequest(server string, accountId AccountId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s/stars", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReplaceStarsRequest calls the generic ReplaceStars builder with application/json body
+func NewReplaceStarsRequest(server string, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceStarsRequestWithBody(server, accountId, params, "application/json", bodyReader)
+}
+
+// NewReplaceStarsRequestWithBody constructs an http.Request for the ReplaceStars method, with any body, and a specified content type
+func NewReplaceStarsRequestWithBody(server string, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s/stars", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -107380,6 +107618,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
 
+	// ListStarsWithResponse Read a person's stars
+	//
+	// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+	ListStarsWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*ListStarsResult, error)
+
+	// ReplaceStarsWithBodyWithResponse Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStarsWithBodyWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error)
+
+	// ReplaceStarsWithResponse Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStarsWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error)
+
 	// RequestAddressWithBodyWithResponse Give a managed account a mail address
 	//
 	// Sends a confirmation link to the address. Nothing on the account changes until somebody
@@ -120333,6 +120598,116 @@ func (r UpdateAccountPreferencesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateAccountPreferencesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ListStarsResult200Headers the declared response headers of an HTTP 200 response for ListStars
+type ListStarsResult200Headers struct {
+	ETag *string
+}
+
+type ListStarsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StarList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ListStarsResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListStarsResult) GetJSON200() *StarList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListStarsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListStarsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListStarsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListStarsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListStarsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ReplaceStarsResult200Headers the declared response headers of an HTTP 200 response for ReplaceStars
+type ReplaceStarsResult200Headers struct {
+	ETag *string
+}
+
+type ReplaceStarsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StarList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ReplaceStarsResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReplaceStarsResult) GetJSON200() *StarList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReplaceStarsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReplaceStarsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceStarsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceStarsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReplaceStarsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -161212,6 +161587,51 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 	return ParseUpdateAccountPreferencesResult(rsp)
 }
 
+// ListStarsWithResponse Read a person's stars
+//
+// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+func (c *ClientWithResponses) ListStarsWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*ListStarsResult, error) {
+	rsp, err := c.ListStars(ctx, accountId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListStarsResult(rsp)
+}
+
+// ReplaceStarsWithBodyWithResponse Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *ClientWithResponses) ReplaceStarsWithBodyWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error) {
+	rsp, err := c.ReplaceStarsWithBody(ctx, accountId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceStarsResult(rsp)
+}
+
+// ReplaceStarsWithResponse Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *ClientWithResponses) ReplaceStarsWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error) {
+	rsp, err := c.ReplaceStars(ctx, accountId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceStarsResult(rsp)
+}
+
 // RequestAddressWithBodyWithResponse Give a managed account a mail address
 //
 // Sends a confirmation link to the address. Nothing on the account changes until somebody
@@ -181176,6 +181596,98 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseListStarsResult parses an HTTP response from a ListStarsWithResponse call
+func ParseListStarsResult(rsp *http.Response) (*ListStarsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListStarsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StarList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ListStarsResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseReplaceStarsResult parses an HTTP response from a ReplaceStarsWithResponse call
+func ParseReplaceStarsResult(rsp *http.Response) (*ReplaceStarsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceStarsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StarList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ReplaceStarsResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil

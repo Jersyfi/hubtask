@@ -17,6 +17,17 @@ import (
 // infer. Keyed by table name, which is the schema's vocabulary and the one the deletion journal is
 // written in; the archive's own entity names stay on the other side of the port.
 var importers = map[string]importer{
+	"account_star": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportAccountStar(ctx, sqlc.ImportAccountStarParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsAccountStar(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearAccountStar(ctx)
+		},
+	},
 	"tenant": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportTenant(ctx, sqlc.ImportTenantParams{Payload: payload, Overwrite: overwrite})

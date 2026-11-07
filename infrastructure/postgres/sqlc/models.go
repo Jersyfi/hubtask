@@ -424,6 +424,14 @@ type AccountRecoveryCode struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type AccountStar struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	Stars     []byte
+	Version   int32
+	UpdatedAt pgtype.Timestamptz
+}
+
 type ActivityEntry struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID

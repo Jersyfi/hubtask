@@ -139,6 +139,7 @@
     }
   ],
   "x-hubtask-cli-groups": {
+    "star": "a person's stars: the places they keep close, in their order",
     "workflow": "the workspace's workflows and which collection runs which",
     "link-type": "the kinds of link between entries: blocks, relates to, duplicates",
     "link": "an entry's links to other entries, and references resolved",
@@ -16912,6 +16913,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}/stars": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "listStars",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "star list",
+        "summary": "Read a person's stars",
+        "description": "The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.\n",
+        "responses": {
+          "200": {
+            "description": "The stars",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StarList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "replaceStars",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "star replace",
+        "summary": "Replace a person's stars",
+        "description": "Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StarList"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The stars as stored",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StarList"
                 }
               }
             }
@@ -37052,6 +37139,53 @@
               null
             ],
             "description": "How the sidebar shows a hub's contents. `null` clears it; the default is TREE."
+          }
+        }
+      },
+      "Star": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HUB",
+              "COLLECTION",
+              "VIEW",
+              "PAGE",
+              "WHITEBOARD",
+              "DASHBOARD",
+              "PORTFOLIO"
+            ],
+            "description": "What the star points at; a VIEW is a saved view, a queue among them."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "StarList": {
+        "type": "object",
+        "required": [
+          "stars"
+        ],
+        "properties": {
+          "stars": {
+            "type": "array",
+            "maxItems": 100,
+            "description": "The stars in the person's order.",
+            "items": {
+              "$ref": "#/components/schemas/Star"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "The list's version, 0 before the first write; `If-Match` names it."
           }
         }
       },

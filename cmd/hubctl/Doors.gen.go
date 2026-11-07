@@ -26,6 +26,7 @@ var generatedGroups = map[string]string{
 	"setting":           "the settings catalogue: every setting, its level and its source",
 	"sla":               "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
 	"sprint":            "a collection's sprints: planned, run and closed, their burndown, the backlog and the team's velocity",
+	"star":              "a person's stars: the places they keep close, in their order",
 	"time":              "time records: recorded, corrected, listed, summed in reports and exported to accounting; the time policy",
 	"timer":             "the caller's running timer, the same on every device",
 	"timesheet":         "a person's week from Monday: filled in, copied, handed in, approved or sent back",
@@ -2752,6 +2753,19 @@ var generatedCommands = []door{
 			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"average", "unit"}},
+	{Group: "star", Verb: "list", OperationID: "listStars", Method: "GET", Path: "/accounts/{accountId}/stars", Summary: "Read a person's stars",
+		PathParams: []doorParam{
+			{Name: "accountId", Kind: "uuid", Help: "An account identifier, always a UUID", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "star", Verb: "replace", OperationID: "replaceStars", Method: "PUT", Path: "/accounts/{accountId}/stars", Summary: "Replace a person's stars",
+		PathParams: []doorParam{
+			{Name: "accountId", Kind: "uuid", Help: "An account identifier, always a UUID", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "stars", Kind: "json", Help: "The stars in the person's order", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"version"}},
 	{Group: "suggestion", Verb: "dismiss", OperationID: "dismissSuggestion", Method: "POST", Path: "/suggestions/{suggestionId}:dismiss", Summary: "Dismiss a suggestion",
 		PathParams: []doorParam{
 			{Name: "suggestionId", Kind: "uuid", Help: "", Required: true},

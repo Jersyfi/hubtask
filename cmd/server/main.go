@@ -2271,6 +2271,12 @@ func run() error {
 	// What another product's dashboard and search box show (UC-INT-20): the searches of the
 	// registry run as the reader, through the catalogue set below.
 	glanceSearches := &deferredCatalogue{}
+	// A person's stars are read as the person through the catalogue set below (UC-WRK-37).
+	starReads := &deferredCatalogue{}
+	starService := identity.Stars{
+		Stars: postgres.NewStarRepository(), Accounts: accounts, Reader: starReads, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	glance := glanceservice.Glance{
 		Invoker: glanceSearches, Addresses: workspaceAddress(cfg), Containers: containers, UnitOfWork: unitOfWork,
 	}
@@ -2842,6 +2848,8 @@ func run() error {
 			Accounts: accounts, Avatars: accounts, Objects: mediaObjects, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ListStars{Stars: starService}.Descriptor(),
+		identity.ReplaceStars{Stars: starService}.Descriptor(),
 		identity.ListNotificationPreferences{
 			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,
@@ -3923,6 +3931,7 @@ func run() error {
 	alertEntries.catalogue = useCases
 	botEntries.catalogue = useCases
 	glanceSearches.catalogue = useCases
+	starReads.catalogue = useCases
 	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
 	approvalSteps.catalogue = useCases

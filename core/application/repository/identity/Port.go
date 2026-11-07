@@ -468,3 +468,13 @@ type Owners interface {
 	// a workspace has a handful of owners. The tenant boundary is the transaction's (ADR-0010).
 	OwnerPaths(ctx context.Context) ([]OwnerPath, error)
 }
+
+// Stars stores a person's stars (UC-WRK-37), one ordered list per account.
+type Stars interface {
+	// Find answers the account's list; an account that never starred anything has the empty list
+	// at version 0.
+	Find(ctx context.Context, accountID shared.ID) (identity.StarList, error)
+	// Replace writes the whole list at the version expected - 0 for the first write; another
+	// version is shared.ErrVersionConflict.
+	Replace(ctx context.Context, accountID shared.ID, stars []identity.Star, expected int, at time.Time) error
+}
