@@ -1456,3 +1456,36 @@ export async function openSettings(page, name) {
   await page.getByRole('button', { name: `Actions for ${name}` }).first().click();
   await page.getByRole('menuitem', { name: 'Settings…' }).click();
 }
+
+/**
+ * A view of a collection's one bar (the navigation concept §3) - *List*, *Board*, *Timeline* -,
+ * the link the layout switch's radio was; on compact the link of the chip's sheet. `current`
+ * narrows it to the view the screen is.
+ */
+export function viewLink(page, name, { current = false } = {}) {
+  const link = page.locator('[data-tour="layouts"], dialog[open]').getByRole('link', { name, exact: true });
+  return current ? link.and(page.locator('[aria-current="page"]')) : link;
+}
+
+/** Opens a view of the collection's bar; on compact through the chip that holds the bar. */
+export async function chooseView(page, name) {
+  const chip = page.locator('[data-tour="layouts"] button[aria-haspopup="dialog"]');
+  await page.locator('[data-tour="layouts"] nav, [data-tour="layouts"] button[aria-haspopup="dialog"]').first().waitFor({ timeout: 15_000 });
+  if (await chip.count() > 0) await chip.click();
+  await viewLink(page, name).first().click();
+}
+
+/** The collection's bar, where the filter and the entries' tools stand at its end (on compact, the filter's own row). */
+export const viewBar = (page) => page.locator('[data-tour="layouts"], [role="toolbar"]');
+
+/** A hub head's *New ▾* (the navigation concept's mockup): one button opening what can be made there. */
+export const newInHead = (page) => page.locator('header.head').getByRole('button', { name: 'New', exact: true });
+
+/** Opens the new-collection dialog from the hub head's *New ▾ → Collection*. */
+export async function openNewCollection(page) {
+  await newInHead(page).first().click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+}
+
+/** A kind's card in the new-collection dialog (the navigation concept's *New collection*): its *Choose* button. */
+export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name: new RegExp(`^(Choose|Chosen) ${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') });

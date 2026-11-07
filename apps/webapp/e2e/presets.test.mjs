@@ -23,7 +23,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, PRESET_SETTINGS, SHAPE_HUB, SHAPES, WORKSPACE, forgetUnstubbed, showStructures, stub, openSettings } from './fixture.mjs';
+import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, PRESET_SETTINGS, SHAPE_HUB, SHAPES, WORKSPACE, forgetUnstubbed, showStructures, stub, openSettings, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -176,17 +176,17 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
 
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Create collection' }).first().click();
+  await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
-  await dialog.getByRole('radio', { name: 'Weekly shop' }).waitFor({ timeout: 5_000 });
+  await kindChoice(dialog, 'Weekly shop').waitFor({ timeout: 5_000 });
   for (const [name, origin] of [['List', "Hubtask's"], ['Craft order', "The installation's"], ['Weekly shop', "The workspace's"], ['Client project', 'Yours']]) {
-    const radio = dialog.getByRole('radio', { name, exact: true });
-    assert.equal(await radio.count(), 1, `${name} is not offered`);
-    const described = await radio.evaluate((input) => input.closest('.row')?.textContent ?? '');
+    const choice = kindChoice(dialog, name);
+    assert.equal(await choice.count(), 1, `${name} is not offered`);
+    const described = await choice.evaluate((button) => button.closest('[data-collection-kind]')?.textContent ?? '');
     assert.ok(described.includes(origin), `${name} is marked ${JSON.stringify(described)}, not ${origin}`);
   }
   await dialog.getByRole('textbox', { name: 'Collection name' }).fill('Acme');
-  await dialog.getByRole('radio', { name: 'Client project' }).check();
+  await kindChoice(dialog, 'Client project').click();
   await dialog.getByRole('button', { name: 'Create collection' }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
   const created = written.find((write) => write.path === '/containers');

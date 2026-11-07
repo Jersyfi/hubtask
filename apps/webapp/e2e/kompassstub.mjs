@@ -32,7 +32,7 @@ export const TODO = collection(220, HOME, 'To do');
 export const COLLECTIONS = [DESK, CHANGES, WEB, MOBILE, DESIGN, BUGS, TODO];
 /** A day counted from today, as a calendar date. */
 export const day = (offset) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-export const sprint = (n, at, name, endIn) => ({ id: id(n), collection_id: at.id, name, goal: '', start_on: day(endIn - 13), end_on: day(endIn), state: 'ACTIVE', unit: 'POINTS', committed_value: 0, committed_count: 0, completed_value: 0, completed_count: 0, started_at: null, closed_at: null, version: 1 });
+export const sprint = (n, at, name, endIn) => ({ id: id(n), collection_id: at.id, name, goal: '', start_on: day(endIn - 13), end_on: day(endIn), state: 'ACTIVE', unit: 'POINTS', committed_value: 0, committed_count: 29, completed_value: 0, completed_count: 18, started_at: null, closed_at: null, version: 1 });
 export const SPRINTS = { [WEB.id]: [sprint(600, WEB, 'Sprint 42', 5)], [MOBILE.id]: [sprint(601, MOBILE, 'Sprint 9', 8)] };
 // Product development's handbook: pages nested two deep, boards among them and one not yet filed.
 export const pdPage = (n, title, parent = null) => ({ id: id(n), hub_id: PD.id, parent_id: parent, title, order_key: `a${n}`, template: false, version: 1 });

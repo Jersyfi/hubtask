@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { COLLECTION, ITEMS, openSettings, signedIn, stub } from './fixture.mjs';
+import { COLLECTION, ITEMS, openSettings, signedIn, stub, chooseView } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -43,7 +43,7 @@ test('a row, a card and the panel draw the key with the prefix, or the handle wh
       await page.getByRole('button', { name: 'Fields' }).click();
       await page.getByRole('menuitem', { name: 'Key' }).click();
       await page.locator(`[data-field="key"] [data-entry-key]`).getByText(key, { exact: true }).first().waitFor({ timeout: 15_000 });
-      await page.getByRole('radio', { name: 'Board' }).click();
+      await chooseView(page, 'Board');
       const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
       await card.locator('[data-entry-key]').getByText(key, { exact: true }).waitFor({ timeout: 15_000 });
       await page.goto(`${served.origin}/items/${ITEMS[0].id}`);

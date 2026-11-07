@@ -99,8 +99,19 @@ async function open(browser, { width = 1280, height = 900, path, full = true, ro
   return { page, context, failures };
 }
 
-const strips = (page) => page.getByRole('tablist');
-const tabNames = async (list) => (await list.getByRole('tab').allTextContents()).map((each) => each.trim());
+// The tool *Inventory* (the navigation concept §2.4): one view bar of its parts, *Manage ▾* a menu
+// at its end - never a second strip.
+const bar = (page) => page.getByRole('navigation', { name: 'Parts of the inventory' });
+const manage = (page) => page.locator('[data-assets-manage]');
+async function partNames(page) {
+  await bar(page).getByRole('link').first().waitFor({ timeout: 10_000 });
+  const links = (await bar(page).getByRole('link').allTextContents()).map((each) => each.trim());
+  return (await manage(page).count()) > 0 ? [...links, 'Manage'] : links;
+}
+async function manageTo(page, name) {
+  await manage(page).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
+}
 async function noSidewaysScroll(page, what) {
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 1, `${what} scrolls sideways by ${wide} px`);
@@ -118,15 +129,17 @@ test('chromium: the inventory comes first under its figure, the operator\'s sect
   assert.match(await figure.innerText(), /40 configuration items[\s\S]*6 need attention[\s\S]*1 alert firing/);
   // The count opens the health, where each one says why, and its title says what counts.
   const attention = figure.getByRole('link', { name: '6 need attention' });
-  assert.equal(await attention.getAttribute('href'), `/hubs/${HUB.id}/assets/health`);
+  assert.equal(await attention.getAttribute('href'), `/hubs/${HUB.id}/inventory/health`);
   assert.match(await attention.getAttribute('title') ?? '', /incomplete, stale, orphaned/);
-  assert.deepEqual(await tabNames(strips(page).first()), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Manage']);
-  assert.equal(await strips(page).count(), 1, 'the second strip shows before Manage is chosen');
+  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Manage']);
+  assert.equal(await page.getByRole('tablist').count(), 0, 'a second strip');
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 5_000 });
 
-  await strips(page).first().getByRole('tab', { name: 'Manage' }).click();
-  await page.waitForFunction(() => location.pathname.endsWith('/assets/runs'), null, { timeout: 5_000 });
-  assert.deepEqual(await tabNames(strips(page).nth(1)), ['Runs', 'Duplicates', 'Connectors', 'Campaigns', 'Register', 'Software', 'Import']);
+  await manage(page).click();
+  assert.deepEqual((await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Runs', 'Duplicates', 'Connectors', 'Campaigns', 'Register', 'Software', 'Import']);
+  await page.getByRole('menuitem', { name: 'Runs', exact: true }).click();
+  await page.waitForFunction(() => location.pathname.endsWith('/inventory/runs'), null, { timeout: 5_000 });
+  assert.equal(await page.getByRole('tablist').count(), 0, 'Manage opened a second strip');
   assert.deepEqual(failures, []);
 });
 
@@ -137,16 +150,16 @@ test('chromium: a reader is shown neither Manage nor a create, and a managed add
   t.after(() => context.close());
 
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 20_000 });
-  assert.deepEqual(await tabNames(strips(page).first()), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Register', 'Software']);
+  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Register', 'Software']);
   assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0);
 
   // The register lists for a reader, and offers nothing to write (UC-AST-12 check 5).
-  await strips(page).first().getByRole('tab', { name: 'Register' }).click();
+  await bar(page).getByRole('link', { name: 'Register' }).click();
   await page.locator(`[data-asset="${ASSET.ci_id}"]`).waitFor({ timeout: 5_000 });
-  assert.ok(page.url().endsWith('/assets/register'));
+  assert.ok(page.url().endsWith('/inventory/register'));
   assert.equal(await page.locator('[data-register] button').count(), 0);
-  await strips(page).first().getByRole('tab', { name: 'Software' }).click();
-  await page.waitForFunction(() => location.pathname.endsWith('/assets/software'), null, { timeout: 5_000 });
+  await bar(page).getByRole('link', { name: 'Software' }).click();
+  await page.waitForFunction(() => location.pathname.endsWith('/inventory/software'), null, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
@@ -161,11 +174,11 @@ test('chromium: New connector in the head\'s list opens the connector dialog on 
   await page.getByRole('menuitem', { name: 'New connector' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Program').waitFor({ timeout: 5_000 });
-  assert.ok(page.url().endsWith('/assets/connectors'));
+  assert.ok(page.url().endsWith('/inventory/connectors'));
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
   // The ask was taken once: coming back to the section opens nothing.
-  await strips(page).nth(1).getByRole('tab', { name: 'Runs' }).click();
-  await strips(page).nth(1).getByRole('tab', { name: 'Connectors' }).click();
+  await manageTo(page, 'Runs');
+  await manageTo(page, 'Connectors');
   await page.locator('[data-connector=netbox-main]').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('dialog').count(), 0, 'the dialog opened a second time');
   assert.deepEqual(failures, []);
@@ -197,7 +210,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     await page.getByText('alert intake', { exact: false }).first().waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Set up an alert intake' }).click();
     await page.getByRole('dialog').getByLabel('Program').waitFor({ timeout: 5_000 });
-    assert.ok(page.url().endsWith('/assets/connectors'));
+    assert.ok(page.url().endsWith('/inventory/connectors'));
     await noSidewaysScroll(page, `empty assets ${width}`);
     assert.deepEqual(failures, []);
   });

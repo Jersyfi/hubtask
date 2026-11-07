@@ -26,7 +26,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings } from './fixture.mjs';
+import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings, viewLink, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { reveal } from './reveal.mjs';
 
@@ -138,8 +138,8 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   // Check 4: the list offers no board or timeline - no switch at all, one way to look - and no twist.
   await openCollection(page, SHAPES.list);
   await page.getByText(SHAPE_ITEMS[0].title).first().waitFor();
-  assert.equal(await page.getByRole('radio', { name: 'Board' }).count(), 0, 'a board is offered');
-  assert.equal(await page.getByRole('radio', { name: 'Timeline' }).count(), 0, 'a timeline is offered');
+  assert.equal(await viewLink(page, 'Board').count(), 0, 'a board is offered');
+  assert.equal(await viewLink(page, 'Timeline').count(), 0, 'a timeline is offered');
   assert.equal(await page.getByRole('button', { name: `Expand ${SHAPE_ITEMS[0].title}` }).count(), 0, 'a twist for children a list does not hold');
   assert.equal(await page.getByRole('button', { name: new RegExp(`inside ${SHAPE_ITEMS[0].title}`) }).count(), 0, 'a child is offered');
   // A date and a person the entry holds from before stay stored and are not drawn on its row.
@@ -303,15 +303,16 @@ test('chromium: the owner - creating a collection offers the presets, and the on
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Create collection' }).first().click();
+  await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
-  await dialog.getByRole('radio', { name: 'List' }).waitFor({ timeout: 5_000 });
+  // The kinds as cards, one chosen (the navigation concept's *New collection*).
+  await kindChoice(dialog, 'List').waitFor({ timeout: 5_000 });
   for (const name of ['Like its hub', 'List', 'Tasks', 'Project', 'Flow']) {
-    assert.equal(await dialog.getByRole('radio', { name, exact: true }).count(), 1, `${name} is not offered`);
+    assert.equal(await kindChoice(dialog, name).count(), 1, `${name} is not offered`);
   }
-  assert.ok(await dialog.getByRole('radio', { name: 'Like its hub' }).isChecked(), 'following the hub is the default');
+  assert.equal(await kindChoice(dialog, 'Like its hub').getAttribute('aria-pressed'), 'true', 'following the hub is the default');
   await dialog.getByRole('textbox', { name: 'Collection name' }).fill('Pantry');
-  await dialog.getByRole('radio', { name: 'List' }).check();
+  await kindChoice(dialog, 'List').click();
   await dialog.getByRole('button', { name: 'Create collection' }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
   assert.equal(written[0]?.preset, 'LIST');
@@ -417,7 +418,7 @@ test('chromium: a member - the list as its settings make it, and no settings pag
   await page.getByText(SHAPE_ITEMS[0].title).first().waitFor();
   const rows = await menuRows(page, SHAPES.list.name);
   assert.ok(!rows.some((row) => row.startsWith('Structure')), `offered ${rows}`);
-  assert.equal(await page.getByRole('radio', { name: 'Board' }).count(), 0, 'a board is offered');
+  assert.equal(await viewLink(page, 'Board').count(), 0, 'a board is offered');
   await page.keyboard.press('Escape');
 
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);

@@ -405,10 +405,10 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
       await queuesTool.waitFor({ timeout: 10_000 });
       assert.equal(await queuesTool.getAttribute('aria-current'), 'page');
     }
-    const desks = page.getByRole('region', { name: 'Desks' });
-    await desks.waitFor({ timeout: 10_000 });
-    assert.deepEqual(await desks.locator('.name').allTextContents(), [DESK.name]);
-    await page.getByRole('radio', { name: 'All open (3)' }).waitFor({ timeout: 10_000 });
+    // The hub's first queue opens as its table over the hub's desks (UC-SVC-03 check 10), one
+    // queue a page: no choice of the four.
+    await page.getByRole('main').getByRole('table').first().waitFor({ timeout: 10_000 });
+    assert.equal(await page.getByRole('main').getByRole('radiogroup', { name: 'Queues' }).count(), 0, 'the queue page draws the queues\' choice');
     await noSidewaysScroll(page, `hub desk ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
@@ -481,17 +481,18 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['PLANNING', 'KNOWLEDGE', 'ASSETS', 'WHITEBOARD'] });
   t.after(close);
+  // One boxed line per tool, then one for the content tree (the navigation concept §2.4): what it
+  // says first, the tool it leads to at its end.
   const lines = page.getByRole('list', { name: 'What the products say here' });
-  await lines.locator('[data-product-line="assets"]').waitFor({ timeout: 10_000 });
-  await lines.locator('[data-product-line="plan"]').waitFor({ timeout: 10_000 });
-  await lines.locator('[data-product-line="whiteboards"]').waitFor({ timeout: 10_000 });
-  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'pages', 'whiteboards', 'assets']);
-  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /Plan\s+Sprint Kranich · (Its last day has passed|\d+ days? left) · Next: Autumn fixes on /);
-  assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/collections/${SCRUM.id}/sprints`);
-  // Every page of the fixture changed before this week began, the template included.
-  assert.match(await lines.locator('[data-product-line="pages"]').innerText(), /Pages\s+No page changed this week/);
-  assert.equal(await lines.locator('[data-product-line="pages"] a').getAttribute('href'), `/hubs/${HUB.id}/pages`);
-  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /42 configuration items · 2 need attention/);
+  for (const id of ['plan', 'assets', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'assets', 'contents']);
+  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /^Sprint Kranich · (Its last day has passed|\d+ days? left) · Autumn fixes on [A-Z][a-z]{2} \d+\s+Plan$/);
+  assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/hubs/${HUB.id}/plan`);
+  // Every page and board of the fixture changed before this week began, the template included.
+  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^No page and no whiteboard changed this week\s+All contents$/);
+  assert.equal(await lines.locator('[data-product-line="contents"] a').getAttribute('href'), `/hubs/${HUB.id}/contents`);
+  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /^42 configuration items · 2 need attention\s+Inventory$/);
+  assert.equal(await lines.locator('[data-product-line="assets"] a').getAttribute('href'), `/hubs/${HUB.id}/inventory`);
   await noSidewaysScroll(page, 'hub overview');
   assert.deepEqual(failures, []);
 });
@@ -504,16 +505,16 @@ test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK', 'TIME', 'GOALS', 'WHITEBOARD'] });
   t.after(close);
   const lines = page.getByRole('list', { name: 'What the products say here' });
-  for (const id of ['whiteboards', 'desk', 'time', 'goals']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
-  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['whiteboards', 'desk', 'time', 'goals']);
+  for (const id of ['desk', 'time', 'goals', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['desk', 'time', 'goals', 'contents']);
   // Both boards of the fixture changed before this week began.
-  assert.match(await lines.locator('[data-product-line="whiteboards"]').innerText(), /Whiteboards\s+No board changed this week/);
-  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /Desk\s+3 open$/);
+  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^No page and no whiteboard changed this week\s+All contents$/);
+  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /^3 open\s+Queues$/);
   assert.equal(await lines.locator('[data-product-line="desk"] a').getAttribute('href'), `/hubs/${HUB.id}/desk`);
-  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /Time\s+6:30 of yours this week/);
-  assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/actuals`);
-  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /Goals\s+1 goal pursued$/);
-  assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/goals?hub=${HUB.id}`);
+  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /^6:30 of yours this week\s+Time$/);
+  assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/time`);
+  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /^1 goal\s+Goals$/);
+  assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/hubs/${HUB.id}/goals`);
   const recent = page.getByRole('region', { name: 'Recently changed' });
   await recent.waitFor({ timeout: 10_000 });
   assert.deepEqual(await recent.locator('.title').allTextContents(), RECENT.map((entry) => entry.title));
@@ -538,7 +539,8 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await plan.click();
-  await page.waitForURL(`**/collections/${DESK.id}/sprints?new=1`, { timeout: 5_000 });
+  // A collection's sprints are its *Sprint* view (the navigation concept §8).
+  await page.waitForURL(`**/collections/${DESK.id}/sprint?new=1`, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 

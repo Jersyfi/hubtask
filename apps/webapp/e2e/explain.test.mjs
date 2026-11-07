@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, COLLECTION, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn } from './fixture.mjs';
+import { ACCOUNT, ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, COLLECTION, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn, viewBar, openNewCollection } from './fixture.mjs';
 import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -344,7 +344,7 @@ for (const width of WIDTHS) {
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
     await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
     // Selecting is the toolbar's; below `expanded` its *Filter* sheet holds it.
-    const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
+    const toolbar = viewBar(page);
     if ((await toolbar.getByRole('button', { name: 'Select entries' }).count()) === 0) await toolbar.getByRole('button', { name: 'Filter' }).click();
     await page.getByRole('button', { name: 'Select entries' }).click();
     await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
@@ -363,9 +363,7 @@ for (const width of WIDTHS) {
     const { page, context, failures } = await as(browser, width, 'OWNER');
     const sent = writes(context);
     await page.goto(`${served.origin}/hubs/${COLLECTION.parent_id}`);
-    const create = page.locator('[data-opener="add-collection"]').first();
-    await create.waitFor({ timeout: 15_000 });
-    await create.click();
+    await openNewCollection(page);
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
     await dialog.getByRole('button', { name: 'Create collection' }).click();

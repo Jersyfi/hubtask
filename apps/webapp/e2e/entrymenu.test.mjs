@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ARCHIVED, CHILDREN, COLLECTION, GROCERIES, ITEMS, signedIn, stub } from './fixture.mjs';
+import { ARCHIVED, CHILDREN, COLLECTION, GROCERIES, ITEMS, signedIn, stub, viewLink, chooseView } from './fixture.mjs';
 import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -113,7 +113,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.ok(list.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:archive`)), 'Archive sent no :archive');
 
   // The board: the same, with the columns after the moves.
-  await list.page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(list.page, 'Board');
   const card = list.page.locator(`[data-card="${DATED.id}"] a`).first();
   await card.waitFor({ timeout: 15_000 });
   const onBoard = await everyWayIn(list.page, card, DATED.title);
@@ -127,7 +127,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.ok(list.written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${DATED.id}`)), 'the trash sent no DELETE');
 
   // The timeline: no Select, and the moves wait for the level read when the menu opens.
-  await list.page.getByRole('radio', { name: 'Timeline' }).click();
+  await chooseView(list.page, 'Timeline');
   const bar = list.page.locator(`.timeline .rows [data-row="${DATED.id}"] button.title`);
   await bar.waitFor({ timeout: 15_000 });
   const onTimeline = await everyWayIn(list.page, bar, DATED.title);
@@ -257,7 +257,7 @@ test('chromium: 390 px with a touch screen — a still long press opens the menu
 
   // On the board, the card's still hold opens its menu too; a hold that moves is the drag's.
   await page.keyboard.press('Escape');
-  await page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   // One column at this width: the strip chooses the one this card is in.
   await page.getByRole('radiogroup', { name: 'Which column is shown' }).getByRole('radio', { name: /^To do/u }).click();
   const card = page.locator(`[data-card="${ITEMS[2].id}"]`).first();
@@ -326,7 +326,7 @@ test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it p
   assert.equal(await picked.isChecked(), true);
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the click also followed the row');
   await picked.click();
-  await page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   const card = page.locator(`[data-card="${ITEMS[2].id}"] a`).first();
   await card.waitFor({ timeout: 15_000 });
   await card.click({ modifiers: ['ControlOrMeta'] });
@@ -335,7 +335,7 @@ test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it p
   assert.equal(await box.isChecked(), true);
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the click also followed the card');
   // Switching to the list keeps what was picked (design-system.md §11.9).
-  await page.getByRole('radio', { name: 'List' }).first().click();
+  await viewLink(page, 'List').first().click();
   await page.getByRole('checkbox', { name: `Select ${ITEMS[2].title}` }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('checkbox', { name: `Select ${ITEMS[2].title}` }).isChecked(), true);
   assert.deepEqual(failures, []);
@@ -347,7 +347,7 @@ test('chromium: the pane opens from a card and a timeline row at 1280 px, and th
   for (const [width, beside] of [[1280, true], [1024, false]]) {
     const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width });
     t.after(() => context.close());
-    await page.getByRole('radio', { name: 'Board' }).click();
+    await chooseView(page, 'Board');
     const card = page.locator(`[data-card="${DATED.id}"] a`).first();
     await card.waitFor({ timeout: 15_000 });
     await card.click();
@@ -358,7 +358,7 @@ test('chromium: the pane opens from a card and a timeline row at 1280 px, and th
     );
     if (beside) {
       assert.equal(await page.locator(`[data-card="${DATED.id}"] a[aria-current="true"]`).count(), 1, 'the open card is not current');
-      await page.getByRole('radio', { name: 'Timeline' }).click();
+      await chooseView(page, 'Timeline');
       const row = page.locator(`.timeline .rows [data-row="${DATED.id}"] button.title`);
       await row.waitFor({ timeout: 15_000 });
       assert.equal(await row.getAttribute('aria-current'), 'true', 'the open entry is not current on the timeline');
