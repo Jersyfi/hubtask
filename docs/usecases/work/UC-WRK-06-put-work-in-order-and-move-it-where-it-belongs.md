@@ -56,4 +56,4 @@ by kind.
 
 ## Today
 
-* Check 8: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 8: met in part — an entry carried from a list or a board onto a collection row of the sidebar or of *Starred* is moved there (`apps/webapp/src/lib/entries/dragging.svelte.ts`, `apps/webapp/src/lib/frame/entryDrop.svelte.ts`), within the hub at once with *Undo*, to another hub after the dialog with its warning; no walk drives a list's drag onto the sidebar yet (step 8 of the navigation concept, `docs/backlog/navigation/README.md`).

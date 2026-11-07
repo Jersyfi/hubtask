@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-11, P-13]
-state: specified
+state: partial
 tasks: []
-checked_by: []
+checked_by: [apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/moving.test.ts, apps/webapp/src/lib/frame/toasts.test.ts, packages/design-system/test/navtree.test.js]
 ---
 
 # Order and move places and contents in the sidebar, and take it back
@@ -60,12 +60,4 @@ chooses *Change order* and moves it with the grips.
 
 ## Today
 
-* Check 1: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 2: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 3: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 4: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 5: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 6: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 7: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 8: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 9: not met — built in step 7 of the navigation concept with the moving (`docs/backlog/navigation/README.md`).
+* Check 8: met in part — a move stands at once with the mark *waiting* until the server answers, and a refusal springs it back with its reason (`kompassmove.test.mjs`); offline a page's, a board's or a container's move is refused with `sync.needs_connection`, because the push frame carries no such move (`apps/webapp/src/lib/data/replica.ts` `mutationFor`) - a change to the sync protocol, tracked in step 8 of the navigation concept (`docs/backlog/navigation/README.md`).
