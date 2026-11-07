@@ -838,6 +838,14 @@
   // the reader may not write in takes no drop, and says why.
   const mayWriteIn = (collection: Container) =>
     holds(people.roleOf({ hubId: collection.parent_id ?? '', collectionId: collection.id }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted';
+  // A collection's own memberships are read once an entry is carried, so its outline and its
+  // refusal judge the reader's role there rather than a path nobody has opened yet.
+  $effect(() => {
+    if (!carried.id) return;
+    const starred = stars.all.filter((star) => star.kind === 'COLLECTION').map((star) => containers.find(star.id)).filter((each) => each !== undefined);
+    const shown = [...collections, ...starred];
+    untrack(() => shown.forEach((each) => people.open({ hubId: each.parent_id ?? '', collectionId: each.id })));
+  });
   const collectionOfRow = (rowId: string) => {
     const found = containers.find(rowId.startsWith('COLLECTION:') ? rowId.slice('COLLECTION:'.length) : rowId);
     return found?.type === 'COLLECTION' ? found : undefined;
