@@ -198,7 +198,11 @@ test('chromium: a mailbox connects through its provider and comes back connected
     await own.getByRole('button', { name: 'Cancel' }).click();
 
     // Google with the installation's app: one button, to the provider and back, connected.
+    // The page is on /administration/mail before it leaves, so its URL proves nothing: the
+    // completion's request does, after the way to the provider and back.
+    const completed = page.waitForRequest((request) => request.url().endsWith('/mail/mailboxes:complete'), { timeout: 30_000 });
     await oauth.getByRole('button', { name: 'Connect with Google' }).click();
+    await completed;
     await page.waitForURL(`${served.origin}/administration/mail`, { timeout: 15_000 });
     const row = page.locator('[data-mailbox="familie@gmail.com"]');
     await row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 });
@@ -241,7 +245,7 @@ test('chromium: a failing mailbox is said beside Check now and counted in the co
   });
 
   await page.goto(`${served.origin}/administration/people`);
-  const column = page.getByRole('navigation', { name: 'Administration' });
+  const column = page.getByRole('navigation', { name: 'Administration', exact: true });
   await column.getByText('1 failing').waitFor({ timeout: 10_000 });
   assert.equal(await column.getByRole('treeitem', { name: /1 failing/ }).count(), 1, 'the figure is not heard with the row');
 
