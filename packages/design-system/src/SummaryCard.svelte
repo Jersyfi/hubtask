@@ -3,7 +3,11 @@
 <script lang="ts">
   // An overview's tile (page-system §6, §7.5): a region, not a raised card - a title, a figure or a
   // state with its mark, one line, one link. The one raised card a screen may have is the
-  // overview's focal one, which `OverviewPage` draws.
+  // overview's focal one, which `OverviewPage` draws. Where the state has parts a reader acts on
+  // one by one - the rules that fail, the limits near their ceiling - they are lines of the card,
+  // never a box inside it (§4.2 rule 1).
+  import type { Snippet } from 'svelte';
+
   import Badge from './Badge.svelte';
 
   interface Props {
@@ -15,9 +19,11 @@
     /** One line. */
     line?: string;
     link?: { label: string; href: string; onnavigate?: () => void };
+    /** The parts of the state, one line each, above the link. */
+    children?: Snippet;
   }
 
-  const { title, figure, state, line, link }: Props = $props();
+  const { title, figure, state, line, link, children }: Props = $props();
 </script>
 
 <article class="summary-card">
@@ -29,6 +35,7 @@
       {#if line}<span>{line}</span>{/if}
     </p>
   {/if}
+  {#if children}<div class="lines">{@render children()}</div>{/if}
   {#if link}
     <a
       class="link"
@@ -58,6 +65,7 @@
   .title { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .figure { font-family: var(--font-display); font-size: var(--fs-600); line-height: var(--lh-tight); }
   .line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .lines { display: grid; gap: var(--sp-100); min-width: 0; font-size: var(--fs-100); }
   .link { justify-self: start; color: var(--text-brand); font-size: var(--fs-100); text-decoration: none; }
   .link:hover { text-decoration: underline; }
 

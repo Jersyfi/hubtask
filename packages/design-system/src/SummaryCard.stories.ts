@@ -14,5 +14,5 @@ export default {
 export const overview: Story = {
   name: 'Three tiles',
   about:
-    'Regions, not raised cards: a title, a figure or a state with its mark, one line, one link.',
+    'Regions, not raised cards: a title, a figure or a state with its mark, one line, one link. Where the state has parts a reader acts on one by one (the rules that fail), they are lines of the card above its link, never a box inside it.',
 };
