@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
 import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath, type SectionGroup } from './navigation.ts';
-import { contentsCount, contentsTree, foot, forYou, levelOf, navProducts, orderHubs, placedIndex, queuePath, queueRows, type LevelRoute } from './sidebar.ts';
+import { contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navProducts, orderHubs, placedIndex, queuePath, queueRows, type LevelRoute } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -547,4 +547,10 @@ test('a row placed after a sibling lands at that index among the others', () => 
   assert.equal(placedIndex(['a', 'b', 'c'], 'c', null), 0);
   assert.equal(placedIndex(['a', 'b', 'c'], 'a', 'c'), 2);
   assert.equal(placedIndex(['a', 'b', 'c'], 'a', 'b'), 1);
+});
+
+test('a For you count never says 0, and says n+ where its read goes on', () => {
+  assert.equal(figureCount(0), undefined);
+  assert.equal(figureCount(5), '5');
+  assert.equal(figureCount(50, true), '50+');
 });

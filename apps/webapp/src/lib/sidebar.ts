@@ -75,6 +75,15 @@ export function navProducts(options: {
   return { shown: sorted.filter((row) => !hidden.has(row.module)), more: sorted.filter((row) => hidden.has(row.module)) };
 }
 
+/**
+ * A row's count as *For you* shows it (§2.2): nothing for none, so a row never says "0"; "n+"
+ * where the read said it goes on, because its count is then one page's.
+ */
+export function figureCount(count: number, hasMore = false): string | undefined {
+  if (count <= 0) return undefined;
+  return hasMore ? `${count}+` : String(count);
+}
+
 /** How many hubs the workspace level shows before *n more* (§2.3), and from how many rows a section filters. */
 export const HUBS_SHOWN = 12;
 export const COLLECTIONS_SHOWN = 15;

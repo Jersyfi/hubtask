@@ -23,7 +23,7 @@
     type RowAction,
     type TreePlacement,
   } from '@hubtask/design-system/components';
-  import type { AgentRequestList, ApprovalList, Container, HubQueueList, PageList, Star, WhiteboardList } from '@hubtask/sync-engine';
+  import type { AgentRequestList, ApprovalList, Container, GoalList, HubQueueList, CmdbHealth, ItemQueryResult, PageList, ReleaseList, SprintList, Star, WhiteboardList } from '@hubtask/sync-engine';
 
   import FailureState from './FailureState.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
@@ -51,7 +51,16 @@
   import { preferences } from '../data/preferences.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
   import { watchPageReviews } from '../data/reviews.svelte.ts';
-  import { runsSprints } from '../data/sprints.svelte.ts';
+  import { sprintsPath } from '../data/sprints.svelte.ts';
+  import { goalsPath } from '../data/goals.svelte.ts';
+  import { healthPath } from '../data/cmdb.ts';
+  import { jumble } from '../data/jumble.svelte.ts';
+  import { releasesPath } from '../data/releases.svelte.ts';
+  import { today as todayStore } from '../data/today.svelte.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
+  import { todayIn } from '../i18n/zone.ts';
+  import { goalsStanding, nextReleaseOf, sprintsRunning } from '../product/home.ts';
+  import { queueQuery } from '../servicedesk/queues.ts';
   import { stars } from '../data/stars.svelte.ts';
   import { isStarred } from '../data/stars.ts';
   import { boardsPath } from '../data/whiteboards.svelte.ts';
@@ -66,6 +75,7 @@
     QUEUES_SHOWN,
     contentsCount,
     contentsTree,
+    figureCount,
     foot,
     forYou,
     hubTools,
@@ -90,7 +100,7 @@
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
   import { recents } from '../recents.svelte.ts';
-  import { productBandsOf, todayRowCountOf } from '../today.ts';
+  import { isDueByTonight, productBandsOf, sprintDaysLeft, todayRowCountOf } from '../today.ts';
   import { webAppAddress, webAppHost } from '../webApp.ts';
   import type { Resolution } from '../router.ts';
 
@@ -144,6 +154,18 @@
     return untrack(() => watchPageReviews(ids, viewer, (rows) => (reviews = rows.length)));
   });
   const waitingCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore, reviews));
+
+  // *Today*'s count: the reader's open entries due by the end of their day, overdue among them -
+  // the read the Today page draws from. *Inbox*'s: the arrivals still undecided.
+  $effect(() => untrack(() => todayStore.open()));
+  const todayCount = $derived(figureCount(todayStore.mine.filter((item) => isDueByTonight(item, actor.zone, Date.now())).length, todayStore.hasMore));
+  $effect(() => {
+    if (!hasJumble) return;
+    return untrack(() => jumble.open('NEW'));
+  });
+  const inboxCount = $derived(hasJumble ? figureCount(jumble.of('NEW').length, jumble.moreAfter('NEW') !== undefined) : undefined);
+  const topFigure = (id: string): string | undefined =>
+    id === 'workspace' ? todayCount : id === 'jumble' ? inboxCount : id === 'approvals' && waitingCount ? String(waitingCount) : undefined;
 
   // The person's stars, one list for every ☆ (§6.2).
   $effect(() => {
@@ -209,16 +231,70 @@
   const hasDesk = $derived(collections.some(isDesk));
   const hubToolRows = $derived<readonly HubTool[]>(hubTools({ modulesOn: hereOn, hasDesk }));
 
-  // Which collections run sprints: one read each, only where planning is on at the hub.
+  // Which collections run sprints and their running sprint: one read each, only where planning is
+  // on at the hub. The same read answers the sprint mark, the collection's days and *Plan*'s figure.
   let sprinting = $state<Record<string, boolean>>({});
+  let sprintsAt = $state<Record<string, SprintList['data']>>({});
   const sprintIds = $derived(isOn('PLANNING') ? collections.map((each) => each.id).join(',') : '');
   $effect(() => {
     const ids = sprintIds === '' ? [] : sprintIds.split(',');
     return untrack(() => {
-      const stops = ids.map((id) => runsSprints(id, (runs) => (sprinting = { ...sprinting, [id]: runs })));
+      const stops = ids.map((id) => engine.subscribe<SprintList>({ path: sprintsPath(id) }, (next) => {
+        if (next.status !== 'ready') return;
+        sprinting = { ...sprinting, [id]: next.data.runs_sprints };
+        sprintsAt = { ...sprintsAt, [id]: next.data.data ?? [] };
+      }));
       return () => stops.forEach((stop) => stop());
     });
   });
+  const today = $derived(todayIn(actor.zone));
+  const runningSprintOf = (collectionId: string) => sprintsRunning(sprintsAt, [collectionId], 1)[0];
+
+  // *Plan*'s figure (§2.4): the running sprint that ends first, else the next release.
+  let releases = $state<ReleaseList['data']>([]);
+  $effect(() => {
+    const at = isOn('PLANNING') ? hubId : undefined;
+    releases = [];
+    if (!at) return;
+    return untrack(() => engine.subscribe<ReleaseList>({ path: releasesPath(at) }, (next) => {
+      if (next.status === 'ready') releases = next.data.data;
+    }));
+  });
+  const planFigure = $derived.by(() => {
+    if (!hubId) return undefined;
+    const sprint = sprintsRunning(sprintsAt, collections.map((each) => each.id), 1)[0];
+    if (sprint) return t('app.nav.plan_sprint', { name: sprint.name, count: sprintDaysLeft(sprint.end_on, today) });
+    const next = nextReleaseOf({ [hubId]: releases }, hubId);
+    return next ? t('app.nav.plan_release', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) }) : undefined;
+  });
+
+  // *Goals*' figure: the hub's goals at risk or off track, nothing while none is.
+  let hubGoals = $state<GoalList['data']>([]);
+  $effect(() => {
+    const at = isOn('GOALS') ? hubId : undefined;
+    hubGoals = [];
+    if (!at) return;
+    return untrack(() => engine.subscribe<GoalList>({ path: goalsPath(undefined, at) }, (next) => {
+      if (next.status === 'ready') hubGoals = next.data.data;
+    }));
+  });
+  const goalsAtRisk = $derived(goalsStanding(hubGoals).atRisk);
+
+  // *Inventory*'s figure: what in the hub's inventory needs attention.
+  let inventoryProblems = $state(0);
+  $effect(() => {
+    const at = isOn('ASSETS') ? hubId : undefined;
+    inventoryProblems = 0;
+    if (!at) return;
+    return untrack(() => engine.subscribe<CmdbHealth>({ path: healthPath(at) }, (next) => {
+      if (next.status === 'ready') inventoryProblems = next.data.problems.length;
+    }));
+  });
+  const toolFigure = (id: string): string | undefined =>
+    id === 'plan' ? planFigure
+      : id === 'goals' && goalsAtRisk > 0 ? t('app.nav.goals_at_risk', { count: goalsAtRisk })
+        : id === 'inventory' && inventoryProblems > 0 ? t('app.nav.inventory_attention', { count: inventoryProblems })
+          : undefined;
 
   // The hub's queues with their counts, read once per hub level shown (§7.4).
   let queues = $state<HubQueueList['data']>([]);
@@ -229,6 +305,22 @@
     return untrack(() => engine.subscribe<HubQueueList>({ path: `/hubs/${at}/queues` }, (next) => {
       if (next.status === 'ready') queues = next.data.data;
     }));
+  });
+  // A desk's figure (§2.4 part 3): its requests about to breach or breached, one count per desk -
+  // no list read answers it per desk.
+  let deskBreaching = $state<Record<string, number>>({});
+  const deskKey = $derived(hubId ? collections.filter(isDesk).map((each) => each.id).join(',') : '');
+  $effect(() => {
+    const ids = deskKey === '' ? [] : deskKey.split(',');
+    const at = hubId;
+    deskBreaching = {};
+    if (!at) return;
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<ItemQueryResult>({ path: '/items:query', body: queueQuery('breaching', at, [id], 1) }, (next) => {
+        if (next.status === 'ready' && typeof next.data.total === 'number') deskBreaching = { ...deskBreaching, [id]: next.data.total };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
   });
   const starredViews = $derived(stars.all.filter((each) => each.kind === 'VIEW').map((each) => each.id));
   const queueList = $derived(queueRows(queues, starredViews));
@@ -331,6 +423,28 @@
         if (act === 'settings') return onnavigate(`${place}/settings`);
         if (act) commands.intend({ containerId: container.id, act });
         onnavigate(place);
+      },
+    };
+  }
+
+  /**
+   * The hub head's ⋯ (§2.4 item 1): its link first, for every reader, then the place menu's items -
+   * so the head always has one, while its settings stay only there.
+   */
+  function hubMenuOf(id: string): RowAction | undefined {
+    const container = containers.find(id);
+    if (!container || isRail) return undefined;
+    const place = placeMenuOf(id);
+    const rest = (place?.items ?? []).map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item));
+    return {
+      label: t('app.nav.row_actions', { name: container.name }),
+      items: [{ id: 'copy-link', label: t('app.nav.copy_link'), icon: 'link' }, ...rest],
+      onselect: (act) => {
+        if (act !== 'copy-link') return place?.onselect(act);
+        void navigator.clipboard.writeText(`${platform.webOrigin}/hubs/${container.id}`).then(
+          () => announcer.say(t('app.nav.link_copied')),
+          () => undefined,
+        );
       },
     };
   }
@@ -475,8 +589,14 @@
 
   const collectionNodes = $derived(
     collections.map((each): NavTreeNode => {
-      const figure = figureOf(each);
       const desk = isDesk(each);
+      const sprint = sprinting[each.id] ? runningSprintOf(each.id) : undefined;
+      const breaching = desk ? (deskBreaching[each.id] ?? 0) : 0;
+      const figure = sprint
+        ? { text: t('app.nav.sprint_days', { count: sprintDaysLeft(sprint.end_on, today) }), isUrgent: false }
+        : breaching > 0
+          ? { text: t('app.nav.desk_sla', { count: breaching }), isUrgent: true }
+          : figureOf(each);
       return {
         id: each.id,
         label: each.name,
@@ -597,7 +717,7 @@
         icon={row.icon}
         href={row.target.kind === 'route' ? row.target.path : undefined}
         isCurrent={isCurrentTop(row.id)}
-        figure={row.id === 'approvals' && waitingCount ? String(waitingCount) : undefined}
+        figure={topFigure(row.id)}
         isFigureUrgent={row.id === 'approvals'}
         {isRail}
         onnavigate={() => row.target.kind === 'route' && onnavigate(row.target.path)}
@@ -651,7 +771,7 @@
         starLabel: t(isHubStarred ? 'app.nav.unstar' : 'app.nav.star', { name: hub.name }),
         isStarred: isHubStarred,
         onstar: () => void stars.toggle('HUB', hub.id),
-        menu: placeMenuOf(hub.id),
+        menu: hubMenuOf(hub.id),
       }}
     >
       {#snippet switcher()}
@@ -715,7 +835,15 @@
               {/if}
             {/if}
           {:else}
-            <NavItem label={t(each.code)} icon={each.icon} href={toolPath(hub.id, each.id)} isCurrent={tool === each.id} onnavigate={() => onnavigate(toolPath(hub.id, each.id))} />
+            <NavItem
+              label={t(each.code)}
+              icon={each.icon}
+              href={toolPath(hub.id, each.id)}
+              isCurrent={tool === each.id}
+              figure={toolFigure(each.id)}
+              isFigureUrgent={each.id === 'inventory'}
+              onnavigate={() => onnavigate(toolPath(hub.id, each.id))}
+            />
           {/if}
         {/each}
       {/snippet}
