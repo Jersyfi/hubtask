@@ -11,6 +11,7 @@
 
   import {
     Button,
+    Dialog,
     EmptyState,
     Icon,
     Menu,
@@ -23,13 +24,26 @@
     Skeleton,
     VisuallyHidden,
     ancestorsOf,
+    applyPlacement,
     moveIntent,
+    positionOf,
     type MoveKey,
     type NavTreeNode,
     type RowAction,
     type TreePlacement,
   } from '@hubtask/design-system/components';
   import type { AgentRequestList, ApprovalList, Container, GoalList, HubQueueList, CmdbHealth, ItemQueryResult, PageList, ReleaseList, SprintList, Star, WhiteboardList } from '@hubtask/sync-engine';
+
+  import PlacePicker, { type PickedPlace } from './PlacePicker.svelte';
+  import { toast } from './toasts.svelte.ts';
+  import { millisecondsOf } from './toasts.ts';
+  import { carried, entryTarget } from './entryDrop.svelte.ts';
+  import CollectionMoveDialog from '../workspace/CollectionMoveDialog.svelte';
+  import { pages as pagesStore } from '../data/pages.svelte.ts';
+  import { whiteboards } from '../data/whiteboards.svelte.ts';
+  import { items } from '../data/items.svelte.ts';
+  import { attachEntryGestures } from '../entries/entryGestures.ts';
+  import { boardMoveBody, pageMoveBody, pickerPlaces, placementOf, reordered } from '../moving.ts';
 
   import FailureState from './FailureState.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
@@ -373,7 +387,94 @@
     canHoldChildren: node.kind === 'page',
     children: node.children.length > 0 ? node.children.map(toTree) : undefined,
   });
-  const contentTree = $derived(contentNodes.map(toTree));
+  const baseContentTree = $derived(contentNodes.map(toTree));
+
+  // A content move is drawn at once, marked *waiting* until the server answers (P-11); a refusal
+  // springs it back with its reason. The drawn placement is let go when the reread arrives.
+  let pendingContent = $state<{ id: string; placement: TreePlacement; isWaiting: boolean } | undefined>(undefined);
+  const markWaiting = (nodes: readonly NavTreeNode[], id: string): NavTreeNode[] =>
+    nodes.map((node) => ({
+      ...node,
+      ...(node.id === id ? { waitingLabel: t('app.nav.waiting') } : {}),
+      ...(node.children ? { children: markWaiting(node.children, id) } : {}),
+    }));
+  const contentTree = $derived.by(() => {
+    if (!pendingContent) return baseContentTree;
+    const moved = applyPlacement(baseContentTree, pendingContent.id, pendingContent.placement);
+    return pendingContent.isWaiting ? markWaiting(moved, pendingContent.id) : moved;
+  });
+  $effect(() => {
+    void pageRows;
+    void boardRows;
+    untrack(() => {
+      if (pendingContent && !pendingContent.isWaiting) pendingContent = undefined;
+    });
+  });
+
+  /** A page or a board to a placement, by drag, key or *Move to…*: `movePage` or `moveWhiteboard`. */
+  async function placeContent(id: string, placement: TreePlacement, isUndo = false): Promise<boolean> {
+    const board = boardRows.find((each) => each.id === id);
+    const pageRow = board ? undefined : pageRows.find((each) => each.id === id);
+    const before = placementOf(contentTree, id);
+    if ((!board && !pageRow) || !before) return false;
+    pendingContent = { id, placement, isWaiting: true };
+    // The branch it goes into opens, so the row is seen where it landed.
+    if (placement.parentId && !expanded.includes(placement.parentId)) expanded = [...expanded, placement.parentId];
+    rankFailure = undefined;
+    try {
+      if (board) await whiteboards.move(board, boardMoveBody(placement));
+      else if (pageRow) await pagesStore.move(pageRow, pageMoveBody(placement));
+    } catch (error) {
+      pendingContent = undefined;
+      failed(error);
+      return false;
+    }
+    const after = applyPlacement(contentTree, id, placement);
+    pendingContent = { id, placement, isWaiting: false };
+    land(id);
+    const at = positionOf(after, id);
+    const said = at?.parent
+      ? t('app.nav.moved', { position: at.position, count: at.of, parent: at.parent.label })
+      : t('app.nav.moved_top', { position: at?.position ?? 1, count: at?.of ?? 1 });
+    if (isUndo) announcer.say(said);
+    else offerMoved(said, () => placeContent(id, before, true));
+    return true;
+  }
+  const contentKey = (id: string, key: MoveKey) => {
+    if (!mayWrite) return void announcer.say(t('app.nav.may_not_order'));
+    const intent = moveIntent(key, contentTree, id, document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr');
+    if (!intent) return;
+    if ('refusal' in intent) return void announcer.say(refusalLabel(intent.refusal));
+    void placeContent(id, intent.placement);
+  };
+
+  // *Move to…* (`M` or ⋯): the hub's contents as places, what cannot take the row greyed (§5.4).
+  let movingContent = $state<string | undefined>(undefined);
+  const contentPlaces = $derived(movingContent ? pickerPlaces(contentTree, movingContent, t('app.nav.top_of_contents')) : []);
+  const pickerRows = $derived<PickedPlace[]>(
+    contentPlaces.map((place) => ({
+      key: place.id ?? '',
+      label: place.label,
+      depth: place.id === null ? 0 : place.depth + 1,
+      icon: place.id === null ? 'hub' : boardRows.some((each) => each.id === place.id) ? 'layout-template' : 'file-text',
+      reason: place.refusal ? refusalLabel(place.refusal) : undefined,
+    })),
+  );
+  const movingContentName = $derived(movingContent ? (pageRows.find((each) => each.id === movingContent)?.title ?? boardRows.find((each) => each.id === movingContent)?.title ?? '') : '');
+  function pickContent(key: string) {
+    const id = movingContent;
+    const place = contentPlaces.find((each) => (each.id ?? '') === key);
+    movingContent = undefined;
+    if (id && place) void placeContent(id, place.placement);
+  }
+  const contentRowMenu = (id: string): RowAction | undefined =>
+    mayWrite
+      ? {
+          label: t('app.nav.row_actions', { name: pageRows.find((each) => each.id === id)?.title ?? boardRows.find((each) => each.id === id)?.title ?? '' }),
+          items: [{ id: 'move', label: t('app.nav.move_to'), icon: 'arrow-right-left' }],
+          onselect: () => (movingContent = id),
+        }
+      : undefined;
   const currentContent = $derived(route.name === 'page' || route.name === 'whiteboard' ? route.params['id'] : undefined);
   let expanded = $state<string[]>([]);
   // The current page's ancestors open (§2.6).
@@ -434,6 +535,7 @@
       onselect: (act) => {
         const place = container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}`;
         if (act === 'settings') return onnavigate(`${place}/settings`);
+        if (act === 'move' && container.type === 'COLLECTION') return void (movingCollection = container);
         if (act) commands.intend({ containerId: container.id, act });
         onnavigate(place);
       },
@@ -463,25 +565,59 @@
   }
 
   let rankFailure = $state<string | undefined>(undefined);
+
+  // ---- Moving (§5.4): the landing, Undo for 8 s and Cmd/Ctrl+Z, the position said -------------
+  let landed = $state<string | undefined>(undefined);
+  let landTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The row that landed is marked for the settle and the highlight, then let go. */
+  function land(id: string) {
+    const css = getComputedStyle(document.documentElement);
+    const ms = (millisecondsOf(css.getPropertyValue('--dur-settle')) ?? 0) + (millisecondsOf(css.getPropertyValue('--dur-highlight')) ?? 0);
+    landed = id;
+    clearTimeout(landTimer);
+    landTimer = setTimeout(() => (landed = undefined), ms);
+  }
+  /** Says where the row stands now and offers the way back; the way back offers none. */
+  function offerMoved(text: string, back: () => Promise<boolean>) {
+    toast.show({
+      text,
+      undo: async () => {
+        if (await back()) toast.show({ text: t('app.undo.done'), tone: 'success' });
+      },
+    });
+  }
+  const failed = (error: unknown) => {
+    rankFailure = renderProblem(error as never, messages).message;
+    announcer.say(rankFailure);
+  };
+
   /** `Alt+↑/↓` or a drag among hubs or a hub's collections: the writes the page menu sends. */
-  async function rank(id: string, siblings: readonly Container[], to: number) {
+  async function rank(id: string, siblings: readonly Container[], to: number, isUndo = false): Promise<boolean> {
     const container = containers.find(id);
-    if (!container || to < 0 || to >= siblings.length) return;
+    if (!container || to < 0 || to >= siblings.length) return false;
+    const from = siblings.findIndex((each) => each.id === id);
     rankFailure = undefined;
     try {
       if (container.type === 'HUB') await containers.reorder(id, siblings, to, crypto.randomUUID());
       else if (container.parent_id) await containers.move(id, container.parent_id, anchorFor(siblings, id, to), crypto.randomUUID());
-      announcer.say(t('app.rank.announced', { title: container.name, position: to + 1, count: siblings.length }));
     } catch (error) {
-      rankFailure = renderProblem(error as never, messages).message;
-      announcer.say(rankFailure);
+      failed(error);
+      return false;
     }
+    land(id);
+    const said = t('app.nav.moved_top', { position: to + 1, count: siblings.length });
+    if (isUndo || from < 0) announcer.say(said);
+    else {
+      const parent = container.parent_id;
+      offerMoved(said, () => rank(id, parent ? containers.collectionsOf(parent) : containers.hubs.filter((each) => !live.hasLost(each.id)), from, true));
+    }
+    return true;
   }
   const place = (siblings: readonly Container[]) => (id: string, placement: TreePlacement) =>
     void rank(id, siblings, placedIndex(siblings.map((each) => each.id), id, placement.afterId));
   /** A rank key moves only what the reader may order (P-05): the row draws no key where it may not. */
   const moveKey = (siblings: readonly Container[], nodes: readonly NavTreeNode[], mayOrder: (id: string) => boolean) => (id: string, key: MoveKey) => {
-    if (!mayOrder(id)) return;
+    if (!mayOrder(id)) return void announcer.say(t('app.nav.may_not_order'));
     const intent = moveIntent(key, nodes, id);
     if (intent && 'placement' in intent) place(siblings)(id, intent.placement);
   };
@@ -489,6 +625,39 @@
   // ---- Workspace level ------------------------------------------------------------------------
   const productSets = $derived(navProducts({ modulesOn: workspaceOn, order: actor.account?.nav_products, hidden: actor.account?.nav_products_hidden }));
   let isAllProducts = $state(false);
+  // The products' order is the person's (§7.5 `nav_products`): dragged or `Alt+↑/↓` in the
+  // section, written to the preferences; hiding stays in *Customise the sidebar*.
+  const productNodes = $derived(
+    (isAllProducts ? [...productSets.shown, ...productSets.more] : productSets.shown).map((row): NavTreeNode => ({
+      id: row.module, label: t(row.code), icon: row.icon, color: row.color, href: row.path, part: 'products', canHoldChildren: false,
+    })),
+  );
+  const productPaths = $derived(Object.fromEntries([...productSets.shown, ...productSets.more].map((row) => [row.module, row.path])));
+  const currentProduct = $derived([...productSets.shown, ...productSets.more].find((row) => productCurrent(row.routes))?.module);
+  async function placeProduct(module: string, afterId: string | null, isUndo = false): Promise<boolean> {
+    const before: string[] = [...productSets.shown, ...productSets.more].map((row) => row.module);
+    const at = before.indexOf(module);
+    const next = reordered(before, module, afterId);
+    const id = actor.account?.id;
+    if (!id) return false;
+    try {
+      // The modules as the account's preference names them (§7.5).
+      await preferences.setAccount(id, { nav_products: next as never });
+      await actor.reread();
+    } catch (error) {
+      failed(error);
+      return false;
+    }
+    land(module);
+    const said = t('app.nav.moved_top', { position: next.indexOf(module) + 1, count: next.length });
+    if (isUndo) announcer.say(said);
+    else offerMoved(said, () => placeProduct(module, at > 0 ? (before[at - 1] ?? null) : null, true));
+    return true;
+  }
+  const productKey = (id: string, key: MoveKey) => {
+    const intent = moveIntent(key, productNodes, id);
+    if (intent && 'placement' in intent) void placeProduct(id, intent.placement.afterId);
+  };
   async function writePreference(change: Record<string, unknown>) {
     const id = actor.account?.id;
     if (!id) return;
@@ -596,6 +765,36 @@
       .filter((row) => row !== undefined),
   );
 
+  // Stars ordered by drag or `Alt+↑/↓` (UC-WRK-37 check 6): personal, without asking.
+  const starNodes = $derived(
+    starRows.map((row): NavTreeNode => ({
+      id: row.key, label: row.label, icon: row.icon, color: row.color, href: row.href, figure: row.figure, isFigureUrgent: row.isUrgent, part: 'stars', canHoldChildren: false,
+      // A starred collection takes an entry dropped on it (UC-WRK-06 check 8).
+      acceptsEntries: row.key.startsWith('COLLECTION:'),
+    })),
+  );
+  const starKeys = $derived(stars.all.map((each) => `${each.kind}:${each.id}`));
+  async function placeStar(key: string, afterId: string | null, isUndo = false): Promise<boolean> {
+    const before = starKeys;
+    const at = before.indexOf(key);
+    const next = reordered(before, key, afterId);
+    try {
+      await stars.reorder(next.map((each) => stars.all.find((star) => `${star.kind}:${star.id}` === each)!).filter(Boolean));
+    } catch (error) {
+      failed(error);
+      return false;
+    }
+    land(key);
+    const said = t('app.nav.moved_top', { position: next.indexOf(key) + 1, count: next.length });
+    if (isUndo) announcer.say(said);
+    else offerMoved(said, () => placeStar(key, at > 0 ? (before[at - 1] ?? null) : null, true));
+    return true;
+  }
+  const starKey = (id: string, key: MoveKey) => {
+    const intent = moveIntent(key, starNodes, id);
+    if (intent && 'placement' in intent) void placeStar(id, intent.placement.afterId);
+  };
+
   const RECENT_PATHS = { item: (id: string) => `/items/${id}`, collection: (id: string) => `/collections/${id}`, hub: (id: string) => `/hubs/${id}` } as const;
   const RECENT_ICONS = { item: 'task', collection: 'collection', hub: 'hub' } as const;
 
@@ -634,6 +833,63 @@
     return undefined;
   });
   let collectionFilter = $state('');
+  // An entry dropped onto a collection (UC-WRK-06 check 8): into the same hub at once with *Undo*;
+  // into another hub's (reached through *Starred*) after the dialog with its warning. A collection
+  // the reader may not write in takes no drop, and says why.
+  const mayWriteIn = (collection: Container) =>
+    holds(people.roleOf({ hubId: collection.parent_id ?? '', collectionId: collection.id }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted';
+  const collectionOfRow = (rowId: string) => {
+    const found = containers.find(rowId.startsWith('COLLECTION:') ? rowId.slice('COLLECTION:'.length) : rowId);
+    return found?.type === 'COLLECTION' ? found : undefined;
+  };
+  const entryOver = $derived.by(() => {
+    if (!carried.id || !carried.over) return undefined;
+    const collection = collectionOfRow(carried.over);
+    return collection && mayWriteIn(collection) ? carried.over : undefined;
+  });
+  let entryMove = $state<{ entryId: string; title: string; collection: Container } | undefined>(undefined);
+  async function moveEntry(entryId: string, collection: Container, back?: { collectionId: string; parentId: string | null }): Promise<boolean> {
+    const item = items.find(entryId);
+    if (!item) return false;
+    const from = { collectionId: item.collection_id, parentId: item.parent_id ?? null };
+    try {
+      const result = await items.move(entryId, back ?? { parentId: null, collectionId: collection.id }, item.version, crypto.randomUUID());
+      const lost = result.dropped_references.length;
+      const said = t('app.nav.entry_moved', { title: item.title, collection: collection.name }) + (lost > 0 ? ` ${t('app.move.dropped', { title: item.title })} ${lost}` : '');
+      if (back) announcer.say(said);
+      else {
+        const home = containers.find(from.collectionId);
+        offerMoved(said, () => (home ? moveEntry(entryId, home, from) : Promise.resolve(false)));
+      }
+      return true;
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      return false;
+    }
+  }
+  $effect(() =>
+    entryTarget.set((rowId, entryId) => {
+      const collection = collectionOfRow(rowId);
+      const item = items.find(entryId);
+      if (!collection || !item) return false;
+      if (!mayWriteIn(collection)) {
+        announcer.say(t('app.nav.entry_no_write', { collection: collection.name }));
+        return true;
+      }
+      if (item.collection_id === collection.id) return true;
+      const fromHub = containers.find(item.collection_id)?.parent_id;
+      if (fromHub && fromHub === collection.parent_id) void moveEntry(entryId, collection);
+      else entryMove = { entryId, title: item.title, collection };
+      return true;
+    }),
+  );
+
+  /** *Move to…* (`M` or ⋯) for a collection: the pre-check dialog (§5.3). */
+  let movingCollection = $state<Container | undefined>(undefined);
+  const moveCollection = (id: string) => {
+    if (!mayStructure) return void announcer.say(t('app.nav.may_not_order'));
+    movingCollection = containers.find(id);
+  };
   let isCreatingCollection = $state(false);
   let collectionHubId = $state<string | undefined>(undefined);
 
@@ -744,6 +1000,97 @@
     page.offer({ label: menu.label, items: menu.items, onselect: (id) => menu.onselect(id) });
     return () => page.offer(undefined);
   });
+  // A long press on a row (ADR-0088's hold) opens its context sheet - the items ⋯ has (§9, phone
+  // screen 7); *Change order* opens reorder mode, the rows dragged by the grip at their end and
+  // `Alt+↑/↓`, *Done* ends it (screen 8); *Move to…* the place picker as a sheet (screen 9).
+  let phoneElement = $state<HTMLElement | null>(null);
+  let contextRow = $state<{ readonly id: string; readonly kind: 'collection' | 'page' | 'whiteboard'; readonly name: string } | undefined>(undefined);
+  let reordering = $state<'collections' | 'contents' | undefined>(undefined);
+  $effect(() => {
+    const at = phoneElement;
+    if (!at) return;
+    return attachEntryGestures(at, {
+      idAt: (target) => (reordering ? undefined : ((target as Element | null)?.closest?.<HTMLElement>('[data-press-row] li[data-id]')?.dataset['id'] ?? undefined)),
+      open: (id) => {
+        const collection = containers.find(id);
+        if (collection?.type === 'COLLECTION') return void (contextRow = { id, kind: 'collection', name: collection.name });
+        const board = boardRows.find((each) => each.id === id);
+        const pageRow = pageRows.find((each) => each.id === id);
+        if (board) contextRow = { id, kind: 'whiteboard', name: board.title };
+        else if (pageRow) contextRow = { id, kind: 'page', name: pageRow.title };
+      },
+    });
+  });
+  const STAR_KIND = { collection: 'COLLECTION', page: 'PAGE', whiteboard: 'WHITEBOARD' } as const;
+  const contextItems = $derived.by(() => {
+    const row = contextRow;
+    if (!row) return [];
+    const starred = isStarred(stars.all, STAR_KIND[row.kind], row.id);
+    const may = row.kind === 'collection' ? mayStructure : mayWrite;
+    const kept = row.kind === 'collection' ? (placeMenuOf(row.id)?.items ?? []).filter((item) => item.id === 'archive' || item.id === 'trash') : [];
+    return [
+      { id: 'star', label: t(starred ? 'app.nav.sheet_unstar' : 'app.nav.sheet_star'), icon: 'star' as const },
+      ...(row.kind === 'page' && mayWrite ? [{ id: 'beneath', label: t('app.nav.create_beneath'), icon: 'plus' as const }] : []),
+      ...(may ? [{ id: 'move', label: t('app.nav.move_to'), icon: 'arrow-right-left' as const }, { id: 'order', label: t('app.nav.change_order'), icon: 'grip-vertical' as const }] : []),
+      ...kept.map((item) => ({ id: item.id, label: item.label, icon: item.icon })),
+    ];
+  });
+  function chooseContext(act: string) {
+    const row = contextRow;
+    contextRow = undefined;
+    if (!row || !hub) return;
+    if (act === 'star') return void stars.toggle(STAR_KIND[row.kind], row.id);
+    if (act === 'beneath') return onnavigate(createPath(hub.id, 'page', row.id));
+    if (act === 'move') return row.kind === 'collection' ? moveCollection(row.id) : void (movingContent = row.id);
+    if (act === 'order') return void (reordering = row.kind === 'collection' ? 'collections' : 'contents');
+    placeMenuOf(row.id)?.onselect(act);
+  }
+  $effect(() => {
+    if (!reordering) return;
+    return page.entitle(t('app.nav.order_title'));
+  });
+  let reorderDrag = $state<{ readonly id: string; y: number } | undefined>(undefined);
+  /** A grip pressed in reorder mode carries its row; the list's midpoints decide where it lands. */
+  function beginReorder(event: PointerEvent, id: string) {
+    if (!reordering || !(event.target as Element | null)?.closest?.('.reorder')) return;
+    event.preventDefault();
+    reorderDrag = { id, y: event.clientY };
+    const follow = (move: PointerEvent) => {
+      if (reorderDrag) reorderDrag.y = move.clientY;
+    };
+    const end = (up: PointerEvent) => {
+      window.removeEventListener('pointermove', follow);
+      window.removeEventListener('pointerup', end);
+      const done = reorderDrag;
+      reorderDrag = undefined;
+      if (done) finishReorder(done.id, up.clientY);
+    };
+    window.addEventListener('pointermove', follow);
+    window.addEventListener('pointerup', end);
+  }
+  function finishReorder(id: string, y: number) {
+    const rows = [...(phoneElement?.querySelectorAll<HTMLElement>('[data-reordering] li[data-id]') ?? [])];
+    const ids = rows.map((row) => row.dataset['id'] ?? '');
+    const others = rows.filter((row) => row.dataset['id'] !== id);
+    let at = others.length;
+    for (let index = 0; index < others.length; index++) {
+      const box = others[index]!.getBoundingClientRect();
+      if (y < box.top + box.height / 2) {
+        at = index;
+        break;
+      }
+    }
+    if (ids.indexOf(id) === at) return;
+    if (reordering === 'collections') return void rank(id, collections, at);
+    const afterId = at > 0 ? (others[at - 1]!.dataset['id'] ?? null) : null;
+    void placeContent(id, { parentId: under?.node.id ?? null, afterId });
+  }
+  const reorderKey = (id: string, key: MoveKey) => {
+    if (reordering === 'collections') return moveKey(collections, collectionNodes, () => mayStructure)(id, key);
+    if (key.key === 'ArrowUp' || key.key === 'ArrowDown') contentKey(id, key);
+  };
+  const phoneDrop = (id: string) => (reorderDrag?.id === id ? 'lifted' : landed === id ? 'landed' : undefined);
+
   let isAllHubsShown = $state(false);
   let isNewOpen = $state(false);
   const RECENT_KINDS = { item: 'app.nav.recent_kind_item', collection: 'app.nav.recent_kind_collection', hub: 'app.nav.recent_kind_hub' } as const;
@@ -789,7 +1136,7 @@
 </script>
 
 {#if step}
-<div class="phone" data-browse-step={step.kind}>
+<div class="phone" data-browse-step={step.kind} bind:this={phoneElement}>
   <!-- The bar shows the step's title; the screen's one heading is read here (as `PageHeader`'s). -->
   <VisuallyHidden as="h1">{stepTitle ?? ''}</VisuallyHidden>
   {#if !isTreeReady}
@@ -867,28 +1214,44 @@
         {/if}
       {/each}
     </ul>
-    {#if collectionNodes.length > 0}
+    {#if reordering}
+      <div class="order-head">
+        <p class="order-hint">{t('app.nav.order_hint', { part: t(reordering === 'collections' ? 'app.nav.collections' : 'app.nav.contents'), place: hub.name })}</p>
+        <Button tone="primary" size="sm" onclick={() => (reordering = undefined)}>{t('app.nav.order_done')}</Button>
+      </div>
+    {/if}
+    {#if collectionNodes.length > 0 && reordering !== 'contents'}
+      <div class="drop-part" data-press-row data-reordering={reordering === 'collections' ? '' : undefined}>
       <NavGroup label={t('app.nav.collections')} size="touch">
         {#each collectionNodes as node (node.id)}
-          <NavItem label={node.label} icon={node.icon} color={node.color} href={`/collections/${node.id}`} figure={node.figure} isFigureUrgent={node.isFigureUrgent} badge={node.badge} size="touch" onnavigate={() => onnavigate(`/collections/${node.id}`)} />
+          <NavItem id={node.id} label={node.label} icon={node.icon} color={node.color} href={`/collections/${node.id}`} figure={node.figure} isFigureUrgent={node.isFigureUrgent} badge={node.badge} size="touch"
+            isReordering={reordering === 'collections'} dropState={phoneDrop(node.id)} onpointerdown={(event) => beginReorder(event, node.id)} onmovekey={reordering ? (key) => reorderKey(node.id, key) : undefined}
+            onnavigate={() => !reordering && onnavigate(`/collections/${node.id}`)} />
         {/each}
       </NavGroup>
+      </div>
     {:else if mayStructure}
       <NavGroup label={t('app.nav.collections')} size="touch">
         <NavItem label={t('app.nav.create_first_collection')} icon="plus" tone="link" size="touch" onnavigate={() => { collectionHubId = hub.id; isCreatingCollection = true; }} />
       </NavGroup>
     {/if}
-    {#if hasContents && contentNodes.length > 0}
-      <NavGroup label={t('app.nav.contents')} size="touch" headLink={{ label: t('app.nav.kind_all'), onselect: () => onnavigate(contentsStep(hub.id)) }}>
-        {#each contentNodes.slice(0, CONTENTS_SHOWN) as node (node.id)}
-          <NavItem label={node.title} icon={node.kind === 'page' ? 'file-text' : 'layout-template'} href={contentPath(node)} size="touch" onnavigate={() => onnavigate(contentPath(node))}
-            descendLabel={node.children.length > 0 ? t('app.nav.descend', { name: node.title }) : undefined}
-            ondescend={node.children.length > 0 ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
+    {#if hasContents && contentNodes.length > 0 && reordering !== 'collections'}
+      <div class="drop-part" data-press-row data-reordering={reordering === 'contents' ? '' : undefined}>
+      <NavGroup label={t('app.nav.contents')} size="touch" headLink={reordering ? undefined : { label: t('app.nav.kind_all'), onselect: () => onnavigate(contentsStep(hub.id)) }}>
+        {#each contentTree.slice(0, CONTENTS_SHOWN) as node (node.id)}
+          {@const path = node.kind === 'whiteboard' ? `/whiteboards/${node.id}` : `/pages/${node.id}`}
+          {@const below = node.children?.length ?? 0}
+          <NavItem id={node.id} label={node.label} icon={node.kind === 'page' ? 'file-text' : 'layout-template'} href={path} size="touch" waitingLabel={node.waitingLabel}
+            isReordering={reordering === 'contents'} dropState={phoneDrop(node.id)} onpointerdown={(event) => beginReorder(event, node.id)} onmovekey={reordering ? (key) => reorderKey(node.id, key) : undefined}
+            onnavigate={() => !reordering && onnavigate(path)}
+            descendLabel={below > 0 && !reordering ? t('app.nav.descend', { name: node.label }) : undefined}
+            ondescend={below > 0 && !reordering ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
         {/each}
         {#if contentNodes.length > CONTENTS_SHOWN}
           <NavItem label={t('app.nav.more_count', { count: contentNodes.length - CONTENTS_SHOWN })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => onnavigate(contentsStep(hub.id))} />
         {/if}
       </NavGroup>
+      </div>
     {:else if hasContents && contentsAdd}
       <NavGroup label={t('app.nav.contents')} size="touch">
         <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" size="touch" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
@@ -927,11 +1290,19 @@
         <input type="search" bind:value={stepFilter} aria-label={t('app.nav.filter_contents')} placeholder={t('app.nav.filter_contents')} />
       </label>
     {/if}
-    <ul class="card-list" aria-label={t('app.nav.contents_of', { hub: under?.node.title ?? hub.name })}>
+    {#if reordering === 'contents'}
+      <div class="order-head">
+        <p class="order-hint">{t('app.nav.order_hint', { part: t('app.nav.contents'), place: under?.node.title ?? hub.name })}</p>
+        <Button tone="primary" size="sm" onclick={() => (reordering = undefined)}>{t('app.nav.order_done')}</Button>
+      </div>
+    {/if}
+    <ul class="card-list" aria-label={t('app.nav.contents_of', { hub: under?.node.title ?? hub.name })} data-press-row data-reordering={reordering === 'contents' ? '' : undefined}>
       {#each stepRows as node (node.id)}
-        <NavItem label={node.title} icon={node.kind === 'page' ? 'file-text' : 'layout-template'} href={contentPath(node)} size="touch" onnavigate={() => onnavigate(contentPath(node))}
-          descendLabel={node.children.length > 0 ? t('app.nav.descend', { name: node.title }) : undefined}
-          ondescend={node.children.length > 0 ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
+        <NavItem id={node.id} label={node.title} icon={node.kind === 'page' ? 'file-text' : 'layout-template'} href={contentPath(node)} size="touch" onnavigate={() => !reordering && onnavigate(contentPath(node))}
+          isReordering={reordering === 'contents'} dropState={phoneDrop(node.id)} onpointerdown={(event) => beginReorder(event, node.id)} onmovekey={reordering ? (key) => reorderKey(node.id, key) : undefined}
+          waitingLabel={pendingContent?.isWaiting && pendingContent.id === node.id ? t('app.nav.waiting') : undefined}
+          descendLabel={node.children.length > 0 && !reordering ? t('app.nav.descend', { name: node.title }) : undefined}
+          ondescend={node.children.length > 0 && !reordering ? () => onnavigate(contentsStep(hub.id, node.id)) : undefined} />
       {/each}
     </ul>
     {#if mayWrite && createItems.length > 0}
@@ -950,6 +1321,16 @@
         {/if}
       </Sheet>
     {/if}
+  {/if}
+  {#if contextRow}
+    {@const row = contextRow}
+    <Sheet title={row.name} closeLabel={t('app.sheet_close')} bind:isOpen={() => contextRow !== undefined, (open) => { if (!open) contextRow = undefined; }}>
+      <ul class="card-list">
+        {#each contextItems as item (item.id)}
+          <NavItem label={item.label} icon={item.icon} size="touch" onnavigate={() => chooseContext(item.id)} />
+        {/each}
+      </ul>
+    </Sheet>
   {/if}
 </div>
 {:else}
@@ -1094,6 +1475,7 @@
       {/snippet}
 
       {#if collectionNodes.length > 0}
+        <div class="drop-part" data-entry-target>
         <NavGroup
           label={t('app.nav.collections')}
           collapseLabel={t('app.nav.fold', { name: t('app.nav.collections') })}
@@ -1106,13 +1488,18 @@
           onnavigate={(id) => onnavigate(`/collections/${id}`)}
           onplace={place(collections)}
           onmovekey={moveKey(collections, collectionNodes, () => mayStructure)}
+          onmoveto={moveCollection}
           {refusalLabel}
+          {landed}
+          dropInto={entryOver}
+          oncancel={() => announcer.say(t('app.nav.cancelled'))}
           limit={COLLECTIONS_SHOWN}
           moreLabel={(hidden) => t('app.nav.more_count', { count: hidden })}
           filterFrom={COLLECTIONS_FILTER_FROM}
           filterLabel={t('app.nav.filter_collections')}
           bind:filter={collectionFilter}
         />
+        </div>
       {:else if mayStructure}
         <NavGroup label={t('app.nav.collections')} add={{ label: t('app.nav.new_collection_short'), onselect: () => { collectionHubId = hub.id; isCreatingCollection = true; } }}>
           <NavItem label={t('app.nav.create_first_collection')} icon="plus" tone="link" onnavigate={() => { collectionHubId = hub.id; isCreatingCollection = true; }} />
@@ -1134,7 +1521,14 @@
           current={currentContent}
           {twistLabel}
           onnavigate={(id) => onnavigate(boardRows.some((each) => each.id === id) ? `/whiteboards/${id}` : `/pages/${id}`)}
+          rowMenu={contentRowMenu}
+          canOrder={() => mayWrite && contentsMode === 'TREE'}
+          onplace={(id, placement) => void placeContent(id, placement)}
+          onmovekey={contentKey}
+          onmoveto={(id) => (mayWrite ? (movingContent = id) : announcer.say(t('app.nav.may_not_order')))}
           {refusalLabel}
+          {landed}
+          oncancel={() => announcer.say(t('app.nav.cancelled'))}
           limit={CONTENTS_SHOWN}
           moreLabel={(hidden) => t('app.nav.more_count', { count: hidden })}
           filterFrom={CONTENTS_FILTER_FROM}
@@ -1167,21 +1561,41 @@
         </ul>
       {/if}
       {#if starRows.length > 0}
-        <NavGroup label={t('app.nav.starred')}>
-          {#each starRows as row (row.key)}
-            <NavItem label={row.label} icon={row.icon} color={row.color} href={row.href} figure={row.figure} isFigureUrgent={row.isUrgent} isCurrent={route.path === row.href} onnavigate={() => onnavigate(row.href)} />
-          {/each}
-        </NavGroup>
+        <div class="drop-part" data-entry-target>
+          <NavGroup
+            label={t('app.nav.starred')}
+            tree={starNodes}
+            current={starRows.find((row) => route.path === row.href)?.key}
+            canOrder={() => true}
+            onnavigate={(key) => { const row = starRows.find((each) => each.key === key); if (row) onnavigate(row.href); }}
+            onplace={(key, placement) => void placeStar(key, placement.afterId)}
+            onmovekey={starKey}
+            {refusalLabel}
+            {landed}
+            dropInto={entryOver}
+            oncancel={() => announcer.say(t('app.nav.cancelled'))}
+          />
+        </div>
       {/if}
       {#if productSets.shown.length + productSets.more.length > 0}
-        <NavGroup label={t('app.nav.products')} menu={customise}>
-          {#each isAllProducts ? [...productSets.shown, ...productSets.more] : productSets.shown as row (row.id)}
-            <NavItem label={t(row.code)} icon={row.icon} color={row.color} href={row.path} isCurrent={productCurrent(row.routes)} onnavigate={() => onnavigate(row.path)} />
-          {/each}
-          {#if !isAllProducts && productSets.more.length > 0}
+        <NavGroup
+          label={t('app.nav.products')}
+          menu={customise}
+          tree={productNodes}
+          current={currentProduct}
+          canOrder={() => !!actor.account}
+          onnavigate={(module) => onnavigate(productPaths[module] ?? '/')}
+          onplace={(module, placement) => void placeProduct(module, placement.afterId)}
+          onmovekey={productKey}
+          {refusalLabel}
+          {landed}
+          oncancel={() => announcer.say(t('app.nav.cancelled'))}
+        />
+        {#if !isAllProducts && productSets.more.length > 0}
+          <ul class="plain">
             <NavItem label={t('app.nav.more_count', { count: productSets.more.length })} icon="ellipsis" tone="more" onnavigate={() => (isAllProducts = true)} />
-          {/if}
-        </NavGroup>
+          </ul>
+        {/if}
       {/if}
       <NavGroup
         label={t('app.nav.hubs')}
@@ -1195,6 +1609,8 @@
         onplace={place(shownHubs)}
         onmovekey={moveKey(shownHubs, hubNodes, (id) => hubsOrder === 'MANUAL' && mayRankIn(id))}
         {refusalLabel}
+        {landed}
+        oncancel={() => announcer.say(t('app.nav.cancelled'))}
         limit={HUBS_SHOWN}
         moreLabel={(hidden) => t('app.nav.more_hubs', { count: hidden })}
       >
@@ -1232,6 +1648,22 @@
   isPrivateOnly={creation === 'private'}
   oncreated={(id, landing) => onnavigate(landing ?? `/hubs/${id}`)}
 />
+{#if movingContent}
+  <PlacePicker title={t('app.nav.move_row_to', { name: movingContentName })} places={pickerRows} bind:isOpen={() => movingContent !== undefined, (open) => { if (!open) movingContent = undefined; }} onpick={pickContent} />
+{/if}
+{#if movingCollection}
+  <CollectionMoveDialog container={movingCollection} bind:isOpen={() => movingCollection !== undefined, (open) => { if (!open) movingCollection = undefined; }} {onnavigate} />
+{/if}
+{#if entryMove}
+  {@const move = entryMove}
+  <Dialog title={t('app.nav.entry_move_title', { title: move.title, collection: move.collection.name })} isOpen dismissLabel={t('app.workspace.cancel')} onClose={() => (entryMove = undefined)}>
+    <p>{t('app.nav.entry_move_hub', { collection: move.collection.name, hub: containers.find(move.collection.parent_id ?? '')?.name ?? '' })}</p>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => (entryMove = undefined)}>{t('app.workspace.cancel')}</Button>
+      <Button tone="primary" onclick={() => { entryMove = undefined; void moveEntry(move.entryId, move.collection); }}>{t('app.move.confirm')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
 {#if collectionHubId}
   <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHubId} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
 {/if}
@@ -1254,6 +1686,10 @@
   }
 
   .plain { padding: 0; }
+  .drop-part { display: contents; }
+  .order-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); margin: 0 var(--sp-050) var(--sp-100); }
+  .order-hint { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
+  [data-reordering] :global(.reorder) { touch-action: none; cursor: grab; }
   .foryou { border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .foot { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .grow { flex: 1; min-block-size: 0; overflow-y: auto; }
