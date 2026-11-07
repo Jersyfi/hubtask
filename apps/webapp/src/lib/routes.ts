@@ -131,6 +131,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'service-desk', pattern: '/administration/service-desk', area: 'administration' },
   { name: 'cmdb', pattern: '/administration/configuration-items', area: 'administration' },
   { name: 'changes', pattern: '/administration/changes', area: 'administration' },
+  // A configuration version as its record page, with what it changed (page-system §9.3).
+  { name: 'change', pattern: '/administration/changes/:version', area: 'administration' },
   // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).
   { name: 'workflows', pattern: '/administration/workflows', area: 'administration' },
   // Each workflow at its own address, the editor's list beside it (page-system §7.4).

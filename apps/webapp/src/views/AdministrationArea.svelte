@@ -9,6 +9,7 @@
   import AppView from './AppView.svelte';
   import AuditView from './AuditView.svelte';
   import BackupView from './BackupView.svelte';
+  import ChangeView from './ChangeView.svelte';
   import ChangesView from './ChangesView.svelte';
   import EntryTypeView from './EntryTypeView.svelte';
   import EntryTypesView from './EntryTypesView.svelte';
@@ -112,6 +113,10 @@
   <LinkTypesView />
 {:else if route.name === 'changes'}
   <ChangesView />
+{:else if route.name === 'change'}
+  {#key route.params.version}
+    <ChangeView version={route.params.version ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'workflows' || route.name === 'workflow'}
   <!-- One branch for the list and a workflow: a move between workflows keeps the screen. -->
   <WorkflowsView workflow={route.params.key} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />

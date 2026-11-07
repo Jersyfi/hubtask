@@ -76,7 +76,7 @@ const VIEW_OF: Readonly<Record<string, string>> = {
 };
 /** The screens that show the file by other means: the whole document, a module's own values. */
 const OWN_FILE: Readonly<Record<string, string>> = {
-  '/administration/changes': 'ChangesView',
+  '/administration/changes': '../lib/changes/FileDialog',
   '/administration/modules': '../lib/workspace/ModuleSwitches',
 };
 

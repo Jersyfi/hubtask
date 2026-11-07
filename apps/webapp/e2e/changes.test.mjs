@@ -78,17 +78,22 @@ test('chromium: a proposal is previewed with its reach and applied only once ack
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/administration/changes`);
 
-  const row = page.locator(`[data-proposal="${PROPOSAL.id}"]`);
+  // The proposal waits first in the log; it opens as a Dialog M with its plan (page-system §9.3).
+  const row = page.locator('main tbody tr.row').filter({ has: page.locator(`[data-proposal-row="${PROPOSAL.id}"]`) });
   await row.waitFor({ timeout: 15_000 });
   assert.match((await row.textContent()) ?? '', /Hides data/);
 
   // The sandbox's promotion says what it reaches before anybody promotes it.
-  const sandbox = page.locator('[data-sandbox]');
+  await page.getByRole('button', { name: 'More for History & versions' }).click();
+  await page.getByRole('menuitem', { name: /^Sandbox/ }).click();
+  const sandbox = page.locator('dialog[open]');
   await sandbox.getByText('workflow “service”: 4 entries move to another status').waitFor({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await sandbox.waitFor({ state: 'detached', timeout: 10_000 });
 
   // The proposal's preview: planned afresh with its own document, writing nothing.
-  await row.locator(`[data-preview="${PROPOSAL.id}"]`).click();
-  const dialog = page.getByRole('dialog');
+  await row.getByRole('button').first().click();
+  const dialog = page.locator('dialog[open]');
   await dialog.getByText('field “cost”: 7 entries show fewer values - nothing is deleted').waitFor({ timeout: 10_000 });
   assert.match((await dialog.textContent()) ?? '', /Time: 12 people are left without the module/);
   // The plan in words: the block by its name, never the document's path (user-experience.md §5.4).
@@ -96,15 +101,13 @@ test('chromium: a proposal is previewed with its reach and applied only once ack
   assert.doesNotMatch((await dialog.textContent()) ?? '', /fields\.cost|modules\.time/);
   assert.deepEqual(planned.at(-1), { document: PROPOSAL.document, mode: 'MERGE' });
   assert.deepEqual(applied, [], 'the preview applied something');
-  await page.keyboard.press('Escape');
-  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
 
   // Apply waits for the acknowledgement of what the proposal hides.
-  const apply = row.locator(`[data-apply="${PROPOSAL.id}"]`);
+  const apply = dialog.getByRole('button', { name: 'Apply', exact: true }).last();
   assert.equal(await apply.getAttribute('aria-disabled'), 'true');
   await apply.click({ force: true });
   assert.deepEqual(applied, [], 'a proposal that hides data applied unacknowledged');
-  await row.getByLabel(/I have seen that this hides data/).check();
+  await dialog.getByLabel(/I have seen that this hides data/).check();
   assert.equal(await apply.getAttribute('aria-disabled'), null);
   const decided = page.waitForRequest((request) => request.url().endsWith(`/config/proposals/${PROPOSAL.id}:decide`), { timeout: 10_000 });
   await apply.click();
@@ -112,7 +115,7 @@ test('chromium: a proposal is previewed with its reach and applied only once ack
   assert.deepEqual(failures, []);
 });
 
-test('chromium: with nothing waiting the page says so in one line and folds the expert\'s parts', async (t) => {
+test('chromium: with nothing waiting the page says so in one line and keeps the expert\'s parts in its head', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -135,14 +138,14 @@ test('chromium: with nothing waiting the page says so in one line and folds the 
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/administration/changes`);
   await page.locator('[data-waiting]').getByText(/Nothing waits for your word/).waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('[data-proposals], [data-drafts]').count(), 0, 'empty lists were drawn beside the one line');
-  // What waits comes before what changed.
-  const order = await page.locator('[data-waiting], [data-versions]').evaluateAll((sections) => sections.map((section) => section.hasAttribute('data-waiting') ? 'waiting' : 'versions'));
-  assert.deepEqual(order, ['waiting', 'versions']);
-  // The sandbox and the file are folded while no sandbox runs.
-  assert.equal(await page.locator('[data-sandbox], [data-file]').count(), 0, 'the expert\'s parts were open');
-  await page.getByRole('button', { name: /Advanced/ }).click();
+  assert.equal(await page.locator('[data-proposal-row]').count(), 0, 'empty lists were drawn beside the one line');
+  // The sandbox and the file are the head's, not open on arrival.
+  assert.equal(await page.locator('[data-sandbox], [data-file]').filter({ visible: true }).count(), 0, 'the expert\'s parts were open');
+  await page.getByRole('button', { name: 'View as file' }).click();
   await page.locator('[data-file]').waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'More for History & versions' }).click();
+  await page.getByRole('menuitem', { name: /^Sandbox/ }).click();
   await page.locator('[data-sandbox]').waitFor();
   assert.deepEqual(failures, []);
 });

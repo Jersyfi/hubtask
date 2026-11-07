@@ -43,6 +43,7 @@ test('the administration area is exactly these screens, by name', () => {
     'apps',
     'audit',
     'backup',
+    'change',
     'changes',
     'cmdb',
     'entry-type',

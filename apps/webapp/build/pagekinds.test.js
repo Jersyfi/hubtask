@@ -35,7 +35,7 @@ const KINDS = {
 const NOT_YET_MIGRATED = [
   'ActualsView', 'AgentsView', 'AiSettingsView', 'AppearanceView',
   'ApprovalsView', 'ArchiveView', 'AssetsView', 'BackupView', 'CalendarPushesView',
-  'ChangesView', 'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
+  'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
   'DevicesView', 'FileStoresView', 'GoalView', 'GoalsView', 'GrantsView',
   'HubDeskView', 'InstallationView', 'InstanceAiView', 'InstanceDeadLettersView',
   'InstanceEncryptionView', 'InstanceFileView', 'InstanceJournalView', 'InstanceOperatorsView',

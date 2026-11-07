@@ -344,7 +344,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_changes',
     rows: [
       // The configuration's versions, the changes proposed for a person and the file (F-6).
-      { id: 'changes', icon: 'clock', code: 'app.changes.title', path: '/administration/changes', routes: ['changes'] },
+      { id: 'changes', icon: 'clock', code: 'app.changes.title', path: '/administration/changes', routes: ['changes', 'change'] },
     ],
   },
 ];

@@ -250,6 +250,7 @@ async function views() {
     ['entry-type', await load('EntryTypeView'), { typeKey: 'task', onnavigate: noop }],
     ['link-types', await load('LinkTypesView'), {}],
     ['changes', await load('ChangesView'), {}],
+    ['change', await load('ChangeView'), { version: '1', onnavigate: noop }],
     ['workflows', await load('WorkflowsView'), { onnavigate: noop }],
     ['workflow', await load('WorkflowsView'), { workflow: 'default', onnavigate: noop }],
     ['backup', await load('BackupView'), {}],
