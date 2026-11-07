@@ -328,7 +328,7 @@ physical direction).
 | `ResourceGrid` | L3 | `Grid` of `ResourceCard`s (mark, name, one sentence, up to three chips, a state line) on the canvas; the card is a link; the act (*Use*) on the record page or in its dialog, not on the card | the gallery inside settings; the hub's *Products* gallery |
 | `BulkBar` | L3 | replaces the head while selecting: *3 selected* · up to three verbs · ⋯ · *Done*; `Escape` ends | per-screen bulk bars |
 | `SettingsSection` | L3 | heading and one sentence on the canvas, the status, *View as file*; below it one region of `SettingRow`s, quiet group labels between them, *Advanced* folded at its end; one save model: the `SaveBar` (values) or instant controls (switches, one-act buttons) | raised cards per section |
-| `SettingRow` | L3 | start: name, `SourceChip`, one-line help; end: the control at its field width, *Reset* where set here, the lock's reason; from `expanded` up two columns, below stacked (name, help, control, chip) | full-width fields with a chip under each |
+| `SettingRow` | L3 | start: name, `SourceChip`, one-line help; end: the control at its field width, *Reset* where set here, the lock's reason; two columns, stacked on `compact` only (name, help, control, chip) | full-width fields with a chip under each |
 | `BlockList` | L3 | ordered blocks, each one line: grip · mark · name · summary sentence · ⋯; pressing a block opens its dialog (§5.1); reorder by grip, `Alt`+arrows, or ⋯ *Move up/down*; *Add* at the end | expanded steps, statuses, fields |
 | `FormLayout` | L3 | in a dialog: one column, labels above, `FormSection`s with a title, the primary at the foot's end. On a page: the page's full width like every other page kind, each section a region of `SettingRow`s (name and help at the start, the field at its `layout.field.*` width at the end) — the same look as a settings section, never a narrow column | forms laid out per screen |
 | `RecordHead` | L3 | `PageHeader` for one object: kind as the eyebrow, the name, a status, one line of facts (*2 members · 1 role · changed 2 days ago*), *Edit* as the secondary, ⋯ | per-screen heads |
@@ -362,7 +362,7 @@ section, the products' settings tabs, installation Defaults, Your settings.*
 ### 7.4 `EditorPage` — a composite object built from blocks
 `SectionNav` of the objects (with search and *New*) · the selected object's head and its
 `BlockList`s · the draft bar (*Draft · 2 changes · Discard · Try · Publish…*), sticky. The object
-list is a region of its own with a gutter of `sp.400` between it and the editor, so the two never
+list is a region of its own with a gutter of `sp.500` between it and the editor, so the two never
 touch (the owner, 2026-11-07). A block opens its Dialog L. *Workflows, Types & forms, Views, the
 CMDB's classes.* On `compact`/`medium`: the object list is the page; an object opens as its own page
 with *‹ Workflows*.
