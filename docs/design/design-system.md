@@ -422,6 +422,9 @@ the mark the bar carries; how the product uses them is §11.
   (§12). The wordmark is the caller's resolved text, lowered by the stylesheet and never
   translated; with it the text is the accessible name, without it `label` is.
 
+### Wave 6 — compositions and pages
+`Grid`
+
 ---
 
 ## 5. Naming in code

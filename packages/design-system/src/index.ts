@@ -195,3 +195,7 @@ export {
 // The one reason a group of controls shares - a composite's, or an area's notice the caller draws
 // (design-system.md §4): the parts point at it and draw no bubble of their own.
 export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts';
+
+// Wave 6 - the page system (docs/backlog/page-system/): the layer above the components, and the
+// page kinds a screen is assembled from.
+export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte';
