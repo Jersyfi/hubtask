@@ -152,7 +152,7 @@
 </script>
 
 <div class="data-table" data-selecting={isSelecting ? '' : undefined}>
-  <Table {label} isLabelHidden columns={tableColumns} {sort} {onSort} {isBusy} {empty} isHeadPinned>
+  <Table {label} isLabelHidden columns={tableColumns} {sort} {onSort} {isBusy} {empty} isHeadPinned foot={shownLabel || more || perPage ? tableFoot : undefined}>
     {#each rows as row, index (key(row))}
       {@const id = key(row)}
       {@const rowGroup = group?.(row)}
@@ -204,22 +204,21 @@
         {/if}
       </tr>
     {/each}
-    {#snippet foot()}
-      {#if shownLabel || more || perPage}
-        {#if shownLabel}<span class="shown">{shownLabel}</span>{/if}
-        {#if more}
-          <span class="more"><LoadMore {...more} /></span>
-        {/if}
-        {#if perPage}
-          <span class="per-page">
-            <span id={perPageId}>{perPage.label}</span>
-            <Select label={perPage.label} isLabelHidden aria-labelledby={perPageId} size="sm" options={perPageOptions} value={String(perPage.value)} onchange={(event) => perPage.onchange(Number(event.currentTarget.value))} />
-          </span>
-        {/if}
-      {/if}
-    {/snippet}
   </Table>
 </div>
+
+{#snippet tableFoot()}
+    {#if shownLabel}<span class="shown">{shownLabel}</span>{/if}
+    {#if more}
+      <span class="more"><LoadMore {...more} /></span>
+    {/if}
+    {#if perPage}
+      <span class="per-page">
+        <span id={perPageId}>{perPage.label}</span>
+        <Select label={perPage.label} isLabelHidden aria-labelledby={perPageId} size="sm" options={perPageOptions} value={String(perPage.value)} onchange={(event) => perPage.onchange(Number(event.currentTarget.value))} />
+      </span>
+    {/if}
+{/snippet}
 
 {#if menu}
   <Sheet
