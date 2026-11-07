@@ -4,7 +4,8 @@
   // One item a person picks from - a template, a hub, a dashboard - flat on the canvas (page-system
   // §4.2, level 1′): a hairline and no shadow, the hover a step of surface and a firmer border. The
   // card is the link; the act (*Use*) is on its record page or in its dialog, never on the card,
-  // and a card holds no form (PS-4).
+  // and a card holds no form (PS-4). On a phone it reads in three lines - mark and name, the
+  // sentence held to two, chips and state - so a catalogue stays a few screens long (§4.4).
   import Badge from './Badge.svelte';
   import Icon from './Icon.svelte';
   import type { IconName } from './icons/index.ts';
@@ -95,6 +96,23 @@
   .description { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
   .state { justify-self: start; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); padding: var(--sp-100) var(--sp-150); }
+    .mark { flex: none; inline-size: var(--sp-300); block-size: var(--sp-300); }
+    .title { flex: 1 1 0; min-inline-size: 0; font-size: var(--fs-100); }
+    .description {
+      flex-basis: 100%;
+      font-size: var(--fs-075);
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }
+    .chips, .state { flex: none; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .card { transition-duration: var(--dur-instant); }

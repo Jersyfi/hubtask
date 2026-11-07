@@ -16,3 +16,9 @@ export const cards: Story = {
   about:
     'Level 1′: a hairline and no shadow; the hover a step of surface and a firmer border. A link, a dialog opener, and one that opens nothing.',
 };
+
+export const compact: Story = {
+  name: 'On a phone',
+  about:
+    'Below medium the card reads in three lines: the mark beside the name, the sentence held to two lines, the chips and the state on one. Narrow the window, not the pane, to see it.',
+};
