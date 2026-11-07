@@ -174,7 +174,8 @@ for (const scheme of ['light']) {
     assert.deepEqual(first(await top.getByRole('link').allInnerTexts()), ['Today', 'Inbox', 'Waiting for your yes']);
     await top.getByRole('link', { name: /Waiting for your yes/ }).filter({ hasText: '1' }).waitFor({ timeout: 5_000 });
     const products = side.getByRole('region', { name: 'Products' });
-    assert.deepEqual(first(await products.getByRole('link').allInnerTexts()), ['Pages', 'Service desk', 'Time']);
+    // The products are a tree whose rows are dragged into order (UC-WRK-38 check 7).
+    assert.deepEqual(first(await products.getByRole('treeitem').allInnerTexts()), ['Pages', 'Service desk', 'Time']);
     assert.deepEqual(first(await side.getByRole('tree', { name: 'Hubs' }).getByRole('treeitem').allInnerTexts()), [HUB.name]);
     assert.equal(await side.getByText('Products', { exact: true }).count(), 1, 'the section has no caption');
     const tree = products;
@@ -184,10 +185,10 @@ for (const scheme of ['light']) {
     for (const product of ['Pages', 'Service desk', 'Time', 'My notes', 'Waiting for your yes', 'Administration']) assert.ok(!items.includes(product), `${product} is behind the avatar`);
     await page.keyboard.press('Escape');
 
-    await tree.getByRole('link', { name: 'Pages' }).click();
+    await tree.getByRole('treeitem', { name: 'Pages' }).click();
     await page.waitForFunction(() => location.pathname === '/pages', null, { timeout: 5_000 });
     assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Pages');
-    assert.equal(await tree.getByRole('link', { name: 'Pages' }).getAttribute('aria-current'), 'page', 'the row is not current on its home');
+    assert.equal(await tree.getByRole('treeitem', { name: 'Pages' }).getAttribute('aria-current'), 'page', 'the row is not current on its home');
     const tabs = page.getByRole('main').getByRole('navigation', { name: 'Pages' });
     // The shared vocabulary (the navigation concept §4): *For you* first, the spaces a tab of their own.
     assert.deepEqual(first(await tabs.getByRole('link').allInnerTexts()), ['For you', 'Spaces', 'My notes']);
@@ -203,7 +204,7 @@ for (const scheme of ['light']) {
     // *My notes* is the home's second tab, at its own address, and the row stays current.
     await tabs.getByRole('link', { name: 'My notes' }).click();
     await page.waitForFunction(() => location.pathname === '/notes', null, { timeout: 5_000 });
-    assert.equal(await tree.getByRole('link', { name: 'Pages' }).getAttribute('aria-current'), 'page');
+    assert.equal(await tree.getByRole('treeitem', { name: 'Pages' }).getAttribute('aria-current'), 'page');
     assert.deepEqual(failures, []);
   });
 }

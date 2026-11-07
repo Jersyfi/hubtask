@@ -3,7 +3,7 @@
 
 // The hub tree ranks by drag and by key (ux-inventory.md §E1): a hub among the hubs, a collection
 // among its hub's collections, with the same writes the page menu's *Move up/down* sends and the
-// same sentence after them. A reader whose role may not shape the workspace gets no grip and no
+// sentence the navigation concept's drop says (§5.4), with Undo. A reader whose role may not shape the workspace gets no grip and no
 // key. Chromium only, as the shell walk.
 
 import { test } from 'node:test';
@@ -96,12 +96,13 @@ test('chromium: Alt+arrows rank a hub, the focus stays with it, and the move is 
   const { tree, writes, order } = await workspace(page);
 
   const studio = tree.getByRole('treeitem', { name: 'Studio' });
-  assert.equal(await studio.getAttribute('aria-keyshortcuts'), 'Alt+ArrowUp Alt+ArrowDown');
+  // The keys are offered once the reader's role is read, which the rows do not wait for.
+  await tree.locator('[role="treeitem"][aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"]', { hasText: 'Studio' }).waitFor({ timeout: 5_000 });
   await studio.focus();
   await page.keyboard.press('Alt+ArrowUp');
   await order(['Studio', 'Garden', 'Travel']);
   assert.deepEqual(writes, [{ moving: id('02'), verb: 'reorder', before_container_id: id('01') }]);
-  await said(page).filter({ hasText: 'Studio is now number 1 of 3.' }).waitFor({ timeout: 5_000 });
+  await said(page).filter({ hasText: 'Moved. Position 1 of 3.' }).waitFor({ timeout: 5_000 });
   await page.waitForFunction((wanted) => document.activeElement?.getAttribute('data-id') === wanted, id('02'), { timeout: 5_000 })
     .catch(() => assert.fail('the focus did not stay with the hub it ranked'));
 
@@ -139,7 +140,7 @@ test('chromium: a hub dragged by its row lands where it is let go, and letting g
 
   await order(['Studio', 'Travel', 'Garden']);
   assert.deepEqual(writes, [{ moving: id('01'), verb: 'reorder', before_container_id: null }]);
-  await said(page).filter({ hasText: 'Garden is now number 3 of 3.' }).waitFor({ timeout: 5_000 });
+  await said(page).filter({ hasText: 'Moved. Position 3 of 3.' }).waitFor({ timeout: 5_000 });
   assert.equal(page.url(), path, 'letting go of the drag opened the hub');
 
   // A press on the row that does not travel is the row's own click, and writes nothing.
@@ -165,7 +166,7 @@ test('chromium: a collection ranks among its hub’s collections by the same mov
   await page.keyboard.press('Alt+ArrowDown');
   await order(['Tools', 'Beds', 'Seeds']);
   assert.deepEqual(writes, [{ moving: id('11'), verb: 'move', target_parent_id: id('01'), before_container_id: id('13') }]);
-  await said(page).filter({ hasText: 'Beds is now number 2 of 3.' }).waitFor({ timeout: 5_000 });
+  await said(page).filter({ hasText: 'Moved. Position 2 of 3.' }).waitFor({ timeout: 5_000 });
 
   // The level is the hub's: dragging a collection far past the first still lands it first among
   // the collections, and never among the tools above them.
