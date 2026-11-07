@@ -782,7 +782,7 @@ types, organisations, priority field and pausing statuses from the workspace's o
 targets per priority one `DurationInput` per option of that field, the warning and position
 behind *Advanced*. An empty calendars, policies or replies section offers whoever holds
 `STRUCTURE` *Start from the ITIL defaults*: the workspace's *Templates* open on the ITIL desk
-template's plan (`/administration/presets?template=itil_service_desk`), in words before anything
+template's plan (`/administration/templates?template=itil_service_desk`), in words before anything
 changes - its whole workspace part, since its policies measure the types, priorities and statuses
 that part brings and would measure nothing alone. A desk entry's SLA chips lead its main column, above the
 notes; the triage fields stay in the fields beside it. The portal draws its kinds as

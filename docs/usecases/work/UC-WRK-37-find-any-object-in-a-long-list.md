@@ -37,7 +37,7 @@ In `D1` a list holds a handful of rows and the search is rarely needed; in `D4`�
 
 ## Today
 
-* Check 1: not met — the other list and log pages have no filter bar yet; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 2: not met — the audit, the workspaces and the rule runs still open a filter form on arrival; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 3: not met — the other list pages have no foot saying what is shown yet; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 4: not met — the other list pages still show several verbs per row; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 1: not met — the other list and log pages have no filter bar yet; met on *People & access*, *Templates*, *Types*, *Link types*, *Rules* and *Rule runs*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 2: not met — the audit and the workspaces still open a filter form on arrival; met on *People & access* and *How we work* (Overview, Workspace, Address, Templates, Modules, Types, Workflows, Link types, Rules, Rule runs), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 3: not met — the other list pages have no foot saying what is shown yet; met on *People & access*, *Types*, *Link types*, *Rules* and *Rule runs*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 4: not met — the other list pages still show several verbs per row; met on *People & access* and *How we work* (Overview, Workspace, Address, Templates, Modules, Types, Workflows, Link types, Rules, Rule runs), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10

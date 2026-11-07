@@ -37,8 +37,8 @@ In `D1` and `D2` few objects exist and most dialogs are short; in `D4`–`D7` an
 
 ## Today
 
-* Check 1: not met — the views in `apps/webapp/build/pagekinds.test.js`'s list are not page kinds yet; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 2: not met — the other screens still open some create forms on the page; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 3: not met — the dialogs in `apps/webapp/build/dialogs.test.js`'s list are not held to their size yet; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 4: not met — the other administered objects still open in place; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 5: not met — the other screens still show destructive buttons on rows and cards; met on *People & access*, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 1: not met — the views in `apps/webapp/build/pagekinds.test.js`'s list are not page kinds yet; met on *People & access* and *How we work* (Overview, Workspace, Address, Templates, Modules, Types, Workflows, Link types, Rules, Rule runs), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 2: not met — the other screens still open some create forms on the page; met on *People & access* and *How we work* (Overview, Workspace, Address, Templates, Modules, Types, Workflows, Link types, Rules, Rule runs), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 3: not met — the dialogs in `apps/webapp/build/dialogs.test.js`'s list are not held to their size yet; met on *People & access* and *How we work* (Overview, Workspace, Address, Templates, Modules, Types, Workflows, Link types, Rules, Rule runs), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 4: not met — the other administered objects still open in place; met on *People & access* and a type, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
+* Check 5: not met — the other screens still show destructive buttons on rows and cards; met on *People & access* and *How we work* (Overview, Workspace, Address, Templates, Modules, Types, Workflows, Link types, Rules, Rule runs), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
