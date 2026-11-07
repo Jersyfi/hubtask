@@ -35,6 +35,7 @@
   import { unsentDocuments } from '../data/unsentdocs.ts';
   import { liveKeeper } from '../data/unsentkeeper.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { page as frame } from '../frame/page.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { isLiveUnreachable } from '../data/liveunreachable.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
@@ -236,6 +237,29 @@
       // The page as published is what stands now; nothing waits to be saved.
       lastSaved = next.body;
     });
+  });
+
+  // Writing in the body hides the phone's bottom bar (the navigation concept's §9): the keyboard
+  // and the editor's own toolbar take the room.
+  $effect(() => {
+    const element = host;
+    if (!element || !page.writable) return;
+    let release: (() => void) | undefined;
+    const enter = () => {
+      release ??= frame.write();
+    };
+    const leave = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
+      release?.();
+      release = undefined;
+    };
+    element.addEventListener('focusin', enter);
+    element.addEventListener('focusout', leave);
+    return () => {
+      element.removeEventListener('focusin', enter);
+      element.removeEventListener('focusout', leave);
+      release?.();
+    };
   });
 
   // --- The editor and its live document ------------------------------------------------------------

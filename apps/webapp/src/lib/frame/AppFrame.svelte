@@ -465,7 +465,7 @@
     ),
   );
   /** Hidden where the screen is the work's own canvas: a whiteboard (§9). */
-  const isBottomBarShown = $derived(route.name !== 'whiteboard');
+  const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting);
   function choosePhoneTab(id: string) {
     if (id === 'capture') return capture.summon();
     // Search opens the palette, the bar having no field to type in: its *All results* and *Open

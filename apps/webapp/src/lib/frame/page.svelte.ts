@@ -109,6 +109,24 @@ class Page {
     return this.#fills;
   }
 
+  #writes = $state(0);
+
+  /** Whether somebody writes in a page's body now: the phone's bottom bar then steps aside (§9). */
+  get isWriting(): boolean {
+    return this.#writes > 0;
+  }
+
+  /** Marks writing until the returned release runs. */
+  write(): () => void {
+    this.#writes++;
+    let isReleased = false;
+    return () => {
+      if (isReleased) return;
+      isReleased = true;
+      this.#writes--;
+    };
+  }
+
   /** Takes the content region for as long as the caller's effect lives. */
   fill(): () => void {
     this.#fills = true;
