@@ -218,7 +218,8 @@ test('chromium: each shipped role says how many hold it at the workspace (user-e
 
   await page.goto(`${served.origin}/administration/people?tab=roles`);
   // The fixture's workspace: its owner and one member.
-  const held = (role) => page.locator(`[data-shipped-role="${role}"] [data-held]`);
+  // Each role is a row of the roles' list page; its holders stand in the row's own column.
+  const held = (role) => page.getByRole('row').filter({ has: page.locator(`[data-shipped-role="${role}"]`) }).locator('[data-held]');
   await held('OWNER').waitFor({ timeout: 15_000 });
   assert.equal((await held('OWNER').textContent())?.trim(), '1 person at the workspace');
   assert.equal((await held('MEMBER').textContent())?.trim(), '1 person at the workspace');

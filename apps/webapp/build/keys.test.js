@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
-const SETUP = ['views/EntryTypesView.svelte', 'views/RolesView.svelte', 'views/LinkTypesView.svelte', 'views/CmdbView.svelte'];
+const SETUP = ['views/EntryTypesView.svelte', 'views/RolesView.svelte', 'views/RoleView.svelte', 'views/LinkTypesView.svelte', 'views/CmdbView.svelte'];
 
 test('no setup list draws an object\'s key beside its name', () => {
   const found = [];
@@ -30,7 +30,8 @@ test('no setup list draws an object\'s key beside its name', () => {
 });
 
 test('a setup screen asks the key it makes only behind Advanced', () => {
-  for (const file of ['views/EntryTypesView.svelte', 'views/RolesView.svelte']) {
+  // A role is defined in its dialog (page-system §5.1), opened from *Roles*.
+  for (const file of ['views/EntryTypesView.svelte', 'lib/people/RoleDialog.svelte']) {
     const source = fs.readFileSync(path.join(SRC, file), 'utf8');
     const at = source.search(/label=\{t\('app\.(entry_types|roles)\.key'\)\}/);
     assert.ok(at > 0, `${file} asks no key`);
