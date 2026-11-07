@@ -191,7 +191,7 @@ test('chromium: after a break the workspace administration warns until the domai
     const text = (await warning.textContent()) ?? '';
     assert.ok(text.includes(`${OWN} is no longer the main address`), text);
     for (const said of says) assert.ok(text.includes(said), `${cause}: "${said}" is not said in ${text}`);
-    await warning.getByRole('button', { name: 'Address' }).click();
+    await warning.getByRole('link', { name: 'Address' }).click();
     await page.waitForURL((url) => url.pathname === '/administration/address');
     await context.close();
   }

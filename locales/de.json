@@ -3557,6 +3557,7 @@
   "app.admin_overview.open_mail": "Mail",
   "app.admin_overview.backup": "Sicherung",
   "app.admin_overview.backup_no_target": "Es ist kein Sicherungsziel eingerichtet, also wird nichts gesichert.",
+  "app.admin_overview.backup_no_target_state": "Kein Ziel",
   "app.admin_overview.backup_none": "Es wurde noch keine Sicherung geschrieben.",
   "app.admin_overview.backup_last": "Letzte Sicherung {at}",
   "app.admin_overview.backup_opened": "Ließ sich öffnen",

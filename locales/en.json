@@ -3595,6 +3595,7 @@
   "app.admin_overview.open_mail": "Mail",
   "app.admin_overview.backup": "Backup",
   "app.admin_overview.backup_no_target": "No backup target is set up, so nothing is backed up.",
+  "app.admin_overview.backup_no_target_state": "No target",
   "app.admin_overview.backup_none": "No backup has been written yet.",
   "app.admin_overview.backup_last": "Last backup {at}",
   "app.admin_overview.backup_opened": "Opened",

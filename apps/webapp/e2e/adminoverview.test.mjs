@@ -196,8 +196,8 @@ test('chromium: the first steps tick what is done, link what is not, and stay hi
   const steps = await card.locator('[data-step]').count();
   const done = await card.locator('[data-step][data-done]').count();
   assert.match(((await card.textContent()) ?? '').replace(/\s+/g, ' '), new RegExp(`${done} of ${steps} done`));
-  // It stands above the cards of what needs attention.
-  const [first, cards] = await Promise.all([card.boundingBox(), page.getByTestId('admin-overview').boundingBox()]);
+  // It stands above the cards of what needs attention, the one raised card of the page.
+  const [first, cards] = await Promise.all([card.boundingBox(), page.locator('[data-card]').first().boundingBox()]);
   assert.ok(first && cards && first.y < cards.y);
 
   await card.getByRole('button', { name: 'Hide the first steps' }).click();
