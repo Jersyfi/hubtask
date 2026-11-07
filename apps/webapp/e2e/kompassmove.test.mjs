@@ -35,6 +35,13 @@ function recorder({ preview } = {}) {
       const known = [...PD_PAGES, ...PD_BOARDS, ...HUBS, ...COLLECTIONS].find((each) => each.id === of) ?? { id: of, hub_id: PD.id, title: 'x', version: 2 };
       return route.fulfill({ json: { ...known, version: 2 } }), true;
     }
+    // A page archived (PATCH) or a page or board put in the trash and restored, recorded as sent.
+    const lifecycle = /\/api\/v1\/(pages|whiteboards)\/([^/:]+)(:restore)?$/.exec(path);
+    if (lifecycle && ['PATCH', 'DELETE', 'POST'].includes(request.method()) && (request.method() !== 'POST' || lifecycle[3])) {
+      moves.push({ path: path.replace('/api/v1', ''), method: request.method(), body: request.method() === 'PATCH' ? request.postDataJSON() : undefined });
+      const known = [...PD_PAGES, ...PD_BOARDS].find((each) => each.id === lifecycle[2]) ?? { id: lifecycle[2], hub_id: PD.id, title: 'x', version: 1 };
+      return route.fulfill({ json: request.method() === 'DELETE' && lifecycle[1] === 'pages' ? { trashed: 1 } : { ...known, version: 2 } }), true;
+    }
     if (/:move-preview$/.test(path)) {
       const to = request.postDataJSON().target_parent_id;
       return route.fulfill({ json: preview?.(to) ?? { movable: true, obstacles: [], consequences: [] } }), true;
@@ -328,5 +335,54 @@ test('UC-WRK-38 check 8: offline a move is not kept to send later, and the sideb
   assert.equal(record.moves.length, 0);
   record.state.offline = false;
   await page.context().setOffline(false);
+  assert.deepEqual(failures, []);
+});
+
+test('UC-WRK-38: a page\'s ⋯ archives it or puts it in the trash, a board\'s only the trash, each with Undo', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const record = recorder();
+  const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, owner: true, extra: record.extra });
+  t.after(close);
+  await row(page, 'Meeting notes').waitFor({ timeout: 10_000 });
+  await row(page, 'Meeting notes').hover();
+  await side(page).getByRole('button', { name: 'Manage Meeting notes' }).click();
+  const items = (await page.getByRole('menuitem').allInnerTexts()).map((each) => each.trim());
+  assert.deepEqual(items, ['Move to…', 'Archive', 'Move to the trash']);
+  await page.getByRole('menuitem', { name: 'Archive' }).click();
+  await page.getByText('“Meeting notes” is archived.').first().waitFor();
+  assert.deepEqual(record.moves.at(-1), { path: `/pages/${id(318)}`, method: 'PATCH', body: { archived: true } });
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('Undone.'));
+  assert.deepEqual(record.moves.at(-1).body, { archived: false });
+
+  await row(page, 'Retro board').hover();
+  await side(page).getByRole('button', { name: 'Manage Retro board' }).click();
+  assert.deepEqual((await page.getByRole('menuitem').allInnerTexts()).map((each) => each.trim()), ['Move to…', 'Move to the trash']);
+  await page.getByRole('menuitem', { name: 'Move to the trash' }).click();
+  await page.getByText('“Retro board” is in the trash.').first().waitFor();
+  assert.deepEqual(record.moves.at(-1), { path: `/whiteboards/${id(411)}`, method: 'DELETE', body: undefined });
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.waitForFunction(() => document.body.innerText.includes('Undone.'));
+  assert.equal(record.moves.at(-1).path, `/whiteboards/${id(411)}:restore`);
+  assert.deepEqual(failures, []);
+});
+
+test('UC-WRK-38 check 9: a page\'s sheet on the phone carries Archive and Move to the trash', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const record = recorder();
+  const { page, failures, close } = await phone(browser, `/browse/hubs/${PD.id}`, { extra: record.extra });
+  t.after(close);
+  const notes = page.locator('[data-press-row] li[data-id]', { hasText: 'Meeting notes' });
+  await notes.waitFor({ timeout: 10_000 });
+  await longPress(page, notes);
+  const sheet = page.getByRole('dialog', { name: 'Meeting notes' });
+  await sheet.waitFor();
+  const items = (await sheet.locator('li').allInnerTexts()).map((each) => each.trim());
+  assert.deepEqual(items, ['Star', 'Create beneath', 'Move to…', 'Change order', 'Archive', 'Move to the trash'], JSON.stringify(items));
+  await sheet.getByRole('button', { name: 'Move to the trash' }).click();
+  await page.getByText('1 page went into the trash.').first().waitFor();
+  assert.deepEqual(record.moves.at(-1), { path: `/pages/${id(318)}`, method: 'DELETE', body: undefined });
   assert.deepEqual(failures, []);
 });

@@ -27,6 +27,7 @@
     applyPlacement,
     moveIntent,
     positionOf,
+    type MenuItem,
     type MoveKey,
     type NavTreeNode,
     type RowAction,
@@ -467,12 +468,37 @@
     movingContent = undefined;
     if (id && place) void placeContent(id, place.placement);
   }
+  // A page's ⋯ archives it or puts it in the trash, a board's only the trash: a board has no
+  // archive (§5.1). Each offers *Undo*.
+  const contentLifecycle = (id: string): MenuItem[] => [
+    ...(pageRows.some((each) => each.id === id) ? [{ id: 'archive', label: t('app.workspace.archive'), icon: 'archive' as const, hasSeparatorBefore: true }] : []),
+    { id: 'trash', label: t('app.workspace.trash'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: !pageRows.some((each) => each.id === id) },
+  ];
+  async function contentAct(id: string, act: string) {
+    if (act === 'move') return void (movingContent = id);
+    const pageRow = pageRows.find((each) => each.id === id);
+    const board = boardRows.find((each) => each.id === id);
+    try {
+      if (pageRow && act === 'archive') {
+        const archived = await pagesStore.change(pageRow, { archived: true });
+        offerMoved(t('app.nav.archived', { title: pageRow.title }), () => pagesStore.change(archived, { archived: false }).then(() => true, () => false));
+      } else if (pageRow && act === 'trash') {
+        const trashed = await pagesStore.trash(pageRow);
+        offerMoved(t('app.pages.trashed', { count: trashed.trashed }), () => pagesStore.restore(pageRow.hub_id, pageRow.id).then(() => true, () => false));
+      } else if (board && act === 'trash') {
+        await whiteboards.trash(board);
+        offerMoved(t('app.whiteboards.trashed', { title: board.title }), () => whiteboards.restore(board).then(() => true, () => false));
+      }
+    } catch (error) {
+      failed(error);
+    }
+  }
   const contentRowMenu = (id: string): RowAction | undefined =>
     mayWrite
       ? {
           label: t('app.nav.row_actions', { name: pageRows.find((each) => each.id === id)?.title ?? boardRows.find((each) => each.id === id)?.title ?? '' }),
-          items: [{ id: 'move', label: t('app.nav.move_to'), icon: 'arrow-right-left' }],
-          onselect: () => (movingContent = id),
+          items: [{ id: 'move', label: t('app.nav.move_to'), icon: 'arrow-right-left' }, ...contentLifecycle(id)],
+          onselect: (act) => void contentAct(id, act ?? 'move'),
         }
       : undefined;
   const currentContent = $derived(route.name === 'page' || route.name === 'whiteboard' ? route.params['id'] : undefined);
@@ -1037,7 +1063,7 @@
     if (!row) return [];
     const starred = isStarred(stars.all, STAR_KIND[row.kind], row.id);
     const may = row.kind === 'collection' ? mayStructure : mayWrite;
-    const kept = row.kind === 'collection' ? (placeMenuOf(row.id)?.items ?? []).filter((item) => item.id === 'archive' || item.id === 'trash') : [];
+    const kept = row.kind === 'collection' ? (placeMenuOf(row.id)?.items ?? []).filter((item) => item.id === 'archive' || item.id === 'trash') : mayWrite ? contentLifecycle(row.id) : [];
     return [
       { id: 'star', label: t(starred ? 'app.nav.sheet_unstar' : 'app.nav.sheet_star'), icon: 'star' as const },
       ...(row.kind === 'page' && mayWrite ? [{ id: 'beneath', label: t('app.nav.create_beneath'), icon: 'plus' as const }] : []),
@@ -1053,7 +1079,8 @@
     if (act === 'beneath') return onnavigate(createPath(hub.id, 'page', row.id));
     if (act === 'move') return row.kind === 'collection' ? moveCollection(row.id) : void (movingContent = row.id);
     if (act === 'order') return void (reordering = row.kind === 'collection' ? 'collections' : 'contents');
-    placeMenuOf(row.id)?.onselect(act);
+    if (row.kind === 'collection') placeMenuOf(row.id)?.onselect(act);
+    else void contentAct(row.id, act);
   }
   $effect(() => {
     if (!reordering) return;

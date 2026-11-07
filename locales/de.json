@@ -2606,6 +2606,7 @@
   "app.nav.refused_other_part": "Seiten bleiben in den Inhalten",
   "app.nav.refused_too_deep": "Nicht tiefer als zwölf Ebenen",
   "app.nav.move_offline": "Verschieben braucht eine Verbindung: Dieses Gerät hebt keine Verschiebung auf, um sie später zu senden. Nichts wurde geändert – versuche es wieder, sobald du online bist.",
+  "app.nav.archived": "„{title}“ ist archiviert.",
   "app.nav.waiting": "Wartet auf das Senden",
   "app.nav.cancelled": "Abgebrochen. Nichts geändert.",
   "app.nav.moved": "Verschoben. Position {position} von {count} unter {parent}.",

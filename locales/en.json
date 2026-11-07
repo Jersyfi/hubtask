@@ -2608,6 +2608,7 @@
   "app.nav.refused_other_part": "Pages stay in Contents",
   "app.nav.refused_too_deep": "No deeper than twelve levels",
   "app.nav.move_offline": "Moving needs a connection: this device keeps no move to send later. Nothing changed - try again once you are back online.",
+  "app.nav.archived": "“{title}” is archived.",
   "app.nav.waiting": "Waiting to be sent",
   "app.nav.cancelled": "Cancelled. Nothing changed.",
   "app.nav.moved": "Moved. Position {position} of {count} under {parent}.",
