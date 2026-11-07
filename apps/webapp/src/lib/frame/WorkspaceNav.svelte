@@ -110,7 +110,7 @@
     located?: string;
     /** Folded to the rail: the marks alone. */
     isRail?: boolean;
-    /** Whether *For you* is drawn - not on `compact`, where the bottom bar carries it. */
+    /** Whether *For you* is drawn whole - not on `compact`, where the bottom bar carries most of it. */
     hasForYou?: boolean;
     onnavigate: (path: string) => void;
   }
@@ -119,7 +119,7 @@
 
   const workspaceOn = $derived(manifest.value?.modules_on);
   const hasJumble = $derived(holdsHere('READ') === true);
-  const topRows = $derived(forYou({ hasJumble, modulesOn: workspaceOn }));
+  const topRows = $derived(forYou({ hasJumble, modulesOn: workspaceOn, besideBar: !hasForYou }));
   const footRows = $derived(foot({ isAdministrationReachable: reachesAdministrationArea() === true }));
 
   // What waits for the reader's yes - approvals, held agent acts, page reviews (§2.2).
@@ -466,7 +466,9 @@
   }
   const place = (siblings: readonly Container[]) => (id: string, placement: TreePlacement) =>
     void rank(id, siblings, placedIndex(siblings.map((each) => each.id), id, placement.afterId));
-  const moveKey = (siblings: readonly Container[], nodes: readonly NavTreeNode[]) => (id: string, key: MoveKey) => {
+  /** A rank key moves only what the reader may order (P-05): the row draws no key where it may not. */
+  const moveKey = (siblings: readonly Container[], nodes: readonly NavTreeNode[], mayOrder: (id: string) => boolean) => (id: string, key: MoveKey) => {
+    if (!mayOrder(id)) return;
     const intent = moveIntent(key, nodes, id);
     if (intent && 'placement' in intent) place(siblings)(id, intent.placement);
   };
@@ -509,6 +511,8 @@
     color: each.color_token ?? DEFAULT_TILE,
     part: 'hubs',
     canHoldChildren: false,
+    // A private hub says so in words, whatever symbol it wears (UC-ID-16).
+    badge: each.private ? { icon: 'lock', label: t('app.nav.private') } : undefined,
     figure: '›',
     figureLabel: t('app.nav.open_level', { name: each.name }),
   });
@@ -709,7 +713,7 @@
 </script>
 
 <div class="column" data-rail={isRail ? '' : undefined}>
-  {#if hasForYou}
+  {#if topRows.length > 0}
   <ul class="foryou" aria-label={t('app.nav.for_you')}>
     {#each topRows as row (row.id)}
       <NavItem
@@ -765,7 +769,7 @@
       hub={{
         name: hub.name,
         icon: hub.private && !chosenSymbol(hub) ? 'lock' : markOf(hub),
-        color: hub.color_token ?? undefined,
+        color: hub.color_token ?? DEFAULT_TILE,
         backLabel: t('app.nav.all_hubs'),
         onback: () => (isBrowsingAll = true),
         starLabel: t(isHubStarred ? 'app.nav.unstar' : 'app.nav.star', { name: hub.name }),
@@ -860,7 +864,7 @@
           canOrder={() => mayStructure}
           onnavigate={(id) => onnavigate(`/collections/${id}`)}
           onplace={place(collections)}
-          onmovekey={moveKey(collections, collectionNodes)}
+          onmovekey={moveKey(collections, collectionNodes, () => mayStructure)}
           {refusalLabel}
           limit={COLLECTIONS_SHOWN}
           moreLabel={(hidden) => t('app.nav.more_count', { count: hidden })}
@@ -947,7 +951,7 @@
         canOrder={(id) => hubsOrder === 'MANUAL' && mayRankIn(id)}
         onnavigate={(id) => onnavigate(`/hubs/${id}`)}
         onplace={place(shownHubs)}
-        onmovekey={moveKey(shownHubs, hubNodes)}
+        onmovekey={moveKey(shownHubs, hubNodes, (id) => hubsOrder === 'MANUAL' && mayRankIn(id))}
         {refusalLabel}
         limit={HUBS_SHOWN}
         moreLabel={(hidden) => t('app.nav.more_hubs', { count: hidden })}

@@ -45,9 +45,13 @@ export function levelOf(route: LevelRoute, hubOf: (containerId: string) => strin
   return hubId ? { kind: 'hub', hubId } : { kind: 'workspace' };
 }
 
-/** The fixed top (§2.2): `places` without Search, which is the palette's field, and without Capture. */
-export function forYou(options: { readonly hasJumble: boolean; readonly modulesOn?: readonly string[] }): readonly Destination[] {
-  return primary({ hasJumble: options.hasJumble, modulesOn: options.modulesOn }).filter((destination) => destination.id !== 'search');
+/**
+ * The fixed top (§2.2): `places` without Search, which is the palette's field, and without Capture.
+ * `besideBar` on `compact`, where the bottom bar carries *Today* and *Inbox*: only what it does not.
+ */
+export function forYou(options: { readonly hasJumble: boolean; readonly modulesOn?: readonly string[]; readonly besideBar?: boolean }): readonly Destination[] {
+  return primary({ hasJumble: options.hasJumble, modulesOn: options.modulesOn })
+    .filter((destination) => destination.id !== 'search' && (!options.besideBar || destination.isOffBar === true));
 }
 
 /** The fixed foot (§2.5): *Administration* where the reader reaches it, then *Archive* and *Trash*. */

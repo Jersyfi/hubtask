@@ -452,6 +452,8 @@ test('anything of a hub shows its hub\'s level; everything else the workspace le
 test('For you is Today, the inbox and what waits for a yes - never Search or Capture (§2.2)', () => {
   assert.deepEqual(forYou({ hasJumble: true, modulesOn: ['SERVICE_DESK'] }).map((row) => row.id), ['workspace', 'jumble', 'approvals']);
   assert.deepEqual(forYou({ hasJumble: false, modulesOn: [] }).map((row) => row.id), ['workspace']);
+  // On compact the bottom bar carries Today and Inbox; the drawer keeps what it does not.
+  assert.deepEqual(forYou({ hasJumble: true, modulesOn: ['SERVICE_DESK'], besideBar: true }).map((row) => row.id), ['approvals']);
 });
 
 test('the foot is Administration where reached, then Archive and Trash (§2.5)', () => {
