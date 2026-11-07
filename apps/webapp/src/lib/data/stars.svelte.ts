@@ -41,6 +41,17 @@ class Stars {
       invalidates: [starsPath(accountId)],
     });
   }
+
+  /** Writes the list in a new order (UC-WRK-37 check 6): personal, without asking. */
+  async reorder(next: readonly Star[]): Promise<void> {
+    const accountId = this.#accountId;
+    const state = this.#state;
+    if (!accountId || state?.status !== 'ready') return;
+    await engine.mutate<StarList>('PUT', starsPath(accountId), { stars: [...next] }, {
+      ifMatch: `"${state.data.version ?? 0}"`,
+      invalidates: [starsPath(accountId)],
+    });
+  }
 }
 
 export const stars = new Stars();
