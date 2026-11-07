@@ -107,7 +107,7 @@ test('chromium: a page of runs that did not arrive is said beside the button, th
   await page.goto(`${served.origin}/administration/runs`);
   await failsThenRetries(page, {
     button: 'Show more',
-    rows: () => page.locator('.run .name'),
+    rows: () => page.locator('[data-run]'),
     failure: SERVER_FAULT,
     arrived: '1 more run arrived.',
   });
@@ -118,11 +118,16 @@ test('chromium: a page of runs that did not arrive is said beside the button, th
     failure: 'serverFault',
     answer: (cursor) => (cursor === 'p2' ? { data: [RUN(3)], page: { next_cursor: null, has_more: false } } : { data: [RUN(1), RUN(2)], page: { next_cursor: 'p2', has_more: true } }),
   });
-  await page.getByLabel('From').fill('2026-10-01T00:00');
+  // The window is the time range chip's (page-system §7.6).
+  await page.getByRole('button', { name: 'Any time' }).click();
+  await page.getByRole('textbox', { name: 'From' }).fill('2026-10-01T00:00');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Show more' }).click();
   await until(page, '.load-more [role="alert"]');
   assert.equal(await said(alert(page)), SERVER_FAULT);
-  await page.getByLabel('From').fill('2026-09-01T00:00');
+  await page.getByRole('button', { name: 'Chosen window' }).click();
+  await page.getByRole('textbox', { name: 'From' }).fill('2026-09-01T00:00');
+  await page.keyboard.press('Escape');
   await page.waitForFunction(() => (document.querySelector('.load-more [role="alert"]')?.textContent ?? '').trim() === '', null, { timeout: 5_000 }).catch(() => {});
   assert.equal(await said(alert(page)), '', 'a new filter kept the old failure');
   assert.equal(await said(status(page)), '', 'a new filter kept the old arrival');

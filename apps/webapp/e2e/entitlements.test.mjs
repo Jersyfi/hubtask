@@ -21,7 +21,6 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const SHOW_DETAIL = 'What happened';
 const SERVICE_ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000001901', display_name: 'Automation', kind: 'SERVICE' };
 
 const rule = (id, name, enabled) => ({
@@ -109,8 +108,9 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   assert.equal(await page.getByRole('button', { name: 'Try it' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Run it for real now' }).count(), 0);
   // A failed run, opened: what it did is readable, and nothing finishes it.
-  await page.getByRole('button', { name: SHOW_DETAIL }).first().click();
-  await page.getByRole('button', { name: 'Hide the detail' }).waitFor({ timeout: 5_000 });
+  // A run opens as its Dialog M (page-system §7.6).
+  await page.locator('[data-run]').first().click();
+  await page.locator('dialog[open] [data-run-detail]').waitFor({ timeout: 5_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.getByRole('button', { name: 'Finish this run' }).count(), 0, 'a replay is offered');
 
@@ -146,7 +146,7 @@ test('chromium: included, the rules screen offers what it always did', async (t)
 
   // The same failed run, opened where the rules are included, can be finished.
   await page.goto(`${served.origin}/administration/runs`);
-  await page.getByRole('button', { name: SHOW_DETAIL }).first().click();
+  await page.locator('[data-run]').first().click();
   await page.getByRole('button', { name: 'Finish this run' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });

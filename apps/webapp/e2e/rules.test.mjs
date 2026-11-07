@@ -953,8 +953,10 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.equal(await page.getByRole('heading', { name: 'Try a rule' }).count(), 0);
   assert.equal(await page.getByRole('combobox', { name: 'Which rule' }).count(), 0);
 
-  await page.getByLabel('From').fill('2026-09-20T00:00');
-  await page.getByLabel('To').fill('2026-09-21T00:00');
+  // The window is the time range chip's, the first of the filter bar (page-system §7.6).
+  await page.getByRole('button', { name: 'Any time' }).click();
+  await page.getByRole('textbox', { name: 'From' }).fill('2026-09-20T00:00');
+  await page.getByRole('textbox', { name: 'To', exact: true }).fill('2026-09-21T00:00');
   await page.waitForFunction(() => performance.now() > 0);
   await page.waitForTimeout(500);
   const windowed = written.find((body) => body.runs?.from && body.runs?.to);
