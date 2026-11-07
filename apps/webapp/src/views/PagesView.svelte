@@ -544,68 +544,71 @@
     {:else}
       {#key current.id}
         <Stack gap="150">
-          <!-- The trail: the hub, the pages above, this one (UC-DOC-01 check 6). -->
-          <Breadcrumb
-            label={t('app.pages.breadcrumb')}
-            expandLabel={t('app.pages.breadcrumb_more')}
-            mark={placeMark}
-            trail={[
-              ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
-              ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
-              { id: current.id, label: current.title },
-            ]}
-          />
-          <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
-               comments' toggle, sharing, and the rest in the page's menu. -->
-          <div class="head" data-page-head>
-            <div class="title-line">
-              {#if current.writable}
-                <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
-                     heading is read, the field is what is seen: the title appears once. -->
-                <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
-                <textarea
-                  class="title"
-                  rows="1"
-                  aria-label={t('app.pages.page_title')}
-                  value={titleDraft ?? current.title}
-                  oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
-                  onblur={rename}
-                  onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
-                ></textarea>
-              {:else}
-                <h1 class="title">{current.title}</h1>
-              {/if}
-              <StarToggle kind="PAGE" id={current.id} name={current.title} />
+          <!-- The trail close above the title, as on every other head (PageHeader). -->
+          <div class="heading">
+            <!-- The trail: the hub, the pages above, this one (UC-DOC-01 check 6). -->
+            <Breadcrumb
+              label={t('app.pages.breadcrumb')}
+              expandLabel={t('app.pages.breadcrumb_more')}
+              mark={placeMark}
+              trail={[
+                ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
+                ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
+                { id: current.id, label: current.title },
+              ]}
+            />
+            <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
+                 comments' toggle, sharing, and the rest in the page's menu. -->
+            <div class="head" data-page-head>
+              <div class="title-line">
+                {#if current.writable}
+                  <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
+                       heading is read, the field is what is seen: the title appears once. -->
+                  <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
+                  <textarea
+                    class="title"
+                    rows="1"
+                    aria-label={t('app.pages.page_title')}
+                    value={titleDraft ?? current.title}
+                    oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
+                    onblur={rename}
+                    onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
+                  ></textarea>
+                {:else}
+                  <h1 class="title">{current.title}</h1>
+                {/if}
+                <StarToggle kind="PAGE" id={current.id} name={current.title} />
+              </div>
+              <Inline gap="100" align="center">
+                {#if present.length > 0}
+                  <span class="here" data-page-here>
+                    <AvatarGroup
+                      people={present.map((name) => ({ name }))}
+                      max={3}
+                      size="sm"
+                      overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
+                    />
+                    <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
+                  </span>
+                {/if}
+                <Button
+                  size="sm"
+                  tone="secondary"
+                  icon="message-square"
+                  aria-pressed={side === 'comments'}
+                  data-page-comments
+                  onclick={() => toggleSide('comments')}
+                >{t('app.pages.side_comments', { count: String(openThreads) })}</Button>
+                {#if !current.shared && hubId}
+                  <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
+                {/if}
+                <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
+                  {#snippet trigger(props)}
+                    <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
+                  {/snippet}
+                </Menu>
+              </Inline>
             </div>
-            <Inline gap="100" align="center">
-              {#if present.length > 0}
-                <span class="here" data-page-here>
-                  <AvatarGroup
-                    people={present.map((name) => ({ name }))}
-                    max={3}
-                    size="sm"
-                    overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
-                  />
-                  <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
-                </span>
-              {/if}
-              <Button
-                size="sm"
-                tone="secondary"
-                icon="message-square"
-                aria-pressed={side === 'comments'}
-                data-page-comments
-                onclick={() => toggleSide('comments')}
-              >{t('app.pages.side_comments', { count: String(openThreads) })}</Button>
-              {#if !current.shared && hubId}
-                <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
-              {/if}
-              <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
-                {#snippet trigger(props)}
-                  <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
-                {/snippet}
-              </Menu>
-            </Inline>
           </div>
           {#if current.template || current.restricted || current.shared || current.due_for_review || current.verified_until}
             <Inline gap="050" isWrapping>
@@ -864,6 +867,7 @@
     justify-content: space-between;
     gap: var(--sp-100);
   }
+  .heading { display: grid; gap: calc(var(--sp-050) + var(--sp-025)); }
   .title-line { display: flex; flex: 1 1 24ch; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
   .here { display: inline-flex; }
   .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
