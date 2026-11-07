@@ -3483,6 +3483,10 @@ class Client:
         """Put a whiteboard in the trash"""
         return self._call("DELETE", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
 
+    def move_whiteboard(self, whiteboard_id: str, body: "WhiteboardMove", *, if_match: str | None = None) -> "Whiteboard":
+        """Move a whiteboard in the content tree"""
+        return self._call("POST", "/whiteboards/{whiteboardId}:move", {"whiteboardId": whiteboard_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def restore_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
         """Bring a whiteboard back from the trash"""
         return self._call("POST", "/whiteboards/{whiteboardId}:restore", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")

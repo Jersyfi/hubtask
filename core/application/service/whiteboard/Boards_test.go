@@ -5,6 +5,7 @@ package whiteboard
 
 import (
 	"context"
+	"sort"
 	"errors"
 	"fmt"
 	"slices"
@@ -137,6 +138,23 @@ func (s *store) List(_ context.Context, hubID shared.ID, trashed bool, _ shared.
 			out = append(out, repository.Summary{Board: board, Elements: len(board.Scene.Elements)})
 		}
 	}
+	return out, nil
+}
+
+func (s *store) Tree(_ context.Context, hubID shared.ID, _ int) ([]repository.Summary, error) {
+	var out []repository.Summary
+	for _, board := range s.boards {
+		if board.HubID == hubID && !board.IsTrashed() {
+			out = append(out, repository.Summary{Board: board, Elements: len(board.Scene.Elements)})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i].Board, out[j].Board
+		if a.ParentPageID != b.ParentPageID {
+			return a.ParentPageID < b.ParentPageID
+		}
+		return a.OrderKey < b.OrderKey
+	})
 	return out, nil
 }
 
@@ -395,10 +413,10 @@ func TestABoardGoesToTheTrashAndComesBack(t *testing.T) {
 	if _, _, err := (ReadWhiteboard{Studio: s}).Execute(context.Background(), actor(anna), board.ID); detail(err) != "whiteboards.not_found" {
 		t.Fatalf("a trashed board was read: %v", err)
 	}
-	if list, _, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, false, "", 0); len(list) != 0 {
+	if list, _, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, false, "", 0, false); len(list) != 0 {
 		t.Fatal("a trashed board is listed")
 	}
-	if trashed, _, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 0); len(trashed) != 1 || trashed[0]["element_count"] != 5 {
+	if trashed, _, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 0, false); len(trashed) != 1 || trashed[0]["element_count"] != 5 {
 		t.Fatalf("the trash: %+v", trashed)
 	}
 	restored, err := RestoreWhiteboard{Studio: s}.Execute(context.Background(), actor(anna), board.ID)
@@ -541,11 +559,11 @@ func TestATrashBeyondAPageNamesTheNextPage(t *testing.T) {
 		id := shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-%012x", 0xb00+i))
 		boards.boards[id] = domain.Board{ID: id, HubID: hub, Title: "Old", DeletedAt: &at, Version: 1}
 	}
-	listed, next, err := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 2)
+	listed, next, err := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 2, false)
 	if err != nil || len(listed) != 2 || next.IsZero() || next.String() != listed[1].String("id") {
 		t.Fatalf("a page of two: %d boards, next %v, %v", len(listed), next, err)
 	}
-	if _, next, err := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 5); err != nil || !next.IsZero() {
+	if _, next, err := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 5, false); err != nil || !next.IsZero() {
 		t.Fatalf("the last page names a next one: %v, %v", next, err)
 	}
 }

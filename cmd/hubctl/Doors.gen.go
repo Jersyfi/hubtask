@@ -1931,7 +1931,7 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
-			{Name: "after_id", Kind: "uuid", Help: "The sibling it follows; absent to place it first", Required: false},
+			{Name: "after_id", Kind: "uuid", Help: "The sibling page or whiteboard it follows; absent to place it first", Required: false},
 			{Name: "parent_id", Kind: "uuid", Help: "The page it moves under; absent for the top of the space", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
@@ -3083,8 +3083,10 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "after_id", Kind: "uuid", Help: "The sibling page or board it follows; absent or null for after the last", Required: false},
 			{Name: "elements", Kind: "json", Help: "", Required: false},
 			{Name: "id", Kind: "uuid", Help: "An identifier the client minted", Required: false},
+			{Name: "parent_page_id", Kind: "uuid", Help: "The page of the same hub the board stands under; absent or null for the top of the space", Required: false},
 			{Name: "title", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
@@ -3108,9 +3110,19 @@ var generatedCommands = []door{
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
+			{Name: "order", Kind: "string", Help: "`CHANGED` (the default) lists the last changed first", Required: false},
 			{Name: "trashed", Kind: "boolean", Help: "Deprecated: `GET /trash?kind=WHITEBOARD` lists the boards in the trash across the workspace's hubs; …", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "whiteboard", Verb: "move", OperationID: "moveWhiteboard", Method: "POST", Path: "/whiteboards/{whiteboardId}:move", Summary: "Move a whiteboard in the content tree",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "after_id", Kind: "uuid", Help: "The sibling page or board it follows; absent or null places it first", Required: false},
+			{Name: "parent_page_id", Kind: "uuid", Help: "The page of the same hub it moves under; absent or null for the top of the space", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "whiteboard", Verb: "place-file", OperationID: "attachWhiteboardMedia", Method: "POST", Path: "/whiteboards/{whiteboardId}/media", Summary: "Place an uploaded file on a whiteboard",
 		PathParams: []doorParam{
 			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},

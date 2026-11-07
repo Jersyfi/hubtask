@@ -3484,6 +3484,8 @@ type Whiteboard struct {
 	Version       int32
 	DeletedByType *string
 	DeletedByID   pgtype.UUID
+	ParentPageID  pgtype.UUID
+	OrderKey      *string
 }
 
 type WhiteboardComment struct {

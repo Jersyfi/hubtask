@@ -8132,4 +8132,9 @@ CREATE POLICY tenant_isolation ON account_star
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON account_star TO hubtask_app;
 
+
+-- Migration 0390: a whiteboard's place in its hub's content tree (UC-CNV-10).
+ALTER TABLE whiteboard ADD COLUMN parent_page_id uuid,
+  ADD COLUMN order_key text;
+
 COMMIT;

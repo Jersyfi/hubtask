@@ -28,6 +28,83 @@ func (q *Queries) AttachWhiteboardMedia(ctx context.Context, arg AttachWhiteboar
 	return err
 }
 
+const contentSiblingPages = `-- name: ContentSiblingPages :many
+SELECT id, order_key FROM page
+WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NULL
+  AND parent_id IS NOT DISTINCT FROM $2::uuid
+ORDER BY order_key, id
+`
+
+type ContentSiblingPagesParams struct {
+	HubID    pgtype.UUID
+	ParentID pgtype.UUID
+}
+
+type ContentSiblingPagesRow struct {
+	ID       pgtype.UUID
+	OrderKey string
+}
+
+// The pages directly under a parent of a hub's content tree (none: its top), outside the trash.
+func (q *Queries) ContentSiblingPages(ctx context.Context, arg ContentSiblingPagesParams) ([]ContentSiblingPagesRow, error) {
+	rows, err := q.db.Query(ctx, contentSiblingPages, arg.HubID, arg.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ContentSiblingPagesRow{}
+	for rows.Next() {
+		var i ContentSiblingPagesRow
+		if err := rows.Scan(&i.ID, &i.OrderKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const contentSiblingWhiteboards = `-- name: ContentSiblingWhiteboards :many
+SELECT id, order_key::text AS order_key FROM whiteboard
+WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NULL
+  AND order_key IS NOT NULL AND parent_page_id IS NOT DISTINCT FROM $2::uuid
+ORDER BY order_key, id
+`
+
+type ContentSiblingWhiteboardsParams struct {
+	HubID    pgtype.UUID
+	ParentID pgtype.UUID
+}
+
+type ContentSiblingWhiteboardsRow struct {
+	ID       pgtype.UUID
+	OrderKey string
+}
+
+// The boards directly under a parent of a hub's content tree (none: its top) that have a key,
+// outside the trash.
+func (q *Queries) ContentSiblingWhiteboards(ctx context.Context, arg ContentSiblingWhiteboardsParams) ([]ContentSiblingWhiteboardsRow, error) {
+	rows, err := q.db.Query(ctx, contentSiblingWhiteboards, arg.HubID, arg.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ContentSiblingWhiteboardsRow{}
+	for rows.Next() {
+		var i ContentSiblingWhiteboardsRow
+		if err := rows.Scan(&i.ID, &i.OrderKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countHubWhiteboards = `-- name: CountHubWhiteboards :one
 SELECT count(*)::int FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NULL
@@ -53,22 +130,25 @@ func (q *Queries) CountWhiteboardMedia(ctx context.Context, whiteboardID pgtype.
 }
 
 const findWhiteboard = `-- name: FindWhiteboard :one
-SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+       parent_page_id, order_key
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id = $1
 `
 
 type FindWhiteboardRow struct {
-	ID        pgtype.UUID
-	HubID     pgtype.UUID
-	Title     string
-	Scene     []byte
-	DeletedAt pgtype.Timestamptz
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	UpdatedBy pgtype.UUID
-	UpdatedAt pgtype.Timestamptz
-	Version   int32
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	Title        string
+	Scene        []byte
+	DeletedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedBy    pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	ParentPageID pgtype.UUID
+	OrderKey     *string
 }
 
 func (q *Queries) FindWhiteboard(ctx context.Context, id pgtype.UUID) (FindWhiteboardRow, error) {
@@ -85,6 +165,8 @@ func (q *Queries) FindWhiteboard(ctx context.Context, id pgtype.UUID) (FindWhite
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.ParentPageID,
+		&i.OrderKey,
 	)
 	return i, err
 }
@@ -136,23 +218,26 @@ func (q *Queries) FindWhiteboardComment(ctx context.Context, id pgtype.UUID) (Fi
 }
 
 const findWhiteboardForUpdate = `-- name: FindWhiteboardForUpdate :one
-SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+       parent_page_id, order_key
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id = $1
 FOR UPDATE
 `
 
 type FindWhiteboardForUpdateRow struct {
-	ID        pgtype.UUID
-	HubID     pgtype.UUID
-	Title     string
-	Scene     []byte
-	DeletedAt pgtype.Timestamptz
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	UpdatedBy pgtype.UUID
-	UpdatedAt pgtype.Timestamptz
-	Version   int32
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	Title        string
+	Scene        []byte
+	DeletedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedBy    pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	ParentPageID pgtype.UUID
+	OrderKey     *string
 }
 
 func (q *Queries) FindWhiteboardForUpdate(ctx context.Context, id pgtype.UUID) (FindWhiteboardForUpdateRow, error) {
@@ -169,6 +254,8 @@ func (q *Queries) FindWhiteboardForUpdate(ctx context.Context, id pgtype.UUID) (
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.ParentPageID,
+		&i.OrderKey,
 	)
 	return i, err
 }
@@ -235,18 +322,22 @@ func (q *Queries) FoldWhiteboardVersion(ctx context.Context, arg FoldWhiteboardV
 
 const insertWhiteboard = `-- name: InsertWhiteboard :exec
 
-INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, created_by, created_at, updated_by, updated_at, version)
+INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, created_by, created_at, updated_by, updated_at, version,
+  parent_page_id, order_key)
 VALUES ($1, current_tenant_id(), $2, $3, $4,
-  $5, $6, $5, $6, 1)
+  $5, $6, $5, $6, 1,
+  $7, $8)
 `
 
 type InsertWhiteboardParams struct {
-	ID        pgtype.UUID
-	HubID     pgtype.UUID
-	Title     string
-	Scene     []byte
-	CreatedBy pgtype.UUID
-	At        pgtype.Timestamptz
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	Title        string
+	Scene        []byte
+	CreatedBy    pgtype.UUID
+	At           pgtype.Timestamptz
+	ParentPageID pgtype.UUID
+	OrderKey     *string
 }
 
 // The whiteboard module's boards (migration 0240, M4). The tenant is the transaction's in every
@@ -259,6 +350,8 @@ func (q *Queries) InsertWhiteboard(ctx context.Context, arg InsertWhiteboardPara
 		arg.Scene,
 		arg.CreatedBy,
 		arg.At,
+		arg.ParentPageID,
+		arg.OrderKey,
 	)
 	return err
 }
@@ -354,7 +447,7 @@ func (q *Queries) LastWhiteboardVersion(ctx context.Context, whiteboardID pgtype
 
 const listHubWhiteboards = `-- name: ListHubWhiteboards :many
 SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.deleted_at,
-       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version
+       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version, w.parent_page_id, w.order_key
 FROM whiteboard w
 WHERE w.tenant_id = current_tenant_id() AND w.hub_id = $1
   AND (w.deleted_at IS NOT NULL) = $2::boolean
@@ -373,16 +466,18 @@ type ListHubWhiteboardsParams struct {
 }
 
 type ListHubWhiteboardsRow struct {
-	ID        pgtype.UUID
-	HubID     pgtype.UUID
-	Title     string
-	Elements  int32
-	DeletedAt pgtype.Timestamptz
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	UpdatedBy pgtype.UUID
-	UpdatedAt pgtype.Timestamptz
-	Version   int32
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	Title        string
+	Elements     int32
+	DeletedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedBy    pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	ParentPageID pgtype.UUID
+	OrderKey     *string
 }
 
 // A hub's boards, the last changed first, without their scenes; the trash or the rest; after the
@@ -412,6 +507,73 @@ func (q *Queries) ListHubWhiteboards(ctx context.Context, arg ListHubWhiteboards
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.ParentPageID,
+			&i.OrderKey,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHubWhiteboardsTree = `-- name: ListHubWhiteboardsTree :many
+SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.deleted_at,
+       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version, w.parent_page_id, w.order_key
+FROM whiteboard w
+WHERE w.tenant_id = current_tenant_id() AND w.hub_id = $1 AND w.deleted_at IS NULL
+ORDER BY w.parent_page_id NULLS FIRST, w.order_key NULLS LAST, lower(w.title), w.id
+LIMIT $2
+`
+
+type ListHubWhiteboardsTreeParams struct {
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type ListHubWhiteboardsTreeRow struct {
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	Title        string
+	Elements     int32
+	DeletedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedBy    pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	ParentPageID pgtype.UUID
+	OrderKey     *string
+}
+
+// A hub's boards outside the trash in the content tree's order (UC-CNV-10 check 1): by parent, the
+// top first, then by key; a board a pod of the previous release wrote without a key after the
+// keyed ones, by title.
+func (q *Queries) ListHubWhiteboardsTree(ctx context.Context, arg ListHubWhiteboardsTreeParams) ([]ListHubWhiteboardsTreeRow, error) {
+	rows, err := q.db.Query(ctx, listHubWhiteboardsTree, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHubWhiteboardsTreeRow{}
+	for rows.Next() {
+		var i ListHubWhiteboardsTreeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Title,
+			&i.Elements,
+			&i.DeletedAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.ParentPageID,
+			&i.OrderKey,
 		); err != nil {
 			return nil, err
 		}
@@ -573,17 +735,18 @@ const updateWhiteboard = `-- name: UpdateWhiteboard :execrows
 UPDATE whiteboard SET
   title = $1, scene = $2, deleted_at = $3,
   updated_by = $4, updated_at = $5, version = version + 1,
+  parent_page_id = $6, order_key = $7,
   -- Who trashed it is written by the write that trashes it - its writer - and kept while it stays
   -- in the trash; a board no longer trashed names nobody.
   deleted_by_type = CASE
     WHEN $3::timestamptz IS NULL THEN NULL
-    WHEN deleted_at IS NULL THEN NULLIF($6::text, '')
+    WHEN deleted_at IS NULL THEN NULLIF($8::text, '')
     ELSE deleted_by_type END,
   deleted_by_id = CASE
     WHEN $3::timestamptz IS NULL THEN NULL
     WHEN deleted_at IS NULL THEN $4
     ELSE deleted_by_id END
-WHERE tenant_id = current_tenant_id() AND id = $7 AND version = $8
+WHERE tenant_id = current_tenant_id() AND id = $9 AND version = $10
 `
 
 type UpdateWhiteboardParams struct {
@@ -592,6 +755,8 @@ type UpdateWhiteboardParams struct {
 	DeletedAt       pgtype.Timestamptz
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
+	ParentPageID    pgtype.UUID
+	OrderKey        *string
 	DeletedByType   *string
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -605,6 +770,8 @@ func (q *Queries) UpdateWhiteboard(ctx context.Context, arg UpdateWhiteboardPara
 		arg.DeletedAt,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.ParentPageID,
+		arg.OrderKey,
 		arg.DeletedByType,
 		arg.ID,
 		arg.ExpectedVersion,
@@ -665,6 +832,19 @@ func (q *Queries) WhiteboardHoldsMedia(ctx context.Context, arg WhiteboardHoldsM
 	var held bool
 	err := row.Scan(&held)
 	return held, err
+}
+
+const whiteboardParentPage = `-- name: WhiteboardParentPage :one
+SELECT hub_id FROM page
+WHERE tenant_id = current_tenant_id() AND id = $1 AND deleted_at IS NULL
+`
+
+// The hub of a page a board is placed under, outside the trash (UC-CNV-10).
+func (q *Queries) WhiteboardParentPage(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, whiteboardParentPage, id)
+	var hub_id pgtype.UUID
+	err := row.Scan(&hub_id)
+	return hub_id, err
 }
 
 const whiteboardsByID = `-- name: WhiteboardsByID :many
@@ -748,6 +928,35 @@ func (q *Queries) WhiteboardsReferencing(ctx context.Context, arg WhiteboardsRef
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const whiteboardsUnderPages = `-- name: WhiteboardsUnderPages :many
+SELECT id FROM whiteboard
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL
+  AND parent_page_id = ANY($1::uuid[])
+ORDER BY order_key NULLS LAST, lower(title), id
+`
+
+// The boards outside the trash standing directly under any of these pages, in tree order - what a
+// page's trash lifts (UC-CNV-10 check 4).
+func (q *Queries) WhiteboardsUnderPages(ctx context.Context, pageIds []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, whiteboardsUnderPages, pageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

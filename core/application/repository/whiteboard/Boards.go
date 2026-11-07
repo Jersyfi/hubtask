@@ -38,6 +38,24 @@ type VersionRow struct {
 	Elements  int
 }
 
+// Sibling is a page or a board standing directly under one parent of a hub's content tree.
+type Sibling struct {
+	ID       shared.ID
+	OrderKey string
+	IsBoard  bool
+}
+
+// Contents answers what a board's place is judged against: the pages and boards of a hub's
+// content tree (UC-CNV-10). Outside the trash throughout.
+type Contents interface {
+	// ParentHub answers the hub of a page; shared.ErrNotFound when there is none outside the trash.
+	ParentHub(ctx context.Context, pageID shared.ID) (shared.ID, error)
+	// Siblings answers the pages and keyed boards directly under parent (zero: the top), in order.
+	Siblings(ctx context.Context, hubID, parent shared.ID) ([]Sibling, error)
+	// Under answers the boards directly under any of these pages, in tree order.
+	Under(ctx context.Context, pageIDs []shared.ID) ([]shared.ID, error)
+}
+
 // Boards stores boards.
 type Boards interface {
 	Insert(ctx context.Context, board whiteboard.Board) error
@@ -49,6 +67,9 @@ type Boards interface {
 	// List answers a hub's boards without their scenes, the trashed ones or the others, the last
 	// changed first, after the board after names when it is not zero.
 	List(ctx context.Context, hubID shared.ID, trashed bool, after shared.ID, limit int) ([]Summary, error)
+	// Tree answers a hub's boards outside the trash in the content tree's order (UC-CNV-10): by
+	// parent page, the top first, then by order key; at most limit.
+	Tree(ctx context.Context, hubID shared.ID, limit int) ([]Summary, error)
 	// Count answers how many boards a hub holds outside the trash; it holds the hub's ceiling to
 	// the end of the transaction, so two creates count in turn.
 	Count(ctx context.Context, hubID shared.ID) (int, error)

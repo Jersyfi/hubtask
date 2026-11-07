@@ -157,10 +157,12 @@ var exporters = map[string]exporter{
 		},
 	},
 	"account_star": {
-		delta: false,
+		delta: true,
 		keys:  1,
 		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
 			rows, err := queries.ExportAccountStars(ctx, sqlc.ExportAccountStarsParams{
+				Since:   optionalTimestamp(page.Since),
+				AfterAt: page.AfterAt,
 				AfterID: cursorUUID(page.After, 0),
 				Batch:   page.Batch,
 			})

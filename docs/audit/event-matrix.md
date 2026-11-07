@@ -1302,6 +1302,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `whiteboard.read` | ReadWhiteboardVersion | `whiteboard` | INFO | When refused |
 | `whiteboard.restored` | RestoreWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.trashed` | TrashWhiteboard | `whiteboard` | INFO | Every time |
+| `whiteboard.moved` | MoveWhiteboard, TrashPage (the boards lifted) | `whiteboard` | INFO | Every time; the place, never the title |
 | `whiteboard.version_named` | NameWhiteboardVersion | `whiteboard` | INFO | Every time |
 
 ## Whiteboard_comment

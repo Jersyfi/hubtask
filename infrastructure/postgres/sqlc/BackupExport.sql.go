@@ -112,12 +112,15 @@ FROM (
          a.account_id AS key_1
   FROM account_star a
 ) s
-  WHERE s.key_1 > $1::uuid
-  ORDER BY s.key_1
-  LIMIT $2::int
+  WHERE ($1::timestamptz IS NULL OR s.changed_at > $1::timestamptz)
+    AND (s.changed_at, s.key_1) > ($2::timestamptz, $3::uuid)
+  ORDER BY s.changed_at, s.key_1
+  LIMIT $4::int
 `
 
 type ExportAccountStarsParams struct {
+	Since   pgtype.Timestamptz
+	AfterAt pgtype.Timestamptz
 	AfterID pgtype.UUID
 	Batch   int32
 }
@@ -129,7 +132,12 @@ type ExportAccountStarsRow struct {
 }
 
 func (q *Queries) ExportAccountStars(ctx context.Context, arg ExportAccountStarsParams) ([]ExportAccountStarsRow, error) {
-	rows, err := q.db.Query(ctx, exportAccountStars, arg.AfterID, arg.Batch)
+	rows, err := q.db.Query(ctx, exportAccountStars,
+		arg.Since,
+		arg.AfterAt,
+		arg.AfterID,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}

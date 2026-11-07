@@ -11566,6 +11566,24 @@ func (e ListReleasesParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListWhiteboardsParamsOrder.
+const (
+	ListWhiteboardsParamsOrderCHANGED ListWhiteboardsParamsOrder = "CHANGED"
+	ListWhiteboardsParamsOrderTREE    ListWhiteboardsParamsOrder = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the ListWhiteboardsParamsOrder enum.
+func (e ListWhiteboardsParamsOrder) Valid() bool {
+	switch e {
+	case ListWhiteboardsParamsOrderCHANGED:
+		return true
+	case ListWhiteboardsParamsOrderTREE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -20973,10 +20991,10 @@ type PageMediaAttachment struct {
 
 // PageMove defines model for PageMove.
 type PageMove struct {
-	// AfterId The sibling it follows; absent to place it first.
+	// AfterId The sibling page or whiteboard it follows; absent to place it first.
 	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
 
-	// ParentId The page it moves under; absent for the top of the space.
+	// ParentId The page it moves under; absent for the top of the space. A whiteboard is refused `whiteboards.no_children`.
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
 }
 
@@ -25953,12 +25971,18 @@ type Whiteboard struct {
 	Elements     *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -26041,11 +26065,16 @@ type WhiteboardCommentList struct {
 
 // WhiteboardCreate defines model for WhiteboardCreate.
 type WhiteboardCreate struct {
+	// AfterId The sibling page or board it follows; absent or null for after the last.
+	AfterId  *openapi_types.UUID  `json:"after_id,omitempty"`
 	Elements *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// Id An identifier the client minted.
-	Id    *openapi_types.UUID `json:"id,omitempty"`
-	Title string              `json:"title"`
+	Id *openapi_types.UUID `json:"id,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under; absent or null for the top of the space. Another hub's page is refused `whiteboards.parent_other_space`, a board `whiteboards.no_children`.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
 }
 
 // WhiteboardElement One object of a board. A connector's ends are the objects it is attached to (`from`, `to`) and follow them; an end attached to nothing is a point - the start at (x, y), the end at (x + width, y + height), so a connector's width and height may be negative. Members another kind does not draw are dropped.
@@ -26159,6 +26188,15 @@ type WhiteboardMediaPlacement struct {
 	MediaId openapi_types.UUID `json:"media_id"`
 }
 
+// WhiteboardMove defines model for WhiteboardMove.
+type WhiteboardMove struct {
+	// AfterId The sibling page or board it follows; absent or null places it first.
+	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
+
+	// ParentPageId The page of the same hub it moves under; absent or null for the top of the space.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+}
+
 // WhiteboardRead A board with its objects and whether the reader may draw on it.
 type WhiteboardRead struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -26169,12 +26207,18 @@ type WhiteboardRead struct {
 	Elements     []WhiteboardElement `json:"elements"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -28440,7 +28484,13 @@ type ListWhiteboardsParams struct {
 	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
 	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Order `CHANGED` (the default) lists the last changed first. `TREE` lists the boards outside the trash in the content tree's order - by `parent_page_id`, the top first, then by `order_key` - whole, in one page.
+	Order *ListWhiteboardsParamsOrder `form:"order,omitempty" json:"order,omitempty"`
 }
+
+// ListWhiteboardsParamsOrder defines parameters for ListWhiteboards.
+type ListWhiteboardsParamsOrder string
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
@@ -30045,6 +30095,12 @@ type ListWhiteboardVersionsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// MoveWhiteboardParams defines parameters for MoveWhiteboard.
+type MoveWhiteboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -31238,6 +31294,9 @@ type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersion
 
 // ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
 type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
+
+// MoveWhiteboardJSONRequestBody defines body for MoveWhiteboard for application/json ContentType.
+type MoveWhiteboardJSONRequestBody = WhiteboardMove
 
 // SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
 type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
@@ -34201,6 +34260,9 @@ type ServerInterface interface {
 	// ExportWhiteboard Export a whiteboard
 	// (POST /whiteboards/{whiteboardId}:export)
 	ExportWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// MoveWhiteboard Move a whiteboard in the content tree
+	// (POST /whiteboards/{whiteboardId}:move)
+	MoveWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params MoveWhiteboardParams)
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	// (POST /whiteboards/{whiteboardId}:restore)
 	RestoreWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
@@ -47865,6 +47927,19 @@ func (siw *ServerInterfaceWrapper) ListWhiteboards(w http.ResponseWriter, r *htt
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "order", r.URL.Query(), &params.Order, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "order"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "order", Err: err})
 		}
 		return
 	}
@@ -62261,6 +62336,56 @@ func (siw *ServerInterfaceWrapper) ExportWhiteboard(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// MoveWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) MoveWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveWhiteboardParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveWhiteboard(w, r, whiteboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RestoreWhiteboard operation middleware
 func (siw *ServerInterfaceWrapper) RestoreWhiteboard(w http.ResponseWriter, r *http.Request) {
 
@@ -63521,6 +63646,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.TrashWhiteboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.ReadWhiteboard)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.UpdateWhiteboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:move", wrapper.MoveWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/backlinks", wrapper.ListWhiteboardBacklinks)

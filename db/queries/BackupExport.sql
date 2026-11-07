@@ -1967,6 +1967,7 @@ FROM (
          a.account_id AS key_1
   FROM account_star a
 ) s
-  WHERE s.key_1 > sqlc.arg('after_id')::uuid
-  ORDER BY s.key_1
+  WHERE (sqlc.narg('since')::timestamptz IS NULL OR s.changed_at > sqlc.narg('since')::timestamptz)
+    AND (s.changed_at, s.key_1) > (sqlc.arg('after_at')::timestamptz, sqlc.arg('after_id')::uuid)
+  ORDER BY s.changed_at, s.key_1
   LIMIT sqlc.arg('batch')::int;

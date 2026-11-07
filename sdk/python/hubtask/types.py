@@ -6147,6 +6147,8 @@ class Whiteboard(TypedDict, total=False):
     updated_by: Required[str]
     updated_at: Required[str]
     version: Required[int]
+    parent_page_id: str | None
+    order_key: str | None
 
 class WhiteboardRead(TypedDict, total=False):
     """A board with its objects and whether the reader may draw on it."""
@@ -6161,6 +6163,8 @@ class WhiteboardRead(TypedDict, total=False):
     updated_by: Required[str]
     updated_at: Required[str]
     version: Required[int]
+    parent_page_id: str | None
+    order_key: str | None
     writable: Required[bool]
 
 class CiAttribute(TypedDict, total=False):
@@ -6922,6 +6926,12 @@ class WhiteboardCreate(TypedDict, total=False):
     title: Required[str]
     elements: list["WhiteboardElement"]
     id: str
+    parent_page_id: str | None
+    after_id: str | None
+
+class WhiteboardMove(TypedDict, total=False):
+    parent_page_id: str | None
+    after_id: str | None
 
 class WhiteboardChange(TypedDict, total=False):
     title: str

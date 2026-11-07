@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"math"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -124,8 +125,13 @@ func (WhiteboardRepository) Insert(ctx context.Context, board whiteboard.Board) 
 	if err != nil {
 		return boardFailed("encoding the scene", err)
 	}
+	parent, err := optionalUUID(board.ParentPageID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertWhiteboard(ctx, sqlc.InsertWhiteboardParams{
 		ID: ids[0], HubID: ids[1], Title: board.Title, Scene: scene, CreatedBy: ids[2], At: timestampOf(board.CreatedAt),
+		ParentPageID: parent, OrderKey: optionalText(board.OrderKey),
 	}); err != nil {
 		return boardFailed("writing the board", err)
 	}
@@ -180,7 +186,12 @@ func (WhiteboardRepository) Update(ctx context.Context, board whiteboard.Board, 
 	if err != nil {
 		return boardFailed("encoding the scene", err)
 	}
+	parent, err := optionalUUID(board.ParentPageID)
+	if err != nil {
+		return err
+	}
 	rows, err := queries.UpdateWhiteboard(ctx, sqlc.UpdateWhiteboardParams{
+		ParentPageID: parent, OrderKey: optionalText(board.OrderKey),
 		Title: board.Title, Scene: scene, DeletedAt: optionalTimestamp(board.DeletedAt), UpdatedBy: ids[1],
 		UpdatedAt: timestampOf(board.UpdatedAt), ID: ids[0], DeletedByType: optionalText(string(board.DeletedByKind)),
 		ExpectedVersion: int32(expected), //nolint:gosec // a row's version
@@ -218,7 +229,33 @@ func (WhiteboardRepository) List(ctx context.Context, hubID shared.ID, trashed b
 		board, err := boardFrom(sqlc.FindWhiteboardRow{
 			ID: row.ID, HubID: row.HubID, Title: row.Title, Scene: []byte("[]"), DeletedAt: row.DeletedAt,
 			CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, UpdatedBy: row.UpdatedBy, UpdatedAt: row.UpdatedAt,
-			Version: row.Version,
+			Version: row.Version, ParentPageID: row.ParentPageID, OrderKey: row.OrderKey,
+		})
+		return repository.Summary{Board: board, Elements: int(row.Elements)}, err
+	})
+}
+
+// Tree answers a hub's boards outside the trash in the content tree's order, at most limit.
+func (WhiteboardRepository) Tree(ctx context.Context, hubID shared.ID, limit int) ([]repository.Summary, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hub, err := uuidOf(hubID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHubWhiteboardsTree(ctx, sqlc.ListHubWhiteboardsTreeParams{
+		HubID: hub, Batch: int32(limit), //nolint:gosec // bounded by whiteboard.MaxBoardsPerHub
+	})
+	if err != nil {
+		return nil, boardFailed("listing the boards in tree order", err)
+	}
+	return mapRows(rows, func(row sqlc.ListHubWhiteboardsTreeRow) (repository.Summary, error) {
+		board, err := boardFrom(sqlc.FindWhiteboardRow{
+			ID: row.ID, HubID: row.HubID, Title: row.Title, Scene: []byte("[]"), DeletedAt: row.DeletedAt,
+			CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, UpdatedBy: row.UpdatedBy, UpdatedAt: row.UpdatedAt,
+			Version: row.Version, ParentPageID: row.ParentPageID, OrderKey: row.OrderKey,
 		})
 		return repository.Summary{Board: board, Elements: int(row.Elements)}, err
 	})
@@ -309,7 +346,14 @@ func boardFrom(row sqlc.FindWhiteboardRow) (whiteboard.Board, error) {
 	if err != nil {
 		return whiteboard.Board{}, err
 	}
+	var parent shared.ID
+	if row.ParentPageID.Valid {
+		if parent, err = idFrom(row.ParentPageID); err != nil {
+			return whiteboard.Board{}, err
+		}
+	}
 	return whiteboard.Board{
+		ParentPageID: parent, OrderKey: stringFrom(row.OrderKey),
 		ID: ids[0], HubID: ids[1], Title: row.Title, Scene: scene, DeletedAt: optionalTime(row.DeletedAt),
 		CreatedBy: ids[2], CreatedAt: timeFrom(row.CreatedAt), UpdatedBy: ids[3], UpdatedAt: timeFrom(row.UpdatedAt),
 		Version: int(row.Version),
@@ -548,4 +592,93 @@ func (WhiteboardRepository) CountMedia(ctx context.Context, boardID shared.ID) (
 		return 0, boardFailed("counting the files", err)
 	}
 	return int(count), nil
+}
+
+var _ repository.Contents = WhiteboardRepository{}
+
+// ParentHub answers the hub of a page outside the trash.
+func (WhiteboardRepository) ParentHub(ctx context.Context, pageID shared.ID) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	key, err := uuidOf(pageID)
+	if err != nil {
+		return "", shared.ErrNotFound.WithDetail("pages.not_found")
+	}
+	hub, err := queries.WhiteboardParentPage(ctx, key)
+	if err != nil {
+		if IsNoRows(err) {
+			return "", shared.ErrNotFound.WithDetail("pages.not_found")
+		}
+		return "", boardFailed("reading the parent page", err)
+	}
+	return idFrom(hub)
+}
+
+// Siblings answers the pages and keyed boards directly under parent, merged in key order.
+func (WhiteboardRepository) Siblings(ctx context.Context, hubID, parent shared.ID) ([]repository.Sibling, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hub, err := uuidOf(hubID)
+	if err != nil {
+		return nil, err
+	}
+	under, err := optionalUUID(parent)
+	if err != nil {
+		return nil, err
+	}
+	pages, err := queries.ContentSiblingPages(ctx, sqlc.ContentSiblingPagesParams{HubID: hub, ParentID: under})
+	if err != nil {
+		return nil, boardFailed("reading the sibling pages", err)
+	}
+	boards, err := queries.ContentSiblingWhiteboards(ctx, sqlc.ContentSiblingWhiteboardsParams{HubID: hub, ParentID: under})
+	if err != nil {
+		return nil, boardFailed("reading the sibling boards", err)
+	}
+	siblings := make([]repository.Sibling, 0, len(pages)+len(boards))
+	for _, row := range pages {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		siblings = append(siblings, repository.Sibling{ID: id, OrderKey: row.OrderKey})
+	}
+	for _, row := range boards {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		siblings = append(siblings, repository.Sibling{ID: id, OrderKey: row.OrderKey, IsBoard: true})
+	}
+	sort.SliceStable(siblings, func(i, j int) bool {
+		if siblings[i].OrderKey != siblings[j].OrderKey {
+			return siblings[i].OrderKey < siblings[j].OrderKey
+		}
+		return siblings[i].ID < siblings[j].ID
+	})
+	return siblings, nil
+}
+
+// Under answers the boards directly under any of these pages, in tree order.
+func (WhiteboardRepository) Under(ctx context.Context, pageIDs []shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]pgtype.UUID, 0, len(pageIDs))
+	for _, id := range pageIDs {
+		key, err := uuidOf(id)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	rows, err := queries.WhiteboardsUnderPages(ctx, keys)
+	if err != nil {
+		return nil, boardFailed("reading the boards under pages", err)
+	}
+	return mapRows(rows, idFrom)
 }

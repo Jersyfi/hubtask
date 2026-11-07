@@ -2064,7 +2064,8 @@ func run() error {
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
-		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
+		Boards: postgres.NewWhiteboardRepository(), Contents: postgres.NewWhiteboardRepository(),
+		Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
 		Changes: changes, HLC: hybrid,
@@ -2075,6 +2076,8 @@ func run() error {
 			Jobs: jobs, IDs: ids, Signals: metrics,
 		},
 	}
+	// The boards stand among the pages in one content tree (UC-CNV-10).
+	pageSpace.Boards = whiteboardservice.PageSide{Studio: boardStudio}
 	// The service desk's calendars and SLA policies (M5); the clocks run on the durable timers.
 	// Every approval, SLA record and rating written reaches the change log through its store, so
 	// that a device reads them while the server is away (offline-sync.md §3.1).
@@ -2443,6 +2446,7 @@ func run() error {
 		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ReadWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboards{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.MoveWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.UpdateWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.TrashWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.RestoreWhiteboard{Studio: boardStudio}.Descriptor(),

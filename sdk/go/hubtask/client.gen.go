@@ -11572,6 +11572,24 @@ func (e ListReleasesParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListWhiteboardsParamsOrder.
+const (
+	ListWhiteboardsParamsOrderCHANGED ListWhiteboardsParamsOrder = "CHANGED"
+	ListWhiteboardsParamsOrderTREE    ListWhiteboardsParamsOrder = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the ListWhiteboardsParamsOrder enum.
+func (e ListWhiteboardsParamsOrder) Valid() bool {
+	switch e {
+	case ListWhiteboardsParamsOrderCHANGED:
+		return true
+	case ListWhiteboardsParamsOrderTREE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -20979,10 +20997,10 @@ type PageMediaAttachment struct {
 
 // PageMove defines model for PageMove.
 type PageMove struct {
-	// AfterId The sibling it follows; absent to place it first.
+	// AfterId The sibling page or whiteboard it follows; absent to place it first.
 	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
 
-	// ParentId The page it moves under; absent for the top of the space.
+	// ParentId The page it moves under; absent for the top of the space. A whiteboard is refused `whiteboards.no_children`.
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
 }
 
@@ -25959,12 +25977,18 @@ type Whiteboard struct {
 	Elements     *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -26047,11 +26071,16 @@ type WhiteboardCommentList struct {
 
 // WhiteboardCreate defines model for WhiteboardCreate.
 type WhiteboardCreate struct {
+	// AfterId The sibling page or board it follows; absent or null for after the last.
+	AfterId  *openapi_types.UUID  `json:"after_id,omitempty"`
 	Elements *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// Id An identifier the client minted.
-	Id    *openapi_types.UUID `json:"id,omitempty"`
-	Title string              `json:"title"`
+	Id *openapi_types.UUID `json:"id,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under; absent or null for the top of the space. Another hub's page is refused `whiteboards.parent_other_space`, a board `whiteboards.no_children`.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
 }
 
 // WhiteboardElement One object of a board. A connector's ends are the objects it is attached to (`from`, `to`) and follow them; an end attached to nothing is a point - the start at (x, y), the end at (x + width, y + height), so a connector's width and height may be negative. Members another kind does not draw are dropped.
@@ -26165,6 +26194,15 @@ type WhiteboardMediaPlacement struct {
 	MediaId openapi_types.UUID `json:"media_id"`
 }
 
+// WhiteboardMove defines model for WhiteboardMove.
+type WhiteboardMove struct {
+	// AfterId The sibling page or board it follows; absent or null places it first.
+	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
+
+	// ParentPageId The page of the same hub it moves under; absent or null for the top of the space.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+}
+
 // WhiteboardRead A board with its objects and whether the reader may draw on it.
 type WhiteboardRead struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -26175,12 +26213,18 @@ type WhiteboardRead struct {
 	Elements     []WhiteboardElement `json:"elements"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -28446,7 +28490,13 @@ type ListWhiteboardsParams struct {
 	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
 	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Order `CHANGED` (the default) lists the last changed first. `TREE` lists the boards outside the trash in the content tree's order - by `parent_page_id`, the top first, then by `order_key` - whole, in one page.
+	Order *ListWhiteboardsParamsOrder `form:"order,omitempty" json:"order,omitempty"`
 }
+
+// ListWhiteboardsParamsOrder defines parameters for ListWhiteboards.
+type ListWhiteboardsParamsOrder string
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
@@ -30051,6 +30101,12 @@ type ListWhiteboardVersionsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// MoveWhiteboardParams defines parameters for MoveWhiteboard.
+type MoveWhiteboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -31244,6 +31300,9 @@ type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersion
 
 // ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
 type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
+
+// MoveWhiteboardJSONRequestBody defines body for MoveWhiteboard for application/json ContentType.
+type MoveWhiteboardJSONRequestBody = WhiteboardMove
 
 // SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
 type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
@@ -39617,7 +39676,7 @@ type ClientInterface interface {
 
 	// TrashPage Put a page in the trash
 	//
-	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 	//
 	// Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
 	TrashPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -42979,6 +43038,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
 	ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveWhiteboardWithBody Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveWhiteboard Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboard(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	//
@@ -59660,7 +59737,7 @@ func (c *Client) ChangePageCommentWithApplicationMergePatchPlusJSONBody(ctx cont
 
 // TrashPage Put a page in the trash
 //
-// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 //
 // Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
 func (c *Client) TrashPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -66733,6 +66810,44 @@ func (c *Client) ExportWhiteboardWithBody(ctx context.Context, whiteboardId Whit
 // Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
 func (c *Client) ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportWhiteboardRequest(c.Server, whiteboardId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveWhiteboardWithBody Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *Client) MoveWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveWhiteboardRequestWithBody(c.Server, whiteboardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveWhiteboard Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *Client) MoveWhiteboard(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveWhiteboardRequest(c.Server, whiteboardId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -86532,6 +86647,18 @@ func NewListWhiteboardsRequest(server string, hubId openapi_types.UUID, params *
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Order != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "order", *params.Order, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -106626,6 +106753,68 @@ func NewExportWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId
 	return req, nil
 }
 
+// NewMoveWhiteboardRequest calls the generic MoveWhiteboard builder with application/json body
+func NewMoveWhiteboardRequest(server string, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveWhiteboardRequestWithBody(server, whiteboardId, params, "application/json", bodyReader)
+}
+
+// NewMoveWhiteboardRequestWithBody constructs an http.Request for the MoveWhiteboard method, with any body, and a specified content type
+func NewMoveWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s:move", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRestoreWhiteboardRequest constructs an http.Request for the RestoreWhiteboard method
 func NewRestoreWhiteboardRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
 	var err error
@@ -115738,7 +115927,7 @@ type ClientWithResponsesInterface interface {
 
 	// TrashPageWithResponse Put a page in the trash
 	//
-	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -119396,6 +119585,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
 	ExportWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportWhiteboardResult, error)
+
+	// MoveWhiteboardWithBodyWithResponse Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error)
+
+	// MoveWhiteboardWithResponse Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error)
 
 	// RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
 	//
@@ -160397,6 +160604,54 @@ func (r ExportWhiteboardResult) ContentType() string {
 	return ""
 }
 
+type MoveWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Whiteboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MoveWhiteboardResult) GetJSON200() *Whiteboard {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MoveWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MoveWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MoveWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RestoreWhiteboardResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -174711,7 +174966,7 @@ func (c *ClientWithResponses) ChangePageCommentWithApplicationMergePatchPlusJSON
 
 // TrashPageWithResponse Put a page in the trash
 //
-// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -180600,6 +180855,36 @@ func (c *ClientWithResponses) ExportWhiteboardWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseExportWhiteboardResult(rsp)
+}
+
+// MoveWhiteboardWithBodyWithResponse Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *ClientWithResponses) MoveWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error) {
+	rsp, err := c.MoveWhiteboardWithBody(ctx, whiteboardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveWhiteboardResult(rsp)
+}
+
+// MoveWhiteboardWithResponse Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *ClientWithResponses) MoveWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error) {
+	rsp, err := c.MoveWhiteboard(ctx, whiteboardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveWhiteboardResult(rsp)
 }
 
 // RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
@@ -209742,6 +210027,39 @@ func ParseExportWhiteboardResult(rsp *http.Response) (*ExportWhiteboardResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WhiteboardExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveWhiteboardResult parses an HTTP response from a MoveWhiteboardWithResponse call
+func ParseMoveWhiteboardResult(rsp *http.Response) (*MoveWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Whiteboard
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

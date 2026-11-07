@@ -4388,6 +4388,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/whiteboards/{whiteboardId}", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Move a whiteboard in the content tree */
+  moveWhiteboard(whiteboardId: string, body: NonNullable<operations["moveWhiteboard"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["moveWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/whiteboards/{whiteboardId}:move", { "whiteboardId": whiteboardId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Bring a whiteboard back from the trash */
   restoreWhiteboard(whiteboardId: string, options: CallOptions = {}): Promise<operations["restoreWhiteboard"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/whiteboards/{whiteboardId}:restore", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

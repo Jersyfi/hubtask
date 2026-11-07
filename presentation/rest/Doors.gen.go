@@ -439,7 +439,7 @@ var restDoors = map[string]restDoor{
 	"listWhiteboardBacklinks":           {UseCase: "ListWhiteboardBacklinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWhiteboardComments":            {UseCase: "ListWhiteboardComments", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWhiteboardVersions":            {UseCase: "ListWhiteboardVersions", Status: 200, Query: []string{"before", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before", "limit"}},
-	"listWhiteboards":                   {UseCase: "ListWhiteboards", Status: 200, Query: []string{"cursor", "limit", "trashed"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
+	"listWhiteboards":                   {UseCase: "ListWhiteboards", Status: 200, Query: []string{"cursor", "limit", "order", "trashed"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listWorkItems":                     {UseCase: "ListWorkItems", Status: 200, Query: []string{"collection_id", "cursor", "expand", "include_archived", "parent_id", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Expand: map[string]string{"labels": "expand_labels"}},
 	"listWorkTypes":                     {UseCase: "ListWorkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkflows":                     {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -455,6 +455,7 @@ var restDoors = map[string]restDoor{
 	"moveContainer":                     {UseCase: "MoveContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"movePage":                          {UseCase: "MovePage", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveTenantPlan":                    {UseCase: "MoveTenantPlan", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"expected_version"}},
+	"moveWhiteboard":                    {UseCase: "MoveWhiteboard", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveWorkItem":                      {UseCase: "MoveWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "item.version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"namePageVersion":                   {UseCase: "NamePageVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"nameWhiteboardVersion":             {UseCase: "NameWhiteboardVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3710,6 +3711,13 @@ func (c *RestController) MovePage(w http.ResponseWriter, r *http.Request, pageId
 func (c *RestController) MoveTenantPlan(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId, params openapi.MoveTenantPlanParams) {
 	var body openapi.MoveTenantPlanJSONRequestBody
 	c.door(w, r, restDoors["moveTenantPlan"], usecase.Input{"tenant_id": tenantId.String()}, params, &body, answerBy(tenantPlanMovedResponse))
+}
+
+// MoveWhiteboard answers POST /whiteboards/{whiteboardId}:move by the generated mapping.
+func (c *RestController) MoveWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId openapi.WhiteboardId, params openapi.MoveWhiteboardParams) {
+	var body openapi.MoveWhiteboardJSONRequestBody
+	var answer openapi.Whiteboard
+	c.door(w, r, restDoors["moveWhiteboard"], usecase.Input{"whiteboard_id": whiteboardId.String()}, params, &body, &answer)
 }
 
 // MoveWorkItem answers POST /items/{itemId}:move by the generated mapping.

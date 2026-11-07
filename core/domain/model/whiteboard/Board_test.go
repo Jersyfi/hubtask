@@ -36,3 +36,31 @@ func TestWordsHoldingAZeroByteAreRefused(t *testing.T) {
 		t.Errorf("a comment: %v", err)
 	}
 }
+
+// UC-CNV-10 check 3: a board stands under a page of its own hub, never under another board.
+func TestCheckParent(t *testing.T) {
+	hub, other := shared.ID("0190a5f0-0000-7000-8000-0000000000a1"), shared.ID("0190a5f0-0000-7000-8000-0000000000a2")
+	cases := []struct {
+		name   string
+		parent whiteboard.ParentCandidate
+		code   string
+	}{
+		{"a page of the same hub", whiteboard.ParentCandidate{HubID: hub}, ""},
+		{"a page of another hub", whiteboard.ParentCandidate{HubID: other}, "whiteboards.parent_other_space"},
+		{"a board", whiteboard.ParentCandidate{IsBoard: true, HubID: hub}, "whiteboards.no_children"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := whiteboard.CheckParent(hub, c.parent)
+			if c.code == "" {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			if err == nil || shared.AsError(err).DetailCode != c.code {
+				t.Fatalf("error %v, want %s", err, c.code)
+			}
+		})
+	}
+}

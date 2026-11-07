@@ -8158,9 +8158,9 @@ func (q *Queries) ImportWebhookSubscription(ctx context.Context, arg ImportWebho
 
 const importWhiteboard = `-- name: ImportWhiteboard :execrows
 INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
-                        deleted_by_type, deleted_by_id)
+                        deleted_by_type, deleted_by_id, parent_page_id, order_key)
 SELECT r.id, r.tenant_id, r.hub_id, r.title, r.scene, r.deleted_at, r.created_by, r.created_at, r.updated_by,
-       r.updated_at, r.version, r.deleted_by_type, r.deleted_by_id
+       r.updated_at, r.version, r.deleted_by_type, r.deleted_by_id, r.parent_page_id, r.order_key
 FROM jsonb_populate_record(
   NULL::whiteboard,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -8173,7 +8173,9 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   version = EXCLUDED.version,
   deleted_by_type = EXCLUDED.deleted_by_type,
-  deleted_by_id = EXCLUDED.deleted_by_id
+  deleted_by_id = EXCLUDED.deleted_by_id,
+  parent_page_id = EXCLUDED.parent_page_id,
+  order_key = EXCLUDED.order_key
 WHERE $2::boolean
 `
 

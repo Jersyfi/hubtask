@@ -33345,7 +33345,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "page rm",
         "summary": "Put a page in the trash",
-        "description": "Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.\n",
+        "description": "Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.\n",
         "responses": {
           "200": {
             "description": "Trashed",
@@ -35131,6 +35131,18 @@
               "minimum": 1,
               "maximum": 1000
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`CHANGED` (the default) lists the last changed first. `TREE` lists the boards outside the trash in the content tree's order - by `parent_page_id`, the top first, then by `order_key` - whole, in one page.\n",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CHANGED",
+                "TREE"
+              ]
+            }
           }
         ],
         "responses": {
@@ -35269,6 +35281,53 @@
         "responses": {
           "200": {
             "description": "Trashed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Whiteboard"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/whiteboards/{whiteboardId}:move": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "moveWhiteboard",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard move",
+        "summary": "Move a whiteboard in the content tree",
+        "description": "Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhiteboardMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Moved",
             "content": {
               "application/json": {
                 "schema": {
@@ -67846,12 +67905,12 @@
           "parent_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The page it moves under; absent for the top of the space."
+            "description": "The page it moves under; absent for the top of the space. A whiteboard is refused `whiteboards.no_children`."
           },
           "after_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The sibling it follows; absent to place it first."
+            "description": "The sibling page or whiteboard it follows; absent to place it first."
           }
         }
       },
@@ -69313,6 +69372,22 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock."
+          },
+          "parent_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.\n"
+          },
+          "order_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "readOnly": true,
+            "description": "The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.\n"
           }
         }
       },
@@ -73377,6 +73452,43 @@
             "type": "string",
             "format": "uuid",
             "description": "An identifier the client minted."
+          },
+          "parent_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page of the same hub the board stands under; absent or null for the top of the space. Another hub's page is refused `whiteboards.parent_other_space`, a board `whiteboards.no_children`.\n"
+          },
+          "after_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The sibling page or board it follows; absent or null for after the last."
+          }
+        }
+      },
+      "WhiteboardMove": {
+        "type": "object",
+        "properties": {
+          "parent_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page of the same hub it moves under; absent or null for the top of the space."
+          },
+          "after_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The sibling page or board it follows; absent or null places it first."
           }
         }
       },
