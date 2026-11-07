@@ -53,7 +53,8 @@ async function undoAfterEightSeconds(page, act, text) {
   await page.clock.pauseAt(new Date((await page.evaluate(() => Date.now())) + 50));
   await act();
   const message = page.locator('.toast', { hasText: text });
-  await message.waitFor({ timeout: 5_000 });
+  // The message follows the write's answer, which a loaded runner can take seconds to deliver.
+  await message.waitFor({ timeout: 15_000 });
   await page.mouse.move(1, 1);
   await page.clock.runFor(8_000 - 100);
   assert.equal(await message.count(), 1, `"${text}" left before eight seconds`);
