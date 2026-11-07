@@ -6402,6 +6402,38 @@
         }
       }
     },
+    "/hubs/{hubId}/queues": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/HubId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listHubQueues",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "queue ls",
+        "summary": "A hub's queues with their counts",
+        "description": "The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.\n",
+        "responses": {
+          "200": {
+            "description": "The queues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubQueueList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/hubs/{hubId}/business-calendars": {
       "parameters": [
         {
@@ -57493,6 +57525,8 @@
           "grouping",
           "visible_fields",
           "sharing",
+          "queue",
+          "queue_position",
           "version"
         ],
         "properties": {
@@ -57572,6 +57606,18 @@
               "SCOPE",
               "PUBLIC_LINK"
             ]
+          },
+          "queue": {
+            "type": "boolean",
+            "description": "Whether the view is one of its hub's queues (`GET /hubs/{hubId}/queues`)."
+          },
+          "queue_position": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Where the queue stands among its hub's queues, lowest first; null when it is none."
           },
           "created_at": {
             "type": "string",
@@ -57653,6 +57699,16 @@
             ],
             "default": "PRIVATE",
             "description": "SCOPE at creation asks the same permission :share does. PUBLIC_LINK is refused by name.\n"
+          },
+          "queue": {
+            "type": "boolean",
+            "description": "Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.\n"
+          },
+          "queue_position": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true places it after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.\n"
           }
         }
       },
@@ -57682,6 +57738,75 @@
             "items": {
               "type": "string"
             }
+          },
+          "queue": {
+            "type": "boolean",
+            "description": "Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. False takes it out of the queues.\n"
+          },
+          "queue_position": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true keeps its place, or places a view that was none after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.\n"
+          }
+        }
+      },
+      "HubQueueList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubQueue"
+            }
+          }
+        }
+      },
+      "HubQueue": {
+        "type": "object",
+        "required": [
+          "view_id",
+          "key",
+          "name",
+          "count",
+          "at_risk"
+        ],
+        "properties": {
+          "view_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The saved view; null for a standard queue, which is saved before it is starred or moved."
+          },
+          "key": {
+            "type": "string",
+            "description": "The view's key, or the standard queue's - `mine`, `unassigned`, `breaching`, `open` - which the client names."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The view's name; null for a standard queue."
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many entries the queue holds; null when it could not be counted in time or read."
+          },
+          "at_risk": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many of them are `AT_RISK` or `BREACHED`; null when `count` is."
           }
         }
       },

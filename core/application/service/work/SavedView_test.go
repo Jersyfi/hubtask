@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -69,12 +70,37 @@ func (s *savedViews) ListReachable(
 	return views, nil
 }
 
+func (s *savedViews) ListHubQueues(_ context.Context, ownerID, hubID shared.ID) ([]view.SavedView, error) {
+	var views []view.SavedView
+	for _, saved := range s.stored {
+		if saved.Queue && saved.ScopeType == view.ViewScopeHub && saved.ScopeID == hubID &&
+			(saved.OwnerID == ownerID || saved.Sharing == view.SharingScope) {
+			views = append(views, saved)
+		}
+	}
+	slices.SortFunc(views, func(a, b view.SavedView) int { return a.QueuePosition - b.QueuePosition })
+	return views, nil
+}
+
 func (s *savedViews) Insert(_ context.Context, saved view.SavedView) error {
 	if saved.Key == "" {
 		saved.Key = "view"
 	}
-	s.stored[saved.ID] = saved
+	s.stored[saved.ID] = s.placed(saved)
 	return nil
+}
+
+// placed draws a queue's place after the hub's last, as the statements do.
+func (s *savedViews) placed(saved view.SavedView) view.SavedView {
+	if saved.Queue && saved.QueuePosition == 0 {
+		saved.QueuePosition = 1
+		for _, other := range s.stored {
+			if other.ID != saved.ID && other.Queue && other.ScopeID == saved.ScopeID && other.QueuePosition >= saved.QueuePosition {
+				saved.QueuePosition = other.QueuePosition + 1
+			}
+		}
+	}
+	return saved
 }
 
 func (s *savedViews) SetAttributes(_ context.Context, saved view.SavedView, expectedVersion int) error {
@@ -97,7 +123,7 @@ func (s *savedViews) write(saved view.SavedView, expectedVersion int) error {
 	if s.stored[saved.ID].Version != expectedVersion {
 		return shared.ErrVersionConflict.WithDetail("views.version_conflict")
 	}
-	written := saved
+	written := s.placed(saved)
 	written.Version = expectedVersion + 1
 	s.stored[saved.ID] = written
 	return nil
@@ -519,3 +545,45 @@ func TestTheViewChannelsRefuseWhatTheModelRefuses(t *testing.T) {
 }
 
 func viewName(value string) *string { return &value }
+
+// UC-SVC-03 check 10: a hub's view is saved as a queue and placed after the hub's last, answered
+// with its place, and taken out of the queues by an update.
+func TestAHubViewIsSavedAsAQueue(t *testing.T) {
+	h := newSavedViewHarness(t)
+	registry, err := usecase.NewRegistry(nil, h.create.Descriptor(), h.update.Descriptor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	queue := func(name string) usecase.Input {
+		return usecase.Input{
+			"scope_type": "HUB", "scope_id": hubID.String(), "name": name, "layout": "LIST_EXPANDED",
+			"query": map[string]any{"scope_container_id": hubID.String()}, "queue": true,
+		}
+	}
+	first, err := registry.Invoke(context.Background(), CreateSavedViewName, viewActor(), queue("Mine"))
+	if err != nil || first["queue"] != true || first["queue_position"] != 1 {
+		t.Fatalf("the first queue answered %v, %v", first, err)
+	}
+	second, err := registry.Invoke(context.Background(), CreateSavedViewName, viewActor(), queue("Unassigned"))
+	if err != nil || second["queue_position"] != 2 {
+		t.Fatalf("the second queue answered %v, %v", second, err)
+	}
+	collectionQueue := queue("Here")
+	collectionQueue["scope_type"], collectionQueue["scope_id"] = "COLLECTION", collectionID.String()
+	collectionQueue["query"] = map[string]any{"scope_container_id": collectionID.String()}
+	if _, err := registry.Invoke(context.Background(), CreateSavedViewName, viewActor(), collectionQueue); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "views.queue_hub_only" {
+		t.Errorf("a collection's view as a queue answered %v", err)
+	}
+
+	unmarked, err := registry.Invoke(context.Background(), UpdateSavedViewName, viewActor(),
+		usecase.Input{"view_id": first.String("id"), "queue": false})
+	if err != nil || unmarked["queue"] != false || unmarked["queue_position"] != nil {
+		t.Fatalf("taking it out of the queues answered %v, %v", unmarked, err)
+	}
+	again, err := registry.Invoke(context.Background(), UpdateSavedViewName, viewActor(),
+		usecase.Input{"view_id": first.String("id"), "queue": true})
+	if err != nil || again["queue_position"] != 3 {
+		t.Fatalf("marking it again answered %v, %v", again, err)
+	}
+}

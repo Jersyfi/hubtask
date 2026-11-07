@@ -447,6 +447,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.moved` | ReorderContainer | `container` | INFO | Every time |
 | `container.policies_updated` | UpdateContainerPolicies | `container` | INFO | Every time |
 | `container.privacy_changed` | SetHubPrivacy | `container` | NOTICE | Every time |
+| `container.queues_read` | ListHubQueues | `container` | INFO | When refused |
 | `container.read` | GetContainer | `container` | INFO | When refused |
 | `container.read` | ListContainers | `container` | INFO | When refused |
 | `container.read` | ListJumbleDestinations | `container` | INFO | When refused |

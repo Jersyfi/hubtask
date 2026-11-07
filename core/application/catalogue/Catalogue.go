@@ -178,6 +178,7 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.DefineBusinessCalendar{}.Descriptor(),
 		servicedeskservice.DeleteBusinessCalendar{}.Descriptor(),
 		servicedeskservice.ListHubCalendars{}.Descriptor(),
+		servicedeskservice.ListHubQueues{}.Descriptor(),
 		servicedeskservice.DefineHubCalendar{}.Descriptor(),
 		servicedeskservice.DeleteHubCalendar{}.Descriptor(),
 		servicedeskservice.ListSlaPolicies{}.Descriptor(),

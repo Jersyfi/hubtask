@@ -831,6 +831,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/business-calendars/{calendarKey}", { "calendarKey": calendarKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A hub's queues with their counts */
+  listHubQueues(hubId: string, options: CallOptions = {}): Promise<operations["listHubQueues"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/queues", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A hub's own business calendars */
   listHubCalendars(hubId: string, options: CallOptions = {}): Promise<operations["listHubCalendars"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/business-calendars", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

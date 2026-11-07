@@ -3034,6 +3034,7 @@ type SavedView struct {
 	CreatedAt     pgtype.Timestamptz
 	Version       int32
 	Key           *string
+	QueuePosition *int32
 }
 
 type Session struct {

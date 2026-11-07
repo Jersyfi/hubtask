@@ -8,22 +8,28 @@
 -- name: InsertSavedView :one
 -- The key is the writer's, or drawn from the name by the store when it names none (migration
 -- 0293); the statement answers the one stored.
+-- A queue named without a position is placed after the hub's last (migration 0391).
 INSERT INTO saved_view (
   id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-  visible_fields, sharing, created_at, version, key
+  visible_fields, sharing, created_at, version, key, queue_position
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('scope_type'), sqlc.narg('scope_id'),
   sqlc.arg('owner_id'),
   normalize(sqlc.arg('name')::text, NFC),
   sqlc.arg('layout'), sqlc.arg('query')::jsonb, sqlc.arg('grouping')::jsonb,
   sqlc.arg('visible_fields')::text[], sqlc.arg('sharing'), sqlc.arg('created_at'), 1,
-  sqlc.narg('key')
+  sqlc.narg('key'),
+  CASE WHEN NOT sqlc.arg('queue')::boolean THEN NULL
+       ELSE coalesce(sqlc.narg('queue_position')::int,
+         (SELECT coalesce(max(q.queue_position), 0) + 1 FROM saved_view q
+          WHERE q.queue_position IS NOT NULL AND q.scope_type = 'HUB' AND q.scope_id = sqlc.narg('scope_id')::uuid))
+  END
 )
 RETURNING key;
 
 -- name: FindSavedView :one
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version, key
+       visible_fields, sharing, created_at, version, key, queue_position
 FROM saved_view
 WHERE id = $1;
 
@@ -32,7 +38,7 @@ WHERE id = $1;
 -- identifier, so the answer is stable without an updated_at this table deliberately does not
 -- carry.
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version, key
+       visible_fields, sharing, created_at, version, key, queue_position
 FROM saved_view
 WHERE owner_id = sqlc.arg('owner_id')::uuid
 ORDER BY created_at, id;
@@ -44,7 +50,7 @@ ORDER BY created_at, id;
 -- (one question about the container, ADR-0005); the array is its answer bound into the statement,
 -- never a filter after the page.
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version, key
+       visible_fields, sharing, created_at, version, key, queue_position
 FROM saved_view
 WHERE owner_id = sqlc.arg('owner_id')::uuid
    OR (sharing = 'SCOPE' AND (
@@ -52,6 +58,17 @@ WHERE owner_id = sqlc.arg('owner_id')::uuid
         OR scope_id = ANY (sqlc.arg('scope_ids')::uuid[])
       ))
 ORDER BY created_at, id;
+
+-- name: ListHubQueueViews :many
+-- A hub's queues the caller sees: their own and those shared at the hub, by their place. READ at
+-- the hub was asked before this runs; saved_view_queue_idx serves it.
+SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
+       visible_fields, sharing, created_at, version, key, queue_position
+FROM saved_view
+WHERE scope_type = 'HUB' AND scope_id = sqlc.arg('hub_id')::uuid
+  AND queue_position IS NOT NULL
+  AND (owner_id = sqlc.arg('owner_id')::uuid OR sharing = 'SCOPE')
+ORDER BY queue_position, created_at, id;
 
 -- name: SetSavedViewAttributes :execrows
 -- A view's own fields, written whole under the optimistic lock every editable row takes. The
@@ -64,8 +81,14 @@ UPDATE saved_view SET
   query          = sqlc.arg('query')::jsonb,
   grouping       = sqlc.arg('grouping')::jsonb,
   visible_fields = sqlc.arg('visible_fields')::text[],
-  version        = version + 1
-WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+  -- A queue keeps its place unless one is named; a view becoming one goes after the hub's last.
+  queue_position = CASE WHEN NOT sqlc.arg('queue')::boolean THEN NULL
+       ELSE coalesce(sqlc.narg('queue_position')::int, saved_view.queue_position,
+         (SELECT coalesce(max(q.queue_position), 0) + 1 FROM saved_view q
+          WHERE q.queue_position IS NOT NULL AND q.scope_type = 'HUB' AND q.scope_id = saved_view.scope_id))
+  END,
+  version        = saved_view.version + 1
+WHERE saved_view.id = sqlc.arg('id')::uuid AND saved_view.version = sqlc.arg('expected_version');
 
 -- name: SetSavedViewSharing :execrows
 UPDATE saved_view SET

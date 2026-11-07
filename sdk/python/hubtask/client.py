@@ -679,6 +679,10 @@ class Client:
         """Delete an unused business calendar"""
         return self._call("DELETE", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {}, None, "none", None, "void")
 
+    def list_hub_queues(self, hub_id: str) -> "HubQueueList":
+        """A hub's queues with their counts"""
+        return self._call("GET", "/hubs/{hubId}/queues", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def list_hub_calendars(self, hub_id: str) -> "BusinessCalendarList":
         """A hub's own business calendars"""
         return self._call("GET", "/hubs/{hubId}/business-calendars", {"hubId": hub_id}, None, {}, None, "none", None, "json")

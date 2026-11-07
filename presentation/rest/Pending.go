@@ -101,6 +101,11 @@ func (pending) MoveWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// ListHubQueues is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListHubQueues(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
 // ListStars and ReplaceStars are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) ListStars(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {

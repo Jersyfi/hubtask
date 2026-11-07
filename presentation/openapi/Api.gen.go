@@ -18091,6 +18091,29 @@ type HubPrivacy struct {
 	Private bool `json:"private"`
 }
 
+// HubQueue defines model for HubQueue.
+type HubQueue struct {
+	// AtRisk How many of them are `AT_RISK` or `BREACHED`; null when `count` is.
+	AtRisk *int `json:"at_risk"`
+
+	// Count How many entries the queue holds; null when it could not be counted in time or read.
+	Count *int `json:"count"`
+
+	// Key The view's key, or the standard queue's - `mine`, `unassigned`, `breaching`, `open` - which the client names.
+	Key string `json:"key"`
+
+	// Name The view's name; null for a standard queue.
+	Name *string `json:"name"`
+
+	// ViewId The saved view; null for a standard queue, which is saved before it is starred or moved.
+	ViewId *openapi_types.UUID `json:"view_id"`
+}
+
+// HubQueueList defines model for HubQueueList.
+type HubQueueList struct {
+	Data []HubQueue `json:"data"`
+}
+
 // HubTemplatePage defines model for HubTemplatePage.
 type HubTemplatePage struct {
 	Icon   *string            `json:"icon,omitempty"`
@@ -23587,6 +23610,12 @@ type SavedView struct {
 	// A summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.
 	Query map[string]interface{} `json:"query"`
 
+	// Queue Whether the view is one of its hub's queues (`GET /hubs/{hubId}/queues`).
+	Queue bool `json:"queue"`
+
+	// QueuePosition Where the queue stands among its hub's queues, lowest first; null when it is none.
+	QueuePosition *int `json:"queue_position"`
+
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
 	ScopeId *openapi_types.UUID `json:"scope_id,omitempty"`
 
@@ -23614,6 +23643,12 @@ type SavedViewCreate struct {
 
 	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
 	Query map[string]interface{} `json:"query"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true places it after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int `json:"queue_position,omitempty"`
 
 	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
 	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
@@ -23645,8 +23680,14 @@ type SavedViewUpdate struct {
 	Name     *string                 `json:"name,omitempty"`
 
 	// Query The whole query, replaced. Anchored and in the use case's input shape, as at creation - see `SavedView.query`.
-	Query         *map[string]interface{} `json:"query,omitempty"`
-	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. False takes it out of the queues.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true keeps its place, or places a view that was none after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int      `json:"queue_position,omitempty"`
+	VisibleFields *[]string `json:"visible_fields,omitempty"`
 }
 
 // ScimErrorBody A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
@@ -32974,6 +33015,9 @@ type ServerInterface interface {
 	// CreatePage Write a new page
 	// (POST /hubs/{hubId}/pages)
 	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListHubQueues A hub's queues with their counts
+	// (GET /hubs/{hubId}/queues)
+	ListHubQueues(w http.ResponseWriter, r *http.Request, hubId HubId)
 	// ListReleases A hub's releases
 	// (GET /hubs/{hubId}/releases)
 	ListReleases(w http.ResponseWriter, r *http.Request, hubId HubId, params ListReleasesParams)
@@ -47635,6 +47679,32 @@ func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreatePage(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHubQueues operation middleware
+func (siw *ServerInterfaceWrapper) ListHubQueues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubQueues(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -63007,6 +63077,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/queues", wrapper.ListHubQueues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/business-calendars", wrapper.ListHubCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/hubs/{hubId}/business-calendars/{calendarKey}", wrapper.DeleteHubCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/business-calendars/{calendarKey}", wrapper.DefineHubCalendar)

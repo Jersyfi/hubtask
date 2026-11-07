@@ -18097,6 +18097,29 @@ type HubPrivacy struct {
 	Private bool `json:"private"`
 }
 
+// HubQueue defines model for HubQueue.
+type HubQueue struct {
+	// AtRisk How many of them are `AT_RISK` or `BREACHED`; null when `count` is.
+	AtRisk *int `json:"at_risk"`
+
+	// Count How many entries the queue holds; null when it could not be counted in time or read.
+	Count *int `json:"count"`
+
+	// Key The view's key, or the standard queue's - `mine`, `unassigned`, `breaching`, `open` - which the client names.
+	Key string `json:"key"`
+
+	// Name The view's name; null for a standard queue.
+	Name *string `json:"name"`
+
+	// ViewId The saved view; null for a standard queue, which is saved before it is starred or moved.
+	ViewId *openapi_types.UUID `json:"view_id"`
+}
+
+// HubQueueList defines model for HubQueueList.
+type HubQueueList struct {
+	Data []HubQueue `json:"data"`
+}
+
 // HubTemplatePage defines model for HubTemplatePage.
 type HubTemplatePage struct {
 	Icon   *string            `json:"icon,omitempty"`
@@ -23593,6 +23616,12 @@ type SavedView struct {
 	// A summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.
 	Query map[string]interface{} `json:"query"`
 
+	// Queue Whether the view is one of its hub's queues (`GET /hubs/{hubId}/queues`).
+	Queue bool `json:"queue"`
+
+	// QueuePosition Where the queue stands among its hub's queues, lowest first; null when it is none.
+	QueuePosition *int `json:"queue_position"`
+
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
 	ScopeId *openapi_types.UUID `json:"scope_id,omitempty"`
 
@@ -23620,6 +23649,12 @@ type SavedViewCreate struct {
 
 	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
 	Query map[string]interface{} `json:"query"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true places it after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int `json:"queue_position,omitempty"`
 
 	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
 	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
@@ -23651,8 +23686,14 @@ type SavedViewUpdate struct {
 	Name     *string                 `json:"name,omitempty"`
 
 	// Query The whole query, replaced. Anchored and in the use case's input shape, as at creation - see `SavedView.query`.
-	Query         *map[string]interface{} `json:"query,omitempty"`
-	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. False takes it out of the queues.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true keeps its place, or places a view that was none after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int      `json:"queue_position,omitempty"`
+	VisibleFields *[]string `json:"visible_fields,omitempty"`
 }
 
 // ScimErrorBody A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
@@ -37497,6 +37538,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListHubQueues A hub's queues with their counts
+	//
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	//
+	// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+	ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListReleases A hub's releases
 	//
@@ -54948,6 +54996,23 @@ func (c *Client) CreatePageWithBody(ctx context.Context, hubId openapi_types.UUI
 // Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreatePageRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHubQueues A hub's queues with their counts
+//
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+//
+// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+func (c *Client) ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubQueuesRequest(c.Server, hubId)
 	if err != nil {
 		return nil, err
 	}
@@ -86288,6 +86353,40 @@ func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, conte
 	return req, nil
 }
 
+// NewListHubQueuesRequest constructs an http.Request for the ListHubQueues method
+func NewListHubQueuesRequest(server string, hubId HubId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/queues", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListReleasesRequest constructs an http.Request for the ListReleases method
 func NewListReleasesRequest(server string, hubId HubId, params *ListReleasesParams) (*http.Request, error) {
 	var err error
@@ -113598,6 +113697,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
 
+	// ListHubQueuesWithResponse A hub's queues with their counts
+	//
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+	ListHubQueuesWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListHubQueuesResult, error)
+
 	// ListReleasesWithResponse A hub's releases
 	//
 	// The hub's releases, the latest day first, at most 200. Needs READ at the hub.
@@ -139549,6 +139657,54 @@ func (r CreatePageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreatePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubQueuesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HubQueueList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubQueuesResult) GetJSON200() *HubQueueList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubQueuesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubQueuesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubQueuesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubQueuesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubQueuesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -171131,6 +171287,21 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 	return ParseCreatePageResult(rsp)
 }
 
+// ListHubQueuesWithResponse A hub's queues with their counts
+//
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+func (c *ClientWithResponses) ListHubQueuesWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListHubQueuesResult, error) {
+	rsp, err := c.ListHubQueues(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubQueuesResult(rsp)
+}
+
 // ListReleasesWithResponse A hub's releases
 //
 // The hub's releases, the latest day first, at most 200. Needs READ at the hub.
@@ -195238,6 +195409,39 @@ func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubQueuesResult parses an HTTP response from a ListHubQueuesWithResponse call
+func ParseListHubQueuesResult(rsp *http.Response) (*ListHubQueuesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubQueuesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HubQueueList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

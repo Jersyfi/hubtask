@@ -7398,7 +7398,8 @@ INSERT INTO saved_view (
   sharing,
   created_at,
   version,
-  key
+  key,
+  queue_position
 )
 SELECT
   r.id,
@@ -7416,7 +7417,9 @@ SELECT
   r.version,
   -- The key travels with the row (migration 0293); an archive written before carries none,
   -- and the store then draws one from the name.
-  r.key
+  r.key,
+  -- An archive written before migration 0391 carries no queue: the view is none.
+  r.queue_position
 FROM jsonb_populate_record(
   NULL::saved_view,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -7434,7 +7437,8 @@ ON CONFLICT (id) DO UPDATE SET
   sharing = EXCLUDED.sharing,
   created_at = EXCLUDED.created_at,
   version = EXCLUDED.version,
-  key = coalesce(EXCLUDED.key, saved_view.key)
+  key = coalesce(EXCLUDED.key, saved_view.key),
+  queue_position = EXCLUDED.queue_position
 WHERE $2::boolean
 `
 

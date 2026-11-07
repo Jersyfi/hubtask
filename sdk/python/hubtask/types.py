@@ -3907,6 +3907,8 @@ class SavedView(TypedDict, total=False):
     grouping: Required[dict[str, Any]]
     visible_fields: Required[list[str]]
     sharing: Required[Literal["PRIVATE", "SCOPE", "PUBLIC_LINK"]]
+    queue: Required[bool]
+    queue_position: Required[int | None]
     created_at: str
     version: Required[int]
 
@@ -3920,6 +3922,8 @@ class SavedViewCreate(TypedDict, total=False):
     grouping: dict[str, Any]
     visible_fields: list[str]
     sharing: Literal["PRIVATE", "SCOPE", "PUBLIC_LINK"]
+    queue: bool
+    queue_position: int
 
 class SavedViewUpdate(TypedDict, total=False):
     """JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share."""
@@ -3928,6 +3932,18 @@ class SavedViewUpdate(TypedDict, total=False):
     query: dict[str, Any]
     grouping: dict[str, Any]
     visible_fields: list[str]
+    queue: bool
+    queue_position: int
+
+class HubQueueList(TypedDict, total=False):
+    data: Required[list["HubQueue"]]
+
+class HubQueue(TypedDict, total=False):
+    view_id: Required[str | None]
+    key: Required[str]
+    name: Required[str | None]
+    count: Required[int | None]
+    at_risk: Required[int | None]
 
 class SavedViewShare(TypedDict, total=False):
     sharing: Required[Literal["PRIVATE", "SCOPE", "PUBLIC_LINK"]]

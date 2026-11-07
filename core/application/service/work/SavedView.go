@@ -79,6 +79,10 @@ type CreateSavedViewCommand struct {
 	// chose, though the two store alike.
 	VisibleFields []string
 	Sharing       view.Sharing
+	// Queue marks a HUB-scoped view as one of the hub's queues, at QueuePosition or, at 0,
+	// after the last (UC-SVC-03 check 10).
+	Queue         bool
+	QueuePosition int
 }
 
 // Execute creates the view and returns it.
@@ -129,6 +133,7 @@ func (h CreateSavedView) Execute(
 			ScopeType: cmd.ScopeType, ScopeID: scopeID, OwnerID: actor.AccountID,
 			Name: cmd.Name, Key: cmd.Key, Layout: cmd.Layout, Query: cmd.Query, Grouping: cmd.Grouping,
 			VisibleFields: cmd.VisibleFields, Sharing: cmd.Sharing,
+			Queue: cmd.Queue, QueuePosition: cmd.QueuePosition,
 			Now: now, Text: h.Text,
 		})
 		if err != nil {
@@ -141,12 +146,12 @@ func (h CreateSavedView) Execute(
 		if err := h.Views.Insert(ctx, built); err != nil {
 			return err
 		}
-		// The key the store drew where the writer named none.
 		stored, err := h.Views.Find(ctx, built.ID)
 		if err != nil {
 			return err
 		}
-		built.Key = stored.Key
+		// The key and the queue's place the store drew where the writer named none.
+		built.Key, built.QueuePosition = stored.Key, stored.QueuePosition
 		if err := recordViewAudit(ctx, h.Audit, actor, built, ViewCreatedAction, now); err != nil {
 			return err
 		}
@@ -482,11 +487,16 @@ func viewOutput(saved view.SavedView) usecase.Output {
 		// here, and null would make it special-case the ordinary case.
 		"visible_fields": saved.VisibleFields,
 		"sharing":        string(saved.Sharing),
+		"queue":          saved.Queue,
+		"queue_position": nil,
 		"created_at":     saved.CreatedAt,
 		"version":        saved.Version,
 	}
 	if !saved.ScopeID.IsZero() {
 		out["scope_id"] = saved.ScopeID.String()
+	}
+	if saved.Queue && saved.QueuePosition > 0 {
+		out["queue_position"] = saved.QueuePosition
 	}
 	return out
 }
@@ -560,6 +570,9 @@ func (h CreateSavedView) Descriptor() usecase.Descriptor {
 				Description: "Who sees the view. Omitted is PRIVATE. SCOPE at creation asks the " +
 					"same STRUCTURE permission :share does. PUBLIC_LINK is refused by name.",
 			},
+			queueInput("Marks a HUB-scoped view as one of the hub's queues; any other scope is " +
+				"refused as views.queue_hub_only. Omitted is false."),
+			queuePositionInput("Omitted places the queue after the hub's last."),
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ViewCreatedAction, TargetType: viewTarget,
@@ -595,6 +608,7 @@ func (h CreateSavedView) invoke(
 		Key:       in.String("key"),
 		Layout:    in.String("layout"),
 		Sharing:   sharing,
+		Queue:     in.Bool("queue"), QueuePosition: in.Int("queue_position"),
 	}
 	cmd.Query, _ = in["query"].(map[string]any)
 	cmd.Grouping, _ = in["grouping"].(map[string]any)
@@ -612,6 +626,19 @@ func (h CreateSavedView) invoke(
 		return nil, err
 	}
 	return viewOutput(created), nil
+}
+
+// queueInput and queuePositionInput are the queue's two fields, alike at creation and update.
+func queueInput(description string) usecase.Field {
+	return usecase.Field{Name: "queue", Kind: usecase.KindBool, Description: description}
+}
+
+func queuePositionInput(omitted string) usecase.Field {
+	return usecase.Field{
+		Name: "queue_position", Kind: usecase.KindInt,
+		Description: "Where the queue stands among the hub's queues, lowest first, 1 to 1000. " +
+			omitted + " Sent without queue true it is refused as views.queue_position_without_queue.",
+	}
 }
 
 // Descriptor is the catalogue entry.

@@ -2464,6 +2464,13 @@ func run() error {
 		servicedeskservice.DefineBusinessCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteBusinessCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListHubCalendars{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListHubQueues{
+			Desk: serviceDesk, Views: savedViews, EntryTypes: entryTypes, Gate: entryGate,
+			Query: work.QueryItems{
+				Gate: entryGate, Items: items, Containers: containers, Fields: customFields, Counter: items,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+		}.Descriptor(),
 		servicedeskservice.DefineHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),

@@ -8137,4 +8137,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON account_star TO hubtask_app;
 ALTER TABLE whiteboard ADD COLUMN parent_page_id uuid,
   ADD COLUMN order_key text;
 
+-- Migrations 0391-0392: a hub's queues are its saved views with a place among them
+-- (navigation concept §7.4).
+ALTER TABLE saved_view ADD COLUMN queue_position integer,
+  ADD CONSTRAINT saved_view_queue_check CHECK (
+    queue_position IS NULL OR (queue_position BETWEEN 1 AND 1000 AND scope_type = 'HUB'));
+CREATE INDEX saved_view_queue_idx ON saved_view (tenant_id, scope_id, queue_position)
+  WHERE queue_position IS NOT NULL;
+
 COMMIT;

@@ -352,6 +352,20 @@ type ItemSearch struct {
 	RaisedFrom *Raisers
 }
 
+// ItemCounter counts what a query keeps, and how many of those a second filter keeps too, in one
+// pass that reads no row (UC-SVC-03 check 10: a queue's count and how many of it are at risk).
+type ItemCounter interface {
+	CountWithin(ctx context.Context, search ItemSearch, within view.Node) (ItemCount, error)
+}
+
+// ItemCount is CountWithin's answer. Uncounted says the count outlasted its budget, as
+// ItemQueryResult.Uncounted does; neither number is meaningful then.
+type ItemCount struct {
+	Total     int
+	Within    int
+	Uncounted bool
+}
+
 // Raisers is an organisation as a portal list asks for it: the active people whose address is at
 // one of the domains, and the asking account whatever its state.
 type Raisers struct {

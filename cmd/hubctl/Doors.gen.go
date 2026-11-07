@@ -2333,6 +2333,11 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "queue", Verb: "ls", OperationID: "listHubQueues", Method: "GET", Path: "/hubs/{hubId}/queues", Summary: "A hub's queues with their counts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name"}},
 	{Group: "recur", Verb: "rm", OperationID: "removeRecurrence", Method: "DELETE", Path: "/items/{itemId}/recurrence", Summary: "Remove an entry's series; the occurrences it produced stay",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
