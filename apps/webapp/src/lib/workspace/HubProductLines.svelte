@@ -29,7 +29,7 @@
   import { weekOf } from '../data/due.ts';
   import { firstWeekdayOf } from '../i18n/week.ts';
   import { dateIn, todayIn } from '../i18n/zone.ts';
-  import { formatPlainDay } from '../i18n/datetime.ts';
+  import { formatShortDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { sprintDaysLeft } from '../today.ts';
   import { boardsChangedSince, goalsStanding, nextReleaseOf, pagesChangedSince, sprintsRunning } from '../product/home.ts';
@@ -120,7 +120,7 @@
       const next = nextReleaseOf({ [hubId]: releases ?? [] }, hubId);
       const parts = [
         ...(sprint ? [t('app.product_home.sprint_line', { name: sprint.name, remaining: t('app.sprints.days_left', { count: String(sprintDaysLeft(sprint.end_on, today)) }) })] : []),
-        ...(next ? [t('app.product_home.next_release', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) })] : []),
+        ...(next ? [t('app.hub_overview.release_on', { name: next.name, day: formatShortDay(next.release_on, messages.locale) })] : []),
       ];
       said.push({
         id: 'plan', icon: 'calendar', color: 'orange', product: t('app.nav.tool_plan'),
@@ -214,7 +214,7 @@
     background: var(--bg-raised);
     color: var(--text-primary);
     text-decoration: none;
-    font-size: var(--fs-075);
+    font-size: var(--fs-090);
   }
 
   a:hover { border-color: var(--border-default); }

@@ -263,6 +263,8 @@
 
   /** The layouts that may be chosen here: the switch's and the palette's one answer. */
   const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
+  /** Whether both list layouts are offered, so the list carries its *Show what is inside* toggle. */
+  const listsBoth = $derived(['LIST_COLLAPSED', 'LIST_EXPANDED'].every((each) => offer.layouts.includes(each)));
   /** The list layout this collection offers, where the add form lives. */
   const listLayout = $derived(offeredLayouts.find(isListLayout) ?? 'LIST_COLLAPSED');
 
@@ -307,13 +309,30 @@
     if (!asked || !choosable.includes(asked)) return;
     untrack(() => {
       if (asked === listLayout && isListLayout(layout)) return;
-      chooseLayout(asked);
+      // The list comes back as it was left: open or folded, as *Show what is inside* last said.
+      chooseLayout(asked === listLayout && lastList && choosable.includes(lastList) ? lastList : asked);
     });
   });
+
+  /**
+   * A view of this collection's own screen keeps the entry open beside it (`?item=`), as the
+   * layout switch did; a view that is a screen of its own does not.
+   */
+  function keepingOpen(path: string): string {
+    const open = new URLSearchParams(location.search).get('item');
+    const url = new URL(path, location.origin);
+    if (!open || url.pathname !== location.pathname) return path;
+    url.searchParams.set('item', open);
+    return `${url.pathname}${url.search}`;
+  }
+
+  /** Which list layout was drawn last, so the bar's *List* returns to it. */
+  let lastList = $state<string | undefined>(undefined);
 
   /** A layout the person chose: drawn, and kept for them on this device. */
   function chooseLayout(chosen: string) {
     layout = chosen;
+    if (isListLayout(chosen)) lastList = chosen;
     rememberLayout(deviceStore(), actor.account?.id, id, chosen);
   }
 
@@ -815,6 +834,41 @@
   // before this the only way to start one was `hubctl`.
   let isCreatingCollection = $state(false);
 
+  /**
+   * *New ▾* in a hub's head (the navigation concept's mockup): what can be made here - a
+   * collection for whoever shapes the hub, a page or a whiteboard where their product is on and the
+   * reader writes. Nothing offered, no button (P-05).
+   */
+  const mayWriteHere = $derived(holds(structureRole, 'WRITE_ITEMS').status === 'permitted');
+  const newItems = $derived(
+    container?.type !== 'HUB' || readOnlyReason
+      ? []
+      : [
+          ...(mayShape ? [{ id: 'collection', label: t('app.nav.create_collection_kind'), icon: 'collection' as const }] : []),
+          ...(mayWriteHere && modulesOn.includes('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }] : []),
+          ...(mayWriteHere && modulesOn.includes('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
+        ],
+  );
+  const newMenu = $derived(
+    newItems.length === 0 || !container
+      ? undefined
+      : {
+          label: t('app.nav.new'),
+          icon: 'plus' as const,
+          opener: 'new-in-hub',
+          menu: {
+            label: t('app.nav.new_in', { name: container.name }),
+            items: newItems,
+            onselect: (kind: string) => {
+              if (kind === 'collection') isCreatingCollection = true;
+              else if (kind === 'page') onnavigate(`/hubs/${id}/pages?new=1`);
+              else onnavigate(`/hubs/${id}/contents?new=whiteboard`);
+            },
+          },
+        },
+  );
+
+
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   // The bar carries the title on a phone (ADR-0061 decision 2); the head then reads its heading
@@ -1221,6 +1275,11 @@
     {/if}
   {/snippet}
   {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
+  <!-- A hub's or a collection's tile on the trail, where the mockup draws it - not before the title. -->
+  {#snippet crumbMark(crumb: { readonly id: string })}
+    {@const place = containers.find(crumb.id)}
+    {#if place}<ContainerMark look={place} size="xs" />{/if}
+  {/snippet}
   {#if isSettings}
     <Stack gap="300">
       <!-- The place's settings (design-system.md §11.8): the trail back to the place, one title,
@@ -1353,7 +1412,7 @@
       {/if}
     </Stack>
   {:else}
-  <Stack gap="300">
+  <Stack gap={container.type === 'HUB' ? '150' : '300'}>
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
          for - a collection - with import beside it; the collection's is an entry, with the filter
@@ -1367,6 +1426,7 @@
       onmenu={(offered) => page.offer(offered)}
       breadcrumb={{
         trail,
+        mark: crumbMark,
         label: t('app.workspace.trail'),
         expandLabel: t('app.workspace.expand_trail'),
         onnavigate: (crumbId) => {
@@ -1375,9 +1435,23 @@
         },
       }}
       menu={headMenu}
+      primary={newMenu}
       figure={container.figure || (container.type === 'COLLECTION' && hasAi) || hasMilestone ? collectionFigure : undefined}
-      mark={ownMark}
     >
+      {#snippet titleEnd()}
+        <!-- ☆ right after the title (UC-WRK-37, the mockup's head): the same star as the sidebar's. -->
+        {@const starKind = container.type === 'HUB' ? 'HUB' : 'COLLECTION'}
+        {@const starred = isStarred(stars.all, starKind, container.id)}
+        <span class="star" data-starred={starred ? '' : undefined}>
+          <IconButton
+            icon="star"
+            size="sm"
+            label={t(starred ? 'app.nav.unstar' : 'app.nav.star', { name: container.name })}
+            aria-pressed={starred}
+            onclick={() => void stars.toggle(starKind, container.id)}
+          />
+        </span>
+      {/snippet}
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the
              whole reason `archivalOf` distinguishes them. -->
@@ -1399,16 +1473,6 @@
         {/if}
       {/snippet}
       {#snippet aside()}
-        <!-- ☆ in the place's head (UC-WRK-37): the same star as the sidebar's. -->
-        {@const starKind = container.type === 'HUB' ? 'HUB' : 'COLLECTION'}
-        {@const starred = isStarred(stars.all, starKind, container.id)}
-        <IconButton
-          icon="star"
-          size="sm"
-          label={t(starred ? 'app.nav.unstar' : 'app.nav.star', { name: container.name })}
-          data-starred={starred ? '' : undefined}
-          onclick={() => void stars.toggle(starKind, container.id)}
-        />
         {#if memberIds.length === 0}
           <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
           <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
@@ -1436,14 +1500,30 @@
       <!-- One view bar (the navigation concept §3): the list, the board, the timeline, the sprint,
            the time and the saved views; ＋ saves a view; the filter and the entries' tools at its
            end. On a phone the bar is a chip and the filter one button whose sheet holds the rest. -->
-      <PlaceViews
-        placeId={container.id}
-        current={barCurrent}
-        {onnavigate}
-        add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
-        tools={viewport.isCompact ? undefined : barTools}
-      />
+      <!-- `data-tour`: where the tour points for "the same entries, two ways". -->
+      <div class="views" data-tour="layouts">
+        <PlaceViews
+          placeId={container.id}
+          current={barCurrent}
+          onnavigate={(path) => onnavigate(keepingOpen(path))}
+          add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
+          tools={viewport.isCompact ? undefined : barTools}
+        />
+      </div>
+      {#snippet insideToggle()}
+        {#if isListLayout(layout) && listsBoth}
+          <!-- A toggle of the list's own, not a view: pressed, every level is shown open. -->
+          <span data-tour="levels-inside"><Button
+            size="sm"
+            tone="subtle"
+            icon="chevrons-up-down"
+            aria-pressed={layout === 'LIST_EXPANDED'}
+            onclick={() => chooseLayout(layout === 'LIST_EXPANDED' ? 'LIST_COLLAPSED' : 'LIST_EXPANDED')}
+          >{t('app.view.show_inside')}</Button></span>
+        {/if}
+      {/snippet}
       {#snippet barTools()}
+        {@render insideToggle()}
         {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
         <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
         {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
@@ -1451,6 +1531,7 @@
       {#if viewport.isCompact}
         <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
           <div class="tools">
+            {@render insideToggle()}
             <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
           </div>
         </div>
@@ -1499,10 +1580,8 @@
       {:else}
         <!-- The collections as cards with what counts in each (ux-inventory.md §E4), the way to a
              new one the last card, where they are. -->
-        <CollectionCards
-          {collections}
-          create={mayShape ? { label: t('app.workspace.create_collection'), onclick: () => (isCreatingCollection = true), disabledReason: readOnlyReason } : undefined}
-        />
+        <!-- No card to create one: *New ▾* in the head and ＋ on *Collections* make it (the mockup). -->
+        <CollectionCards {collections} planning={modulesOn.includes('PLANNING')} />
       {/if}
       <!-- What changed last in the hub's collections (user-experience.md §7.9). -->
       <HubActivity hubId={container.id} />
@@ -1782,6 +1861,17 @@
 
   /* The entries' toolbar stays under the bar while the list scrolls (design-system.md §11.1): the
      layouts at the start, the rest at the end, one line where it fits. */
+  /* The view bar stays under the app bar while the entries scroll, as the toolbar it replaced. */
+  /* A starred place's star is filled (the mockup's head). */
+  .star[data-starred] :global(svg) { fill: currentColor; }
+
+  .views {
+    position: sticky;
+    inset-block-start: var(--layout-appbar-height);
+    z-index: var(--z-raised);
+    background: var(--bg-canvas);
+  }
+
   .toolbar {
     position: sticky;
     inset-block-start: var(--layout-appbar-height);

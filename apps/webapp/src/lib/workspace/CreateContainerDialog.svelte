@@ -35,7 +35,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, Disclosure, Inline, Input, Radio, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Button, Dialog, Disclosure, Inline, Input, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList } from '@hubtask/sync-engine';
 
   import TemplatePreview from '../settings/TemplatePreview.svelte';
@@ -274,7 +274,7 @@
 <Dialog
   bind:isOpen
   {title}
-  isWide={isHub && (presetOptions.length > 0 || families.length > 0)}
+  isWide={presetOptions.length > 0 || (isHub && families.length > 0)}
   dismissLabel={t('app.workspace.cancel')}
 >
   <div bind:this={body}>
@@ -342,7 +342,22 @@
         {/if}
       </div>
     {:else if presetOptions.length > 0}
-      <Radio label={t('app.structure.preset_at_creation')} options={presetOptions} bind:value={preset} />
+      <!-- A collection's kind (the navigation concept's *New collection*): the presets as small
+           cards, each with what it is for, one chosen. -->
+      <div class="kinds" data-collection-kinds>
+        <TemplateGallery label={t('app.structure.preset_at_creation')}>
+          {#each presetOptions as option (option.value)}
+            {@const isChosen = preset === option.value}
+            <TemplateCard name={option.label} summary={option.hint} {isChosen} isCompact data-collection-kind={option.value || 'hub'}>
+              {#snippet action()}
+                <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => (preset = option.value)}>
+                  {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${option.label}`}</VisuallyHidden>
+                </Button>
+              {/snippet}
+            </TemplateCard>
+          {/each}
+        </TemplateGallery>
+      </div>
     {/if}
     <!-- What only dresses the place waits folded below the choice of what it starts from (UX-4). -->
     <Disclosure label={t('app.workspace.look_fold')} tone="quiet">

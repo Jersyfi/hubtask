@@ -14,8 +14,8 @@
 
   interface Props {
     look: Look;
-    /** `md` for a page head, `sm` beside a line of text. */
-    size?: 'sm' | 'md';
+    /** `md` for a page head, `sm` beside a line of text, `xs` on a trail's small type. */
+    size?: 'xs' | 'sm' | 'md';
   }
 
   const { look, size = 'sm' }: Props = $props();
@@ -24,7 +24,7 @@
 </script>
 
 <span class="mark" data-size={size} data-token={colour} aria-hidden="true">
-  <Icon name={markOf(look)} {size} />
+  <Icon name={markOf(look)} size={size === 'xs' ? 'sm' : size} />
 </span>
 
 <style>
@@ -39,6 +39,8 @@
     color: var(--text-subtle);
   }
 
+  .mark[data-size='xs'] { inline-size: var(--sp-200); block-size: var(--sp-200); border-radius: var(--r-xs); }
+  .mark[data-size='xs'] :global(svg) { inline-size: var(--sp-150); block-size: var(--sp-150); }
   .mark[data-size='sm'] { inline-size: var(--sp-250); block-size: var(--sp-250); }
   .mark[data-size='md'] { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); }
 
