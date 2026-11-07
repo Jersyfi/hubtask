@@ -386,7 +386,7 @@ dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a wo
 deprecated field marked and kept.
 
 ### Wave 5 — the shell (16)
-AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet
+AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet · PlaceTabs *(until the navigation concept's step 4 replaces it with ViewBar)*
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
