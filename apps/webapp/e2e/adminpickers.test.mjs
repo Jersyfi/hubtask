@@ -59,7 +59,7 @@ async function as(browser, permissions) {
 
 /** Opens a picker by its label and chooses somebody by name. */
 async function pick(page, label, name) {
-  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText(label, { exact: true }) });
+  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText(label, { exact: true }) }).filter({ visible: true });
   await picker.getByRole('button').first().click();
   const panel = page.getByRole('dialog', { name: label });
   await panel.getByText(name, { exact: true }).click();
@@ -77,14 +77,15 @@ test('chromium: the trail\'s actor is picked from the workspace\'s people and th
   await page.getByText('Pickers Former Member').first().waitFor();
   assert.equal(await page.getByRole('textbox', { name: /Who did it/ }).count(), 0, 'the actor is still typed as an identifier');
 
+  // Who is a chip of the filter bar; the picker opens from it (page-system §7.6).
+  await page.getByRole('button', { name: 'Who: any' }).click();
   const picker = await pick(page, 'Who did it', OTHER.display_name);
   assert.match(await picker.textContent() ?? '', new RegExp(OTHER.display_name));
-  await page.getByRole('button', { name: 'Look', exact: true }).click();
-  await page.waitForFunction(() => true);
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 800));
   assert.ok(sent.some((each) => each.path === '/audit' && new URLSearchParams(each.search).get('actor_id') === OTHER.id), 'the query did not carry the chosen actor');
 
   // Somebody only the trail names is offered too: the trail's own read answered them.
+  if (await page.locator('[data-person-picker]').count() === 0) await page.getByRole('button', { name: new RegExp(`^Who: `) }).click();
   await pick(page, 'Who did it', FORMER.display_name);
   assert.deepEqual(owner.failures, []);
 });
@@ -119,7 +120,8 @@ test('chromium: an auditor\'s trail picker offers only whom the trail named, and
 
   await page.goto(`${served.origin}/administration/audit`);
   await page.getByText('Pickers Former Member').first().waitFor();
-  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText('Who did it', { exact: true }) });
+  await page.getByRole('button', { name: 'Who: any' }).click();
+  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText('Who did it', { exact: true }) }).filter({ visible: true });
   await picker.getByRole('button').first().click();
   const panel = page.getByRole('dialog', { name: 'Who did it' });
   await panel.getByText(FORMER.display_name, { exact: true }).waitFor();

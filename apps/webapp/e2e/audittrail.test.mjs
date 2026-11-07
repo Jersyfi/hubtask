@@ -93,9 +93,11 @@ test('chromium: a sensitive field set for the first time reads as changed', asyn
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/administration/audit`);
+  // What changed is the entry's record, opened from its row (page-system §7.6).
+  await page.getByRole('main').getByRole('button', { name: 'Hub or collection created' }).first().click();
   await page.getByText('colour became green').waitFor({ timeout: 15_000 });
 
-  const text = await page.locator('main').innerText();
+  const text = await page.locator('dialog[open]').innerText();
   assert.match(text, /name changed — the trail keeps that it changed/);
   assert.doesNotMatch(text, /name became/);
 });
@@ -156,27 +158,28 @@ test('chromium: checking and exporting with nothing named mark the fields and se
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/administration/audit`);
-  const check = page.getByRole('button', { name: 'Check the chain' });
+  // Checking the chain and exporting are the head's, each its own Dialog M (page-system §9.3).
+  await page.getByRole('button', { name: 'More for Audit log' }).click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Check the chain…' }).click();
+  const check = page.locator('dialog[open]').getByRole('button', { name: 'Check the chain' });
   await check.waitFor({ timeout: 15_000 });
   assert.equal(await check.getAttribute('aria-disabled'), null, 'the check is unavailable before it is pressed');
 
   await check.click();
-  // The filter above has a From of its own; the check's is the one that is marked.
-  const from = page.getByRole('textbox', { name: 'From', description: 'Name a period first.' });
+  const from = page.locator('dialog[open]').getByRole('textbox', { name: 'From', description: 'Name a period first.' });
   await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
   assert.equal(await from.evaluate((field) => field === document.activeElement), true, 'focus is not on the first missing field');
   assert.equal(await page.getByText('Name a period first.').count(), 2);
+  await page.keyboard.press('Escape');
+  await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
 
-  const exporting = page.getByRole('button', { name: 'Export the period' });
+  await page.getByRole('button', { name: 'Export…' }).click();
+  const exporting = page.locator('dialog[open]').getByRole('button', { name: 'Export the period' }).first();
   assert.equal(await exporting.getAttribute('aria-disabled'), null);
   await exporting.click();
   await page.getByText('Choose a target first.').waitFor();
-  // The export's own period is what is marked: it borrows nothing from the check above it.
-  const exportFrom = page
-    .locator('div')
-    .filter({ has: page.getByRole('heading', { name: 'Take a copy away' }) })
-    .last()
-    .getByRole('textbox', { name: 'From', description: 'Name a period first.' });
+  // The export's own period is what is marked: it borrows nothing from the check.
+  const exportFrom = page.locator('dialog[open]').getByRole('textbox', { name: 'From', description: 'Name a period first.' });
   assert.equal(await exportFrom.evaluate((field) => field === document.activeElement), true, 'focus is not on the export\'s own period');
   await page.waitForTimeout(200);
   assert.deepEqual(sent, [], 'a press with something missing sent a request');
@@ -215,14 +218,15 @@ test('chromium: the export takes away its own period, not the one checked above 
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/administration/audit`);
-  const section = page.locator('section, div').filter({ has: page.getByRole('heading', { name: 'Take a copy away' }) }).last();
-  await section.getByRole('button', { name: 'Export the period' }).waitFor({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Export…' }).click({ timeout: 15_000 });
+  const section = page.locator('dialog[open]');
+  await section.getByRole('button', { name: 'Export the period' }).first().waitFor({ timeout: 15_000 });
   // The check's period is left empty: the export no longer reads it.
   await section.getByRole('textbox', { name: 'From' }).fill('2026-09-01T00:00');
   await section.getByRole('textbox', { name: 'To' }).fill('2026-09-30T23:59');
   await section.getByLabel('Write it to').selectOption('bt-export');
   const asked = page.waitForRequest((request) => request.url().endsWith('/audit:export'));
-  await section.getByRole('button', { name: 'Export the period' }).click();
+  await section.getByRole('button', { name: 'Export the period' }).first().click();
   await asked;
   assert.equal(sent.length, 1, 'the export was not sent');
   assert.equal(sent[0].target_id, 'bt-export');

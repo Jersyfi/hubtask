@@ -1,52 +1,51 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The trail: queried, verified, and exported to where it went (`audit.md` §3–§5).
+  // The trail as a log page (page-system §7.6, §9.3, `audit.md` §3-§5): the time range the first
+  // chip of the filter bar, who, the kind of thing, the outcome, what was done and the reference
+  // the others - on a phone behind *Filters (n)* -, the entries grouped by day in words, each
+  // opening its Dialog M (RecordDialog). *Export…* in the head; checking the chain and where it is
+  // anchored in the head's ⋯, each a Dialog M. No form is open on arrival (PS-3).
   //
   // **An entry carries no user content, by design (ADR-0017)**, so an actor is an identifier plus
   // the label that was valid at the time. The screen resolves the identifier through the accounts
-  // store the way the activity feed does, and falls back to the stored label — which is precisely
-  // what survives an erasure, and therefore the marker an erased account leaves behind.
-  //
-  // **A break is a finding, not an error.** `:verify` answering `valid: false` with a sequence
-  // number is the thing an audit trail exists to produce; rendering it as a failed request would
-  // hide it. So the two outcomes are two different renderings, and the break says where it starts.
-  //
-  // **The export goes to a backup target and the browser never sees the archive.** ADR-0047 named
-  // exactly one media origin in the policy and a backup target is not it, so what the screen shows
-  // when the job ends is *where* the archive was written — not a download.
-  //
-  // **There is no filter on an export**, and the screen says so where somebody would otherwise
-  // look for the filters they just used: an export narrowed before it was signed would be evidence
-  // about somebody's selection rather than about an interval.
+  // store and falls back to the stored label - which is precisely what survives an erasure.
 
-  import { tick, untrack } from 'svelte';
+  import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Checkbox, Input, LoadMore, PageHeader, ProgressBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import {
+    Badge, DataTable, EmptyState, FilterBar, Input, LogPage, Radio, Select, Spinner, Stack,
+    type DataColumn, type Filter,
+  } from '@hubtask/design-system/components';
 
+  import { adminTrail } from '../lib/administration/trail.ts';
+  import AnchoringDialog from '../lib/audit/AnchoringDialog.svelte';
+  import ChainDialog from '../lib/audit/ChainDialog.svelte';
+  import ExportDialog from '../lib/audit/ExportDialog.svelte';
+  import RecordDialog from '../lib/audit/RecordDialog.svelte';
+  import { TARGET_TYPES, actionWords, thingWord } from '../lib/audit/words.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { audit, readAnchor, readVerification, type Entry, type Query } from '../lib/data/audit.svelte.ts';
+  import { audit, type Entry, type Query } from '../lib/data/audit.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
-  import { isTerminal } from '../lib/data/jobs.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
-  import { announcer } from '../lib/announce.svelte.ts';
-  import { check, focusFirst, isComplete, type Missing, type Requirement } from '../lib/forms/missing.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { formatDay, formatTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { Continued } from '../lib/page/continued.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import PersonPicker from '../lib/people/PersonPicker.svelte';
   import { renderProblem } from '../lib/problem.ts';
-  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import FailureNote from '../lib/frame/FailureNote.svelte';
+
+  $effect(() => page.entitle(t('app.audit.title')));
 
   const OUTCOMES = ['SUCCESS', 'DENIED', 'FAILED'];
-  const FORMATS = ['JSONL', 'CSV'];
+  const words = { t, has: (code: string) => messages.has(code) };
 
-  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let isWorking = $state(false);
-
+  // The time range: a span back from when it was chosen, or a window typed by hand.
+  const SPANS: Readonly<Record<string, number>> = { day: 864e5, week: 7 * 864e5, month: 30 * 864e5 };
+  let range = $state('');
+  let since = $state('');
   let from = $state('');
   let to = $state('');
   let action = $state('');
@@ -56,13 +55,40 @@
   let outcome = $state('');
   let requestId = $state('');
 
-  // The query the listing is reading. Separate from the fields, so that typing into a filter does
-  // not send a request per keystroke: the reader presses the button.
+  function chooseRange(next: string): void {
+    range = next;
+    from = '';
+    to = '';
+    const span = SPANS[next];
+    since = span ? new Date(Date.now() - span).toISOString() : '';
+  }
+
+  const asked = $derived<Query>({
+    ...(range !== 'custom' && since ? { from: since } : {}),
+    ...(range === 'custom' && from ? { from: new Date(from).toISOString() } : {}),
+    ...(range === 'custom' && to ? { to: new Date(to).toISOString() } : {}),
+    ...(action.trim() ? { action: action.trim() } : {}),
+    ...(actorId.trim() ? { actorId: actorId.trim() } : {}),
+    ...(targetType ? { targetType } : {}),
+    ...(targetId.trim() ? { targetId: targetId.trim() } : {}),
+    ...(outcome ? { outcome } : {}),
+    ...(requestId.trim() ? { requestId: requestId.trim() } : {}),
+  });
+
+  // The query the listing reads follows the filters a moment later, so typing into a filter's field
+  // does not send a request per keystroke.
   let applied = $state<Query>({});
+  $effect(() => {
+    const next = asked;
+    const timer = setTimeout(() => {
+      if (JSON.stringify(next) !== JSON.stringify(untrack(() => applied))) applied = next;
+    }, 350);
+    return () => clearTimeout(timer);
+  });
+
   /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by a new query. */
   let arrived = $state<string | undefined>(undefined);
   let isLoadingMore = $state(false);
-  /** Why the last press of *Show more* brought nothing; cleared by the next press and a new query. */
   let moreFailed = $state<string | undefined>(undefined);
   $effect(() => {
     void applied;
@@ -80,77 +106,25 @@
       await audit.more(query);
       arrived = t('app.audit.arrived', { count: audit.of(query).length - before });
     } catch (error) {
-      // Beside the button that asked, not in the page's banner: it is about the next page, and
-      // the trail already shown is still right.
+      // Beside the button that asked: the trail already shown is still right.
       moreFailed = renderProblem(error as never, messages).message;
     } finally {
       isLoadingMore = false;
     }
   }
 
-  let verifyFrom = $state('');
-  let verifyTo = $state('');
-  /** Whether the check also reads the last anchor back from the target. */
-  let verifyAnchors = $state(false);
-
-  // Where the chain's end is anchored, read from the workspace - the one place it is read back
-  // from - and written through the audit's own route, which audits the change.
-  $effect(() => untrack(() => workspace.open()));
-  const anchorTargetId = $derived(workspace.workspace?.audit_anchor_target_id ?? null);
-  const anchorTargetName = $derived(
-    anchorTargetId ? (backup.all.find((target) => target.id === anchorTargetId)?.name ?? anchorTargetId) : undefined,
-  );
-  let anchorChoice = $state('');
-
-  // The export's own period (ux-inventory §E8): a copy taken away is rarely the stretch just
-  // checked, and borrowing the check's fields made the one depend on the other being filled.
-  let exportFrom = $state('');
-  let exportTo = $state('');
-  let exportFormat = $state('JSONL');
-  let exportTarget = $state('');
-  let exportJob = $state('');
-
-  /**
-   * What a press of *Check the chain*, *Anchor here* or *Export the period* found missing: marked
-   * at the fields, focus on the first (UC-WRK-32 check 3).
-   */
-  let missing = $state<Missing>({});
-
-  function period(): Requirement[] {
-    return [
-      { kind: 'field', key: 'from', code: 'app.audit.period_first', isFilled: verifyFrom !== '' },
-      { kind: 'field', key: 'to', code: 'app.audit.period_first', isFilled: verifyTo !== '' },
-    ];
-  }
-
-  /** Marks what `requirements` lack and answers whether the press may go on. */
-  function ready(requirements: Requirement[]): boolean {
-    missing = check(requirements);
-    if (isComplete(missing)) return true;
-    void tick().then(() => focusFirst(document));
-    return false;
-  }
-
-  /** A field's mark while it still lacks its value. */
-  const markOf = (key: string, value: string): string | undefined => (missing[key] && !value ? t(missing[key]) : undefined);
-  let exportedTo = $state<{ target: string; from: string; to: string } | undefined>(undefined);
-
   $effect(() => {
     const query = applied;
     return untrack(() => audit.open(query));
   });
   $effect(() => untrack(() => backup.open()));
+  // Where the chain's end is anchored, read from the workspace - the one place it is read back from.
+  $effect(() => untrack(() => workspace.open()));
+  const anchorTargetId = $derived(workspace.workspace?.audit_anchor_target_id ?? null);
 
   const reading = $derived(audit.stateOf(applied));
   const entries = $derived(audit.of(applied));
-  const refusal = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
-  // Read into a finding rather than branched on in the template: a break is not an error, and
-  // which of the two facts an answer is deserves a test that a `{#if}` cannot have.
-  const finding = $derived(audit.verification ? readVerification(audit.verification) : undefined);
-  const anchorFinding = $derived(audit.verification ? readAnchor(audit.verification) : undefined);
-  const watch = $derived<Watch | undefined>(exportJob ? jobs.of(exportJob) : undefined);
+  const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
   // The names behind the identifiers, asked for once each.
   $effect(() => {
@@ -158,125 +132,124 @@
     untrack(() => accounts.resolve(listed.map((entry) => entry.actor?.id)));
   });
 
-  const when = (at: string | null | undefined) =>
-    at ? formatDateTime(at, messages.locale) : undefined;
-
-  const sentence = (code: string | null | undefined) =>
-    code ? (messages.has(code) ? t(code) : code) : undefined;
-
   /**
-   * Who acted, in this order: the name the accounts store resolved, the label the entry stored,
-   * and then the sentence that is true of every actor.
-   *
-   * The stored label is what an erasure leaves behind — an entry that only pointed at a foreign
-   * key would become unreadable the moment the account went, which is the failure `audit.md` §2
-   * describes. So an anonymised actor reads as its marker rather than as nothing.
+   * Who acted: the name the accounts store resolved, the label the entry stored, then the sentence
+   * true of every actor. An erased account's name is the same "former user" for everybody erased;
+   * the entry's label is the stable pseudonym that tells them apart (UC-AUD-01 check 3).
    */
   function actorOf(entry: Entry): string {
     const kind = entry.actor?.type ?? 'SYSTEM';
     if (kind === 'SYSTEM') return t('app.audit.actor_system');
-    // An erased account's name is the same "former user" for everybody erased; the entry's label is
-    // the stable pseudonym that tells one of them from another (UC-AUD-01 check 3).
     if (accounts.statusOf(entry.actor?.id) === 'ANONYMIZED' && entry.actor?.label) return entry.actor.label;
-    return (
-      accounts.nameOf(entry.actor?.id) ??
-      entry.actor?.label ??
-      t('app.audit.actor_gone')
-    );
+    return accounts.nameOf(entry.actor?.id) ?? entry.actor?.label ?? t('app.audit.actor_gone');
   }
 
-  const outcomeTone = (entry: Entry) =>
-    entry.outcome === 'SUCCESS' ? 'success' : entry.outcome === 'DENIED' ? 'warning' : 'danger';
+  const whatOf = (entry: Entry) => actionWords(entry.action, entry.target?.type, words);
+  const aboutOf = (entry: Entry) => entry.target?.label ?? '';
 
-  const severityTone = (entry: Entry) =>
-    entry.severity === 'CRITICAL' ? 'danger' : entry.severity === 'WARNING' ? 'warning' : 'neutral';
-
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
-    failure = undefined;
-    isWorking = true;
-    try {
-      await work();
-      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
-      if (said) announcer.say(said);
-    } catch (cause) {
-      failure = renderProblem(cause as never, messages);
-    } finally {
-      isWorking = false;
-    }
-  }
-
-  function apply(event: SubmitEvent): void {
-    event.preventDefault();
-    applied = {
-      ...(from ? { from: new Date(from).toISOString() } : {}),
-      ...(to ? { to: new Date(to).toISOString() } : {}),
-      ...(action.trim() ? { action: action.trim() } : {}),
-      ...(actorId.trim() ? { actorId: actorId.trim() } : {}),
-      ...(targetType.trim() ? { targetType: targetType.trim() } : {}),
-      ...(targetId.trim() ? { targetId: targetId.trim() } : {}),
-      ...(outcome ? { outcome } : {}),
-      ...(requestId.trim() ? { requestId: requestId.trim() } : {}),
-    };
-  }
-
-  // The report has arrived once the job is over. Read once, rather than a second polling loop.
+  // The search narrows the entries loaded by their words, who and what about.
+  let search = $state('');
+  const shown = $derived(entries.filter((entry) => matchesSearch(search, [whatOf(entry), actorOf(entry), aboutOf(entry)])));
+  // A page the server answered is shown at the device's rows per page first; the next page is read
+  // once those are all on show (PS-8).
+  const continued = new Continued(() => shown);
   $effect(() => {
-    const current = watch;
-    if (!current || current.watching || !isTerminal(current.job.status)) return;
-    if (current.job.status !== 'SUCCEEDED') return;
-    untrack(() => {
-      const target = backup.all.find((each) => each.id === exportTarget);
-      exportedTo = {
-        target: target?.name ?? exportTarget,
-        from: exportFrom,
-        to: exportTo,
-      };
-    });
+    void search;
+    void applied;
+    untrack(() => continued.restart());
   });
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.audit.title')));
+
+  const outcomeTone = (entry: Entry) => (entry.outcome === 'SUCCESS' ? 'success' : entry.outcome === 'DENIED' ? 'warning' : 'danger');
+  const any = () => t('app.page.any');
+  const rangeWords = $derived(range === '' ? t('app.audit.range_any') : t(`app.audit.range_${range}`));
+  const chips = $derived<Filter[]>([
+    { id: 'when', label: rangeWords, isActive: range !== '' },
+    { id: 'who', label: t('app.audit.chip_who', { who: actorId ? (accounts.nameOf(actorId) ?? t('app.audit.chip_set')) : any() }), isActive: actorId !== '' },
+    { id: 'thing', label: t('app.audit.chip_thing', { thing: targetType ? thingWord(targetType, '', words) : any() }), isActive: targetType !== '' || targetId.trim() !== '' },
+    { id: 'outcome', label: t('app.audit.chip_outcome', { outcome: outcome ? t(`app.audit.outcome_${outcome.toLowerCase()}`) : any() }), isActive: outcome !== '' },
+    { id: 'action', label: t('app.audit.chip_action', { action: action.trim() || any() }), isActive: action.trim() !== '' },
+    { id: 'reference', label: t('app.audit.chip_reference', { reference: requestId.trim() ? t('app.audit.chip_set') : any() }), isActive: requestId.trim() !== '' },
+  ]);
+  const activeFilters = $derived(chips.filter((chip) => chip.isActive).length);
+
+  function clearFilters(): void {
+    chooseRange('');
+    action = '';
+    actorId = '';
+    targetType = '';
+    targetId = '';
+    outcome = '';
+    requestId = '';
+    search = '';
+  }
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'what', label: t('app.audit.what_column'), priority: 1 },
+    { id: 'when', label: t('app.audit.when'), priority: 2 },
+    { id: 'who', label: t('app.audit.actor'), priority: 3 },
+    { id: 'about', label: t('app.audit.about_column'), priority: 3 },
+    { id: 'outcome', label: t('app.audit.outcome'), priority: 2, isStatus: true },
+  ]);
+
+  const thingOptions = $derived(
+    TARGET_TYPES.map((type) => ({ value: type, label: thingWord(type, '', words) })).sort((a, b) => a.label.localeCompare(b.label, messages.locale)),
+  );
+
+  let opened = $state<Entry | undefined>(undefined);
+  let isExporting = $state(false);
+  let isChecking = $state(false);
+  let isAnchoring = $state(false);
+
+  const head = $derived({
+    title: t('app.audit.title'),
+    breadcrumb: adminTrail({ id: 'screen', label: t('app.audit.title') }),
+    secondary: [{ label: t('app.audit.export_open'), opener: 'audit-export', onclick: () => (isExporting = true) }] as const,
+    menu: {
+      label: t('app.page.more_for', { name: t('app.audit.title') }),
+      items: [
+        { id: 'verify', label: t('app.audit.verify_open') },
+        { id: 'anchoring', label: t('app.audit.anchoring_open') },
+      ],
+      onselect: (id: string) => {
+        if (id === 'verify') isChecking = true;
+        else isAnchoring = true;
+      },
+    },
+  });
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.audit.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'audit', label: t('app.audit.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
-    <Stack gap="300">
-    <p class="quiet">{t('app.audit.intro')}</p>
-
-    {#if failure}
-      <FailureNote problem={failure}>
-        {#if failure.fields.size > 0}
-          <Stack gap="050">
-            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+<LogPage {head}>
+  {#snippet intro()}
+    <p class="quiet">{t('app.audit.intro')} {t('app.audit.reading_is_not_recorded')}</p>
+  {/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.audit.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      filters={chips}
+      moreLabel={t('app.page.more_filters')}
+      filtersLabel={t('app.page.filters', { count: String(activeFilters) })}
+      sheetTitle={t('app.page.filters', { count: '0' })}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      showLabel={t('app.page.show_results', { count: String(shown.length) })}
+      clearLabel={t('app.page.clear')}
+      onclear={clearFilters}
+      countLabel={reading.status === 'ready' ? t('app.audit.found', { count: String(shown.length) }) : undefined}
+    >
+      {#snippet picker(chip: Filter)}
+        {#if chip.id === 'when'}
+          <Stack gap="150">
+            <Radio
+              label={t('app.audit.when')}
+              bind:value={() => (range === 'custom' ? '' : range), (next) => chooseRange(next)}
+              options={['', 'day', 'week', 'month'].map((each) => ({ value: each, label: each === '' ? t('app.audit.range_any') : t(`app.audit.range_${each}`) }))}
+            />
+            <Input label={t('app.audit.from')} type="datetime-local" bind:value={from} oninput={() => (range = 'custom')} />
+            <Input label={t('app.audit.to')} type="datetime-local" bind:value={to} oninput={() => (range = 'custom')} />
           </Stack>
-        {/if}
-      </FailureNote>
-    {/if}
-
-    <form class="panel" onsubmit={apply}>
-      <Stack gap="150">
-        <h2 class="section">{t('app.audit.query_title')}</h2>
-        <div class="fields">
-          <Input label={t('app.audit.from')} type="datetime-local" bind:value={from} />
-          <Input label={t('app.audit.to')} type="datetime-local" bind:value={to} />
-          <Input
-            label={t('app.audit.action')}
-            hint={t('app.audit.action_hint')}
-            bind:value={action}
-          />
+        {:else if chip.id === 'who'}
           <PersonPicker
             label={t('app.audit.actor')}
             hint={t('app.audit.actor_hint')}
@@ -284,380 +257,80 @@
             known={entries.map((entry) => entry.actor?.id ?? '')}
             bind:value={actorId}
           />
-          <Input
-            label={t('app.audit.target_type')}
-            hint={t('app.audit.target_type_hint')}
-            bind:value={targetType}
-          />
-          <Input label={t('app.audit.target_id')} bind:value={targetId} />
-          <Input
-            label={t('app.audit.request_id')}
-            hint={t('app.audit.request_id_hint')}
-            bind:value={requestId}
-          />
+        {:else if chip.id === 'thing'}
+          <Stack gap="150">
+            <Select label={t('app.audit.target_type')} bind:value={targetType} placeholder={t('app.audit.any_thing')} options={thingOptions} />
+            <Input label={t('app.audit.target_id')} bind:value={targetId} />
+          </Stack>
+        {:else if chip.id === 'outcome'}
           <Select
             label={t('app.audit.outcome')}
             bind:value={outcome}
             placeholder={t('app.audit.any_outcome')}
-            options={OUTCOMES.map((value) => ({
-              value,
-              label: t(`app.audit.outcome_${value.toLowerCase()}`),
-            }))}
+            options={OUTCOMES.map((value) => ({ value, label: t(`app.audit.outcome_${value.toLowerCase()}`) }))}
           />
-        </div>
-        <div>
-          <Button type="submit" tone="primary">{t('app.audit.apply')}</Button>
-        </div>
-        <!-- The one thing about reading the trail that is worth saying out loud. -->
-        <p class="quiet small">{t('app.audit.reading_is_not_recorded')}</p>
-      </Stack>
-    </form>
-
-    {#if reading.status === 'loading' || reading.status === 'idle'}
-      <p class="waiting">
-        <Spinner label={t('app.audit.reading')} /> <span>{t('app.audit.reading')}</span>
-      </p>
-    {:else if refusal}
-      <FailureNote problem={refusal} />
-    {:else}
-      <ul class="entries">
-        {#each entries as entry (entry.id)}
-          <li class="entry">
-            <Stack gap="025">
-              <div class="row">
-                <Badge tone={outcomeTone(entry)}>
-                  {t(`app.audit.outcome_${entry.outcome.toLowerCase()}`)}
-                </Badge>
-                {#if entry.severity && entry.severity !== 'INFO'}
-                  <Badge tone={severityTone(entry)}>
-                    {t(`app.audit.severity_${entry.severity.toLowerCase()}`)}
-                  </Badge>
-                {/if}
-                <span class="mono">{entry.action}</span>
-                {#if entry.seq !== undefined}
-                  <span class="quiet small">{t('app.audit.sequence', { seq: String(entry.seq) })}</span>
-                {/if}
-              </div>
-              <p class="quiet small">
-                {t('app.audit.by', { actor: actorOf(entry) })}
-                · {when(entry.occurred_at)}
-                {#if entry.context?.channel}· {entry.context.channel}{/if}
-              </p>
-              {#if entry.target?.type}
-                <p class="quiet small">
-                  {t('app.audit.about', {
-                    type: entry.target.type,
-                    what: entry.target.label ?? entry.target.id ?? '',
-                  })}
-                </p>
-              {/if}
-              {#each entry.changes ?? [] as change (change.field)}
-                <p class="quiet small">
-                  {#if change.changed === true || change.from_hash != null || change.to_hash != null}
-                    <!-- A sensitive field: that it changed, and its hashes, which make two
-                         entries comparable without either being readable. A field set for the
-                         first time has no previous value and so only the hash of what it became. -->
-                    {t('app.audit.changed_sensitive', { field: change.field ?? '' })}
-                  {:else}
-                    {t('app.audit.changed', {
-                      field: change.field ?? '',
-                      to: String(change.to ?? ''),
-                    })}
-                  {/if}
-                </p>
-              {/each}
-            </Stack>
-          </li>
+        {:else if chip.id === 'action'}
+          <Input label={t('app.audit.action')} hint={t('app.audit.action_hint')} bind:value={action} />
         {:else}
-          <li class="quiet">{t('app.audit.none')}</li>
-        {/each}
-      </ul>
-
-      {#if entries.length > 0}
-        <!-- Cursor pagination through the design system's control: what arrived is announced, and the
-             end of the trail is said rather than the button vanishing. -->
-        <LoadMore
-          label={t('app.audit.more')}
-          busyLabel={t('app.audit.loading_more')}
-          hasMore={Boolean(audit.moreAfter(applied))}
-          isBusy={isLoadingMore}
-          arrivedLabel={arrived}
-          failedLabel={moreFailed}
-          endLabel={t('app.audit.end')}
-          onLoadMore={() => void more()}
-        />
-      {/if}
-    {/if}
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.audit.verify_title')}</h2>
-      <p class="quiet small">{t('app.audit.verify_intro')}</p>
-      <div class="fields">
-        <Input label={t('app.audit.from')} type="datetime-local" bind:value={verifyFrom} error={markOf('from', verifyFrom)} />
-        <Input label={t('app.audit.to')} type="datetime-local" bind:value={verifyTo} error={markOf('to', verifyTo)} />
-      </div>
-      {#if anchorTargetId}
-        <!-- Asked for rather than always done: a read of somebody else's machine. -->
-        <Checkbox label={t('app.audit.verify_anchors')} hint={t('app.audit.verify_anchors_hint')} bind:checked={verifyAnchors} />
-      {/if}
-      <div>
-        <Button
-          tone="secondary"
-          isBusy={isWorking}
-          busyLabel={t('app.audit.verifying')}
-          onclick={() => {
-            if (!ready(period())) return;
-            void attempt(() =>
-              audit.verify(new Date(verifyFrom).toISOString(), new Date(verifyTo).toISOString(), verifyAnchors && anchorTargetId !== null),
-            );
-          }}
-        >
-          {t('app.audit.verify')}
-        </Button>
-      </div>
-
-      {#if finding?.kind === 'holds'}
-        <Banner tone="success" title={t('app.audit.chain_holds')}>
-          <Stack gap="050">
-            <span>{t('app.audit.chain_checked', { count: String(finding.checked) })}</span>
-            {#if finding.sealedUntil}
-              <span>{t('app.audit.sealed_until', { at: when(finding.sealedUntil) ?? '' })}</span>
-            {:else}
-              <!-- What the check does and does not prove. Inside the database only. -->
-              <span>{t('app.audit.never_anchored')}</span>
-            {/if}
-          </Stack>
-        </Banner>
-      {:else if finding?.kind === 'broken'}
-        <!-- The finding this whole trail exists to produce, rendered as a finding rather than as
-             an error message: it names where the chain stops holding, which is where an
-             investigation starts. -->
-        <Banner tone="danger" title={t('app.audit.chain_broken')}>
-          <Stack gap="050">
-            {#if finding.firstBrokenSeq !== undefined}
-              <span>{t('app.audit.broken_at', { seq: String(finding.firstBrokenSeq) })}</span>
-            {/if}
-            {#if finding.gapCount > 0}
-              <span>{t('app.audit.gaps', { count: String(finding.gapCount) })}</span>
-              {#if finding.gaps.length > 0}
-                <span class="mono small">{finding.gaps.join(', ')}</span>
-              {/if}
-            {/if}
-            <span>{t('app.audit.break_is_recorded')}</span>
-          </Stack>
-        </Banner>
-      {/if}
-      {#if anchorFinding?.kind === 'agrees'}
-        <Banner tone="success" title={t('app.audit.anchor_agrees')}>
-          {t('app.audit.anchor_read', { at: when(anchorFinding.until) ?? '', seq: String(anchorFinding.seq ?? '') })}
-        </Banner>
-      {:else if anchorFinding?.kind === 'disagrees'}
-        <!-- The finding anchoring exists to produce: the copy outside says the chain was not
-             this. Rendered as a finding, whatever the walk inside the database said. -->
-        <Banner tone="danger" title={t('app.audit.anchor_disagrees')}>
-          {t('app.audit.anchor_disagrees_explains')}
-        </Banner>
-      {:else if anchorFinding?.kind === 'unreadable'}
-        <Banner tone="warning" title={t('app.audit.anchor_unreadable')}>
-          {sentence(anchorFinding.code)}
-        </Banner>
-      {/if}
-    </Stack>
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.audit.anchoring_title')}</h2>
-      <p class="quiet small">{t('app.audit.anchoring_intro')}</p>
-      {#if anchorTargetId}
-        <p class="small"><strong>{t('app.audit.anchoring_on', { target: anchorTargetName ?? '' })}</strong></p>
-      {:else}
-        <p class="small"><strong>{t('app.audit.anchoring_off')}</strong></p>
-      {/if}
-      <p class="quiet small">{t('app.audit.anchoring_target_hint')}</p>
-      <WorkspaceGate permission="STRUCTURE">
-        {#snippet actions()}
-      <div class="fields">
-        <Select
-          label={t('app.audit.anchoring_target')}
-          bind:value={anchorChoice}
-          placeholder={t('app.audit.choose_target')}
-          options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
-          error={markOf('anchor', anchorChoice)}
-        />
-      </div>
-      <div class="row">
-        <!-- Unavailable only where there is nothing to do - the chain is anchored there already;
-             an empty choice is marked when pressed. -->
-        <Button
-          tone="primary"
-          isBusy={isWorking}
-          busyLabel={t('app.audit.anchoring_saving')}
-          disabledReason={anchorChoice !== '' && anchorChoice === anchorTargetId ? t('app.audit.anchoring_choose_first') : undefined}
-          onclick={() => {
-            if (!ready([{ kind: 'field', key: 'anchor', code: 'app.audit.target_first', isFilled: anchorChoice !== '' }])) return;
-            void attempt(() => audit.configureAnchoring(anchorChoice), t('app.audit.anchoring_on_announced'));
-          }}
-        >
-          {t('app.audit.anchor_here')}
-        </Button>
-        {#if anchorTargetId}
-          <Button
-            tone="secondary"
-            isBusy={isWorking}
-            busyLabel={t('app.audit.anchoring_saving')}
-            onclick={() => void attempt(() => audit.configureAnchoring(null), t('app.audit.anchoring_off_announced'))}
-          >
-            {t('app.audit.anchoring_switch_off')}
-          </Button>
+          <Input label={t('app.audit.request_id')} hint={t('app.audit.request_id_hint')} bind:value={requestId} />
         {/if}
-      </div>
-        {/snippet}
-      </WorkspaceGate>
-      <p class="quiet small">{t('app.audit.anchoring_is_audited')}</p>
-    </Stack>
+      {/snippet}
+    </FilterBar>
+  {/snippet}
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.audit.export_title')}</h2>
-      <p class="quiet small">{t('app.audit.export_intro')}</p>
-      <!-- Said where somebody would otherwise look for the filters they just used. -->
-      <p class="quiet small">{t('app.audit.export_has_no_filter')}</p>
-
-      <div class="fields">
-        <Input label={t('app.audit.from')} type="datetime-local" bind:value={exportFrom} error={markOf('exportFrom', exportFrom)} />
-        <Input label={t('app.audit.to')} type="datetime-local" bind:value={exportTo} error={markOf('exportTo', exportTo)} />
-        <Select
-          label={t('app.audit.format')}
-          bind:value={exportFormat}
-          options={FORMATS.map((value) => ({
-            value,
-            label: t(`app.audit.format_${value.toLowerCase()}`),
-          }))}
-        />
-        <Select
-          label={t('app.audit.export_target')}
-          bind:value={exportTarget}
-          placeholder={t('app.audit.choose_target')}
-          options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
-          error={markOf('target', exportTarget)}
-        />
-      </div>
-
-      <div>
-        <Button
-          tone="primary"
-          isBusy={isWorking}
-          busyLabel={t('app.audit.exporting')}
-          onclick={() => {
-            if (!ready([
-              { kind: 'field', key: 'exportFrom', code: 'app.audit.period_first', isFilled: exportFrom !== '' },
-              { kind: 'field', key: 'exportTo', code: 'app.audit.period_first', isFilled: exportTo !== '' },
-              { kind: 'field', key: 'target', code: 'app.audit.target_first', isFilled: exportTarget !== '' },
-            ])) return;
-            void attempt(async () => {
-              exportedTo = undefined;
-              const accepted = await audit.export({
-                from: new Date(exportFrom).toISOString(),
-                to: new Date(exportTo).toISOString(),
-                format: exportFormat as 'JSONL' | 'CSV',
-                target_id: exportTarget,
-              });
-              exportJob = accepted.job_id;
-            }, t('app.audit.export_started_announced'));
-          }}
-        >
-          {t('app.audit.export')}
-        </Button>
-      </div>
-      <p class="quiet small">{t('app.audit.export_is_audited')}</p>
-
-      {#if watch}
-        {#if watch.watching}
-          <ProgressBar
-            label={t('app.audit.export_title')}
-            value={watch.job.progress === null || watch.job.progress === undefined
-              ? undefined
-              : Math.round(watch.job.progress * 100)}
-            valueLabel={watch.job.progress === null || watch.job.progress === undefined
-              ? t('app.audit.progress_unknown')
-              : t('app.audit.progress_share', {
-                  percent: String(Math.round(watch.job.progress * 100)),
-                })}
-          />
-        {:else if watch.job.status === 'SUCCEEDED' && exportedTo}
-          <!-- Where it went, and no download: the archive lies at a target the browser holds no
-               credential for and the policy names no origin for (ADR-0047). -->
-          <Banner tone="success" title={t('app.audit.export_done')}>
-            <Stack gap="050">
-              <span>{t('app.audit.export_written_to', { target: exportedTo.target })}</span>
-              <span>{t('app.audit.export_no_download')}</span>
-            </Stack>
-          </Banner>
-        {:else if watch.unreachable}
-          <p class="failure" role="alert">{sentence(watch.unreachable)}</p>
-        {:else if watch.job.status !== 'SUCCEEDED'}
-          <p class="failure" role="alert">{sentence(watch.job.error_code) ?? t('app.audit.export_failed')}</p>
+  {#if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="quiet waiting"><Spinner label={t('app.audit.reading')} /> <span>{t('app.audit.reading')}</span></p>
+  {:else if refusal}
+    <FailureNote problem={refusal} />
+  {:else}
+    <DataTable
+      label={t('app.audit.title')}
+      {columns}
+      rows={continued.shown}
+      key={(entry: Entry) => entry.id}
+      onopen={(entry: Entry) => (opened = entry)}
+      rowLabel={whatOf}
+      group={(entry: Entry) => formatDay(entry.occurred_at, messages.locale)}
+      shownLabel={entries.length === 0 ? undefined : continued.shownLabel}
+      perPage={continued.perPage}
+      more={continued.more ?? (entries.length > 0
+        ? {
+            label: t('app.audit.more'),
+            busyLabel: t('app.audit.loading_more'),
+            hasMore: Boolean(audit.moreAfter(applied)),
+            isBusy: isLoadingMore,
+            arrivedLabel: arrived,
+            failedLabel: moreFailed,
+            endLabel: t('app.audit.end'),
+            onLoadMore: () => void more(),
+          }
+        : undefined)}
+    >
+      {#snippet cell(entry: Entry, column: DataColumn)}
+        {#if column.id === 'what'}
+          <span class="name" data-entry={entry.id}>{whatOf(entry)}</span>
+        {:else if column.id === 'when'}
+          <span class="quiet">{formatTime(entry.occurred_at, messages.locale)}</span>
+        {:else if column.id === 'who'}
+          <span class="quiet">{actorOf(entry)}</span>
+        {:else if column.id === 'about'}
+          <span class="quiet">{aboutOf(entry)}</span>
+        {:else}
+          <Badge tone={outcomeTone(entry)}>{t(`app.audit.outcome_${entry.outcome.toLowerCase()}`)}</Badge>
         {/if}
-      {/if}
-    </Stack>
-    </Stack>
-</Stack>
+      {/snippet}
+      {#snippet empty()}<EmptyState kind="filtered" title={t('app.audit.none')} />{/snippet}
+    </DataTable>
+  {/if}
+</LogPage>
+
+<RecordDialog entry={opened} {actorOf} onClose={() => (opened = undefined)} />
+<ExportDialog bind:isOpen={isExporting} />
+<ChainDialog bind:isOpen={isChecking} {anchorTargetId} />
+<AnchoringDialog bind:isOpen={isAnchoring} {anchorTargetId} />
 
 <style>
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .section {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-  }
-
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .small { font-size: var(--fs-075); }
-
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-
-  .waiting {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    color: var(--text-secondary);
-  }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  /* The filters lay themselves out by how much room there is, so a narrow window is one column
-     rather than a row that scrolls sideways. */
-  .fields {
-    display: grid;
-    /* As many columns as fit, each the width a field wants rather than a share of the region: a
-       `1fr` track gave two date fields half a 1440 px screen each once the screen stopped standing
-       in a 60ch column (ADR-0065 decision 2). */
-    grid-template-columns: repeat(auto-fit, minmax(20ch, 26ch));
-    gap: var(--sp-150);
-  }
-
-  .entries { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-150); }
-
-  .entry {
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .mono { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
+  .waiting { display: flex; align-items: center; gap: var(--sp-100); }
+  .name { color: var(--text-primary); font-weight: var(--fw-medium); }
 </style>
