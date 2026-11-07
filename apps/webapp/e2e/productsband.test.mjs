@@ -46,11 +46,13 @@ const TYPES = [
 const ticket = (n, title) => ({ id: `01a0e2e0-0000-7000-8000-0000000006${n}`, type: 'TASK', entry_type: 'incident', collection_id: DESK.id, title, number: Number(n), created_by: ACCOUNT.id, custom_fields: { priority: `P${Number(n) + 1}` }, completion: { mode: 'BINARY', is_completed: false }, version: 1 });
 /** Each ticket's goals: the first running with an hour left, the second breached, the third paused. */
 const goalOf = (standing, due, breached) => ({ goal: 'RESOLUTION', kind: 'SLA', policy_key: 'standard', assignee_group: null, standing, target_seconds: 7200, armed_at: new Date(Date.now() - 3_600_000).toISOString(), due_at: due, at_risk_at: null, met_at: null, breached_at: breached });
-const GOALS = {
+// Built when asked, not when the file loads: a slow run reaches the desk minutes later, and the
+// words the page says ("18 min ago") are measured from the moment the goals are read.
+const goalsOf = (n) => ({
   '01': [goalOf('RUNNING', new Date(Date.now() + 3_600_000 + 20_000).toISOString(), null)],
   '02': [goalOf('BREACHED', null, new Date(Date.now() - 18 * 60_000).toISOString())],
   '03': [goalOf('PAUSED', null, null)],
-};
+})[n];
 /** Each queue's answer, by its narrowing: what the server would hold for this reader. */
 const QUEUES = {
   mine: [ticket('01', 'The printer on the third floor prints every page twice and nobody knows why')],
@@ -114,7 +116,7 @@ function stubFor({ modulesOn, hubModules, deskless = false, role }) {
       return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
     }
     const sla = /\/api\/v1\/items\/01a0e2e0-0000-7000-8000-0000000006(\d\d)\/sla$/.exec(path);
-    if (sla) return route.fulfill({ json: { data: GOALS[sla[1]] ?? [] } });
+    if (sla) return route.fulfill({ json: { data: goalsOf(sla[1]) ?? [] } });
     if (path.endsWith('/api/v1/accounts:resolve')) return route.fulfill({ json: { data: [{ id: ACCOUNT.id, display_name: ACCOUNT.display_name }] } });
     if (path.endsWith('/api/v1/sla-policies')) return route.fulfill({ json: { data: [] } });
     if (path.endsWith('/api/v1/time-records:report')) return route.fulfill({ json: { group_by: [], groups: [], minutes: 390, withheld_minutes: 0, withheld_groups: 0 } });

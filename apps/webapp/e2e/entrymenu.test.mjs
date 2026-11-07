@@ -66,6 +66,16 @@ async function stillHold(page, context, locator) {
   await cdp.detach();
 }
 
+/**
+ * Whether a write of `method` to a path ending in `suffix` was sent: waited for up to ten seconds,
+ * because a loaded runner can take longer than any fixed pause to send it.
+ */
+async function sent(written, method, suffix) {
+  const seen = () => written.some((w) => w.method === method && w.path.endsWith(suffix));
+  for (const deadline = Date.now() + 10_000; !seen() && Date.now() < deadline; ) await new Promise((done) => setTimeout(done, 50));
+  return seen();
+}
+
 /** Reads the open menu and closes it again. */
 async function readMenu(page, title) {
   const menu = page.getByRole('menu', { name: `Actions for ${title}` });
@@ -109,8 +119,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   // One item, and the request it sends.
   await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await list.page.getByRole('menuitem', { name: 'Archive' }).click();
-  await list.page.waitForTimeout(300);
-  assert.ok(list.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:archive`)), 'Archive sent no :archive');
+  assert.ok(await sent(list.written, 'POST', `/items/${DATED.id}:archive`), 'Archive sent no :archive');
 
   // The board: the same, with the columns after the moves.
   await list.page.getByRole('radio', { name: 'Board' }).click();
@@ -123,8 +132,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.equal(onBoard.indexOf(columns[0]), onBoard.indexOf('Move to another collection') + 1);
   await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await list.page.getByRole('menuitem', { name: 'Move to the trash' }).click();
-  await list.page.waitForTimeout(300);
-  assert.ok(list.written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${DATED.id}`)), 'the trash sent no DELETE');
+  assert.ok(await sent(list.written, 'DELETE', `/items/${DATED.id}`), 'the trash sent no DELETE');
 
   // The timeline: no Select, and the moves wait for the level read when the menu opens.
   await list.page.getByRole('radio', { name: 'Timeline' }).click();
@@ -134,8 +142,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.deepEqual(onTimeline, COMMON);
   await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await list.page.getByRole('menuitem', { name: 'Mark as done' }).click();
-  await list.page.waitForTimeout(300);
-  assert.ok(list.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:complete`)), 'Mark as done sent no :complete');
+  assert.ok(await sent(list.written, 'POST', `/items/${DATED.id}:complete`), 'Mark as done sent no :complete');
   assert.deepEqual(list.failures, []);
   assert.deepEqual(list.unstubbed(), []);
 
@@ -186,8 +193,7 @@ test('chromium: 1280 px — the entry\'s own page carries the same menu in its h
   // What it does is what every surface's menu does: archived at once, with its request.
   await head.click();
   await entry.page.getByRole('menuitem', { name: 'Archive' }).click();
-  await entry.page.waitForTimeout(300);
-  assert.ok(entry.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:archive`)), 'Archive sent no :archive');
+  assert.ok(await sent(entry.written, 'POST', `/items/${DATED.id}:archive`), 'Archive sent no :archive');
   // The trash leaves the page for the collection, where the entry was.
   await entry.page.goto(`${served.origin}/items/${ITEMS[0].id}`);
   await entry.page.getByRole('heading', { name: ITEMS[0].title }).first().waitFor({ timeout: 15_000 });
