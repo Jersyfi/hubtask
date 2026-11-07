@@ -89,7 +89,8 @@ test('chromium: 1280 px — the person who finished reads who gave kudos, never 
     const { page, context, failures } = await open(browser, 1280, `/items/${DONE_BY_ME.id}`, DONE_BY_ME.title);
     await page.emulateMedia({ colorScheme });
     const received = page.locator('[data-kudos="received"]');
-    await received.waitFor({ timeout: 5_000 });
+    // The line is drawn before the people's names have arrived, and says "Somebody" until then.
+    await received.filter({ hasText: OTHER.display_name }).waitFor({ timeout: 5_000 });
     const text = (await received.textContent())?.trim() ?? '';
     assert.equal(text, `Kudos from ${OTHER.display_name}`);
     assert.doesNotMatch(text, /\d/);
