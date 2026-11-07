@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-10, P-12, P-13, P-17]
 state: partial
 tasks: []
-checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts, apps/webapp/src/lib/product/home.test.ts, apps/webapp/src/lib/portal/portal.test.ts]
+checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts, apps/webapp/src/lib/product/home.test.ts, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/phone.test.ts, apps/webapp/e2e/kompassphone.test.mjs]
 ---
 
 # Find my way in every hub and every product
@@ -99,9 +99,9 @@ three lists, nothing else.
 * Check 10: met in part — `kompassscreens.test.mjs` (no tab, the tools' lines, the collection cards with their figures); *Recently changed* is `HubActivity`'s, not walked.
 * Check 11: met in part — `home.test.ts` (`homeTabs`: the eight homes' tabs, *For you* first, *Settings* last, *Roadmaps* on Plans); whether *Settings* is left out for a reader who may not read them is not walked.
 * Check 12: met — `routes.test.ts` (every former address and where it goes) and `kompassscreens.test.mjs` (each address walked, the desk's to the first queue, the pages' to the home page).
-* Check 13: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 14: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 15: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 16: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 13: met — `kompassphone.test.mjs` (the bar's five tabs; *Browse* the workspace level, a hub's three parts and *Queues* as steps; another tab and back returns to the step left, a second tap to the root); `phone.test.ts` (`phoneTabs`, `tabOf`, `TabStacks`).
+* Check 14: met — `kompassphone.test.mjs` (*‹ Hubs*, the title, ☆ and ⋯ on a hub's step, *‹ Product development* on a collection; a content row's name links the page and its › descends; the view chip's sheet lists the desk bar's views in their order); `phone.test.ts` (`ascentOf`, `starOf`).
+* Check 15: met — `kompassphone.test.mjs` (*IT operations, level 2* and *Queues, level 3* announced; every control of the bar, the bottom bar, each Browse step and the sheets 44 pixels or more; *New*, the account and the views' sheets with their heading and *Close*).
+* Check 16: met — `kompassphone.test.mjs` (at 768 no bottom bar, ☰ opens the drawer with the workspace level and, in a hub, its level; a Browse address opens the hub).
 * Check 17: met — `kompass.test.mjs` (no tool, no *Contents*) and `navigation.test.ts` (`hubTools` with nothing on).
 * Check 18: met — `kompassscreens.test.mjs` (*Desk* chosen sends *Tasks* and the hub's portal type as the collection's request types; without a portal type the card says so and its *Choose* is disabled); `portal.test.ts` (`portalTypesOf`).

@@ -527,7 +527,7 @@ whatever the opening order. `src/layers.ts` holds that second order as one regis
 
 | Width | Navigation | Content | Detail |
 |---|---|---|---|
-| `compact` 0–599 | `NavDrawer` from ☰, the primary destinations in a `BottomBar` | one column, `density.spacious` | its own page |
+| `compact` 0–599 | the Browse stack and the `BottomBar` (§11.3); a section's `NavDrawer` from ☰ | one column, `density.spacious` | its own page |
 | `medium` 600–904 | `NavDrawer` | one column | its own page |
 | `expanded` 905–1239 | `SideNav` pinned, collapsible to a rail | one column | its own page |
 | `large` 1240–1599 | `SideNav` pinned | the list | `DetailPane` beside it |
@@ -807,7 +807,7 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 
 | Width | Start | Middle | End |
 |---|---|---|---|
-| `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
+| `compact` | on a tab's root the avatar; deeper *‹ the level above* (a section: ☰, opening its `NavDrawer`) | the page's title | on a root the notice mark · the connection mark; deeper ☆ · the page menu; every control 44 px |
 | `medium` | ☰ | the mark and the wordmark · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
 | ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
 
@@ -888,7 +888,7 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` (target of the navigation concept's step 6: *Today · Browse · ＋ · Inbox · Search*, each tab its own `BrowseStack`) | `BottomBar`: Today, Search, *Capture*, Inbox and *More*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. *More* opens the `NavDrawer` (as ☰ does): the places the bar does not carry, then the `products`, `tree`, `workspace` and `keeping` bands, so no destination is drawn twice; *More* is current on a place only the drawer lists. The account is the avatar in the bar |
+| `compact` | `BottomBar`: *Today · Browse · ＋ · Inbox · Search* (`phone.ts`), each tab its own stack, a second tap returning to its root; *＋* is *Capture* (a button, its mark filled), *Search* opens the palette, hidden on a whiteboard. *Browse* is a stack of routes (`/browse`, `/browse/hubs/:id`, `…/queues`, `…/contents?under=`) drawn by `WorkspaceNav` as touch rows; the top bar is the frame's `PhoneBar`: the avatar (the account `Sheet`, the workspaces listed in it) and the marks on a root, *‹ the level above*, the title, ☆ and ⋯ deeper; every change announced with its level. A section (administration, Your settings, the instance) keeps its list behind ☰ |
 | `medium` | `NavDrawer`: both levels with their top and foot |
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2) with a peek after 300 ms of hover; whether it is folded is the device's (§11.10). Its end edge is a `ResizeHandle`: dragged, or moved by the arrows, between `layout.sidenav.min` and `layout.sidenav.max`, a double-click back to `layout.sidenav.width`; the width is the device's (§11.10) |
 

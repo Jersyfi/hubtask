@@ -68,4 +68,4 @@ chooses *Change order* and moves it with the grips.
 * Check 6: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 7: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 8: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 9: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 9: not met — built in step 7 of the navigation concept with the moving (`docs/backlog/navigation/README.md`).
