@@ -429,7 +429,7 @@ component or composition**; the app holds only how a product fills it.
 
 | Pattern | Design system (`packages/design-system/src/`) | Web app | Status |
 |---|---|---|---|
-| Product home | `PageHeader` (primary with a split), `ViewBar` (replacing `PlaceTabs`, §2.4), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
+| Product home | `PageHeader` (primary with a split), `ViewBar` (§2.4), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
 | Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | `lib/product/CreateDialog.svelte`, filled by each product | moved + new |
 | Find | `SearchField`, `ListRow` | `lib/data/search.svelte.ts` fan-out, `lib/palette/sources.ts` one source per module | extended |
 | Configure | `SourceChip`, `SaveBar`, `Disclosure` (new: *Advanced*), `PlanSummary` (new) | `lib/settings/SettingsPage.svelte` (new shell) | new |
@@ -925,7 +925,7 @@ once it has run past a day, *Timer running since …: more than a day* with *Rec
 place. *Record until…* asks for a time on the start's day, prefilled with the start plus that
 weekday's capacity (eight hours without one, never past the day's last minute), refuses a time
 before the start at its field, and stops the timer at that moment; the server records the span,
-bounded to a day by the stop itself. The tabs are a `PlaceTabs` strip (*My week · Weeks to decide ·
+bounded to a day by the stop itself. The tabs are a `ViewBar` (*My week · Weeks to decide ·
 Report · Absences · My capacity*). Under the week's navigation the seven days are a strip of cards,
 each with its total, today marked, a locked day marked in words; pressing a day records on it. The
 grid of entries by day is drawn from `medium` up; the records are a table that stacks on a phone,

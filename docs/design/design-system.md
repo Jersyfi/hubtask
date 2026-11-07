@@ -386,7 +386,7 @@ dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a wo
 deprecated field marked and kept.
 
 ### Wave 5 — the shell (16)
-AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet · PlaceTabs *(until the navigation concept's step 4 replaces it with ViewBar)*
+AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
@@ -401,8 +401,7 @@ the mark the bar carries; how the product uses them is §11.
   opener (*More*, a quiet button that opens a dialog). It switches routes, so it is not `Tabs`. It hides, by opacity,
   while an input has focus, so it does not ride the on-screen keyboard over the field.
 * **`ViewBar`** — the views of one object (a product's home, a hub tool, a collection) as one bar
-  under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1), replacing
-  `PlaceTabs`: a `nav` of links with `aria-current`, because each switches routes — not `Tabs`, for
+  under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav` of links with `aria-current`, because each switches routes — not `Tabs`, for
   `BottomBar`'s reason. One tab stop, the arrows, Home and End between the links; the first link is
   fixed, the others are dragged into order where the reader holds `STRUCTURE`; ＋ adds a view; tools
   stand at its end. There is never a second bar. On `compact` it is a chip under the title opening a
@@ -1125,8 +1124,7 @@ archived container leaves the tree.
   a hub's products are its level in the sidebar (§11.3) — the tools, the collections, the contents
   — and a collection, a tool and a product home carry one `ViewBar`. No product is a head button or
   an item of the place's menu, which holds only verbs on the place; the palette offers each tool
-  as *Go to <hub> › <tool>*. (`PlaceTabs` and `lib/workspace/placeTabs.ts` stay until the navigation
-  concept's step 4 removes them.)
+  as *Go to <hub> › <tool>*.
 * **On a collection**: *Add entry*, which opens capture pointed at the collection — no split, its
   other ways being capture's modes. The filter is the toolbar's, with its count — inline from
   `expanded` up, a `Drawer` below.

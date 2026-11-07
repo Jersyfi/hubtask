@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-10, P-13]
 state: partial
 tasks: []
-checked_by: [core/domain/model/identity/Star_test.go, core/application/service/identity/Stars_test.go, test/integration/star_repository_test.go]
+checked_by: [apps/webapp/e2e/kompass.test.mjs, apps/webapp/src/lib/data/stars.test.ts, core/domain/model/identity/Star_test.go, core/application/service/identity/Stars_test.go, test/integration/star_repository_test.go]
 ---
 
 # Star what I come back to
@@ -46,5 +46,5 @@ on his phone they are the same three, in the same order.
 
 ## Today
 
-* Check 5: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 5: met in part — ☆ in a hub's head stars and unstars it and the hub stands under *Starred* at once; *Starred* appears only with a star (`apps/webapp/e2e/kompass.test.mjs`, `apps/webapp/src/lib/data/stars.test.ts`). `S` and the ☆ in the heads of a collection, a queue, a page and a board come with step 5's screens.
 * Check 6: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).

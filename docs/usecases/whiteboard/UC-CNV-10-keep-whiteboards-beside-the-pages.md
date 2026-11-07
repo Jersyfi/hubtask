@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-19]
 state: partial
 tasks: []
-checked_by: [core/domain/model/whiteboard/Board_test.go, core/application/service/whiteboard/Place_test.go, core/application/service/knowledge/Boards_test.go, test/integration/whiteboard_place_test.go]
+checked_by: [apps/webapp/src/lib/navigation.test.ts, core/domain/model/whiteboard/Board_test.go, core/application/service/whiteboard/Place_test.go, core/application/service/knowledge/Boards_test.go, test/integration/whiteboard_place_test.go]
 ---
 
 # Keep whiteboards beside the pages
@@ -49,4 +49,4 @@ After the sprint the team creates *Retro Sprint 41* from ＋ on the page *Team*.
 ## Today
 
 * Check 6: not met — built in step 7 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 7: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 7: met in part — a board under a page the reader does not see stands at the top of *Contents* (`apps/webapp/src/lib/navigation.test.ts`, `contentsTree`); the client does not know the hidden page's ancestors, so *its nearest page they may read* is not drawn.
