@@ -211,3 +211,6 @@ export { default as SettingRow } from './SettingRow.svelte';
 export { default as BlockList, type Block } from './BlockList.svelte';
 export { default as FormLayout } from './FormLayout.svelte';
 export { default as FormSection } from './FormSection.svelte';
+export { default as RecordHead } from './RecordHead.svelte';
+export { default as DangerZone, type DangerAct } from './DangerZone.svelte';
+export { default as SummaryCard } from './SummaryCard.svelte';
