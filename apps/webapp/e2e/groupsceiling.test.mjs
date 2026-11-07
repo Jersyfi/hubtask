@@ -59,7 +59,17 @@ async function open(browser) {
   return { page, close: () => context.close() };
 }
 
-const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('rowheader', { name, exact: true }) });
+const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('link', { name, exact: true }) });
+
+/** What a person's row offers in its ⋯ (page-system PS-6). */
+async function menuOf(page, row, name) {
+  await row.getByRole('button', { name: `More for ${name}` }).click();
+  await page.getByRole('menu').waitFor();
+  const items = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((each) => each.trim());
+  await page.keyboard.press('Escape');
+  await page.getByRole('menu').waitFor({ state: 'hidden' });
+  return items;
+}
 
 test('an administrator is not offered to revoke an owner', async (t) => {
   const browser = await chromium.launch();
@@ -69,10 +79,11 @@ test('an administrator is not offered to revoke an owner', async (t) => {
 
   await page.goto(`${served.origin}/administration/people`);
   const me = rowOf(page, ACCOUNT.display_name);
-  await me.getByRole('button', { name: 'Revoke' }).waitFor({ timeout: 15_000 });
+  await me.getByRole('button', { name: `More for ${ACCOUNT.display_name}` }).waitFor({ timeout: 15_000 });
+  assert.ok((await menuOf(page, me, ACCOUNT.display_name)).includes('Revoke access…'), 'the reader\'s own row offers no Revoke');
   const owner = rowOf(page, OTHER.display_name);
   await owner.waitFor();
-  assert.equal(await owner.getByRole('button', { name: 'Revoke' }).count(), 0, 'an owner row offers Revoke');
+  assert.equal((await menuOf(page, owner, OTHER.display_name)).includes('Revoke access…'), false, 'an owner row offers Revoke');
 });
 
 test('a group above the reader keeps its name editable and nothing else, and says why', async (t) => {

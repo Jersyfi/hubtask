@@ -15,7 +15,7 @@ import { chromium } from 'playwright';
 
 import { HUB, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, waysOffered } from './addpeople.mjs';
+import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, wayDialog, waysOffered } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -85,7 +85,7 @@ test('People offers an account without an address where the rule allows it, and 
     await page.goto(`${served.origin}/administration/people`);
     // One of the three ways behind the page's one primary action (ux-inventory §E8).
     await addPeople(page, WITHOUT_ADDRESS);
-    const form = page.locator('form').filter({ has: page.getByLabel('Sign-in name') });
+    const form = wayDialog(page, WITHOUT_ADDRESS);
     await form.getByLabel('Sign-in name').fill('Lena');
     await form.getByRole('textbox', { name: /^Name/ }).fill('Lena');
     // The place first: the roles offered are the ones the reader may give there.

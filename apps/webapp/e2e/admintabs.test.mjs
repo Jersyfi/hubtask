@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, ADMIN_GRANTS, MANIFEST, OTHER, OWNER_GRANTS, PAGE, PERMISSIONS, SIGN_IN_POLICY, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, waysOffered } from './addpeople.mjs';
+import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, wayDialog, waysOffered } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -124,16 +124,19 @@ for (const [who, permissions, grants] of [['an owner', PERMISSIONS.OWNER, OWNER_
     await addPeople(page);
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('type')), 'email', 'the address field is not focused');
 
-    // One way at a time: choosing another replaces the open one.
+    // One way at a time: each is a dialog over the list, and the next opens once it is closed.
+    await wayDialog(page, INVITE).getByRole('button', { name: 'Cancel', exact: true }).click();
     await addPeople(page, GRANT);
     assert.equal(await page.getByRole('heading', { name: INVITE }).count(), 0, 'two ways are open at once');
+    await wayDialog(page, GRANT).getByRole('button', { name: 'Cancel', exact: true }).click();
     await addPeople(page, WITHOUT_ADDRESS);
     assert.equal(await page.getByRole('heading', { name: GRANT }).count(), 0, 'two ways are open at once');
 
     // Closed, the list is alone again and focus is back on the action that opened it.
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     assert.equal(await page.getByRole('heading', { name: WITHOUT_ADDRESS }).count(), 0, 'the form stayed open');
-    assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Add people');
+    // The way was chosen from the list beside *Add people*: the focus returns to that control.
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Ways to add somebody');
 
     // The action belongs to the people: the other tabs carry none.
     await page.getByRole('tab', { name: 'Groups', exact: true }).click();

@@ -96,7 +96,18 @@ async function open(browser, { methods = undefined, reader = 'OWNER', lenaRole =
   return { page, sent, close: () => context.close() };
 }
 
-const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('rowheader', { name, exact: true }) });
+// A row's name is the link to the person's page; its rarer acts are in its ⋯ (page-system PS-6).
+const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('link', { name, exact: true }) });
+
+/** What a row's ⋯ offers, by name; the menu is closed again afterwards. */
+async function menuOf(page, row, name) {
+  await row.getByRole('button', { name: `More for ${name}` }).click();
+  await page.getByRole('menu').waitFor();
+  const items = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((each) => each.trim());
+  await page.keyboard.press('Escape');
+  await page.getByRole('menu').waitFor({ state: 'hidden' });
+  return items;
+}
 
 test('a managed person gets a new start password after a confirmation and a step-up, shown once', async (t) => {
   const browser = await chromium.launch();
@@ -111,7 +122,7 @@ test('a managed person gets a new start password after a confirmation and a step
   const mara = rowOf(page, OTHER.display_name);
   await mara.waitFor();
   assert.equal(await mara.getByRole('button', { name: 'New start password' }).count(), 0);
-  assert.equal(await mara.getByRole('button', { name: 'Add an address' }).count(), 0);
+  assert.equal((await menuOf(page, mara, OTHER.display_name)).includes('Add an address'), false);
 
   await lena.getByRole('button', { name: 'New start password' }).click();
   const confirm = page.getByRole('dialog', { name: 'Give a new start password?' });
@@ -139,7 +150,8 @@ test('an address for a managed person sends a link and says so', async (t) => {
 
   await page.goto(`${served.origin}/administration/people`);
   const lena = rowOf(page, 'Lena');
-  await lena.getByRole('button', { name: 'Add an address' }).click({ timeout: 15_000 });
+  await lena.getByRole('button', { name: 'More for Lena' }).click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Add an address' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add an address for Lena' });
   await dialog.waitFor();
   await dialog.getByLabel('Email address').fill('lena@example.org');
@@ -158,7 +170,7 @@ test('where the password is not a way in, no address is offered and the reason s
   const lena = rowOf(page, 'Lena');
   await lena.getByRole('button', { name: 'New start password' }).waitFor({ timeout: 15_000 });
   await page.getByText('People without an address cannot add one here').waitFor();
-  assert.equal(await lena.getByRole('button', { name: 'Add an address' }).count(), 0, 'an address is offered');
+  assert.equal((await menuOf(page, lena, 'Lena')).includes('Add an address'), false, 'an address is offered');
 });
 
 // A new way into an account is held to the ceiling (identity.md §13): an administrator is offered
@@ -177,7 +189,7 @@ test('a managed owner is offered no new way in to an administrator', async (t) =
     if (offered) await lena.getByRole('button', { name: 'New start password' }).waitFor({ timeout: 15_000 });
     const label = `${reader} for a managed ${lenaRole}`;
     assert.equal(await lena.getByRole('button', { name: 'New start password' }).count(), offered ? 1 : 0, label);
-    assert.equal(await lena.getByRole('button', { name: 'Add an address' }).count(), offered ? 1 : 0, label);
+    assert.equal((await menuOf(page, lena, 'Lena')).includes('Add an address'), offered, label);
     // EVIDENCE=<dir> keeps what the person sees, for the owner's look (docs/evidence/).
     if (process.env.EVIDENCE) {
       await page.locator('main').screenshot({ path: join(process.env.EVIDENCE, `people-${reader.toLowerCase()}-${lenaRole.toLowerCase()}.png`) });

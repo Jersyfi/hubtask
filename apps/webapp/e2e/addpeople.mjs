@@ -3,7 +3,7 @@
 
 // *People*'s one primary action with its three ways (ux-inventory §E8): how a walk opens one. The
 // invitation is the button itself; the other two are in the list beside it, which joins the head's
-// menu on a phone under the same name.
+// menu on a phone under the same name. Each way is a dialog (page-system §5.1), named by its title.
 
 export const INVITE = 'Invite somebody';
 export const WITHOUT_ADDRESS = 'Add someone without an address';
@@ -19,6 +19,9 @@ export async function addPeople(page, way = INVITE) {
   }
   await page.getByRole('heading', { name: way }).waitFor();
 }
+
+/** The open way's dialog, by its title. */
+export const wayDialog = (page, way = INVITE) => page.getByRole('dialog', { name: way });
 
 /** Which ways the head offers, by name: none where nothing may be given. */
 export async function waysOffered(page) {
