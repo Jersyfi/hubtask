@@ -6369,6 +6369,8 @@
   "app.people.email_column": "Email",
   "app.people.no_address": "No address",
   "app.people.role_column": "Role",
+  "app.people.name_column": "Name",
+  "app.people.groups_column": "Groups",
   "app.people.status": "Standing",
   "app.people.actions": "What can be done",
   "app.people.at_workspace": "this workspace",

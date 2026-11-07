@@ -33,7 +33,6 @@
     ListPage,
     OneTimeSecret,
     Radio,
-    RoleBadge,
     Select,
     Spinner,
     Stack,
@@ -348,9 +347,10 @@
   );
 
   const columns = $derived<DataColumn[]>([
-    { id: 'who', label: t('app.people.who'), isSortable: true, priority: 1 },
+    { id: 'who', label: t('app.people.name_column'), isSortable: true, priority: 1 },
     ...(mayManage ? [{ id: 'email', label: t('app.people.email_column'), isSortable: true, priority: 2 as const }] : []),
-    { id: 'role', label: t('app.people.role_column'), isSortable: true, priority: 3 },
+    { id: 'role', label: t('app.people.role_column'), isSortable: true, priority: 2 },
+    { id: 'groups', label: t('app.people.groups_column'), isSortable: true, priority: 3 },
     { id: 'status', label: t('app.people.status'), isSortable: true, isStatus: true },
   ]);
 
@@ -398,9 +398,32 @@
       if (columnId === 'role') return t(`app.people.role.${holder.role.toLowerCase()}`);
       if (columnId === 'status') return statusOf(holder.accountId);
       if (columnId === 'email') return (holder.accountId && signIn.details[holder.accountId]?.email) || '';
+      if (columnId === 'groups') return groupsOf(holder);
       return nameOf(holder);
     },
+    initialSort: { columnId: 'who', direction: 'ascending' },
   });
+
+  // The groups each person is in, for the column: each group's members are read once, as the
+  // group's own page reads them.
+  $effect(() => {
+    const ids = groups.all.map((group) => group.id);
+    untrack(() => ids.forEach((groupId) => void groups.read(groupId).catch(() => undefined)));
+  });
+  function groupsOf(holder: Holder): string {
+    if (!holder.accountId) return '';
+    return groups.all
+      .filter((group) => groups.detail(group.id)?.members.includes(holder.accountId as string))
+      .map((group) => group.name)
+      .join(', ');
+  }
+
+  /** How a standing reads: active as success, an invitation still out as waiting (rule 3: words too). */
+  function standingTone(status: string | undefined): 'success' | 'warning' | 'neutral' {
+    if (status === 'ACTIVE') return 'success';
+    if (status === 'INVITED') return 'warning';
+    return 'neutral';
+  }
 
   /**
    * The workspace is the only scope here, so every badge says the same thing about reach. Derived
@@ -779,14 +802,16 @@
             <span class="quiet">{t('app.people.no_address')}</span>
           {/if}
         {:else if column.id === 'role'}
-          <RoleBadge label={roleWord(holder.role)} {scopeLabel} size="sm" />
+          <Badge>{roleWord(holder.role)}</Badge>
+        {:else if column.id === 'groups'}
+          {#if groupsOf(holder)}{groupsOf(holder)}{:else}<span class="quiet">—</span>{/if}
         {:else}
           <span class="standing">
             {#if statusOf(holder.accountId) === 'INVITED'}
               <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
-              <Badge tone="info">{t('app.people.invited')}</Badge>
+              <Badge tone={standingTone('INVITED')}>{t('app.people.invited')}</Badge>
             {:else if statusOf(holder.accountId)}
-              <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
+              <Badge tone={standingTone(statusOf(holder.accountId))}>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
             {/if}
             {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
           </span>
