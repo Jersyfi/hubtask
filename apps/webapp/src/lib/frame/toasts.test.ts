@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ToastModel, isOffering, millisecondsOf, undoRefusal } from './toasts.ts';
+import { ToastModel, isOffering, isUndoPress, latestUndo, millisecondsOf, undoRefusal, type ToastEntry } from './toasts.ts';
 
 // The dwells are tokens in the product; any numbers do here, because the rules are relative.
 const PLAIN = 100;
@@ -119,4 +119,25 @@ test('what a message holds back is done when it leaves, unless it was undone', (
   stack.expire(OFFERING);
   stack.clear();
   assert.deepEqual(done, ['closed', 'expired']);
+});
+
+test('Cmd or Ctrl and Z is the undo key, never in a field, with Shift or where a surface took it', () => {
+  const press = { key: 'z', metaKey: true, ctrlKey: false, altKey: false, shiftKey: false };
+  assert.equal(isUndoPress(press, false), true);
+  assert.equal(isUndoPress({ ...press, metaKey: false, ctrlKey: true }, false), true);
+  assert.equal(isUndoPress(press, true), false);
+  assert.equal(isUndoPress({ ...press, shiftKey: true }, false), false);
+  assert.equal(isUndoPress({ ...press, defaultPrevented: true }, false), false);
+  assert.equal(isUndoPress({ ...press, metaKey: false }, false), false);
+});
+
+test('the undo key takes the newest message that offers Undo', () => {
+  const back = () => {};
+  const entries: ToastEntry[] = [
+    { id: 1, text: 'Moved', undo: back, expiresAt: 1 },
+    { id: 2, text: 'Moved again', undo: back, expiresAt: 1 },
+    { id: 3, text: 'Saved', expiresAt: 1 },
+  ];
+  assert.equal(latestUndo(entries)?.id, 2);
+  assert.equal(latestUndo(entries.slice(2)), undefined);
 });
