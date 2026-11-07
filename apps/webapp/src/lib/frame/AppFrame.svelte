@@ -751,6 +751,7 @@
         <NoticeMark />
         <SyncLine />
       {/snippet}
+      {#snippet connection()}<SyncLine />{/snippet}
     </PhoneBar>
   {:else}
   <AppBar

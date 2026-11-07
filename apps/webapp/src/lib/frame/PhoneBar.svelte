@@ -29,9 +29,11 @@
     account?: Snippet;
     /** On a root: the marks after it. */
     marks?: Snippet;
+    /** Deeper: the connection mark, which says offline on every screen. */
+    connection?: Snippet;
   }
 
-  const { label, title, back, onback, star, menu, account, marks }: Props = $props();
+  const { label, title, back, onback, star, menu, account, marks, connection }: Props = $props();
   const starred = $derived(star ? isStarred(stars.all, star.kind, star.id) : false);
 </script>
 
@@ -50,6 +52,7 @@
   {#if title}<span class="title" data-bar="title">{title}</span>{:else}<span class="title"></span>{/if}
   <div class="end">
     {#if back}
+      {#if connection}{@render connection()}{/if}
       {#if star}
         <span class="star" data-starred={starred ? '' : undefined}>
           <IconButton icon="star" label={t(starred ? 'app.nav.unstar' : 'app.nav.star', { name: star.name })} aria-pressed={starred} onclick={() => void stars.toggle(star.kind, star.id)} />
