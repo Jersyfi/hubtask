@@ -40,6 +40,8 @@
     readonly icon?: IconName;
     readonly onclick: () => void;
     readonly disabledReason?: string;
+    /** Whether a secondary act is drawn quiet, without a frame: *View as file*, which reads rather than does. */
+    readonly isQuiet?: boolean;
     /** For the tour and for tests: the attribute the caller finds the control by. */
     readonly tour?: string;
     /**
@@ -213,7 +215,7 @@
       {#if aside}<span class="aside">{@render aside()}</span>{/if}
       {#each secondary as action, index (index)}
         <span class="secondary">
-          <Button tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
+          <Button tone={action.isQuiet ? 'subtle' : 'secondary'} icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
             {action.label}
           </Button>
         </span>
