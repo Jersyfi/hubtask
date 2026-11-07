@@ -19,6 +19,7 @@
 </script>
 
 <Dialog
+  size="s"
   title={t('app.people.address_title', { who: target?.who ?? '' })}
   isOpen={target !== undefined}
   dismissLabel={t('app.people.address_close')}

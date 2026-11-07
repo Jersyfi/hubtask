@@ -21,6 +21,7 @@
 </script>
 
 <Dialog
+  size="s"
   title={t('app.people.factor_reset_title')}
   isOpen={who !== undefined}
   dismissLabel={t('app.workspace.cancel')}

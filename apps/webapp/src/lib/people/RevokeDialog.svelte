@@ -42,6 +42,7 @@
 </script>
 
 <Dialog
+  size="s"
   title={t('app.people.revoke_title')}
   isOpen={holder !== undefined}
   dismissLabel={t('app.workspace.cancel')}
