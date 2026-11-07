@@ -93,8 +93,8 @@
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
-  import { placeTabs } from '../lib/workspace/placeTabs.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import { collectionViews } from '../lib/workspace/placeViews.ts';
+  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import HubProductLines from '../lib/workspace/HubProductLines.svelte';
@@ -905,7 +905,9 @@
   const tabActs = $derived<readonly Act[]>(
     container === undefined
       ? []
-      : placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn, isDesk, runsSprints: sprintsRun })
+      : container.type === 'HUB'
+        ? []
+        : collectionViews({ id: container.id, modulesOn, isDesk, runsSprints: sprintsRun })
           .slice(1)
           .map((tab) => ({
             id: `page:tab-${tab.id}`,
@@ -1390,7 +1392,7 @@
         <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
       {/snippet}
     </PageHeader>
-    <PlaceStrip placeId={container.id} current={container.type === 'HUB' ? 'overview' : 'entries'} {onnavigate} />
+    {#if container.type === 'COLLECTION'}<PlaceViews placeId={container.id} current="entries" {onnavigate} />{/if}
 
     {#if container.type === 'COLLECTION'}
       <!-- The toolbar (design-system.md §11.1): about the entries, where the head is about the

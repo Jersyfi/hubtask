@@ -12,6 +12,7 @@
   // reads the tree and the page and is offered no write; the page's own `writable` says the same
   // for the page.
 
+  import { page as frame } from '../lib/frame/page.svelte.ts';
   import { untrack } from 'svelte';
   import {
     AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, SearchField, Select, Spinner, Stack, Switch,
@@ -47,7 +48,6 @@
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
@@ -69,6 +69,8 @@
   const opened = untrack(() => (pageId ? resource<PageRead>(pagePath(pageId)) : undefined));
   const current = $derived(opened?.state.status === 'ready' ? opened.state.data : undefined);
   const hubId = $derived(hubFromRoute ?? current?.hub_id ?? '');
+  // The sidebar shows this hub's level; the route names only the page, board or item (`levelOf`).
+  $effect(() => (hubFromRoute ? undefined : frame.locate(hubId || undefined)));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
 
 
@@ -540,7 +542,6 @@
         }
       : undefined}
   />
-  <PlaceStrip placeId={hubId} current="pages" {onnavigate} />
 {/if}
 <div class="space">
   <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>

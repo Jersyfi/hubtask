@@ -19,8 +19,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, PlaceTabs, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
-    type Column, type PlaceTab,
+    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, ViewBar, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    type Column, type ViewLink,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, KeyResult, PortfolioList } from '@hubtask/sync-engine';
@@ -44,7 +44,6 @@
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the goals where it names none or an unknown one. */
@@ -76,7 +75,7 @@
     return text === '' ? '/goals' : `/goals?${text}`;
   }
 
-  const tabs = $derived<PlaceTab[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: address({ tab: each.id }) })));
+  const tabs = $derived<ViewLink[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: address({ tab: each.id }) })));
   /** Each tab names itself (§7.7): *Dashboards*, never *Goals of …*. */
   const heading = $derived(
     current === 'portfolios' ? t('app.goals.tab_portfolios')
@@ -287,9 +286,8 @@
   >
     {#snippet figure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
-  {#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}
 
-  <PlaceTabs label={t('app.goals.title')} {tabs} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
+  <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

@@ -9,7 +9,7 @@
   // changed by whoever shapes the workspace (ServiceDeskView).
 
   import { untrack } from 'svelte';
-  import { Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -38,7 +38,7 @@
   const { hubs, isReading, tab, createHub, templates = [], onnavigate }: Props = $props();
 
   const name = $derived(t('app.nav.desk'));
-  const tabs = $derived<PlaceTab[]>(homeTabs('SERVICE_DESK').map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
+  const tabs = $derived<ViewLink[]>(homeTabs('SERVICE_DESK').map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
   const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'queues');
 
   const hubKey = $derived(hubs.map((hub) => hub.id).join(','));
@@ -109,7 +109,7 @@
     {#snippet figure()}{#if figureText}<span class="figure" data-desk-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
 
-  <PlaceTabs label={name} {tabs} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
+  <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
 
   {#if current === 'settings'}
     <ServiceDeskView isEmbedded {onnavigate} />

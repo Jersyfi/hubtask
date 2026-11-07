@@ -1,99 +1,128 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The navigation: the primary destinations, then the hubs and the collections of the hubs that
-  // are open, then the trash - one `SideNav`, drawn pinned from `expanded` and in the `NavDrawer`
-  // below it (ADR-0061 decision 1). On `compact` the destinations are in the bottom bar and the
-  // drawer holds the tree alone, so no destination is drawn twice on any width.
-  //
-  // "Of the hubs that are open" is the API's shape rather than a lazy-loading flourish.
-  // `ListContainers` reads **one level**: an empty `parent_id` is the hubs, a named one is that
-  // hub's collections, and the two levels ask different permission questions — which is why there
-  // is no read that answers both. So opening a hub is what fetches it, a collapsed hub costs
-  // nothing, and the tree's expanded state is the thing that decides what is requested rather than
-  // a decoration on top of a list already in memory.
-  //
-  // It holds no data of its own; `lib/data/containers.svelte.ts` does, and a sidebar that fetched
-  // would be a second reader of the same levels.
+  // The sidebar of the navigation concept (user-experience.md §2, UX-1): a fixed top (*For you*), a
+  // scrolling middle that is the workspace level or one hub's level, and a fixed foot. What each
+  // part holds is answered by `navigation.ts`; this component reads the data and draws the answer
+  // with the wave-5 pieces. It reads only what the level it draws needs: a hub's modules, queues,
+  // collections, pages and boards while that hub's level is shown.
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
-  import FailureState from './FailureState.svelte';
+  import {
+    EmptyState,
+    NavFlyout,
+    NavGroup,
+    NavItem,
+    NavLevel,
+    Skeleton,
+    ancestorsOf,
+    moveIntent,
+    type MoveKey,
+    type NavTreeNode,
+    type RowAction,
+    type TreePlacement,
+  } from '@hubtask/design-system/components';
+  import type { AgentRequestList, ApprovalList, Container, HubQueueList, PageList, Star, WhiteboardList } from '@hubtask/sync-engine';
 
-  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import FailureState from './FailureState.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
+  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { chosenSymbol, markOf } from '../workspace/look.ts';
+  import { placeMenu } from '../workspace/placeMenu.ts';
+  import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { requestsPath } from '../data/agents.ts';
+  import { myApprovalsPath } from '../data/approvals.svelte.ts';
   import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { containers } from '../data/containers.svelte.ts';
-  import { live } from '../data/live.svelte.ts';
-  import { anchorFor } from '../data/rank.ts';
-  import { people } from '../data/people.svelte.ts';
-  import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { rowMessage } from '../data/figure.ts';
-  import { KEEPING, leftToWebApp, primary, products, workspaceBand } from '../navigation.ts';
-  import { platform } from '../platform/index.ts';
-  import { webAppAddress, webAppHost } from '../webApp.ts';
-  import { commands } from '../palette/commands.svelte.ts';
-  import { renderProblem } from '../problem.ts';
   import { archivalOf } from '../data/containers.ts';
-  import { workspace } from '../data/workspace.svelte.ts';
-  import { placeMenu } from '../workspace/placeMenu.ts';
-  import { placeTabs, tabNodeId, tabOfNode } from '../workspace/placeTabs.ts';
-  import { modules, modulesHere } from '../data/modules.svelte.ts';
-  import { newMarks } from '../product/newmark.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import { myApprovalsPath } from '../data/approvals.svelte.ts';
-  import { productBandsOf, todayRowCountOf } from '../today.ts';
+  import { entryTypesOffered } from '../data/entrytypes.ts';
+  import { entryTypes } from '../data/entrytypes.svelte.ts';
+  import { rowMessage } from '../data/figure.ts';
+  import { live } from '../data/live.svelte.ts';
+  import { modules, modulesHere } from '../data/modules.svelte.ts';
+  import { pagesPath } from '../data/pages.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
+  import { preferences } from '../data/preferences.svelte.ts';
+  import { anchorFor } from '../data/rank.ts';
   import { watchPageReviews } from '../data/reviews.svelte.ts';
-  import { requestsPath } from '../data/agents.ts';
-  import type { AgentRequestList, ApprovalList, Container } from '@hubtask/sync-engine';
-  import { ownsHub, privacyAction } from '../workspace/privacy.ts';
+  import { runsSprints } from '../data/sprints.svelte.ts';
+  import { stars } from '../data/stars.svelte.ts';
+  import { isStarred } from '../data/stars.ts';
+  import { boardsPath } from '../data/whiteboards.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import {
+    COLLECTIONS_FILTER_FROM,
+    COLLECTIONS_SHOWN,
+    CONTENTS_FILTER_FROM,
+    CONTENTS_SHOWN,
+    HUBS_SHOWN,
+    QUEUES_SHOWN,
+    contentsCount,
+    contentsTree,
+    foot,
+    forYou,
+    hubTools,
+    levelOf,
+    navProducts,
+    orderHubs,
+    placedIndex,
+    queuePath,
+    queueRows,
+    switchPath,
+    toolOf,
+    toolPath,
+    type ContentNode,
+    type ContentsMode,
+    type HubTool,
+    type HubsOrder,
+    type NavLevel as Level,
+  } from '../sidebar.ts';
+  import { leftToWebApp } from '../navigation.ts';
+  import { commands } from '../palette/commands.svelte.ts';
+  import { actsAsDesk } from '../portal/portal.ts';
+  import { platform } from '../platform/index.ts';
+  import { renderProblem } from '../problem.ts';
+  import { recents } from '../recents.svelte.ts';
+  import { productBandsOf, todayRowCountOf } from '../today.ts';
+  import { webAppAddress, webAppHost } from '../webApp.ts';
+  import type { Resolution } from '../router.ts';
 
   interface Props {
-    /**
-     * The node the reader is on, so the tree can announce it as current: a container's id, or a
-     * destination's - `workspace` on the workspace page, `trash` in the trash. The frame decides,
-     * because the frame has the route; a collection marks the collection, not the workspace row.
-     */
-    current?: string;
-    /** Whether the primary group is drawn above the tree - not on `compact`, where the bar has it. */
-    hasDestinations?: boolean;
-    /** Folded to its marks: the tree stays whole and draws its marks alone, as do the controls beside it. */
+    route: Resolution;
+    /** The container the screen named where the route does not (`page.locate`). */
+    located?: string;
+    /** Folded to the rail: the marks alone. */
     isRail?: boolean;
+    /** Whether *For you* is drawn - not on `compact`, where the bottom bar carries it. */
+    hasForYou?: boolean;
     onnavigate: (path: string) => void;
   }
 
-  const { current, hasDestinations = true, isRail = false, onnavigate }: Props = $props();
+  const { route, located, isRail = false, hasForYou = true, onnavigate }: Props = $props();
 
-  /** Whether the jumble is the reader's, which decides whether its row is drawn. */
+  const workspaceOn = $derived(manifest.value?.modules_on);
   const hasJumble = $derived(holdsHere('READ') === true);
+  const topRows = $derived(forYou({ hasJumble, modulesOn: workspaceOn }));
+  const footRows = $derived(foot({ isAdministrationReachable: reachesAdministrationArea() === true }));
 
-  const modulesOn = $derived(manifest.value?.modules_on);
-  /**
-   * The places band, as nodes of the same tree. On `compact` the bottom bar carries Today, Search
-   * and the Inbox, so the drawer draws only the places the bar leaves to it (user-experience.md §2.6).
-   */
-  const places = $derived(primary({ hasJumble, modulesOn }).filter((destination) => hasDestinations || destination.isOffBar));
-  /**
-   * What waits for the reader's yes - approvals, agents' held acts, page reviews - counted on the *Today* row
-   * (user-experience.md §3.3); each read only where Today draws it, from the same list it reads.
-   */
+  // What waits for the reader's yes - approvals, held agent acts, page reviews (§2.2).
   let waiting = $state<ApprovalList['data'] | undefined>(undefined);
   let waitingHasMore = $state(false);
   let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
-  const todayBands = $derived(productBandsOf(modulesOn));
+  let reviews = $state(0);
+  const todayBands = $derived(productBandsOf(workspaceOn));
   const countsApprovals = $derived(todayBands.includes('approvals'));
   const countsActs = $derived(todayBands.includes('agent_acts'));
+  const countsReviews = $derived(todayBands.includes('reviews'));
   $effect(() => {
-    if (!countsApprovals) {
-      waiting = undefined;
-      return;
-    }
+    if (!countsApprovals) return void (waiting = undefined);
     return untrack(() => engine.subscribe<ApprovalList>({ path: myApprovalsPath }, (next) => {
       if (next.status === 'ready') {
         waiting = next.data.data;
@@ -102,226 +131,179 @@
     }));
   });
   $effect(() => {
-    if (!countsActs) {
-      heldActs = undefined;
-      return;
-    }
+    if (!countsActs) return void (heldActs = undefined);
     return untrack(() => engine.subscribe<AgentRequestList>({ path: requestsPath('PENDING') }, (next) => {
       if (next.status === 'ready') heldActs = next.data.data;
     }));
   });
-  let reviews = $state(0);
-  const countsReviews = $derived(todayBands.includes('reviews'));
-  const reviewHubs = $derived(containers.hubs.map((hub) => hub.id).join(' '));
+  const reviewHubs = $derived(containers.hubs.map((each) => each.id).join(' '));
   $effect(() => {
     const ids = countsReviews && reviewHubs ? reviewHubs.split(' ') : [];
     const viewer = actor.account?.id;
-    if (ids.length === 0) {
-      reviews = 0;
-      return;
-    }
+    if (ids.length === 0) return void (reviews = 0);
     return untrack(() => watchPageReviews(ids, viewer, (rows) => (reviews = rows.length)));
   });
-  const todayCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore, reviews));
-  const destinationNodes = $derived(
-    places.map((destination) => ({
-      id: destination.id,
-      label: t(destination.code),
-      icon: destination.icon,
-      ...(destination.id === 'workspace' && todayCount !== undefined ? { meta: t('app.nav.today_waiting', { count: todayCount }) } : {}),
-    })),
-  );
-  /** The products band (§2.2): one row per product switched on, under its caption; none while none is on. */
-  const productRows = $derived(products({ modulesOn }));
-  const productNodes = $derived(
-    productRows.map((row, index) => ({
-      id: row.id,
-      label: t(row.code),
-      icon: row.icon,
-      // Quiet, until its home is first visited (user-experience.md §2.8).
-      meta: newMarks.has(row.module) ? t('app.nav.new_mark') : undefined,
-      ...(index === 0 ? { band: { caption: t('app.nav.products') } } : {}),
-    })),
-  );
-  /** The workspace band (§2.1): *Administration*, where the manifest says the reader reaches it. */
-  const workspaceRows = $derived(workspaceBand({ isAdministrationReachable: reachesAdministrationArea() === true }));
-  /** Where a build leaves the row's area to the web app (UC-SYN-07 check 7): it names that address and opens it. */
-  const webAppOrigins = $derived({ workspace: platform.webOrigin, installation: manifest.value?.installation_url });
-  const leftOut = (id: string) => leftToWebApp(id, platform.webApp?.areas);
-  const workspaceNodes = $derived(
-    workspaceRows.map((row, index) => {
-      const area = leftOut(row.id);
-      return {
-        id: row.id,
-        label: t(row.code),
-        icon: row.icon,
-        ...(area === undefined ? {} : { meta: t('app.web_app.at', { host: webAppHost(area, webAppOrigins) }) }),
-        ...(index === 0 ? { band: { caption: t('app.nav.workspace_band') } } : {}),
-      };
-    }),
-  );
+  const waitingCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore, reviews));
 
-  let isCreatingHub = $state(false);
-  // Which hub the reader may create, as the overview's head offers it: a shared one with STRUCTURE,
-  // a private one of one's own where the manifest offers it, none otherwise or while unknown.
-  const creation = $derived(hubCreationHere());
-  const createLabel = $derived(
-    creation === 'shared' ? t('app.workspace.create_hub') : creation === 'private' ? t('app.workspace.create_private_hub') : undefined,
-  );
-
-  /**
-   * *＋ New* (ux-inventory.md §E1): a hub, or a collection in the hub the reader stands in, each
-   * with its preset in the one create dialog. The collection is offered only where the reader's
-   * role on that hub holds `STRUCTURE`, the condition the hub's own *Create collection* asks;
-   * elsewhere the control stays the hub's alone (P-05).
-   */
-  const hereHub = $derived.by(() => {
-    const container = current ? containers.find(current) : undefined;
-    const hubId = container?.type === 'HUB' ? container.id : container?.type === 'COLLECTION' ? container.parent_id : undefined;
-    return hubId ? containers.find(hubId) : undefined;
-  });
+  // The person's stars, one list for every ☆ (§6.2).
   $effect(() => {
-    const hubId = hereHub?.id;
-    if (!hubId) return;
-    return untrack(() => people.open({ hubId }));
+    const id = actor.account?.id;
+    if (!id) return;
+    return untrack(() => stars.open(id));
   });
-  const mayCreateCollection = $derived(
-    hereHub !== undefined &&
-      holds(people.roleOf({ hubId: hereHub.id }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted',
-  );
-  let isCreatingCollection = $state(false);
-  /** The collection's hub, held while its dialog is open so that moving on does not change it. */
-  let collectionHubId = $state<string | undefined>(undefined);
-  const newItems = $derived([
-    ...(createLabel ? [{ id: 'hub', label: createLabel, icon: 'hub' as const }] : []),
-    ...(mayCreateCollection && hereHub ? [{ id: 'collection', label: t('app.nav.new_collection', { hub: hereHub.name }), icon: 'collection' as const }] : []),
-  ]);
-  function chooseNew(id: string) {
-    if (id === 'hub') isCreatingHub = true;
-    else if (id === 'collection' && hereHub) {
-      collectionHubId = hereHub.id;
-      isCreatingCollection = true;
-    }
-  }
 
-  /** A row's figure, short; nothing where it counts nothing or could not be counted. */
-  function figureText(container: Container): string | undefined {
-    const figure = container.figure ? rowMessage(container.figure, messages.locale) : undefined;
-    return figure ? t(figure.code, figure.params) : undefined;
-  }
-
-  let expanded = $state<string[]>([]);
-
-  // One subscription per open hub, dropped when it closes. The effect is what ties the two
-  // together: a hub that is opened, closed and opened again does not accumulate subscriptions, and
-  // a level nobody is looking at stops being listened to.
-  //
-  // `untrack` is not a flourish. Subscribing delivers the current state at once and the listener
-  // writes the store, and writing it reads it — so an effect that both subscribes and tracks that
-  // read re-runs on its own first delivery and unsubscribes before the answer arrives. This effect
-  // depends on `expanded` and on nothing else, which is what it is actually about.
+  // ---- The level ----------------------------------------------------------------------------
+  const hubOf = (id: string) => {
+    const container = containers.find(id);
+    return container ? (container.type === 'HUB' ? container.id : (container.parent_id ?? undefined)) : undefined;
+  };
+  const routeLevel = $derived<Level>(levelOf(route, hubOf, located));
+  /** *‹ All hubs* shows the workspace level without leaving the page; the next address ends it. */
+  let isBrowsingAll = $state(false);
   $effect(() => {
-    const open = [...expanded];
-    return untrack(() => {
-      const stops = open.map((hubId) => containers.openLevel(hubId));
-      return () => {
-        for (const stop of stops) stop();
-      };
-    });
+    void route.path;
+    isBrowsingAll = false;
   });
+  const level = $derived<Level>(isBrowsingAll ? { kind: 'workspace' } : routeLevel);
+  const hubId = $derived(level.kind === 'hub' ? level.hubId : undefined);
+  const hub = $derived(hubId ? containers.find(hubId) : undefined);
+  const tool = $derived(toolOf(route));
+  /** A place without a chosen colour still stands on a tile, as the mockup draws every row. */
+  const DEFAULT_TILE = 'blue';
 
-  // Every hub's level is read once the tree is drawn, not only an opened one's: a hub with no
-  // collections then shows no twist from the start, instead of one that opens nothing.
-  const hubIds = $derived(containers.hubs.map((hub) => hub.id).join(','));
+  // Every hub's level is read, as the tree always did: a collection's hub is then known on a deep
+  // link, and a starred collection has its name.
+  const hubIds = $derived(containers.hubs.map((each) => each.id).join(','));
   $effect(() => {
     const ids = hubIds === '' ? [] : hubIds.split(',');
     return untrack(() => {
-      const stops = ids.map((hubId) => containers.openLevel(hubId));
-      return () => {
-        for (const stop of stops) stop();
-      };
+      const stops = ids.map((id) => containers.openLevel(id));
+      return () => stops.forEach((stop) => stop());
     });
   });
-
-  // The hub the reader is inside is opened for them. Arriving at a collection or a hub's tab by deep
-  // link and finding its own hub collapsed would make the sidebar disagree with the address bar.
   $effect(() => {
-    const tab = current ? tabOfNode(current) : undefined;
-    const container = current && !tab ? containers.find(current) : undefined;
-    const hubId = tab?.placeId ?? (container?.type === 'COLLECTION' ? container.parent_id : undefined);
-    if (hubId && !expanded.includes(hubId)) expanded = [...expanded, hubId];
+    const ids = hubIds === '' ? [] : hubIds.split(',');
+    untrack(() => ids.forEach((id) => people.open({ hubId: id })));
   });
 
-  // The modules on at each open hub and at the one the reader is on, for the hub's views mirrored
-  // under its collections (user-experience.md §2.4); a closed hub is not asked.
-  let hubModules = $state<Record<string, readonly string[]>>({});
-  const askedHubs = $derived(
-    [...new Set([...expanded, ...(current && containers.find(current)?.type === 'HUB' ? [current] : [])])].sort().join(','),
-  );
+  // The hub's own modules: the workspace's narrowed by the hub (UC-INS-21 check 11).
+  let hubModules = $state<readonly string[] | undefined>(undefined);
   $effect(() => {
-    const ids = askedHubs === '' ? [] : askedHubs.split(',');
+    const at = hubId;
+    hubModules = undefined;
+    if (!at) return;
+    return untrack(() => modules.here(at, (next) => {
+      if (next.status === 'ready') hubModules = next.data.modules_on;
+    }));
+  });
+  const hereOn = $derived(hubModules === undefined ? [] : modulesHere(workspaceOn, hubModules));
+  const isOn = (module: string) => (hereOn as readonly string[]).includes(module);
+
+  const collections = $derived(hubId ? containers.collectionsOf(hubId).filter((each) => !live.hasLost(each.id)) : []);
+  $effect(() => {
+    if (!isOn('SERVICE_DESK')) return;
+    return untrack(() => entryTypes.open());
+  });
+  const isDesk = (collection: Container) =>
+    isOn('SERVICE_DESK') && actsAsDesk(entryTypes.all, entryTypesOffered(collection.structure?.settings, 'TASK'), collection.parent_id);
+  const hasDesk = $derived(collections.some(isDesk));
+  const hubToolRows = $derived<readonly HubTool[]>(hubTools({ modulesOn: hereOn, hasDesk }));
+
+  // Which collections run sprints: one read each, only where planning is on at the hub.
+  let sprinting = $state<Record<string, boolean>>({});
+  const sprintIds = $derived(isOn('PLANNING') ? collections.map((each) => each.id).join(',') : '');
+  $effect(() => {
+    const ids = sprintIds === '' ? [] : sprintIds.split(',');
     return untrack(() => {
-      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
-        if (next.status === 'ready') hubModules = { ...hubModules, [hubId]: next.data.modules_on };
-      }));
-      return () => {
-        for (const stop of stops) stop();
-      };
+      const stops = ids.map((id) => runsSprints(id, (runs) => (sprinting = { ...sprinting, [id]: runs })));
+      return () => stops.forEach((stop) => stop());
     });
   });
-  /** A hub's views other than its overview, as quieter rows after a hairline, once its modules answered. */
-  function viewRowsOf(hubId: string) {
-    const here = hubModules[hubId];
-    if (here === undefined) return [];
-    return placeTabs({ type: 'HUB', id: hubId, modulesOn: modulesHere(modulesOn, here) })
-      .slice(1)
-      .map((tab, index) => ({
-        id: tabNodeId(hubId, tab.id),
-        label: t(tab.code),
-        icon: tab.icon,
-        isQuiet: true,
-        ...(index === 0 ? { band: {} } : {}),
-      }));
+
+  // The hub's queues with their counts, read once per hub level shown (§7.4).
+  let queues = $state<HubQueueList['data']>([]);
+  $effect(() => {
+    const at = hasDesk && hubToolRows.some((each) => each.id === 'queues') ? hubId : undefined;
+    queues = [];
+    if (!at) return;
+    return untrack(() => engine.subscribe<HubQueueList>({ path: `/hubs/${at}/queues` }, (next) => {
+      if (next.status === 'ready') queues = next.data.data;
+    }));
+  });
+  const starredViews = $derived(stars.all.filter((each) => each.kind === 'VIEW').map((each) => each.id));
+  const queueList = $derived(queueRows(queues, starredViews));
+  let isQueuesOpen = $state(true);
+  let isAllQueues = $state(false);
+  const queueName = (row: { name: string | null; key: string }) => row.name ?? t(`app.desk_queues.${row.key}`);
+  const currentQueue = $derived(route.name === 'hub-desk' ? route.query['queue'] : undefined);
+
+  // The content tree: the hub's pages and boards, one read each (§2.4 part 3, the limits).
+  let pageRows = $state<PageList['data']>([]);
+  let boardRows = $state<WhiteboardList['data']>([]);
+  const hasContents = $derived(isOn('KNOWLEDGE') || isOn('WHITEBOARD'));
+  $effect(() => {
+    const at = isOn('KNOWLEDGE') ? hubId : undefined;
+    pageRows = [];
+    if (!at) return;
+    return untrack(() => engine.subscribe<PageList>({ path: pagesPath(at) }, (next) => {
+      if (next.status === 'ready') pageRows = next.data.data;
+    }));
+  });
+  $effect(() => {
+    const at = isOn('WHITEBOARD') ? hubId : undefined;
+    boardRows = [];
+    if (!at) return;
+    return untrack(() => engine.subscribe<WhiteboardList>({ path: `${boardsPath(at)}?order=TREE` }, (next) => {
+      if (next.status === 'ready') boardRows = next.data.data;
+    }));
+  });
+  const contentsMode = $derived<ContentsMode>((actor.account?.nav_contents_mode as ContentsMode | null | undefined) ?? 'TREE');
+  const contentNodes = $derived(contentsTree(pageRows, boardRows, contentsMode, messages.locale));
+  const toTree = (node: ContentNode): NavTreeNode => ({
+    id: node.id,
+    label: node.title,
+    icon: node.kind === 'page' ? 'file-text' : 'layout-template',
+    kind: node.kind,
+    part: 'contents',
+    canHoldChildren: node.kind === 'page',
+    children: node.children.length > 0 ? node.children.map(toTree) : undefined,
+  });
+  const contentTree = $derived(contentNodes.map(toTree));
+  const currentContent = $derived(route.name === 'page' || route.name === 'whiteboard' ? route.params['id'] : undefined);
+  let expanded = $state<string[]>([]);
+  // The current page's ancestors open (§2.6).
+  $effect(() => {
+    const id = currentContent;
+    if (!id) return;
+    const above = ancestorsOf(contentTree, id);
+    untrack(() => {
+      const missing = above.filter((each) => !expanded.includes(each));
+      if (missing.length > 0) expanded = [...expanded, ...missing];
+    });
+  });
+  let contentsFilter = $state('');
+  let contentsKind = $state('all');
+
+  // ---- Rows, figures, menus -----------------------------------------------------------------
+  function figureOf(container: Container): { text?: string; isUrgent: boolean } {
+    const figure = container.figure;
+    const words = figure ? rowMessage(figure, messages.locale) : undefined;
+    const isUrgent = figure?.kind === 'DUE' ? (figure.due ?? 0) > 0 : figure?.kind === 'FLOW' ? (figure.over_limit ?? 0) > 0 : false;
+    return { text: words ? t(words.code, words.params) : undefined, isUrgent };
   }
 
-  /** The hubs and a hub's collections as the tree draws them: the levels a rank position is in. */
-  const shownHubs = $derived(containers.hubs.filter((hub) => !live.hasLost(hub.id)));
-  const shownCollectionsOf = (hubId: string) => containers.collectionsOf(hubId).filter((collection) => !live.hasLost(collection.id));
+  const roleIn = (id: string) => people.roleOf({ hubId: id }, actor.account?.id, roleOrder()) ?? undefined;
+  const mayRankIn = (id: string) => holds(roleIn(id), 'STRUCTURE').status === 'permitted';
 
-  // Each hub's people, so the tree knows where the reader may rank: `:reorder` and `:move` ask
-  // `STRUCTURE` on the container, as the page menu's *Move up/down* does.
-  $effect(() => {
-    const hubIds = shownHubs.map((hub) => hub.id);
-    untrack(() => {
-      for (const hubId of hubIds) people.open({ hubId });
-    });
-  });
-
-  /**
-   * Whether the reader may rank in this hub - the hub itself, or one of its collections. A grip
-   * where the role may not is absent, not refused (P-05); while the role is unread it is absent
-   * too. A collection is judged by its hub's role, so a grant on one collection alone keeps that
-   * collection's rank to its page menu.
-   */
-  const mayRankIn = (hubId: string) =>
-    holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted';
-
-  /**
-   * A hub's or collection's own menu in the tree (design-system.md §11.3, §13 G7): the place is
-   * managed where it is listed. Its items are the page menu's own, by id, and choosing one leaves
-   * the page the wish (`commands.intend`) and goes there: the page runs it with its own handler
-   * and its own answers, so there is one implementation of each act. Offered where the reader may
-   * change the hub's shape - the condition the page asks for these acts - and absent otherwise.
-   */
-  function rowMenuOf(id: string): RowMenu | undefined {
+  /** A hub's or collection's ⋯, the page menu's items (`placeMenu`), run by the page itself. */
+  function placeMenuOf(id: string): RowAction | undefined {
     const container = containers.find(id);
     if (!container || isRail) return undefined;
-    const hubId = container.type === 'HUB' ? container.id : container.parent_id;
-    if (!hubId) return undefined;
-    const path = container.type === 'HUB' ? { hubId } : { hubId, collectionId: container.id };
+    const at = container.type === 'HUB' ? container.id : container.parent_id;
+    if (!at) return undefined;
+    const path = container.type === 'HUB' ? { hubId: at } : { hubId: at, collectionId: container.id };
     const role = people.roleOf(path, actor.account?.id, roleOrder()) ?? undefined;
-    const workspaceRole = people.along({}).find((membership) => membership.account_id === actor.account?.id && membership.scope_type === 'TENANT')?.role;
-    // The page's own menu, item for item (`placeMenu`): the same builder, the same answers.
+    const workspaceRole = people.along({}).find((each) => each.account_id === actor.account?.id && each.scope_type === 'TENANT')?.role;
     const items = placeMenu(
       {
         type: container.type === 'HUB' ? 'HUB' : 'COLLECTION',
@@ -346,24 +328,17 @@
       items,
       onselect: (act) => {
         const place = container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}`;
-        // The settings are a page of their own (design-system.md §11.8); the rest the place's page runs.
         if (act === 'settings') return onnavigate(`${place}/settings`);
-        commands.intend({ containerId: container.id, act });
+        if (act) commands.intend({ containerId: container.id, act });
         onnavigate(place);
       },
     };
   }
 
   let rankFailure = $state<string | undefined>(undefined);
-
-  /**
-   * A drag or `Alt+↑/↓` in the tree: the same write the page menu's *Move up/down* sends - a hub
-   * by `:reorder`, a collection by `:move` into the hub it is already in - and the same sentence
-   * after it, because the tree rearranged itself and nothing focused changed its name.
-   */
-  async function rank(id: string, to: number) {
+  /** `Alt+↑/↓` or a drag among hubs or a hub's collections: the writes the page menu sends. */
+  async function rank(id: string, siblings: readonly Container[], to: number) {
     const container = containers.find(id);
-    const siblings = container?.type === 'HUB' ? shownHubs : container?.parent_id ? shownCollectionsOf(container.parent_id) : [];
     if (!container || to < 0 || to >= siblings.length) return;
     rankFailure = undefined;
     try {
@@ -375,121 +350,230 @@
       announcer.say(rankFailure);
     }
   }
+  const place = (siblings: readonly Container[]) => (id: string, placement: TreePlacement) =>
+    void rank(id, siblings, placedIndex(siblings.map((each) => each.id), id, placement.afterId));
+  const moveKey = (siblings: readonly Container[], nodes: readonly NavTreeNode[]) => (id: string, key: MoveKey) => {
+    const intent = moveIntent(key, nodes, id);
+    if (intent && 'placement' in intent) place(siblings)(id, intent.placement);
+  };
 
-  /**
-   * The tree, with what this reader has lost taken out of it.
-   *
-   * `offline-sync.md` §6 and §9 rule 3: a client deletes what it holds for a container it lost. The
-   * server will stop answering it on the next read, and the sidebar is what somebody is looking at
-   * in the meantime — a row they can click and be refused by is worse than a row that has gone.
-   */
-  const hubNodes = $derived(
-    shownHubs
-      .map((hub) => ({
-      id: hub.id,
-      label: hub.name,
-      // Its own symbol and colour where its people chose them (UC-WRK-33). A private hub nobody
-      // chose a symbol for wears the lock its own page explains (UC-ID-16); one with a symbol says
-      // it in words at the end of the row, so the choice does not cost the fact.
-      icon: hub.private && !chosenSymbol(hub) ? ('lock' as const) : markOf(hub),
-      colorToken: hub.color_token ?? undefined,
-      // What counts in it, from its collections (user-experience.md §2.5), after what the hub is.
-      meta: [
-        hub.private && chosenSymbol(hub)
-          ? t('app.nav.private')
-          : live.isOnlineOnly(hub.id) ? t('app.nav.online_only') : undefined,
-        figureText(hub),
-      ].filter(Boolean).join(' · ') || undefined,
-      isMovable: mayRankIn(hub.id),
-      // A hub is a branch until its level says otherwise. Whether it has collections is not known
-      // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
-      // carries one, and **loses it once the level has been read and is empty**: a
-      // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
-      // the hub, which is where a collection is made.
-      isBranch:
-        containers.isLevelLoading(hub.id) || shownCollectionsOf(hub.id).length > 0 || viewRowsOf(hub.id).length > 0,
-      children: [
-        ...shownCollectionsOf(hub.id).map((collection) => {
-          // What counts in it, short (UC-WRK-29): nothing where it counts nothing or nothing yet.
-          return {
-            id: collection.id,
-            label: collection.name,
-            icon: markOf(collection),
-            colorToken: collection.color_token ?? undefined,
-            meta: figureText(collection),
-            isMovable: mayRankIn(hub.id),
-          };
-        }),
-        ...viewRowsOf(hub.id),
-      ],
+  // ---- Workspace level ------------------------------------------------------------------------
+  const productSets = $derived(navProducts({ modulesOn: workspaceOn, order: actor.account?.nav_products, hidden: actor.account?.nav_products_hidden }));
+  let isAllProducts = $state(false);
+  async function writePreference(change: Record<string, unknown>) {
+    const id = actor.account?.id;
+    if (!id) return;
+    try {
+      await preferences.setAccount(id, change);
+      void actor.reread();
+    } catch (error) {
+      announcer.say(renderProblem(error as never, messages).message);
+    }
+  }
+  const customise = $derived<RowAction>({
+    label: t('app.nav.customise'),
+    items: [...productSets.shown, ...productSets.more].map((row) => ({
+      id: row.module,
+      label: t(productSets.more.includes(row) ? 'app.nav.show_product' : 'app.nav.hide_product', { name: t(row.code) }),
     })),
+    onselect: (module) => {
+      if (!module) return;
+      const hidden = actor.account?.nav_products_hidden ?? [];
+      const next = hidden.includes(module as never) ? hidden.filter((each) => each !== module) : [...hidden, module];
+      void writePreference({ nav_products_hidden: next });
+    },
+  });
+
+  const shownHubs = $derived(containers.hubs.filter((each) => !live.hasLost(each.id)));
+  const hubsOrder = $derived<HubsOrder>((actor.account?.nav_hubs_order as HubsOrder | null | undefined) ?? 'MANUAL');
+  const visitedHubs = $derived([...new Set(recents.rows.map((row) => (row.kind === 'hub' ? row.id : row.kind === 'collection' ? row.placeId : undefined)).filter((id): id is string => !!id))]);
+  const orderedHubs = $derived(orderHubs(shownHubs, hubsOrder, visitedHubs, messages.locale));
+  const hubNode = (each: Container): NavTreeNode => ({
+    id: each.id,
+    label: each.name,
+    icon: each.private && !chosenSymbol(each) ? 'lock' : markOf(each),
+    color: each.color_token ?? DEFAULT_TILE,
+    part: 'hubs',
+    canHoldChildren: false,
+    figure: '›',
+    figureLabel: t('app.nav.open_level', { name: each.name }),
+  });
+  const hubNodes = $derived(orderedHubs.map(hubNode));
+  const hubsMenu = $derived<RowAction>({
+    label: t('app.nav.order_hubs'),
+    items: (['MANUAL', 'RECENT', 'NAME'] as const).map((mode) => ({ id: mode, label: t(`app.nav.hubs_${mode.toLowerCase()}`), ...(mode === hubsOrder ? { icon: 'check' as const } : {}) })),
+    onselect: (mode) => mode && void writePreference({ nav_hubs_order: mode === 'MANUAL' ? null : mode }),
+  });
+
+  let isCreatingHub = $state(false);
+  const creation = $derived(hubCreationHere());
+  const createHubLabel = $derived(creation === 'shared' ? t('app.workspace.create_hub') : creation === 'private' ? t('app.workspace.create_private_hub') : undefined);
+
+  /** A star as a row: its name from what is already read, or from its own read. */
+  let starNames = $state<Record<string, string>>({});
+  const READS: Partial<Record<Star['kind'], (id: string) => string>> = {
+    PAGE: (id) => `/pages/${id}`,
+    WHITEBOARD: (id) => `/whiteboards/${id}`,
+    DASHBOARD: (id) => `/dashboards/${id}`,
+    PORTFOLIO: (id) => `/portfolios/${id}`,
+    VIEW: (id) => `/views/${id}`,
+  };
+  const READ_STARS = $derived(stars.all.filter((each) => READS[each.kind]).map((each) => `${each.kind}:${each.id}`).join(','));
+  $effect(() => {
+    const keys = READ_STARS === '' ? [] : READ_STARS.split(',');
+    return untrack(() => {
+      const stops = keys.map((key) => {
+        const [kind, id] = key.split(':') as [Star['kind'], string];
+        return engine.subscribe<Record<string, unknown>>({ path: READS[kind]!(id) }, (next) => {
+          if (next.status !== 'ready') return;
+          const data = next.data;
+          const inner = (data['page'] ?? data['whiteboard']) as Record<string, unknown> | undefined;
+          const name = data['title'] ?? data['name'] ?? inner?.['title'];
+          if (typeof name === 'string') starNames = { ...starNames, [key]: name };
+        });
+      });
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const STAR_PATHS: Record<Star['kind'], (id: string) => string> = {
+    HUB: (id) => `/hubs/${id}`,
+    COLLECTION: (id) => `/collections/${id}`,
+    VIEW: (id) => `/views/${id}`,
+    PAGE: (id) => `/pages/${id}`,
+    WHITEBOARD: (id) => `/whiteboards/${id}`,
+    DASHBOARD: (id) => `/dashboards/${id}`,
+    PORTFOLIO: (id) => `/portfolios/${id}`,
+  };
+  const STAR_ICONS = { HUB: 'hub', COLLECTION: 'collection', VIEW: 'columns-3', PAGE: 'file-text', WHITEBOARD: 'layout-template', DASHBOARD: 'gauge', PORTFOLIO: 'flag' } as const;
+  const starRows = $derived(
+    stars.all
+      .map((star) => {
+        const container = star.kind === 'HUB' || star.kind === 'COLLECTION' ? containers.find(star.id) : undefined;
+        const label = container?.name ?? starNames[`${star.kind}:${star.id}`];
+        if (!label) return undefined;
+        const figure = container?.type === 'COLLECTION' ? figureOf(container) : undefined;
+        return {
+          key: `${star.kind}:${star.id}`,
+          label,
+          icon: container ? markOf(container) : STAR_ICONS[star.kind],
+          color: container?.color_token ?? undefined,
+          href: STAR_PATHS[star.kind](star.id),
+          figure: figure?.text,
+          isUrgent: figure?.isUrgent ?? false,
+        };
+      })
+      .filter((row) => row !== undefined),
   );
 
-  /**
-   * The three bands, in the one order (ADR-0063 decision 1).
-   *
-   * `places` first, then the workspace's own structure under its caption, then `keeping` — the
-   * trash and the archive — pinned to the foot of the column. The
-   * band is a mark on the first node of each, so the tree stays one list with one keyboard walk
-   * and the drawing still gets the separation: the trash under the last hub would
-   * otherwise read as one more hub.
-   *
-   * The `keeping` band is there before the hubs have loaded and when there are none.
-   */
-  const nodes = $derived([
-    ...destinationNodes,
-    ...productNodes,
-    ...hubNodes.map((hub, index) => (index === 0 ? { ...hub, band: { caption: t('app.nav.hubs') } } : hub)),
-  ]);
+  const RECENT_PATHS = { item: (id: string) => `/items/${id}`, collection: (id: string) => `/collections/${id}`, hub: (id: string) => `/hubs/${id}` } as const;
+  const RECENT_ICONS = { item: 'task', collection: 'collection', hub: 'hub' } as const;
 
-  /**
-   * The `keeping` band, drawn as its own tree at the foot of the column.
-   *
-   * Its own, because it is pinned there: a band inside the tree above could only be pushed down by
-   * making that tree fill the column, and then nothing — the control that makes a hub least of all
-   * — could stand between the hubs and it. Two trees in one column are not two navigations: the
-   * list is still `navigation.ts`'s, and the rows are the same rows. What it costs is that the
-   * arrows do not carry from the last hub into the trash, which `Tab` does instead.
-   */
-  const portalNodes = $derived(actor.portals.map((each) => ({ id: `portal:${each.collection_id}`, label: each.name, icon: 'inbox' as const })));
-  const keepingNodes = $derived(KEEPING.map((each) => ({ id: each.id, label: t(each.code), icon: each.icon })));
+  // ---- Hub level ------------------------------------------------------------------------------
+  const isHubStarred = $derived(hub ? isStarred(stars.all, 'HUB', hub.id) : false);
+  const mayStructure = $derived(hubId ? mayRankIn(hubId) : false);
+  const mayWrite = $derived(hubId ? holds(roleIn(hubId), 'WRITE_ITEMS').status === 'permitted' : false);
 
-  const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
+  const collectionNodes = $derived(
+    collections.map((each): NavTreeNode => {
+      const figure = figureOf(each);
+      const desk = isDesk(each);
+      return {
+        id: each.id,
+        label: each.name,
+        icon: desk && !chosenSymbol(each) ? 'inbox' : markOf(each),
+        color: each.color_token ?? DEFAULT_TILE,
+        part: 'collections',
+        canHoldChildren: false,
+        figure: figure.text,
+        isFigureUrgent: figure.isUrgent,
+        badge: sprinting[each.id] ? { icon: 'repeat', label: t('app.nav.runs_sprints') } : desk ? { icon: 'inbox', label: t('app.nav.desk_mark') } : undefined,
+      };
+    }),
+  );
+  const currentCollection = $derived.by(() => {
+    const name = route.name ?? '';
+    if (name.startsWith('collection')) return route.params['id'];
+    if (name === 'item') return located;
+    return undefined;
+  });
+  let collectionFilter = $state('');
+  let isCreatingCollection = $state(false);
+  let collectionHubId = $state<string | undefined>(undefined);
 
-  function navigate(id: string) {
-    const destination = places.find((each) => each.id === id);
-    if (destination && destination.target.kind === 'route') return onnavigate(destination.target.path);
-    const product = productRows.find((each) => each.id === id);
-    if (product) return onnavigate(product.path);
-    const room = workspaceRows.find((each) => each.id === id);
-    const roomArea = room === undefined ? undefined : leftOut(room.id);
-    if (room && roomArea !== undefined) {
-      void platform.webApp?.open(webAppAddress(roomArea, room.path, webAppOrigins).href).catch(() => {});
-      return;
-    }
-    if (room) return onnavigate(room.path);
-    const keeping = KEEPING.find((each) => each.id === id);
-    if (keeping) return onnavigate(keeping.path);
-    const tab = tabOfNode(id);
-    if (tab) {
-      const href = placeTabs({ type: 'HUB', id: tab.placeId, modulesOn: modulesHere(modulesOn, hubModules[tab.placeId] ?? []) }).find((each) => each.id === tab.tab)?.href;
-      if (href) onnavigate(href);
-      return;
-    }
-    const container = containers.find(id);
-    if (!container) return;
-    onnavigate(container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);
-  }
-
-  const failure = $derived(
-    containers.hubsState.status === 'failed'
-      ? renderProblem(containers.hubsState.error, messages)
+  const contentsAdd = $derived<RowAction | undefined>(
+    hubId && mayWrite
+      ? {
+          label: t('app.nav.create_in_contents'),
+          items: [
+            ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page') }, { id: 'template', label: t('app.nav.create_from_template') }] : []),
+            ...(isOn('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard') }] : []),
+          ],
+          onselect: (kind) => {
+            if (!hubId) return;
+            onnavigate(kind === 'whiteboard' ? `/hubs/${hubId}/whiteboards?new=1` : `/hubs/${hubId}/pages?new=1`);
+          },
+        }
       : undefined,
   );
+  const contentsMenu = $derived<RowAction>({
+    label: t('app.nav.contents_menu'),
+    items: [
+      ...(['TREE', 'RECENT', 'NAME'] as const).map((mode) => ({ id: mode, label: t(`app.nav.mode_${mode.toLowerCase()}`), ...(mode === contentsMode ? { icon: 'check' as const } : {}) })),
+      ...(isOn('KNOWLEDGE') ? [{ id: 'all', label: t('app.nav.all_contents') }] : []),
+    ],
+    onselect: (choice) => {
+      if (choice === 'all' && hubId) return onnavigate(`/hubs/${hubId}/pages`);
+      if (choice) void writePreference({ nav_contents_mode: choice === 'TREE' ? null : choice });
+    },
+  });
 
-  // While nobody has given this person anything, coming back to the window asks again: an
-  // administrator granting access meanwhile shows without a reload. Only then - a person with
-  // access is not re-read on every focus.
+  // The quick switch (§2.4 item 1): the same tool at the other hub where it has it.
+  let switchSearch = $state('');
+  let isSwitchOpen = $state(false);
+  const switchHubs = $derived(shownHubs.filter((each) => each.id !== hubId && each.name.toLocaleLowerCase(messages.locale).includes(switchSearch.trim().toLocaleLowerCase(messages.locale))));
+  const starredHubs = $derived(switchHubs.filter((each) => isStarred(stars.all, 'HUB', each.id)));
+  const visitedSwitch = $derived(visitedHubs.map((id) => switchHubs.find((each) => each.id === id)).filter((each): each is Container => !!each && !isStarred(stars.all, 'HUB', each.id)).slice(0, 5));
+  const matchedHubs = $derived(switchSearch.trim() ? switchHubs.filter((each) => !starredHubs.includes(each) && !visitedSwitch.includes(each)) : []);
+  function switchTo(target: string) {
+    isSwitchOpen = false;
+    switchSearch = '';
+    const keep = tool;
+    if (!keep || keep === 'overview') return onnavigate(`/hubs/${target}`);
+    // The target's own modules decide whether it has the tool; asked once, then let go.
+    let stop: (() => void) | undefined;
+    let isDone = false;
+    stop = modules.here(target, (next) => {
+      if (isDone || next.status === 'loading' || next.status === 'idle') return;
+      isDone = true;
+      const on = next.status === 'ready' ? modulesHere(workspaceOn, next.data.modules_on) : [];
+      onnavigate(switchPath(target, keep, hubTools({ modulesOn: on, hasDesk: true })));
+      queueMicrotask(() => stop?.());
+    });
+    if (isDone) stop();
+  }
+
+  // ---- Navigation, failures -----------------------------------------------------------------
+  const webAppOrigins = $derived({ workspace: platform.webOrigin, installation: manifest.value?.installation_url });
+  function goFoot(id: string, path: string) {
+    const area = leftToWebApp(id, platform.webApp?.areas);
+    if (area !== undefined) {
+      void platform.webApp?.open(webAppAddress(area, path, webAppOrigins).href).catch(() => {});
+      return;
+    }
+    onnavigate(path);
+  }
+  const footFigure = (id: string) => {
+    const area = leftToWebApp(id, platform.webApp?.areas);
+    return area === undefined ? undefined : t('app.web_app.at', { host: webAppHost(area, webAppOrigins) });
+  };
+
+  const failure = $derived(containers.hubsState.status === 'failed' ? renderProblem(containers.hubsState.error, messages) : undefined);
+  const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
+  const isCurrentTop = (id: string) =>
+    level.kind === 'workspace' && (id === 'workspace' ? route.name === 'home' : id === 'jumble' ? route.name === 'jumble' : route.name === id);
+  const productCurrent = (routes: readonly string[]) => routes.includes(route.name ?? '');
+
+  // While nobody has given this person anything, coming back to the window asks again.
   $effect(() => {
     if (!actor.hasNoAccess) return;
     const askAgain = () => {
@@ -499,93 +583,272 @@
     window.addEventListener('focus', askAgain);
     return () => window.removeEventListener('focus', askAgain);
   });
+
+  const twistLabel = (name: string, isOpen: boolean) => t(isOpen ? 'app.nav.close_branch' : 'app.nav.open_branch', { name });
+  const refusalLabel = (refusal: 'self' | 'no-children' | 'other-part' | 'too-deep') => t(`app.nav.refused_${refusal.replace('-', '_')}`);
 </script>
 
-<!-- A column rather than a `Stack`, because the tree has to fill it: the `keeping` band is
-     pinned to the foot of the navigation, and `auto` on a margin needs a height to push against. -->
-<div class="column">
-  <!-- Not in the rail: a sentence has no room in a column of marks, and the sync line under the
-       bar says the same thing on every width. -->
-  {#if isTreeReady && !failure && !isRail}
-    <ReplicaMark state={containers.hubsState} />
+<div class="column" data-rail={isRail ? '' : undefined}>
+  {#if hasForYou}
+  <ul class="foryou" aria-label={t('app.nav.for_you')}>
+    {#each topRows as row (row.id)}
+      <NavItem
+        label={t(row.code)}
+        icon={row.icon}
+        href={row.target.kind === 'route' ? row.target.path : undefined}
+        isCurrent={isCurrentTop(row.id)}
+        figure={row.id === 'approvals' && waitingCount ? String(waitingCount) : undefined}
+        isFigureUrgent={row.id === 'approvals'}
+        {isRail}
+        onnavigate={() => row.target.kind === 'route' && onnavigate(row.target.path)}
+      />
+    {/each}
+  </ul>
   {/if}
-  <!-- `branchLabel` is what makes a hub a place: with a word for the twist, pressing the row goes
-       to the hub and the twist at its end opens and closes it. Without one the row would only
-       fold, and the hub's own screen would be reachable solely through a collection and back up
-       the breadcrumb. -->
-  <SideNav
-    label={t('app.workspace.title')}
-    {nodes}
-    {current}
-    {isRail}
-    flyoutLabel={(name) => t('app.nav.inside', { name })}
-    branchLabel={(name, isExpanded) => t(isExpanded ? 'app.nav.close_branch' : 'app.nav.open_branch', { name })}
-    bind:expanded
-    onnavigate={navigate}
-    onreorder={(id, to) => void rank(id, to)}
-    rowMenu={rowMenuOf}
-  />
-  {#if rankFailure && !isRail}<p class="failure">{rankFailure}</p>{/if}
-  <!-- Folded, a sentence has nowhere to be drawn: what is waiting, what failed and what an empty
-       workspace should do next are all words, and a column of marks has room for none of them
-       (ADR-0063 decision 2). The rail draws the marks and the one control; the reader unfolds it
-       to be told anything. -->
+
   {#if !isTreeReady}
-    {#if !isRail}<div aria-busy="true"><Skeleton lines={4} /></div>{/if}
-  {:else if failure && !isRail}
-    <FailureState problem={failure} onRetry={() => containers.refresh()} />
-  {:else if actor.hasNoAccess && actor.portals.length > 0}
-    <!-- A requester holding nothing but portals: their portals are their navigation (UC-SVC-05). -->
-    <SideNav label={t('app.nav.portals')} nodes={portalNodes} {isRail}
-      onnavigate={(id) => onnavigate(`/portal/${id.slice('portal:'.length)}`)} />
+    <div class="grow">{#if !isRail}<div aria-busy="true" class="pad"><Skeleton lines={4} /></div>{/if}</div>
+  {:else if failure}
+    <div class="grow pad">{#if !isRail}<FailureState problem={failure} onRetry={() => containers.refresh()} />{/if}</div>
   {:else if actor.hasNoAccess}
-    {#if !isRail}
-      <!-- Nobody gave this person anything yet (UC-ID-08 check 2): a sentence, and no *Create hub*,
-           which the server refuses to an account holding no role anywhere. -->
-      <EmptyState kind="unused" title={t('app.workspace.no_access')} icon="hub" />
-    {/if}
-  {:else if containers.hasNoHubs && !isRail}
-    <!-- `unused` and not `filtered`: nothing is filtering the sidebar, and voice-and-tone.md §4.2 is
-         about a filter that excluded something. §4.1 is the other half of that rule - say what this
-         place is for, and offer the one action. Before this the empty state was a dead end, and the
-         one action was `hubctl`. -->
-    <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
-      {#snippet action()}
-        {#if createLabel}
-          <Button icon="plus" onclick={() => (isCreatingHub = true)}>
-            {createLabel}
-          </Button>
-        {/if}
-      {/snippet}
-    </EmptyState>
-  {:else if newItems.length > 0}
-    <!-- *＋ New* lists what can be made here, the hub first - one name on every page, even where
-         the list holds one row: a control that read "Create hub" on one page and "New" on the next
-         would be two controls. In a block of its own so that it keeps its width at the start of
-         the line; folded, it stands in the rail's one column with the marks above it. -->
-    <div class="create" data-rail={isRail ? '' : undefined} data-new>
-      <Menu label={t('app.nav.new')} items={newItems} onselect={chooseNew}>
-        {#snippet trigger(props)}
-          {#if isRail}
-            <IconButton icon="plus" label={t('app.nav.new')} size="sm" {...props} />
-          {:else}
-            <Button tone="subtle" size="sm" icon="plus" {...props}>{t('app.nav.new')}</Button>
-          {/if}
-        {/snippet}
-      </Menu>
+    <div class="grow pad">
+      {#if actor.portals.length > 0}
+        <ul class="plain" aria-label={t('app.nav.portals')}>
+          {#each actor.portals as each (each.collection_id)}
+            <NavItem label={each.name} icon="inbox" href={`/portal/${each.collection_id}`} {isRail} onnavigate={() => onnavigate(`/portal/${each.collection_id}`)} />
+          {/each}
+        </ul>
+      {:else if !isRail}
+        <EmptyState kind="unused" title={t('app.workspace.no_access')} icon="hub" />
+      {/if}
     </div>
+  {:else if isRail}
+    <ul class="grow rail" aria-label={t('app.workspace.title')}>
+      {#if level.kind === 'hub' && hub}
+        <NavItem label={hub.name} icon={markOf(hub)} color={hub.color_token ?? undefined} href={`/hubs/${hub.id}`} isCurrent={tool === 'overview'} isRail onnavigate={() => onnavigate(`/hubs/${hub.id}`)} />
+        {#each hubToolRows as each (each.id)}
+          <NavItem label={t(each.code)} icon={each.icon} href={toolPath(hub.id, each.id)} isCurrent={tool === each.id} isRail onnavigate={() => onnavigate(toolPath(hub.id, each.id))} />
+        {/each}
+      {:else}
+        {#each productSets.shown as row (row.id)}
+          <NavItem label={t(row.code)} icon={row.icon} color={row.color} href={row.path} isCurrent={productCurrent(row.routes)} isRail onnavigate={() => onnavigate(row.path)} />
+        {/each}
+        {#each orderedHubs.slice(0, HUBS_SHOWN) as each (each.id)}
+          <NavItem label={each.name} icon={markOf(each)} color={each.color_token ?? undefined} href={`/hubs/${each.id}`} isRail onnavigate={() => onnavigate(`/hubs/${each.id}`)} />
+        {/each}
+      {/if}
+    </ul>
+  {:else if level.kind === 'hub' && hub}
+    <NavLevel
+      levelKey={hub.id}
+      label={hub.name}
+      hub={{
+        name: hub.name,
+        icon: hub.private && !chosenSymbol(hub) ? 'lock' : markOf(hub),
+        color: hub.color_token ?? undefined,
+        backLabel: t('app.nav.all_hubs'),
+        onback: () => (isBrowsingAll = true),
+        starLabel: t(isHubStarred ? 'app.nav.unstar' : 'app.nav.star', { name: hub.name }),
+        isStarred: isHubStarred,
+        onstar: () => void stars.toggle('HUB', hub.id),
+        menu: placeMenuOf(hub.id),
+      }}
+    >
+      {#snippet switcher()}
+        <NavFlyout label={t('app.nav.switch_hub')} trigger="icon" icon="chevrons-up-down" triggerLabel={t('app.nav.switch_hub')} searchLabel={t('app.nav.find_hub')} bind:search={switchSearch} bind:isOpen={isSwitchOpen}>
+          {#if starredHubs.length > 0}
+            <NavGroup label={t('app.nav.starred')}>
+              {#each starredHubs as each (each.id)}
+                <NavItem label={each.name} icon={markOf(each)} color={each.color_token ?? undefined} href={`/hubs/${each.id}`} onnavigate={() => switchTo(each.id)} />
+              {/each}
+            </NavGroup>
+          {/if}
+          {#if visitedSwitch.length > 0}
+            <NavGroup label={t('app.nav.recently_visited')}>
+              {#each visitedSwitch as each (each.id)}
+                <NavItem label={each.name} icon={markOf(each)} color={each.color_token ?? undefined} href={`/hubs/${each.id}`} onnavigate={() => switchTo(each.id)} />
+              {/each}
+            </NavGroup>
+          {/if}
+          {#if matchedHubs.length > 0}
+            <NavGroup label={t('app.nav.hubs')}>
+              {#each matchedHubs as each (each.id)}
+                <NavItem label={each.name} icon={markOf(each)} color={each.color_token ?? undefined} href={`/hubs/${each.id}`} onnavigate={() => switchTo(each.id)} />
+              {/each}
+            </NavGroup>
+          {/if}
+          <ul class="plain">
+            <NavItem label={t('app.nav.all_hubs')} icon="hub" tone="link" onnavigate={() => { isSwitchOpen = false; isBrowsingAll = true; }} />
+          </ul>
+        </NavFlyout>
+      {/snippet}
+      {#snippet tools()}
+        <NavItem label={t('app.nav.overview')} icon="hub" href={`/hubs/${hub.id}`} isCurrent={tool === 'overview'} onnavigate={() => onnavigate(`/hubs/${hub.id}`)} />
+        {#each hubToolRows as each (each.id)}
+          {#if each.id === 'queues'}
+            <NavItem
+              label={t(each.code)}
+              icon={each.icon}
+              href={toolPath(hub.id, 'queues')}
+              twist={queueList.length > 0 ? (isQueuesOpen ? 'expanded' : 'collapsed') : undefined}
+              twistLabel={twistLabel(t(each.code), isQueuesOpen)}
+              isCurrent={tool === 'queues' && !currentQueue}
+              ontoggle={(open) => (isQueuesOpen = open)}
+              onnavigate={() => onnavigate(toolPath(hub.id, 'queues'))}
+            />
+            {#if isQueuesOpen}
+              {#each isAllQueues ? queueList : queueList.slice(0, QUEUES_SHOWN) as row (row.id)}
+                <NavItem
+                  label={queueName(row)}
+                  icon={row.isStarred ? 'star' : 'columns-3'}
+                  level={1}
+                  href={queuePath(hub.id, row)}
+                  figure={row.count === null ? undefined : String(row.count)}
+                  isFigureUrgent={row.isUrgent}
+                  figureLabel={row.count === null ? undefined : t(row.isUrgent ? 'app.nav.queue_count_urgent' : 'app.nav.queue_count', { count: row.count })}
+                  isCurrent={currentQueue === (row.viewId ?? row.key)}
+                  onnavigate={() => onnavigate(queuePath(hub.id, row))}
+                />
+              {/each}
+              {#if !isAllQueues && queueList.length > QUEUES_SHOWN}
+                <NavItem label={t('app.nav.more_count', { count: queueList.length - QUEUES_SHOWN })} icon="ellipsis" tone="more" level={1} onnavigate={() => (isAllQueues = true)} />
+              {/if}
+            {/if}
+          {:else}
+            <NavItem label={t(each.code)} icon={each.icon} href={toolPath(hub.id, each.id)} isCurrent={tool === each.id} onnavigate={() => onnavigate(toolPath(hub.id, each.id))} />
+          {/if}
+        {/each}
+      {/snippet}
+
+      {#if collectionNodes.length > 0}
+        <NavGroup
+          label={t('app.nav.collections')}
+          collapseLabel={t('app.nav.fold', { name: t('app.nav.collections') })}
+          add={mayStructure ? { label: t('app.nav.new_collection_short'), onselect: () => { collectionHubId = hub.id; isCreatingCollection = true; } } : undefined}
+          tree={collectionNodes}
+          treeLabel={t('app.nav.collections_of', { hub: hub.name })}
+          current={currentCollection}
+          rowMenu={placeMenuOf}
+          canOrder={() => mayStructure}
+          onnavigate={(id) => onnavigate(`/collections/${id}`)}
+          onplace={place(collections)}
+          onmovekey={moveKey(collections, collectionNodes)}
+          {refusalLabel}
+          limit={COLLECTIONS_SHOWN}
+          moreLabel={(hidden) => t('app.nav.more_count', { count: hidden })}
+          filterFrom={COLLECTIONS_FILTER_FROM}
+          filterLabel={t('app.nav.filter_collections')}
+          bind:filter={collectionFilter}
+        />
+      {:else if mayStructure}
+        <NavGroup label={t('app.nav.collections')} add={{ label: t('app.nav.new_collection_short'), onselect: () => { collectionHubId = hub.id; isCreatingCollection = true; } }}>
+          <NavItem label={t('app.nav.create_first_collection')} icon="plus" tone="link" onnavigate={() => { collectionHubId = hub.id; isCreatingCollection = true; }} />
+        </NavGroup>
+      {/if}
+      {#if rankFailure}<p class="failure">{rankFailure}</p>{/if}
+
+      {#if hasContents && contentTree.length > 0}
+        <NavGroup
+          label={t('app.nav.contents')}
+          count={String(contentsCount(contentNodes))}
+          collapseLabel={t('app.nav.fold', { name: t('app.nav.contents') })}
+          add={contentsAdd}
+          menu={contentsMenu}
+          tree={contentTree}
+          treeLabel={t('app.nav.contents_of', { hub: hub.name })}
+          bind:expanded
+          current={currentContent}
+          {twistLabel}
+          onnavigate={(id) => onnavigate(boardRows.some((each) => each.id === id) ? `/whiteboards/${id}` : `/pages/${id}`)}
+          {refusalLabel}
+          limit={CONTENTS_SHOWN}
+          moreLabel={(hidden) => t('app.nav.more_count', { count: hidden })}
+          filterFrom={CONTENTS_FILTER_FROM}
+          filterLabel={t('app.nav.filter_contents')}
+          bind:filter={contentsFilter}
+          kinds={isOn('KNOWLEDGE') && isOn('WHITEBOARD') ? [{ id: 'all', label: t('app.nav.kind_all') }, { id: 'page', label: t('app.nav.kind_pages') }, { id: 'whiteboard', label: t('app.nav.kind_whiteboards') }] : undefined}
+          bind:kind={contentsKind}
+          kindLabel={t('app.nav.kind_label')}
+        />
+      {:else if hasContents && contentsAdd}
+        <NavGroup label={t('app.nav.contents')} add={contentsAdd}>
+          <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" onnavigate={() => hubId && onnavigate(isOn('KNOWLEDGE') ? `/hubs/${hubId}/pages?new=1` : `/hubs/${hubId}/whiteboards?new=1`)} />
+        </NavGroup>
+      {/if}
+    </NavLevel>
+  {:else}
+    <NavLevel levelKey="workspace" label={t('app.nav.workspace_band')}>
+      <ReplicaMark state={containers.hubsState} />
+      {#if recents.rows.length > 0}
+        <ul class="plain">
+          <li class="flyout">
+            <NavFlyout label={t('app.nav.recent')} trigger="row" icon="rotate-ccw" triggerLabel={t('app.nav.recent')}>
+              <ul class="plain">
+                {#each recents.rows as row (row.kind + row.id)}
+                  <NavItem label={row.title} icon={RECENT_ICONS[row.kind]} href={RECENT_PATHS[row.kind](row.id)} onnavigate={() => onnavigate(RECENT_PATHS[row.kind](row.id))} />
+                {/each}
+              </ul>
+            </NavFlyout>
+          </li>
+        </ul>
+      {/if}
+      {#if starRows.length > 0}
+        <NavGroup label={t('app.nav.starred')}>
+          {#each starRows as row (row.key)}
+            <NavItem label={row.label} icon={row.icon} color={row.color} href={row.href} figure={row.figure} isFigureUrgent={row.isUrgent} isCurrent={route.path === row.href} onnavigate={() => onnavigate(row.href)} />
+          {/each}
+        </NavGroup>
+      {/if}
+      {#if productSets.shown.length + productSets.more.length > 0}
+        <NavGroup label={t('app.nav.products')} menu={customise}>
+          {#each isAllProducts ? [...productSets.shown, ...productSets.more] : productSets.shown as row (row.id)}
+            <NavItem label={t(row.code)} icon={row.icon} color={row.color} href={row.path} isCurrent={productCurrent(row.routes)} onnavigate={() => onnavigate(row.path)} />
+          {/each}
+          {#if !isAllProducts && productSets.more.length > 0}
+            <NavItem label={t('app.nav.more_count', { count: productSets.more.length })} icon="ellipsis" tone="more" onnavigate={() => (isAllProducts = true)} />
+          {/if}
+        </NavGroup>
+      {/if}
+      <NavGroup
+        label={t('app.nav.hubs')}
+        add={createHubLabel ? { label: createHubLabel, onselect: () => (isCreatingHub = true) } : undefined}
+        menu={hubsMenu}
+        tree={hubNodes}
+        treeLabel={t('app.nav.hubs')}
+        rowMenu={placeMenuOf}
+        canOrder={(id) => hubsOrder === 'MANUAL' && mayRankIn(id)}
+        onnavigate={(id) => onnavigate(`/hubs/${id}`)}
+        onplace={place(shownHubs)}
+        onmovekey={moveKey(shownHubs, hubNodes)}
+        {refusalLabel}
+        limit={HUBS_SHOWN}
+        moreLabel={(hidden) => t('app.nav.more_hubs', { count: hidden })}
+      >
+        {#if hubNodes.length === 0}
+          {#if createHubLabel}
+            <NavItem label={createHubLabel} icon="plus" tone="link" onnavigate={() => (isCreatingHub = true)} />
+          {:else}
+            <li class="quiet">{t('app.workspace.no_hubs')}</li>
+          {/if}
+        {/if}
+      </NavGroup>
+      {#if rankFailure}<p class="failure">{rankFailure}</p>{/if}
+    </NavLevel>
   {/if}
 
-  {#if workspaceNodes.length > 0 && !actor.hasNoAccess}
-    <!-- The workspace's own administration, under the hubs and above the keeping band (§2.1). -->
-    <SideNav label={t('app.nav.administration')} nodes={workspaceNodes} {current} {isRail} onnavigate={navigate} />
-  {/if}
-
-  <!-- Where a reader goes when something is missing: at the foot of the column, on every width,
-       never mixed in with the hubs above it (ADR-0063 decision 1). -->
-  <div class="keeping">
-    <SideNav label={t('app.nav.keeping')} nodes={keepingNodes} {current} {isRail} onnavigate={navigate} />
-  </div>
+  <ul class="foot" aria-label={t('app.nav.keeping')}>
+    {#each footRows as row (row.id)}
+      <NavItem
+        label={t(row.code)}
+        icon={row.icon}
+        href={row.path}
+        figure={footFigure(row.id)}
+        isCurrent={row.routes.includes(route.name ?? '') || (row.id === 'administration' && route.area === 'administration')}
+        {isRail}
+        onnavigate={() => goFoot(row.id, row.path)}
+      />
+    {/each}
+  </ul>
 </div>
 
 <CreateContainerDialog
@@ -595,31 +858,32 @@
   oncreated={(id, landing) => onnavigate(landing ?? `/hubs/${id}`)}
 />
 {#if collectionHubId}
-  <CreateContainerDialog
-    bind:isOpen={isCreatingCollection}
-    type="COLLECTION"
-    parentId={collectionHubId}
-    oncreated={(id) => onnavigate(`/collections/${id}`)}
-  />
+  <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHubId} oncreated={(id) => onnavigate(`/collections/${id}`)} />
 {/if}
 
 <style>
   .column {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-100);
-    min-block-size: 100%;
+    block-size: 100%;
+    min-block-size: 0;
   }
 
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-
-  /* Folded, the control is in the rail's column like every mark above it. */
-  .create[data-rail] { display: flex; justify-content: center; }
-
-  /* Pushed to the bottom of the column, with the hairline that says a band begins. */
-  .keeping {
-    margin-block-start: auto;
-    padding-block-start: var(--sp-200);
-    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  .foryou,
+  .foot,
+  .plain,
+  .rail {
+    margin: 0;
+    padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100);
+    list-style: none;
   }
+
+  .plain { padding: 0; }
+  .foryou { border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .foot { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .grow { flex: 1; min-block-size: 0; overflow-y: auto; }
+  .pad { padding: var(--sp-150); }
+  .flyout { list-style: none; }
+  .quiet { list-style: none; padding: var(--sp-050) var(--sp-100); color: var(--text-subtle); font-size: var(--fs-075); }
+  .failure { margin: 0; padding-inline: var(--sp-100); color: var(--text-danger); font-size: var(--fs-075); }
 </style>

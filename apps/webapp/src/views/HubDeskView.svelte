@@ -22,7 +22,6 @@
   import DeskQueues from '../lib/servicedesk/DeskQueues.svelte';
   import { desksOf } from '../lib/servicedesk/queues.ts';
   import { markOf } from '../lib/workspace/look.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     hubId: string;
@@ -78,7 +77,6 @@
         }
       : undefined}
   />
-  <PlaceStrip placeId={hubId} current="desk" {onnavigate} />
 
   {#if isReading}
     <div aria-busy="true"><Skeleton lines={4} /></div>

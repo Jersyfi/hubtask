@@ -219,7 +219,7 @@ test('a hub named in the palette offers its views as Go to, only those on at the
     { kind: 'route', path: '/hubs/h1/plan' },
     { kind: 'route', path: '/hubs/h1/pages' },
   ]);
-  assert.equal(offers[0]?.label, 'app.place_tabs.go_to {"place":"House","tab":"app.planning.title"}');
+  assert.equal(offers[0]?.label, 'app.place_tabs.go_to {"place":"House","tab":"app.nav.tool_plan"}');
   assert.deepEqual(placeTabOffers(placed({ ...HOUSE, archived_at: '2026-08-01T09:00:00Z' } as unknown as Container), workspaceOn, workspaceOn, t), [], 'an archived hub is not offered');
 });
 
@@ -228,10 +228,11 @@ test('a collection named in the palette offers its views as Go to, by what its h
   assert.deepEqual(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, undefined, t), [], 'not listed before its hub answered');
   const offers = placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['PLANNING', 'TIME'], t);
   // Its sprints are left out: whether it runs sprints is its sprints' read, made on its screen.
-  assert.deepEqual(ids(offers), ['go-to:c1:plan', 'go-to:c1:time']);
+  assert.deepEqual(ids(offers), ['go-to:c1:plan', 'go-to:c1:actuals', 'go-to:c1:workload']);
   assert.deepEqual(offers.map((offer) => offer.target), [
     { kind: 'route', path: '/collections/c1/plan' },
     { kind: 'route', path: '/collections/c1/actuals' },
+    { kind: 'route', path: '/collections/c1/workload' },
   ]);
   assert.equal(offers[0]?.label, 'app.place_tabs.go_to {"place":"Kitchen","tab":"app.planning.title"}');
   assert.deepEqual(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['KNOWLEDGE'], t), [], 'pages are a hub\'s view, not a collection\'s');

@@ -23,15 +23,13 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import AppWorkspaces from './AppWorkspaces.svelte';
   import SwitchWorkspace from './SwitchWorkspace.svelte';
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
-  import { PLACE_ROUTES } from '../routes.ts';
-  import { placeTabOf, tabNodeId } from '../workspace/placeTabs.ts';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
@@ -297,21 +295,6 @@
   /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
   const destination = $derived(currentDestination(route));
   /**
-   * The node the tree marks: the container the reader is in, or the destination they are on. On
-   * the workspace page the workspace row; inside a collection the collection, not the row above it.
-   * On an entry's page its collection, and nothing until the entry says which - never the workspace.
-   */
-  const currentNode = $derived.by(() => {
-    if (PLACE_ROUTES.includes(route.name ?? '')) return route.params.id;
-    if (route.name === 'item') return page.place;
-    // A hub's tab is its row mirrored under the hub (user-experience.md §2.4); a collection's tab
-    // is the collection's own row.
-    const tab = placeTabOf(route.name ?? '', route.query);
-    const placeId = route.name === 'goals' ? route.query['hub'] : route.params.id;
-    if (tab && placeId) return route.name?.startsWith('collection-') ? placeId : tabNodeId(placeId, tab.tab);
-    return destination;
-  });
-  /**
    * The section the reader is inside, or nothing while they are in the workspace.
    *
    * Three of them: the administration (ADR-0063 decision 7), Your settings (ADR-0065 decision 3)
@@ -430,6 +413,33 @@
       // A browser that refuses storage still gets the width, for as long as the page is open.
     }
   }
+
+  /**
+   * The rail's peek (§2.1): hovering the rail for `--dur-intent` opens the whole sidebar over the
+   * content, leaving it closes the peek. The delay is the token's, read from the document.
+   */
+  let isPeeking = $state(false);
+  let peek: ReturnType<typeof createPeek> | undefined;
+  $effect(() => {
+    const delay = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-intent')) || 0;
+    const made = createPeek(delay, (open) => (isPeeking = open));
+    peek = made;
+    return () => made.leave();
+  });
+  $effect(() => {
+    if (!isRail) isPeeking = false;
+  });
+
+  // `Ctrl+[` folds and unfolds the pinned sidebar (§2.1), where there is one to fold.
+  $effect(() => {
+    const fold = (event: KeyboardEvent) => {
+      if (event.key !== '[' || !event.ctrlKey || event.altKey || event.metaKey || viewport.isBelowExpanded) return;
+      event.preventDefault();
+      toggleRail();
+    };
+    window.addEventListener('keydown', fold);
+    return () => window.removeEventListener('keydown', fold);
+  });
 
   function toggleRail() {
     isRail = !isRail;
@@ -668,7 +678,7 @@
           {#if section}
             <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
           {:else}
-            <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} onnavigate={go} />
+            <WorkspaceNav {route} located={page.place} hasForYou={!viewport.isCompact} onnavigate={go} />
           {/if}
         </NavDrawer>
       {:else}
@@ -678,7 +688,11 @@
         <aside
           class="sidenav"
           data-rail={isRail ? '' : undefined}
+          data-peek={isRail && isPeeking ? '' : undefined}
+          data-levels={section ? undefined : ''}
           data-tour={section ? undefined : 'hubs'}
+          onpointerenter={() => isRail && !section && peek?.enter()}
+          onpointerleave={() => peek?.leave()}
           style:--nav-width={navWidth && !isRail ? `${navWidth}px` : undefined}
         >
           {#if section}
@@ -687,7 +701,7 @@
                  a column the tree is not in would explain the wrong thing. -->
             <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
-            <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
+            <WorkspaceNav {route} located={page.place} isRail={isRail && !isPeeking} onnavigate={go} />
           {/if}
           {#if !isRail && navBounds.max > 0}
             <ResizeHandle
@@ -975,6 +989,28 @@
     inline-size: var(--layout-sidenav-rail);
     padding-inline: var(--sp-050);
     overflow-x: hidden;
+  }
+
+  /* The levels' sidebar (the navigation concept §2.1): its own regions pad and scroll - the top
+     and the foot stay, the middle scrolls - so the column is one screen tall and pads nothing. */
+  .sidenav[data-levels] {
+    block-size: calc(100vh - var(--layout-appbar-height));
+    padding: 0;
+    overflow: visible;
+  }
+
+  .sidenav[data-levels][data-rail] { padding: 0; }
+
+  /* The peek: the whole sidebar over the content, from the rail's edge, until the pointer leaves. */
+  .sidenav[data-peek] :global(> .column) {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: var(--nav-width, var(--layout-sidenav-width));
+    background: var(--bg-surface);
+    border-inline-end: var(--bw-hairline) solid var(--border-subtle);
+    box-shadow: var(--shadow-overlay);
+    z-index: var(--z-overlay);
   }
 
   main { flex: 1; min-width: 0; padding: var(--sp-300); }

@@ -42,7 +42,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
@@ -350,7 +350,7 @@
     secondary={headActs}
     menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
   />
-  <PlaceStrip placeId={collectionId} current="sprints" {onnavigate} />
+  <PlaceViews placeId={collectionId} current="sprints" {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

@@ -3,11 +3,11 @@
 <script lang="ts">
   // A product's workspace-wide home (user-experience.md §2.2, §5.1): the one door the products band
   // opens. One anatomy for every product - the trail *Products › <product>*, the title with what
-  // the product does, the views as `PlaceTabs` where it has several, then the hubs the reader may
+  // the product does, the views as one `ViewBar` where it has several, then the hubs the reader may
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Badge, Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -56,7 +56,7 @@
 
   // The assets' settings are the administration's screen at their home: offered to whoever
   // reaches the administration, as the door before them was (P-05).
-  const tabs = $derived<PlaceTab[]>(
+  const tabs = $derived<ViewLink[]>(
     homeTabs(module)
       .filter((each) => !(module === 'ASSETS' && each.id === 'settings') || reachesAdministrationArea() === true)
       .map((each) => ({ id: each.id, label: t(each.code), href: each.path })),
@@ -306,7 +306,7 @@
   />
 
   {#if tabs.length > 1}
-    <PlaceTabs label={name} {tabs} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
+    <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
   {/if}
 
   {#if currentTab === 'notes'}

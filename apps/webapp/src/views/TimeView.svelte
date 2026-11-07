@@ -25,8 +25,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
-    type Column, type PlaceTab,
+    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, ViewBar, Select, Skeleton, Stack, Switch, Table, Textarea,
+    type Column, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -80,7 +80,7 @@
   );
   const offered = $derived(TABS.filter((each) => each.id !== 'settings' || maySetUp));
   const current = $derived(offered.some((each) => each.id === tab) ? (tab as string) : 'week');
-  const tabs = $derived<PlaceTab[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
+  const tabs = $derived<ViewLink[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
   function select(next: string) {
     onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
   }
@@ -382,7 +382,7 @@
        among it - stands under the header, where it wraps (user-experience.md §5.12). -->
   {#if viewport.isCompact}<div class="timer-line"><RunningTimer {onnavigate} /></div>{/if}
 
-  <PlaceTabs label={t('app.time.title')} {tabs} {current} onnavigate={select} />
+  <ViewBar label={t('app.time.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={select} />
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

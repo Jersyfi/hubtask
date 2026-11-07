@@ -39,6 +39,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { id: 'palette', scope: 'everywhere', code: 'app.shortcuts.palette', drawn: ['⌘K', 'Ctrl K', '/'], aria: ['Meta+K', 'Control+K', '/'] },
   { id: 'help', scope: 'everywhere', code: 'app.shortcuts.help', drawn: ['?'], aria: ['Shift+?'] },
   { id: 'capture', scope: 'everywhere', code: 'app.shortcuts.capture', drawn: ['Q'], aria: ['Q'] },
+  { id: 'sidebar', scope: 'everywhere', code: 'app.shortcuts.sidebar', drawn: ['Ctrl ['], aria: ['Control+['] },
   { id: 'palette-move', scope: 'palette', code: 'app.shortcuts.palette_move', drawn: ['↑', '↓'], aria: ['ArrowUp', 'ArrowDown'] },
   { id: 'palette-enter', scope: 'palette', code: 'app.shortcuts.palette_enter', drawn: ['Enter'], aria: ['Enter'] },
   { id: 'palette-escape', scope: 'palette', code: 'app.shortcuts.palette_escape', drawn: ['Esc'], aria: ['Escape'] },

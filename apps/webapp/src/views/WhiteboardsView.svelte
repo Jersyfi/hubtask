@@ -34,7 +34,6 @@
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import BoardTemplates, { startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
@@ -53,6 +52,8 @@
   const current = $derived(opened?.state.status === 'ready' ? opened.state.data : undefined);
   const openRefusal = $derived(opened?.state.status === 'failed' ? renderProblem(opened.state.error, messages).message : undefined);
   const hubId = $derived(hubFromRoute ?? current?.hub_id ?? '');
+  // The sidebar shows this hub's level; the route names only the page, board or item (`levelOf`).
+  $effect(() => (hubFromRoute ? undefined : frame.locate(hubId || undefined)));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
 
   $effect(() => frame.entitle(current?.title ?? t('app.whiteboards.title')));
@@ -247,7 +248,6 @@
           }
         : undefined}
     />
-    {#if hubFromRoute}<PlaceStrip placeId={hubFromRoute} current="whiteboards" {onnavigate} />{/if}
 
     {#if listRefusal}
       <FailureNote problem={listRefusal} />

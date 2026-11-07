@@ -41,7 +41,6 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The hub whose assets are shown; absent when the address names one CI. */
@@ -59,6 +58,8 @@
   const current = $derived(opened?.state.status === 'ready' ? opened.state.data : undefined);
   const openRefusal = $derived(opened?.state.status === 'failed' ? renderProblem(opened.state.error, messages).message : undefined);
   const hubId = $derived(hubFromRoute ?? current?.hub_id ?? '');
+  // The sidebar shows this hub's level; the route names only the page, board or item (`levelOf`).
+  $effect(() => (hubFromRoute ? undefined : frame.locate(hubId || undefined)));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
 
   const classesRead = resource<CiClassList>(classesPath);
@@ -183,7 +184,6 @@
         {/if}
       {/snippet}
     </PageHeader>
-    {#if hubId}<PlaceStrip placeId={hubId} current="assets" {onnavigate} />{/if}
     {#if classesRefusal}
       <FailureNote problem={classesRefusal} />
     {:else if classesRead.state.status !== 'ready'}

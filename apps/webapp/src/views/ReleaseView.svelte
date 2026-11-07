@@ -36,7 +36,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
 
   interface Props {
     /** The hub the releases belong to. */
@@ -240,7 +240,7 @@
       ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
       : undefined}
   />
-  <PlaceStrip placeId={hubId} current="plan" view="releases" {onnavigate} />
+  <PlaceViews placeId={hubId} tool="plan" current="releases" {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

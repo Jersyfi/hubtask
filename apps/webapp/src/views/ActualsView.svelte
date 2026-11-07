@@ -25,7 +25,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import BillingRates from '../lib/time/BillingRates.svelte';
   import BudgetPanel from '../lib/time/BudgetPanel.svelte';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
 
   interface Props {
     /** The hub or collection whose plan this is. */
@@ -76,7 +76,7 @@
         }
       : undefined}
   />
-  <PlaceStrip placeId={planId} current="time" view="actuals" {onnavigate} />
+  <PlaceViews placeId={planId} tool="time" current="actuals" {onnavigate} />
 
   {#if mayCost}<BudgetPanel {planId} /><BillingRates {planId} />{/if}
 
