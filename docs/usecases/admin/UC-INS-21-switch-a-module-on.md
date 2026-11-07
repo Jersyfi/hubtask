@@ -5,9 +5,9 @@ context: admin
 actors: [PE-owner, PE-admin, PE-operator, PE-platform, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
-state: partial
+state: verified
 tasks: []
-checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/setting/ContainerModules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/admin/InstanceModules_test.go, presentation/rest/DoorBody_test.go, test/doors/module_off_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassphone.test.mjs, apps/webapp/e2e/productsband.test.mjs]
+checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/setting/ContainerModules_test.go, core/application/service/sync/InitialSyncGoals_test.go, core/application/service/admin/InstanceModules_test.go, presentation/rest/DoorBody_test.go, test/doors/module_off_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassphone.test.mjs, apps/webapp/e2e/productsband.test.mjs, test/integration/tenant_export_test.go]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan
@@ -60,7 +60,3 @@ administrator sees the lock and who set it.
 * No per-person module switch — a module is on for a place, not for a person; what a person sees
   is narrowed by their role.
 * No partial module ("planning without baselines"); a module's own settings do that.
-
-## Today
-
-* Check 9: not proven — no test in `checked_by` walks a backup or an export with a module off; the navigation concept's step 8 (`docs/backlog/navigation/README.md`).
