@@ -10,6 +10,9 @@
   // twelve buttons of one tone and one size, with the action performed daily a form at the end of
   // the list, and every one of them was a reasonable decision on its own.
   //
+  // The secondary actions stand before the primary, which sits at the inline end beside the menu
+  // (page-system mockups): the eye ends a row of actions on the one that matters.
+  //
   // Below `medium` the head folds: the primary action becomes a round button pinned at the end of
   // the screen above the bottom bar, where a thumb is, and the secondary actions join the menu.
   // The title stays an `h1` here on every width - a screen holds exactly one, and it belongs to
@@ -208,6 +211,13 @@
 {#snippet actionBar()}
     <div class="actions">
       {#if aside}<span class="aside">{@render aside()}</span>{/if}
+      {#each secondary as action, index (index)}
+        <span class="secondary">
+          <Button tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
+            {action.label}
+          </Button>
+        </span>
+      {/each}
       {#if primary}
         <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
           <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
@@ -225,13 +235,6 @@
           {/if}
         </span>
       {/if}
-      {#each secondary as action, index (index)}
-        <span class="secondary">
-          <Button tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
-            {action.label}
-          </Button>
-        </span>
-      {/each}
       {#if menu && menu.items.length > 0 && !isMenuInBar}
         <span class="menu menu-full">
           <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
