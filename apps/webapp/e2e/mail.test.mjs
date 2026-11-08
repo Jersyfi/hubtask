@@ -143,7 +143,8 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     await mail.locator('[data-mail-subject] code').getByText('#kitchen').waitFor({ timeout: 10_000 });
     await mail.locator('[data-mail-address] code').getByText('familie+kitchen@in.hubtask.test').waitFor();
     await mail.getByLabel('Handle').fill('Kueche');
-    await mail.getByRole('button', { name: 'Change the handle' }).click();
+    // The handle joins *General*'s one save (PS-10).
+    await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
     await expectWrite(writes, `PUT /collections/${COLLECTION.id}/handle`, { handle: 'kueche' });
 
     // The jumble says why a message waits there.

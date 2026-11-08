@@ -223,6 +223,8 @@ test("the drafts switch is among the hub's settings, not beside the tree", async
     await drafts.getByLabel('Drafts and publishing').waitFor({ timeout: 15_000 });
     const sent = page.waitForRequest((request) => request.method() === 'PUT' && request.url().endsWith(`/hubs/${HUB.id}/page-drafts`), { timeout: 10_000 });
     await drafts.getByLabel('Drafts and publishing').click();
+    // The switch joins *General*'s one save (PS-10).
+    await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
     assert.deepEqual((await sent).postDataJSON(), { drafts: true });
     assert.equal(written.filter((write) => write.method === 'PUT').length, 1);
     assert.deepEqual(failures, []);

@@ -68,7 +68,8 @@ test('the settings change the prefix, typed in any case, and show what the keys 
     await keys.getByLabel('Key prefix').fill('inc');
     await keys.getByText('Keys read like INC-42.').waitFor();
     const sent = page.waitForRequest((request) => request.method() === 'PATCH', { timeout: 10_000 });
-    await keys.getByRole('button', { name: 'Change the prefix' }).click();
+    // The prefix joins *General*'s one save (PS-10).
+    await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
     const patch = await sent;
     assert.equal(new URL(patch.url()).pathname, `/api/v1/containers/${COLLECTION.id}`);
     assert.deepEqual(patch.postDataJSON(), { key_prefix: 'INC' });
