@@ -21,6 +21,7 @@
   import GroupView from './GroupView.svelte';
   import PeopleView from './PeopleView.svelte';
   import PersonView from './PersonView.svelte';
+  import PrivacyCaseView from './PrivacyCaseView.svelte';
   import PrivacyView from './PrivacyView.svelte';
   import PrivateHubsView from './PrivateHubsView.svelte';
   import QuotasView from './QuotasView.svelte';
@@ -136,7 +137,11 @@
 {:else if route.name === 'audit'}
   <AuditView />
 {:else if route.name === 'privacy'}
-  <PrivacyView />
+  <PrivacyView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+{:else if route.name === 'privacy-case'}
+  {#key route.params.id}
+    <PrivacyCaseView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'sign-in-settings' || route.name === 'sign-in-section'}
   <SignInSettingsView section={route.params.section} tab={route.query['tab']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
   <!-- One branch for the list and its sections: a move between sections keeps the screen and

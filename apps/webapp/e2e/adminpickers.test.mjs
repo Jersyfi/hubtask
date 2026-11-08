@@ -98,12 +98,19 @@ test('chromium: a request\'s subject is picked by name and sent as the account',
   const { page, sent } = owner;
 
   await page.goto(`${served.origin}/administration/privacy`);
-  await page.getByText('Their account', { exact: true }).first().waitFor();
-  for (const label of ['Their account', 'Whose account', 'Whose consent']) {
+  // Recording is the head's Dialog M; restricting and withdrawing its ⋯'s (page-system §9.3).
+  const dialogs = [['Record a request', null, 'Their account'], ['More for Privacy requests', 'Restrict processing…', 'Whose account'], ['More for Privacy requests', 'Withdraw a consent…', 'Whose consent']];
+  for (const [button, item, label] of dialogs) {
+    await page.getByRole('button', { name: button }).first().click({ timeout: 15_000 });
+    if (item) await page.getByRole('menuitem', { name: item }).click();
+    await page.locator('dialog[open]').getByText(label, { exact: true }).first().waitFor();
     assert.equal(await page.getByRole('textbox', { name: new RegExp(`^${label}`) }).count(), 0, `"${label}" is still typed as an identifier`);
+    await page.keyboard.press('Escape');
+    await page.locator('dialog[open]').waitFor({ state: 'detached' });
   }
+  await page.getByRole('button', { name: 'Record a request' }).first().click();
   await pick(page, 'Their account', OTHER.display_name);
-  await page.getByRole('button', { name: 'Record it' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Record it' }).last().click();
   await page.waitForFunction(() => true);
   await new Promise((resolve) => setTimeout(resolve, 300));
   const recorded = sent.find((each) => each.method === 'POST' && each.path === '/privacy/requests');

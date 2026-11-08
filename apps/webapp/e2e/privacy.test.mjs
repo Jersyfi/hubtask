@@ -6,6 +6,8 @@
 // and sending three facts, and an extended case showing both dates and its reason as a sentence.
 // An installation-wide case is the operator's: the screen offers nothing on it (UC-PRV-06).
 //
+// A case is its record page (page-system §9.3): its acts are its head's, the extension a Dialog M.
+//
 // Chromium only: what this asserts is the rendered row and the request that leaves, and neither
 // has an engine-specific part.
 
@@ -99,23 +101,52 @@ async function open(browser, role = 'OWNER', options = {}) {
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
   await page.goto(`${served.origin}/administration/privacy`);
-  await page.locator('section.panel', { hasText: OPEN.subject_email }).waitFor();
+  await page.locator('main tbody tr.row', { hasText: OPEN.subject_email }).waitFor();
   // The erasure's mode note reads its preview on load, so a read stands among the writes.
   const writes = () => written.filter((each) => !each.preview);
   return { page, failures, written, writes, close: () => context.close() };
 }
 
-const row = (page, request) => page.locator('section.panel', { hasText: request.subject_email });
+/** A case's own record page (page-system §9.3), its main region. */
+async function caseOf(page, request) {
+  await page.goto(`${served.origin}/administration/privacy/${request.id}`);
+  await page.locator('[data-page-kind="record"] h1', { hasText: request.subject_email }).waitFor({ timeout: 10_000 });
+  return page.locator('main');
+}
+
+/** One act of a case's head menu: *Extend the deadline…*, *Refuse it…*. */
+async function caseMenu(page, item) {
+  await page.getByRole('button', { name: /^More for / }).first().click();
+  await page.getByRole('menuitem', { name: item }).click();
+  return page.locator('dialog[open]');
+}
+
+/** *Record a request*, the head's primary, its Dialog M; the day and the deadline under its fold. */
+async function recordForm(page) {
+  await page.getByRole('button', { name: 'Record a request' }).first().click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.waitFor();
+  return dialog;
+}
+
+const headMenuOffers = async (page, item) => {
+  const more = page.getByRole('button', { name: /^More for / });
+  if (await more.count() === 0) return false;
+  await more.first().click();
+  const offered = await page.getByRole('menuitem', { name: item }).count() > 0;
+  await page.keyboard.press('Escape');
+  return offered;
+};
 
 test('chromium: an extended case shows both deadlines and why', async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await open(browser);
-    const text = await row(page, EXTENDED).innerText();
+    const text = await (await caseOf(page, EXTENDED)).innerText();
     assert.match(text, /Owed .+, extended from .+/);
     assert.match(text, /Extended once because of the number of requests\. They were told on .+2026\./);
     // Once extended, never offered again.
-    assert.equal(await row(page, EXTENDED).getByRole('button', { name: 'Extend the deadline' }).count(), 0);
+    assert.equal(await headMenuOffers(page, 'Extend the deadline…'), false);
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -132,9 +163,9 @@ test('chromium: the day the person was told starts on today in the workspace, no
     const { page, failures, close } = await open(browser, 'OWNER', {
       timezoneId: 'Pacific/Kiritimati', now: new Date('2026-10-12T11:00:00Z'),
     });
-    const open_ = row(page, OPEN);
-    await open_.getByRole('button', { name: 'Extend the deadline' }).click();
-    const informed = open_.getByLabel('The day you told them');
+    await caseOf(page, OPEN);
+    const dialog = await caseMenu(page, 'Extend the deadline…');
+    const informed = dialog.getByLabel('The day you told them');
     assert.equal(await informed.inputValue(), '2026-10-12');
     assert.equal(await informed.getAttribute('max'), '2026-10-12');
     assert.deepEqual(failures, []);
@@ -148,17 +179,17 @@ test('chromium: the extension starts on the bound the case answers and sends thr
   const browser = await chromium.launch();
   try {
     const { page, failures, writes, close } = await open(browser);
-    const open_ = row(page, OPEN);
-    await open_.getByRole('button', { name: 'Extend the deadline' }).click();
+    await caseOf(page, OPEN);
+    const dialog = await caseMenu(page, 'Extend the deadline…');
 
-    const until = open_.getByLabel('New deadline');
+    const until = dialog.getByLabel('New deadline');
     assert.equal(await until.inputValue(), OPEN.extendable_until);
     assert.equal(await until.getAttribute('max'), OPEN.extendable_until);
 
     await until.fill('2026-12-01');
-    await open_.getByLabel('Why').selectOption('NUMBER_OF_REQUESTS');
-    await open_.getByLabel('The day you told them').fill('2026-09-12');
-    await open_.getByRole('button', { name: 'Extend it' }).click();
+    await dialog.getByLabel('Why').selectOption('NUMBER_OF_REQUESTS');
+    await dialog.getByLabel('The day you told them').fill('2026-09-12');
+    await dialog.getByRole('button', { name: 'Extend it' }).last().click();
 
     for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
     assert.equal(writes().length, 1);
@@ -176,15 +207,16 @@ test('chromium: an installation-wide case is listed and offers nothing here', as
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await open(browser);
-    const installation = row(page, INSTALLATION);
     // Listed, with its deadline: it is this workspace's to see.
-    assert.match(await installation.innerText(), /Owed /);
+    assert.match(await page.locator('main tbody tr.row', { hasText: INSTALLATION.subject_email }).innerText(), /Owed /);
     // And no control that moves it - the operator's, through the API or hubctl (UC-PRV-06/6).
-    assert.equal(await installation.getByRole('button').count(), 0);
+    await caseOf(page, INSTALLATION);
+    assert.equal(await page.getByRole('button', { name: 'Start answering it' }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: /^More for / }).count(), 0);
     // The same controls stand on this workspace's own case, so the absence is the scope's.
-    for (const name of ['Start answering it', 'Refuse it', 'Extend the deadline']) {
-      assert.equal(await row(page, OPEN).getByRole('button', { name }).count(), 1, name);
-    }
+    await caseOf(page, OPEN);
+    assert.equal(await page.getByRole('button', { name: 'Start answering it' }).count(), 1);
+    for (const name of ['Refuse it…', 'Extend the deadline…']) assert.equal(await headMenuOffers(page, name), true, name);
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -200,12 +232,12 @@ test('chromium: the register offers no installation-wide case and says whom to a
     const { page, failures, writes, close } = await open(browser);
     const note = page.getByText('Raise it with whoever runs this installation', { exact: false });
     assert.equal(await note.count(), 1);
-    const form = page.locator('form', { hasText: 'Record a request' });
+    const form = await recordForm(page);
     for (const role of ['option', 'radio', 'checkbox', 'button']) {
       assert.equal(await form.getByRole(role, { name: /installation|everywhere/i }).count(), 0, role);
     }
     await form.getByLabel('Their address').fill('new@example.invalid');
-    await form.getByRole('button', { name: 'Record it' }).click();
+    await form.getByRole('button', { name: 'Record it' }).last().click();
     for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
     assert.equal(writes().length, 1);
     assert.equal(writes()[0].body.scope ?? 'TENANT', 'TENANT');
@@ -222,10 +254,11 @@ test('chromium: a case is recorded with its own deadline, owed to the end of tha
   const browser = await chromium.launch();
   try {
     const { page, failures, writes, close } = await open(browser);
-    const form = page.locator('form', { hasText: 'Record a request' });
+    const form = await recordForm(page);
     await form.getByLabel('Their address').fill('new@example.invalid');
-    await form.getByLabel('Deadline').fill('2027-03-28');
-    await form.getByRole('button', { name: 'Record it' }).click();
+    await form.getByRole('button', { name: /^When it arrived/ }).click();
+    await form.getByLabel('Deadline', { exact: true }).fill('2027-03-28');
+    await form.getByRole('button', { name: 'Record it' }).last().click();
     for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
 
     assert.equal(writes().length, 1);
@@ -253,20 +286,21 @@ test('chromium: a request received two months ago is recorded with that day and 
         extendable_until: null,
       }),
     });
-    const form = page.locator('form', { hasText: 'Record a request' });
+    const form = await recordForm(page);
+    await form.getByRole('button', { name: /^When it arrived/ }).click();
     assert.equal(await form.getByLabel('Received on').getAttribute('max'), '2026-10-15');
     await form.getByLabel('Their address').fill('late@example.invalid');
     await form.getByLabel('Received on').fill('2026-08-14');
-    await form.getByRole('button', { name: 'Record it' }).click();
+    await form.getByRole('button', { name: 'Record it' }).last().click();
     for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
 
     assert.equal(writes().length, 1);
     assert.equal(writes()[0].body.received_on, '2026-08-14');
     assert.equal(writes()[0].body.due_at, undefined);
-    const late = page.locator('section.panel', { hasText: 'late@example.invalid' });
+    const late = page.locator('main tbody tr.row', { hasText: 'late@example.invalid' });
     await late.waitFor();
-    const text = await late.innerText();
-    assert.match(text, /Overdue/);
+    assert.match(await late.innerText(), /Overdue/);
+    const text = await (await caseOf(page, { id: '01a0e2e0-0000-7000-8000-0000000000c9', subject_email: 'late@example.invalid' })).innerText();
     assert.match(text, /Received .*14/);
     assert.deepEqual(failures, []);
     await close();
@@ -280,23 +314,25 @@ test('chromium: starting an erasure asks first, naming the person and what the m
   const browser = await chromium.launch();
   try {
     const { page, failures, written, writes, close } = await open(browser);
-    await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
+    await caseOf(page, ERASURE);
+    written.length = 0;
+    await page.getByRole('button', { name: 'Start answering it' }).first().click();
 
-    const dialog = page.getByRole('dialog');
+    const dialog = page.locator('dialog[open]');
     await dialog.waitFor();
     assert.match(await dialog.innerText(), new RegExp(`Erase ${ERASURE.subject_email}\\?`));
     assert.match(await dialog.innerText(), /account goes, and every comment they wrote goes with it/);
     // What the hold keeps, said before the start (UC-PRV-03 check 11), for the case's own mode.
     await dialog.getByText('A hold on a hub or collection keeps 2 comments, 1 assignment').waitFor();
     assert.match(await dialog.innerText(), /Art\. 17\(3\)\(e\)/);
-    assert.ok(written[0].preview && written[0].path.endsWith('mode=FULL_DELETE'), JSON.stringify(written));
+    assert.ok(written.some((each) => each.preview && each.path.endsWith('mode=FULL_DELETE')), JSON.stringify(written));
     written.length = 0;
 
-    await dialog.locator('footer').getByRole('button', { name: 'Keep the case open' }).click();
+    await dialog.getByRole('button', { name: 'Keep the case open' }).last().click();
     assert.equal(writes().length, 0);
 
-    await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
-    await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
+    await page.getByRole('button', { name: 'Start answering it' }).first().click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Erase' }).last().click();
     for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
     assert.equal(writes().length, 1);
     assert.ok(writes()[0].path.endsWith(ERASURE.id));
@@ -314,12 +350,14 @@ test('chromium: the erasure of the only owner is refused at the start, saying wh
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await open(browser, 'OWNER', { refuseStart: 'memberships.last_owner' });
-    await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
-    await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
-    // Said in the dialog, which stays open over the page's own banner.
-    await page.getByRole('dialog').getByText('The workspace needs at least one owner. Give somebody else Owner first.').waitFor();
+    await caseOf(page, ERASURE);
+    await page.getByRole('button', { name: 'Start answering it' }).first().click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Erase' }).last().click();
+    // Said in the dialog, which stays open over the page.
+    await page.locator('dialog[open]').getByText('The workspace needs at least one owner. Give somebody else Owner first.').waitFor();
+    await page.keyboard.press('Escape');
     // A rest that waits for another owner says so, not a count of rules.
-    assert.match(await row(page, WAITS_FOR_OWNER).innerText(), /The rest waits: the person is this workspace's only owner\. Give somebody else Owner first\./);
+    assert.match(await (await caseOf(page, WAITS_FOR_OWNER)).innerText(), /The rest waits: the person is this workspace's only owner\. Give somebody else Owner first\./);
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -333,9 +371,11 @@ test('chromium: an administrator is not offered the start of an erasure', async 
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await open(browser, 'ADMIN');
+    await caseOf(page, ERASURE);
     await page.waitForTimeout(200);
-    assert.equal(await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).count(), 0);
-    assert.equal(await row(page, OPEN).getByRole('button', { name: 'Start answering it' }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: 'Start answering it' }).count(), 0);
+    await caseOf(page, OPEN);
+    await page.getByRole('button', { name: 'Start answering it' }).first().waitFor({ timeout: 5_000 });
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -347,7 +387,7 @@ test('chromium: a case a hold kept part of says so, with the legal basis', async
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await open(browser);
-    const text = await row(page, KEPT).innerText();
+    const text = await (await caseOf(page, KEPT)).innerText();
     assert.match(text, /Partly completed: a legal hold keeps part of it, for legal claims \(Art\. 17\(3\)\(e\) GDPR\)/);
     assert.match(text, /A hold on a hub or collection keeps 2 comments, 1 assignment and their name on no entry\./);
     assert.deepEqual(failures, []);

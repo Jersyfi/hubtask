@@ -146,6 +146,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'restore', pattern: '/administration/restore', area: 'administration' },
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
   { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },
+  // A privacy case as its record page (page-system §9.3).
+  { name: 'privacy-case', pattern: '/administration/privacy/:id', area: 'administration' },
   // Kept as an address that moved (`movedTo`): the providers are a tab of the sign-in screen now.
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
   // How people sign in: the rules, what the installation locked, and the one action that asks

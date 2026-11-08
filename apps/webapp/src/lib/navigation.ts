@@ -335,7 +335,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'], words: 'app.nav.words_audit' },
-      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'], words: 'app.nav.words_privacy' },
+      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy', 'privacy-case'], words: 'app.nav.words_privacy' },
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'], isAdvanced: true },
     ],
   },

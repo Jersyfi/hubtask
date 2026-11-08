@@ -1,151 +1,69 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The screen a controller answers a person's request from (`data-protection.md` §4, §9, §12).
+  // The screen a controller answers a person's request from (`data-protection.md` §4, §9, §12), as
+  // a list page (page-system §7.1, §9.3): the cases first, in one table, narrowed by who, kind and
+  // whether closed ones are shown; *Record a request* the head's primary, a Dialog M; *Restrict
+  // processing* and *Withdraw a consent* in its ⋯, a Dialog M each; a case opening its record page.
+  // *Who keeps their content out of AI* is the strip's second tab.
   //
   // **The deadline is the column that matters**, so the list is ordered by what is closest to it
   // and marked the way the product marks a due date everywhere else: an icon *and* a word beside
-  // the date, never colour alone (`design-system.md` §6, rule 3). A statutory deadline is a due
-  // date, and a second visual language for it would be a design decision nobody took.
-  //
-  // **`erasure_mode` defaults to `ANONYMIZE`, and the screen says what each mode costs before the
-  // choice is made.** P-6's decision, because tenant data touches third parties' rights: a task
-  // somebody else depends on, a comment in a thread that stops making sense without it. Nothing
-  // here ever defaults a case to `FULL_DELETE`.
+  // the date, never colour alone (`design-system.md` §6, rule 3).
   //
   // **`INSTALLATION` scope is not offered** and the alternative is named: it crosses the tenant
-  // boundary and is the operator's path. Such a case recorded by the operator is listed, with its
-  // deadline, and carries no control that moves it (`canAct`, UC-PRV-06).
-  //
-  // **An archive goes to a backup target like every other export**, so a finished access case
-  // reports where it was written rather than offering a download (ADR-0047).
-  //
-  // **A deadline is extended once, and only where the server says it can be** (P-05): the row
-  // offers *Extend the deadline* while the case answers `extendable_until`, and the form starts on
-  // that day. An extended case shows both dates and the reason as a sentence (P-11, P-12).
+  // boundary and is the operator's path.
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, DataTable, EmptyState, FilterBar, ListPage, Radio, Spinner, Stack, Tabs, type DataColumn, type Filter } from '@hubtask/design-system/components';
 
-  import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
-  import ErasureLines from '../lib/workspace/ErasureLines.svelte';
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import type { ErasureKept, ErasureLine } from '@hubtask/sync-engine';
   import { backup } from '../lib/data/backup.svelte.ts';
-  import {
-    byDeadline,
-    canAct,
-    canExtend,
-    canStart,
-    confirmsStart,
-    keptPartPhrase,
-    keptPhrase,
-    deadlineOfDay,
-    deadlinePhrase,
-    earliestDeadline,
-    receiptOf,
-    EXTENSION_REASONS,
-    extensionPayload,
-    extensionPhrase,
-    KINDS,
-    privacy,
-    producesArchive,
-    standingOf,
-    type ErasureMode,
-    type Kind,
-    type Request,
-  } from '../lib/data/privacy.svelte.ts';
-  import { formatDateTime, formatDue, formatRelative } from '../lib/i18n/datetime.ts';
-  import { announcer } from '../lib/announce.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import PersonPicker from '../lib/people/PersonPicker.svelte';
-  import { renderProblem } from '../lib/problem.ts';
-  import { isComplete, type Missing } from '../lib/forms/missing.ts';
-  import { marked } from '../lib/forms/press.ts';
-
-  /**
-   * What a press of *Record*, *Restrict* or *Withdraw* found missing, marked at the field, focus on
-   * it, nothing sent (UC-WRK-32 check 3).
-   */
-  let missing = $state<Missing>({});
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { consentRegister } from '../lib/data/consentregister.svelte.ts';
+  import { KINDS, byDeadline, deadlinePhrase, privacy, standingOf, type Request } from '../lib/data/privacy.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { deviceZone, todayIn } from '../lib/i18n/zone.ts';
-  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
+  import { renderProblem } from '../lib/problem.ts';
+  import RecordRequestDialog from '../lib/privacy/RecordRequestDialog.svelte';
+  import RestrictDialog from '../lib/privacy/RestrictDialog.svelte';
+  import WithdrawDialog from '../lib/privacy/WithdrawDialog.svelte';
+  import { kindWord, statusTone, statusWord, subjectOf, when } from '../lib/privacy/words.svelte.ts';
+  import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
 
-  const MODES: readonly ErasureMode[] = ['ANONYMIZE', 'FULL_DELETE'];
-
-  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let isWorking = $state(false);
-  let includeClosed = $state(false);
-
-  let draftKind = $state<string>('ACCESS');
-  let draftEmail = $state('');
-  let draftAccount = $state('');
-  let draftTarget = $state('');
-  let draftNotes = $state('');
-  let draftDueOn = $state('');
-  let draftReceivedOn = $state('');
-
-  let rejecting = $state('');
-  let rejectReason = $state('');
-
-  let extending = $state('');
-  let extendDueOn = $state('');
-  let extendReason = $state<string>('COMPLEXITY');
-  let extendInformedOn = $state('');
-
-  /** The erasure whose start is being confirmed (UC-PRV-03 check 8). */
-  let confirming = $state<Request | undefined>(undefined);
-  /** What the holds in force would keep of it: read when the confirmation opens (check 11). */
-  let previewed = $state<'checking' | 'unknown' | readonly ErasureKept[]>('checking');
-  /** What the erasure does, kind by kind, from the eraser's own list (user-experience.md §5.9). */
-  let lines = $state<readonly ErasureLine[]>([]);
-
-  function beginConfirming(request: Request): void {
-    failure = undefined;
-    confirming = request;
-    previewed = 'checking';
-    lines = [];
-    void privacy.preview(request.id, request.erasure_mode ?? 'ANONYMIZE').then((answer) => {
-      if (confirming?.id !== request.id) return;
-      previewed = answer ? answer.kept : 'unknown';
-      lines = answer?.lines ?? [];
-    });
+  interface Props {
+    tab?: string;
+    onnavigate: (path: string) => void;
   }
 
-  const scopeWord = (part: ErasureKept) => t(`app.privacy.hold_scope_${part.hold_scope.kind.toLowerCase()}`);
+  const { tab, onnavigate }: Props = $props();
 
-  let restrictAccount = $state('');
-  let restrictReason = $state('');
-  let withdrawPurpose = $state('');
-  let withdrawAccount = $state('');
+  $effect(() => page.entitle(t('app.privacy.title')));
 
+  let includeClosed = $state(false);
   $effect(() => {
     const closed = includeClosed;
     return untrack(() => privacy.open(closed));
   });
   $effect(() => untrack(() => backup.open()));
-  // The workspace's zone: a deadline named as a day ends at the end of that day there.
   $effect(() => untrack(() => workspace.open()));
-  const zone = $derived(workspace.workspace?.default_time_zone ?? deviceZone());
+  $effect(() => untrack(() => consentRegister.open()));
 
-  // What the reader holds on the workspace, as the server asks it of a case's steps: MANAGE_MEMBERS
-  // for each, the owner's DELETE_CONTAINER for starting an erasure (data-protection.md §4). From
-  // the manifest, so a role held through a group counts; a prediction, the server decides.
-  const reader = $derived({
-    mayManage: holdsHere('MANAGE_MEMBERS') === true,
-    mayDestroy: holdsHere('DELETE_CONTAINER') === true,
-  });
+  /** The register is a tab only where it is readable and the workspace has others in it (P-10). */
+  const hasRegister = $derived(consentRegister.isReadable && workspace.workspace?.several_people === true);
+  const current = $derived(tab === 'consent' && hasRegister ? 'consent' : 'requests');
 
-  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared when the closed cases are shown or hidden. */
+  const mayManage = $derived(holdsHere('MANAGE_MEMBERS') === true);
+
+  /** What the last press of *Show more* brought; cleared when the closed cases are shown or hidden. */
   let arrived = $state<string | undefined>(undefined);
   let isLoadingMore = $state(false);
-  /** Why the last press of *Show more* brought nothing; cleared by the next press and by showing or hiding the closed cases. */
   let moreFailed = $state<string | undefined>(undefined);
   $effect(() => {
     void includeClosed;
@@ -153,7 +71,6 @@
     moreFailed = undefined;
   });
 
-  /** The next page, appended, and what arrived said once it has (P-13). */
   async function more(): Promise<void> {
     const closed = includeClosed;
     const before = privacy.of(closed).length;
@@ -163,7 +80,6 @@
       await privacy.more(closed);
       arrived = t('app.privacy.arrived', { count: privacy.of(closed).length - before });
     } catch (error) {
-      // Beside the button that asked, not in the page's banner: the cases already shown are still right.
       moreFailed = renderProblem(error as never, messages).message;
     } finally {
       isLoadingMore = false;
@@ -172,692 +88,176 @@
 
   const reading = $derived(privacy.stateOf(includeClosed));
   const listed = $derived(byDeadline(privacy.of(includeClosed)));
-  const refusal = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
-
-  // Read once per render rather than held, for `DueMark`'s reason: nothing here animates, and a
-  // timer that re-rendered every row every minute would burn a battery to move one word.
+  const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
+  // Read once per render rather than held: a timer that re-rendered every row every minute would
+  // burn a battery to move one word.
   const now = $derived.by(() => Date.now());
 
   $effect(() => {
     const rows = listed;
-    // Both identifiers a row shows: who the case is about, and who is carrying it. Resolving one
-    // and not the other is how a row comes to name a person beside an identifier.
-    untrack(() =>
-      accounts.resolve([
-        ...rows.map((row) => row.subject_account_id),
-        ...rows.map((row) => row.handled_by),
-      ]),
-    );
+    untrack(() => accounts.resolve([...rows.map((row) => row.subject_account_id), ...rows.map((row) => row.handled_by)]));
   });
 
-  const when = (at: string | null | undefined) =>
-    at ? formatDateTime(at, messages.locale) : undefined;
+  let search = $state('');
+  let kindFilter = $state('');
+  const shown = $derived(listed.filter((each) => matchesSearch(search, [subjectOf(each), kindWord(each.kind)]) && (kindFilter === '' || each.kind === kindFilter)));
 
-  /** A calendar day as the reader's locale writes one, never shifted by a zone: it has none. */
-  const day = (value: string) => formatDue(`${value}T12:00:00Z`, messages.locale, 'UTC', { allDay: true });
+  const chips = $derived<Filter[]>([
+    { id: 'closed', label: includeClosed ? t('app.privacy.chip_with_closed') : t('app.privacy.chip_open'), isActive: includeClosed },
+    { id: 'kind', label: t('app.privacy.chip_kind', { kind: kindFilter ? kindWord(kindFilter) : t('app.page.any') }), isActive: kindFilter !== '' },
+  ]);
+  const activeFilters = $derived(chips.filter((chip) => chip.isActive).length);
 
-  /**
-   * Today in the workspace's zone, as YYYY-MM-DD: the latest day somebody can have been told. The
-   * server bounds the day there, so the device's own calendar would be refused around midnight.
-   */
-  const today = () => todayIn(zone);
+  const columns = $derived<DataColumn[]>([
+    { id: 'subject', label: t('app.privacy.subject_column'), priority: 1 },
+    { id: 'kind', label: t('app.privacy.kind'), priority: 2 },
+    { id: 'deadline', label: t('app.privacy.deadline_column'), priority: 2 },
+    { id: 'status', label: t('app.privacy.status_column'), priority: 3, isStatus: true },
+  ]);
 
-  /** Opens the extension form on the latest day the server allows. */
-  function beginExtending(request: Request): void {
-    rejecting = '';
-    if (extending === request.id) {
-      extending = '';
-      return;
-    }
-    extending = request.id;
-    extendDueOn = request.extendable_until ?? '';
-    extendReason = 'COMPLEXITY';
-    extendInformedOn = today();
-  }
+  let isRecording = $state(false);
+  let isRestricting = $state(false);
+  let isWithdrawing = $state(false);
 
-  async function extend(request: Request): Promise<void> {
-    const payload = extensionPayload({
-      dueOn: extendDueOn,
-      reason: extendReason,
-      informedOn: extendInformedOn,
-    });
-    if (!payload) return;
-    await attempt(async () => {
-      await privacy.extend(request.id, payload);
-      extending = '';
-    }, t('app.privacy.extended_announced'));
-  }
-
-  const kindWord = (kind: string) => t(`app.privacy.kind_${kind.toLowerCase()}`);
-  const statusWord = (status: string) => t(`app.privacy.status_${status.toLowerCase()}`);
-
-  /** Who the case is about: the resolved name, the address it named, or nobody nameable. */
-  const subjectOf = (request: Request) =>
-    accounts.nameOf(request.subject_account_id) ??
-    request.subject_email ??
-    t('app.privacy.subject_unknown');
-
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
-    failure = undefined;
-    isWorking = true;
-    try {
-      await work();
-      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
-      if (said) announcer.say(said);
-    } catch (cause) {
-      failure = renderProblem(cause as never, messages);
-    } finally {
-      isWorking = false;
-    }
-  }
-
-  async function record(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    missing = marked(event, [
-      { kind: 'field', key: 'subject', code: 'app.privacy.subject_needed', isFilled: draftEmail.trim() !== '' || draftAccount.trim() !== '' },
-    ]);
-    if (!isComplete(missing)) return;
-    await attempt(async () => {
-      await privacy.record({
-        kind: draftKind as Kind,
-        ...(draftAccount.trim() ? { subject_account_id: draftAccount.trim() } : {}),
-        ...(draftEmail.trim() ? { subject_email: draftEmail.trim() } : {}),
-        ...(draftTarget ? { target_id: draftTarget } : {}),
-        ...(draftNotes.trim() ? { notes: draftNotes.trim() } : {}),
-        ...receiptOf(draftReceivedOn, today()),
-        ...(deadlineOfDay(draftDueOn, zone) ? { due_at: deadlineOfDay(draftDueOn, zone) } : {}),
-      });
-      draftEmail = '';
-      draftAccount = '';
-      draftNotes = '';
-      draftDueOn = '';
-      draftReceivedOn = '';
-    }, t('app.privacy.recorded_announced'));
-  }
-
-  const targetName = (id: string | null | undefined) =>
-    (id ? backup.all.find((target) => target.id === id)?.name : undefined) ?? id ?? '';
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.privacy.title')));
+  const head = $derived({
+    title: t('app.privacy.title'),
+    breadcrumb: adminTrail({ id: 'screen', label: t('app.privacy.title') }),
+    primary: mayManage ? { label: t('app.privacy.record_open'), icon: 'plus' as const, opener: 'record-request', onclick: () => (isRecording = true) } : undefined,
+    menu: mayManage
+      ? {
+          label: t('app.page.more_for', { name: t('app.privacy.title') }),
+          items: [
+            { id: 'restrict', label: t('app.privacy.restrict_open') },
+            { id: 'withdraw', label: t('app.privacy.withdraw_open') },
+          ],
+          onselect: (id: string) => {
+            if (id === 'restrict') isRestricting = true;
+            else isWithdrawing = true;
+          },
+        }
+      : undefined,
+  });
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.privacy.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'privacy', label: t('app.privacy.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
-    <Stack gap="300">
-    <p class="quiet">{t('app.privacy.intro')}</p>
-
-    <!-- Stated rather than left as an absence: the alternative is somebody's to know. -->
-    <Banner tone="info" title={t('app.privacy.installation_title')}>
-      {t('app.privacy.installation_note')}
-    </Banner>
-
-    {#if failure}
-      <FailureNote problem={failure}>
-        {#if failure.fields.size > 0}
-          <Stack gap="050">
-            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
-          </Stack>
-        {/if}
-      </FailureNote>
+<ListPage {head}>
+  {#snippet strip()}
+    {#if hasRegister}
+      <Tabs
+        label={t('app.privacy.title')}
+        selected={current}
+        onselect={(next) => onnavigate(next === 'consent' ? '/administration/privacy?tab=consent' : '/administration/privacy')}
+        tabs={[
+          { id: 'requests', label: t('app.privacy.cases_title'), count: reading.status === 'ready' ? listed.length : undefined },
+          { id: 'consent', label: t('app.privacy.register_tab'), count: consentRegister.entries.length },
+        ]}
+      />
     {/if}
-
+  {/snippet}
+  {#snippet intro()}
     <Stack gap="150">
-      <div class="row">
-        <h2 class="section">{t('app.privacy.cases_title')}</h2>
-        <Button size="sm" tone="subtle" onclick={() => (includeClosed = !includeClosed)}>
-          {includeClosed ? t('app.privacy.hide_closed') : t('app.privacy.show_closed')}
-        </Button>
-      </div>
-
-      {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="waiting">
-          <Spinner label={t('app.privacy.reading')} /> <span>{t('app.privacy.reading')}</span>
-        </p>
-      {:else if refusal}
-        <FailureNote problem={refusal} />
-      {:else}
-        {#each listed as request (request.id)}
-          {@const standing = standingOf(request, now)}
-          {@const deadline = deadlinePhrase(request, (at) => when(at) ?? '')}
-          {@const extension = extensionPhrase(request, day)}
-          <section class="panel">
-            <Stack gap="100">
-              <div class="row">
-                <Badge>{kindWord(request.kind)}</Badge>
-                <Badge
-                  tone={request.status === 'COMPLETED'
-                    ? 'success'
-                    : request.status === 'REJECTED'
-                      ? 'neutral'
-                      : 'info'}
-                >
-                  {statusWord(request.status)}
-                </Badge>
-                <span class="name">{subjectOf(request)}</span>
-              </div>
-
-              <!-- The deadline, marked the way the product marks a due date: the icon and the word
-                   carry it as well as the colour does. -->
-              <p class="line">
-                {#if standing === 'overdue'}
-                  <Badge tone="danger" icon="triangle-alert">{t('app.privacy.overdue')}</Badge>
-                {:else if standing === 'soon'}
-                  <Badge tone="warning" icon="clock">{t('app.privacy.due_soon')}</Badge>
-                {/if}
-                <span class="quiet small">
-                  {t(deadline.code, deadline.params)}
-                  {#if standing}
-                    · {formatRelative(request.due_at, messages.locale, now)}
-                  {/if}
-                </span>
-              </p>
-
-              {#if extension}
-                <p class="quiet small">{t(extension.code, extension.params)}</p>
-              {/if}
-
-              <p class="quiet small">
-                {t('app.privacy.received', {
-                  at: request.received_on ? day(request.received_on) : (when(request.received_at) ?? ''),
-                })}
-                {#if request.handled_by}
-                  · {t('app.privacy.handled_by', {
-                    name: accounts.nameOf(request.handled_by) ?? t('app.people.unnamed'),
-                  })}
-                {/if}
-              </p>
-
-              <!-- What this kind means, said per row rather than in a legend: six rights that each
-                   mean something different are six sentences, and a legend is read once. -->
-              <p class="quiet small">{t(`app.privacy.kind_${request.kind.toLowerCase()}_note`)}</p>
-
-              {#if request.notes}<p class="quiet small">{request.notes}</p>{/if}
-
-              {#if request.result_archive}
-                <!-- Where it went. No download: the archive lies at a target the browser holds no
-                     credential for (ADR-0047). -->
-                <p class="quiet small">
-                  {t('app.privacy.archive_at', {
-                    target: targetName(request.result_target_id),
-                    path: request.result_archive,
-                  })}
-                </p>
-              {/if}
-
-              {#if keptPhrase(request)}
-                {@const kept = keptPhrase(request)}
-                <!-- Partly completed: what a hold kept, and why it may (UC-PRV-03 check 11). -->
-                <p class="quiet small">
-                  {kept ? t(kept.code, { ...kept.params, at: kept.params.at ? (when(String(kept.params.at)) ?? '') : '' }) : ''}
-                </p>
-                {#each (request.kept ?? []).filter((part) => !part.erased_at) as part (part.hold_id)}
-                  {@const line = keptPartPhrase(part, scopeWord(part))}
-                  <p class="quiet small">{t(line.code, line.params)}</p>
-                {/each}
-              {/if}
-
-              {#if request.rejection_reason}
-                <p class="quiet small">
-                  {t('app.privacy.rejected_because', { reason: request.rejection_reason })}
-                </p>
-              {/if}
-
-              {#if canAct(request, reader) && request.kind === 'ERASURE' && request.status !== 'COMPLETED'}
-                <!-- What each mode does to other people's content, before the choice is made. -->
-                <Stack gap="050">
-                  <Select
-                    label={t('app.privacy.erasure_mode')}
-                    value={request.erasure_mode ?? 'ANONYMIZE'}
-                    options={MODES.map((mode) => ({
-                      value: mode,
-                      label: t(`app.privacy.mode_${mode.toLowerCase()}`),
-                    }))}
-                    onchange={(event) =>
-                      void attempt(() =>
-                        privacy.change(request.id, {
-                          erasure_mode: (event.currentTarget as HTMLSelectElement)
-                            .value as ErasureMode,
-                        }), t('app.privacy.mode_changed_announced')
-                      )}
-                  />
-                  <p class="quiet small">
-                    {t(`app.privacy.mode_${(request.erasure_mode ?? 'ANONYMIZE').toLowerCase()}_note`)}
-                  </p>
-                  <ErasureLines requestId={request.id} mode={request.erasure_mode ?? 'ANONYMIZE'} />
-                </Stack>
-              {/if}
-
-              {#if canAct(request, reader) && (request.status === 'RECEIVED' || request.status === 'IN_PROGRESS')}
-                <div class="row">
-                  {#if request.status === 'RECEIVED'}
-                    {#if canStart(request, reader)}
-                      <Button
-                        size="sm"
-                        tone="primary"
-                        isBusy={isWorking}
-                        busyLabel={t('app.privacy.starting')}
-                        onclick={() =>
-                          confirmsStart(request)
-                            ? beginConfirming(request)
-                            : void attempt(() => privacy.change(request.id, { status: 'IN_PROGRESS' }), t('app.privacy.started_announced'))}
-                      >
-                        {t('app.privacy.start')}
-                      </Button>
-                    {/if}
-                  {:else}
-                    <Button
-                      size="sm"
-                      tone="primary"
-                      isBusy={isWorking}
-                      busyLabel={t('app.privacy.completing')}
-                      onclick={() =>
-                        void attempt(() => privacy.change(request.id, { status: 'COMPLETED' }), t('app.privacy.completed_announced'))}
-                    >
-                      {t('app.privacy.complete')}
-                    </Button>
-                  {/if}
-                  {#if canExtend(request, reader)}
-                    <Button size="sm" tone="secondary" onclick={() => beginExtending(request)}>
-                      {t('app.privacy.extend')}
-                    </Button>
-                  {/if}
-                  <Button
-                    size="sm"
-                    tone="danger"
-                    onclick={() => {
-                      extending = '';
-                      rejecting = rejecting === request.id ? '' : request.id;
-                    }}
-                  >
-                    {t('app.privacy.reject')}
-                  </Button>
-                </div>
-
-                {#if request.status === 'RECEIVED' && producesArchive(request.kind)}
-                  <!-- Starting is what runs the work, and the work writes an archive somewhere. -->
-                  <p class="quiet small">{t('app.privacy.start_makes_archive')}</p>
-                {/if}
-              {/if}
-
-              {#if extending === request.id && canExtend(request, reader)}
-                <!-- Once, by law, and recorded rather than sent: the controller tells the person,
-                     and the case keeps the reason and the day they were told. -->
-                <Stack gap="100">
-                  <p class="quiet small">{t('app.privacy.extend_note')}</p>
-                  <Input
-                    label={t('app.privacy.extend_until')}
-                    hint={t('app.privacy.extend_until_hint', { latest: day(request.extendable_until ?? '') })}
-                    type="date"
-                    max={request.extendable_until}
-                    bind:value={extendDueOn}
-                    isRequired
-                  />
-                  <Select
-                    label={t('app.privacy.extend_reason')}
-                    bind:value={extendReason}
-                    options={EXTENSION_REASONS.map((reason) => ({
-                      value: reason,
-                      label: t(`app.privacy.extend_reason_${reason.toLowerCase()}`),
-                    }))}
-                  />
-                  <Input
-                    label={t('app.privacy.extend_informed')}
-                    hint={t('app.privacy.extend_informed_hint')}
-                    type="date"
-                    max={today()}
-                    bind:value={extendInformedOn}
-                    isRequired
-                  />
-                  <div class="row">
-                    <Button
-                      size="sm"
-                      tone="primary"
-                      isBusy={isWorking}
-                      busyLabel={t('app.privacy.extending')}
-                      onclick={() => void extend(request)}
-                    >
-                      {t('app.privacy.extend_confirm')}
-                    </Button>
-                    <Button size="sm" tone="subtle" onclick={() => (extending = '')}>
-                      {t('app.workspace.cancel')}
-                    </Button>
-                  </div>
-                </Stack>
-              {/if}
-
-              {#if rejecting === request.id && canAct(request, reader)}
-                <Stack gap="100">
-                  <Input
-                    label={t('app.privacy.reject_reason')}
-                    hint={t('app.privacy.reject_reason_hint')}
-                    bind:value={rejectReason}
-                    isRequired
-                  />
-                  <div class="row">
-                    <Button
-                      size="sm"
-                      tone="danger"
-                      isBusy={isWorking}
-                      busyLabel={t('app.privacy.rejecting')}
-                      onclick={() =>
-                        void attempt(async () => {
-                          await privacy.change(request.id, {
-                            status: 'REJECTED',
-                            rejection_reason: rejectReason.trim(),
-                          });
-                          rejecting = '';
-                          rejectReason = '';
-                        }, t('app.privacy.rejected_announced'))}
-                    >
-                      {t('app.privacy.reject_confirm')}
-                    </Button>
-                    <Button size="sm" tone="subtle" onclick={() => (rejecting = '')}>
-                      {t('app.workspace.cancel')}
-                    </Button>
-                  </div>
-                </Stack>
-              {/if}
-            </Stack>
-          </section>
-        {:else}
-          <EmptyState kind="unused" title={t('app.privacy.none')} />
-        {/each}
-
-        <!-- Drawn whole while something is to be said after the last page: the live regions go
-             with the component, and one removed with the button is one nobody hears. -->
-        {#if privacy.moreAfter(includeClosed) || arrived || moreFailed}
-          <LoadMore
-            label={t('app.privacy.more')}
-            busyLabel={t('app.privacy.loading_more')}
-            hasMore={Boolean(privacy.moreAfter(includeClosed))}
-            isBusy={isLoadingMore}
-            arrivedLabel={arrived}
-            failedLabel={moreFailed}
-            onLoadMore={() => void more()}
-          />
-        {/if}
+      <p class="quiet">{t('app.privacy.intro')}</p>
+      {#if current === 'requests'}
+        <!-- Stated rather than left as an absence: the alternative is somebody's to know. -->
+        <Banner tone="info" title={t('app.privacy.installation_title')}>{t('app.privacy.installation_note')}</Banner>
+        <!-- A reader without MANAGE_MEMBERS is told once why nothing here can be recorded (P-05). -->
+        <WorkspaceGate permission="MANAGE_MEMBERS" />
       {/if}
     </Stack>
-
-    <WorkspaceGate permission="MANAGE_MEMBERS">
-      {#snippet actions()}
-      <form class="panel" onsubmit={record}>
-        <Stack gap="150">
-          <h2 class="section">{t('app.privacy.record_title')}</h2>
-          <p class="quiet small">{t('app.privacy.record_note')}</p>
-          <Select
-            label={t('app.privacy.kind')}
-            bind:value={draftKind}
-            options={KINDS.map((kind) => ({ value: kind, label: kindWord(kind) }))}
-          />
-          <p class="quiet small">{t(`app.privacy.kind_${draftKind.toLowerCase()}_note`)}</p>
-          <Input
-            label={t('app.privacy.subject_email')}
-            hint={t('app.privacy.subject_email_hint')}
-            type="email"
-            bind:value={draftEmail}
-            error={missing.subject && !draftEmail.trim() && !draftAccount.trim() ? t(missing.subject) : undefined}
-          />
-          <PersonPicker
-            label={t('app.privacy.subject_account')}
-            hint={t('app.privacy.subject_account_hint')}
-            noneLabel={t('app.person_picker.choose')}
-            bind:value={draftAccount}
-          />
-          {#if producesArchive(draftKind as Kind)}
-            <!-- Required before such a case can start: a copy of somebody's data has to be put
-                 somewhere, and this system writes archives to configured targets. -->
-            <Select
-              label={t('app.privacy.target')}
-              hint={t('app.privacy.target_hint')}
-              bind:value={draftTarget}
-              placeholder={t('app.privacy.choose_target')}
-              options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
-            />
+  {/snippet}
+  {#snippet filters()}
+    {#if current === 'requests'}
+      <FilterBar
+        searchLabel={t('app.privacy.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        filters={chips}
+        moreLabel={t('app.page.more_filters')}
+        filtersLabel={t('app.page.filters', { count: String(activeFilters) })}
+        sheetTitle={t('app.page.filters', { count: '0' })}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+        showLabel={t('app.page.show_results', { count: String(shown.length) })}
+        clearLabel={t('app.page.clear')}
+        onclear={() => { search = ''; kindFilter = ''; includeClosed = false; }}
+        countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(listed.length) }) : undefined}
+      >
+        {#snippet picker(chip: Filter)}
+          {#if chip.id === 'closed'}
+            <Radio label={t('app.privacy.cases_title')} bind:value={() => (includeClosed ? 'all' : 'open'), (next) => (includeClosed = next === 'all')}
+              options={[{ value: 'open', label: t('app.privacy.chip_open') }, { value: 'all', label: t('app.privacy.chip_with_closed') }]} />
+          {:else}
+            <Radio label={t('app.privacy.kind')} bind:value={kindFilter}
+              options={['', ...KINDS].map((each) => ({ value: each, label: each === '' ? t('app.page.any') : kindWord(each) }))} />
           {/if}
-          <!-- The day the request arrived: the month counts from it, in the workspace's zone, and
-               it cannot be later than today there. -->
-          <Input
-            label={t('app.privacy.received_on')}
-            hint={t('app.privacy.received_on_hint')}
-            type="date"
-            max={today()}
-            bind:value={draftReceivedOn}
-          />
-          <!-- Its own deadline, where the controller owes a sooner answer than the month. -->
-          <Input
-            label={t('app.privacy.deadline')}
-            hint={t('app.privacy.deadline_hint')}
-            type="date"
-            min={earliestDeadline(draftReceivedOn, today())}
-            bind:value={draftDueOn}
-          />
-          <Textarea label={t('app.privacy.notes')} bind:value={draftNotes} rows={2} />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.privacy.recording')}
-            >
-              {t('app.privacy.record')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-      {/snippet}
-    </WorkspaceGate>
+        {/snippet}
+      </FilterBar>
+    {/if}
+  {/snippet}
 
+  {#if current === 'consent'}
     <!-- Who keeps their own content out of AI: the register, here and nowhere else. -->
     <ConsentRegister />
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.privacy.articles_title')}</h2>
-      <p class="quiet small">{t('app.privacy.articles_note')}</p>
-
-      <WorkspaceGate permission="MANAGE_MEMBERS">
-        {#snippet actions()}
-        <form
-          class="panel"
-          onsubmit={(event) => {
-            event.preventDefault();
-            missing = marked(event, [{ kind: 'field', key: 'restrict', code: 'app.forms.required', isFilled: restrictAccount.trim() !== '' }]);
-            if (!isComplete(missing)) return;
-            void attempt(async () => {
-              await privacy.restrict(restrictAccount.trim(), true, restrictReason.trim() || undefined);
-              restrictAccount = '';
-              restrictReason = '';
-            }, t('app.privacy.restricted_announced'));
-          }}
-        >
-          <Stack gap="150">
-            <h3 class="section">{t('app.privacy.restrict_title')}</h3>
-            <!-- What it means for the person's sessions and for the workspace's automations. -->
-            <p class="quiet small">{t('app.privacy.restrict_note')}</p>
-            <PersonPicker
-              label={t('app.privacy.restrict_account')}
-              noneLabel={t('app.person_picker.choose')}
-              bind:value={restrictAccount}
-              error={missing.restrict && !restrictAccount.trim() ? t(missing.restrict) : undefined}
-            />
-            <Input label={t('app.privacy.restrict_reason')} bind:value={restrictReason} />
-            <div>
-              <Button
-                type="submit"
-                tone="secondary"
-                isBusy={isWorking}
-                busyLabel={t('app.privacy.restricting')}
-              >
-                {t('app.privacy.restrict')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-        {/snippet}
-      </WorkspaceGate>
-
-      <WorkspaceGate permission="MANAGE_MEMBERS">
-        {#snippet actions()}
-        <form
-          class="panel"
-          onsubmit={(event) => {
-            event.preventDefault();
-            missing = marked(event, [{ kind: 'field', key: 'purpose', code: 'app.forms.required', isFilled: withdrawPurpose.trim() !== '' }]);
-            if (!isComplete(missing)) return;
-            void attempt(async () => {
-              await privacy.withdraw(withdrawPurpose.trim(), withdrawAccount.trim() || undefined);
-              withdrawPurpose = '';
-              withdrawAccount = '';
-            }, t('app.privacy.withdrawn_announced'));
-          }}
-        >
-          <Stack gap="150">
-            <h3 class="section">{t('app.privacy.withdraw_title')}</h3>
-            <p class="quiet small">{t('app.privacy.withdraw_note')}</p>
-            <Input
-              label={t('app.privacy.purpose')}
-              hint={t('app.privacy.purpose_hint')}
-              bind:value={withdrawPurpose}
-              error={missing.purpose && !withdrawPurpose.trim() ? t(missing.purpose) : undefined}
-            />
-            <PersonPicker
-              label={t('app.privacy.withdraw_account')}
-              hint={t('app.privacy.withdraw_account_hint')}
-              noneLabel={t('app.person_picker.yourself')}
-              bind:value={withdrawAccount}
-            />
-            <div>
-              <Button
-                type="submit"
-                tone="secondary"
-                isBusy={isWorking}
-                busyLabel={t('app.privacy.withdrawing')}
-              >
-                {t('app.privacy.withdraw')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-        {/snippet}
-      </WorkspaceGate>
-    </Stack>
-    </Stack>
-</Stack>
-
-<!-- Starting an erasure is the one start that cannot be undone, so it is confirmed first, naming
-     the person and what the chosen mode removes (P-04, UC-PRV-03 check 8). Nothing is sent before
-     the confirmation. -->
-<Dialog
-  title={t('app.privacy.confirm_erase_title', { name: confirming ? subjectOf(confirming) : '' })}
-  isOpen={confirming !== undefined}
-  dismissLabel={t('app.privacy.confirm_erase_cancel')}
-  onClose={() => (confirming = undefined)}
->
-  {#snippet actions()}
-    <Button onclick={() => (confirming = undefined)}>{t('app.privacy.confirm_erase_cancel')}</Button>
-    <Button
-      tone="danger"
-      isBusy={isWorking}
-      busyLabel={t('app.privacy.starting')}
-      onclick={() => {
-        const request = confirming;
-        if (!request) return;
-        void attempt(async () => {
-          await privacy.change(request.id, { status: 'IN_PROGRESS' });
-          confirming = undefined;
-        }, t('app.privacy.started_announced'));
-      }}
+  {:else if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="quiet"><Spinner label={t('app.privacy.reading')} /> <span>{t('app.privacy.reading')}</span></p>
+  {:else if refusal}
+    <FailureNote problem={refusal} />
+  {:else}
+    <DataTable
+      label={t('app.privacy.cases_title')}
+      {columns}
+      rows={shown}
+      key={(each: Request) => each.id}
+      href={(each: Request) => `/administration/privacy/${each.id}`}
+      rowLabel={subjectOf}
+      shownLabel={listed.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+      more={privacy.moreAfter(includeClosed) || arrived || moreFailed
+        ? {
+            label: t('app.privacy.more'),
+            busyLabel: t('app.privacy.loading_more'),
+            hasMore: Boolean(privacy.moreAfter(includeClosed)),
+            isBusy: isLoadingMore,
+            arrivedLabel: arrived,
+            failedLabel: moreFailed,
+            onLoadMore: () => void more(),
+          }
+        : undefined}
     >
-      {t('app.privacy.confirm_erase')}
-    </Button>
-  {/snippet}
-  <Stack gap="100">
-    <!-- A refused start is said here: the page's own banner sits behind the dialog. -->
-    {#if failure}
-      <FailureNote problem={failure} />
-    {/if}
-    <p>
-      {t(`app.privacy.confirm_erase_${(confirming?.erasure_mode ?? 'ANONYMIZE').toLowerCase()}`, {
-        name: confirming ? subjectOf(confirming) : '',
-      })}
-    </p>
-    <!-- What a legal hold will keep, said before the start (UC-PRV-03 check 11). -->
-    {#if previewed === 'checking'}
-      <p class="quiet small">{t('app.privacy.preview_checking')}</p>
-    {:else if previewed === 'unknown'}
-      <p class="quiet small">{t('app.privacy.preview_unknown')}</p>
-    {:else if previewed.length === 0}
-      <p class="quiet small">{t('app.privacy.preview_none')}</p>
-    {:else}
-      <p>{t('app.privacy.preview_intro')}</p>
-      {#each previewed as part (part.hold_id)}
-        {@const line = keptPartPhrase(part, scopeWord(part))}
-        <p class="small">{t(line.code, line.params)}</p>
-      {/each}
-    {/if}
-    <ErasureLines {lines} />
-  </Stack>
-</Dialog>
+      {#snippet cell(request: Request, column: DataColumn)}
+        {#if column.id === 'subject'}
+          <span class="name" data-case={request.id}>{subjectOf(request)}</span>
+        {:else if column.id === 'kind'}
+          <span class="quiet">{kindWord(request.kind)}</span>
+        {:else if column.id === 'deadline'}
+          {@const standing = standingOf(request, now)}
+          {@const deadline = deadlinePhrase(request, (at) => when(at) ?? '')}
+          <!-- Marked the way the product marks a due date: the icon and the word carry it. -->
+          <span class="deadline">
+            {#if standing === 'overdue'}
+              <Badge tone="danger" icon="triangle-alert">{t('app.privacy.overdue')}</Badge>
+            {:else if standing === 'soon'}
+              <Badge tone="warning" icon="clock">{t('app.privacy.due_soon')}</Badge>
+            {/if}
+            <span class="quiet">{t(deadline.code, deadline.params)}</span>
+          </span>
+        {:else}
+          <Badge tone={statusTone(request.status)}>{statusWord(request.status)}</Badge>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        <EmptyState kind={search || kindFilter ? 'filtered' : 'unused'} title={t('app.privacy.none')} />
+      {/snippet}
+    </DataTable>
+  {/if}
+</ListPage>
+
+{#if mayManage}
+  <RecordRequestDialog bind:isOpen={isRecording} />
+  <RestrictDialog bind:isOpen={isRestricting} />
+  <WithdrawDialog bind:isOpen={isWithdrawing} />
+{/if}
 
 <style>
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .section {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-  }
-
-  h3.section { font-size: var(--fs-200); }
-
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .small { font-size: var(--fs-075); }
-
-  .waiting {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    color: var(--text-secondary);
-  }
-
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
-
-  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
-     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
-     say so themselves - they are a grid of their own. */
-  form.panel { max-inline-size: 52ch; }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .deadline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 </style>

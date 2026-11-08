@@ -181,7 +181,7 @@ test('chromium: a page of privacy cases that was refused is said beside the butt
   await page.goto(`${served.origin}/administration/privacy`);
   await failsThenRetries(page, {
     button: 'Show more',
-    rows: () => page.locator('section.panel'),
+    rows: () => page.locator('main tbody tr.row'),
     failure: 'You do not have permission for this action.',
     arrived: '1 more case is listed.',
   });
