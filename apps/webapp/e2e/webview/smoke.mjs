@@ -281,11 +281,13 @@ async function walk(server, browser) {
   await consent(asked);
 
   step('open a hub');
-  // A narrow window keeps the tree behind the menu (design-system.md §9).
-  const tree = await until('the frame', async () => (await session.find('a, button, [role="treeitem"]', HUB)) ?? (await session.find('button', 'Open the navigation')), 60_000);
-  if ((await session.find('a, button, [role="treeitem"]', HUB)) === null) await tree.click();
-  await session.click('a, button, [role="treeitem"]', HUB);
-  await session.click('a, button, [role="treeitem"]', COLLECTION);
+  // A row's name is its `.name`: the row itself also says its figure (a count, the › into a
+  // hub). A narrow window keeps the tree behind ☰, a compact one the hubs behind *Browse*.
+  const PLACE = 'a, button, [role="treeitem"], .name';
+  const tree = await until('the frame', async () => (await session.find(PLACE, HUB)) ?? (await session.find('button', 'Open the navigation')) ?? (await session.find('a', 'Browse')), 60_000);
+  if ((await session.find(PLACE, HUB)) === null) await tree.click();
+  await session.click(PLACE, HUB);
+  await session.click(PLACE, COLLECTION);
 
   step('create an entry');
   const add = await until('an add control', async () => (await session.find('main button', 'Add an entry')) ?? (await session.find('nav button', 'Capture')));
