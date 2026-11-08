@@ -55,7 +55,7 @@
   import ManagedAccountDialog from '../lib/people/ManagedAccountDialog.svelte';
   import DiscardDialog from '../lib/page/DiscardDialog.svelte';
   import { DiscardGuard } from '../lib/page/discard.svelte.ts';
-  import { matchesChoice, matchesSearch } from '../lib/page/list.ts';
+  import { countOf, matchesChoice, matchesSearch } from '../lib/page/list.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
   import RenewDialog from '../lib/people/RenewDialog.svelte';
@@ -372,6 +372,13 @@
         matchesChoice(standingChoice || undefined, statusOf(holder.accountId)) &&
         matchesSearch(search, [nameOf(holder), holder.accountId ? (signIn.details[holder.accountId]?.email ?? undefined) : undefined]),
     ),
+  );
+  // The foot (page-system D-1): *Showing 50 of 120* where the scope counted more than it holds.
+  const counted = $derived(countOf(shown.length, people.totalAt(TENANT), search !== '' || roleChoice !== '' || standingChoice !== ''));
+  const shownLabel = $derived(
+    shown.length < counted
+      ? t('app.page.showing_of', { shown: String(shown.length), count: String(counted) })
+      : t('app.page.showing', { count: String(shown.length) }),
   );
   const chips = $derived<Filter[]>([
     { id: 'role', label: t('app.people.filter_role', { role: roleChoice ? roleWord(roleChoice) : t('app.page.any') }), isActive: roleChoice !== '' },
@@ -787,7 +794,7 @@
       sort={order.sort}
       onSort={(next) => order.by(next)}
       isBusy={isWriting}
-      shownLabel={holders.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+      shownLabel={holders.length === 0 ? undefined : shownLabel}
     >
       {#snippet cell(holder: Holder, column: DataColumn)}
         {#if column.id === 'who'}

@@ -9056,6 +9056,7 @@
   "app.entries.add_lines": "Several lines…",
   "app.templates.from": "From a template…",
   "app.templates.none": "No templates apply here yet.",
+  "app.templates.load_more": "Show more templates",
   "app.templates.scope_TENANT": "Whole workspace",
   "app.templates.scope_HUB": "This hub",
   "app.templates.scope_COLLECTION": "This collection",

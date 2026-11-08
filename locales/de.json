@@ -9056,6 +9056,7 @@
   "app.entries.add_lines": "Mehrere Zeilen…",
   "app.templates.from": "Aus einer Vorlage…",
   "app.templates.none": "Hier gelten noch keine Vorlagen.",
+  "app.templates.load_more": "Weitere Vorlagen zeigen",
   "app.templates.scope_TENANT": "Ganzer Arbeitsbereich",
   "app.templates.scope_HUB": "Dieser Hub",
   "app.templates.scope_COLLECTION": "Diese Sammlung",

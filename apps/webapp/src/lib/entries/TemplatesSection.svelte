@@ -30,6 +30,7 @@
   import { todayIn } from '../i18n/zone.ts';
   import { DiscardGuard } from '../page/discard.svelte.ts';
   import DiscardDialog from '../page/DiscardDialog.svelte';
+  import { countOf } from '../page/list.ts';
   import TableSection from '../page/TableSection.svelte';
   import { renderProblem } from '../problem.ts';
   import CollectionSummary from './CollectionSummary.svelte';
@@ -52,6 +53,22 @@
   const mayShape = $derived(holds(role, 'STRUCTURE').status === 'permitted');
   const mayUse = $derived(holds(role, 'WRITE_ITEMS').status === 'permitted');
   const held = $derived(templates.of(collectionId));
+  // The foot (page-system D-1): *Showing 50 of 120* while pages are unread, and the next page by the cursor.
+  const counted = $derived(countOf(held.length, templates.totalOf(collectionId), false));
+  const shownLabel = $derived(
+    held.length < counted
+      ? t('app.page.showing_of', { shown: String(held.length), count: String(counted) })
+      : t('app.page.showing', { count: String(held.length) }),
+  );
+  let isReadingMore = $state(false);
+  async function readMore(): Promise<void> {
+    isReadingMore = true;
+    try {
+      await templates.readMore(collectionId);
+    } finally {
+      isReadingMore = false;
+    }
+  }
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
   const generation = $derived(suggestions.askingOf(collectionId));
 
@@ -216,7 +233,7 @@
 <!-- The drafts asked for here, while they run and once they arrive. -->
 {#if hasAi}<CollectionSummary containerId={collectionId} part="template" />{/if}
 
-<TableSection title={t('app.templates.title')} note={String(held.length)} {acts}>
+<TableSection title={t('app.templates.title')} note={String(counted)} {acts}>
   {#if failure && !isDefining && !isUsing && !isGenerating && !isDeleting}<p class="failure" role="alert">{failure.message}</p>{/if}
   <div data-entry-templates>
     <DataTable
@@ -237,6 +254,10 @@
       actionsLabel={t('app.page.row_actions')}
       sheetDismissLabel={t('app.page.sheet_close')}
       sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={held.length === 0 ? undefined : shownLabel}
+      more={templates.hasMoreOf(collectionId)
+        ? { label: t('app.templates.load_more'), isBusy: isReadingMore, hasMore: true, onLoadMore: () => void readMore() }
+        : undefined}
     >
       {#snippet cell(template, column)}
         {#if column.id === 'name'}<span class="name">{template.name}</span>
