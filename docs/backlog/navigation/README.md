@@ -753,4 +753,6 @@ Seen on the real demo beside the review, open: the sidebar's *Plan* row loses it
 running sprint's figure (*P Sprint 24 – Passkeys · 7 T*, German, 1440 px); *Today*'s *Lists* card
 overflows its column sideways. `e2e/productsband.test.mjs` (*the desk's home … draw the queues*) failed
 once in the full engine run on *Breached 19 min ago* against an expected 18 - a clock read twice under
-load; it passes alone.
+load; it passes alone. After R-3, R-4 and R-12 the full engine run (`pnpm test:engines`) was 1,063 of 1,065: `shell`'s
+empty hub counted the new ⋯ as a branch (the walk fixed), and `kompassmove`'s carried page timed out
+once under load and passes alone.
