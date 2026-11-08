@@ -9,7 +9,8 @@
   import { placeMark } from '../lib/workspace/PlaceMark.svelte';
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Disclosure, EmptyState, Inline, PageHeader, SearchField, Select, Skeleton, Stack, Switch, Table, UploadField, ViewSwitcher,
+    Banner, Button, DataTable, Disclosure, EmptyState, Inline, PageHeader, SearchField, Select, Skeleton, Switch, UploadField, ViewSwitcher, WorkPage,
+    type DataColumn,
   } from '@hubtask/design-system/components';
   import type { PageHitList, PageLabelCounts, PageList, WhiteboardList } from '@hubtask/sync-engine';
 
@@ -87,8 +88,8 @@
       : all.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   });
   const isReading = $derived(pageList === undefined || boardList === undefined);
-  const columns = $derived([
-    { id: 'title', label: t('app.whiteboards.board_title') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'title', label: t('app.whiteboards.board_title'), priority: 1 },
     { id: 'kind', label: t('app.nav.kind_label') },
     { id: 'changed', label: t('app.pages.changed') },
   ]);
@@ -215,7 +216,10 @@
   }
 </script>
 
-<Stack gap="300">
+<!-- A work page for now (page-system §7.8): the navigation concept's *All contents*, its kind and
+     its search in the body; which list page it becomes is an open design point. -->
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={t('app.nav.all_contents')}
     isTitleInBar={viewport.isCompact}
@@ -230,6 +234,7 @@
         }
       : undefined}
   />
+  {/snippet}
 
   <Inline gap="100" align="end" isWrapping>
     <div class="search"><SearchField label={t('app.pages.search')} clearLabel={t('app.pages.search_clear')} bind:value={words} size="sm" /></div>
@@ -282,18 +287,16 @@
     {:else if rows.length === 0}
       <EmptyState kind="unused" title={t('app.nav.contents_empty')} />
     {:else}
-      <Table label={t('app.nav.all_contents')} isLabelHidden {columns}>
-        {#each rows as row (row.id)}
-          <tr data-content-row={row.kind}>
-            <th scope="row"><a href={row.kind === 'page' ? `/pages/${row.id}` : `/whiteboards/${row.id}`}>{row.title}</a></th>
-            <td>{t(row.kind === 'page' ? 'app.nav.kind_page' : 'app.nav.kind_whiteboard')}</td>
-            <td class="quiet">{row.at ? formatPlainDay(row.at.slice(0, 10), messages.locale) : ''}</td>
-          </tr>
-        {/each}
-      </Table>
+      <DataTable label={t('app.nav.all_contents')} {columns} {rows} key={(row) => row.id} href={(row) => (row.kind === 'page' ? `/pages/${row.id}` : `/whiteboards/${row.id}`)}>
+        {#snippet cell(row, column: DataColumn)}
+          {#if column.id === 'title'}<a data-content-row={row.kind} href={row.kind === 'page' ? `/pages/${row.id}` : `/whiteboards/${row.id}`}>{row.title}</a>
+          {:else if column.id === 'kind'}{t(row.kind === 'page' ? 'app.nav.kind_page' : 'app.nav.kind_whiteboard')}
+          {:else}<span class="quiet">{row.at ? formatPlainDay(row.at.slice(0, 10), messages.locale) : ''}</span>{/if}
+        {/snippet}
+      </DataTable>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 
 {#if isMaking}
   <CreateDialog
@@ -334,8 +337,8 @@
   .narrow { display: grid; gap: var(--sp-050); }
   .hits { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .hits li { display: grid; gap: var(--sp-025); padding-block: var(--sp-050); }
-  .hits a, th a { color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
-  .hits a:hover, th a:hover { text-decoration: underline; }
+  .hits a { color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
+  .hits a:hover { text-decoration: underline; }
   .excerpt { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
