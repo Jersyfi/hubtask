@@ -1257,8 +1257,12 @@
         }}
         mark={ownMark}
       />
-      {#if !showsSettings || !container.structure}
+      {#if structure.status !== 'undetermined' && !mayShape}
+        <!-- Reached by its address only: the ⋯ and the ⚙ offer it to nobody else (P-05). -->
         <EmptyState kind="filtered" title={t('app.settings.not_yours')} />
+      {:else if !showsSettings || !container.structure}
+        <!-- The role or the structure is still being read: neither is a refusal. -->
+        <div aria-busy="true"><Skeleton lines={6} /></div>
       {:else if readOnlyReason}
         <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId} />
       {:else}
