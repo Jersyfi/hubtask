@@ -104,7 +104,7 @@
         {/snippet}
         {#snippet empty()}
           {#if !list.isCompleting}
-            <EmptyState kind="unused" icon="mail" title={t('app.mail.mailboxes_empty_title')} description={t('app.mail.mailboxes_hint')} action={connectAct} />
+            <EmptyState kind="unused" icon="mail" title={t('app.mail.mailboxes_empty_title')} action={connectAct} />
           {/if}
         {/snippet}
       </DataTable>
