@@ -122,6 +122,8 @@ export const ROUTES: readonly Route[] = [
   // Where a mail provider sends the browser back after connecting a mailbox (ADR-0094): the mail
   // screen, which hands the code and the state to the API and then drops them from the address.
   { name: 'mail-oauth', pattern: '/administration/mail/oauth', area: 'administration' },
+  // A connected mailbox's record page (page-system §9.3).
+  { name: 'mailbox', pattern: '/administration/mail/mailboxes/:id', area: 'administration' },
   // After `mail-oauth`, which it would otherwise take as a section named `oauth`.
   { name: 'mail-section', pattern: '/administration/mail/:section', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },

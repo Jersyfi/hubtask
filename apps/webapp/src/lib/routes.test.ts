@@ -60,6 +60,7 @@ test('the administration area is exactly these screens, by name', () => {
     'mail',
     'mail-oauth',
     'mail-section',
+    'mailbox',
     'modules',
     'people',
     'permissions',

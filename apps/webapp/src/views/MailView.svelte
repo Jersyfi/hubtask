@@ -18,7 +18,7 @@
   // *Mailboxes*, *Intake*, *Who may write*, *Sender rules*, *Handles* and *Recently arrived*, each
   // at `/administration/mail/<section>`. The settings are one record written whole: *Intake* and
   // *Who may write* each have a save bar that sends its own values over what is saved, a sender
-  // rule is written by its Dialog M, a mailbox by its dialogs; the rest is read.
+  // rule is written by its Dialog M; a mailbox opens its own record page; the rest is read.
 
   import { untrack } from 'svelte';
 
@@ -62,14 +62,13 @@
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import ConnectMailboxDialog from '../lib/mail/ConnectMailboxDialog.svelte';
-  import MailboxDialog from '../lib/mail/MailboxDialog.svelte';
   import MailboxSection from '../lib/mail/MailboxSection.svelte';
   import { MailboxList, type SenderRule } from '../lib/mail/mailboxes.svelte.ts';
+  import ReceiptTable from '../lib/mail/ReceiptTable.svelte';
   import RemoveMailboxDialog from '../lib/mail/RemoveMailboxDialog.svelte';
   import SenderRuleDialog from '../lib/mail/SenderRuleDialog.svelte';
   import TableSection from '../lib/page/TableSection.svelte';
@@ -79,13 +78,15 @@
     section?: string;
     /** Replaces the address: a move between sections, so the unsaved values of another stay. */
     onreplace?: (path: string) => void;
+    /** Opens another page: a mailbox's own (page-system §9.3). */
+    onnavigate?: (path: string) => void;
     /** What a mail provider sent back after connecting a mailbox (`/administration/mail/oauth`). */
     providerAnswer?: Readonly<Record<string, string>>;
     /** Told once the answer is handed on, so the address drops the code and the state. */
     onanswered?: () => void;
   }
 
-  let { section, onreplace, providerAnswer, onanswered }: Props = $props();
+  let { section, onreplace, onnavigate, providerAnswer, onanswered }: Props = $props();
 
   const BASE = '/administration/mail';
   type Scope = 'intake' | 'senders' | 'rules';
@@ -262,12 +263,6 @@
     { id: 'handle', label: t('app.mail.handle_column'), priority: 2 },
     ...(mailboxes[0]?.plus_addresses ? [{ id: 'through', label: t('app.mail.handle_through'), priority: 3 as const }] : []),
   ]);
-  const logColumns: readonly DataColumn[] = $derived([
-    { id: 'subject', label: t('app.mail.log_subject'), priority: 1 },
-    { id: 'from', label: t('app.mail.log_from'), priority: 2 },
-    { id: 'when', label: t('app.mail.log_when'), priority: 3 },
-    { id: 'became', label: t('app.mail.log_became'), isStatus: true },
-  ]);
   const placeOf = (id: string) => collections.find((collection) => collection.value === id)?.label ?? id;
 
   const rules = $derived<SenderRule[]>((loaded?.sender_routes ?? []).map((route) => ({ match: route.match, collection: route.collection_id })));
@@ -328,17 +323,6 @@
       announcer.say(t('app.mail.copy_failed', { address: text }));
     }
   }
-
-  function outcomeOf(receipt: MailReceipt): string {
-    const became = t(`app.mail.outcome.${receipt.outcome}`);
-    return receipt.reason ? `${became} · ${t(`app.mail.reason.${receipt.reason}`)}` : became;
-  }
-
-  function hrefOf(receipt: MailReceipt): string | undefined {
-    if (receipt.item_id) return `/items/${receipt.item_id}`;
-    if (receipt.entry_id) return '/jumble';
-    return undefined;
-  }
 </script>
 
 {#snippet figure()}<span class="figure" data-mail-figure>{figureText}</span>{/snippet}
@@ -386,7 +370,7 @@
       {:else}
         {#if saveFailure && editing === undefined}<FailureNote problem={saveFailure} />{/if}
         {#if shown === 'mailboxes'}
-          <MailboxSection list={boxes} />
+          <MailboxSection list={boxes} {onnavigate} />
         {:else if shown === 'intake'}
           <div data-mail-on>
             <SettingsSection title={t('app.mail.section_on')} save={intakeBar} advanced={{ label: t('app.mail.section_order'), rows: orderRows }}>
@@ -499,30 +483,7 @@
         {:else if shown === 'arrived'}
           <div data-mail-log>
             <TableSection title={t('app.mail.section_log')} note={String(receipts.length)}>
-              <DataTable
-                label={t('app.mail.section_log')}
-                columns={logColumns}
-                rows={receipts}
-                key={(receipt: MailReceipt) => receipt.id}
-                rowLabel={(receipt: MailReceipt) => receipt.subject || receipt.sender}
-                shownLabel={receipts.length === 0 ? undefined : t('app.page.showing', { count: String(receipts.length) })}
-              >
-                {#snippet cell(receipt: MailReceipt, column: DataColumn)}
-                  {@const href = hrefOf(receipt)}
-                  {#if column.id === 'subject'}
-                    <span class="name" data-receipt={receipt.outcome}>{receipt.subject || '—'}</span>
-                  {:else if column.id === 'from'}
-                    <span class="quiet">{receipt.sender}</span>
-                  {:else if column.id === 'when'}
-                    <span class="quiet">{formatDateTime(receipt.received_at, messages.locale)}</span>
-                  {:else if href}
-                    <a {href}>{outcomeOf(receipt)}</a>
-                  {:else}
-                    <span>{outcomeOf(receipt)}</span>
-                  {/if}
-                {/snippet}
-                {#snippet empty()}<EmptyState kind="unused" title={t('app.mail.log_empty')} />{/snippet}
-              </DataTable>
+              <ReceiptTable label={t('app.mail.section_log')} {receipts} />
             </TableSection>
           </div>
         {/if}
@@ -549,13 +510,6 @@
   redirectUrl={boxes.redirectUrl}
   oauthFailure={boxes.oauthFailure}
   onconnected={(box) => boxes.add(box)}
-/>
-<MailboxDialog
-  box={boxes.opened}
-  isChecking={boxes.working !== undefined && boxes.working === boxes.openedId}
-  onClose={() => (boxes.openedId = undefined)}
-  oncheck={(box) => void boxes.check(box)}
-  onremove={(box) => boxes.askRemoval(box)}
 />
 <RemoveMailboxDialog
   box={boxes.removing}

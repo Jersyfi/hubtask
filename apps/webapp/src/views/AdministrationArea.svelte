@@ -18,6 +18,7 @@
   import LinkTypesView from './LinkTypesView.svelte';
   import MachinesView from './MachinesView.svelte';
   import MailView from './MailView.svelte';
+  import MailboxView from './MailboxView.svelte';
   import ModulesView from './ModulesView.svelte';
   import GroupView from './GroupView.svelte';
   import PeopleView from './PeopleView.svelte';
@@ -165,9 +166,14 @@
     providerAnswer={route.name === 'mail-oauth' ? route.query : undefined}
     onanswered={() => onreplace('/administration/mail/mailboxes')}
     onreplace={(path) => onreplace(path)}
+    onnavigate={(path) => onnavigate(path)}
   />
   <!-- One branch for the list, its sections and the provider's answer: a move between sections
        keeps the screen and what another section holds unsaved. -->
+{:else if route.name === 'mailbox'}
+  {#key route.params.id}
+    <MailboxView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'legal'}
   <SignInSettingsView part="legal" onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'ai' || route.name === 'ai-section'}

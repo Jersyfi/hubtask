@@ -7,7 +7,8 @@
   //
   // **What is connected comes first** (user-experience.md §7.10): a table section (page-system
   // §9.3) whose rows say each mailbox's state in words and, where a read failed, the failure beside
-  // *Check now*. A mailbox opens as a Dialog M; the page holds the list and the dialogs.
+  // *Check now*. A mailbox's row is a link to its own record page (page-system §9.3); the page
+  // holds the list and the dialogs.
 
   import { Badge, Button, DataTable, EmptyState, Spinner, type DataColumn } from '@hubtask/design-system/components';
 
@@ -16,13 +17,14 @@
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import TableSection from '../page/TableSection.svelte';
-  import { STATE_TONE, wayOf, type MailboxList } from './mailboxes.svelte.ts';
+  import { STATE_TONE, mailboxPath, wayOf, type MailboxList } from './mailboxes.svelte.ts';
 
   interface Props {
     list: MailboxList;
+    onnavigate?: (path: string) => void;
   }
 
-  const { list }: Props = $props();
+  const { list, onnavigate }: Props = $props();
 
   const columns: readonly DataColumn[] = $derived([
     { id: 'address', label: t('app.mail.mailbox_column'), priority: 1 },
@@ -46,7 +48,7 @@
   function onRowMenu(box: Mailbox, id: string): void {
     if (id === 'remove') list.askRemoval(box);
     else if (id === 'check') void list.check(box);
-    else list.openedId = box.id;
+    else onnavigate?.(mailboxPath(box.id));
   }
 </script>
 
@@ -67,7 +69,7 @@
         {columns}
         rows={list.mailboxes}
         key={(box: Mailbox) => box.id}
-        onopen={(box: Mailbox) => (list.openedId = box.id)}
+        href={(box: Mailbox) => mailboxPath(box.id)}
         rowLabel={(box: Mailbox) => box.address}
         menu={rowMenu}
         onmenu={onRowMenu}

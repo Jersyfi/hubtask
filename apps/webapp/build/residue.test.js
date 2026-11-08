@@ -253,6 +253,7 @@ async function views() {
     ['voice-section', await load('VoiceView'), { section: 'alexa' }],
     ['mail', await load('MailView'), {}],
     ['mail-section', await load('MailView'), { section: 'rules' }],
+    ['mailbox', await load('MailboxView'), { id: ITEM, onnavigate: noop }],
     ['quotas', await load('QuotasView'), {}],
     ['private-hubs', await load('PrivateHubsView'), {}],
     ['modules', await load('ModulesView'), {}],

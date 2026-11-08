@@ -39,6 +39,9 @@ export function wayOf(box: Mailbox): string {
   ].join(' · ');
 }
 
+/** A mailbox's own record page (page-system §9.3). */
+export const mailboxPath = (id: string): string => `/administration/mail/mailboxes/${encodeURIComponent(id)}`;
+
 /** A sender rule as the page and its dialog hold it: a sender or `@domain`, and a collection. */
 export interface SenderRule {
   readonly match: string;
@@ -57,16 +60,10 @@ export class MailboxList {
   /** The mailbox an act is running for. */
   working = $state<string | undefined>(undefined);
   rowFailure = $state<string | undefined>(undefined);
-  /** The mailbox whose Dialog M is open. */
-  openedId = $state<string | undefined>(undefined);
   /** The mailbox whose disconnecting is asked. */
   removing = $state<Mailbox | undefined>(undefined);
   /** Whether *Connect a mailbox* is open. */
   isAdding = $state(false);
-
-  get opened(): Mailbox | undefined {
-    return this.openedId ? this.mailboxes.find((each) => each.id === this.openedId) : undefined;
-  }
 
   async read(): Promise<void> {
     try {
@@ -120,13 +117,13 @@ export class MailboxList {
     }
   }
 
-  /** Disconnecting is asked in its own dialog, never over the mailbox's. */
+  /** Disconnecting is asked in a Dialog S (PS-6). */
   askRemoval(box: Mailbox): void {
-    this.openedId = undefined;
     this.removing = box;
   }
 
-  async remove(box: Mailbox): Promise<void> {
+  /** Whether disconnecting succeeded: a mailbox's own page leaves for the list then. */
+  async remove(box: Mailbox): Promise<boolean> {
     this.rowFailure = undefined;
     this.working = box.id;
     try {
@@ -134,8 +131,10 @@ export class MailboxList {
       this.mailboxes = this.mailboxes.filter((each) => each.id !== box.id);
       announcer.say(t('app.mail.mailbox_removed', { address: box.address }));
       this.removing = undefined;
+      return true;
     } catch (error) {
       this.rowFailure = renderProblem(error as never, messages).message;
+      return false;
     } finally {
       this.working = undefined;
     }
