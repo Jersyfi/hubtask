@@ -715,6 +715,7 @@ machine") as an owner and as a plain member, at 1440 px and 390 px. *Class* is o
 | A collection's *Time*, a hub's budget, the time report (R-11) | preview | demo gap | actuals, budget, billing rates and the report answered as a page | the fixture answers them |
 | A hub's *Settings* (R-4) | owner, preview | demo gap; bug before this branch | the stub's containers had no `structure`, and the screen said *Only someone who may change …* whenever the structure or the role was still unread - to the owner who had chosen *Settings* | the stub's structures; the refusal only where the role refuses `STRUCTURE`, a skeleton while either is unread |
 | *Administration*, *Changes*, IT operations' inventory health and groups | preview | demo gap | the stub's catch-all answered `/config/templates` with a bare array; `/config`, the sandbox, the service map and the health in other shapes | narrowed; the fixture answers them |
+| A server the inventory health lists | preview | demo gap | `GET /cis/{id}` and its impact answered a list | the stub answers the servers it lists, the fixture the impact |
 
 On the real demo (`docs/evidence/README.md`, "The whole demo on one machine", with a household and
 eight more hubs now) a crawl that opens every link it finds - every sidebar entry, hub tool,
@@ -733,4 +734,6 @@ screen reached by address does (P-05).
 
 Seen on the real demo beside the review, open: the sidebar's *Plan* row loses its name to the
 running sprint's figure (*P Sprint 24 – Passkeys · 7 T*, German, 1440 px); *Today*'s *Lists* card
-overflows its column sideways.
+overflows its column sideways. `e2e/productsband.test.mjs` (*the desk's home … draw the queues*) failed
+once in the full engine run on *Breached 19 min ago* against an expected 18 - a clock read twice under
+load; it passes alone.
