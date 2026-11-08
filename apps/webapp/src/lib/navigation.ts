@@ -774,7 +774,9 @@ export function toolOf(route: { readonly name: string | null; readonly query: Re
     case 'hub-time-workload':
     case 'hub-time-budget': return 'time';
     case 'hub-goals':
-    case 'hub-goals-dashboards': return 'goals';
+    case 'hub-goals-dashboards':
+    case 'goal':
+    case 'dashboard': return 'goals';
     default: return undefined;
   }
 }

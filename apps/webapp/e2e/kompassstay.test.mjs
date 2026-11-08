@@ -2,15 +2,17 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // A detail screen stays in the level of the place that owns it (UC-WRK-36 check 2; the owner's
-// review R-18): page → whiteboard → page from the hub's *Contents* without a reload keeps the hub's
-// level standing - the same element, never torn down and slid in again - and draws no boundary.
+// review R-18, R-19): page → whiteboard → page from the hub's *Contents* without a reload keeps
+// the hub's level standing - the same element, never torn down and slid in again - and draws no
+// boundary; a goal of a hub opens with that hub's level and *Goals* current, a workspace goal with
+// the workspace level and the *Goals* product current.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { chromium } from 'playwright';
 
-import { ALL, PD, PD_BOARDS, PD_PAGES, open, served, side } from './kompassstub.mjs';
+import { ALL, GOALS, PD, PD_BOARDS, PD_PAGES, WORKSPACE_GOAL, open, served, side } from './kompassstub.mjs';
 
 test.after(() => served.close());
 
@@ -74,5 +76,31 @@ test('R-18 on a touch tablet: page → whiteboard → page from the drawer, each
   }
   await page.getByRole('button', { name: 'Open the navigation' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'All hubs' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('R-19: a goal of a hub stays at the hub level with Goals current; a workspace goal is at the workspace level', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}/goals`, modulesOn: ALL, hubModules: ON, owner: true });
+  t.after(close);
+  const level = side(page).getByRole('region', { name: PD.name });
+  await level.getByRole('link', { name: 'Goals' }).waitFor({ timeout: 10_000 });
+  await markLevel(page);
+  const goal = GOALS[0];
+  await page.getByRole('main').getByRole('link', { name: goal.title }).first().click();
+  await at(page, `/goals/${goal.id}`);
+  await page.getByRole('main').getByRole('heading', { name: goal.title }).first().waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(300);
+  assert.equal(await level.getByRole('button', { name: 'All hubs' }).count(), 1, 'the goal left its hub\'s level');
+  assert.equal(await isSame(page), true, 'the hub\'s level was drawn again');
+  assert.equal(await level.getByRole('link', { name: 'Goals' }).getAttribute('aria-current'), 'page', 'Goals is not current');
+  // A workspace goal, reached from inside the hub: the workspace level, the Goals product current.
+  await page.evaluate((path) => { history.pushState(null, '', path); dispatchEvent(new PopStateEvent('popstate')); }, `/goals/${WORKSPACE_GOAL.id}`);
+  await page.getByRole('main').getByRole('heading', { name: WORKSPACE_GOAL.title }).first().waitFor({ timeout: 10_000 });
+  const products = side(page).getByRole('tree', { name: 'Products' });
+  await products.waitFor({ timeout: 5_000 });
+  assert.equal(await side(page).getByRole('button', { name: 'All hubs' }).count(), 0, 'a workspace goal shows a hub\'s level');
+  assert.equal(await products.getByRole('treeitem', { name: /^Goals/ }).getAttribute('aria-current'), 'page', 'the Goals product is not current');
   assert.deepEqual(failures, []);
 });

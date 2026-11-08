@@ -30,21 +30,24 @@ const HUB_ROUTES = new Set([
 ]);
 /** Routes whose `:id` is a collection. */
 const COLLECTION_ROUTES = new Set(['collection', 'collection-timeline', 'collection-sprint', 'collection-backlog', 'collection-time', 'collection-workload', 'collection-settings', 'collection-settings-section']);
-/** Routes whose place the screen names once it has read it (`page.locate`): an entry, a page, a board, a CI. */
-const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci']);
+/**
+ * Routes whose place the screen names once it has read it (`page.locate`): an entry, a page, a
+ * board, a CI, a goal, a dashboard. A detail screen stays in the level of the place that owns it.
+ */
+const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci', 'goal', 'dashboard']);
 
 /**
  * The level a route shows (§2.4, §6.1): anything of a hub - the hub, a tool, a collection, a page,
- * a whiteboard, an entry - shows its hub's level; everything else the workspace level.
+ * a whiteboard, an entry, a goal - shows its hub's level; everything else the workspace level.
  * `hubOf` answers a container's hub (a hub's is itself); `located` is the container the screen
- * named. Until a detail screen has named its place the level
+ * named, `null` where it named the workspace. Until a detail screen has named its place the level
  * it was opened from is `held`: falling back to the workspace in between would tear the hub's level
  * down and slide it in again on every step from one page or board to the next.
  */
 export function levelOf(
   route: LevelRoute,
   hubOf: (containerId: string) => string | undefined,
-  located?: string,
+  located?: string | null,
   held: NavLevel = { kind: 'workspace' },
 ): NavLevel {
   const name = route.name ?? '';
@@ -53,7 +56,7 @@ export function levelOf(
   else if (COLLECTION_ROUTES.has(name)) hubId = route.params['id'] ? hubOf(route.params['id']) : undefined;
   else if (LOCATED_ROUTES.has(name)) {
     if (located === undefined) return held;
-    hubId = hubOf(located);
+    hubId = located === null ? undefined : hubOf(located);
   }
   if (hubId) return held.kind === 'hub' && held.hubId === hubId ? held : { kind: 'hub', hubId };
   return held.kind === 'workspace' ? held : { kind: 'workspace' };

@@ -47,6 +47,14 @@ export const PD_BOARDS = [
 ];
 export const GOALS = ['Ship the new editor', 'Halve the bug backlog', 'Faster first load', 'Mobile parity', 'Accessible everywhere']
   .map((title, i) => ({ id: id(700 + i), hub_id: PD.id, period_id: id(799), parent_id: null, title, status: i === 2 ? 'AT_RISK' : 'ON_TRACK' }));
+/** A goal of the whole workspace: no hub owns it, so it opens at the workspace level. */
+export const WORKSPACE_GOAL = { id: id(705), hub_id: null, period_id: id(799), parent_id: null, title: 'One workspace, one plan', status: 'ON_TRACK' };
+const PERIOD = { id: id(799), name: 'Q4 2026', start_on: '2026-10-01', end_on: '2026-12-31', state: 'OPEN', version: 1 };
+/** A goal as `GET /goals/{id}` answers it (Goal). */
+export const goalRead = (found) => ({
+  description: '', owner_id: ACCOUNT.id, confidence: null, grade: null, key_results: [], entries: { total: 0, done: 0 }, child_count: 0, progress: 0,
+  version: 1, linked_entries: [], check_ins: [], ...found,
+});
 export const RELEASES = [{ id: id(710), hub_id: PD.id, name: 'Release 3.2', state: 'PLANNED', release_on: day(14), version: 1 }];
 /** What is on the reader today: five entries due by tonight, and one later. */
 export const MINE = [0, 0, 0, -1, -2, 6].map((offset, i) => ({ id: id(800 + i), title: `Entry ${i + 1}`, collection_id: WEB.id, due_at: `${day(offset)}T00:00:00Z`, due_date_only: true, completion: { is_completed: false } }));
@@ -222,7 +230,12 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
       } });
     }
     if (path.endsWith(`/api/v1/hubs/${IT.id}/cmdb-health`)) return route.fulfill({ json: { ...HEALTH, total: 120, stale: 6, problems: Array.from({ length: 6 }, (_, i) => ({ ci_id: id(980 + i), class: 'server', kinds: ['STALE'] })) } });
-    if (path.endsWith('/api/v1/goals') && url.searchParams.get('hub_id') === PD.id) return route.fulfill({ json: { data: GOALS, ...PAGE } });
+    if (path.endsWith('/api/v1/goals') && url.searchParams.get('hub_id') === PD.id) return route.fulfill({ json: { data: GOALS.map(goalRead), ...PAGE } });
+    if (path.endsWith('/api/v1/goals')) return route.fulfill({ json: { data: url.searchParams.has('hub_id') ? [] : [...GOALS, WORKSPACE_GOAL].map(goalRead), ...PAGE } });
+    if (path.endsWith('/api/v1/goal-periods')) return route.fulfill({ json: { data: [PERIOD], ...PAGE } });
+    const goal = /\/api\/v1\/goals\/([^/:]+)$/.exec(path);
+    const aimed = goal && [...GOALS, WORKSPACE_GOAL].find((each) => each.id === goal[1]);
+    if (aimed && request.method() === 'GET') return route.fulfill({ json: goalRead(aimed) });
     // The reader's week and timer, empty: *Today* draws its time line from them.
     if (/\/api\/v1\/timesheets\/[^/]+$/.test(path)) return route.fulfill({ json: { week: url.pathname.split('/').pop(), days: [], minutes: 0, entries: [], records: [], state: 'OPEN' } });
     if (path.endsWith('/api/v1/timer')) return route.fulfill({ json: { running: null } });

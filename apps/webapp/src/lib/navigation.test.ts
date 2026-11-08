@@ -430,7 +430,7 @@ test('the Android app keeps the administration\'s and the installation\'s rows, 
 // ---------------------------------------------------------------------------------------------------
 
 const LEVEL_HUBS: Record<string, string> = { h: 'h', c: 'h' };
-const level = (name: string, params: Record<string, string> = {}, query: Record<string, string> = {}, located?: string, held?: NavLevel) =>
+const level = (name: string, params: Record<string, string> = {}, query: Record<string, string> = {}, located?: string | null, held?: NavLevel) =>
   levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located, held);
 
 test('anything of a hub shows its hub\'s level; everything else the workspace level (§2.4, §6.1)', () => {
@@ -443,6 +443,9 @@ test('anything of a hub shows its hub\'s level; everything else the workspace le
   assert.deepEqual(level('item', { id: 'i' }, {}, 'c'), { kind: 'hub', hubId: 'h' }, 'an entry shows its collection\'s hub');
   assert.deepEqual(level('page', { id: 'p' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a page shows its space');
   assert.deepEqual(level('item', { id: 'i' }), { kind: 'workspace' }, 'until the entry says where it lives');
+  assert.deepEqual(level('goal', { id: 'g' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a hub\'s goal shows its hub');
+  assert.deepEqual(level('dashboard', { id: 'd' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a hub\'s dashboard shows its hub');
+  assert.deepEqual(level('goal', { id: 'g' }, {}, null, { kind: 'hub', hubId: 'h' }), { kind: 'workspace' }, 'a workspace goal shows the workspace');
   for (const name of ['home', 'search', 'jumble', 'plans-home', 'pages-home', 'goals', 'trash', 'archive']) {
     assert.deepEqual(level(name), { kind: 'workspace' }, name);
   }
@@ -450,7 +453,7 @@ test('anything of a hub shows its hub\'s level; everything else the workspace le
 
 test('a detail screen keeps the level it was opened from until it names its place (R-18): never the workspace in between', () => {
   const hub = { kind: 'hub', hubId: 'h' } as const;
-  for (const name of ['page', 'whiteboard', 'item', 'ci']) {
+  for (const name of ['page', 'whiteboard', 'item', 'ci', 'goal', 'dashboard']) {
     assert.deepEqual(level(name, { id: 'x' }, {}, undefined, hub), hub, `${name} before it is read`);
     assert.deepEqual(level(name, { id: 'x' }, {}, undefined, { kind: 'workspace' }), { kind: 'workspace' }, `${name} from the workspace`);
   }
@@ -494,6 +497,8 @@ test('every tool opens a route that names it current, and the switch keeps the t
   for (const tool of HUB_TOOLS) assert.equal(toolOf(routeOf[toolPath('h', tool.id)]!), tool.id, tool.id);
   assert.equal(toolOf({ name: 'hub', query: {} }), 'overview');
   assert.equal(toolOf({ name: 'goals', query: {} }), undefined, 'the workspace\'s goals are no hub tool');
+  assert.equal(toolOf({ name: 'goal', query: {} }), 'goals', 'a goal opened at its hub marks Goals');
+  assert.equal(toolOf({ name: 'dashboard', query: {} }), 'goals', 'a dashboard opened at its hub marks Goals');
   const planOnly = hubTools({ modulesOn: ['PLANNING'], hasDesk: false });
   assert.equal(switchPath('x', 'plan', planOnly), '/hubs/x/plan');
   assert.equal(switchPath('x', 'time', planOnly), '/hubs/x');

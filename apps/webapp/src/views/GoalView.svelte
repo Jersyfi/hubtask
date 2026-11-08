@@ -63,6 +63,7 @@
     }));
   });
   $effect(() => frame.entitle(goal ? goal.title : t('app.goals.goal')));
+  $effect(() => frame.locate(goal ? hubOf(goal) : undefined));
   $effect(() => accounts.resolve([goal?.owner_id, ...(goal?.check_ins ?? []).map((each) => each.author_id)]));
 
   // The period's other goals, for the parent a goal hangs under.

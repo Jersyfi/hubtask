@@ -133,7 +133,7 @@
     /** The level the frame decided for the route (`levelOf`); the workspace's where none is given. */
     level?: Level;
     /** The container the screen named where the route does not (`page.locate`). */
-    located?: string;
+    located?: string | null;
     /** Folded to the rail: the marks alone. */
     isRail?: boolean;
     /** Whether *For you* is drawn whole - not on `compact`, where the bottom bar carries most of it. */
@@ -935,7 +935,7 @@
   const currentCollection = $derived.by(() => {
     const name = route.name ?? '';
     if (name.startsWith('collection')) return route.params['id'];
-    if (name === 'item') return located;
+    if (name === 'item') return located ?? undefined;
     return undefined;
   });
   let collectionFilter = $state('');
