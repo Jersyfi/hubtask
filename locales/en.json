@@ -10413,6 +10413,8 @@
   "app.people.view_as": "View as",
   "app.people.more": "More",
   "app.people.more_for": "More for {name}",
+  "app.people.granted_here": "Here",
+  "app.people.holders_label": "Who holds a role here",
   "app.view_as.banner": "You are looking at Hubtask as {name}, read only, until {until}.",
   "app.view_as.end": "End view",
   "app.view_as.ending": "Ending…",

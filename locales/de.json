@@ -10413,6 +10413,8 @@
   "app.people.view_as": "Ansehen als",
   "app.people.more": "Mehr",
   "app.people.more_for": "Mehr zu {name}",
+  "app.people.granted_here": "Hier",
+  "app.people.holders_label": "Wer hier eine Rolle hat",
   "app.view_as.banner": "Du siehst Hubtask als {name}, nur lesend, bis {until}.",
   "app.view_as.end": "Ansicht beenden",
   "app.view_as.ending": "Wird beendet…",

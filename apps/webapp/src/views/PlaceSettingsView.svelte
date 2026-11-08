@@ -11,7 +11,7 @@
   import { EmptyState, ReadOnlyNotice, Skeleton } from '@hubtask/design-system/components';
   import type { PageHead } from '@hubtask/design-system/components';
 
-  import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import PlacePeople from '../lib/people/PlacePeople.svelte';
   import LazyView from '../lib/frame/LazyView.svelte';
   import { settingsParts } from '../lib/frame/parts.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -167,7 +167,7 @@
     <LazyView load={settingsParts.ChatBots} props={{ hubId: container.id, collections }} />
   {/snippet}
   {#snippet peopleTab()}
-    <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={containerPath} />
+    <PlacePeople scope={memberScope} path={containerPath} />
   {/snippet}
   <StructurePanel
     isOpen
