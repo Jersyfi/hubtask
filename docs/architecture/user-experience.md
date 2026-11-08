@@ -379,14 +379,23 @@ language gives it — is renamed into it, with the events and change entries a r
 ## 5. The shared patterns
 
 Each pattern names where it lives. **A pattern used by more than one product is a design-system
-component or composition**; the app holds only how a product fills it.
+component or composition**; the app holds only how a product fills it. **Every screen is one page
+kind** (`design-system.md` §11.1, [ADR-0101](../adr/ADR-0101-one-page-system.md)), and a task opens
+on the first rung of the dialog-or-page ladder that fits it (`design-system.md` §11.8).
 
 | Pattern | Design system (`packages/design-system/src/`) | Web app | Status |
 |---|---|---|---|
 | Product home | `PageHeader` (primary with a split), `PlaceTabs` (new), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
 | Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | `lib/product/CreateDialog.svelte`, filled by each product | moved + new |
 | Find | `SearchField`, `ListRow` | `lib/data/search.svelte.ts` fan-out, `lib/palette/sources.ts` one source per module | extended |
-| Configure | `SourceChip`, `SaveBar`, `Disclosure` (new: *Advanced*), `PlanSummary` (new) | the design system's `SettingsLayout` (page-system §7.3) | new |
+| List of objects | `ListPage` with `FilterBar`, `DataTable` or `ResourceGrid` and `ResourceCard`, `BulkBar`, `LoadMore` | `lib/page/` (`Continued`, `list.ts`, `DiscardGuard`), every administration list | built |
+| One administered object | `RecordPage` with `RecordHead`, `DangerZone`, its lists as regions | a group, a role, a webhook, a token, a workspace, a template | built |
+| Configure | `SettingsLayout` with `SectionNav`, `SettingsSection`, `SettingRow`, `SaveBar`; `SourceChip`, `Disclosure` (*Advanced*), `PlanSummary` | every settings screen, one section per address (§5.4) | built |
+| Compose from blocks | `EditorPage` with `SectionNav`, `BlockList`, the draft bar | workflows, types and forms, views | built |
+| What needs a look | `OverviewPage` with `SummaryCard`s in a `Grid` | the administration's and the installation's overviews | built |
+| What happened | `LogPage` (a `ListPage` grouped by day) | audit, rule runs, journal, failed jobs, usage | built |
+| Create something large | `CreatePage` | a new token, rule, workflow, workspace | built |
+| Add or change a little | `Dialog` `s` · `m` · `l`, `Popover`, `Sheet` | the ladder (`design-system.md` §11.8) | built |
 | Empty | `EmptyState` (gains `secondary` and `footnote` slots) | `lib/product/ProductEmpty.svelte` | extended |
 | Detail | `DetailPane` | `ItemView` order by type (§5.6) | changed |
 | Command search | the palette | `lib/palette/` | extended |
@@ -455,8 +464,9 @@ Every product home and every hub tab has one anatomy (mockup: `shell.html`, *Pro
 
 ### 5.4 Configure
 
-* **One settings shell**, `SettingsPage`: sections at the start, the open one beside it, a save
-  bar on change with A3's reach preview, a leave guard, a `SourceChip` per catalogue value (A1,
+* **One settings shell**, the design system's `SettingsLayout`: sections at the start, the open one
+  beside it at its own address (never links into one long page; on a phone and a tablet held
+  upright the list is the page and a section opens on its own, PS-9), a save bar on change with A3's reach preview, a leave guard, a `SourceChip` per catalogue value (A1,
   A2), and *Advanced* folded (`Disclosure`, A8). Mail, Voice, Retention, the backup schedule and
   Webhooks move onto it; instant switches stay only for single on/off switches, as
   `ModuleSwitches` documents. A test over the administration routes asserts each uses the shell.
@@ -1195,7 +1205,11 @@ workspace's — English*), so leaving it says what it means.
   a section with *‹ back* below `expanded`. Each screen holds the leave guard (`frame/leave.ts`,
   `LeaveDialog`) over its unsaved values. The web app's first shell, `lib/settings/SettingsPage`,
   is gone; Mail, Voice, Retention, Backup, the workspace, Sign-in, AI, the place settings and the
-  products' settings stand on the layout, held by `build/pagekinds.test.js`. *Advanced* is not
+  products' settings stand on the layout, held by `build/pagekinds.test.js`. One section per
+  address everywhere (page-system D-2): the section list says each section's state, and from
+  `expanded` down to `medium` the list and a section are two pages (D-4). An administered object
+  is no longer edited in a side panel beside its list: it opens as its record page or a dialog by
+  the ladder (D-3, `design-system.md` §11.8); the entry's panel beside a collection stays. *Advanced* is not
   folded on Mail, Voice, Retention, Backup and the workspace: none has a setting the direction names as advanced, and Mail's filing order and
   handles are what a newcomer reads to send mail in.
 * **A product's settings at its home** (§8.2): the service desk's, the configuration items',

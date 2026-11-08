@@ -515,6 +515,13 @@ and ships on mobile. The matrix governs what UI is built, never what the API per
 is a new row here with its reason, and an ADR. The web client's areas and routes:
 [design-system.md](../design/design-system.md) §11.5.
 
+The UI's building blocks above the components are the design system's compositions and page kinds
+(`packages/design-system`, wave 6): every screen of a client is one page kind, the content has two
+levels of containment, and a task opens in a dialog or on a page of its own by one ladder
+([design-system.md](../design/design-system.md) §6, §11.1, §11.8;
+[ADR-0101](../adr/ADR-0101-one-page-system.md)). The clients fill the kinds; they draw no page
+shape of their own.
+
 ---
 
 ## 9. Architecture decisions
