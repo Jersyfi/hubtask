@@ -55,8 +55,8 @@
     { id: 'client', label: t('app.sessions.client'), isSortable: true, priority: 1 },
     { id: 'created', label: t('app.sessions.created'), isSortable: true, priority: 3 },
     // How it was opened (UC-ID-06 check 2): the way in a person recognises a session by.
-    { id: 'method', label: t('app.sessions.method'), isSortable: true, priority: 2 },
-    { id: 'used', label: t('app.sessions.last_used'), isSortable: true, priority: 1 },
+    { id: 'method', label: t('app.sessions.method'), isSortable: true, priority: 3 },
+    { id: 'used', label: t('app.sessions.last_used'), isSortable: true, priority: 2 },
     { id: 'network', label: t('app.sessions.network'), isSortable: true, priority: 3 },
   ]);
 
@@ -165,7 +165,7 @@
       menu: elsewhere ? { label: t('app.page.more_for', { name: title }), items: [{ id: 'others', label: t('app.sign_out.everywhere_else'), isDestructive: true }], onselect: () => (asking = 'others') } : undefined,
     })}
   >
-    {#snippet intro()}<p class="quiet">{t('app.sessions.intro')}{#if elsewhere} {t('app.sign_out.everywhere_else_note')}{/if}</p>{/snippet}
+    {#snippet intro()}<p class="quiet">{t('app.sessions.intro')}{#if elsewhere}{' '}{t('app.sign_out.everywhere_else_note')}{/if}</p>{/snippet}
     {#snippet filters()}
       <FilterBar
         searchLabel={t('app.sessions.search')}
@@ -203,8 +203,10 @@
           {#if column.id === 'client'}
             <!-- The whole string in `title`: a user agent is 150 characters of version numbers and
                  the cell shows the two lines that identify the browser. -->
-            <span class="client" title={row.user_agent || undefined}>{clientOf(row)}</span>
-            {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
+            <span class="who">
+              <span class="client" title={row.user_agent || undefined}>{clientOf(row)}</span>
+              {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
+            </span>
           {:else if column.id === 'created'}
             {when(row.created_at)}
           {:else if column.id === 'method'}
@@ -271,9 +273,11 @@
 
   /* Which row is this device, beside its name rather than as a column of its own: it is true of
      exactly one row, and a column would be empty in every other. */
+  /* The badge beside the name where the row has room, so this device's row is as tall as the rest. */
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
+
   .here {
     display: inline-block;
-    margin-block-start: var(--sp-050);
     padding: var(--sp-025) var(--sp-100);
     border-radius: var(--r-full);
     background: var(--bg-surface-pressed);
