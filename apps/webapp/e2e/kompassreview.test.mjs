@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import { chromium } from 'playwright';
 
-import { ALL, APPROVALS, ENTRIES, IT, KB, MAP, MOBILE, PD, PD_BOARDS, WEB, open, served } from './kompassstub.mjs';
+import { ALL, APPROVALS, ENTRIES, IT, KB, MAP, MOBILE, PD, PD_BOARDS, WEB, id, open, served } from './kompassstub.mjs';
 
 test.after(() => served.close());
 
@@ -74,8 +74,9 @@ test('the administration\'s overview opens', async (t) => {
   await opens(t, '/administration', (at) => at.getByRole('heading', { level: 1 }));
 });
 
-test('the administration\'s *Changes* and IT operations\' inventory health and groups open', async (t) => {
+test('the administration\'s *Changes*, IT operations\' inventory health and groups, and a server it lists open', async (t) => {
   await opens(t, '/administration/changes', (at) => at.getByRole('heading', { level: 1 }));
   await opens(t, `/hubs/${IT.id}/inventory/health`, (at) => at.getByRole('heading', { level: 1 }));
   await opens(t, `/hubs/${IT.id}/inventory/groups`, (at) => at.getByRole('heading', { level: 1 }));
+  await opens(t, `/cis/${id(980)}`, (at) => at.getByText('srv-app-00'));
 });

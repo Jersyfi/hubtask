@@ -1367,6 +1367,8 @@ export function fallback(route, request, path) {
   if (read === '/config/sandbox' && request.method() === 'GET') return route.fulfill({ json: { exists: false, writes: 0, updated_at: null, document: {}, promotion: null } });
   const map = /^\/hubs\/([^/]+)\/service-map$/.exec(read);
   if (map && request.method() === 'GET') return route.fulfill({ json: { hub_id: map[1], nodes: [], edges: [], truncated: false } });
+  const impact = /^\/cis\/([^/]+)\/impact$/.exec(read);
+  if (impact && request.method() === 'GET') return route.fulfill({ json: { ci_id: impact[1], direction: new URL(request.url()).searchParams.get('direction') ?? 'DOWNSTREAM', reached: [], services: [] } });
   if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });

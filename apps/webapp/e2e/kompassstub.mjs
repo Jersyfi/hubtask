@@ -208,6 +208,16 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith(`/api/v1/hubs/${PD.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PD_PAGES, ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/whiteboards`)) return route.fulfill({ json: { data: PD_BOARDS, ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/releases`)) return route.fulfill({ json: { data: RELEASES, ...PAGE } });
+    // A server the health lists, opened from its line.
+    const ci = /\/api\/v1\/cis\/([^/]+)$/.exec(path);
+    if (ci && request.method() === 'GET' && Number(ci[1].slice(-3)) >= 980 && Number(ci[1].slice(-3)) < 986) {
+      return route.fulfill({ json: {
+        id: ci[1], hub_id: IT.id, class: 'server', name: `srv-app-0${ci[1].slice(-1)}`, stage: 'PRODUCTION', status: 'ACTIVE', attributes: {}, provenance: {},
+        owner_account_id: null, owner_group_id: null, location_id: null, protection: { c: null, i: null, a: null, fixed: [], reason: '' }, effective_protection: { c: null, i: null, a: null },
+        has_asset: false, review_due: null, quantity: 1, last_seen_at: null, merged_into: null, relations: [], created_by: ACCOUNT.id, created_at: '2026-10-01T08:00:00Z',
+        updated_by: ACCOUNT.id, updated_at: '2026-10-01T08:00:00Z', version: 1,
+      } });
+    }
     if (path.endsWith(`/api/v1/hubs/${IT.id}/cmdb-health`)) return route.fulfill({ json: { ...HEALTH, total: 120, stale: 6, problems: Array.from({ length: 6 }, (_, i) => ({ ci_id: id(980 + i), class: 'server', kinds: ['STALE'] })) } });
     if (path.endsWith('/api/v1/goals') && url.searchParams.get('hub_id') === PD.id) return route.fulfill({ json: { data: GOALS, ...PAGE } });
     // The reader's week and timer, empty: *Today* draws its time line from them.
