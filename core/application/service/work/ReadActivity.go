@@ -189,7 +189,7 @@ func (h ListActivity) invoke(
 	for _, entry := range page.Entries {
 		steps = append(steps, activityOutput(entry))
 	}
-	return pageOutput(steps, repository.PageInfo(page.Info)), nil
+	return pageOutput(steps, repository.PageInfo{NextCursor: page.Info.NextCursor, HasMore: page.Info.HasMore}), nil
 }
 
 // activityOutput is the projection as every channel renders it.

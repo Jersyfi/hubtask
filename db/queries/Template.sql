@@ -48,6 +48,17 @@ WHERE deleted_at IS NULL
 ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg('page_size');
 
+-- name: CountTemplatesInScopes :one
+-- How many templates ListTemplatesInScopes walks over, for the page's total: the same filter
+-- without the keyset.
+SELECT count(*)::integer
+FROM template
+WHERE deleted_at IS NULL
+  AND (
+    scope_type = 'TENANT'
+    OR scope_id = ANY (sqlc.arg('scope_ids')::uuid[])
+  );
+
 -- name: UpdateTemplate :execrows
 -- The whole document, under the same optimistic lock every other row takes (api-guidelines.md §5).
 -- The scope and the root type are not here on purpose: a template that changed scope would move

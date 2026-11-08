@@ -297,3 +297,53 @@ func TestTemplatesAreInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// The page's total is the length of the whole walk over the same scopes, and tenant B's counts
+// none of tenant A's templates at A's collection (gate SG-3).
+func TestTheTemplatesTotalIsTheWalksLengthInItsOwnWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	template := templateFor(t, tenantA, collection, freshName(t))
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return templateRepo().Insert(ctx, template)
+	}); err != nil {
+		t.Fatalf("seeding the template: %v", err)
+	}
+
+	for _, tenant := range []shared.ID{tenantA, tenantB} {
+		length, seen := 0, false
+		var totals []int
+		cursor := ""
+		for pages := 0; ; pages++ {
+			var page repository.TemplatePage
+			if err := read(ctx, t, tenant, func(ctx context.Context) error {
+				var err error
+				page, err = templateRepo().ListInScopes(ctx, []shared.ID{collection}, repository.Page{Cursor: cursor, Size: 50})
+				return err
+			}); err != nil {
+				t.Fatalf("listing the templates: %v", err)
+			}
+			if page.Info.Total == nil {
+				t.Fatalf("tenant %s: a page of the templates carries no total", tenant)
+			}
+			totals = append(totals, *page.Info.Total)
+			length += len(page.Templates)
+			for _, listed := range page.Templates {
+				seen = seen || listed.ID == template.ID
+			}
+			if !page.Info.HasMore || pages > 50 {
+				break
+			}
+			cursor = page.Info.NextCursor
+		}
+		for _, total := range totals {
+			if total != length {
+				t.Errorf("tenant %s: total %d, the walk %d", tenant, total, length)
+			}
+		}
+		if seen != (tenant == tenantA) {
+			t.Errorf("tenant %s: tenant A's template listed = %v", tenant, seen)
+		}
+	}
+}
