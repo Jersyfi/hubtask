@@ -4,7 +4,7 @@
   // The workspace owner's emergency access to a private hub (ADR-0073 §4): what it does is said
   // before it is done - one hour, every member told at once with the reason, in the trail - and the
   // reason is asked for in the words the members will read. The proof is the step-up's own prompt,
-  // asked only when the server demands it.
+  // asked only when the server demands it. A Dialog S: one field (page-system §5.1).
 
   import { tick } from 'svelte';
 
@@ -61,7 +61,13 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.private_hubs.emergency_title')} dismissLabel={t('app.private_hubs.emergency_cancel')}>
+<Dialog
+  size="s"
+  bind:isOpen
+  title={t('app.private_hubs.emergency_title')}
+  dismissLabel={t('app.private_hubs.emergency_cancel')}
+  primary={{ label: t('app.private_hubs.emergency_confirm'), tone: 'danger', isBusy: isWorking, onclick: () => void open() }}
+>
   <Stack gap="200">
     <p class="explain">{t('app.private_hubs.emergency_explain')}</p>
     <div bind:this={reasonField}>
@@ -77,10 +83,7 @@
     {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
   </Stack>
   {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.private_hubs.emergency_cancel')}</Button>
-    <Button tone="danger" onclick={open} isBusy={isWorking}>
-      {t('app.private_hubs.emergency_confirm')}
-    </Button>
+    <Button tone="subtle" onclick={() => (isOpen = false)}>{t('app.private_hubs.emergency_cancel')}</Button>
   {/snippet}
 </Dialog>
 

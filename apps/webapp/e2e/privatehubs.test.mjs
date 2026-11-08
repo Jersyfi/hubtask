@@ -157,8 +157,9 @@ test('chromium: the administration lists the private hubs - whose and how big, n
   const rows = table.getByRole('row');
   // The head and the two hubs of the fixture: one of Mara's, one nobody is left in.
   assert.equal(await rows.count(), 3);
-  await table.getByRole('rowheader', { name: OTHER.display_name }).waitFor({ timeout: 5_000 });
-  await table.getByRole('rowheader', { name: 'Nobody — its last member left' }).waitFor();
+  // A row's title is its first cell (page-system §7.1: a DataTable), the owners.
+  await table.getByRole('cell', { name: OTHER.display_name, exact: true }).waitFor({ timeout: 5_000 });
+  await table.getByRole('cell', { name: 'Nobody — its last member left', exact: true }).waitFor();
   assert.ok((await table.textContent()).includes('In the trash, removed for good on'));
   assert.equal(await page.getByRole('link', { name: /House|Diary/ }).count(), 0, 'no hub is named or linked');
   assert.deepEqual(failures, []);
