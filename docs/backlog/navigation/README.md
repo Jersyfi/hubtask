@@ -88,8 +88,8 @@ Shown on *Today*, search, the inbox, a product home, and a starred thing that ha
 |---|---|---|
 | *Recent* | one row; opens a flyout with the last 20 places | the device's (`lib/recents.svelte.ts`) |
 | *Starred* | hubs, collections, queues, pages, whiteboards, dashboards, portfolios | personal, ordered by drag; appears from the first star (§6.2) |
-| *Products* | Plans · Pages · Whiteboards · Service desk · Assets · Time · Goals · Agents, as rows with a product tile | the module's on and the reader may read something it lists (`user-experience.md` §2.2). Personal order and hiding through *Customise the sidebar* in the section's ⋯; hidden ones go behind *More* |
-| *Hubs* | every hub the reader sees | default the shared order (`order_key`); personally switchable to *Recently visited* or *A–Z*. 12 shown, then *n more* with a filter. ＋ creates a hub. A hub row carries ›: it opens the hub level |
+| *Products* | Plans · Pages · Whiteboards · Service desk · Assets · Time · Goals · Agents, as rows with a product tile | the module's on and the reader may read something it lists (`user-experience.md` §2.2). Personal order by drag or `Alt+↑/↓`; a row's ⋯ (a long press on touch) hides it behind *More* below the shown rows, folded at first, opened in place, each with its tile and ⋯ → *Show* (R-3). A product whose module is off is neither shown nor behind *More* |
+| *Hubs* | every hub the reader sees | default the shared order (`order_key`); personally switchable to *Recently visited* or *A–Z*. 12 shown, then *n more* with a filter. ＋ creates a hub. A hub row carries ›: it opens the hub level; its ⋯ hides it behind the same *More* (R-4) and carries *Change position* |
 
 ### 2.4 The hub level
 
@@ -224,7 +224,7 @@ What the data cannot do is not offered (P-05).
 | CI | in the inventory: *New CI ▾*, import, connector | sorted, not ordered | change its class in the CI | not possible (relations stay inside one hub) | lifecycle instead of trash (as built) |
 | Entry | capture, the list, the board | as built (UC-WRK-06) | as built | from a list or board **onto a collection in the sidebar** moves it there: same hub at once with *Undo*; another hub (reached through *Starred*) opens the move dialog (UC-WRK-06 check 5). `moveWorkItem`, `WRITE_ITEMS` at both | as built |
 | Star | ☆ in every place's head, `S`, or drag a row into *Starred* | drag, personal, without asking | — | — | ☆ again or ⋯ → *Remove* |
-| Products (sidebar) | — | *Customise the sidebar* in the section's ⋯: order, hide → *More*; personal | — | — | — |
+| Products, hubs (sidebar) | — | products: drag or `Alt+↑/↓`, personal; hubs: in the shared order (`STRUCTURE`) - moved while *Recently visited* or *A–Z* is chosen, they turn to the shared order first and say so (a drag lands after the hub it was dropped under, `Alt+↑/↓` only turns the order); hiding: the row's ⋯ → *Hide from the sidebar*, behind *More*, personal (R-3, R-4) | — | — | — |
 | View (tab) | ＋ in the view bar or *Save as view* | drag in the view bar; the first stays; for everyone (`STRUCTURE`) | — | — | ⋯ on the tab → *Delete* |
 
 ### 5.2 Where ＋ is and what it asks
@@ -398,10 +398,12 @@ tree as it would stand.
 ### 7.5 Sidebar preferences
 
 `AccountPreferences` gains, written by the client like `products_seen`:
-`nav_products` (`[Module]`, the order), `nav_products_hidden` (`[Module]`), `nav_hubs_order`
+`nav_products` (`[Module]`, the order), `nav_products_hidden` (`[Module]`), `nav_hubs_hidden`
+(`[uuid]`, at most 1000, migrations 0393-0394, added by the review's R-4), `nav_hubs_order`
 (`MANUAL | RECENT | NAME`), `nav_contents_mode` (`TREE | RECENT | NAME`); `null` clears each to its
 default. They are the person's because they follow the person to another device; the width, the
-rail and *Recent* stay the device's (`design-system.md` §11.10).
+rail, *Recent*, which sections are folded and whether a *More* is open stay the device's
+(`design-system.md` §11.10; `hubtask.nav.sections`).
 
 ## 8. Addresses that move
 
@@ -497,6 +499,21 @@ them on the pull request):
 * the touch hold is ADR-0088's 300 ms, not the mockup's 500 ms (one hold for every list, §5.4); the
   mockup's phone table is read that way;
 * the phone's checks live in UC-WRK-36 rather than a use case of their own (none was asked for).
+
+**What the owner's review of 2026-11-08 changed** (the review wins over the mockup where they
+differ; the use cases' checks it changed are named `decision: owner's review R-n`):
+
+* R-3: a product is hidden from its row's ⋯ (its long press on touch), not from a list in the
+  section's ⋯; the hidden ones stand behind one *More* row below the shown ones, folded at first and
+  opened in place (the mockup's *More* led away). UC-WRK-36 check 19.
+* R-4: a hub is hidden the same way (`nav_hubs_hidden`, additive); hubs moved while *Recently
+  visited* or *A–Z* is chosen turn to the shared order first and say so - the worker's choice of
+  "switch" over "offer", because a drag already says where the hub should stand: it lands after the
+  hub it was dropped under, and `Alt+↑/↓`, which only says "one step", only turns the order.
+  *Change position* only on the workspace row. UC-WRK-36 check 20, UC-WRK-38 check 7.
+* R-12: every section head that folds has a working chevron, its fold kept on the device; one that
+  does not fold draws none (the mockup drew a chevron on every head). UC-WRK-36 check 21.
+* On a touch tablet a row's ⋯ stands beside its figure rather than on hover, which a finger has not.
 
 ---
 
@@ -683,8 +700,8 @@ after the list.
 |---|---|---|
 | R-1 | *This screen stopped working* appears very often. Check for each whether the reader lacks a permission — then the view is not offered at all — or whether it is a bug. An option the reader may not use is never selectable; it only confuses. | triaged: every crash was the preview's stub, none on the real demo (below); no option a reader may not use was found offered - done |
 | R-2 | *Waiting for your yes* → *This screen stopped working*. | demo gap, fixed (`48f924e02`) - done |
-| R-3 | Products in the sidebar: hiding and showing is hard to use. Hidden and shown persist for the account; *More* expands the hidden products below it, collapsible, collapsed by default; the hide/show dropdown is poor (clicking again and again, the order changes, no icon colours, nothing to recognise); a product whose module is off for the workspace does not appear. | open |
-| R-4 | Hubs: the same hiding and showing, per hub through its ⋯ menu (persisting), the same *More*; moving hubs does not work (perhaps the sort choice — a manual order is needed); *Settings* shows *Only someone who may change how this place is set up sees its settings* — without the permission the entry is not shown. | *Settings*: demo gap and a refusal said while loading, fixed (`48f924e02`, `f6878b5b0`); hiding, *More* and moving hubs open |
+| R-3 | Products in the sidebar: hiding and showing is hard to use. Hidden and shown persist for the account; *More* expands the hidden products below it, collapsible, collapsed by default; the hide/show dropdown is poor (clicking again and again, the order changes, no icon colours, nothing to recognise); a product whose module is off for the workspace does not appear. | done: a product row's ⋯ (its long press on touch) → *Hide from the sidebar*; hidden ones under *More* below the shown ones, folded at first, opened in place, each with its tile and ⋯ → *Show*; the order never jumps (one order, split); a module off is nowhere; the section's *Customise the sidebar* list removed; persisted on the account, read back after a reload and on another device (integration test and real demo); on a touch tablet the ⋯ stands beside the figure |
+| R-4 | Hubs: the same hiding and showing, per hub through its ⋯ menu (persisting), the same *More*; moving hubs does not work (perhaps the sort choice — a manual order is needed); *Settings* shows *Only someone who may change how this place is set up sees its settings* — without the permission the entry is not shown. | *Settings*: demo gap and a refusal said while loading, fixed (`48f924e02`, `f6878b5b0`); hiding: done, the same ⋯ and *More*, `nav_hubs_hidden` on the account (0393-0394). Moving: on the real demo the shared order already moved; it failed where the person had chosen *Recently visited* or *A–Z* (no grip, a key said nothing) and in the preview, whose stub answered `:reorder` without keeping it. Now a move in another order turns the hubs to the shared order first and says so; the stub keeps the order; *Change position* is on the workspace row only, never in a hub's head - done |
 | R-5 | In a hub, clicking existing content or creating a new page → *This screen stopped working*. What one can see and click matches what one may do. | demo gap, fixed (`48f924e02`); the real demo creates and opens pages as a member - done |
 | R-6 | *Switch hub*: the flyout opens at the screen's top-left edge; *Recently visited* carries a grey bar that does not fit the cards; the side spacing is narrower than the search's; the text is not centred; a collapse arrow with a pointer cursor does nothing; the same bars in the burger-menu sidebar on narrow screens (decide whether collapsing makes sense there); the *Switch hub* icon equals the *Change position* icon; changing a hub's position belongs only where all hubs are listed, not inside a hub. | open |
 | R-7 | Whiteboards do not work in the demo. | demo gap, fixed (`48f924e02`) - done |
@@ -692,7 +709,7 @@ after the list.
 | R-9 | The scrollbar looked better before: on hover a track background and its border. | open |
 | R-10 | In any collection or sprint, no entries are shown. | demo gap, fixed (`48f924e02`) - done |
 | R-11 | *Product development → Mobile*: switching views changes the tab bar's height depending on what is above it; the *Time* view crashes; on *Board* one can star and *12 open* stands beside it, on *Sprint 9* one cannot star and *8 days left* stands below. | *Time* crash: demo gap, fixed (`48f924e02`); the bar's height and the star open |
-| R-12 | *Starred*, *Products*, *Hubs*: the chevron shows a pointer and is clickable, but nothing expands or collapses. | open |
+| R-12 | *Starred*, *Products*, *Hubs*: the chevron shows a pointer and is clickable, but nothing expands or collapses. | done: *Starred*, *Products*, *Hubs* (and *Collections*, *Contents*) fold by their chevron, remembered on the device (`hubtask.nav.sections`); a head that does not fold draws no chevron and no pointer (`NavGroup`); a phone's section heads never fold and draw none |
 | R-13 | Collection *Design*, narrowing the window: the tabs and the horizontal tools overlap; the tabs scroll, but *Filter*, for example, should shrink to its icon. | open |
 | R-14 | *Profile → Files* → *This screen stopped working*. Check whether something broke in general. | demo gap, fixed (`48f924e02`, `7e59a80bb`); nothing broken in general - done |
 | R-15 | Phone: navigating to another page keeps the scroll position instead of starting at the top. | open |

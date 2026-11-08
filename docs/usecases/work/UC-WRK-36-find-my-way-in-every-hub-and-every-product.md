@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-10, P-12, P-13, P-17]
 state: partial
 tasks: []
-checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts, apps/webapp/src/lib/product/home.test.ts, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/phone.test.ts, apps/webapp/e2e/kompassphone.test.mjs]
+checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts, apps/webapp/src/lib/product/home.test.ts, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/phone.test.ts, apps/webapp/e2e/kompassphone.test.mjs, apps/webapp/e2e/kompasssidebar.test.mjs, apps/webapp/src/lib/workspace/placeMenu.test.ts, test/integration/identity_test.go]
 ---
 
 # Find my way in every hub and every product
@@ -76,6 +76,17 @@ three lists, nothing else.
     *Desk* makes a collection that starts from *Tasks* and offers the hub's request types open to
     the portal, so it acts as a desk; in a hub without such a type, *Desk* says *Needs a portal
     type in the hub* and cannot be chosen.
+19. A product row's ⋯ - its long press on touch - offers *Hide from the sidebar*: the product then
+    stands behind one *More* row below the shown products, folded at first with their count; *More*
+    opens them in place, each with its tile and ⋯ → *Show in the sidebar*. No other product moves.
+    The hidden products are the person's: after a reload and on another device they are hidden
+    still. A product whose module is off is neither shown nor behind *More*.
+20. A hub row's ⋯ at the workspace level - its long press on touch - hides the hub behind the same
+    kind of *More* under *Hubs*, kept on the account as in check 19; that ⋯ carries *Change
+    position*, a hub's own head never does.
+21. *Starred*, *Products*, *Hubs*, *Collections* and *Contents* fold and unfold by the chevron on
+    their head and stay so on this device after a reload; a section head that does not fold shows
+    no chevron and no pointer.
 
 ## Where it ends
 

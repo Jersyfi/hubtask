@@ -69,7 +69,9 @@ there); the sidebar has three regions:
 
 Only the middle changes between the levels; it slides in (`motion.reveal`, none under reduced
 motion) and focus lands on *‹ All hubs*. *Hubs* shows the shared order by default (`order_key`),
-or personally *Recently visited* or *A–Z*; 12 hubs, then *n more* with a filter. A test beside
+or personally *Recently visited* or *A–Z*; 12 hubs, then *n more* with a filter. *Starred*,
+*Products*, *Hubs*, *Collections* and *Contents* fold by the chevron on their head, remembered on
+the device; a head that does not fold draws no chevron and no pointer. A test beside
 `navigation.ts` asserts, for every module of `Module.Keys()` with a home: on draws exactly one
 `products` row, and at a hub where it is on exactly one tool, collection mark or content part; off
 draws none (UC-INS-21 check 11).
@@ -96,8 +98,11 @@ the product holds personal work, *Settings* last): Plans *For you · Sprints · 
 Pages *For you · Spaces · My notes*; Whiteboards *For you · All · Templates*; Service desk *For you ·
 Desks · Reports · Settings*; Assets *Inventory · Classes · Sources · Settings*; Time *My week · To
 decide · Report · Absences · Settings*; Goals *Goals · Portfolios · Dashboards*; Agents *Agents ·
-Waiting · Runs · Settings*. The rows are ordered and hidden personally through *Customise the
-sidebar* in the section's ⋯ (hidden ones go behind *More*), kept on the account (§2.9).
+Waiting · Runs · Settings*. The rows are ordered personally by drag or `Alt+↑/↓`, and a row's ⋯
+(its long press on touch) hides it: hidden rows stand behind one *More* row below the shown ones,
+folded at first, which opens them in place, each with its tile and ⋯ → *Show*. Hiding moves no
+other row. A hub row's ⋯ hides a hub the same way. Both are kept on the account (§2.9); whether
+*More* is open is the device's. A product whose module is off is neither shown nor behind *More*.
 
 A row is drawn where its module is on **and** the reader may read something it would list; a
 row whose home would be empty for every reader of this role is still drawn for a holder of
@@ -212,15 +217,19 @@ allowlist of brand words (*Hubtask*).
 *Starred* holds hubs, collections, queues, pages, whiteboards, dashboards and portfolios, one
 personal list in one order, on the account (`/accounts/{accountId}/stars`), and appears from the
 first star; ☆ in every place's head and `S` star. *Recent* is the device's (`lib/recents.svelte.ts`).
-The order and hiding of *Products*, the order of *Hubs* and the mode of *Contents* are the
-account's preferences, so they follow the person; the sidebar's width and the rail stay the
-device's.
+The order and hiding of *Products*, the hidden hubs, the order of *Hubs* and the mode of *Contents*
+are the account's preferences, so they follow the person; the sidebar's width, the rail and which
+sections are folded stay the device's.
 
 ### 2.10 Creating, ordering and moving in the sidebar
 
 One grammar: ＋ on a section head creates at its top, ＋ on a row creates under it, ⋯ manages it.
 Dragging orders inside one part of one hub — collections with collections, contents with contents;
-an entry dragged from a list or board onto a collection moves it (UC-WRK-06 check 8). Another hub is
+an entry dragged from a list or board onto a collection moves it (UC-WRK-06 check 8). Hubs move in
+the shared order; moved while the person reads them *Recently visited* or *A–Z*, they turn to the
+shared order first and say so — a drag lands after the hub it was dropped under, `Alt+↑/↓` only
+turns the order. *Change position* is offered where every hub is listed, never in a hub's own
+head. Another hub is
 reached only through *Move to…* with its pre-check, never by drag. The rules of the drag — the 4 px
 threshold, the zones, the line at the target's indent, the 600 ms auto-expand, the 48 px
 auto-scroll, `Esc`, the eight-second *Undo* with `Cmd/Ctrl+Z`, `Alt` with the arrows and `M`, the

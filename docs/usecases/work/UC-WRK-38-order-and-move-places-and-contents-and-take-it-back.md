@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-11, P-13]
 state: partial
 tasks: []
-checked_by: [apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/moving.test.ts, apps/webapp/src/lib/frame/toasts.test.ts, packages/design-system/test/navtree.test.js]
+checked_by: [apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/e2e/kompasssidebar.test.mjs, apps/webapp/src/lib/moving.test.ts, apps/webapp/src/lib/frame/toasts.test.ts, packages/design-system/test/navtree.test.js]
 ---
 
 # Order and move places and contents in the sidebar, and take it back
@@ -42,8 +42,9 @@ chooses *Change order* and moves it with the grips.
 6. By keyboard alone, `Alt+↑/↓` orders a focused row, `Alt+→/←` indents and outdents a page or a
    whiteboard, and `M` opens *Move to…*, whose places the person may not use are greyed with the
    reason.
-7. Hubs are ordered only in the shared order (not while *Recently visited* or *A–Z* is chosen), by
-   `STRUCTURE` at the workspace; collections and queues by `STRUCTURE` at the hub; pages and boards by
+7. Hubs are ordered in the shared order; moved while *Recently visited* or *A–Z* is chosen, they
+   turn to the shared order first and say so - a drag lands after the hub it was dropped under,
+   `Alt+↑/↓` only turns the order; by `STRUCTURE` at the workspace; collections and queues by `STRUCTURE` at the hub; pages and boards by
    `WRITE_ITEMS`; the new order is the same for every member after a reload.
 8. Offline, a move shows at once with the mark *waiting*; a refusal by the server when it is back
    returns the row to where it was and says why.
