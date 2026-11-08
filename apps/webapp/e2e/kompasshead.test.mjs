@@ -179,3 +179,28 @@ test('R-15 on desktop: a row of the sidebar opens its screen at the top, and the
   assert.equal(await middle.evaluate((node) => node.scrollTop), kept, 'the sidebar jumped');
   assert.deepEqual(failures, []);
 });
+
+test('Today\'s Lists: a long name stays in its tile, and the card in its column', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const long = 'Team Boreal – Platform & API and everything around it';
+  const renamed = COLLECTIONS.map((each) => (each.id === WEB.id ? { ...each, name: long } : each));
+  const extra = async (route, request, url) => {
+    if (!url.pathname.endsWith('/api/v1/containers') || url.searchParams.get('type') === 'HUB') return false;
+    await route.fulfill({ json: { data: renamed.filter((each) => each.parent_id === url.searchParams.get('parent_id')), page: { next_cursor: null, has_more: false } } });
+    return true;
+  };
+  for (const size of [desktop, { width: 1024, height: 900 }, phone]) {
+    const { page, failures, close } = await go(browser, { path: '/', extra, ...size });
+    t.after(close);
+    const card = page.locator('section[aria-labelledby="today-lists"]');
+    await card.locator('a', { hasText: 'Team Boreal' }).waitFor();
+    const edge = await box(card);
+    for (const tile of await card.locator('a').all()) {
+      const each = await box(tile);
+      assert.ok(each.x + each.width <= edge.x + edge.width, `${size.width}: a tile runs to ${each.x + each.width}, the card ends at ${edge.x + edge.width}`);
+    }
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${size.width}: the page scrolls sideways`);
+    assert.deepEqual(failures, []);
+  }
+});

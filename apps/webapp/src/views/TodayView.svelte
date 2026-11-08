@@ -1159,11 +1159,14 @@
     list-style: none;
   }
 
-  .tiles > li { display: flex; }
+  /* A grid item's automatic minimum is its content's width: a long name widened its tile past its
+     column and the card past the column of cards. */
+  .tiles > li { display: flex; min-inline-size: 0; }
 
   .tile {
     display: flex;
     flex: 1;
+    min-inline-size: 0;
     flex-direction: column;
     gap: var(--sp-100);
     padding: var(--sp-150);
@@ -1250,6 +1253,18 @@
   }
 
   .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* A list's name in its tile: two lines at most, then an ellipsis - a narrow column cut it after
+     a word. */
+  .tile .name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
 
   .tile-figure { color: var(--text-secondary); font-size: var(--fs-075); }
 
