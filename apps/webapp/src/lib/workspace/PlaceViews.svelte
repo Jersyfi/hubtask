@@ -96,6 +96,7 @@
     addLabel={add?.label}
     onadd={add?.onselect}
     {tools}
+    toolsLabel={t('app.nav.view_tools')}
     {views}
     {current}
     isCompact={viewport.isCompact}

@@ -25,7 +25,9 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import IconButton from './IconButton.svelte';
   import NavItem from './NavItem.svelte';
+  import Popover from './Popover.svelte';
   import Sheet from './Sheet.svelte';
   import { DRAG_THRESHOLD_PX, boundariesOf, dropIndex } from './reorder.ts';
 
@@ -40,8 +42,13 @@
     onadd?: () => void;
     /** Ordering for everyone (`STRUCTURE`): `to` is the position asked for; the first stays first. */
     onreorder?: (id: string, to: number) => void;
-    /** *Filter* and the like, at the end of the bar. */
+    /**
+     * *Filter* and the like, at the end of the bar. Where the bar is too narrow for them and the
+     * views, a tool with a mark shows only its mark - its words stay its name and become its
+     * tooltip -, and narrower still they all move behind one ⋯ named `toolsLabel`.
+     */
     tools?: Snippet;
+    toolsLabel?: string;
     /**
      * A menu among the views, after the last (the inventory's *Manage ▾*): the caller's menu, its
      * trigger a plain button drawn as a view, `aria-current="page"` while one of its parts is open.
@@ -54,12 +61,83 @@
     closeLabel?: string;
   }
 
-  const { label, views, current, onnavigate, addLabel, onadd, onreorder, tools, more, isCompact = false, sheetTitle, closeLabel }: Props = $props();
+  const { label, views, current, onnavigate, addLabel, onadd, onreorder, tools, toolsLabel, more, isCompact = false, sheetTitle, closeLabel }: Props = $props();
 
   let list = $state<HTMLUListElement | null>(null);
   let isSheetOpen = $state(false);
   const stop = $derived(views.some((view) => view.id === current) ? current : views[0]?.id);
   const shown = $derived(views.find((view) => view.id === current) ?? views[0]);
+
+  // How the tools fit (the owner's review R-13): whole, as their marks, or behind ⋯ - never over
+  // the views. Decided by measuring, because what fits depends on the words in both: whole while
+  // the views and the tools fit side by side; as marks while the marks leave the views their room
+  // (`layout.viewbar.views`), the views scrolling; behind ⋯ below that. The widths of both
+  // drawings are measured on the element itself and kept, so the bar can tell from behind ⋯
+  // when the marks would fit again.
+  type Fit = 'whole' | 'marks' | 'menu';
+  let bar = $state<HTMLElement | null>(null);
+  let toolBox = $state<HTMLElement | null>(null);
+  let fit = $state<Fit>('whole');
+  const widths: { whole?: number; marks?: number } = {};
+
+  function measure() {
+    if (!bar || !list) return;
+    const box = toolBox;
+    if (box) {
+      for (const each of ['whole', 'marks'] as const) {
+        box.dataset.fit = each;
+        widths[each] = box.getBoundingClientRect().width;
+      }
+      box.dataset.fit = fit;
+    }
+    if (widths.whole === undefined || widths.marks === undefined) return;
+    const room = bar.clientWidth;
+    const gap = Number.parseFloat(getComputedStyle(bar).columnGap) || 0;
+    const kept = Number.parseFloat(getComputedStyle(bar).getPropertyValue('--layout-viewbar-views')) || 0;
+    const wanted = list.scrollWidth;
+    const next: Fit = wanted + gap + widths.whole <= room ? 'whole' : Math.min(wanted, kept) + gap + widths.marks <= room ? 'marks' : 'menu';
+    if (next !== fit) fit = next;
+    if (box) box.dataset.fit = next;
+    named();
+  }
+
+  // A tool drawn as its mark keeps its words as its name; the words also become its tooltip.
+  function named() {
+    for (const button of toolBox?.querySelectorAll<HTMLElement>('button') ?? []) {
+      const words = button.querySelector('.label')?.textContent?.trim();
+      if (fit === 'marks' && words && !button.hasAttribute('aria-label')) {
+        button.title = words;
+        button.dataset.markTitle = '';
+      } else if (button.dataset.markTitle !== undefined) {
+        button.removeAttribute('title');
+        delete button.dataset.markTitle;
+      }
+    }
+  }
+
+  $effect(() => {
+    const element = bar;
+    const box = toolBox;
+    void views.length;
+    if (!element || !tools || typeof ResizeObserver === 'undefined') return;
+    // Answered in the next frame: a change of the bar within the observer's own delivery is left
+    // undelivered, which WebKit throws (as `PageHeader` does).
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    observer.observe(element);
+    if (box) observer.observe(box);
+    // A tool's words change - *Filter · 2* - without its mark's width changing: its tooltip follows.
+    const words = new MutationObserver(named);
+    if (box) words.observe(box, { subtree: true, childList: true, characterData: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      words.disconnect();
+    };
+  });
 
   $effect(() => {
     void current;
@@ -180,7 +258,7 @@
     </nav>
   </Sheet>
 {:else}
-  <nav class="bar" aria-label={label}>
+  <nav class="bar" aria-label={label} bind:this={bar}>
     <!-- The keys move focus between the links of one bar; the links stay the controls. -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <ul bind:this={list} onkeydown={walk} data-dragging={marker !== null ? '' : undefined}>
@@ -215,7 +293,18 @@
         <li class="marker" role="none" style:--marker={`${marker}px`}></li>
       {/if}
     </ul>
-    {#if tools}<div class="tools">{@render tools()}</div>{/if}
+    {#if tools && fit === 'menu'}
+      <span class="tools-more">
+        <Popover label={toolsLabel ?? label} placement={{ side: 'block-end', align: 'end' }}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label={toolsLabel ?? label} size="sm" tone="secondary" {...props} />
+          {/snippet}
+          <div class="tools-menu">{@render tools()}</div>
+        </Popover>
+      </span>
+    {:else if tools}
+      <div class="tools" data-fit={fit} bind:this={toolBox}>{@render tools()}</div>
+    {/if}
   </nav>
 {/if}
 
@@ -244,9 +333,13 @@
   li { flex: none; display: flex; }
   li[data-lifted] { opacity: 0.5; }
 
+  /* A view is a control's height and a little more, in either density, so a bar with tools and one
+     without stand equally tall. */
   a,
   .add,
   .more :global(button) {
+    box-sizing: border-box;
+    min-block-size: calc(var(--density-control-sm-min) + var(--sp-050) + var(--sp-025));
     display: inline-flex;
     align-items: center;
     gap: calc(var(--sp-050) + var(--sp-025));
@@ -313,13 +406,44 @@
     text-align: center;
   }
 
-  .tools {
+  /* The tools keep their own width - the views give way, never the tools' words to a second line. */
+  .tools,
+  .tools-more {
     display: flex;
+    flex: none;
     align-items: center;
     gap: calc(var(--sp-050) + var(--sp-025));
     margin-inline-start: auto;
-    padding-block-end: calc(var(--sp-050) + var(--sp-025));
+    white-space: nowrap;
   }
+
+  /* As marks: a tool with a mark keeps its words for its name, not drawn, and stands square. */
+  .tools[data-fit='marks'] :global(.button:has(> .icon)) {
+    position: relative;
+    gap: 0;
+    min-inline-size: var(--density-control-sm-min);
+    padding-inline: 0;
+  }
+
+  .tools[data-fit='marks'] :global(.button:has(> .icon) > .label) {
+    position: absolute;
+    inline-size: var(--bw-hairline);
+    block-size: var(--bw-hairline);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Behind ⋯: the tools one under another, whole. */
+  .tools-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-050);
+    padding: var(--sp-100);
+  }
+
+  .tools-menu :global(.button) { justify-content: flex-start; inline-size: 100%; }
 
   .chip {
     display: inline-flex;

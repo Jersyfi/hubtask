@@ -2538,6 +2538,7 @@
   "app.nav.new_in_place": "New in “{name}”",
   "app.nav.create_page_from_template": "Page from a template…",
   "app.nav.views_sheet": "View",
+  "app.nav.view_tools": "Tools",
   "app.nav.workspace_group": "Workspace",
   "app.sheet_close": "Close",
   "app.tour.hubs_browse.caption": "Where work lives",

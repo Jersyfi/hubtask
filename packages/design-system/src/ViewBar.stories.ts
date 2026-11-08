@@ -14,7 +14,7 @@ export default {
 export const collection: Story = {
   name: 'A collection that runs sprints',
   about:
-    'One bar of links with aria-current (§3): one tab stop, the arrows, Home and End; the first view is fixed, the others drag into order; ＋ adds a view; Filter stands at the end.',
+    'One bar of links with aria-current (§3): one tab stop, the arrows, Home and End; the first view is fixed, the others drag into order; ＋ adds a view; Filter stands at the end. Narrow the width: the tools fold to their marks before the views scroll, then behind one ⋯; they never overlap the views.',
   args: { mode: 'collection' },
 };
 
