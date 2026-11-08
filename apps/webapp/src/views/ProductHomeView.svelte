@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, WorkPage, type PlaceTab } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -55,12 +55,12 @@
 
   // The assets' settings are the administration's screen at their home: offered to whoever
   // reaches the administration, as the door before them was (P-05).
-  const tabs = $derived<PlaceTab[]>(
+  const placeTabs = $derived<PlaceTab[]>(
     homeTabs(module)
       .filter((each) => !(module === 'ASSETS' && each.id === 'settings') || reachesAdministrationArea() === true)
       .map((each) => ({ id: each.id, label: t(each.code), href: each.path })),
   );
-  const currentTab = $derived(tab ?? tabs[0]?.id);
+  const currentTab = $derived(tab ?? placeTabs[0]?.id);
 
   /** The hubs the tree draws, and for each the modules on there, once it has answered. */
   const hubs = $derived(containers.hubs.filter((hub) => !live.hasLost(hub.id)));
@@ -263,7 +263,7 @@
       : placesByUse(writableHubs(hubsWith, mayWriteIn).map((hub) => ({ id: hub.id, label: hub.name })), objectCounts),
   );
   const primary = $derived.by(() => {
-    if (!createAct || isReading || currentTab !== tabs[0]?.id) return undefined;
+    if (!createAct || isReading || currentTab !== placeTabs[0]?.id) return undefined;
     const first = createPlaces[0];
     if (!first) return undefined;
     // The place's own create dialog opens there (§5.2): the act creates, it does not list.
@@ -287,7 +287,8 @@
 {#if module === 'SERVICE_DESK'}
   <DeskHome hubs={hubsWith} {isReading} {tab} {onnavigate} {createHub} templates={starts} />
 {:else}
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={name}
     subtitle={t(`app.modules.hint_${module.toLowerCase()}`)}
@@ -303,9 +304,12 @@
     }}
   />
 
-  {#if tabs.length > 1}
-    <PlaceTabs label={name} {tabs} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
-  {/if}
+  {/snippet}
+  {#snippet tabs()}
+    {#if placeTabs.length > 1}
+      <PlaceTabs label={name} tabs={placeTabs} current={currentTab} onnavigate={(id) => onnavigate(placeTabs.find((each) => each.id === id)?.href ?? '/')} />
+    {/if}
+  {/snippet}
 
   {#if currentTab === 'notes'}
     <NotesView {onnavigate} isEmbedded />
@@ -477,7 +481,7 @@
       </section>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 {/if}
 
 {#if isCreatingHub && mayCreateHub}

@@ -369,7 +369,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     await table.locator('[data-sla="breached"]').waitFor({ timeout: 10_000 });
     const headings = await table.locator('thead th').allTextContents();
     assert.deepEqual(headings.map((each) => each.trim()), ['Key', 'Request', 'Requester', 'Status', 'Priority', 'SLA', 'Assignee']);
-    const cells = await table.locator('[data-queue-row]').evaluateAll((rows) => rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent.trim().replace(/\s+/g, ' '))));
+    const cells = await table.locator('tbody tr.row').evaluateAll((rows) => rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent.trim().replace(/\s+/g, ' '))));
     assert.deepEqual(cells.map((row) => [row[0], row[2], row[4], row[5]]), [
       ['INC-1', ACCOUNT.display_name, 'P2', '1 h 0 min left'], ['INC-2', ACCOUNT.display_name, 'P3', 'Breached 18 min ago'], ['INC-3', ACCOUNT.display_name, 'P4', 'Paused'],
     ], JSON.stringify(cells));

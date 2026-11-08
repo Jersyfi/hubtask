@@ -6,7 +6,7 @@
   // and offers whoever shapes the hub the ITIL desk's plan at its *Products*; anyone else is told
   // whom to ask (UX-5, §5.5).
   import { untrack } from 'svelte';
-  import { Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Icon, ListRow, PageHeader, Skeleton, Stack, WorkPage } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -64,7 +64,8 @@
   });
 </script>
 
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={t('app.place_tabs.desk')}
     isTitleInBar={viewport.isCompact}
@@ -78,7 +79,8 @@
         }
       : undefined}
   />
-  <PlaceStrip placeId={hubId} current="desk" {onnavigate} />
+  {/snippet}
+  {#snippet tabs()}<PlaceStrip placeId={hubId} current="desk" {onnavigate} />{/snippet}
 
   {#if isReading}
     <div aria-busy="true"><Skeleton lines={4} /></div>
@@ -112,7 +114,7 @@
       </Stack>
     </section>
   {/if}
-</Stack>
+</WorkPage>
 
 <style>
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }

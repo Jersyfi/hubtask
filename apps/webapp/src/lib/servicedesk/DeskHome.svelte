@@ -8,7 +8,7 @@
   // are a settings page of their own (ServiceDeskView, page-system §9.6).
 
   import { untrack } from 'svelte';
-  import { Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Icon, ListRow, PageHeader, PlaceTabs, Skeleton, WorkPage, type PlaceTab } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -36,8 +36,8 @@
   const { hubs, isReading, tab, createHub, templates = [], onnavigate }: Props = $props();
 
   const name = $derived(t('app.nav.desk'));
-  const tabs = $derived<PlaceTab[]>(homeTabs('SERVICE_DESK').map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
-  const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'queues');
+  const placeTabs = $derived<PlaceTab[]>(homeTabs('SERVICE_DESK').map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
+  const current = $derived(placeTabs.some((each) => each.id === tab) ? (tab as string) : 'queues');
 
   const hubKey = $derived(hubs.map((hub) => hub.id).join(','));
   $effect(() => {
@@ -89,7 +89,8 @@
   });
 </script>
 
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={name}
     subtitle={t('app.modules.hint_service_desk')}
@@ -107,7 +108,8 @@
     {#snippet figure()}{#if figureText}<span class="figure" data-desk-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
 
-  <PlaceTabs label={name} {tabs} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
+  {/snippet}
+  {#snippet tabs()}<PlaceTabs label={name} tabs={placeTabs} {current} onnavigate={(id) => onnavigate(placeTabs.find((each) => each.id === id)?.href ?? '/desk')} />{/snippet}
 
   {#if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
@@ -133,7 +135,7 @@
   {:else}
     <DeskQueues desks={desksAt} withHub={hubs.length > 1} {onnavigate} ontotals={(next) => (totals = next)} />
   {/if}
-</Stack>
+</WorkPage>
 
 <style>
   .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
