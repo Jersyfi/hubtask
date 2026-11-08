@@ -78,8 +78,10 @@
     list?.status !== 'ready' ? [] : family === 'all' ? list.data.data : list.data.data.filter((each) => familyOf(each) === family),
   );
   const groups = $derived(byOrigin(shown));
-  // A long catalogue continues at its foot (PS-8), at the device's rows per page.
-  const continued = new Continued(() => groups.flatMap((group) => group.templates));
+  // A long catalogue continues at its foot (PS-8), at the device's rows per page; on a place's
+  // settings, under the preset picker, a shorter first page keeps the section within two screens.
+  // svelte-ignore state_referenced_locally
+  const continued = new Continued(() => groups.flatMap((group) => group.templates), { first: hubId || collectionId ? 10 : undefined });
   $effect(() => {
     void family;
     untrack(() => continued.restart());

@@ -13,15 +13,21 @@ import { rowsPerPageOf } from './list.ts';
 
 export class Continued<T> {
   #rows: () => readonly T[];
+  #first: number | undefined;
   #extra = $state(0);
 
-  /** `rows` is the narrowed list, read again whenever it changes. */
-  constructor(rows: () => readonly T[]) {
+  /**
+   * `rows` is the narrowed list, read again whenever it changes. `first` shortens the first page
+   * where the list shares its screen with a section above it (page-system §9.6: the preset picker
+   * above a place's templates); *Show more* still adds the device's rows per page.
+   */
+  constructor(rows: () => readonly T[], { first }: { first?: number } = {}) {
     this.#rows = rows;
+    this.#first = first;
   }
 
   #limit(): number {
-    return device.rowsPerPage + this.#extra;
+    return Math.min(this.#first ?? device.rowsPerPage, device.rowsPerPage) + this.#extra;
   }
 
   /** The rows on show. */
