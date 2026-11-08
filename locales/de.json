@@ -6713,6 +6713,7 @@
   "app.groups.removed_announced": "Gruppe gelöscht.",
   "app.groups.kind": "Gruppe",
   "app.groups.search": "Gruppen durchsuchen",
+  "app.groups.load_more": "Weitere Gruppen zeigen",
   "app.groups.filtered_title": "Keine Gruppe passt zur Suche.",
   "app.groups.description": "Beschreibung",
   "app.groups.description_hint": "Eine Zeile dazu, wofür die Gruppe da ist. Freiwillig.",

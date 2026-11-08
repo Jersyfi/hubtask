@@ -43,7 +43,7 @@
   import { peopleHead } from '../lib/people/peoplehead.svelte.ts';
   import { DiscardGuard } from '../lib/page/discard.svelte.ts';
   import DiscardDialog from '../lib/page/DiscardDialog.svelte';
-  import { matchesSearch } from '../lib/page/list.ts';
+  import { countOf, matchesSearch } from '../lib/page/list.ts';
   import { holdsHere, mayHere } from '../lib/data/capability.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -84,6 +84,22 @@
   // The search narrows the groups loaded: `GET /groups` has no search of its own yet.
   let search = $state('');
   const shown = $derived(all.filter((group) => matchesSearch(search, [group.name, group.description ?? undefined])));
+  // The foot (page-system D-1): *Showing 50 of 120* while pages are unread, and the next page by the cursor.
+  const counted = $derived(countOf(shown.length, groups.total, search !== ''));
+  const shownLabel = $derived(
+    shown.length < counted
+      ? t('app.page.showing_of', { shown: String(shown.length), count: String(counted) })
+      : t('app.page.showing', { count: String(shown.length) }),
+  );
+  let isReadingMore = $state(false);
+  async function readMore(): Promise<void> {
+    isReadingMore = true;
+    try {
+      await groups.readMore();
+    } finally {
+      isReadingMore = false;
+    }
+  }
 
   const columns = $derived<DataColumn[]>([
     { id: 'name', label: t('app.groups.name'), isSortable: true, priority: 1 },
@@ -193,7 +209,10 @@
       sheetGrabLabel={t('app.page.sheet_grab')}
       sort={order.sort}
       onSort={(next) => order.by(next)}
-      shownLabel={all.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+      shownLabel={all.length === 0 ? undefined : shownLabel}
+      more={groups.hasMore && search === ''
+        ? { label: t('app.groups.load_more'), isBusy: isReadingMore, hasMore: true, onLoadMore: () => void readMore() }
+        : undefined}
     >
       {#snippet cell(group: Group, column: DataColumn)}
         {#if column.id === 'name'}

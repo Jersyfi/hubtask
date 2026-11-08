@@ -34,3 +34,12 @@ export function rowsPerPageOf(kept: string | null | undefined): RowsPerPage {
   const value = Number(kept);
   return (ROWS_PER_PAGE as readonly number[]).includes(value) ? (value as RowsPerPage) : ROWS_PER_PAGE[0];
 }
+
+/**
+ * How many a list's foot says there are (page-system D-1): the endpoint's total where it counted
+ * one and nothing narrows the rows on the client, otherwise the rows held. The total counts the
+ * request's filter, not a search over what is loaded, so a narrowed list counts what it holds.
+ */
+export function countOf(held: number, total: number | undefined, isNarrowed: boolean): number {
+  return total === undefined || isNarrowed ? held : Math.max(held, total);
+}

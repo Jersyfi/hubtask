@@ -11,7 +11,7 @@ export interface PageReach {
 interface PagedAnswer {
   readonly data?: readonly unknown[];
   readonly total?: number | null;
-  readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean } | null;
+  readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean; readonly total?: number } | null;
 }
 
 /**
@@ -22,7 +22,9 @@ interface PagedAnswer {
 export function reachOf(answer: PagedAnswer | undefined): PageReach {
   if (!answer) return { shown: 0, total: undefined, hasMore: false };
   const shown = answer.data?.length ?? 0;
-  const total = typeof answer.total === 'number' ? answer.total : undefined;
+  // A query's count stands beside the page; a list's counted total inside it (api-guidelines.md §4).
+  const counted = answer.total ?? answer.page?.total;
+  const total = typeof counted === 'number' ? counted : undefined;
   const hasMore = answer.page?.has_more ?? Boolean(answer.page?.next_cursor);
   return { shown, total, hasMore };
 }

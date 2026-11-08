@@ -21,6 +21,11 @@ test('an answer without has_more but with a cursor still has more', () => {
   assert.equal(reachOf({ data: rows(200), page: { next_cursor: null } }).hasMore, false);
 });
 
+test('a list answers its total inside the page', () => {
+  assert.deepEqual(reachOf({ data: rows(50), page: { next_cursor: 'c1', has_more: true, total: 1240 } }), { shown: 50, total: 1240, hasMore: true });
+  assert.equal(reachOf({ data: rows(50), page: { next_cursor: null, has_more: false } }).total, undefined);
+});
+
 test('an answer not yet there holds nothing', () => {
   assert.deepEqual(reachOf(undefined), { shown: 0, total: undefined, hasMore: false });
 });

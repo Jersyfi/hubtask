@@ -6713,6 +6713,7 @@
   "app.groups.removed_announced": "Group deleted.",
   "app.groups.kind": "Group",
   "app.groups.search": "Search groups",
+  "app.groups.load_more": "Show more groups",
   "app.groups.filtered_title": "No group matches the search.",
   "app.groups.description": "Description",
   "app.groups.description_hint": "One line on what the group is for. Optional.",

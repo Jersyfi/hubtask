@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { matchesChoice, matchesSearch, rowsPerPageOf } from './list.ts';
+import { countOf, matchesChoice, matchesSearch, rowsPerPageOf } from './list.ts';
 
 test('an empty search matches every row', () => {
   assert.equal(matchesSearch('  ', ['Lukas Brandt']), true);
@@ -28,4 +28,12 @@ test('a list starts at 25 rows unless the device kept 50 or 100', () => {
   assert.equal(rowsPerPageOf('50'), 50);
   assert.equal(rowsPerPageOf('100'), 100);
   assert.equal(rowsPerPageOf('37'), 25);
+});
+
+test('the foot counts the endpoint total only while nothing narrows the rows', () => {
+  assert.equal(countOf(50, 1240, false), 1240);
+  assert.equal(countOf(50, 1240, true), 50);
+  assert.equal(countOf(12, undefined, false), 12);
+  // A row written after the count does not make the foot say fewer than it shows.
+  assert.equal(countOf(51, 50, false), 51);
 });
