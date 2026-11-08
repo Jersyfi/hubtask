@@ -221,3 +221,44 @@ func TestTheGroupsAreAMembersAndNotARequesters(t *testing.T) {
 		t.Errorf("%d scope refusals of the member recorded, want two", n)
 	}
 }
+
+// The page's total is the length of the whole walk, on every page, and counts the workspace's own
+// groups only: tenant B's total is its own walk's, without tenant A's group (gate SG-3).
+func TestTheGroupsTotalIsTheWalksLengthInItsOwnWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	group := groupNamed(ctx, t, tenantA, freshName(t))
+
+	for _, tenant := range []shared.ID{tenantA, tenantB} {
+		var walked, totals []int
+		seen := false
+		cursor := ""
+		for pages := 0; ; pages++ {
+			page := groupsListed(ctx, t, tenant, repository.Page{Cursor: cursor, Size: 50})
+			if page.Info.Total == nil {
+				t.Fatalf("tenant %s: a page of the groups carries no total", tenant)
+			}
+			totals = append(totals, *page.Info.Total)
+			walked = append(walked, len(page.Groups))
+			for _, listed := range page.Groups {
+				seen = seen || listed.ID == group.ID
+			}
+			if !page.Info.HasMore || pages > 50 {
+				break
+			}
+			cursor = page.Info.NextCursor
+		}
+		length := 0
+		for _, n := range walked {
+			length += n
+		}
+		for _, total := range totals {
+			if total != length {
+				t.Errorf("tenant %s: total %d, the walk %d", tenant, total, length)
+			}
+		}
+		if seen != (tenant == tenantA) {
+			t.Errorf("tenant %s: tenant A's group listed = %v", tenant, seen)
+		}
+	}
+}

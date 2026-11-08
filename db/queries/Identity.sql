@@ -684,6 +684,13 @@ WHERE scope_type = sqlc.arg('scope_type')
 ORDER BY id DESC
 LIMIT sqlc.arg('page_size');
 
+-- name: CountMembershipsAt :one
+-- How many memberships ListMembershipsAtScope walks over at one scope, for the page's total.
+SELECT count(*)::integer
+FROM membership
+WHERE scope_type = sqlc.arg('scope_type')
+  AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid;
+
 -- name: ListGroups :many
 -- The workspace's groups by name. The keyset is (lower(name), id) rather than an offset,
 -- so that a page boundary survives a concurrent insert (api-guidelines.md §4); `id` is the
@@ -700,6 +707,11 @@ WHERE (
 -- disagree about where a name sorts (migration 0080).
 ORDER BY lower(name) COLLATE hubtask_name, id
 LIMIT sqlc.arg('page_size');
+
+-- name: CountGroups :one
+-- How many groups the page walk of ListGroups passes over, for the page's total (api-guidelines.md
+-- §5). The tenant boundary is the transaction's, as for the walk.
+SELECT count(*)::integer FROM account_group;
 
 -- name: CountPeople :one
 -- The people of the workspace: accounts of persons that are not anonymised and not deleted. What

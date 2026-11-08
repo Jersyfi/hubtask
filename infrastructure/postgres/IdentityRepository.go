@@ -638,9 +638,16 @@ func (r GroupRepository) List(ctx context.Context, page repository.Page) (reposi
 	kept, info := pageOf(groups, page.Size, r.cursors, func(last identity.Group) security.Position {
 		return security.At(strings.ToLower(last.Name), last.ID)
 	})
+	counted, err := queries.CountGroups(ctx)
+	if err != nil {
+		return repository.GroupPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the groups: %w", err))
+	}
+	total := int(counted)
 	return repository.GroupPage{
 		Groups: kept,
-		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore},
+		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore, Total: &total},
 	}, nil
 }
 
@@ -953,9 +960,19 @@ func (r MembershipGrantRepository) ListAt(
 	kept, info := pageOf(grants, page.Size, r.cursors, func(last identity.Grant) security.Position {
 		return security.Position{ID: last.ID}
 	})
+	counted, err := queries.CountMembershipsAt(ctx, sqlc.CountMembershipsAtParams{
+		ScopeType: sqlc.MembershipScope(scope.Type),
+		ScopeID:   scopeID,
+	})
+	if err != nil {
+		return repository.GrantPage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the memberships at a scope: %w", err))
+	}
+	total := int(counted)
 	return repository.GrantPage{
 		Grants: kept,
-		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore},
+		Info:   repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore, Total: &total},
 	}, nil
 }
 
