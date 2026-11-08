@@ -190,7 +190,7 @@
     <div class="sheet-actions">{@render actions()}</div>
   </Sheet>
 {:else}
-  <Dialog title={t('app.move.title', { name: container.name })} bind:isOpen dismissLabel={t('app.workspace.cancel')} {actions}>
+  <Dialog size="m" title={t('app.move.title', { name: container.name })} bind:isOpen dismissLabel={t('app.workspace.cancel')} {actions}>
     {@render body()}
   </Dialog>
 {/if}

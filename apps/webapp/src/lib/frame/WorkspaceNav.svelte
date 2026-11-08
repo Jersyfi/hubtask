@@ -1821,7 +1821,7 @@
 {/if}
 {#if entryMove}
   {@const move = entryMove}
-  <Dialog title={t('app.nav.entry_move_title', { title: move.title, collection: move.collection.name })} isOpen dismissLabel={t('app.workspace.cancel')} onClose={() => (entryMove = undefined)}>
+  <Dialog size="s" title={t('app.nav.entry_move_title', { title: move.title, collection: move.collection.name })} isOpen dismissLabel={t('app.workspace.cancel')} onClose={() => (entryMove = undefined)}>
     <p>{t('app.nav.entry_move_hub', { collection: move.collection.name, hub: containers.find(move.collection.parent_id ?? '')?.name ?? '' })}</p>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (entryMove = undefined)}>{t('app.workspace.cancel')}</Button>
