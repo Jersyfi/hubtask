@@ -255,6 +255,8 @@ async function views() {
     ['workflows', await load('WorkflowsView'), { onnavigate: noop }],
     ['workflow', await load('WorkflowsView'), { workflow: 'default', onnavigate: noop }],
     ['backup', await load('BackupView'), {}],
+    ['backup-section', await load('BackupView'), { section: 'runs' }],
+    ['backup-target', await load('BackupTargetView'), { id: '01a0e2e0-0000-7000-8000-0000000007a1', onnavigate: noop }],
     ['retention', await load('RetentionView'), {}],
     ['restore', await load('RestoreView'), {}],
     ['audit', await load('AuditView'), {}],

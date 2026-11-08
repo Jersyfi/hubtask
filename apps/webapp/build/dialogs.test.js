@@ -75,7 +75,6 @@ const NOT_YET_MIGRATED = [
   'lib/workspace/PositionDialog.svelte',
   'lib/workspace/StarterDialog.svelte',
   'views/AgentsView.svelte',
-  'views/BackupView.svelte',
   'views/CmdbView.svelte',
   'views/ContainerView.svelte',
   'views/DashboardView.svelte',

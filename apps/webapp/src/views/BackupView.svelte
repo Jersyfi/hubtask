@@ -3,152 +3,139 @@
 <script lang="ts">
   // Where the archives go, when they are written, and whether they open.
   //
+  // **One section per address** (page-system §7.3, §9.3, PS-9): *Schedule*, *Targets* and *Recent
+  // runs*, each at `/administration/backup/<section>`, and *Restore*, the screen of its own the list
+  // leads to. Every act here is its own write - a dialog's, a row's switch - so no section has a
+  // save bar (PS-10). *Back up now* is the head's primary; a target opens its record page with its
+  // archives; a new target, a new schedule and the whole workspace's download are Dialogs M.
+  //
   // **The first screen that watches a job**, and the pattern the next three reuse. `POST /backups`
-  // answers a `JobRef` rather than a result; the answer arrives at `GET /jobs/{jobId}`, and the
-  // watching is `lib/data/jobs.svelte.ts`'s rather than this file's. `progress: null` is the
-  // indeterminate case rather than zero — a bar at zero would claim nothing has happened on a job
-  // that is halfway through.
+  // answers a `JobRef` rather than a result; the watching is `lib/data/jobs.svelte.ts`'s.
   //
   // **"We have backups" and "we have backups that open" are different claims**, and the screen
-  // keeps them apart: a run says when it was last verified, and a target that has never had a
-  // verified run says so in as many words.
+  // keeps them apart: a run says when it was last checked, and where none ever was it says so.
   //
   // **What is at the target is read from the target.** There is no listing of runs in the
   // contract, and that is deliberate rather than missing: the manifests where the archives lie
-  // still answer after a total loss, which is exactly the moment somebody needs them. An archive's
-  // id is its run's id, so a row's verification is one read away.
+  // still answer after a total loss. *Recent runs* is therefore every target's archives, each with
+  // its run's row - an archive's id is its run's id.
   //
   // **No credential is ever read back.** A target's credentials go in at creation and the contract
   // answers `config` without them; there is nothing here to show and nothing to ask for.
 
-  import { tick, untrack } from 'svelte';
+  import { untrack } from 'svelte';
 
-  import { Badge, Button, Dialog, EmptyState, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
-  import FrequencyPicker from '../lib/forms/FrequencyPicker.svelte';
-  import ZonePicker from '../lib/forms/ZonePicker.svelte';
-  import { deviceZone } from '../lib/i18n/zone.ts';
+  import { Badge, Button, DataTable, EmptyState, SettingsLayout, Spinner, Switch, type DataColumn, type SectionLink } from '@hubtask/design-system/components';
 
-  import { backup, type Archive, type Schedule } from '../lib/data/backup.svelte.ts';
-  import { generations, readRule } from '../lib/data/backup.ts';
-  import TargetForm from '../lib/backup/TargetForm.svelte';
-  import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
-  import { isTerminal, mayCancel } from '../lib/data/jobs.ts';
-  import { formatBytes } from '../lib/i18n/bytes.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
-  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
-  import { mayHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
-  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
+  import BackUpNowDialog from '../lib/backup/BackUpNowDialog.svelte';
+  import DownloadDialog from '../lib/backup/DownloadDialog.svelte';
+  import JobProgress from '../lib/backup/JobProgress.svelte';
+  import NewScheduleDialog from '../lib/backup/NewScheduleDialog.svelte';
+  import NewTargetDialog from '../lib/backup/NewTargetDialog.svelte';
+  import RemoveScheduleDialog from '../lib/backup/RemoveScheduleDialog.svelte';
+  import RemoveTargetDialog from '../lib/backup/RemoveTargetDialog.svelte';
+  import ScheduleDialog from '../lib/backup/ScheduleDialog.svelte';
+  import { archiveState, lastVerified, nextRun, ruleSentence, testedWord, when } from '../lib/backup/words.svelte.ts';
+  import { backup, type Archive, type Schedule, type Target } from '../lib/data/backup.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { stepUp } from '../lib/data/stepup.svelte.ts';
-  import { platform } from '../lib/platform/index.ts';
-  import { assertZipComplete, zipComplete } from '../lib/data/zipComplete.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { deviceZone } from '../lib/i18n/zone.ts';
+  import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
+  import { isTerminal } from '../lib/data/jobs.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { formatBytes } from '../lib/i18n/bytes.ts';
+  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { Continued } from '../lib/page/continued.svelte.ts';
+  import TableSection from '../lib/page/TableSection.svelte';
+  import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
+
+  interface Props {
+    /** The section the address names (`/administration/backup/:section`); none is the list. */
+    section?: string;
+    /** Opens another page: a target's, *Restore*. */
+    onnavigate?: (path: string) => void;
+    /** Replaces the address: a move between sections. */
+    onreplace?: (path: string) => void;
+  }
+
+  const { section, onnavigate, onreplace }: Props = $props();
+
+  const BASE = '/administration/backup';
+  const RESTORE = '/administration/restore';
+  /** Where the guided target writes inside the installation's backup volume. */
+  const GUIDED_PATH = 'workspaces';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
+  let isGuiding = $state(false);
 
-
-  // The schedule form.
-  // Empty rather than undefined: `Select`'s `value` prop has a default, and Svelte refuses a
-  // binding whose initial value is undefined (`props_invalid_value`).
-  let scheduleTarget = $state('');
-  let scheduleRule = $state('FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
-  let scheduleZone = $state(deviceZone());
-  let scheduleMinKeep = $state('3');
-
-  // What is on screen rather than what exists: a target whose archives somebody opened, the run
-  // a started job produced, and the confirmation a delete is behind.
-  let openedTarget = $state<string | undefined>(undefined);
+  // What is on screen rather than what exists: the job a press started, and the dialogs open.
   let startedJob = $state<string | undefined>(undefined);
+  /** The target whose archives the running job changes, read again when it ends. */
+  let jobTarget = $state<string | undefined>(undefined);
   let verifying = $state<string | undefined>(undefined);
-  // Removing is final, so it confirms in a dialog - the one pattern for a final act (ux-inventory
-  // §E10); switching a schedule off is the reversible way and stays a switch.
-  let removing = $state<string | undefined>(undefined);
-  let removingSchedule = $state<string | undefined>(undefined);
+  let isAddingTarget = $state(false);
+  let isAddingSchedule = $state(false);
+  let isChoosingTarget = $state(false);
+  let isDownloadOpen = $state(false);
+  let openedSchedule = $state<Schedule | undefined>(undefined);
+  let removing = $state<Target | undefined>(undefined);
+  let removingSchedule = $state<Schedule | undefined>(undefined);
 
   $effect(() => untrack(() => backup.open()));
 
   const reading = $derived(backup.targets);
   const targets = $derived(backup.all);
-  const refusal = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
-  const schedules = $derived(
-    backup.schedules.status === 'ready' ? backup.schedules.data : ([] as readonly Schedule[]),
-  );
+  const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
+  const schedules = $derived(backup.schedules.status === 'ready' ? backup.schedules.data : ([] as readonly Schedule[]));
   const watched = $derived<Watch | undefined>(startedJob ? jobs.of(startedJob) : undefined);
 
-  // A job that has just ended is what makes the rows on screen out of date, and re-reading is the
-  // answer rather than a second polling loop: the watcher already knows when to stop.
+  /**
+   * What the reader may do here, as the server asks it: testing and running behind `STRUCTURE`,
+   * adding, changing and removing a target or a schedule behind the owner's `DELETE_CONTAINER` -
+   * which an administrator does not hold either.
+   */
+  const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
+  const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
+  /** Whether this workspace may add a target at all: in provider operation the operator's switch
+   * (backup-restore.md §2). Where it is off, a form or a one-press start would only be refused. */
+  const mayAddTarget = $derived(manifest.value?.features?.backup_targets === true);
+  /** Every target on this machine's disk: one failure takes the archives with the data. */
+  const onlyHere = $derived(targets.length > 0 && targets.every((target) => target.kind === 'LOCAL'));
+
+  const SECTIONS = [
+    { id: 'schedule', code: 'app.backup.schedules_title' },
+    { id: 'targets', code: 'app.backup.targets_title' },
+    { id: 'runs', code: 'app.backup.runs_title' },
+    { id: 'restore', code: 'app.backup.restore_title' },
+  ] as const;
+  /** *Restore* is a screen of its own: a link in the list, never a section here. */
+  const isKnown = (id: string | undefined): boolean => id !== undefined && id !== 'restore' && SECTIONS.some((each) => each.id === id);
+  const shown = $derived(isKnown(section) ? (section as string) : 'schedule');
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
+
+  const nameOf = (targetId: string) => targets.find((target) => target.id === targetId)?.name ?? targetId;
+  const addressOf = (target: Target) => `${BASE}/targets/${encodeURIComponent(target.id)}`;
+
+  // A job that has just ended is what makes the rows on screen out of date; re-reading is the
+  // answer rather than a second polling loop, since the watcher already knows when to stop.
   $effect(() => {
     const watch = watched;
     if (!watch || watch.watching || !isTerminal(watch.job.status)) return;
-    // A job finishing is a status change nobody focused (4.1.3): the sentence the panel shows is
-    // said once, through the one live region, at the moment it appears.
+    // A job finishing is a status change nobody focused (4.1.3): said once, when it appears.
     announcer.say(
       watch.job.status === 'SUCCEEDED'
-        ? verifying
-          ? t('app.backup.verify_done')
-          : t('app.backup.run_done')
-        : watch.job.status === 'CANCELLED'
-          ? t('app.backup.run_cancelled')
-          : t('app.backup.run_failed'),
+        ? verifying ? t('app.backup.verify_done') : t('app.backup.run_done')
+        : watch.job.status === 'CANCELLED' ? t('app.backup.run_cancelled') : t('app.backup.run_failed'),
     );
-    const target = openedTarget;
-    void untrack(async () => {
-      // `refresh` rather than the cached answer: the server's listing of the target is from
-      // before the run that just ended, and reading the runs is what `readArchives` does after.
-      if (target) await backup.readArchives(target, true);
-    });
+    const target = jobTarget;
+    // `refresh`: the server's listing of the target is from before the run that just ended.
+    if (target && read.has(target)) void untrack(() => backup.readArchives(target, true));
   });
-
-  const when = (at: string | null | undefined) =>
-    at ? formatDateTime(at, messages.locale) : undefined;
-
-  const sentence = (code: string | null | undefined) =>
-    code ? (messages.has(code) ? t(code) : code) : undefined;
-
-  const nameOf = (targetId: string) =>
-    targets.find((target) => target.id === targetId)?.name ?? targetId;
-
-  /** The rule as what it means. Never as when it next fires — that is `next_run_at`, the server's. */
-  function ruleSentence(schedule: Schedule): string {
-    const reading = readRule(schedule.rrule);
-    if (reading.partial || !reading.frequency) return schedule.rrule;
-    const at = reading.at
-      ? t('app.backup.rule_at', {
-          time: `${String(reading.at.hour).padStart(2, '0')}:${String(reading.at.minute).padStart(2, '0')}`,
-        })
-      : '';
-    const days = reading.weekdays
-      .map((day) => t(`app.backup.weekday_${day.toLowerCase()}`))
-      .join(', ');
-    const every =
-      reading.interval === 1
-        ? t(`app.backup.rule_${reading.frequency.toLowerCase()}`)
-        : t(`app.backup.rule_every_${reading.frequency.toLowerCase()}`, {
-            interval: String(reading.interval),
-          });
-    return [every, days, at].filter((part) => part !== '').join(' ');
-  }
-
-  /** The archive rows of one target, once somebody has opened it. */
-  const archivesOf = (targetId: string) => backup.archivesAt(targetId);
-
-  /** Whether this target has ever had a run verified, from the rows this tab has read. */
-  function lastVerified(list: readonly Archive[]): string | undefined {
-    const stamps = list
-      .map((archive) => backup.runOf(archive.archive_id)?.verified_at)
-      .filter((stamp): stamp is string => typeof stamp === 'string');
-    return stamps.sort().at(-1);
-  }
 
   async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
     failure = undefined;
@@ -156,7 +143,7 @@
     try {
       await work();
       // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
+      // see it is told the same thing once, through the one live region.
       if (said) announcer.say(said);
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
@@ -165,43 +152,37 @@
     }
   }
 
-
-  /** What a press of the schedule's *Add* found missing, marked at the field. */
-  let scheduleMissing = $state<Missing>({});
-  let scheduleForm = $state<HTMLFormElement | undefined>(undefined);
-
-  async function createSchedule(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    scheduleMissing = check([{ kind: 'field', key: 'target', code: 'app.backup.target_needed', isFilled: scheduleTarget !== '' }]);
-    if (!isComplete(scheduleMissing)) {
-      void tick().then(() => focusFirst(scheduleForm));
-      return;
-    }
-    const floor = Number.parseInt(scheduleMinKeep, 10);
-    await attempt(() =>
-      backup.createSchedule({
-        target_id: scheduleTarget,
-        scope: { kind: 'TENANT' },
-        rrule: scheduleRule.trim(),
-        timezone: scheduleZone,
-        ...(Number.isFinite(floor) && floor > 0 ? { retention: { min_keep: floor } } : {}),
-      }), t('app.backup.schedule_added_announced')
-    );
-    // Added: the form is empty again, so a second schedule starts from nothing and the leave
-    // guard holds nothing that is already saved.
-    if (failure === undefined) scheduleTarget = '';
+  async function start(targetId: string): Promise<void> {
+    await attempt(async () => {
+      const accepted = await backup.start({ target_id: targetId });
+      startedJob = accepted.job_id;
+      jobTarget = targetId;
+      verifying = undefined;
+    }, t('app.backup.started_announced'));
   }
 
+  async function verify(row: RunRow): Promise<void> {
+    await attempt(async () => {
+      const accepted = await backup.verify(row.archive.archive_id);
+      startedJob = accepted.job_id;
+      jobTarget = row.target.id;
+      verifying = row.archive.archive_id;
+    }, t('app.backup.verify_started_announced'));
+  }
+
+  /** The head's primary: one target starts at once, several ask which. */
+  function backUpNow(): void {
+    if (targets.length === 1 && targets[0]) void start(targets[0].id);
+    else isChoosingTarget = true;
+  }
 
   /**
    * The empty screen's one act (user-experience.md §8.3): a target in the installation's backup
    * volume and a nightly schedule on it, as `backup-restore.md` §4's example - incremental each
    * night, full on Sunday with the trial restore, the server's default retention. The path is the
    * same for every workspace: an archive's name carries its workspace, and a target lists only its
-   * own workspace's archives. A schedule refused after the target was added leaves the target on
-   * screen with the schedule form under it, which is the hand-made way the rest of the page offers.
+   * own workspace's archives.
    */
-  let isGuiding = $state(false);
   async function backUpNightly(): Promise<void> {
     isGuiding = true;
     await attempt(async () => {
@@ -225,668 +206,382 @@
     isGuiding = false;
   }
 
-  /** Where the guided target writes inside the installation's backup volume. */
-  const GUIDED_PATH = 'workspaces';
-
-  /** Every target on this machine's disk: one failure takes the archives with the data. */
-  const onlyHere = $derived(targets.length > 0 && targets.every((target) => target.kind === 'LOCAL'));
-
-  async function start(targetId: string): Promise<void> {
-    await attempt(async () => {
-      const accepted = await backup.start({ target_id: targetId });
-      startedJob = accepted.job_id;
-      openedTarget = targetId;
-      verifying = undefined;
-    }, t('app.backup.started_announced'));
-  }
-
-  async function verify(runId: string): Promise<void> {
-    await attempt(async () => {
-      const accepted = await backup.verify(runId);
-      startedJob = accepted.job_id;
-      verifying = runId;
-    }, t('app.backup.verify_started_announced'));
-  }
-
-  async function openTarget(targetId: string): Promise<void> {
-    if (openedTarget === targetId) {
-      openedTarget = undefined;
-      return;
-    }
-    openedTarget = targetId;
-    await attempt(async () => {
-      await backup.readArchives(targetId);
-      const list = backup.archivesAt(targetId);
-      if (list.status !== 'ready') return;
-      // Each archive's run is what carries `verified_at`; the manifest carries only whether the
-      // checksums were checked at the target the last time somebody looked.
-      for (const archive of list.data) await backup.readRun(archive.archive_id);
+  // Recent runs: each target's archives, read once the section is open - a read per archive's run
+  // follows, which a generation plan bounds.
+  const read = new Set<string>();
+  $effect(() => {
+    if (shown !== 'runs') return;
+    const ids = targets.map((target) => target.id);
+    untrack(() => {
+      for (const id of ids) {
+        if (read.has(id)) continue;
+        read.add(id);
+        void backup.readArchives(id);
+      }
     });
+  });
+
+  interface RunRow {
+    readonly target: Target;
+    readonly archive: Archive;
   }
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.backup.title')));
 
-  /**
-   * What the reader may do here, as the server asks it: testing and running behind `STRUCTURE`,
-   * adding, changing and removing a target, a schedule, a rule or a hold behind the owner's
-   * `DELETE_CONTAINER` - which an administrator does not hold either.
-   */
-  const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
-  const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
-  /** Whether this workspace may add a target at all: in provider operation the operator's switch
-   * (backup-restore.md §2). Where it is off, a form or a one-press start would only be refused. */
-  const mayAddTarget = $derived(manifest.value?.features?.backup_targets === true);
+  const runRows = $derived<readonly RunRow[]>(
+    targets
+      .flatMap((target) => {
+        const listing = backup.archivesAt(target.id);
+        return listing.status === 'ready' ? listing.data.map((archive) => ({ target, archive })) : [];
+      })
+      .sort((a, b) => b.archive.created_at.localeCompare(a.archive.created_at)),
+  );
+  const runsReading = $derived(targets.some((target) => backup.archivesAt(target.id).status === 'loading'));
+  const runsFailure = $derived.by(() => {
+    for (const target of targets) {
+      const listing = backup.archivesAt(target.id);
+      if (listing.status === 'failed') return renderProblem(listing.error, messages);
+    }
+    return undefined;
+  });
+  const runs = new Continued(() => runRows);
+  const verified = $derived(lastVerified(runRows.map((row) => row.archive), (id) => backup.runOf(id)));
 
-  const sections = $derived([
-    { id: 'backup-part-targets', label: t('app.backup.targets_title') },
-    { id: 'backup-part-schedules', label: t('app.backup.schedules_title') },
-    ...(mayOwn ? [{ id: 'backup-part-download', label: t('app.backup.download_title') }] : []),
+  const scheduleColumns: readonly DataColumn[] = $derived([
+    { id: 'rule', label: t('app.backup.column_when'), priority: 1 },
+    { id: 'target', label: t('app.backup.schedule_target'), priority: 2 },
+    { id: 'next', label: t('app.backup.column_next'), priority: 3 },
+    { id: 'state', label: t('app.backup.enabled'), isStatus: true },
+  ]);
+  const targetColumns: readonly DataColumn[] = $derived([
+    { id: 'name', label: t('app.backup.target_name'), priority: 1 },
+    { id: 'kind', label: t('app.backup.target_kind'), priority: 2 },
+    { id: 'tested', label: t('app.backup.column_tested'), priority: 3 },
+    { id: 'encryption', label: t('app.backup.encryption'), isStatus: true },
+  ]);
+  const runColumns: readonly DataColumn[] = $derived([
+    { id: 'when', label: t('app.backup.column_written'), priority: 1 },
+    { id: 'target', label: t('app.backup.schedule_target'), priority: 2 },
+    { id: 'mode', label: t('app.backup.column_mode'), priority: 3 },
+    { id: 'size', label: t('app.backup.column_size'), priority: 3, align: 'end' },
+    { id: 'state', label: t('app.backup.column_opens'), isStatus: true },
   ]);
 
-  /** Why a schedule's switch is off for this reader, where it is. */
-  const ownRefusal = $derived(workspaceRefusal('DELETE_CONTAINER'));
-
-  /**
-   * The owner's way out without a target (UC-BAK-07 check 7): the whole workspace as one file, once
-   * in 24 hours, behind a fresh proof - `stepUp.around` turns the refusal into the prompt.
-   */
-  let isDownloading = $state(false);
-  /** Encrypts the file to it when given; stored nowhere, so it is the one key to the file. */
-  let downloadPassphrase = $state('');
-  /**
-   * What is chosen or typed and not yet sent, for the leave guard: every act here is its own write,
-   * so there is no save bar. The schedule form counts once a target is chosen in it.
-   */
-  const changes = $derived([scheduleTarget !== '', downloadPassphrase !== ''].filter(Boolean).length);
-  async function downloadWorkspace(): Promise<void> {
-    // The picker first, while the press still counts: a whole workspace goes to the disk as it
-    // arrives where the browser offers that, and through memory only where it does not.
-    const target = await platform.saveStream('hubtask-export.zip');
-    if (target === null) return;
-    isDownloading = true;
-    await attempt(async () => {
-      if (target === undefined) {
-        const file = await stepUp.around((token) => backup.downloadWorkspace(token, downloadPassphrase));
-        downloadPassphrase = '';
-        await assertZipComplete(file.body);
-        platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
-        return;
-      }
-      // Kept only when whole: an archive the server broke off is discarded, not left looking saved.
-      const sink = zipComplete(target);
-      let isWritten = false;
-      try {
-        await stepUp.around((token) => backup.downloadWorkspaceTo(sink, token, downloadPassphrase));
-        isWritten = true;
-        downloadPassphrase = '';
-      } finally {
-        // A refusal or a closed proof prompt never touched the file; it is discarded all the same.
-        if (!isWritten) await sink.abort().catch(() => undefined);
-      }
-    }, t('app.backup.download_done'));
-    isDownloading = false;
+  // A row's verb gives way on a phone, so each one is in its ⋯ too (PS-18).
+  function scheduleMenu(schedule: Schedule) {
+    if (!mayOwn) return undefined;
+    return {
+      label: t('app.page.more_for', { name: ruleSentence(schedule) }),
+      items: [
+        { id: 'switch', label: schedule.enabled === false ? t('app.backup.switch_on') : t('app.backup.switch_off') },
+        { id: 'remove', label: t('app.backup.remove_schedule'), isDestructive: true, hasSeparatorBefore: true },
+      ],
+    };
   }
+
+  function onScheduleMenu(schedule: Schedule, id: string): void {
+    if (id === 'remove') removingSchedule = schedule;
+    else void attempt(() => backup.updateSchedule(schedule.id, { enabled: schedule.enabled === false }), t('app.backup.schedule_saved_announced'));
+  }
+
+  function runMenu(row: RunRow) {
+    if (!mayStructure || row.archive.complete === false) return undefined;
+    return { label: t('app.page.more_for', { name: when(row.archive.created_at) ?? row.archive.path }), items: [{ id: 'verify', label: t('app.backup.verify') }] };
+  }
+
+  function targetMenu(target: Target) {
+    return {
+      label: t('app.page.more_for', { name: target.name }),
+      items: [
+        { id: 'open', label: t('app.page.open') },
+        ...(mayStructure ? [{ id: 'test', label: t('app.backup.test') }, { id: 'start', label: t('app.backup.start') }] : []),
+        ...(mayOwn ? [{ id: 'remove', label: t('app.backup.remove'), isDestructive: true, hasSeparatorBefore: true }] : []),
+      ],
+    };
+  }
+
+  function onTargetMenu(target: Target, id: string): void {
+    if (id === 'open') onnavigate?.(addressOf(target));
+    else if (id === 'test') void attempt(() => backup.test(target.id), t('app.backup.tested_announced'));
+    else if (id === 'start') void start(target.id);
+    else if (id === 'remove') removing = target;
+  }
+
+  /** A section's state in the list, from what is read: never a guess before the read answers. */
+  function statusOf(id: string): Pick<SectionLink, 'status' | 'statusTone'> {
+    if (reading.status !== 'ready') return {};
+    if (id === 'schedule') {
+      const on = schedules.filter((schedule) => schedule.enabled !== false).length;
+      return on > 0 ? { status: t('app.backup.status_on', { count: String(on) }), statusTone: 'set' } : { status: t('app.backup.off') };
+    }
+    if (id === 'targets') return { status: String(targets.length) };
+    return {};
+  }
+
+  const title = $derived(t('app.backup.title'));
+  const links = $derived<SectionLink[]>(
+    SECTIONS.map((each) => ({
+      id: each.id,
+      label: t(each.code),
+      href: each.id === 'restore' ? RESTORE : `${BASE}/${each.id}`,
+      ...statusOf(each.id),
+    })),
+  );
+
+  function select(next: string): void {
+    if (next === 'restore') onnavigate?.(RESTORE);
+    else onreplace?.(`${BASE}/${next}`);
+  }
+
+  $effect(() => page.entitle(title));
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.backup.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'backup', label: t('app.backup.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
+{#snippet noTargets()}
+  {#if !mayAddTarget}
+    <EmptyState kind="unused" icon="archive" title={t('app.backup.operator_keeps_title')} description={t('app.backup.operator_keeps_description')} />
+  {:else if mayOwn}
+    <EmptyState kind="unused" icon="archive" title={t('app.backup.guided_title')} description={t('app.backup.guided_description')}>
+      {#snippet action()}
+        <Button tone="primary" isBusy={isGuiding} busyLabel={t('app.backup.guided_working')} onclick={() => void backUpNightly()}>
+          {t('app.backup.guided_start')}
+        </Button>
+      {/snippet}
+      {#snippet footnote()}{t('app.backup.guided_footnote')}{/snippet}
+    </EmptyState>
+  {:else}
+    <EmptyState kind="unused" icon="archive" title={t('app.backup.no_targets')} />
+  {/if}
+{/snippet}
 
-    <Stack gap="300">
-    <p class="quiet">{t('app.backup.intro')}</p>
+<SettingsLayout
+  head={{
+    title,
+    subtitle: t('app.backup.intro'),
+    breadcrumb: adminTrail({ id: 'backup', label: title }),
+    primary: mayStructure
+      ? {
+          label: t('app.backup.start'),
+          icon: 'cloud-upload',
+          onclick: backUpNow,
+          disabledReason: reading.status === 'ready' && targets.length === 0 ? t('app.backup.start_needs_target') : undefined,
+        }
+      : undefined,
+    menu: mayOwn
+      ? { label: t('app.page.more_for', { name: title }), items: [{ id: 'download', label: t('app.backup.download_menu') }], onselect: () => (isDownloadOpen = true) }
+      : undefined,
+  }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: select }}
+  {view}
+  back={{ label: title, onback: () => onreplace?.(BASE) }}
+>
+  <div class="content">
     <WorkspaceRefusal permission="STRUCTURE" />
-
-    {#if failure}
-      <FailureNote problem={failure} />
-    {/if}
-
+    <WorkspaceRefusal permission="DELETE_CONTAINER" />
+    {#if failure}<FailureNote problem={failure} />{/if}
     {#if watched}
-      <!-- The job, wherever it came from. One place for it rather than one per button: a screen
-           with three watchers would be three loops disagreeing about which is the current one. -->
-      <section class="panel">
-        <Stack gap="100">
-          <h2 class="section">
-            {verifying ? t('app.backup.verifying_title') : t('app.backup.running_title')}
-          </h2>
-          {#if watched.watching}
-            <ProgressBar
-              label={verifying ? t('app.backup.verifying_title') : t('app.backup.running_title')}
-              value={watched.job.progress === null || watched.job.progress === undefined
-                ? undefined
-                : Math.round(watched.job.progress * 100)}
-              valueLabel={watched.job.progress === null || watched.job.progress === undefined
-                ? t('app.backup.progress_unknown')
-                : t('app.backup.progress_share', {
-                    percent: String(Math.round(watched.job.progress * 100)),
-                  })}
-            />
-            {#if mayCancel(watched.job.status) && mayStructure}
-              <div>
-                <Button
-                  size="sm"
-                  tone="secondary"
-                  onclick={() => void attempt(() => jobs.cancel(watched!.job.job_id), t('app.jobs.cancel_asked_announced'))}
-                >
-                  {t('app.backup.cancel')}
-                </Button>
-              </div>
-              <!-- What a cancellation cannot take back, said where the button is rather than
-                   after it has been pressed. -->
-              <p class="quiet small">{t('app.backup.cancel_note')}</p>
-            {/if}
-          {:else if watched.job.status === 'SUCCEEDED'}
-            <p class="good">
-              {verifying ? t('app.backup.verify_done') : t('app.backup.run_done')}
-            </p>
-          {:else if watched.job.status === 'CANCELLED'}
-            <p class="quiet">{t('app.backup.run_cancelled')}</p>
-          {:else if watched.unreachable}
-            <!-- A job whose status could not be read is not a job that failed, and saying so
-                 would report a failure the server never reported. -->
-            <p class="failure" role="alert">{sentence(watched.unreachable)}</p>
-          {:else}
-            <p class="failure" role="alert">
-              {sentence(watched.job.error_code) ?? t('app.backup.run_failed')}
-            </p>
-          {/if}
-        </Stack>
-      </section>
+      <JobProgress
+        watch={watched}
+        isVerifying={verifying !== undefined}
+        mayStop={mayStructure}
+        onstop={() => void attempt(() => jobs.cancel(watched!.job.job_id), t('app.jobs.cancel_asked_announced'))}
+      />
     {/if}
 
-
-    <SettingsPage label={t('app.settings_page.sections', { name: t('app.backup.title') })} {sections} {changes}>
-    <section id="backup-part-targets" class="part" aria-labelledby="backup-targets">
-      <h2 class="section" id="backup-targets">{t('app.backup.targets_title')}</h2>
-
-      {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="waiting">
-          <Spinner label={t('app.backup.reading')} /> <span>{t('app.backup.reading')}</span>
-        </p>
-      {:else if refusal}
-        <FailureNote problem={refusal} />
-      {:else}
-        {#each targets as target (target.id)}
-          {@const probe = backup.probeOf(target.id)}
-          {@const archives = archivesOf(target.id)}
-          <section class="panel">
-            <Stack gap="100">
-              <div class="row">
-                <span class="name">{target.name}</span>
-                <Badge>{t(`app.backup.kind_${target.kind}`)}</Badge>
-                {#if target.encryption_mode === 'NONE'}
-                  <Badge tone="warning">{t('backup.target_unencrypted')}</Badge>
-                {/if}
-              </div>
-
-              {#each target.warnings ?? [] as warning (warning)}
-                <!-- What the target says about itself, in the catalogue's words. -->
-                <p class="warning">{sentence(warning)}</p>
-              {/each}
-
-              <p class="quiet small">
-                {#if target.last_test_at}
-                  {target.last_test_ok
-                    ? t('app.backup.tested_ok', { at: when(target.last_test_at) ?? '' })
-                    : t('app.backup.tested_failed', { at: when(target.last_test_at) ?? '' })}
-                {:else}
-                  {t('app.backup.never_tested')}
-                {/if}
-              </p>
-
-              {#if probe}
-                <p class={probe.ok ? 'good' : 'failure'}>
-                  {#if probe.ok}
-                    {t('app.backup.probe_ok', { ms: String(Math.round(probe.latency_ms)) })}
-                    {#if probe.free_bytes}
-                      · {t('app.backup.probe_free', {
-                        size: formatBytes(probe.free_bytes, messages.locale),
-                      })}
-                    {/if}
-                  {:else}
-                    {sentence(probe.error_code) ?? t('app.backup.probe_failed')}
-                    {#if !probe.writable}· {t('app.backup.probe_not_writable')}{/if}
-                  {/if}
-                </p>
-              {/if}
-
-              <div class="row">
-                {#if mayStructure}
-                <Button
-                  size="sm"
-                  tone="secondary"
-                  isBusy={isWorking}
-                  busyLabel={t('app.backup.testing')}
-                  onclick={() => void attempt(() => backup.test(target.id), t('app.backup.tested_announced'))}
-                >
-                  {t('app.backup.test')}
-                </Button>
-                <Button
-                  size="sm"
-                  tone="primary"
-                  isBusy={isWorking}
-                  busyLabel={t('app.backup.starting')}
-                  onclick={() => void start(target.id)}
-                >
-                  {t('app.backup.start')}
-                </Button>
-                {/if}
-                <Button size="sm" tone="subtle" onclick={() => void openTarget(target.id)}>
-                  {openedTarget === target.id
-                    ? t('app.backup.hide_archives')
-                    : t('app.backup.show_archives')}
-                </Button>
-                {#if mayOwn}
-                <Button
-                  size="sm"
-                  tone="danger"
-                  onclick={() => (removing = target.id)}
-                >
-                  {t('app.backup.remove')}
-                </Button>
-                {/if}
-              </div>
-
-
-              {#if openedTarget === target.id}
-                {#if archives.status === 'loading'}
-                  <p class="waiting">
-                    <Spinner label={t('app.backup.reading_archives')} />
-                    <span>{t('app.backup.reading_archives')}</span>
-                  </p>
-                {:else if archives.status === 'ready'}
-                  {@const verified = lastVerified(archives.data)}
-                  <p class="quiet small">
-                    {verified
-                      ? t('app.backup.last_verified', { at: when(verified) ?? '' })
-                      : t('app.backup.never_verified')}
-                  </p>
-                  <ul class="archives">
-                    {#each archives.data as archive (archive.archive_id)}
-                      {@const run = backup.runOf(archive.archive_id)}
-                      <li>
-                        <Stack gap="025">
-                          <div class="row">
-                            <span class="mono">{archive.path}</span>
-                            <Badge>{t(`app.backup.mode_${archive.mode}`)}</Badge>
-                            {#if !archive.complete}
-                              <!-- Not damaged: a run still going, or one that died. -->
-                              <Badge tone="warning">{t('app.backup.archive_incomplete')}</Badge>
-                            {/if}
-                            {#if run?.verify_ok === true}
-                              <Badge tone="success">{t('app.backup.archive_opens')}</Badge>
-                            {:else if run?.verify_ok === false}
-                              <Badge tone="danger">{t('app.backup.archive_broken')}</Badge>
-                            {/if}
-                          </div>
-                          <span class="quiet small">
-                            {when(archive.created_at)}
-                            {#if archive.size_bytes}
-                              · {formatBytes(archive.size_bytes, messages.locale)}
-                            {/if}
-                            {#if run?.verified_at}
-                              · {t('app.backup.verified_at', { at: when(run.verified_at) ?? '' })}
-                            {:else}
-                              · {t('app.backup.not_verified')}
-                            {/if}
-                          </span>
-                          {#if mayStructure}
-                          <div>
-                            <Button
-                              size="sm"
-                              tone="secondary"
-                              isBusy={isWorking}
-                              busyLabel={t('app.backup.verifying')}
-                              onclick={() => void verify(archive.archive_id)}
-                            >
-                              {t('app.backup.verify')}
-                            </Button>
-                          </div>
-                          {/if}
-                        </Stack>
-                      </li>
-                    {:else}
-                      <li class="quiet">{t('app.backup.no_archives')}</li>
-                    {/each}
-                  </ul>
-                {:else if archives.status === 'failed'}
-                  <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>
-                {/if}
-              {/if}
-            </Stack>
-          </section>
-        {:else}
-          {#if !mayAddTarget}
-            <EmptyState kind="unused" icon="archive" title={t('app.backup.operator_keeps_title')} description={t('app.backup.operator_keeps_description')} />
-          {:else if mayOwn}
-            <EmptyState kind="unused" icon="archive" title={t('app.backup.guided_title')} description={t('app.backup.guided_description')}>
-              {#snippet action()}
-                <Button tone="primary" isBusy={isGuiding} busyLabel={t('app.backup.guided_working')} onclick={() => void backUpNightly()}>
-                  {t('app.backup.guided_start')}
-                </Button>
-              {/snippet}
-              {#snippet footnote()}{t('app.backup.guided_footnote')}{/snippet}
-            </EmptyState>
-          {:else}
-            <EmptyState kind="unused" icon="archive" title={t('app.backup.no_targets')} />
+    {#if reading.status === 'loading' || reading.status === 'idle'}
+      <p class="waiting"><Spinner label={t('app.backup.reading')} /> <span>{t('app.backup.reading')}</span></p>
+    {:else if refusal}
+      <FailureNote problem={refusal} />
+    {:else if shown === 'schedule'}
+      <TableSection title={t('app.backup.schedules_title')} note={String(schedules.length)} description={t('app.backup.schedules_intro')}>
+        {#snippet acts()}
+          {#if mayOwn && targets.length > 0}
+            <Button icon="plus" onclick={() => (isAddingSchedule = true)}>{t('app.backup.add_schedule')}</Button>
           {/if}
-        {/each}
-        {#if onlyHere && mayOwn && mayAddTarget}
-          <aside class="panel suggestion" aria-labelledby="backup-offsite">
-            <Stack gap="050">
-              <h3 class="section" id="backup-offsite">{t('app.backup.offsite_title')}</h3>
-              <p class="quiet small">{t('app.backup.offsite_note')}</p>
-            </Stack>
-          </aside>
-        {/if}
-      {/if}
-
-      {#if mayAddTarget}
-      <WorkspaceGate permission="DELETE_CONTAINER">
-        {#snippet actions()}
-        <TargetForm
-          heading={t('app.backup.add_target')}
-          {isWorking}
-          onadd={async (draft) => {
-            let added = false;
-            await attempt(async () => {
-              await backup.createTarget(draft);
-              added = true;
-            }, t('app.backup.target_added_announced'));
-            return added;
-          }}
-        />
         {/snippet}
-      </WorkspaceGate>
-      {/if}
-    </section>
-
-    <section id="backup-part-schedules" class="part" aria-labelledby="backup-schedules">
-      <h2 class="section" id="backup-schedules">{t('app.backup.schedules_title')}</h2>
-      <p class="quiet small">{t('app.backup.schedules_intro')}</p>
-
-      {#each schedules as schedule (schedule.id)}
-        <section class="panel">
-          <Stack gap="100">
-            <div class="row">
-              <span class="name">{ruleSentence(schedule)}</span>
-              <Badge tone={schedule.enabled === false ? 'neutral' : 'success'}>
-                {schedule.enabled === false ? t('app.backup.off') : t('app.backup.on')}
-              </Badge>
-            </div>
-            <p class="quiet small">
-              {t('app.backup.schedule_of', { target: nameOf(schedule.target_id) })}
-              · {t('app.backup.schedule_zone', { zone: schedule.timezone ?? 'UTC' })}
-            </p>
-            <p class="quiet small">
-              {#if schedule.next_run_at}
-                {t('app.backup.next_run', { at: when(schedule.next_run_at) ?? '' })}
-              {:else if schedule.enabled === false}
-                {t('app.backup.no_next_run_off')}
+        {#if targets.length === 0}
+          {@render noTargets()}
+        {:else}
+          <DataTable
+            label={t('app.backup.schedules_title')}
+            columns={scheduleColumns}
+            rows={schedules}
+            key={(schedule: Schedule) => schedule.id}
+            onopen={(schedule: Schedule) => (openedSchedule = schedule)}
+            rowLabel={ruleSentence}
+            menu={scheduleMenu}
+            onmenu={onScheduleMenu}
+            actionsLabel={t('app.page.row_actions')}
+            sheetDismissLabel={t('app.page.sheet_close')}
+            sheetGrabLabel={t('app.page.sheet_grab')}
+            shownLabel={schedules.length === 0 ? undefined : t('app.page.showing', { count: String(schedules.length) })}
+          >
+            {#snippet cell(schedule: Schedule, column: DataColumn)}
+              {#if column.id === 'rule'}
+                <span class="name">{ruleSentence(schedule)}</span>
+              {:else if column.id === 'target'}
+                <span class="quiet">{nameOf(schedule.target_id)}</span>
+              {:else if column.id === 'next'}
+                <span class="quiet">{nextRun(schedule)}</span>
               {:else}
-                <!-- A rule may be perfectly good and simply spent, which is not an error. -->
-                {t('app.backup.no_next_run_spent')}
+                <Badge size="sm" tone={schedule.enabled === false ? 'neutral' : 'success'}>
+                  {schedule.enabled === false ? t('app.backup.off') : t('app.backup.on')}
+                </Badge>
               {/if}
-            </p>
-
-            <ul class="plan">
-              {#each generations(schedule.retention) as line (line.kind)}
-                <li class="quiet small">
-                  {t(`app.backup.keep_${line.kind}`, { count: String(line.keep) })}
-                </li>
-              {/each}
-            </ul>
-            <!-- A floor under all of them rather than a sixth generation: a retention rule may
-                 never result in no backup being left (`backup-restore.md` §6). -->
-            <p class="quiet small">
-              {t('app.backup.min_keep', { count: String(schedule.retention?.min_keep ?? 3) })}
-            </p>
-
-            <div class="row">
-              <!-- The write happens on the switch rather than behind a save button: `enabled`
-                   is one field with two values, and a form around it would be a form with one
-                   control in it. -->
-              <!-- Without the permission the switch is absent (P-05) and its state is read as a
-                   word; the page's one notice says why. -->
-              {#if mayHere('DELETE_CONTAINER').status === 'refused'}
-                <span class="state">
-                  {t('app.backup.enabled')}
-                  <Badge tone={schedule.enabled !== false ? 'success' : 'neutral'}>
-                    {schedule.enabled !== false ? t('app.backup.on') : t('app.backup.off')}
-                  </Badge>
-                </span>
-              {:else}
+            {/snippet}
+            {#snippet verb(schedule: Schedule)}
+              <!-- In place (page-system §5.1): `enabled` is one field with two values, written on
+                   the switch. Without the permission the switch is absent (P-05) and the state
+                   column reads it; the page's one notice says why. -->
+              {#if mayOwn}
                 <Switch
-                  label={t('app.backup.enabled')}
+                  label={t('app.backup.enabled_for', { rule: ruleSentence(schedule) })}
+                  isLabelHidden
                   checked={schedule.enabled !== false}
-                  disabledReason={ownRefusal}
                   onchange={(event) =>
-                    void attempt(() =>
-                      backup.updateSchedule(schedule.id, {
-                        enabled: (event.currentTarget as HTMLInputElement).checked,
-                      }), t('app.backup.schedule_saved_announced')
+                    void attempt(
+                      () => backup.updateSchedule(schedule.id, { enabled: (event.currentTarget as HTMLInputElement).checked }),
+                      t('app.backup.schedule_saved_announced'),
                     )}
                 />
               {/if}
-              {#if mayOwn}
-              <Button
-                size="sm"
-                tone="danger"
-                isBusy={isWorking}
-                busyLabel={t('app.backup.removing')}
-                onclick={() => (removingSchedule = schedule.id)}
-              >
-                {t('app.backup.remove_schedule')}
-              </Button>
-              {/if}
-            </div>
-            <p class="quiet small">{t('app.backup.switch_off_rather_than_delete')}</p>
-          </Stack>
-        </section>
-      {:else}
-        <p class="quiet">{t('app.backup.no_schedules')}</p>
-      {/each}
-
-      {#if targets.length > 0}
-        <WorkspaceGate permission="DELETE_CONTAINER">
-          {#snippet actions()}
-          <form class="panel" bind:this={scheduleForm} onsubmit={createSchedule}>
-            <Stack gap="150">
-              <h3 class="section">{t('app.backup.add_schedule')}</h3>
-              <Select
-                label={t('app.backup.schedule_target')}
-                bind:value={scheduleTarget}
-                placeholder={t('app.backup.choose_target')}
-                options={targets.map((target) => ({ value: target.id, label: target.name }))}
-                error={scheduleMissing.target && !scheduleTarget ? t(scheduleMissing.target) : undefined}
-              />
-              <FrequencyPicker
-                label={t('app.backup.schedule_rule')}
-                rawHint={t('app.backup.schedule_rule_hint')}
-                bind:rule={scheduleRule}
-              />
-              <ZonePicker label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
-              <Input
-                label={t('app.backup.schedule_min_keep')}
-                hint={t('app.backup.schedule_min_keep_hint')}
-                type="number"
-                bind:value={scheduleMinKeep}
-              />
-              <p class="quiet small">{t('app.backup.rule_is_the_servers')}</p>
-              <div>
-                <Button
-                  type="submit"
-                  tone="primary"
-                  isBusy={isWorking}
-                  busyLabel={t('app.backup.adding')}
-                >
-                  {t('app.backup.add')}
-                </Button>
-              </div>
-            </Stack>
-          </form>
+            {/snippet}
+            {#snippet empty()}
+              <EmptyState kind="unused" title={t('app.backup.no_schedules')}>
+                {#snippet action()}
+                  {#if mayOwn}<Button onclick={() => (isAddingSchedule = true)}>{t('app.backup.add_schedule')}</Button>{/if}
+                {/snippet}
+              </EmptyState>
+            {/snippet}
+          </DataTable>
+        {/if}
+      </TableSection>
+    {:else if shown === 'targets'}
+      <TableSection title={t('app.backup.targets_title')} note={String(targets.length)} description={t('app.backup.targets_intro')}>
+        {#snippet acts()}
+          {#if mayOwn && mayAddTarget}
+            <Button icon="plus" onclick={() => (isAddingTarget = true)}>{t('app.backup.add_target')}</Button>
+          {/if}
+        {/snippet}
+        <DataTable
+          label={t('app.backup.targets_title')}
+          columns={targetColumns}
+          rows={targets}
+          key={(target: Target) => target.id}
+          href={addressOf}
+          rowLabel={(target: Target) => target.name}
+          menu={targetMenu}
+          onmenu={onTargetMenu}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={targets.length === 0 ? undefined : t('app.page.showing', { count: String(targets.length) })}
+        >
+          {#snippet cell(target: Target, column: DataColumn)}
+            {#if column.id === 'name'}
+              <span class="name">{target.name}</span>
+            {:else if column.id === 'kind'}
+              <span class="quiet">{t(`app.backup.kind_${target.kind}`)}</span>
+            {:else if column.id === 'tested'}
+              <span class="quiet">{testedWord(target)}</span>
+            {:else if target.encryption_mode === 'NONE'}
+              <Badge size="sm" tone="warning">{t('app.backup.encryption_none')}</Badge>
+            {:else}
+              <Badge size="sm" tone="success">{t('app.backup.encrypted')}</Badge>
+            {/if}
           {/snippet}
-        </WorkspaceGate>
-      {/if}
-    </section>
-
-    {#if mayOwn}
-      <section id="backup-part-download" class="panel" aria-labelledby="backup-download">
-        <Stack gap="100">
-          <h2 class="section" id="backup-download">{t('app.backup.download_title')}</h2>
-          <p class="quiet">{t('app.backup.download_intro')}</p>
-          <Input
-            label={t('app.backup.download_passphrase')}
-            hint={t('app.backup.download_passphrase_hint')}
-            type="password"
-            autocomplete="new-password"
-            revealLabel={t('app.backup.download_passphrase_show')}
-            hideLabel={t('app.backup.download_passphrase_hide')}
-            bind:value={downloadPassphrase}
-          />
-          <div>
-            <Button tone="secondary" isBusy={isDownloading} busyLabel={t('app.backup.downloading')} onclick={() => void downloadWorkspace()}>
-              {t('app.backup.download')}
-            </Button>
-          </div>
-        </Stack>
-      </section>
+          {#snippet empty()}{@render noTargets()}{/snippet}
+        </DataTable>
+        {#if onlyHere && mayOwn && mayAddTarget}
+          <!-- A suggestion, not a warning: nothing is wrong yet, so the mark is the accent. -->
+          <aside class="suggestion" aria-labelledby="backup-offsite">
+            <h3 class="minor" id="backup-offsite">{t('app.backup.offsite_title')}</h3>
+            <p class="quiet">{t('app.backup.offsite_note')}</p>
+          </aside>
+        {/if}
+      </TableSection>
+    {:else if shown === 'runs'}
+      <TableSection
+        title={t('app.backup.runs_title')}
+        note={runRows.length > 0 ? String(runRows.length) : undefined}
+        description={runRows.length === 0 ? t('app.backup.runs_intro') : verified ? t('app.backup.last_verified', { at: when(verified) ?? '' }) : t('app.backup.never_verified')}
+      >
+        {#if targets.length === 0}
+          {@render noTargets()}
+        {:else if runsFailure}
+          <FailureNote problem={runsFailure} />
+        {:else}
+          <DataTable
+            label={t('app.backup.runs_title')}
+            columns={runColumns}
+            rows={runs.shown}
+            key={(row: RunRow) => `${row.target.id}/${row.archive.archive_id}`}
+            rowLabel={(row: RunRow) => when(row.archive.created_at) ?? row.archive.path}
+            isBusy={runsReading}
+            menu={runMenu}
+            onmenu={(row: RunRow) => void verify(row)}
+            actionsLabel={t('app.page.row_actions')}
+            sheetDismissLabel={t('app.page.sheet_close')}
+            sheetGrabLabel={t('app.page.sheet_grab')}
+            shownLabel={runRows.length === 0 ? undefined : runs.shownLabel}
+            more={runs.more}
+            perPage={runs.perPage}
+          >
+            {#snippet cell(row: RunRow, column: DataColumn)}
+              {@const state = archiveState(row.archive, backup.runOf(row.archive.archive_id))}
+              {#if column.id === 'when'}
+                <span class="name">{when(row.archive.created_at)}</span>
+              {:else if column.id === 'target'}
+                <span class="quiet">{row.target.name}</span>
+              {:else if column.id === 'mode'}
+                <span class="quiet">{t(`app.backup.mode_${row.archive.mode}`)}</span>
+              {:else if column.id === 'size'}
+                <span class="quiet">{row.archive.size_bytes ? formatBytes(row.archive.size_bytes, messages.locale) : ''}</span>
+              {:else}
+                <Badge size="sm" tone={state.tone}>{state.label}</Badge>
+              {/if}
+            {/snippet}
+            {#snippet verb(row: RunRow)}
+              {#if mayStructure && row.archive.complete !== false}
+                <Button size="sm" tone="subtle" isBusy={isWorking && verifying === row.archive.archive_id} busyLabel={t('app.backup.verifying')} onclick={() => void verify(row)}>
+                  {t('app.backup.verify')}
+                </Button>
+              {/if}
+            {/snippet}
+            {#snippet empty()}
+              {#if runsReading}
+                <p class="waiting"><Spinner label={t('app.backup.reading_archives')} /> <span>{t('app.backup.reading_archives')}</span></p>
+              {:else}
+                <EmptyState kind="unused" title={t('app.backup.no_runs')} />
+              {/if}
+            {/snippet}
+          </DataTable>
+        {/if}
+      </TableSection>
     {/if}
-    </SettingsPage>
-    </Stack>
-</Stack>
+  </div>
+</SettingsLayout>
 
-
-{#if removing}
-  {@const target = removing}
-  <Dialog
-    isOpen={true}
-    title={t('app.backup.remove_title')}
-    dismissLabel={t('app.workspace.cancel')}
-    onClose={() => (removing = undefined)}
-  >
-    <!-- The one sentence somebody deleting a target needs: the archives stay where they are.
-         Hubtask never deletes a file it did not write, nor the ones it did on the way out. -->
-    <p>{t('app.backup.remove_note')}</p>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (removing = undefined)}>{t('app.workspace.cancel')}</Button>
-      <Button
-        tone="danger"
-        isBusy={isWorking}
-        busyLabel={t('app.backup.removing')}
-        onclick={async () => {
-          // Closed either way: a refusal is said in the page's banner, not behind the dialog.
-          await attempt(() => backup.deleteTarget(target), t('app.backup.target_removed_announced'));
-          removing = undefined;
-        }}
-      >
-        {t('app.backup.remove_confirm')}
-      </Button>
-    {/snippet}
-  </Dialog>
-{/if}
-
-{#if removingSchedule}
-  {@const schedule = removingSchedule}
-  <Dialog
-    isOpen={true}
-    title={t('app.backup.remove_schedule_title')}
-    dismissLabel={t('app.workspace.cancel')}
-    onClose={() => (removingSchedule = undefined)}
-  >
-    <p>{t('app.backup.remove_schedule_note')}</p>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (removingSchedule = undefined)}>{t('app.workspace.cancel')}</Button>
-      <Button
-        tone="danger"
-        isBusy={isWorking}
-        busyLabel={t('app.backup.removing')}
-        onclick={async () => {
-          // Closed either way: a refusal is said in the page's banner, not behind the dialog.
-          await attempt(() => backup.deleteSchedule(schedule), t('app.backup.schedule_removed_announced'));
-          removingSchedule = undefined;
-        }}
-      >
-        {t('app.backup.remove_confirm')}
-      </Button>
-    {/snippet}
-  </Dialog>
-{/if}
+<NewTargetDialog bind:isOpen={isAddingTarget} />
+<NewScheduleDialog bind:isOpen={isAddingSchedule} {targets} />
+<BackUpNowDialog bind:isOpen={isChoosingTarget} {targets} {isWorking} onstart={(id) => void start(id)} />
+<DownloadDialog bind:isOpen={isDownloadOpen} />
+<ScheduleDialog schedule={openedSchedule} targetName={openedSchedule ? nameOf(openedSchedule.target_id) : ''} onClose={() => (openedSchedule = undefined)} />
+<RemoveTargetDialog target={removing} onClose={() => (removing = undefined)} />
+<RemoveScheduleDialog schedule={removingSchedule} onClose={() => (removingSchedule = undefined)} />
 
 <style>
-  /* A schedule's state where its switch is not offered: the name and the word, on one line. */
-  .state {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-100);
-  }
-
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .part { display: flex; flex-direction: column; gap: var(--sp-150); }
-
-  .section {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-  }
-
-  h3.section { font-size: var(--fs-200); }
-
+  .content { display: flex; flex-direction: column; gap: var(--sp-250); min-width: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .small { font-size: var(--fs-075); }
-
-  .good { margin: 0; color: var(--text-success); font-size: var(--fs-075); }
-
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-
-  .warning { margin: 0; color: var(--text-warning); font-size: var(--fs-075); }
-
-  .waiting {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    color: var(--text-secondary);
-  }
-
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
+  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 
-  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
-     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
-     say so themselves - they are a grid of their own. */
-  form.panel { max-inline-size: 52ch; }
-
-  .panel {
-    padding: var(--sp-200);
+  .suggestion {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-050);
+    padding: var(--sp-200) var(--sp-250);
     border: var(--bw-hairline) solid var(--border-subtle);
+    border-inline-start: var(--bw-thick) solid var(--accent-primary);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
   }
-
-  /* A suggestion, not a warning: nothing is wrong yet, so the mark is the accent, not a tone. */
-  .suggestion { border-inline-start: var(--bw-thick) solid var(--accent-primary); }
-
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .archives,
-  .plan { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
-
-  .mono { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
+  .minor { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
 </style>

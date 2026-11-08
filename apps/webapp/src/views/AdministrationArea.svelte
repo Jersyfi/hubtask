@@ -8,6 +8,7 @@
   import AiSettingsView from './AiSettingsView.svelte';
   import AppView from './AppView.svelte';
   import AuditView from './AuditView.svelte';
+  import BackupTargetView from './BackupTargetView.svelte';
   import BackupView from './BackupView.svelte';
   import ChangeView from './ChangeView.svelte';
   import ChangesView from './ChangesView.svelte';
@@ -128,8 +129,13 @@
   <WorkflowsView workflow={route.params.key} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'private-hubs'}
   <PrivateHubsView onnavigate={(path) => onnavigate(path)} />
-{:else if route.name === 'backup'}
-  <BackupView />
+{:else if route.name === 'backup' || route.name === 'backup-section'}
+  <BackupView section={route.params.section} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
+  <!-- One branch for the list and its sections: a move between sections keeps the screen. -->
+{:else if route.name === 'backup-target'}
+  {#key route.params.id}
+    <BackupTargetView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'retention'}
   <RetentionView />
 {:else if route.name === 'restore'}

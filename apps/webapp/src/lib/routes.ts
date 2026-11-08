@@ -142,6 +142,10 @@ export const ROUTES: readonly Route[] = [
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },
+  // One section per address (page-system PS-9), and a target as its record page with its archives;
+  // the target before the section, so that `targets/…` is never read as a section.
+  { name: 'backup-target', pattern: '/administration/backup/targets/:id', area: 'administration' },
+  { name: 'backup-section', pattern: '/administration/backup/:section', area: 'administration' },
   { name: 'retention', pattern: '/administration/retention', area: 'administration' },
   { name: 'restore', pattern: '/administration/restore', area: 'administration' },
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },

@@ -72,7 +72,9 @@ const SCREENS = [
   { path: '/administration/rules/new', buttons: ['Save the rule'], gates: ['AUTOMATION'] },
   { path: '/administration/webhooks', buttons: ['Add a webhook'], gates: ['AUTOMATION'] },
   { path: '/administration/ai', buttons: ['Save'], gates: ['STRUCTURE'] },
-  { path: '/administration/backup', buttons: ['Add'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
+  // Backup and Retention are one section per address (page-system §9.3): each section's own add.
+  { path: '/administration/backup', buttons: ['Back up now'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
+  { path: '/administration/backup/targets', buttons: ['Add a target'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
   { path: '/administration/retention', buttons: ['Write it', 'Place it'], gates: ['DELETE_CONTAINER'] },
   { path: '/administration/restore', buttons: ['See what it would do'], gates: ['STRUCTURE'] },
   // Where the chain is anchored is a Dialog M from the head's ⋯ (page-system §9.3).
@@ -84,7 +86,7 @@ const SCREENS = [
  * backup targets and schedules, the retention rules and the holds are set behind it on the server.
  */
 const OWNERS_ONLY = [
-  { path: '/administration/backup', buttons: ['Add'] },
+  { path: '/administration/backup/targets', buttons: ['Add a target'] },
   { path: '/administration/retention', buttons: ['Write it', 'Place it'] },
 ];
 

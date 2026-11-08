@@ -50,8 +50,10 @@ test('chromium: a backup schedule is chosen as weekly on Sunday at 22:30 and sen
   forgetUnstubbed();
   await page.goto(`${served.origin}/administration/backup`);
 
-  const form = page.locator('form', { hasText: 'Add a schedule' });
-  await form.waitFor({ timeout: 15_000 });
+  // *Add a schedule* is the Schedules section's own add, a Dialog M (page-system §9.3).
+  await page.getByRole('button', { name: 'Add a schedule', exact: true }).first().click({ timeout: 15_000 });
+  const form = page.getByRole('dialog', { name: 'Add a schedule' });
+  await form.waitFor();
   const often = form.getByLabel('How often');
   assert.equal(await often.inputValue(), 'DAILY', 'the default nightly rule reads as daily');
   assert.equal(await form.getByLabel('At', { exact: true }).inputValue(), '03:00');
@@ -62,7 +64,7 @@ test('chromium: a backup schedule is chosen as weekly on Sunday at 22:30 and sen
   await often.selectOption('WEEKLY');
   await form.getByLabel('On which day').selectOption('SU');
   await form.getByLabel('At', { exact: true }).fill('22:30');
-  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  await form.getByRole('button', { name: 'Add a schedule', exact: true }).click();
   for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
 
   assert.equal(written[0]?.rrule, 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=22;BYMINUTE=30');
