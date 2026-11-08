@@ -70,7 +70,7 @@
   }
 </script>
 
-<Dialog bind:isOpen {title} dismissLabel={cancelLabel}>
+<Dialog size="s" bind:isOpen {title} dismissLabel={cancelLabel}>
   {#if options.length === 0}
     <p class="none">{emptyLabel}</p>
   {:else}

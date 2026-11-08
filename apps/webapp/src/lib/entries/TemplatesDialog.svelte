@@ -423,7 +423,7 @@
 </PanelOrDialog>
 
 {#if deleting}
-  <Dialog
+  <Dialog size="s"
     isOpen={true}
     title={t('app.templates.delete_title', { name: deleting.name })}
     dismissLabel={t('app.workspace.cancel')}
