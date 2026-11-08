@@ -12,7 +12,7 @@
   // opens the hub, the project's plan or the entry.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, IconButton, Inline, PageHeader, Select, Skeleton, Table, Timeline, type Column } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, IconButton, Inline, PageHeader, Select, Skeleton, Timeline, ViewSwitcher, WorkPage, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { PortfolioRoadmap } from '@hubtask/sync-engine';
@@ -97,12 +97,16 @@
     announcer.say(t('app.timeline.moved', { from: dayLabel(current.from), to: dayLabel(current.to) }));
   }
 
-  const columns = $derived<Column[]>([
-    { id: 'what', label: t('app.roadmap.col_what') },
-    { id: 'start', label: t('app.planning.col_start') },
-    { id: 'finish', label: t('app.planning.col_finish') },
-    { id: 'state', label: t('app.roadmap.col_state') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'what', label: t('app.roadmap.col_what'), priority: 1 },
+    { id: 'start', label: t('app.planning.col_start'), priority: 2 },
+    { id: 'finish', label: t('app.planning.col_finish'), priority: 2 },
+    { id: 'state', label: t('app.roadmap.col_state'), priority: 1, isStatus: true },
   ]);
+  type Row = (typeof rows)[number];
+  // The chart and its table are two views of one roadmap, one at a time (page-system §9.7, PS-2).
+  let view = $state<'chart' | 'table'>('chart');
+  const views = $derived([{ id: 'chart', label: t('app.roadmap.view_chart') }, { id: 'table', label: t('app.roadmap.view_table') }]);
   const portfolioPath = $derived(`/portfolios/${portfolioId}`);
 
   // The head's figure (§5.1): how far the roadmap reaches, how many projects, which need a look.
@@ -118,7 +122,8 @@
   });
 </script>
 
-<div class="screen">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={t('app.roadmap.title')}
     isTitleInBar={viewport.isCompact}
@@ -134,6 +139,7 @@
       onnavigate: (href?: string) => onnavigate(href ?? portfolioPath),
     }}
   />
+  {/snippet}
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -148,6 +154,8 @@
     />
     <RoadmapLinkPanel {portfolioId} />
   {:else}
+    <ViewSwitcher label={t('app.roadmap.views')} {views} selected={view} onselect={(next) => (view = next === 'table' ? 'table' : 'chart')} />
+    {#if view === 'chart'}
     <div class="controls" role="group" aria-label={t('app.roadmap.chart')}>
       <Inline gap="050">
         <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
@@ -185,45 +193,37 @@
       />
     </div>
 
+    {:else}
     <section aria-labelledby="roadmap-table" class="block">
       <h2 id="roadmap-table" class="heading">{t('app.roadmap.table')}</h2>
-      <Table label={t('app.roadmap.table')} isLabelHidden isStacked {columns}>
-        {#each rows as row (row.id)}
-          <tr data-depth={String(row.depth)}>
-            <th scope="row" class="what">
-              {#if row.href}<a href={row.href}>{row.title}</a>{:else}{row.title}{/if}
-              {#if row.level !== 'entry'}<span class="note">{t(`app.roadmap.level_${row.level}`)}</span>{/if}
-            </th>
-            <td>{row.kind === 'milestone' ? '—' : dayLabel(row.start)}</td>
-            <td>{dayLabel(row.due)}</td>
-            <td>
-              {#if row.level === 'project' && row.status && row.status !== 'NONE'}
-                <Badge tone={goalTone(row.status)}>{t(`app.goals.status_${row.status}`)}</Badge>
-              {:else if row.isDone}
-                {t('app.roadmap.done')}
-              {:else if row.isCritical}
-                {t('app.planning.critical')}
-              {:else if row.kind === 'milestone'}
-                {t('app.roadmap.milestone')}
-              {/if}
-            </td>
-          </tr>
-        {/each}
-      </Table>
+      <DataTable label={t('app.roadmap.table')} {columns} {rows} key={(row: Row) => row.id}>
+        {#snippet cell(row: Row, column: DataColumn)}
+          {#if column.id === 'what'}
+            <span class="what" data-depth={String(row.depth)}>{#if row.href}<a href={row.href}>{row.title}</a>{:else}{row.title}{/if}</span>
+            {#if row.level !== 'entry'}<span class="note">{t(`app.roadmap.level_${row.level}`)}</span>{/if}
+          {:else if column.id === 'start'}{row.kind === 'milestone' ? '—' : dayLabel(row.start)}
+          {:else if column.id === 'finish'}{dayLabel(row.due)}
+          {:else if row.level === 'project' && row.status && row.status !== 'NONE'}
+            <Badge tone={goalTone(row.status)}>{t(`app.goals.status_${row.status}`)}</Badge>
+          {:else if row.isDone}{t('app.roadmap.done')}
+          {:else if row.isCritical}{t('app.planning.critical')}
+          {:else if row.kind === 'milestone'}{t('app.roadmap.milestone')}{/if}
+        {/snippet}
+      </DataTable>
     </section>
+    {/if}
 
     <RoadmapLinkPanel {portfolioId} />
   {/if}
-</div>
+</WorkPage>
 
 <style>
-  .screen { display: flex; flex-direction: column; gap: var(--sp-150); min-width: 0; }
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .window { min-width: 0; }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
-  tr[data-depth='1'] .what { padding-inline-start: var(--sp-150); }
-  tr[data-depth='2'] .what { padding-inline-start: var(--sp-300); }
+  .what[data-depth='1'] { padding-inline-start: var(--sp-150); }
+  .what[data-depth='2'] { padding-inline-start: var(--sp-300); }
 </style>
