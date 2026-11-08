@@ -1362,6 +1362,11 @@ export function fallback(route, request, path) {
   // An entry's configuration items, none: a desk's entry reads them beside its fields.
   const cis = /^\/items\/([^/]+)\/cis$/.exec(read);
   if (cis && request.method() === 'GET') return route.fulfill({ json: { item_id: cis[1], cis: [], services: [], related: [], collisions: [] } });
+  // The workspace's configuration in force and no sandbox: what *Changes* reads beside its lists.
+  if (read === '/config' && request.method() === 'GET') return route.fulfill({ json: { document: {}, hash: 'h1', version: 1, withheld: [] } });
+  if (read === '/config/sandbox' && request.method() === 'GET') return route.fulfill({ json: { exists: false, writes: 0, updated_at: null, document: {}, promotion: null } });
+  const map = /^\/hubs\/([^/]+)\/service-map$/.exec(read);
+  if (map && request.method() === 'GET') return route.fulfill({ json: { hub_id: map[1], nodes: [], edges: [], truncated: false } });
   if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });

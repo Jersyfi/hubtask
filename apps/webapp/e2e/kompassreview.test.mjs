@@ -73,3 +73,9 @@ test('R-4: a hub\'s settings, offered to its owner, draw its settings', async (t
 test('the administration\'s overview opens', async (t) => {
   await opens(t, '/administration', (at) => at.getByRole('heading', { level: 1 }));
 });
+
+test('the administration\'s *Changes* and IT operations\' inventory health and groups open', async (t) => {
+  await opens(t, '/administration/changes', (at) => at.getByRole('heading', { level: 1 }));
+  await opens(t, `/hubs/${IT.id}/inventory/health`, (at) => at.getByRole('heading', { level: 1 }));
+  await opens(t, `/hubs/${IT.id}/inventory/groups`, (at) => at.getByRole('heading', { level: 1 }));
+});

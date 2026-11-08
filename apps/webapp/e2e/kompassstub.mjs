@@ -68,6 +68,8 @@ export const QUEUES = [
   { view_id: id(502), key: 'unassigned', name: 'Unassigned', count: 2, at_risk: 0 },
 ];
 export const PAGE = { items: [], page: { next_cursor: null, has_more: false } };
+/** A hub's inventory health as `GET /hubs/{id}/cmdb-health` answers it, nothing wrong. */
+const HEALTH = { total: 0, completeness: 1, correctness: 1, stale: 0, orphans: 0, duplicates: 0, without_owner: 0, review_overdue: 0, classes: [], problems: [], stale_relations: 0, services: [], sources: [] };
 /** The one request a queue lists. */
 export const QUEUE_REQUEST = { id: id(1200), title: 'Printer on the 2nd floor does not print', collection_id: DESK.id, number: 41, created_by: id(1), assignee_id: null, status: null, completion: { is_completed: false } };
 
@@ -206,7 +208,7 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith(`/api/v1/hubs/${PD.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PD_PAGES, ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/whiteboards`)) return route.fulfill({ json: { data: PD_BOARDS, ...PAGE } });
     if (path.endsWith(`/api/v1/hubs/${PD.id}/releases`)) return route.fulfill({ json: { data: RELEASES, ...PAGE } });
-    if (path.endsWith(`/api/v1/hubs/${IT.id}/cmdb-health`)) return route.fulfill({ json: { total: 120, problems: Array.from({ length: 6 }, (_, i) => ({ ci_id: id(980 + i), kind: 'STALE' })) } });
+    if (path.endsWith(`/api/v1/hubs/${IT.id}/cmdb-health`)) return route.fulfill({ json: { ...HEALTH, total: 120, stale: 6, problems: Array.from({ length: 6 }, (_, i) => ({ ci_id: id(980 + i), class: 'server', kinds: ['STALE'] })) } });
     if (path.endsWith('/api/v1/goals') && url.searchParams.get('hub_id') === PD.id) return route.fulfill({ json: { data: GOALS, ...PAGE } });
     // The reader's week and timer, empty: *Today* draws its time line from them.
     if (/\/api\/v1\/timesheets\/[^/]+$/.test(path)) return route.fulfill({ json: { week: url.pathname.split('/').pop(), days: [], minutes: 0, entries: [], records: [], state: 'OPEN' } });
@@ -260,7 +262,7 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (shipped && request.method() === 'GET') return route.fulfill({ json: { description: '', released_at: null, notes_page_id: null, ...shipped, entries: [], done_count: 0, open_count: 0 } });
     const workload = /\/api\/v1\/plans\/([^/]+)\/workload$/.exec(path);
     if (workload) return route.fulfill({ json: { plan_id: workload[1], aggregated: false, cells: [], team: [], unscheduled_minutes: 0 } });
-    if (/\/api\/v1\/hubs\/[^/]+\/cmdb-health$/.test(path) && !path.includes(IT.id)) return route.fulfill({ json: { total: 0, problems: [], review_overdue: 0 } });
+    if (/\/api\/v1\/hubs\/[^/]+\/cmdb-health$/.test(path) && !path.includes(IT.id)) return route.fulfill({ json: HEALTH });
     if (path.endsWith('/api/v1/whiteboards') && request.method() === 'POST') {
       const body = request.postDataJSON() ?? {};
       const made = { id: id(5500 + written.boards.length), hub_id: body.hub_id, title: body.title ?? '', parent_page_id: body.parent_page_id ?? null, order_key: 'z', version: 1 };
