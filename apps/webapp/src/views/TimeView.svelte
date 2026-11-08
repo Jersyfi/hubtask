@@ -3,7 +3,9 @@
 <script lang="ts">
   // *Time* (M7, user-experience.md §7.6): the reader's week, the weeks waiting for their decision,
   // and where the time went, under one head - the week's total and state as its figure, the one
-  // timer beside the acts, *Record time* the primary - and one strip of tabs.
+  // timer beside the acts, *Record time* the primary - and its views as one segmented control in
+  // the toolbar (page-system §9.7, PS-2). Its settings are a page of their own, behind the head's
+  // *Settings*.
   //
   // **My week** (UC-TIM-02 check 8): the week from Monday as a grid of entries by day, the records
   // under it - changed and removed while the week is open and the day unlocked, corrected
@@ -25,8 +27,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
-    type Column, type PlaceTab,
+    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Table, Textarea, ViewSwitcher, WorkPage,
+    type Column,
   } from '@hubtask/design-system/components';
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -64,22 +66,19 @@
 
   const { tab, week, onnavigate }: Props = $props();
 
-  const TABS = [
+  const VIEWS = [
     { id: 'week', code: 'app.time.tab_week' },
     { id: 'approvals', code: 'app.time.tab_approvals' },
     { id: 'report', code: 'app.time.tab_report' },
     { id: 'absences', code: 'app.time.tab_absences' },
     { id: 'capacity', code: 'app.time.tab_capacity' },
-    // Last (user-experience.md §5.1, §8.2): the kinds of work, the lock and the rates, for whoever
-    // may change one of them.
-    { id: 'settings', code: 'app.time.tab_settings' },
   ] as const;
+  // The kinds of work, the lock and the rates, for whoever may change one of them (§9.6).
   const maySetUp = $derived(
     holdsHere('STRUCTURE') === true || holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true,
   );
-  const offered = $derived(TABS.filter((each) => each.id !== 'settings' || maySetUp));
-  const current = $derived(offered.some((each) => each.id === tab) ? (tab as string) : 'week');
-  const tabs = $derived<PlaceTab[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
+  const current = $derived(VIEWS.some((each) => each.id === tab) ? (tab as string) : 'week');
+  const views = $derived(VIEWS.map((each) => ({ id: each.id, label: t(each.code) })));
   function select(next: string) {
     onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
   }
@@ -359,56 +358,10 @@
   }
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.time.title')}
-    subtitle={t('app.modules.hint_time')}
-    isTitleInBar={viewport.isCompact}
-    primary={current === 'week' ? recordPrimary : undefined}
-    breadcrumb={{
-      trail: [
-        { id: 'products', label: t('app.nav.products') },
-        { id: 'product', label: t('app.nav.time') },
-      ],
-      label: t('app.product_home.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  >
-    {#snippet figure()}{#if current === 'week' && figureText}<span class="figure" data-time-figure>{figureText}</span>{/if}{/snippet}
-    {#snippet aside()}{#if !viewport.isCompact}<RunningTimer {onnavigate} />{/if}{/snippet}
-  </PageHeader>
-  <!-- On a phone the header's actions keep their one line, so the timer - an entry's whole title
-       among it - stands under the header, where it wraps (user-experience.md §5.12). -->
-  {#if viewport.isCompact}<div class="timer-line"><RunningTimer {onnavigate} /></div>{/if}
-
-  <PlaceTabs label={t('app.time.title')} {tabs} {current} onnavigate={select} />
-
+<WorkPage {top} {toolbar}>
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if current === 'week'}
-    <div class="toolbar">
-      <div class="nav">
-        <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => goWeek(-1)}>{t('app.time.week_before')}</Button>
-        <h2 class="heading" aria-live="polite">{weekText}</h2>
-        <Button size="sm" tone="subtle" icon="chevron-right" onclick={() => goWeek(1)}>{t('app.time.week_after')}</Button>
-        {#if monday !== thisWeek}<Button size="sm" tone="subtle" onclick={() => onnavigate('/time')}>{t('app.time.this_week')}</Button>{/if}
-      </div>
-      {#if sheet}
-        <div class="acts">
-          <Badge size="sm" tone={stateTone(sheet.state)}>{t(`app.time.state_${sheet.state}`)}</Badge>
-          {#if isOpen}
-            <Button size="sm" tone="secondary" icon="copy" onclick={() => void act(async () => {
-              const copied = await time.copyPrevious(monday);
-              toast.show({ text: t('app.time.copied', { count: String(copied.copied) }), tone: 'success' });
-            })}>{t('app.time.copy_previous')}</Button>
-            <Button size="sm" icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
-              onclick={() => void act(() => time.submit(monday), t('app.time.handed_in', { minutes: minutesText(sheet?.minutes ?? 0) }))}>{t('app.time.hand_in')}</Button>
-          {:else if sheet.state === 'SUBMITTED'}
-            <Button size="sm" tone="secondary" icon="rotate-ccw" onclick={() => void act(() => time.withdraw(monday), t('app.time.taken_back'))}>{t('app.time.take_back')}</Button>
-          {/if}
-        </div>
-      {/if}
-    </div>
 
     {#if sheetRefusal}
       <FailureNote problem={sheetRefusal} />
@@ -597,10 +550,65 @@
   {:else if current === 'capacity'}
     <CapacityEditor />
   {/if}
-</Stack>
+</WorkPage>
+
+{#snippet top()}
+  <div class="top">
+    <PageHeader
+      title={t('app.time.title')}
+      subtitle={t('app.modules.hint_time')}
+      isTitleInBar={viewport.isCompact}
+      primary={current === 'week' ? recordPrimary : undefined}
+      secondary={maySetUp ? [{ label: t('app.time.tab_settings'), icon: 'settings', isQuiet: true, onclick: () => onnavigate('/time?tab=settings') }] : []}
+      breadcrumb={{
+        trail: [
+          { id: 'products', label: t('app.nav.products') },
+          { id: 'product', label: t('app.nav.time') },
+        ],
+        label: t('app.product_home.trail'),
+        expandLabel: t('app.admin.expand_trail'),
+      }}
+    >
+      {#snippet figure()}{#if current === 'week' && figureText}<span class="figure" data-time-figure>{figureText}</span>{/if}{/snippet}
+      {#snippet aside()}{#if !viewport.isCompact}<RunningTimer {onnavigate} />{/if}{/snippet}
+    </PageHeader>
+    <!-- On a phone the header's actions keep their one line, so the timer - an entry's whole title
+         among it - stands under the header, where it wraps (user-experience.md §5.12). -->
+    {#if viewport.isCompact}<div class="timer-line"><RunningTimer {onnavigate} /></div>{/if}
+  </div>
+{/snippet}
+
+{#snippet toolbar()}
+  <ViewSwitcher label={t('app.time.views')} {views} selected={current} onselect={select} />
+  {#if current === 'week'}
+    <div class="toolbar">
+      <div class="nav">
+        <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => goWeek(-1)}>{t('app.time.week_before')}</Button>
+        <h2 class="heading" aria-live="polite">{weekText}</h2>
+        <Button size="sm" tone="subtle" icon="chevron-right" onclick={() => goWeek(1)}>{t('app.time.week_after')}</Button>
+        {#if monday !== thisWeek}<Button size="sm" tone="subtle" onclick={() => onnavigate('/time')}>{t('app.time.this_week')}</Button>{/if}
+      </div>
+      {#if sheet}
+        <div class="acts">
+          <Badge size="sm" tone={stateTone(sheet.state)}>{t(`app.time.state_${sheet.state}`)}</Badge>
+          {#if isOpen}
+            <Button size="sm" tone="secondary" icon="copy" onclick={() => void act(async () => {
+              const copied = await time.copyPrevious(monday);
+              toast.show({ text: t('app.time.copied', { count: String(copied.copied) }), tone: 'success' });
+            })}>{t('app.time.copy_previous')}</Button>
+            <Button size="sm" icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
+              onclick={() => void act(() => time.submit(monday), t('app.time.handed_in', { minutes: minutesText(sheet?.minutes ?? 0) }))}>{t('app.time.hand_in')}</Button>
+          {:else if sheet.state === 'SUBMITTED'}
+            <Button size="sm" tone="secondary" icon="rotate-ccw" onclick={() => void act(() => time.withdraw(monday), t('app.time.taken_back'))}>{t('app.time.take_back')}</Button>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
 
 {#if isRecording}
-  <Dialog bind:isOpen={isRecording} title={editing ? t('app.time.change') : t('app.time.add')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isRecording} title={editing ? t('app.time.change') : t('app.time.add')} dismissLabel={t('app.links.cancel')} size="m">
     <Stack gap="150">
       <Select label={t('app.time.col_day')} bind:value={draft.day} options={days.map((day) => ({ value: day, label: dayHeading(day, locale) }))} />
       <Select label={t('app.time.col_entry')} bind:value={draft.entry} options={entryChoices} />
@@ -617,7 +625,7 @@
 {/if}
 
 {#if isCorrecting && correcting}
-  <Dialog bind:isOpen={isCorrecting} title={t('app.time.correct_title', { minutes: minutesText(correcting.minutes), day: formatPlainDay(correcting.day, messages.locale) })} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isCorrecting} title={t('app.time.correct_title', { minutes: minutesText(correcting.minutes), day: formatPlainDay(correcting.day, messages.locale) })} dismissLabel={t('app.links.cancel')} size="m">
     <Stack gap="150">
       <p class="quiet">{t('app.time.correct_hint')}</p>
       <Input label={t('app.time.col_day')} type="date" bind:value={correction.day} />
@@ -630,7 +638,7 @@
 {/if}
 
 {#if isRejecting && deciding}
-  <Dialog bind:isOpen={isRejecting} title={t('app.time.send_back_title', { name: personName(deciding.account_id) })} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isRejecting} title={t('app.time.send_back_title', { name: personName(deciding.account_id) })} dismissLabel={t('app.links.cancel')} size="s">
     <Stack gap="150">
       <Textarea label={t('app.time.reason')} hint={t('app.time.reason_hint')} bind:value={reason} maxlength={500} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
@@ -640,7 +648,8 @@
 {/if}
 
 <style>
-  .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .top { display: grid; gap: var(--sp-200); min-inline-size: 0; }
+  .toolbar { display: flex; flex: 1; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .nav, .acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }

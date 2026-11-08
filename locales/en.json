@@ -12324,6 +12324,7 @@
   "app.notes.shared_none": "Nothing shared with you yet",
   "app.notes.shared_none_body": "When somebody shares a page with you, it is listed here to read.",
   "app.time.title": "Time",
+  "app.time.views": "Views of time",
   "app.time.tab_week": "My week",
   "app.time.tab_approvals": "Weeks to decide",
   "app.time.tab_report": "Report",
