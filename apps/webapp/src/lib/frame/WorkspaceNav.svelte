@@ -40,6 +40,7 @@
   import { millisecondsOf } from './toasts.ts';
   import { carried, entryTarget } from './entryDrop.svelte.ts';
   import CollectionMoveDialog from '../workspace/CollectionMoveDialog.svelte';
+  import PositionDialog from '../workspace/PositionDialog.svelte';
   import { pages as pagesStore } from '../data/pages.svelte.ts';
   import { whiteboards } from '../data/whiteboards.svelte.ts';
   import { items } from '../data/items.svelte.ts';
@@ -100,10 +101,12 @@
     foot,
     forYou,
     hubTools,
+    SECTION_OPEN_AT_FIRST,
     levelOf,
+    navHubs,
     navProducts,
-    orderHubs,
     placedIndex,
+    withHidden,
     queuePath,
     queueRows,
     viewStarPath,
@@ -115,8 +118,10 @@
     type HubTool,
     type HubsOrder,
     type NavLevel as Level,
+    type NavSection,
   } from '../sidebar.ts';
-  import { leftToWebApp } from '../navigation.ts';
+  import { leftToWebApp, type ProductRow } from '../navigation.ts';
+  import { device } from '../device.svelte.ts';
   import { contentsStep, hubStep, queuesStep, type PhoneStep } from '../phone.ts';
   import { page } from './page.svelte.ts';
   import { commands } from '../palette/commands.svelte.ts';
@@ -529,7 +534,7 @@
   const mayRankIn = (id: string) => holds(roleIn(id), 'STRUCTURE').status === 'permitted';
 
   /** A hub's or collection's ⋯, the page menu's items (`placeMenu`), run by the page itself. */
-  function placeMenuOf(id: string): RowAction | undefined {
+  function placeMenuOf(id: string, options: { readonly offersPosition?: boolean } = {}): RowAction | undefined {
     const container = containers.find(id);
     if (!container || isRail) return undefined;
     const at = container.type === 'HUB' ? container.id : container.parent_id;
@@ -543,6 +548,7 @@
         mayShape: holds(role, 'STRUCTURE').status === 'permitted',
         mayDelete: holds(role, 'DELETE_CONTAINER').status === 'permitted',
         archival: archivalOf(container),
+        offersPosition: options.offersPosition,
         privacy:
           container.type === 'HUB'
             ? privacyAction({
@@ -576,7 +582,7 @@
   function hubMenuOf(id: string): RowAction | undefined {
     const container = containers.find(id);
     if (!container || isRail) return undefined;
-    const place = placeMenuOf(id);
+    const place = placeMenuOf(id, { offersPosition: false });
     const rest = (place?.items ?? []).map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item));
     return {
       label: t('app.nav.row_actions', { name: container.name }),
@@ -652,19 +658,37 @@
   };
 
   // ---- Workspace level ------------------------------------------------------------------------
+  /** A section's fold, or its *More*'s, as this device left it (R-12). */
+  const sectionOpen = (key: NavSection) => ({
+    get isOpen() {
+      return device.isSectionOpen(key, SECTION_OPEN_AT_FIRST[key]);
+    },
+    set isOpen(open: boolean) {
+      device.setSectionOpen(key, open);
+    },
+  });
+  const sections = {
+    starred: sectionOpen('starred'),
+    products: sectionOpen('products'),
+    productsMore: sectionOpen('products-more'),
+    hubs: sectionOpen('hubs'),
+    hubsMore: sectionOpen('hubs-more'),
+    collections: sectionOpen('collections'),
+    contents: sectionOpen('contents'),
+  };
+
   const productSets = $derived(navProducts({ modulesOn: workspaceOn, order: actor.account?.nav_products, hidden: actor.account?.nav_products_hidden }));
-  let isAllProducts = $state(false);
-  // The products' order is the person's (§7.5 `nav_products`): dragged or `Alt+↑/↓` in the
-  // section, written to the preferences; hiding stays in *Customise the sidebar*.
-  const productNodes = $derived(
-    (isAllProducts ? [...productSets.shown, ...productSets.more] : productSets.shown).map((row): NavTreeNode => ({
-      id: row.module, label: t(row.code), icon: row.icon, color: row.color, href: row.path, part: 'products', canHoldChildren: false,
-    })),
-  );
-  const productPaths = $derived(Object.fromEntries([...productSets.shown, ...productSets.more].map((row) => [row.module, row.path])));
-  const currentProduct = $derived([...productSets.shown, ...productSets.more].find((row) => productCurrent(row.routes))?.module);
+  // The products' order is the person's (§7.5 `nav_products`): dragged or `Alt+↑/↓` among the
+  // shown rows; a hidden one stands behind *More* and is shown again from its ⋯ (R-3).
+  const productNode = (row: ProductRow): NavTreeNode => ({
+    id: row.module, label: t(row.code), icon: row.icon, color: row.color, href: row.path, part: 'products', canHoldChildren: false,
+  });
+  const productNodes = $derived(productSets.shown.map(productNode));
+  const hiddenProductNodes = $derived(productSets.more.map(productNode));
+  const productPaths = $derived(Object.fromEntries(productSets.all.map((row) => [row.module, row.path])));
+  const currentProduct = $derived(productSets.all.find((row) => productCurrent(row.routes))?.module);
   async function placeProduct(module: string, afterId: string | null, isUndo = false): Promise<boolean> {
-    const before: string[] = [...productSets.shown, ...productSets.more].map((row) => row.module);
+    const before: string[] = productSets.all.map((row) => row.module);
     const at = before.indexOf(module);
     const next = reordered(before, module, afterId);
     const id = actor.account?.id;
@@ -687,34 +711,51 @@
     const intent = moveIntent(key, productNodes, id);
     if (intent && 'placement' in intent) void placeProduct(id, intent.placement.afterId);
   };
-  async function writePreference(change: Record<string, unknown>) {
+  async function writePreference(change: Record<string, unknown>): Promise<boolean> {
     const id = actor.account?.id;
-    if (!id) return;
+    if (!id) return false;
     try {
       await preferences.setAccount(id, change);
       void actor.reread();
+      return true;
     } catch (error) {
       announcer.say(renderProblem(error as never, messages).message);
+      return false;
     }
   }
-  const customise = $derived<RowAction>({
-    label: t('app.nav.customise'),
-    items: [...productSets.shown, ...productSets.more].map((row) => ({
-      id: row.module,
-      label: t(productSets.more.includes(row) ? 'app.nav.show_product' : 'app.nav.hide_product', { name: t(row.code) }),
-    })),
-    onselect: (module) => {
-      if (!module) return;
-      const hidden = actor.account?.nav_products_hidden ?? [];
-      const next = hidden.includes(module as never) ? hidden.filter((each) => each !== module) : [...hidden, module];
-      void writePreference({ nav_products_hidden: next });
-    },
-  });
 
-  const shownHubs = $derived(containers.hubs.filter((each) => !live.hasLost(each.id)));
+  /**
+   * Hides a product or a hub behind its section's *More*, or shows it again (R-3, R-4): the
+   * account's whole list written, so another device draws the same; said, with the way back.
+   */
+  async function setHidden(field: 'nav_products_hidden' | 'nav_hubs_hidden', id: string, name: string, isHidden: boolean, isUndo = false): Promise<boolean> {
+    const list: readonly string[] | null | undefined = actor.account?.[field];
+    if (!(await writePreference({ [field]: withHidden(list, id, isHidden) }))) return false;
+    const said = t(isHidden ? 'app.nav.row_hidden' : 'app.nav.row_shown', { name });
+    if (isUndo) announcer.say(said);
+    else toast.show({ text: said, undo: async () => void (await setHidden(field, id, name, !isHidden, true)) });
+    return true;
+  }
+  /** A product row's ⋯ - and its long press on touch: *Hide* where shown, *Show* behind *More*. */
+  function productMenuOf(module: string): RowAction | undefined {
+    const row = productSets.all.find((each) => each.module === module);
+    if (!row || isRail || !actor.account) return undefined;
+    const isHidden = productSets.more.includes(row);
+    return {
+      label: t('app.nav.row_actions', { name: t(row.code) }),
+      items: [hideItem(isHidden)],
+      onselect: (act) => act && void setHidden('nav_products_hidden', module, t(row.code), act === 'hide'),
+    };
+  }
+  const hideItem = (isHidden: boolean): MenuItem =>
+    isHidden ? { id: 'show', label: t('app.nav.show_in_sidebar'), icon: 'eye' } : { id: 'hide', label: t('app.nav.hide_from_sidebar'), icon: 'eye-off' };
+
   const hubsOrder = $derived<HubsOrder>((actor.account?.nav_hubs_order as HubsOrder | null | undefined) ?? 'MANUAL');
   const visitedHubs = $derived([...new Set(recents.rows.map((row) => (row.kind === 'hub' ? row.id : row.kind === 'collection' ? row.placeId : undefined)).filter((id): id is string => !!id))]);
-  const orderedHubs = $derived(orderHubs(shownHubs, hubsOrder, visitedHubs, messages.locale));
+  /** Every hub in sight, in the shared order - the siblings a hub is ranked among. */
+  const shownHubs = $derived(containers.hubs.filter((each) => !live.hasLost(each.id)));
+  const hubSets = $derived(navHubs(shownHubs, { order: hubsOrder, visited: visitedHubs, hidden: actor.account?.nav_hubs_hidden, locale: messages.locale }));
+  const orderedHubs = $derived(hubSets.shown);
   const hubNode = (each: Container): NavTreeNode => ({
     id: each.id,
     label: each.name,
@@ -728,11 +769,60 @@
     figureLabel: t('app.nav.open_level', { name: each.name }),
   });
   const hubNodes = $derived(orderedHubs.map(hubNode));
+  const hiddenHubNodes = $derived(hubSets.more.map((each) => ({ ...hubNode(each), figure: undefined, figureLabel: undefined })));
   const hubsMenu = $derived<RowAction>({
     label: t('app.nav.order_hubs'),
     items: (['MANUAL', 'RECENT', 'NAME'] as const).map((mode) => ({ id: mode, label: t(`app.nav.hubs_${mode.toLowerCase()}`), ...(mode === hubsOrder ? { icon: 'check' as const } : {}) })),
     onselect: (mode) => mode && void writePreference({ nav_hubs_order: mode === 'MANUAL' ? null : mode }),
   });
+  /**
+   * A hub row's ⋯ at the workspace level: the place's own items with *Change position* - only here,
+   * where every hub is listed - and *Hide* or *Show* (R-4).
+   */
+  function hubRowMenuOf(id: string): RowAction | undefined {
+    const container = containers.find(id);
+    if (!container || isRail || !actor.account) return undefined;
+    const isHidden = hubSets.more.includes(container);
+    const place = placeMenuOf(id, { offersPosition: !isHidden });
+    // The person's own act first; the place's items after it, the trash still last and alone.
+    return {
+      label: t('app.nav.row_actions', { name: container.name }),
+      items: [hideItem(isHidden), ...(place?.items ?? []).map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item))],
+      onselect: (act) => {
+        if (act === 'hide' || act === 'show') return void setHidden('nav_hubs_hidden', id, container.name, act === 'hide');
+        if (act === 'position') return void toSharedOrder().then((isShared) => isShared && (positioningHub = container));
+        place?.onselect(act);
+      },
+    };
+  }
+  /**
+   * Hubs move in the shared order (§5.4). Moved while the person reads them by name or by visit,
+   * the list turns to the shared order first and says so (R-4): a drag lands after the hub it was
+   * dropped under; `Alt+↑/↓` only turns the order, and the next press moves.
+   */
+  async function toSharedOrder(): Promise<boolean> {
+    if (hubsOrder === 'MANUAL') return true;
+    if (!(await writePreference({ nav_hubs_order: null }))) return false;
+    announcer.say(t('app.nav.hubs_now_shared'));
+    return true;
+  }
+  const mayMoveHub = (id: string) => mayRankIn(id);
+  /** The hub *Change position* was chosen for: its dialog, over the shared order. */
+  let positioningHub = $state<Container | undefined>(undefined);
+  const moveHubBy = (id: string, offset: number) => {
+    const from = shownHubs.findIndex((each) => each.id === id);
+    if (from >= 0) void rank(id, shownHubs, from + offset);
+  };
+  async function placeHub(id: string, placement: TreePlacement) {
+    if (!(await toSharedOrder())) return;
+    await rank(id, shownHubs, placedIndex(shownHubs.map((each) => each.id), id, placement.afterId));
+  }
+  const hubKey = (id: string, key: MoveKey) => {
+    if (!mayMoveHub(id)) return void announcer.say(t('app.nav.may_not_order'));
+    if (hubsOrder !== 'MANUAL') return void toSharedOrder();
+    const intent = moveIntent(key, hubNodes, id);
+    if (intent && 'placement' in intent) void placeHub(id, intent.placement);
+  };
 
   let isCreatingHub = $state(false);
   const creation = $derived(hubCreationHere());
@@ -1066,7 +1156,7 @@
   // screen 7); *Change order* opens reorder mode, the rows dragged by the grip at their end and
   // `Alt+↑/↓`, *Done* ends it (screen 8); *Move to…* the place picker as a sheet (screen 9).
   let phoneElement = $state<HTMLElement | null>(null);
-  let contextRow = $state<{ readonly id: string; readonly kind: 'collection' | 'page' | 'whiteboard'; readonly name: string } | undefined>(undefined);
+  let contextRow = $state<{ readonly id: string; readonly kind: 'product' | 'hub' | 'collection' | 'page' | 'whiteboard'; readonly name: string } | undefined>(undefined);
   let reordering = $state<'collections' | 'contents' | undefined>(undefined);
   $effect(() => {
     const at = phoneElement;
@@ -1074,7 +1164,10 @@
     return attachEntryGestures(at, {
       idAt: (target) => (reordering ? undefined : ((target as Element | null)?.closest?.<HTMLElement>('[data-press-row] li[data-id]')?.dataset['id'] ?? undefined)),
       open: (id) => {
+        const product = step?.kind === 'workspace' ? productSets.all.find((row) => row.module === id) : undefined;
+        if (product) return void (contextRow = { id, kind: 'product', name: t(product.code) });
         const collection = containers.find(id);
+        if (collection?.type === 'HUB' && step?.kind === 'workspace') return void (contextRow = { id, kind: 'hub', name: collection.name });
         if (collection?.type === 'COLLECTION') return void (contextRow = { id, kind: 'collection', name: collection.name });
         const board = boardRows.find((each) => each.id === id);
         const pageRow = pageRows.find((each) => each.id === id);
@@ -1083,10 +1176,18 @@
       },
     });
   });
-  const STAR_KIND = { collection: 'COLLECTION', page: 'PAGE', whiteboard: 'WHITEBOARD' } as const;
-  const contextItems = $derived.by(() => {
+  const STAR_KIND = { hub: 'HUB', collection: 'COLLECTION', page: 'PAGE', whiteboard: 'WHITEBOARD' } as const;
+  const contextItems = $derived.by((): readonly MenuItem[] => {
     const row = contextRow;
     if (!row) return [];
+    if (row.kind === 'product') return [hideItem(productSets.more.some((each) => each.module === row.id))];
+    if (row.kind === 'hub') {
+      const starred = isStarred(stars.all, 'HUB', row.id);
+      return [
+        { id: 'star', label: t(starred ? 'app.nav.sheet_unstar' : 'app.nav.sheet_star'), icon: 'star' },
+        hideItem(hubSets.more.some((each) => each.id === row.id)),
+      ];
+    }
     const starred = isStarred(stars.all, STAR_KIND[row.kind], row.id);
     const may = row.kind === 'collection' ? mayStructure : mayWrite;
     const kept = row.kind === 'collection' ? (placeMenuOf(row.id)?.items ?? []).filter((item) => item.id === 'archive' || item.id === 'trash') : mayWrite ? contentLifecycle(row.id) : [];
@@ -1100,8 +1201,11 @@
   function chooseContext(act: string) {
     const row = contextRow;
     contextRow = undefined;
-    if (!row || !hub) return;
+    if (!row) return;
+    if (act === 'hide' || act === 'show') return void setHidden(row.kind === 'product' ? 'nav_products_hidden' : 'nav_hubs_hidden', row.id, row.name, act === 'hide');
+    if (row.kind === 'product') return;
     if (act === 'star') return void stars.toggle(STAR_KIND[row.kind], row.id);
+    if (row.kind === 'hub' || !hub) return;
     if (act === 'beneath') return onnavigate(createPath(hub.id, 'page', row.id));
     if (act === 'move') return row.kind === 'collection' ? moveCollection(row.id) : void (movingContent = row.id);
     if (act === 'order') return void (reordering = row.kind === 'collection' ? 'collections' : 'contents');
@@ -1238,19 +1342,22 @@
         {/each}
       </NavGroup>
     {/if}
-    {#if productSets.shown.length + productSets.more.length > 0}
-      <NavGroup label={t('app.nav.products')} size="touch">
-        {#each isAllProducts ? [...productSets.shown, ...productSets.more] : productSets.shown as row (row.id)}
-          <NavItem label={t(row.code)} icon={row.icon} color={row.color} href={row.path} size="touch" isDrillDown onnavigate={() => onnavigate(row.path)} />
+    <!-- A long press on a product or a hub opens its sheet: *Hide*, or *Show* behind *More* (R-3, R-4). -->
+    {#if productSets.all.length > 0}
+      <div data-press-row>
+      <NavGroup label={t('app.nav.products')} size="touch" hiddenRows={hiddenProductNodes} hiddenLabel={t('app.nav.more_hidden')} bind:isHiddenOpen={sections.productsMore.isOpen}
+        onnavigate={(module) => onnavigate(productPaths[module] ?? '/')}>
+        {#each productSets.shown as row (row.id)}
+          <NavItem id={row.module} label={t(row.code)} icon={row.icon} color={row.color} href={row.path} size="touch" isDrillDown onnavigate={() => onnavigate(row.path)} />
         {/each}
-        {#if !isAllProducts && productSets.more.length > 0}
-          <NavItem label={t('app.nav.more_count', { count: productSets.more.length })} icon="ellipsis" size="touch" isDrillDown onnavigate={() => (isAllProducts = true)} />
-        {/if}
       </NavGroup>
+      </div>
     {/if}
-    <NavGroup label={t('app.nav.hubs')} size="touch">
+    <div data-press-row>
+    <NavGroup label={t('app.nav.hubs')} size="touch" hiddenRows={hiddenHubNodes} hiddenLabel={t('app.nav.more_hidden')} bind:isHiddenOpen={sections.hubsMore.isOpen}
+      onnavigate={(id) => onnavigate(hubStep(id))}>
       {#each isAllHubsShown ? orderedHubs : orderedHubs.slice(0, HUBS_SHOWN) as each (each.id)}
-        <NavItem label={each.name} icon={each.private && !chosenSymbol(each) ? 'lock' : markOf(each)} color={each.color_token ?? DEFAULT_TILE} href={hubStep(each.id)}
+        <NavItem id={each.id} label={each.name} icon={each.private && !chosenSymbol(each) ? 'lock' : markOf(each)} color={each.color_token ?? DEFAULT_TILE} href={hubStep(each.id)}
           badge={each.private ? { icon: 'lock', label: t('app.nav.private') } : undefined} size="touch" isDrillDown onnavigate={() => onnavigate(hubStep(each.id))} />
       {/each}
       {#if !isAllHubsShown && orderedHubs.length > HUBS_SHOWN}
@@ -1260,6 +1367,7 @@
         <NavItem label={createHubLabel} icon="plus" tone="link" size="touch" onnavigate={() => (isCreatingHub = true)} />
       {/if}
     </NavGroup>
+    </div>
     <ul class="card-list" aria-label={t('app.nav.keeping')}>
       {#each footRows as row (row.id)}
         <NavItem label={t(row.code)} icon={row.icon} href={row.path} figure={footFigure(row.id)} size="touch" isDrillDown onnavigate={() => goFoot(row.id, row.path)} />
@@ -1390,7 +1498,7 @@
   {/if}
   {#if contextRow}
     {@const row = contextRow}
-    <Sheet title={row.name} icon={row.kind === 'collection' ? 'collection' : row.kind === 'whiteboard' ? 'layout-template' : 'file-text'} closeLabel={t('app.sheet_close')} bind:isOpen={() => contextRow !== undefined, (open) => { if (!open) contextRow = undefined; }}>
+    <Sheet title={row.name} icon={row.kind === 'product' ? (productSets.all.find((each) => each.module === row.id)?.icon ?? 'ellipsis') : row.kind === 'hub' ? 'hub' : row.kind === 'collection' ? 'collection' : row.kind === 'whiteboard' ? 'layout-template' : 'file-text'} closeLabel={t('app.sheet_close')} bind:isOpen={() => contextRow !== undefined, (open) => { if (!open) contextRow = undefined; }}>
       <ul>
         {#each contextItems as item (item.id)}
           <NavItem label={item.label} icon={item.icon} size="touch" onnavigate={() => chooseContext(item.id)} />
@@ -1545,6 +1653,7 @@
         <NavGroup
           label={t('app.nav.collections')}
           collapseLabel={t('app.nav.fold', { name: t('app.nav.collections') })}
+          bind:isOpen={sections.collections.isOpen}
           add={mayStructure ? { label: t('app.nav.new_collection_short'), onselect: () => { collectionHubId = hub.id; isCreatingCollection = true; } } : undefined}
           tree={collectionNodes}
           treeLabel={t('app.nav.collections_of', { hub: hub.name })}
@@ -1578,6 +1687,7 @@
           label={t('app.nav.contents')}
           count={String(contentsCount(contentNodes))}
           collapseLabel={t('app.nav.fold', { name: t('app.nav.contents') })}
+          bind:isOpen={sections.contents.isOpen}
           add={contentsAdd}
           rowAdd={contentRowAdd}
           menu={contentsMenu}
@@ -1630,6 +1740,8 @@
         <div class="drop-part" data-entry-target>
           <NavGroup
             label={t('app.nav.starred')}
+            collapseLabel={t('app.nav.fold', { name: t('app.nav.starred') })}
+            bind:isOpen={sections.starred.isOpen}
             tree={starNodes}
             current={starRows.find((row) => route.path === row.href)?.key}
             canOrder={() => true}
@@ -1643,12 +1755,14 @@
           />
         </div>
       {/if}
-      {#if productSets.shown.length + productSets.more.length > 0}
+      {#if productSets.all.length > 0}
         <NavGroup
           label={t('app.nav.products')}
-          menu={customise}
+          collapseLabel={t('app.nav.fold', { name: t('app.nav.products') })}
+          bind:isOpen={sections.products.isOpen}
           tree={productNodes}
           current={currentProduct}
+          rowMenu={productMenuOf}
           canOrder={() => !!actor.account}
           onnavigate={(module) => onnavigate(productPaths[module] ?? '/')}
           onplace={(module, placement) => void placeProduct(module, placement.afterId)}
@@ -1656,24 +1770,27 @@
           {refusalLabel}
           {landed}
           oncancel={() => announcer.say(t('app.nav.cancelled'))}
+          hiddenRows={hiddenProductNodes}
+          hiddenLabel={t('app.nav.more_hidden')}
+          bind:isHiddenOpen={sections.productsMore.isOpen}
         />
-        {#if !isAllProducts && productSets.more.length > 0}
-          <ul class="plain">
-            <NavItem label={t('app.nav.more_count', { count: productSets.more.length })} icon="ellipsis" tone="more" onnavigate={() => (isAllProducts = true)} />
-          </ul>
-        {/if}
       {/if}
       <NavGroup
         label={t('app.nav.hubs')}
+        collapseLabel={t('app.nav.fold', { name: t('app.nav.hubs') })}
+        bind:isOpen={sections.hubs.isOpen}
         add={createHubLabel ? { label: createHubLabel, onselect: () => (isCreatingHub = true) } : undefined}
         menu={hubsMenu}
         tree={hubNodes}
         treeLabel={t('app.nav.hubs')}
-        rowMenu={placeMenuOf}
-        canOrder={(id) => hubsOrder === 'MANUAL' && mayRankIn(id)}
+        rowMenu={hubRowMenuOf}
+        canOrder={mayMoveHub}
         onnavigate={(id) => onnavigate(`/hubs/${id}`)}
-        onplace={place(shownHubs)}
-        onmovekey={moveKey(shownHubs, hubNodes, (id) => hubsOrder === 'MANUAL' && mayRankIn(id))}
+        onplace={(id, placement) => void placeHub(id, placement)}
+        onmovekey={hubKey}
+        hiddenRows={hiddenHubNodes}
+        hiddenLabel={t('app.nav.more_hidden')}
+        bind:isHiddenOpen={sections.hubsMore.isOpen}
         {refusalLabel}
         {landed}
         oncancel={() => announcer.say(t('app.nav.cancelled'))}
@@ -1706,6 +1823,16 @@
     {/each}
   </ul>
 </div>
+{/if}
+
+{#if positioningHub}
+  <PositionDialog
+    bind:isOpen={() => positioningHub !== undefined, (open) => { if (!open) positioningHub = undefined; }}
+    id={positioningHub.id}
+    name={positioningHub.name}
+    siblings={shownHubs.map((each) => ({ id: each.id, name: each.name }))}
+    onmove={moveHubBy}
+  />
 {/if}
 
 <CreateContainerDialog

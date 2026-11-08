@@ -62,14 +62,29 @@ export function foot(options: { readonly isAdministrationReachable: boolean }): 
 }
 
 /**
- * The *Products* section (§2.3): the products switched on, in the person's order (`nav_products`,
- * the default order after it), the hidden ones (`nav_products_hidden`) behind *More*.
+ * A section's rows split for drawing (§2.3): `shown` in the section, `more` behind its *More* row,
+ * both in the one order `all` holds - hiding or showing a row never moves another.
+ */
+export interface Shown<T> {
+  readonly all: readonly T[];
+  readonly shown: readonly T[];
+  readonly more: readonly T[];
+}
+
+function split<T>(all: readonly T[], isHidden: (row: T) => boolean): Shown<T> {
+  return { all, shown: all.filter((row) => !isHidden(row)), more: all.filter(isHidden) };
+}
+
+/**
+ * The *Products* section (§2.3): the products switched on for the workspace - a product whose
+ * module is off is in neither list -, in the person's order (`nav_products`, the default order
+ * after it), the hidden ones (`nav_products_hidden`) behind *More*.
  */
 export function navProducts(options: {
   readonly modulesOn?: readonly string[];
   readonly order?: readonly string[] | null;
   readonly hidden?: readonly string[] | null;
-}): { readonly shown: readonly ProductRow[]; readonly more: readonly ProductRow[] } {
+}): Shown<ProductRow> {
   const on = products({ modulesOn: options.modulesOn });
   const order = options.order ?? [];
   const rank = (row: ProductRow) => {
@@ -78,8 +93,39 @@ export function navProducts(options: {
   };
   const sorted = [...on].sort((a, b) => rank(a) - rank(b));
   const hidden = new Set(options.hidden ?? []);
-  return { shown: sorted.filter((row) => !hidden.has(row.module)), more: sorted.filter((row) => hidden.has(row.module)) };
+  return split(sorted, (row) => hidden.has(row.module));
 }
+
+/**
+ * The *Hubs* section (§2.3): the hubs in the person's order (`orderHubs`), the hidden ones
+ * (`nav_hubs_hidden`) behind *More* in that same order. An id of a hub no longer in sight shows
+ * nothing.
+ */
+export function navHubs<T extends { readonly id: string; readonly name: string }>(
+  hubs: readonly T[],
+  options: { readonly order?: HubsOrder | null; readonly visited?: readonly string[]; readonly hidden?: readonly string[] | null; readonly locale?: string },
+): Shown<T> {
+  const hidden = new Set(options.hidden ?? []);
+  return split(orderHubs(hubs, options.order, options.visited, options.locale), (hub) => hidden.has(hub.id));
+}
+
+/**
+ * The whole list a *Hide* or *Show* writes: `id` added at the end or taken out, the rest in
+ * their order; unchanged where it already was so.
+ */
+export function withHidden(list: readonly string[] | null | undefined, id: string, isHidden: boolean): readonly string[] {
+  const rest = (list ?? []).filter((each) => each !== id);
+  return isHidden ? [...rest, id] : rest;
+}
+
+/**
+ * The sidebar's sections that fold, each remembered per device (`device.isSectionOpen`); a
+ * section's *More* folds by its own key and starts folded.
+ */
+export type NavSection = 'starred' | 'products' | 'products-more' | 'hubs' | 'hubs-more' | 'collections' | 'contents';
+export const SECTION_OPEN_AT_FIRST: Readonly<Record<NavSection, boolean>> = {
+  starred: true, products: true, 'products-more': false, hubs: true, 'hubs-more': false, collections: true, contents: true,
+};
 
 /**
  * A row's count as *For you* shows it (§2.2): nothing for none, so a row never says "0"; "n+"

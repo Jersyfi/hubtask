@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
 import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath, type SectionGroup } from './navigation.ts';
-import { contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navProducts, orderHubs, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute } from './sidebar.ts';
+import { SECTION_OPEN_AT_FIRST, contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navHubs, navProducts, orderHubs, withHidden, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -495,7 +495,41 @@ test('the products follow the person\'s order; hidden ones go behind More; one s
   const sets = navProducts({ modulesOn: on, order: ['TIME', 'PLANNING'], hidden: ['KNOWLEDGE', 'ASSETS'] });
   assert.deepEqual(sets.shown.map((row) => row.module), ['TIME', 'PLANNING']);
   assert.deepEqual(sets.more.map((row) => row.module), ['KNOWLEDGE']);
-  assert.deepEqual(navProducts({ modulesOn: [] }), { shown: [], more: [] });
+  assert.deepEqual(navProducts({ modulesOn: [] }), { all: [], shown: [], more: [] });
+  // A product hidden while its module is off, then switched on again, comes back behind More.
+  assert.deepEqual(navProducts({ modulesOn: [...on, 'ASSETS'], hidden: ['ASSETS'] }).more.map((row) => row.module), ['ASSETS']);
+});
+
+test('hiding or showing a product keeps every other where it stood (R-3)', () => {
+  const on = ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'TIME'];
+  const order = ['TIME', 'WHITEBOARD', 'PLANNING', 'KNOWLEDGE'];
+  const before = navProducts({ modulesOn: on, order });
+  let hidden = withHidden([], 'WHITEBOARD', true);
+  const after = navProducts({ modulesOn: on, order, hidden });
+  assert.deepEqual(after.shown.map((row) => row.module), ['TIME', 'PLANNING', 'KNOWLEDGE']);
+  assert.deepEqual(after.all, before.all, 'the one order is the same; only the split changed');
+  hidden = withHidden(withHidden(hidden, 'KNOWLEDGE', true), 'WHITEBOARD', false);
+  assert.deepEqual(hidden, ['KNOWLEDGE']);
+  const back = navProducts({ modulesOn: on, order, hidden });
+  assert.deepEqual(back.shown.map((row) => row.module), ['TIME', 'WHITEBOARD', 'PLANNING'], 'a product shown again returns to its place');
+  assert.deepEqual(back.more.map((row) => row.module), ['KNOWLEDGE']);
+  assert.deepEqual(withHidden(['A'], 'A', true), ['A'], 'hiding twice lists it once');
+  assert.deepEqual(withHidden(null, 'A', false), []);
+});
+
+test('hidden hubs go behind More in the person\'s order; a hub no longer in sight shows nothing (R-4)', () => {
+  const hubs = [{ id: 'b', name: 'Beta' }, { id: 'a', name: 'alpha' }, { id: 'c', name: 'Gamma' }, { id: 'd', name: 'Delta' }];
+  const manual = navHubs(hubs, { hidden: ['a', 'gone'] });
+  assert.deepEqual(manual.shown.map((hub) => hub.id), ['b', 'c', 'd']);
+  assert.deepEqual(manual.more.map((hub) => hub.id), ['a']);
+  const byName = navHubs(hubs, { order: 'NAME', hidden: ['d', 'b'], locale: 'en' });
+  assert.deepEqual(byName.shown.map((hub) => hub.id), ['a', 'c']);
+  assert.deepEqual(byName.more.map((hub) => hub.id), ['b', 'd'], 'More keeps the chosen order too');
+  assert.deepEqual(navHubs(hubs, { order: 'RECENT', visited: ['c'] }).shown.map((hub) => hub.id), ['c', 'b', 'a', 'd']);
+});
+
+test('the sections start open and their More rows folded (R-3, R-12)', () => {
+  assert.deepEqual(Object.entries(SECTION_OPEN_AT_FIRST).filter(([, open]) => !open).map(([key]) => key), ['products-more', 'hubs-more']);
 });
 
 test('the hubs in the shared order, recently visited first, or A-Z (§2.3)', () => {

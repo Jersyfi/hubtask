@@ -951,7 +951,7 @@
     container === undefined
       ? []
       : [
-          ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
+          ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, offersPosition: container.type !== 'HUB' }, (code) => t(code)),
         ],
   );
 

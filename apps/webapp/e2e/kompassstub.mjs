@@ -129,6 +129,9 @@ export function boardRead(found, writable = true) {
 /** `extra(route, request, url)` answers first where a walk needs more; it returns whether it did. */
 export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, administration = true, owner = false, extra }) {
   const written = { preferences: [], stars: [], pages: [], boards: [] };
+  // The hubs in their shared order, which a `:reorder` changes as the server would: the preview
+  // shows a hub where it was dropped rather than snapping back.
+  const hubOrder = [...HUBS];
   const handler = async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -292,7 +295,16 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     const single = /\/api\/v1\/containers\/([^/:]+)$/.exec(path);
     const place = single && [...HUBS, ...COLLECTIONS].find((each) => each.id === single[1]);
     if (place && request.method() === 'GET') return route.fulfill({ json: place });
-    if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: HUBS } });
+    const reorder = /\/api\/v1\/containers\/([^/:]+):reorder$/.exec(path);
+    const ranked = reorder && request.method() === 'POST' ? hubOrder.find((each) => each.id === reorder[1]) : undefined;
+    if (ranked) {
+      const before = request.postDataJSON()?.before_container_id ?? null;
+      hubOrder.splice(hubOrder.indexOf(ranked), 1);
+      const at = before ? hubOrder.findIndex((each) => each.id === before) : -1;
+      hubOrder.splice(at < 0 ? hubOrder.length : at, 0, ranked);
+      return route.fulfill({ json: ranked });
+    }
+    if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: hubOrder } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: COLLECTIONS.filter((each) => each.parent_id === url.searchParams.get('parent_id')) } });
     // A plan's schedule, empty: the tool's and a collection's timeline open on it.
     if (/\/api\/v1\/plans\/[^/]+\/schedule$/.test(path)) return route.fulfill({ json: { zone: 'UTC', finish: null, entries: [], dependencies: [], conflicts: [], unscheduled: [], undated: [], critical_path: [] } });

@@ -265,7 +265,8 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   assert.equal(await newInHead(page).count(), 1);
   assert.equal(await page.getByRole('main').getByRole('button', { name: /Import/ }).count(), 0, 'import beside the head as well as in its menu');
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Change position', 'Archive', 'Make private', 'Move to the trash']);
+  // No *Change position* in a hub's own head: the hubs are ordered where they are all listed.
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Archive', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   // A hub's settings are a page as a collection's are: one section list (user-experience.md §5.7).
   await openSettings(page, HUB.name);
