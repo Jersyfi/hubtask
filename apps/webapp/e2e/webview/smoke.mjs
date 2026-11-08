@@ -312,7 +312,12 @@ async function walk(server, browser) {
   await until('the completion on the server', async () => (await items(server)).find((item) => item.id === created.id && item.completion?.is_completed));
 
   step('sign out');
-  const account = await until('the account menu', async () => (await session.find('button', server.name)) ?? (await session.find('a, button', 'You')));
+  // A phone's bar shows the avatar on a tab's root only, and Today is one.
+  const account = await until('the account menu', async () => {
+    const found = await session.find('button', server.name);
+    if (found === null) await (await session.find('a', 'Today'))?.click();
+    return found;
+  });
   await account.click();
   await session.click('button, [role="menuitem"], a', 'Sign out');
   await session.wait('h1, h2', `You are signed out of ${WORKSPACE}`);
