@@ -206,7 +206,8 @@
 </Stack>
 
 {#if isAddOpen}
-  <Dialog bind:isOpen={isAddOpen} title={t('app.chatbots.add')} dismissLabel={t('app.chatbots.cancel')}>
+  <Dialog size="l" bind:isOpen={isAddOpen} title={t('app.chatbots.add')} dismissLabel={t('app.chatbots.cancel')}
+    primary={{ label: t('app.chatbots.seat'), isBusy: isSeating, disabledReason: missing ? t(missing) : undefined, onclick: () => void seat() }}>
     <Stack gap="150">
       <Select label={t('app.chatbots.platform')} options={platformOptions} bind:value={draft.platform} />
       {#if asksServer(draft.platform)}
@@ -236,12 +237,6 @@
       <Checkbox label={t('app.chatbots.capture')} hint={t('app.chatbots.capture_hint')} bind:checked={draft.capture} />
       {#if seatFailure}<FailureNote problem={seatFailure} />{/if}
     </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isAddOpen = false)}>{t('app.chatbots.cancel')}</Button>
-      <Button tone="primary" isBusy={isSeating} data-confirm-bot disabledReason={missing ? t(missing) : undefined} onclick={() => void seat()}>
-        {t('app.chatbots.seat')}
-      </Button>
-    {/snippet}
   </Dialog>
 {/if}
 

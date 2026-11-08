@@ -15,6 +15,8 @@
   interface Props {
     /** Drawn inside a *Structure* tab rather than as a dialog of its own. */
     isEmbedded?: boolean;
+    /** The dialog's rung (page-system §5.1): a list to pick from with search is L. */
+    size?: 's' | 'm' | 'l';
     title: string;
     isOpen: boolean;
     dismissLabel?: string;
@@ -23,7 +25,7 @@
     children: Snippet;
   }
 
-  let { isEmbedded = false, title, isOpen = $bindable(false), dismissLabel, onClose, actions, children }: Props = $props();
+  let { isEmbedded = false, size = 'l', title, isOpen = $bindable(false), dismissLabel, onClose, actions, children }: Props = $props();
 </script>
 
 {#if isEmbedded}
@@ -34,7 +36,7 @@
     </section>
   {/if}
 {:else}
-  <Dialog {title} bind:isOpen {dismissLabel} {onClose} {actions}>
+  <Dialog {size} {title} bind:isOpen {dismissLabel} {onClose} {actions}>
     {@render children()}
   </Dialog>
 {/if}

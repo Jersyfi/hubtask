@@ -19,13 +19,6 @@ import { SRC, elements, read, reachable, relative, svelteFiles, uses, within } f
  * it, which the last test holds - and it is empty when the concept lands.
  */
 const NOT_YET_MIGRATED = [
-  'lib/ask/AskDialog.svelte',
-  'lib/capture/CaptureDialog.svelte',
-  'lib/chat/ChatBots.svelte',
-  'lib/code/CodeHooks.svelte',
-  'lib/workspace/CreateContainerDialog.svelte',
-  'lib/workspace/PanelOrDialog.svelte',
-  'lib/workspace/StarterDialog.svelte',
 ];
 
 /** The confirmation the ladder allows over another dialog. */
@@ -37,12 +30,33 @@ const DISCARD = 'DiscardDialog';
  */
 const FAILURE = reachable(path.join(SRC, 'lib/frame/FailureNote.svelte'));
 
+/**
+ * A subject drawn `isEmbedded` inside a dialog - *Capture*'s template and import steps - is that
+ * dialog's next step in place: `PanelOrDialog` then draws its content as a section, never a
+ * dialog of its own. What the content holds is still held to the limits.
+ */
+const IN_PLACE = path.join(SRC, 'lib/workspace/PanelOrDialog.svelte');
+
+/** A component's opening tag from its `<`, braces and the arrows inside them skipped. */
+function tagAt(markup, at) {
+  let depth = 0;
+  for (let index = at; index < markup.length; index += 1) {
+    const char = markup[index];
+    if (char === '{') depth += 1;
+    else if (char === '}') depth -= 1;
+    else if (char === '>' && depth === 0) return markup.slice(at, index + 1);
+  }
+  return markup.slice(at);
+}
+
 /** Everything the components drawn inside a range draw, by file. */
 function drawnInside(file, ranges) {
+  const { markup } = read(file);
   const files = new Set();
   for (const use of uses(file)) {
     if (use.name === DISCARD || !within(ranges, use.at) || !fs.existsSync(use.file)) continue;
-    for (const inner of reachable(use.file)) files.add(inner);
+    const isInPlace = /\sisEmbedded(?=[\s/>])/.test(tagAt(markup, use.at));
+    for (const inner of reachable(use.file)) if (!(isInPlace && inner === IN_PLACE)) files.add(inner);
   }
   return files;
 }

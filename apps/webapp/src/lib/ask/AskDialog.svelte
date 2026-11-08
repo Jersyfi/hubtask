@@ -140,7 +140,7 @@
   ]);
 </script>
 
-<Dialog bind:isOpen title={t('app.ask.title')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="m" bind:isOpen title={t('app.ask.title')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="150">
     <div class="ask" data-ai>
       <Textarea label={t('app.ask.label')} hint={t('app.ask.hint')} bind:value={asked} rows={2} error={failure?.fields.get('/question')} />

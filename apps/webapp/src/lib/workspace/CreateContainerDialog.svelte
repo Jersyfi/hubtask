@@ -38,7 +38,6 @@
   import { Button, Dialog, Disclosure, Inline, Input, Radio, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList } from '@hubtask/sync-engine';
 
-  import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { config } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
   import { answersOf, carriesSamples } from '../data/configtemplates.ts';
@@ -271,11 +270,21 @@
   }
 </script>
 
+<!-- With the gallery it is *Take a template* - a choice with its preview and questions, Dialog L;
+     a collection's name, start and look are Dialog M. A card's own preview stays unfolded only for
+     the chosen one, so the look is the dialog's one fold (page-system §5.1). -->
 <Dialog
   bind:isOpen
   {title}
-  isWide={isHub && (presetOptions.length > 0 || families.length > 0)}
+  size={isHub && (presetOptions.length > 0 || families.length > 0) ? 'l' : 'm'}
   dismissLabel={t('app.workspace.cancel')}
+  primary={{
+    label: title,
+    isBusy: isSaving,
+    busyLabel: t('app.workspace.creating'),
+    disabledReason: chosenTemplate && isPlanning ? t('app.starter.plan_reading') : chosenTemplate && mustAcknowledge && !acknowledged ? t('app.changes.acknowledge_first') : undefined,
+    onclick: create,
+  }}
 >
   <div bind:this={body}>
   <Stack gap="150">
@@ -323,7 +332,6 @@
                 {@const name = templateName(each)}
                 <TemplateCard {name} mark={markOf(each)} summary={summaryOf(each)} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
                   note={each.taken_version == null ? undefined : t('app.workspace.hub_template_in_workspace')}>
-                  {#snippet details()}<TemplatePreview template={each} />{/snippet}
                   {#snippet action()}
                     <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickTemplate(each.key)}>
                       {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${name}`}</VisuallyHidden>
@@ -366,18 +374,6 @@
   </Stack>
   </div>
 
-  {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="primary"
-      isBusy={isSaving}
-      busyLabel={t('app.workspace.creating')}
-      disabledReason={chosenTemplate && isPlanning ? t('app.starter.plan_reading') : chosenTemplate && mustAcknowledge && !acknowledged ? t('app.changes.acknowledge_first') : undefined}
-      data-create-container
-      onclick={create}
-    >
-      {title}
-    </Button>
-  {/snippet}
 </Dialog>
 
 <style>
