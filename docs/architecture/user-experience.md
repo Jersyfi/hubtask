@@ -64,8 +64,16 @@ there); the sidebar has three regions:
 |---|---|---|
 | Top, fixed: *For you* | *Today* (its count), *Inbox* (the jumble, its waiting count), *Waiting for your yes* (approvals, held agent acts and page reviews, with a count) | On both levels. *Waiting for your yes* only where a module that produces approvals is on. *Search* is the palette's field (§11.4 there), not a row |
 | Middle, scrolling: **the workspace level** | *Recent* (one row opening a flyout of the last 20 places, the device's), *Starred* (§2.9), *Products* (§2.2), *Hubs* (each with › to its level; ＋ creates one) | On *Today*, search, the inbox, a product home and a starred thing without a hub |
-| Middle, scrolling: **the hub level** | the hub's head, *Overview* and its tools, *Collections*, *Contents* (§2.4) | On anything of a hub: the hub, a collection, a page, a board, a queue, a tool |
+| Middle, scrolling: **the hub level** | the hub's head, *Overview* and its tools, *Collections*, *Contents* (§2.4) | On anything of a hub: the hub, a collection, a page, a board, a queue, a tool, and a detail screen the hub owns |
 | Foot, fixed | *Administration* (only where the manifest's `workspace_permissions` carry `STRUCTURE` or `READ_CONFIGURATION`), *Archive*, *Trash* | On both levels, after a hairline |
+
+**A detail screen stays in the level of the place that owns it.** An entry, a page, a whiteboard,
+a CI, a goal or a dashboard of a hub shows that hub's level, with the row it belongs to current (its
+collection, itself in *Contents*, *Inventory*, *Goals*); a goal or a dashboard of the workspace (no
+hub) shows the workspace level with its product current. The route names only the object, so the
+screen names its place once it has read it (`page.locate`, `null` for the workspace); until then
+the level it was opened from stays - it never falls back to the workspace in between, which would
+tear the hub's level down and slide it in again on every step from one page or board to the next.
 
 Only the middle changes between the levels; it slides in (`motion.reveal`, none under reduced
 motion) and focus lands on *‹ All hubs*. *Hubs* shows the shared order by default (`order_key`),
