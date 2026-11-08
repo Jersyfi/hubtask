@@ -243,6 +243,9 @@ test('chromium: each source shows its own budget, and the workspace sets its own
   for (let i = 0; i < 50 && budgets.length === 0; i++) await page.waitForTimeout(100);
   assert.deepEqual(budgets[0], { own_tokens_per_day: 5000 });
 
+  // The stubbed read keeps the old budget, so the field may already stand empty after the save:
+  // typing first makes emptying it a change whatever it shows.
+  await field.fill('1');
   await field.fill('');
   await page.getByRole('button', { name: 'Save the budget' }).click();
   for (let i = 0; i < 50 && budgets.length < 2; i++) await page.waitForTimeout(100);

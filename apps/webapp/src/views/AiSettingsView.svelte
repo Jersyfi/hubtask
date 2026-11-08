@@ -478,11 +478,12 @@
         </SettingsSection>
       {:else if shown === 'own'}
         <SettingsSection title={t('app.ai.own_title')} save={ownBar}>
-          <form class="rows" bind:this={ownForm} onsubmit={save}>
+          <form bind:this={ownForm} onsubmit={save}>
             {#if unconfigured && !allowsOffered}
-              <Banner tone="info">{t('app.ai.none')}</Banner>
+              <div class="rows"><Banner tone="info">{t('app.ai.none')}</Banner></div>
             {/if}
             <ModelFields
+              isRows
               bind:draft
               kinds={KINDS}
               minimum={source?.min_jurisdiction ?? 'ANY'}

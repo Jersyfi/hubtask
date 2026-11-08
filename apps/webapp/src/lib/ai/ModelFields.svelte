@@ -16,7 +16,7 @@
 
   import type { Snippet } from 'svelte';
 
-  import { Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Input, Select, SettingRow, Stack } from '@hubtask/design-system/components';
   import type { AiProviderKind } from '@hubtask/sync-engine';
 
   import { admittedJurisdictions, type ModelDraft } from './model.ts';
@@ -40,6 +40,8 @@
     errors?: ReadonlyMap<string, string>;
     before?: Snippet;
     more?: Snippet;
+    /** Each field a `SettingRow` of a settings section (PS-11), rather than a dialog's stacked fields. */
+    isRows?: boolean;
   }
 
   let {
@@ -53,8 +55,11 @@
     errors,
     before,
     more,
+    isRows = false,
   }: Props = $props();
 
+  const addressHint = $derived(isAddressRequired ? t('app.ai.base_url_hint_required') : t('app.ai.base_url_hint'));
+  const keyHint = $derived(hasKey ? t('app.ai.api_key_kept') : t('app.ai.api_key_hint'));
   const kindOptions = $derived(kinds.map((value) => ({ value, label: t(`app.ai.kind_${value.toLowerCase()}`) })));
   const jurisdictionOptions = $derived(
     admittedJurisdictions(minimum, stored as ModelDraft['jurisdiction']).map((value) => ({
@@ -64,19 +69,35 @@
   );
 </script>
 
-<Stack gap="200">
-  {@render before?.()}
+{#snippet field(label: string, help: string, ctrl: Snippet<[string | undefined]>)}
+  {#if isRows}
+    <SettingRow {label} {help} fieldWidth="md">
+      {#snippet control(nameId)}{@render ctrl(nameId)}{/snippet}
+    </SettingRow>
+  {:else}
+    {@render ctrl(undefined)}
+  {/if}
+{/snippet}
+
+{#snippet kindControl(nameId: string | undefined)}
   <Select
     label={t('app.ai.kind_label')}
-    hint={t('app.ai.kind_hint')}
+    isLabelHidden={isRows}
+    aria-labelledby={nameId}
+    hint={isRows ? undefined : t('app.ai.kind_hint')}
     bind:value={draft.kind}
     placeholder={t('app.ai.kind_choose')}
     options={kindOptions}
     error={missing.kind && !draft.kind ? t(missing.kind) : undefined}
   />
+{/snippet}
+
+{#snippet addressControl(nameId: string | undefined)}
   <Input
     label={t('app.ai.base_url_label')}
-    hint={isAddressRequired ? t('app.ai.base_url_hint_required') : t('app.ai.base_url_hint')}
+    isLabelHidden={isRows}
+    aria-labelledby={nameId}
+    hint={isRows ? undefined : addressHint}
     bind:value={draft.baseUrl}
     error={errors?.get('/base_url')}
     type="url"
@@ -84,23 +105,64 @@
     spellcheck={false}
     isRequired={isAddressRequired}
   />
-  <Input label={t('app.ai.completion_model_label')} hint={t('app.ai.completion_model_hint')} bind:value={draft.completionModel} autocomplete="off" spellcheck={false} />
-  <Input label={t('app.ai.embedding_model_label')} hint={t('app.ai.embedding_model_hint')} bind:value={draft.embeddingModel} autocomplete="off" spellcheck={false} />
+{/snippet}
+
+{#snippet completionControl(nameId: string | undefined)}
+  <Input label={t('app.ai.completion_model_label')} isLabelHidden={isRows} aria-labelledby={nameId} hint={isRows ? undefined : t('app.ai.completion_model_hint')} bind:value={draft.completionModel} autocomplete="off" spellcheck={false} />
+{/snippet}
+
+{#snippet embeddingControl(nameId: string | undefined)}
+  <Input label={t('app.ai.embedding_model_label')} isLabelHidden={isRows} aria-labelledby={nameId} hint={isRows ? undefined : t('app.ai.embedding_model_hint')} bind:value={draft.embeddingModel} autocomplete="off" spellcheck={false} />
+{/snippet}
+
+{#snippet keyControl(nameId: string | undefined)}
   <Input
     label={t('app.ai.api_key_label')}
-    hint={hasKey ? t('app.ai.api_key_kept') : t('app.ai.api_key_hint')}
+    isLabelHidden={isRows}
+    aria-labelledby={nameId}
+    hint={isRows ? undefined : keyHint}
     bind:value={draft.apiKey}
     type="password"
     autocomplete="off"
     spellcheck={false}
   />
+{/snippet}
+
+{#snippet jurisdictionControl(nameId: string | undefined)}
   <Select
     label={t('app.ai.jurisdiction_label')}
-    hint={t('app.ai.jurisdiction_hint')}
+    isLabelHidden={isRows}
+    aria-labelledby={nameId}
+    hint={isRows ? undefined : t('app.ai.jurisdiction_hint')}
     bind:value={draft.jurisdiction}
     placeholder={t('app.ai.jurisdiction_choose')}
     options={jurisdictionOptions}
     error={missing.jurisdiction && !draft.jurisdiction ? t(missing.jurisdiction) : undefined}
   />
-  {@render more?.()}
-</Stack>
+{/snippet}
+
+{#snippet fields()}
+  {@render field(t('app.ai.kind_label'), t('app.ai.kind_hint'), kindControl)}
+  {@render field(t('app.ai.base_url_label'), addressHint, addressControl)}
+  {@render field(t('app.ai.completion_model_label'), t('app.ai.completion_model_hint'), completionControl)}
+  {@render field(t('app.ai.embedding_model_label'), t('app.ai.embedding_model_hint'), embeddingControl)}
+  {@render field(t('app.ai.api_key_label'), keyHint, keyControl)}
+  {@render field(t('app.ai.jurisdiction_label'), t('app.ai.jurisdiction_hint'), jurisdictionControl)}
+{/snippet}
+
+{#if isRows}
+  {#if before}<div class="pad">{@render before()}</div>{/if}
+  {@render fields()}
+  {#if more}<div class="pad"><Stack gap="150">{@render more()}</Stack></div>{/if}
+{:else}
+  <Stack gap="200">
+    {@render before?.()}
+    {@render fields()}
+    {@render more?.()}
+  </Stack>
+{/if}
+
+<style>
+  /* What is not a setting row stands in the section's own padding. */
+  .pad { padding: var(--sp-200) var(--sp-250); }
+</style>
