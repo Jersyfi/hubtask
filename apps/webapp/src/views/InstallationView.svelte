@@ -5,7 +5,7 @@
   // rather than fetched and ignored - and it is also the deep link the reload test uses, because
   // it is a real second route rather than a fragment.
 
-  import { Badge, Button, Icon, Inline, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Icon, Inline, PageHeader, DetailPage, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import FailureState from '../lib/frame/FailureState.svelte';
@@ -34,8 +34,10 @@
   });
 </script>
 
-<Stack gap="300">
+<DetailPage>
+  {#snippet top()}
   <PageHeader {title} isTitleInBar={viewport.isCompact} />
+  {/snippet}
 
   {#if appUpdate.current !== undefined}
     <!-- The installed app's own version and what it knows of a newer one (UC-SYN-07 checks 5 and
@@ -153,7 +155,7 @@
       </li>
     </ul>
   </section>
-</Stack>
+</DetailPage>
 
 <style>
   /* The installed app's panels, as the approved preview draws them. */

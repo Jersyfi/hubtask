@@ -7,7 +7,7 @@
   // another shows the surviving one's standing and public replies (check 10).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, PageHeader, Radio, Skeleton, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Button, PageHeader, DetailPage, Radio, Skeleton, Stack, Textarea } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { PortalRequestDetail } from '@hubtask/sync-engine';
 
@@ -70,9 +70,11 @@
   }
 </script>
 
-<Stack gap="300">
+<DetailPage>
+  {#snippet top()}
   <PageHeader title={detail?.title ?? t('app.portal.request')} subtitle={detail ? t('app.portal.raised_at', { at: at(detail.created_at) }) : undefined}
     isTitleInBar={viewport.isCompact} />
+  {/snippet}
   {#if failure}
     <FailureState problem={failure} onRetry={() => void request.refresh()} />
   {:else if !detail}
@@ -179,7 +181,7 @@
     {/if}
     {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
   {/if}
-</Stack>
+</DetailPage>
 
 <style>
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }

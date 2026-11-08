@@ -37,9 +37,6 @@ const KINDS = {
  */
 const NOT_YET_MIGRATED = [
   'AssetsView',
-  'InstallationView',
-  'PortalArticleView',
-  'PortalRequestView', 'PortalView',
 ];
 
 const DISPATCHERS = ['App.svelte', 'views/AdministrationArea.svelte', 'views/InstanceArea.svelte', 'lib/frame/parts.ts'];

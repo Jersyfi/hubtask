@@ -13,7 +13,7 @@
 
   import { tick, untrack } from 'svelte';
   import {
-    Badge, Button, EmptyState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
+    Badge, Button, EmptyState, Input, ListRow, LoadMore, PageHeader, WorkPage, Radio, Skeleton, Stack, TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
     type IconName,
   } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
@@ -153,9 +153,11 @@
   {:else}<ContainerMark look={{ type: 'COLLECTION', icon: desk?.icon || null, color_token: desk?.color_token || null }} size="md" />{/if}
 {/snippet}
 
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader title={head.title} subtitle={head.subtitle} isTitleInBar={viewport.isCompact}
     mark={desk ? deskMark : undefined} />
+  {/snippet}
 
   {#if isTeam}
     <EmptyState kind="unused" icon="inbox" title={t('app.portal.team_view')} description={t('app.portal.team_view_body')}>
@@ -269,7 +271,7 @@
       {/if}
     </Stack>
   </section>{/if}
-</Stack>
+</WorkPage>
 
 <style>
   .logo { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); object-fit: contain; }
