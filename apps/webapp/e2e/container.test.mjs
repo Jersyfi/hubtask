@@ -142,14 +142,15 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   const sections = page.getByRole('navigation', { name: 'Parts of the structure' });
   // The sections arrive with the place's modules: read them once the last one stands.
   await sections.getByRole('link', { name: /^People( |$)/u }).waitFor({ timeout: 5_000 });
-  assert.deepEqual((await sections.locator('a .label').allTextContents()).map((each) => each.trim()), ['General', 'Templates and presets', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'People']);
+  assert.deepEqual((await sections.locator('a .label').allTextContents()).map((each) => each.trim()), ['General', 'Templates and presets', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'Completion and assignment', 'People']);
   assert.equal(await sections.getByRole('link', { name: /^General( |$)/u }).getAttribute('aria-current'), 'page');
   // *General* is the edit dialog's fields, in place.
   await page.locator('[data-place-general]').getByRole('textbox', { name: 'Collection name' }).waitFor({ timeout: 5_000 });
 
-  for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Entry templates', 'Templates'], ['Rules', 'Policies'], ['People', 'People']]) {
+  for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Entry templates', 'Templates'], ['Rules', 'Rules'], ['Completion and assignment', 'Completion and assignment'], ['People', 'People']]) {
     await sections.getByRole('link', { name: new RegExp(`^${section}( |$)`, 'u') }).click();
-    await page.getByRole('region', { name: part, exact: true }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
+    // A table section is a named region; a section of setting rows is known by its heading.
+    await page.getByRole('region', { name: part, exact: true }).or(page.getByRole('heading', { name: part, exact: true, level: 2 })).first().waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
     assert.equal(await sections.getByRole('link', { name: new RegExp(`^${section}( |$)`, 'u') }).getAttribute('aria-current'), 'page');
   }
   assert.match(page.url(), /\/settings\/people$/u);

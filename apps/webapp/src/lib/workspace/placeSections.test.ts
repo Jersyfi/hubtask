@@ -10,8 +10,8 @@ import { STRUCTURE_GROUPS, groupOf, orderSections, sectionOf } from './placeSect
 const ids = (level: 'HUB' | 'COLLECTION', given: readonly string[]) => orderSections(level, given.map((id) => ({ id }))).map((each) => each.id);
 
 test('a collection\'s sections stand in the one order of user-experience.md §5.7', () => {
-  const given = ['general', 'labels', 'fields', 'templates', 'rules', 'people', 'template', 'types', 'workflow', 'views', 'rules'];
-  assert.deepEqual(ids('COLLECTION', given), ['general', 'template', 'types', 'fields', 'labels', 'templates', 'workflow', 'views', 'rules', 'people']);
+  const given = ['general', 'labels', 'fields', 'templates', 'policies', 'people', 'template', 'types', 'workflow', 'views', 'rules'];
+  assert.deepEqual(ids('COLLECTION', given), ['general', 'template', 'types', 'fields', 'labels', 'templates', 'workflow', 'views', 'rules', 'policies', 'people']);
 });
 
 test('a hub\'s sections: its products and template apart, the shared ones in the same order', () => {

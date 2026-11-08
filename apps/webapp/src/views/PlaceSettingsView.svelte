@@ -150,8 +150,8 @@
       <LazyView load={settingsParts.TemplatesGallery} props={{ collectionId: container.id }} />
     {/if}
   {/snippet}
-  {#snippet automationTab()}
-    <LazyView load={settingsParts.PoliciesDialog} props={{ isEmbedded: true, isOpen: true, container, path: containerPath, role: structureRole }} />
+  {#snippet policiesTab()}
+    <LazyView load={settingsParts.PlacePolicies} props={{ container, path: containerPath, role: structureRole }} />
   {/snippet}
   {#snippet modulesTab()}
     <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id, onnavigate }} />
@@ -186,7 +186,8 @@
           { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
           { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
           { id: 'templates', label: t('app.settings.section_entry_templates'), body: templatesTab },
-          { id: 'rules', label: t('app.settings.section_rules'), body: automationTab },
+          // Its own section beside *Rules*: a document of its own, saved on its own (PS-10).
+          { id: 'policies', label: t('app.settings.section_policies'), body: policiesTab },
           { id: 'people', label: t('app.structure.tab_people'), body: peopleTab, status: peopleStatus },
         ]
       : [

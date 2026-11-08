@@ -9758,6 +9758,7 @@
   "app.settings.workflows_here": "Workflows",
   "app.settings.not_yours": "Only someone who may change how this place is set up sees its settings.",
   "app.settings.open": "Settings of {name}",
+  "app.settings.section_policies": "Completion and assignment",
   "app.capture.ticked_before": "Ticked before",
   "app.capture.put_back": "Put {title} back on the list",
   "app.capture.offer_in": "in {hub}",

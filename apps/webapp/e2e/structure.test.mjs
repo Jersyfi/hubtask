@@ -115,7 +115,7 @@ for (const width of [390, 1280]) {
     const panel = page.locator('[data-structure-tabs]');
     const tabs = panel.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
     await tabs.filter({ hasText: 'People' }).waitFor({ timeout: 10_000 });
-    assert.equal(await tabs.count(), 10);
+    assert.equal(await tabs.count(), 11);
     // On a phone the section list is the page; on a desk a column beside the section. The page
     // never widens for them, and each one is reachable - it comes into view when focused.
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sections widened the page');
