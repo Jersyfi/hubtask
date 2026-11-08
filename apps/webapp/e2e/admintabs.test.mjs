@@ -81,7 +81,8 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
   for (const [old, now, tab] of MOVED) {
     await page.goto(`${served.origin}${old}`);
     await landsOn(page, now);
-    const selected = page.getByRole('tab', { name: tab, exact: true });
+    // A tab carries its count once read (page-system §4.3): *Groups 3*.
+    const selected = page.getByRole('tab', { name: new RegExp(`^${tab}( \\d+)?$`) });
     await selected.waitFor({ timeout: 15_000 });
     assert.equal(await selected.getAttribute('aria-selected'), 'true', `${tab} is not the open tab at ${now}`);
     assert.equal(await page.locator('main h1').count(), 1, `${now} has not exactly one heading`);
@@ -89,9 +90,9 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
 
   // Choosing a tab replaces the address, so a reload keeps it.
   await page.goto(`${served.origin}/administration/people`);
-  await page.getByRole('tab', { name: 'Groups', exact: true }).click();
+  await page.getByRole('tab', { name: /^Groups( \d+)?$/ }).click();
   await landsOn(page, '/administration/people?tab=groups');
-  await page.getByRole('tab', { name: 'People', exact: true }).click();
+  await page.getByRole('tab', { name: /^People( \d+)?$/ }).click();
   await landsOn(page, '/administration/people');
   await page.goto(`${served.origin}/administration/machines`);
   await page.getByRole('tab', { name: 'Third-party apps', exact: true }).click();
@@ -139,7 +140,7 @@ for (const [who, permissions, grants] of [['an owner', PERMISSIONS.OWNER, OWNER_
     assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Ways to add somebody');
 
     // The action belongs to the people: the other tabs carry none.
-    await page.getByRole('tab', { name: 'Groups', exact: true }).click();
+    await page.getByRole('tab', { name: /^Groups( \d+)?$/ }).click();
     await landsOn(page, '/administration/people?tab=groups');
     assert.equal(await page.getByRole('button', { name: 'Add people', exact: true }).count(), 0, 'the groups offer Add people');
 
@@ -158,8 +159,8 @@ test('chromium: an auditor reads the people, the groups and the roles, and is of
   assert.equal(await page.getByRole('button', { name: 'Add people', exact: true }).count(), 0, 'an auditor is offered Add people');
   assert.equal(await page.getByRole('button', { name: 'Ways to add somebody' }).count(), 0, 'an auditor is offered the ways');
   for (const tab of ['Groups', 'Who may do what']) {
-    await page.getByRole('tab', { name: tab, exact: true }).click();
-    assert.equal(await page.getByRole('tab', { name: tab, exact: true }).getAttribute('aria-selected'), 'true');
+    await page.getByRole('tab', { name: new RegExp(`^${tab}( \\d+)?$`) }).click();
+    assert.equal(await page.getByRole('tab', { name: new RegExp(`^${tab}( \\d+)?$`) }).getAttribute('aria-selected'), 'true');
   }
 
   assert.deepEqual(failures, []);
