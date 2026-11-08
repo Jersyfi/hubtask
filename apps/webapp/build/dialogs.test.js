@@ -31,7 +31,6 @@ const NOT_YET_MIGRATED = [
   'lib/entries/Board.svelte',
   'lib/entries/BucketDialog.svelte',
   'lib/entries/CategoriesDialog.svelte',
-  'lib/entries/CustomFieldsDialog.svelte',
   'lib/entries/DuplicateDialog.svelte',
   'lib/entries/EntryActions.svelte',
   'lib/entries/EntryList.svelte',

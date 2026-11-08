@@ -135,7 +135,7 @@
     <LazyView load={settingsParts.LabelsDialog} props={{ collectionId: container.id }} />
   {/snippet}
   {#snippet fieldsTab()}
-    <LazyView load={settingsParts.CustomFieldsDialog} props={{ isEmbedded: true, isOpen: true, collectionId: container.id, role: structureRole }} />
+    <LazyView load={settingsParts.CustomFieldsDialog} props={{ collectionId: container.id, role: structureRole }} />
   {/snippet}
   {#snippet templatesTab()}
     <TemplatesDialog isEmbedded isOpen collectionId={container.id} path={containerPath} role={structureRole} onopened={(itemId) => onnavigate(`/items/${itemId}`)} />

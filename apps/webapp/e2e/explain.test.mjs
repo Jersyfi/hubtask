@@ -286,14 +286,17 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
 
     const fields = await openPart(page, 'Fields', may.shape);
     if (fields) {
-      assert.equal(await fields.getByLabel('Key', { exact: true }).count(), may.shape ? 1 : 0, 'the define form follows the role');
+      assert.equal(await fields.getByRole('button', { name: 'Define a field' }).count(), may.shape ? 1 : 0, 'the define act follows the role');
       if (may.shape) {
         // Pressed with no type ticked: the group says it, and nothing was said before.
-        for (const box of await fields.getByRole('checkbox').all()) if (await box.isChecked()) await box.uncheck();
-        assert.equal(await fields.getByText('Choose at least one type').count(), 0, 'the missing type is announced in advance');
-        await fields.getByLabel('Key', { exact: true }).fill('room');
         await fields.getByRole('button', { name: 'Define a field' }).click();
-        await fields.getByText('Choose at least one type').waitFor();
+        const form = page.getByRole('dialog', { name: 'Define a field' });
+        await form.getByLabel('Key', { exact: true }).waitFor({ timeout: 5_000 });
+        for (const box of await form.getByRole('checkbox').all()) if (await box.isChecked()) await box.uncheck();
+        assert.equal(await form.getByText('Choose at least one type').count(), 0, 'the missing type is announced in advance');
+        await form.getByLabel('Key', { exact: true }).fill('room');
+        await form.getByRole('button', { name: 'Define a field' }).click();
+        await form.getByText('Choose at least one type').waitFor();
         await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
       }
     }
