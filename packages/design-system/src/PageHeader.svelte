@@ -95,6 +95,12 @@
      */
     figure?: Snippet;
     /**
+     * Whether the figure has a line of its own under the title, a control's height whether it
+     * holds anything: heads of one place whose figures differ - a collection's views - then stand
+     * alike, and a long figure never wraps under a long title on one view and not on another.
+     */
+    isFigureBelow?: boolean;
+    /**
      * A sign drawn before the title: the place's own symbol in its own colour (UC-WRK-33). The
      * caller's drawing and decorative - the title is the name. Not drawn where the bar carries the
      * title, which has room for the words alone.
@@ -122,6 +128,7 @@
     secondary = [],
     menu,
     isTitleInBar = false,
+    isFigureBelow = false,
     isMenuInBar = false,
     onmenu,
     figure,
@@ -303,13 +310,13 @@
           {#if mark}<span class="title-mark" aria-hidden="true">{@render mark()}</span>{/if}
           <h1 class="title">{title}</h1>
           {#if titleEnd}<span class="title-end">{@render titleEnd()}</span>{/if}
-          {#if figure}<div class="head-figure">{@render figure()}</div>{/if}
+          {#if figure && !isFigureBelow}<div class="head-figure">{@render figure()}</div>{/if}
         </div>
       {:else}
         <h1 class="title">{title}</h1>
       {/if}
       {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
-      {#if figure && isTitleInBar}<div class="head-figure">{@render figure()}</div>{/if}
+      {#if figure && (isTitleInBar || isFigureBelow)}<div class="head-figure" data-below={isFigureBelow ? '' : undefined}>{@render figure()}</div>{/if}
     </div>
     {#if !actionsOnTrail}{@render actionBar()}{/if}
   </div>
@@ -401,6 +408,8 @@
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
   }
+
+  .head-figure[data-below] { min-block-size: var(--density-control-sm-min); }
 
   .actions {
     display: flex;

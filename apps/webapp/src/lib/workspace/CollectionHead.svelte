@@ -6,8 +6,8 @@
   // saved view is starred from the sidebar - and one figure slot, then the view bar at one
   // offset. Every view draws this head and only its figure and its verbs differ, so switching
   // views moves neither the title nor the bar. A view's figure stands where the collection's
-  // would; without one, the collection's own (*12 open*). Notices come after the bar, so they
-  // never move it.
+  // would, on a line of its own under the title that keeps its height empty; without one, the
+  // collection's own (*12 open*). Notices come after the bar, so they never move it.
   //
   // Placed before the screen's body, not inside a `Stack`: the bar sticks under the app bar while
   // the page scrolls, which a box around it would end at the head.
@@ -54,8 +54,8 @@
   ]);
 </script>
 
-{#snippet ownFigure()}
-  {#if collection?.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
+{#snippet figureSlot()}
+  {#if figure}{@render figure()}{:else if collection?.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
 {/snippet}
 
 {#if collection}
@@ -80,7 +80,8 @@
       {secondary}
       {menu}
       {aside}
-      figure={figure ?? (collection.figure ? ownFigure : undefined)}
+      figure={figureSlot}
+      isFigureBelow
     >
       {#snippet titleEnd()}
         <StarToggle kind="COLLECTION" id={collection.id} name={collection.name} />
