@@ -19,6 +19,11 @@
 // Privacy requests, Audit log, History & versions, Private hubs, Limits and AI: one kind each, the
 // lists' and logs' search, count and foot with nothing open on arrival, their create and export
 // acts opening a dialog of its size, and the settings pages' sections listed in the first viewport.
+// The same on *the installation* - Overview, Workspaces, Usage, Journal, Failed jobs, Plans,
+// Defaults, Templates, Configuration file, Sign-in providers, AI, Backup targets, Events to the
+// platform, Keyring and Operators: one kind each, the lists' and logs' search and count with nothing
+// open on arrival, *New workspace* a create page, *New plan* and *Add an operator* a Dialog M, and
+// the defaults' sections listed in the first viewport.
 // Heights are read from `getBoundingClientRect`, never from a screenshot. Against the stubbed API;
 // Chromium, as the other walks.
 
@@ -102,7 +107,7 @@ function howWeWork(route, request, path) {
 }
 
 /** Signed in as the fixture's owner, at a width; below `medium` as a phone. */
-async function open(browser, { width, height }, { isNine = false } = {}) {
+async function open(browser, { width, height }, { isNine = false, isInstallation = false } = {}) {
   const isPhone = width < 768;
   const context = await browser.newContext({ viewport: { width, height }, ...(isPhone ? { isMobile: true, hasTouch: true } : {}) });
   await context.route('**/api/v1/**', (route) => {
@@ -114,6 +119,11 @@ async function open(browser, { width, height }, { isNine = false } = {}) {
     }
     const account = MORE.find((each) => path === `/accounts/${each.id}`);
     if (account) return route.fulfill({ json: account });
+    // The installation: several workspaces, and the hour raised (ADR-0070 §4).
+    if (isInstallation && path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: 'multi' } });
+    if (isInstallation && path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
     const answered = howWeWork(route, request, path);
     if (answered) return answered;
     return stub(route);
@@ -549,6 +559,75 @@ for (const size of [DESKTOP, PHONE]) {
       assert.ok(links.length >= 2, `${path}: ${links.length} sections listed`);
       for (const link of links) assert.ok(link.bottom <= size.height, `${path}: ${link.text} is below the first viewport`);
     }
+    assert.deepEqual(failures, []);
+  });
+  test(`chromium ${at}: every installation screen is one page kind, its lists and logs narrow and count, nothing open on arrival (UC-WRK-38 check 1, UC-WRK-37 checks 1-2)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size, { isInstallation: true });
+    t.after(() => context.close());
+    for (const [path, kind, search] of [
+      ['/instance', 'overview'],
+      ['/instance/workspaces', 'list', 'Search by short name'],
+      ['/instance/workspaces/new', 'create'],
+      ['/instance/usage', 'log'],
+      ['/instance/journal', 'log', 'Search by workspace address'],
+      ['/instance/dead-letters', 'log', 'Search failed jobs'],
+      ['/instance/plans', 'list'],
+      ['/instance/settings', 'settings'],
+      ['/instance/templates', 'list', 'Search presets'],
+      ['/instance/configuration-file', 'record'],
+      ['/instance/providers', 'list', 'Search providers'],
+      ['/instance/ai', 'list', 'Search models'],
+      ['/instance/backup-targets', 'list', 'Search targets'],
+      ['/instance/platform', 'list', 'Search by address'],
+      ['/instance/encryption', 'list'],
+      ['/instance/operators', 'list', 'Search operators'],
+    ]) {
+      await visit(page, path);
+      const kinds = await page.locator('[data-page-kind]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-page-kind')));
+      assert.deepEqual(kinds, [kind], `${path} draws ${kinds.join(', ') || 'no page kind'}`);
+      // The hour stays in view above every screen of the area.
+      await page.getByText(/You are working on the installation\. \d+ minutes left\./).first().waitFor({ timeout: 5_000 });
+      if (search) {
+        const main = page.getByRole('main');
+        await main.getByRole('searchbox', { name: search }).waitFor({ timeout: 15_000 });
+        const fields = await main.locator('input:not([type="search"]):not([role="switch"]), select, textarea, form').evaluateAll((nodes) => nodes.filter((node) => node.getClientRects().length > 0).length);
+        assert.equal(fields, 0, `${path} opens a field on arrival`);
+      }
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.equal(overflow, 0, `${path} scrolls sideways`);
+    }
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: the installation's create acts open their rung, the defaults list their sections in the first viewport (UC-WRK-38 checks 2-3, UC-WRK-36 check 1)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size, { isInstallation: true });
+    t.after(() => context.close());
+
+    await visit(page, '/instance/workspaces');
+    await page.getByRole('main').getByRole('button', { name: 'New workspace', exact: true }).first().click({ timeout: 15_000 });
+    await page.waitForFunction(() => location.pathname === '/instance/workspaces/new', null, { timeout: 10_000 });
+    await page.locator('[data-page-kind="create"]').waitFor();
+
+    for (const [path, act, title] of [['/instance/plans', 'New plan', 'Plans'], ['/instance/operators', 'Add an operator', 'Operators']]) {
+      await visit(page, path);
+      await page.getByRole('main').getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+      await page.waitForTimeout(300);
+      await pressHead(page, act, title);
+      await assertLadder(page, size, 'm');
+      await page.keyboard.press('Escape');
+      await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
+    }
+
+    await visit(page, '/instance/settings');
+    const nav = page.locator('nav.section-nav');
+    await nav.getByRole('link').first().waitFor({ timeout: 15_000 });
+    const links = await nav.getByRole('link').evaluateAll((nodes) => nodes.map((node) => ({ text: node.textContent?.trim() ?? '', bottom: node.getBoundingClientRect().bottom })));
+    assert.ok(links.length >= 4, `${links.length} sections listed`);
+    for (const link of links) assert.ok(link.bottom <= size.height, `${link.text} is below the first viewport`);
     assert.deepEqual(failures, []);
   });
 }
