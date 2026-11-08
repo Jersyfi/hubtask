@@ -180,6 +180,7 @@ test('every route resolves to one of the four areas, and the profile ones are na
     'own-rule-new',
     'own-rules',
     'profile',
+    'profile-section',
     'second-factor-new',
     'security',
     'security-section',

@@ -158,7 +158,7 @@ for (const width of [375, 1280]) {
     const page = await context.newPage();
     const failures = [];
     page.on('pageerror', (error) => failures.push(String(error)));
-    await page.goto(`${served.origin}/profile`);
+    await page.goto(`${served.origin}/profile/you/name`);
 
     const name = page.getByRole('textbox', { name: /^Your name/ });
     await name.waitFor({ timeout: 15_000 });
@@ -284,7 +284,7 @@ test('chromium: 1280 px — the moments are switched on You, and On this device 
   await page.getByText('Light or dark').first().waitFor({ timeout: 15_000 });
   assert.equal(await page.getByLabel('Mark the moments').count(), 0, 'the moments are still on the device screen');
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/moments`);
   const moments = page.getByLabel('Mark the moments');
   await moments.waitFor({ timeout: 15_000 });
   await moments.click();
@@ -1007,11 +1007,11 @@ test('chromium: 1280 px — You: leaving a choice to the workspace names the wor
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser);
   t.after(close);
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/language`);
   // The fixture's workspace speaks English on UTC and decided no week start.
   const zone = page.locator('[data-setting="zone"]');
   await zone.waitFor({ timeout: 15_000 });
-  const optionsOf = (setting) => page.locator(`select[data-setting="${setting}"] option`).allTextContents();
+  const optionsOf = (setting) => page.locator(`[data-setting="${setting}"] select option`).allTextContents();
   await page.waitForFunction(() => [...document.querySelectorAll('option')].some((option) => option.textContent?.includes("Use the workspace's: UTC")));
   assert.ok((await optionsOf('language')).includes("Use the workspace's: English"), (await optionsOf('language')).join(' | '));
   assert.ok((await optionsOf('week-start')).includes("Use the workspace's"), 'a week start the workspace never decided was named');

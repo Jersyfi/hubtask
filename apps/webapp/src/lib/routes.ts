@@ -50,6 +50,8 @@ export const ROUTES: readonly Route[] = [
   // this area in full and excludes administration, and a route that carried no area would be one
   // somebody has to classify by reading it.
   { name: 'profile', pattern: '/profile', area: 'profile' },
+  // Name and language's sections, each at an address (page-system §9.5).
+  { name: 'profile-section', pattern: '/profile/you/:section', area: 'profile' },
   // A person's own credentials are profile configuration, not administration: nobody else can
   // list them, and an administrator who could would learn which of somebody's automations to
   // attack (`security.md` §5).

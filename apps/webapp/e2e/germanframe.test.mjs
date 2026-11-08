@@ -117,7 +117,7 @@ test('chromium: 1280 px — *Du* offers the workspace\'s language and zone in gr
   const { context, page, failures } = await german(browser);
   t.after(() => context.close());
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/language`);
   await isGerman(page);
   const language = page.getByRole('combobox', { name: 'Sprache' });
   await language.waitFor({ timeout: 15_000 });

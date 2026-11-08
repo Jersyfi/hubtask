@@ -162,7 +162,7 @@ test('chromium: 375 px — the bottom bar with More, the tree behind ☰ and Mor
 
   // Spacious for a thumb, and the bar the thumb reaches.
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
-  const bar = page.getByRole('navigation', { name: 'Sections' });
+  const bar = page.getByRole('navigation', { name: 'Sections', exact: true });
   for (const name of PRIMARY) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
   // The fifth slot is *More* (user-experience.md §2.6): it opens the drawer, so it is a button.
   assert.equal(await bar.getByRole('button', { name: 'More' }).count(), 1, 'the bottom bar has no More');
@@ -258,7 +258,7 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   t.after(close);
   await common(page, 600);
 
-  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar on a tablet');
+  assert.equal(await page.getByRole('navigation', { name: 'Sections', exact: true }).count(), 0, 'a bottom bar on a tablet');
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 0, 'spacious with a mouse on a tablet');
   await page.getByRole('button', { name: 'Open the navigation' }).click();
   const drawer = page.locator('dialog[open]');
@@ -323,7 +323,7 @@ for (const width of [905, 1280]) {
     t.after(close);
     await common(page, width);
 
-    assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, `${width}: a bottom bar on a desk`);
+    assert.equal(await page.getByRole('navigation', { name: 'Sections', exact: true }).count(), 0, `${width}: a bottom bar on a desk`);
     assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, `${width}: a drawer trigger on a desk`);
     // Two trees in one column, and one list behind them: the places and the hubs, then the
     // `keeping` band pinned to the foot (ADR-0063 decision 1). The rows are the same rows.
@@ -584,7 +584,7 @@ test('chromium: 375 px — signed out, nothing is reserved for a bar that is not
   const { page, failures, close } = await open(browser, 375, { signedIn: false });
   t.after(close);
 
-  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar without a session');
+  assert.equal(await page.getByRole('navigation', { name: 'Sections', exact: true }).count(), 0, 'a bottom bar without a session');
   const box = await page.evaluate(() => ({ document: document.documentElement.scrollHeight, window: window.innerHeight }));
   assert.equal(box.document, box.window, `the sign-in screen scrolls ${box.document - box.window} px into nothing`);
 

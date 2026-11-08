@@ -212,6 +212,7 @@ async function views() {
     ['home', await load('TodayView'), {}],
     ['installation', await load('InstallationView'), {}],
     ['profile', await load('ProfileView'), {}],
+    ['profile-section', await load('ProfileView'), { section: 'language' }],
     ['tokens', await load('MyTokensView'), {}],
     ['token-new', await load('NewTokenView'), {}],
     ['token', await load('TokenView'), { id: 'x' }],

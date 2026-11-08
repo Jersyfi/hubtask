@@ -406,8 +406,8 @@
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
     <LazyView load={views.InstallationView} />
-  {:else if route.name === 'profile'}
-    <LazyView load={views.ProfileView} />
+  {:else if route.name === 'profile' || route.name === 'profile-section'}
+    <LazyView load={views.ProfileView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'tokens'}
     <LazyView load={views.MyTokensView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'token-new'}

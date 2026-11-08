@@ -31,7 +31,7 @@ for (const width of [375, 768, 1280]) {
       return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
     });
 
-    await page.goto(`${served.origin}/profile`);
+    await page.goto(`${served.origin}/profile/you/language`);
     const language = page.getByLabel('Language', { exact: true });
     await language.waitFor({ timeout: 15_000 });
 
@@ -141,7 +141,7 @@ for (const width of [375, 768, 1280]) {
       await held;
       return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
     });
-    await page.goto(`${served.origin}/profile`);
+    await page.goto(`${served.origin}/profile/you/moments`);
     const moments = page.getByRole('switch', { name: 'Mark the moments' }).or(page.getByLabel('Mark the moments'));
     await moments.first().waitFor({ timeout: 15_000 });
     await moments.first().click();

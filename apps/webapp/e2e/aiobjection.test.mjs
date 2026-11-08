@@ -60,7 +60,7 @@ test('chromium: the profile offers Keep my content out of AI, and it records bot
   const { page, sent, close } = await open(browser, offered);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/ai`);
   const keepOut = page.getByRole('switch', { name: 'Keep my content out of AI' });
   await keepOut.waitFor({ timeout: 15_000 });
   assert.equal(await keepOut.isChecked(), false);
@@ -77,9 +77,14 @@ test('chromium: where there is nothing to choose, the profile shows nothing', as
   const { page, close } = await open(browser, AI_OBJECTION);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/language`);
   // The profile's form is drawn: its first field (its save appears only with a change).
   await page.getByLabel('Language', { exact: true }).waitFor({ timeout: 15_000 });
+  assert.equal(await page.locator('[data-ai-objection]').count(), 0, 'a section was drawn with nothing to choose');
+  // Nor is it offered as a section of its own, and its address falls back to the first section.
+  assert.equal(await page.getByRole('link', { name: 'AI', exact: true }).count(), 0, 'a section was offered with nothing to choose');
+  await page.goto(`${served.origin}/profile/you/ai`);
+  await page.getByLabel('Your name').first().waitFor({ timeout: 15_000 });
   assert.equal(await page.locator('[data-ai-objection]').count(), 0, 'a section was drawn with nothing to choose');
 });
 
@@ -89,7 +94,7 @@ test('chromium: where AI is part of everybody\'s work, the basis instead of a sw
   const { page, sent, close } = await open(browser, partOfWork);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/ai`);
   const section = page.locator('[data-ai-objection]');
   await section.waitFor({ timeout: 15_000 });
   const text = await section.textContent();

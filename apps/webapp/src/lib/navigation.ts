@@ -474,7 +474,7 @@ export const SETTINGS: readonly SectionGroup[] = [
     id: 'you',
     code: 'app.you.group_you',
     rows: [
-      { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile'] },
+      { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile', 'profile-section'] },
       // The theme and reduced motion: the device's (ADR-0043), and nothing else - the moments are
       // the account's and stand on *You*.
       { id: 'appearance', icon: 'sun-moon', code: 'app.profile.device_section', path: '/profile/appearance', routes: ['appearance'] },

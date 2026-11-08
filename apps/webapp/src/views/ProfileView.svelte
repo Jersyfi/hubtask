@@ -30,6 +30,11 @@
   //
   // **Nothing is compiled in.** The languages are the manifest's.
   //
+  // **A settings page** (page-system §9.5): *Name*, *Language and time*, *Moments* and, where they
+  // apply, *AI*, *While I am away* and *A mail address*, each at its own address
+  // (`/profile/you/:section`); at `/profile` the list, with the first section beside it where there
+  // is room.
+  //
   // **A change shows the save bar, and only a change** (design-system.md §4, case 4; UC-WRK-32
   // check 3): "2 changes · Discard · Save" appears with the first change, saving is busy in place
   // and confirms as a toast. The write is a merge-patch without a version, so it sends only what
@@ -38,11 +43,12 @@
 
   import { untrack } from 'svelte';
 
-  import { Avatar, Badge, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import { Avatar, Badge, EmptyState, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, type SectionLink } from '@hubtask/design-system/components';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import type { OwnSettings } from '@hubtask/sync-engine';
 
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
   import DelegationSection from '../lib/profile/DelegationSection.svelte';
   import PictureField from '../lib/profile/PictureField.svelte';
@@ -51,6 +57,7 @@
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { aiObjection } from '../lib/data/aiobjection.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
@@ -62,6 +69,18 @@
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
+
+  interface Props {
+    /** The section the address names; none is the list. */
+    section?: string;
+    /** Moves between the sections, replacing the address. */
+    onreplace?: (path: string) => void;
+  }
+  const { section, onreplace }: Props = $props();
+
+  const BASE = '/profile/you';
+  const title = $derived(profileTitle('profile'));
+  $effect(() => page.entitle(title));
 
   const account = $derived(actor.account);
 
@@ -156,6 +175,24 @@
     seed(held());
   }
 
+  // Whether the AI section has anything to choose: the same read its section draws from.
+  $effect(() => untrack(() => aiObjection.open()));
+  const hasAiChoice = $derived(aiObjection.position?.shown === true);
+  const hasAway = $derived(manifest.value?.modules_on?.includes('SERVICE_DESK') === true);
+  const hasAddress = $derived(Boolean(account?.sign_in_name && !account.email && signInRules.isSettled));
+  const sections = $derived([
+    { id: 'name', code: 'app.profile.name_section' },
+    { id: 'language', code: 'app.profile.language_section' },
+    { id: 'moments', code: 'app.profile.moments_section' },
+    ...(hasAiChoice ? [{ id: 'ai', code: 'app.profile.ai_title' }] : []),
+    ...(hasAway ? [{ id: 'away', code: 'app.approvals.delegation_title' }] : []),
+    ...(hasAddress ? [{ id: 'address', code: 'app.profile.address_title' }] : []),
+  ]);
+  const isKnown = (id: string | undefined) => sections.some((each) => each.id === id);
+  const current = $derived(isKnown(section) ? (section as string) : 'name');
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
+  const links = $derived<SectionLink[]>(sections.map((each) => ({ id: each.id, label: t(each.code), href: `${BASE}/${each.id}` })));
+
   async function save() {
     if (!accountId) return;
     if (changed.length === 0) return;
@@ -198,164 +235,145 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="profile" />
+  <SettingsLayout
+    head={profileHead('profile')}
+    nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current, onselect: (next: string) => onreplace?.(`${BASE}/${next}`) }}
+    {view}
+    back={{ label: title, onback: () => onreplace?.('/profile') }}
+  >
     <UndeliverableNotice />
-
-    <!-- Where the tour's `profile` step points. It goes to `/profile`, which is the
-         section's first screen, and what is on the next row of the column its sentence names. -->
-    <form class="panel" data-tour="profile" onsubmit={(event) => { event.preventDefault(); void save(); }}>
-      <Stack gap="200">
-        <!-- The avatar beside the field: what the others see - the picture, or the initials the
-             name makes. -->
-        <div class="who">
-          <Avatar name={displayName.trim() || account.display_name} src={accounts.pictureOf(account.id)} />
-          <div class="name">
-            <Input
-              label={t('app.profile.display_name')}
-              data-setting="name"
-              hint={t('app.profile.display_name_hint')}
-              bind:value={displayName}
-              error={nameError}
-              maxlength={200}
-              autocomplete="name"
-              isRequired
-            />
-          </div>
-        </div>
-
-        <PictureField />
-
-
-        {#if locales.length > 0}
-          <Select
-            label={t('app.profile.language')}
-            data-setting="language"
-            hint={t('app.profile.language_hint')}
-            bind:value={locale}
-            options={withWorkspaceChoice(
-              locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
-              workspaceLocale,
-            )}
-          />
-          {@render inForceLine(sourceOf('locale', (value) => languageName(value, messages.locale)))}
+    {#if current === 'name' || current === 'language'}
+      <!-- Where the tour's `profile` step points: `/profile` opens on the name. The name and the
+           language save under one bar, as one form somebody fills in and leaves. -->
+      <form data-tour={current === 'name' ? 'profile' : undefined} onsubmit={(event) => { event.preventDefault(); void save(); }}>
+        {#if current === 'name'}
+          <SettingsSection title={t('app.profile.name_section')} save={saveBar}>
+            <div data-setting="name">
+              <SettingRow label={t('app.profile.display_name')} help={t('app.profile.display_name_hint')} fieldWidth="md" isRequired>
+                {#snippet control(nameId)}
+                  <span class="who">
+                    <!-- What the others see: the picture, or the initials the name makes. -->
+                    <Avatar name={displayName.trim() || account.display_name} src={accounts.pictureOf(account.id)} />
+                    <Input label={t('app.profile.display_name')} isLabelHidden aria-labelledby={nameId} bind:value={displayName} error={nameError} maxlength={200} autocomplete="name" isRequired />
+                  </span>
+                {/snippet}
+              </SettingRow>
+            </div>
+            <div class="picture"><PictureField /></div>
+            {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
+          </SettingsSection>
         {:else}
-          <!-- An installation that declares no locales has none to choose between, and an empty
-               dropdown says that badly. Found by reading a real manifest, which reports none. -->
-          <Stack gap="050">
-            <span class="label" data-setting="language">{t('app.profile.language')}</span>
-            <p class="quiet">{t('app.profile.no_locales')}</p>
-          </Stack>
+          <SettingsSection title={t('app.profile.language_section')} save={saveBar}>
+            <div data-setting="language">
+              {#if locales.length > 0}
+                <SettingRow label={t('app.profile.language')} help={t('app.profile.language_hint')} fieldWidth="md">
+                  {#snippet source()}{@render inForceLine(sourceOf('locale', (value) => languageName(value, messages.locale)))}{/snippet}
+                  {#snippet control(nameId)}
+                    <Select
+                      label={t('app.profile.language')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      bind:value={locale}
+                      options={withWorkspaceChoice(
+                        locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
+                        workspaceLocale,
+                      )}
+                    />
+                  {/snippet}
+                </SettingRow>
+              {:else}
+                <!-- An installation that declares no locales has none to choose between, and an
+                     empty dropdown says that badly. Found by reading a real manifest. -->
+                <SettingRow label={t('app.profile.language')} help={t('app.profile.no_locales')}>
+                  {#snippet control()}<span></span>{/snippet}
+                </SettingRow>
+              {/if}
+            </div>
+            <div data-setting="zone">
+              <SettingRow label={t('app.profile.zone')} help={t('app.profile.zone_hint')} fieldWidth="md">
+                {#snippet source()}{#if zones.length > 0}{@render inForceLine(sourceOf('time_zone', (value) => value))}{/if}{/snippet}
+                {#snippet control(nameId)}
+                  <ZonePicker label={t('app.profile.zone')} isLabelHidden aria-labelledby={nameId} freeHint={t('app.profile.zone_free')} inheritLabel={workspaceZone} bind:value={zone} />
+                {/snippet}
+              </SettingRow>
+            </div>
+            <div data-setting="week-start">
+              <SettingRow label={t('app.profile.week_start')} help={t('app.profile.week_start_hint')} fieldWidth="md">
+                {#snippet source()}{@render inForceLine(sourceOf('week_start', (value) => t(`app.profile.week_${value}`)))}{/snippet}
+                {#snippet control(nameId)}
+                  <Select
+                    label={t('app.profile.week_start')}
+                    isLabelHidden
+                    aria-labelledby={nameId}
+                    bind:value={weekStart}
+                    options={withWorkspaceChoice(
+                      WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
+                      workspaceWeek,
+                    )}
+                  />
+                {/snippet}
+              </SettingRow>
+            </div>
+            {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
+          </SettingsSection>
         {/if}
-
-        <ZonePicker
-          label={t('app.profile.zone')}
-          data-setting="zone"
-          hint={t('app.profile.zone_hint')}
-          freeHint={t('app.profile.zone_free')}
-          inheritLabel={workspaceZone}
-          bind:value={zone}
-        />
-        {#if zones.length > 0}{@render inForceLine(sourceOf('time_zone', (value) => value))}{/if}
-
-        <Select
-          label={t('app.profile.week_start')}
-          data-setting="week-start"
-          hint={t('app.profile.week_start_hint')}
-          bind:value={weekStart}
-          options={withWorkspaceChoice(
-            WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
-            workspaceWeek,
-          )}
-        />
-        {@render inForceLine(sourceOf('week_start', (value) => t(`app.profile.week_${value}`)))}
-
-        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-      </Stack>
-      <SaveBar
-        label={t('app.save_bar.label')}
-        changesLabel={changed.length > 0 ? t('app.save_bar.changes', { count: String(changed.length) }) : undefined}
-        discardLabel={t('app.save_bar.discard')}
-        saveLabel={t('app.profile.save')}
-        isSaving={isSaving}
-        savingLabel={t('app.workspace.saving')}
-        onDiscard={discard}
-        onSave={() => void save()}
-      />
-    </form>
-
-    <!-- The moments: the account's, so here rather than on *On this device* (ADR-0043). A switch
-         of its own outside the form, written at once as every switch outside a form is. -->
-    <CelebrationsSwitch />
-
-    <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
-         where there is nothing to choose (UC-PRV-05 check 8). -->
-    <AiObjectionSection />
-    <!-- Who decides the person's approvals while they are away, where the service desk is on (UC-SVC-10). -->
-    {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}<DelegationSection />{/if}
-    {#if account.sign_in_name && !account.email && signInRules.isSettled}
+      </form>
+    {:else if current === 'moments'}
+      <!-- The moments: the account's, so here rather than on *On this device* (ADR-0043), written
+           at once as every switch outside a form is. -->
+      <CelebrationsSwitch />
+    {:else if current === 'ai'}
+      <!-- Keeping one's own content out of AI: absent where there is nothing to choose (UC-PRV-05
+           check 8). -->
+      <AiObjectionSection />
+    {:else if current === 'away'}
+      <!-- Who decides the person's approvals while they are away (UC-SVC-10). -->
+      <DelegationSection />
+    {:else if current === 'address'}
       <!-- A person without a mail address may add one (UC-ID-20 check 7): drawn exactly where the
            server would take it - a sign-in name and no address, in a workspace whose password is a
-           way in. Where it is not, the form is absent and the reason stands in its place. -->
-      <Stack gap="150">
-        <h2 class="section">{t('app.profile.address_title')}</h2>
+           way in. Where it is not, the reason stands in the form's place. -->
+      <SettingsSection title={t('app.profile.address_title')} description={signInRules.hasPassword ? t('app.profile.address_intro', { name: account.sign_in_name ?? '' }) : t('app.profile.address_needs_password', { name: account.sign_in_name ?? '' })}>
         {#if signInRules.hasPassword}
-          <p class="quiet">{t('app.profile.address_intro', { name: account.sign_in_name })}</p>
-          <div class="panel measured">
-            <AddressForm accountId={account.id} hint={t('app.people.address_hint_own')} />
-          </div>
-        {:else}
-          <p class="quiet">{t('app.profile.address_needs_password', { name: account.sign_in_name })}</p>
+          <div class="pad"><AddressForm accountId={account.id} hint={t('app.people.address_hint_own')} /></div>
         {/if}
-      </Stack>
+      </SettingsSection>
     {/if}
-  </Stack>
+  </SettingsLayout>
 {/if}
+
+{#snippet saveBar()}
+  <SaveBar
+    label={t('app.save_bar.label')}
+    changesLabel={changed.length > 0 ? t('app.save_bar.changes', { count: String(changed.length) }) : undefined}
+    discardLabel={t('app.save_bar.discard')}
+    saveLabel={t('app.profile.save')}
+    isSaving={isSaving}
+    savingLabel={t('app.workspace.saving')}
+    onDiscard={discard}
+    onSave={() => void save()}
+  />
+{/snippet}
 
 {#snippet inForceLine(held: { source: string; value: string } | undefined)}
   {#if held}
-    <p class="in-force" data-source={held.source}>
+    <span class="in-force" data-source={held.source}>
       <span>{t('app.profile.in_force', { value: held.value })}</span>
       <Badge tone={held.source === 'PERSON' ? 'info' : 'neutral'}>{t(`app.profile.source_${held.source.toLowerCase()}`)}</Badge>
-    </p>
+    </span>
   {/if}
 {/snippet}
 
 <style>
-  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
-     input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables of the section take the width. */
-  form { margin: 0; max-inline-size: 52ch; }
+  form { margin: 0; }
 
-  /* The surface a form stands on, as the other screens of the section draw one: a standalone
-     element in the sense of design-system.md rule 1, on the frame's canvas. */
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  /* The avatar beside the field, at the field's own line. */
+  .who { display: flex; align-items: center; gap: var(--sp-150); }
 
-  /* The avatar beside the field, at the field's own line, and above it where a phone has no room. */
-  .who {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-150);
-  }
+  .picture, .pad { padding: var(--sp-200) var(--sp-250); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .pad { border-block-start: 0; }
 
-  .name { flex: 1 1 24ch; min-inline-size: 0; }
+  .in-force { margin: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); }
 
-  .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
-
-  .quiet { margin: 0; color: var(--text-secondary); }
-  .in-force { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); }
-
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-
-  /* The form's own measure, as the panel above carries it. */
-  .measured { max-inline-size: 52ch; }
-
-  .failure { margin: 0; color: var(--text-danger); }
+  .failure { margin: 0; padding: var(--sp-150) var(--sp-250); color: var(--text-danger); }
 </style>
