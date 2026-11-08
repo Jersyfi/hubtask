@@ -2,14 +2,14 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // The page system on *People & access*, as the administrator meets it at 1280×800 and on a phone
-// at 390×844 (page-system §10, §11): one page kind per screen (UC-WRK-38 check 1), the create act
+// at 390×844 (page-system §10, §11): one page kind per screen (UC-WRK-42 check 1), the create act
 // in the head opening a dialog of its size that holds no table, tabs or second dialog and does not
 // scroll (checks 2 and 3), a row opening its record page (check 4), the destructive act in the
 // row's menu (check 5); a list with its search, filters and count and nothing else open on arrival,
 // its foot saying what is shown, one verb per row, and nine people within 1.5 screens on a phone
-// (UC-WRK-37 checks 1-5); the sign-in settings with their sections and states in the first
+// (UC-WRK-41 checks 1-5); the sign-in settings with their sections and states in the first
 // viewport, a section at its own address, as a detail with *Back* on a phone, short enough, with
-// one save model and the column and section list still in view at the section's end (UC-WRK-36
+// one save model and the column and section list still in view at the section's end (UC-WRK-40
 // checks 1-5). The same on *How we work* - Overview, Workspace, Templates, Modules, Types, Workflows,
 // Link types, Rules and Rule runs: one kind each, the types', rules' and runs' lists with their
 // search, count and foot, *New type* and *New workflow* opening a Dialog M, a type opening its
@@ -266,7 +266,7 @@ async function assertLadder(page, size, wanted) {
 for (const size of [DESKTOP, PHONE]) {
   const at = `${size.width}×${size.height}`;
 
-  test(`chromium ${at}: every administration screen is exactly one page kind (UC-WRK-38 check 1)`, async (t) => {
+  test(`chromium ${at}: every administration screen is exactly one page kind (UC-WRK-42 check 1)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -279,7 +279,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: People narrows, counts and acts by row; nothing else is open on arrival (UC-WRK-37 checks 1-5)`, async (t) => {
+  test(`chromium ${at}: People narrows, counts and acts by row; nothing else is open on arrival (UC-WRK-41 checks 1-5)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size, { isNine: true });
@@ -324,7 +324,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: the head's primary opens a dialog of its size, a row its record page, revoking sits in the row's menu (UC-WRK-38 checks 2-5)`, async (t) => {
+  test(`chromium ${at}: the head's primary opens a dialog of its size, a row its record page, revoking sits in the row's menu (UC-WRK-42 checks 2-5)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -374,7 +374,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: Sign-in shows its sections with their state and opens one at its address (UC-WRK-36 checks 1-5)`, async (t) => {
+  test(`chromium ${at}: Sign-in shows its sections with their state and opens one at its address (UC-WRK-40 checks 1-5)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -418,7 +418,7 @@ for (const size of [DESKTOP, PHONE]) {
     }
     assert.deepEqual(failures, []);
   });
-  test(`chromium ${at}: Types, Rules and Rule runs narrow, count and continue; nothing else is open on arrival (UC-WRK-37 checks 1-4)`, async (t) => {
+  test(`chromium ${at}: Types, Rules and Rule runs narrow, count and continue; nothing else is open on arrival (UC-WRK-41 checks 1-4)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -454,7 +454,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: New type and New workflow open a Dialog M, a type opens its record page, its delete sits in the row's menu (UC-WRK-38 checks 2-5)`, async (t) => {
+  test(`chromium ${at}: New type and New workflow open a Dialog M, a type opens its record page, its delete sits in the row's menu (UC-WRK-42 checks 2-5)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -522,7 +522,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: the workspace's sections are listed with their state and each opens at its address (UC-WRK-36 checks 1-2)`, async (t) => {
+  test(`chromium ${at}: the workspace's sections are listed with their state and each opens at its address (UC-WRK-40 checks 1-2)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -546,7 +546,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: Connections and data's lists and logs narrow and count, nothing open on arrival (UC-WRK-37 checks 1-2)`, async (t) => {
+  test(`chromium ${at}: Connections and data's lists and logs narrow and count, nothing open on arrival (UC-WRK-41 checks 1-2)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -573,7 +573,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: Connections and data's create and export acts open a dialog of their size (UC-WRK-38 checks 2-3)`, async (t) => {
+  test(`chromium ${at}: Connections and data's create and export acts open a dialog of their size (UC-WRK-42 checks 2-3)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -594,7 +594,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: Connections and data's settings pages list their sections in the first viewport (UC-WRK-36 check 1)`, async (t) => {
+  test(`chromium ${at}: Connections and data's settings pages list their sections in the first viewport (UC-WRK-40 check 1)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -610,7 +610,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: Your settings are one page kind each, their lists narrow and count, Name and language lists its sections (UC-WRK-36 check 1, UC-WRK-37 checks 1-2, UC-WRK-38 check 1)`, async (t) => {
+  test(`chromium ${at}: Your settings are one page kind each, their lists narrow and count, Name and language lists its sections (UC-WRK-40 check 1, UC-WRK-41 checks 1-2, UC-WRK-42 check 1)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -650,7 +650,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: every installation screen is one page kind, its lists and logs narrow and count, nothing open on arrival (UC-WRK-38 check 1, UC-WRK-37 checks 1-2)`, async (t) => {
+  test(`chromium ${at}: every installation screen is one page kind, its lists and logs narrow and count, nothing open on arrival (UC-WRK-42 check 1, UC-WRK-41 checks 1-2)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size, { isInstallation: true });
@@ -690,7 +690,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: the installation's create acts open their rung, the defaults list their sections in the first viewport (UC-WRK-38 checks 2-3, UC-WRK-36 check 1)`, async (t) => {
+  test(`chromium ${at}: the installation's create acts open their rung, the defaults list their sections in the first viewport (UC-WRK-42 checks 2-3, UC-WRK-40 check 1)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size, { isInstallation: true });
@@ -720,7 +720,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: the agents are a list page, their settings a settings page, an agent its record page, old addresses land (UC-WRK-38 checks 1 and 4-5, UC-WRK-36 check 2)`, async (t) => {
+  test(`chromium ${at}: the agents are a list page, their settings a settings page, an agent its record page, old addresses land (UC-WRK-42 checks 1 and 4-5, UC-WRK-40 check 2)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size, { isAgents: true });
@@ -814,7 +814,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
 
-  test(`chromium ${at}: a hub's and a collection's settings are a settings page, a section at a time and none too tall (page-system §9.6, UC-WRK-36)`, async (t) => {
+  test(`chromium ${at}: a hub's and a collection's settings are a settings page, a section at a time and none too tall (page-system §9.6, UC-WRK-40)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);

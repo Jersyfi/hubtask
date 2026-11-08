@@ -27,6 +27,18 @@ export type OpenMode = 'panel' | 'whole';
 const OPEN_KEY = 'hubtask.entries.open';
 const PANEL_KEY = 'hubtask.panel.width';
 const ROWS_KEY = 'hubtask.list.rows';
+const SECTIONS_KEY = 'hubtask.nav.sections';
+
+/** The sidebar's sections as this device left them, open or folded, by key; unknown keys ignored. */
+function sectionsOf(raw: string | null | undefined): Record<string, boolean> {
+  try {
+    const parsed: unknown = JSON.parse(raw ?? '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean'));
+  } catch {
+    return {};
+  }
+}
 
 class Device {
   #theme = $state<ThemeChoice>('system');
@@ -34,6 +46,7 @@ class Device {
   #openMode = $state<OpenMode>('panel');
   #panelWidth = $state<number | undefined>(undefined);
   #rowsPerPage = $state<RowsPerPage>(ROWS_PER_PAGE[0]);
+  #sections = $state<Record<string, boolean>>({});
   #stopTheme: (() => void) | undefined;
 
   get theme(): ThemeChoice {
@@ -58,6 +71,23 @@ class Device {
     return this.#rowsPerPage;
   }
 
+  /**
+   * Whether a sidebar section (or its *More*) is open on this device (user-experience.md §2.3):
+   * the device's, as the width and the rail are, so folding on the phone leaves the desktop alone.
+   */
+  isSectionOpen(key: string, fallback: boolean): boolean {
+    return this.#sections[key] ?? fallback;
+  }
+
+  setSectionOpen(key: string, isOpen: boolean): void {
+    this.#sections = { ...this.#sections, [key]: isOpen };
+    try {
+      storage()?.setItem(SECTIONS_KEY, JSON.stringify(this.#sections));
+    } catch {
+      // Kept for as long as the page is open.
+    }
+  }
+
   /** Reads what this device kept and applies it. Before the first paint, like the theme always was. */
   start(): void {
     this.#theme = readThemeChoice(storage());
@@ -67,6 +97,7 @@ class Device {
       const width = Number.parseFloat(storage()?.getItem(PANEL_KEY) ?? '');
       this.#panelWidth = Number.isFinite(width) && width > 0 ? width : undefined;
       this.#rowsPerPage = rowsPerPageOf(storage()?.getItem(ROWS_KEY));
+      this.#sections = sectionsOf(storage()?.getItem(SECTIONS_KEY));
     } catch {
       // A browser that refuses storage opens entries in the panel at its first width.
     }

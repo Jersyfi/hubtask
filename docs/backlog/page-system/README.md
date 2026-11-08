@@ -504,16 +504,16 @@ that control, one at a time; a dependency's lag in a Popover. Time: weeks as a s
 Written on the branch, each check proven by an engine walk (`apps/webapp/e2e/`) at 1280×800 and
 390×844:
 
-* **UC-WRK-36 — See and change what a screen sets without scrolling past the rest.** (1) every
+* **UC-WRK-40 — See and change what a screen sets without scrolling past the rest.** (1) every
   settings screen shows its sections and their state in the first viewport; (2) a section's
   address opens it, on a phone as a detail with *Back*; (3) no section is taller than two viewports
   with the seeded demo on desktop, four on a phone; (4) one save model per section; (5) the column
   and the section list are visible after scrolling to the section's end (desktop).
-* **UC-WRK-37 — Find any object in a long list and act on it.** (1) every `ListPage` and `LogPage`
+* **UC-WRK-41 — Find any object in a long list and act on it.** (1) every `ListPage` and `LogPage`
   has search, filters and the count, on a phone behind *Filters*; (2) no filter form is open on
   arrival; (3) the foot continues the list and says what is shown; (4) a row has one visible verb
   and a menu; (5) the People page with the seeded nine people is at most 1.5 screens high on a phone, its head included (today 2.5).
-* **UC-WRK-38 — Add, change and remove the same way everywhere.** (1) every routed view is one page
+* **UC-WRK-42 — Add, change and remove the same way everywhere.** (1) every routed view is one page
   kind; (2) the create act is the head's primary and opens a dialog of the right size or a page;
   (3) no dialog holds a table, tabs or a second dialog, and none scrolls at 1280×800 with seeded
   content unless it is size L; (4) an object with lists of its own opens as a page; (5) destructive
@@ -530,8 +530,8 @@ UC-WRK-23 and UC-ID-24 keep their goals; their *Today* moves.
   a nested `Dialog` other than the discard confirmation, or more than one `Disclosure`.
 * `packages/design-system/test/conventions.test.js` — the new compositions have stories; *Pages/*
   stories for every kind with full, empty and refused content.
-* Engine walks per kind at 1280×800 and 390×844 measuring UC-WRK-36 (1, 3, 5), UC-WRK-37 (1, 5)
-  and UC-WRK-38 (3): heights from `getBoundingClientRect`, never a screenshot.
+* Engine walks per kind at 1280×800 and 390×844 measuring UC-WRK-40 (1, 3, 5), UC-WRK-41 (1, 5)
+  and UC-WRK-42 (3): heights from `getBoundingClientRect`, never a screenshot.
 * `apps/webapp/e2e/workbench-layout.test.mjs` extended: `Sheet` and the full-screen dialog in the
   three engines.
 
@@ -574,7 +574,7 @@ locally on the seeded demo at the three widths first. By area, each step complet
 
 | Item | State |
 |---|---|
-| 1 What it delivers | UC-WRK-36, 37, 38 drafted (§10) |
+| 1 What it delivers | UC-WRK-40, 37, 38 drafted (§10) |
 | 2 Principles | UX-2, UX-4, UX-5 served; P-05 kept |
 | 3 The matrix | no change to access or state; every role's screens walked at the end at three widths |
 | 4 The premise | checked against `196ef8214` by the walk (§2) |

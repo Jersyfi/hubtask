@@ -297,6 +297,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-CNV-07](./whiteboard/UC-CNV-07-see-what-points-at-a-whiteboard.md) | See what points at a whiteboard | whiteboard |
 | [UC-CNV-08](./whiteboard/UC-CNV-08-put-pictures-and-files-on-a-whiteboard.md) | Put pictures and files on a whiteboard | whiteboard |
 | [UC-CNV-09](./whiteboard/UC-CNV-09-discuss-a-whiteboard-where-it-is-drawn.md) | Discuss a whiteboard where it is drawn | whiteboard |
+| [UC-CNV-10](./whiteboard/UC-CNV-10-keep-whiteboards-beside-the-pages.md) | Keep whiteboards beside the pages | whiteboard |
 | [UC-AST-01](./assets/UC-AST-01-keep-an-inventory-of-what-our-services-run-on.md) | Keep an inventory of what our services run on | assets |
 | [UC-AST-02](./assets/UC-AST-02-let-every-source-write-through-one-reconciliation.md) | Let every source write through one reconciliation | assets |
 | [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate configuration items without losing one | assets |
@@ -347,9 +348,13 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
 | [UC-WRK-35](./work/UC-WRK-35-put-things-on-a-list-by-voice.md) | Put things on a list by voice | work |
-| [UC-WRK-36](./work/UC-WRK-36-see-and-change-what-a-screen-sets.md) | See and change what a screen sets without scrolling past the rest | work |
-| [UC-WRK-37](./work/UC-WRK-37-find-any-object-in-a-long-list.md) | Find any object in a long list and act on it | work |
-| [UC-WRK-38](./work/UC-WRK-38-add-change-and-remove-the-same-way.md) | Add, change and remove the same way everywhere | work |
+| [UC-WRK-36](./work/UC-WRK-36-find-my-way-in-every-hub-and-every-product.md) | Find my way in every hub and every product | work |
+| [UC-WRK-37](./work/UC-WRK-37-star-what-i-come-back-to.md) | Star what I come back to | work |
+| [UC-WRK-38](./work/UC-WRK-38-order-and-move-places-and-contents-and-take-it-back.md) | Order and move places and contents in the sidebar, and take it back | work |
+| [UC-WRK-39](./work/UC-WRK-39-bring-a-collection-to-another-hub-without-running-into-obstacles.md) | Bring a collection to another hub without running into obstacles | work |
+| [UC-WRK-40](./work/UC-WRK-40-see-and-change-what-a-screen-sets.md) | See and change what a screen sets without scrolling past the rest | work |
+| [UC-WRK-41](./work/UC-WRK-41-find-any-object-in-a-long-list.md) | Find any object in a long list and act on it | work |
+| [UC-WRK-42](./work/UC-WRK-42-add-change-and-remove-the-same-way.md) | Add, change and remove the same way everywhere | work |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble |
 | [UC-JUM-03](./jumble/UC-JUM-03-forward-mail-into-the-jumble.md) | Forward mail into the jumble | jumble |

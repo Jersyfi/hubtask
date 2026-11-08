@@ -120,6 +120,9 @@ function addressOf(input: string): string {
 
 export type Unsubscribe = () => void;
 
+/** How the last move came: a link (`push`), a redirect (`replace`), or back and forward (`pop`). */
+export type Move = 'push' | 'replace' | 'pop';
+
 /**
  * The stateful half: one instance per application, wired to the History API by `start()`.
  * Everything above this line is pure and carries the tests; everything below is thin enough
@@ -141,6 +144,9 @@ export class Router {
   #current: Resolution;
   readonly #fullLoad?: (path: string) => boolean;
   readonly #admits?: (path: string) => boolean;
+  #move: Move = 'replace';
+  #entry = '';
+  #entries = 0;
 
   /**
    * `fullLoad` may take a navigation as a full page load instead - a newer release to load
@@ -163,6 +169,19 @@ export class Router {
     return this.#current;
   }
 
+  /** How the current address was reached. */
+  get move(): Move {
+    return this.#move;
+  }
+
+  /**
+   * The session history entry the current address stands on, kept in `history.state`, so that
+   * what belongs to one entry - its scroll position - is found again on *back*.
+   */
+  get entry(): string {
+    return this.#entry;
+  }
+
   subscribe(listener: (resolution: Resolution) => void): Unsubscribe {
     this.#listeners.add(listener);
     listener(this.#current);
@@ -174,8 +193,9 @@ export class Router {
     if (addressOf(path) === this.#address()) return;
     if (this.#admits && !this.#admits(path)) return;
     if (this.#fullLoad?.(path)) return;
-    history.pushState(null, '', path);
-    this.#apply(path);
+    this.#entry = this.#newEntry();
+    history.pushState({ entry: this.#entry }, '', path);
+    this.#apply(path, 'push');
   }
 
   /**
@@ -184,8 +204,13 @@ export class Router {
    */
   replace(path: string): void {
     if (addressOf(path) === this.#address()) return;
-    history.replaceState(null, '', path);
-    this.#apply(path);
+    history.replaceState({ entry: this.#entry }, '', path);
+    this.#apply(path, 'replace');
+  }
+
+  #newEntry(): string {
+    this.#entries += 1;
+    return `${Date.now().toString(36)}-${this.#entries}`;
   }
 
   #address(): string {
@@ -199,15 +224,20 @@ export class Router {
    * stays with the browser.
    */
   start(): Unsubscribe {
-    const onPopState = () => {
+    const kept = (history.state as { entry?: unknown } | null)?.entry;
+    this.#entry = typeof kept === 'string' ? kept : this.#newEntry();
+    if (kept !== this.#entry) history.replaceState({ ...(history.state ?? {}), entry: this.#entry }, '');
+    const onPopState = (event: PopStateEvent) => {
       const path = window.location.pathname + window.location.search;
       // The browser has already moved the address; a held move puts it back, so the address and
       // the screen agree while the reader decides.
       if (this.#admits && addressOf(path) !== this.#address() && !this.#admits(path)) {
-        history.pushState(null, '', this.#address());
+        history.pushState({ entry: this.#entry }, '', this.#address());
         return;
       }
-      this.#apply(path);
+      const entry = (event.state as { entry?: unknown } | null)?.entry;
+      this.#entry = typeof entry === 'string' ? entry : this.#newEntry();
+      this.#apply(path, 'pop');
     };
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0) return;
@@ -227,7 +257,8 @@ export class Router {
     };
   }
 
-  #apply(path: string): void {
+  #apply(path: string, move: Move): void {
+    this.#move = move;
     this.#current = resolve(this.#routes, path);
     for (const listener of this.#listeners) listener(this.#current);
   }

@@ -25,7 +25,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium, firefox, webkit } from 'playwright';
 
-import { ARRAYS, COLLECTION, ITEMS, stub as fixtureStub } from './fixture.mjs';
+import { ARRAYS, COLLECTION, ITEMS, stub as fixtureStub, viewLink } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -119,8 +119,8 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.goto(`${served.origin}/`);
     // *Today*, drawn: the page the app opens on, past the session and the manifest.
     await page.locator('main section.panel').first().waitFor({ state: 'visible', timeout: 15_000 });
-    // The navigation's way to make a hub, *＋ New*: the dialog this walk opens below.
-    const createHub = page.getByRole('button', { name: 'New', exact: true }).first();
+    // The navigation's way to make a hub, ＋ on *Hubs* (the navigation concept §5.2): the dialog this walk opens below.
+    const createHub = page.locator('aside.sidenav').getByRole('button', { name: 'Create hub', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 
@@ -174,8 +174,6 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     // return to and the engine leaves focus on the body - as Safari does.
     await createHub.focus();
     await page.keyboard.press('Enter');
-    await page.getByRole('menuitem', { name: 'Create hub', exact: true }).waitFor({ timeout: 5_000 });
-    await page.keyboard.press('Enter');
     const dialog = page.locator('dialog[open]');
     await dialog.waitFor({ state: 'visible', timeout: 5_000 });
     assert.equal(await dialog.getAttribute('aria-labelledby') !== null, true, `${name}: the dialog has no name`);
@@ -213,7 +211,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
     // Back on the trigger - polled, because an engine hands focus back a task after `close()`.
-    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'New', null, { timeout: 5_000 })
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Create hub', null, { timeout: 5_000 })
       .catch(async () => {
         const landed = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
         assert.fail(`${name}: focus did not return to the trigger but sits on ${landed}`);
@@ -377,9 +375,9 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     }
     assert.ok(found, `${name}: the arrows never reached the row`);
     await page.keyboard.press('Enter');
-    await page.getByRole('radio', { name: 'Board', checked: true }).waitFor({ timeout: 5_000 });
+    await viewLink(page, 'Board', { current: true }).waitFor({ timeout: 5_000 });
 
-    const board = page.getByRole('radio', { name: 'Board' });
+    const board = viewLink(page, 'Board');
     await board.focus();
     await page.keyboard.press('Control+k');
     await page.locator('#search-menu').waitFor({ timeout: 5_000 });

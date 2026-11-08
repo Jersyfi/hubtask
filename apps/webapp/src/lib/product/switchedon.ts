@@ -8,7 +8,7 @@
  */
 
 import { productOf } from '../navigation.ts';
-import { placeTabs } from '../workspace/placeTabs.ts';
+import { hubPlaceOf } from '../workspace/placeViews.ts';
 import { productTemplates } from './templates.ts';
 
 export interface SwitchedOn {
@@ -26,7 +26,7 @@ const SETUP: Readonly<Record<string, { code: string; href: string }>> = {
 };
 
 export function switchedOn(module: string, hubId?: string): SwitchedOn {
-  const tab = hubId ? placeTabs({ type: 'HUB', id: hubId, modulesOn: [module] }).slice(1)[0] : undefined;
+  const tab = hubId ? hubPlaceOf(hubId, module) : undefined;
   const row = productOf(module);
   const find = tab ? { code: tab.code, href: tab.href } : row ? { code: row.code, href: row.path } : undefined;
   return { ...(find ? { find } : {}), ...(SETUP[module] ? { setup: SETUP[module] } : {}) };

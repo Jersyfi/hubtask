@@ -391,8 +391,8 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (8)
-AppBar · NavDrawer · BottomBar · PlaceTabs · PageHeader · DetailPane · Logo · ResizeHandle
+### Wave 5 — the shell (16)
+AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
@@ -406,15 +406,32 @@ the mark the bar carries; how the product uses them is §11.
   safe-area inset in its padding; one may be an act (a button with its mark filled) and one an
   opener (*More*, a quiet button that opens a dialog). It switches routes, so it is not `Tabs`. It hides, by opacity,
   while an input has focus, so it does not ride the on-screen keyboard over the field.
-* **`PlaceTabs`** — the views of one place (a product's home, a hub, a collection) as one strip
-  under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav`
-  of links with `aria-current`, because each switches routes — not `Tabs`, for `BottomBar`'s
-  reason. One tab stop, the arrows, Home and End between the links; narrow, it scrolls inside
-  itself with the current link in view and never wraps. An optional mark and count per link.
+* **`ViewBar`** — the views of one object (a product's home, a hub tool, a collection) as one bar
+  under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav` of links with `aria-current`, because each switches routes — not `Tabs`, for
+  `BottomBar`'s reason. One tab stop, the arrows, Home and End between the links; the first link is
+  fixed, the others are dragged into order where the reader holds `STRUCTURE`; ＋ adds a view; tools
+  stand at its end. There is never a second bar. The tools never overlap the views: whole while
+  both fit, as their marks - the words their name and tooltip - while the marks leave the views
+  `layout.viewbar.views`, behind one ⋯ below that; the bar measures both drawings. A view is a
+  control's height and a little more, so a bar with tools and one without stand alike. On
+  `compact` it is a chip under the title opening a `Sheet` with the same links in the same order.
+  An optional mark and count per link.
+* **The sidebar's pieces** ([`backlog/navigation/README.md`](../backlog/navigation/README.md) §2,
+  [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)) — **`NavItem`**
+  (a row: twist, mark or `ProductTile`, name, figure, and ⋯ and ＋ in the figure's cell on hover and
+  focus; current with the brand bar and `aria-current`), **`NavGroup`** (a section head that sticks,
+  with ＋ and ⋯, *n more* and a filter past its bound; its head stands on the plane it is drawn on,
+  `--nav-plane`, the raised panel of a flyout or a drawer), **`NavFlyout`** (*Recent*, the hub quick
+  switch, which drops from the hub's head through `anchor`), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
+  product's mark on its label tile), **`MoveCheck`** (the pre-check's list of obstacles and
+  warnings, each with its way out); on `compact` **`BrowseStack`** (a stack per bottom-bar tab) and
+  **`Sheet`** (a bottom sheet with a heading and *Close*). The content tree is a `role="tree"` with
+  `aria-level` and `aria-expanded`.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
   subtitle, **one** primary action, at most two secondary ones, a `Menu` for the rest, and an
   optional second row for a `ViewSwitcher` or `Tabs`. It cannot draw a fourth button. With
-  `isTitleInBar` it keeps its `h1` and hands its title and folded menu to the bar.
+  `isTitleInBar` it keeps its `h1` and hands its title and folded menu to the bar. Its title row is
+  as tall as its controls whether it holds any, so what follows the head keeps its place.
 * **`DetailPane`** — the column beside the content from `large` up: a head with the type, a close
   and an "open as a page", and a slot. Below `large` it renders nothing and the caller navigates. An
   `aside` landmark with its own heading; it takes no focus and is not a dialog.
@@ -596,7 +613,7 @@ whatever the opening order. `src/layers.ts` holds that second order as one regis
 
 | Width | Navigation | Content | Detail |
 |---|---|---|---|
-| `compact` 0–599 | `NavDrawer` from ☰, the primary destinations in a `BottomBar` | one column, `density.spacious` | its own page |
+| `compact` 0–599 | the Browse stack and the `BottomBar` (§11.3); a section's `NavDrawer` from ☰ | one column, `density.spacious` | its own page |
 | `medium` 600–904 | `NavDrawer` | one column | its own page |
 | `expanded` 905–1239 | `SideNav` pinned, collapsible to a rail | one column | its own page |
 | `large` 1240–1599 | `SideNav` pinned | the list | `DetailPane` beside it |
@@ -891,7 +908,7 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 
 | Width | Start | Middle | End |
 |---|---|---|---|
-| `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
+| `compact` | on a tab's root the avatar; deeper *‹ the level above* (a section: ☰, opening its `NavDrawer`) | the page's title | on a root the notice mark · the connection mark; deeper ☆ · the page menu; every control 44 px |
 | `medium` | ☰ | the mark and the wordmark · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
 | ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
 
@@ -922,16 +939,22 @@ nothing else.** No second list, second tree or "advanced" navigation. Each desti
 route, a group, an icon, a message code, where the palette needs them a code of synonyms
 (`words`), and, where the mobile build needs it, an `area` (§11.5).
 
-**Five bands, in this order** ([`user-experience.md`](../architecture/user-experience.md) §2.1).
-Nothing outside a band, nothing in two.
+**Two levels between a fixed top and foot** ([`user-experience.md`](../architecture/user-experience.md)
+§2.1, §2.4; the concept [`backlog/navigation/README.md`](../backlog/navigation/README.md)). Nothing
+outside a region, nothing in two.
 
-| Band | What is in it | Where |
+| Region | What is in it | Where |
 |---|---|---|
-| `places` | Today, Search, Inbox, *Waiting for your yes* (where the service desk is on) | At the top. Search is here on every width |
-| `products` | One row per product switched on, in `Module.Keys()` order: Plans, Pages, Whiteboards, Service desk, Assets, Time, Goals, Agents, each opening its home | Under the caption *Products*; absent while no product is on |
-| `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
-| `workspace` | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing | Under the caption *Workspace*, below the hubs |
-| `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
+| *For you* | Today, Inbox, *Waiting for your yes* (where a module producing approvals is on) | Fixed at the top on both levels. Search is the palette's field |
+| The workspace level | *Recent* (a flyout), *Starred* (from the first star), *Products* (one row per product switched on, by default in `Module.Keys()` order, personally ordered and hidden), *Hubs* (the shared order or personally *Recently visited* / *A–Z*; 12, then *n more*; ＋ makes a hub) | The scrolling middle, on Today, search, the inbox, a product home |
+| The hub level | the hub's head (*‹ All hubs*, mark, name with the quick switch, ☆, ⋯), *Overview* and the tools in their fixed order (*Queues*, *Plan*, *Inventory*, *Time*, *Goals*), *Collections*, *Contents* | The scrolling middle, on anything of a hub |
+| The foot | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing; *Archive*, *Trash* | Fixed at the foot on every width, after a hairline — where a reader looks when something is **missing** |
+
+A row is 30 px high with a 7 px radius; each level indents 12 px, growing to the sixth level and no
+further; the middle's scrollbar is thin, shown on hover with its track and a hairline at the track's
+inner edge, its room reserved - one style for every scroll area of the sidebar and its panels
+(`data-scrollbar="thin"`, `scrollbar.css`). A row's figure grows to `layout.nav.figure` at most and
+is cut before the row's name, which keeps `layout.nav.name`. These lengths are tokens (rule 15).
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
 in its settings' *General* section, beside its name and description: one of the ten label colours and a symbol from the set
@@ -968,9 +991,9 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` | `BottomBar`: Today, Search, *Capture*, Inbox and *More*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. *More* opens the `NavDrawer` (as ☰ does): the places the bar does not carry, then the `products`, `tree`, `workspace` and `keeping` bands, so no destination is drawn twice; *More* is current on a place only the drawer lists. The account is the avatar in the bar |
-| `medium` | `NavDrawer`: all five bands |
-| ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10). Its end edge is a `ResizeHandle`: dragged, or moved by the arrows, between `layout.sidenav.min` and `layout.sidenav.max`, a double-click back to `layout.sidenav.width`; the width is the device's (§11.10) |
+| `compact` | `BottomBar`: *Today · Browse · ＋ · Inbox · Search* (`phone.ts`), each tab its own stack, a second tap returning to its root; *＋* is *Capture* (a button, its mark filled), *Search* opens the palette, hidden on a whiteboard. *Browse* is a stack of routes (`/browse`, `/browse/hubs/:id`, `…/queues`, `…/contents?under=`) drawn by `WorkspaceNav` as touch rows; the top bar is the frame's `PhoneBar`: the avatar (the account `Sheet`, the workspaces listed in it) and the marks on a root, *‹ the level above*, the title, ☆ and ⋯ deeper; every change announced with its level. A section (administration, Your settings, the instance) keeps its list behind ☰ |
+| `medium` | `NavDrawer`: both levels with their top and foot |
+| ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2) with a peek after 300 ms of hover; whether it is folded is the device's (§11.10). Its end edge is a `ResizeHandle`: dragged, or moved by the arrows, between `layout.sidenav.min` and `layout.sidenav.max`, a double-click back to `layout.sidenav.width`; the width is the device's (§11.10) |
 
 In a build that excludes the administration area — the installed mobile clients
 ([ADR-0032](../adr/ADR-0032-client-capability-matrix.md)) — the administration row names where the
@@ -1200,12 +1223,11 @@ archived container leaves the tree.
 * **On a hub**: *Create collection*, with *Import* as the secondary action (`POST /imports` needs
   `STRUCTURE` on the hub). The file goes through the media flow; the report is drawn by the same
   component as a restore's dry run, refused rows beneath it by number and code.
-* **Under the head, the place's tab strip** (`PlaceTabs`, user-experience.md §2.4): a hub's
-  *Overview · Plan · Pages · Whiteboards · Assets · Time · Goals*, a collection's *Entries · Plan ·
-  Sprints · Portal · Time*, each only where its module is on there (`lib/workspace/placeTabs.ts`),
-  drawn again on every screen a tab opens; a tab with several views (the plan's releases, time's
-  workload) draws them as a second strip. No product is a head button or an item of the place's
-  menu, which holds only verbs on the place; the palette offers each tab as *Go to <place> › <tab>*.
+* **No tab strip under the head** ([ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)):
+  a hub's products are its level in the sidebar (§11.3) — the tools, the collections, the contents
+  — and a collection, a tool and a product home carry one `ViewBar`. No product is a head button or
+  an item of the place's menu, which holds only verbs on the place; the palette offers each tool
+  as *Go to <hub> › <tool>*.
 * **On a collection**: *Add entry*, which opens capture pointed at the collection — no split, its
   other ways being capture's modes. The filter is the toolbar's, with its count — inline from
   `expanded` up, a `Drawer` below.
@@ -1448,6 +1470,19 @@ view branches on the input.
 * Nothing that appears only on hover may be the only way to a function. A row's actions are its
   menu, a real control on every input.
 
+**The sidebar's drag** (UC-WRK-38; the concept's §5.4). The grip appears on hover where ordering is
+allowed; a drag starts after 4 px. Over a row: its upper quarter places before, the middle inside
+(pages only), the lower quarter after; the line stands at the target level's indent, *inside*
+outlines the row; below a last child a move to the start outdents. A folded page opens after 600 ms
+of hover; within 48 px of the sidebar's edge it scrolls; a section head takes *to the start*. A drag
+stays inside its part (collections, contents); an entry from the content region may land on a
+collection. A refused target draws no line, the *not allowed* pointer and one sentence on the drag
+image. `Esc` cancels. The drop settles, is highlighted, and a `Toast` offers *Undo* for 8 s with
+`Cmd/Ctrl+Z`; the position is announced. `Alt+↑/↓` orders, `Alt+→/←` indents, `M` opens *Move to…*.
+On a coarse pointer the hold above opens the context sheet; the sidebar drags only in reorder mode
+(grips at the end, *Done*). Offline a move shows at once with *waiting* and springs back with its
+reason if refused. Another hub is never a drop target.
+
 ### 11.10 What the device keeps
 
 A device convenience is kept in the browser, never on the account, and sent nowhere. Every read and
@@ -1461,7 +1496,7 @@ write falls back in silence where storage is refused.
 | How wide the pinned navigation is | `localStorage`, `hubtask.nav.width`, kept only inside the tokens' bounds | `AppFrame` |
 | How an entry opens from a list — in the panel, or whole | `localStorage`, `hubtask.entries.open` | `lib/device.svelte.ts` |
 | How wide the entry panel is | `localStorage`, `hubtask.panel.width` | `lib/device.svelte.ts`, `ContainerView` |
-| What was opened last, for *Today* | `localStorage` | `lib/recents.svelte.ts` |
+| What was opened last, for *Today* and the sidebar's *Recent* | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
 | The layout chosen for a collection — list, board, timeline — per person | `localStorage`, `hubtask.layout.<account>.<collection>`; a layout the collection no longer offers gives way to its default | `lib/entries/layoutmemory.ts`, `ContainerView` |
 | The words of a search | `sessionStorage`, under the address's handle | `lib/data/search.svelte.ts` |
@@ -1470,7 +1505,9 @@ write falls back in silence where storage is refused.
 
 The person's own preferences are the account's: the language, the time zone and the first day of the
 week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
-`onboarding_completed_at` (§7, §8).
+`onboarding_completed_at` (§7, §8), and the sidebar's arrangement — the order and hiding of
+*Products*, the order of *Hubs*, the mode of *Contents* — and the stars, which follow the person to
+another device ([`backlog/navigation/README.md`](../backlog/navigation/README.md) §7.1, §7.5).
 
 ---
 

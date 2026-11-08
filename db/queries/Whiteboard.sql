@@ -2,17 +2,21 @@
 -- statement (ADR-0010).
 
 -- name: InsertWhiteboard :exec
-INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, created_by, created_at, updated_by, updated_at, version)
+INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, created_by, created_at, updated_by, updated_at, version,
+  parent_page_id, order_key)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('title'), sqlc.arg('scene'),
-  sqlc.arg('created_by'), sqlc.arg('at'), sqlc.arg('created_by'), sqlc.arg('at'), 1);
+  sqlc.arg('created_by'), sqlc.arg('at'), sqlc.arg('created_by'), sqlc.arg('at'), 1,
+  sqlc.narg('parent_page_id'), sqlc.narg('order_key'));
 
 -- name: FindWhiteboard :one
-SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+       parent_page_id, order_key
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
 -- name: FindWhiteboardForUpdate :one
-SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+       parent_page_id, order_key
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
 FOR UPDATE;
@@ -22,6 +26,7 @@ FOR UPDATE;
 UPDATE whiteboard SET
   title = sqlc.arg('title'), scene = sqlc.arg('scene'), deleted_at = sqlc.narg('deleted_at'),
   updated_by = sqlc.arg('updated_by'), updated_at = sqlc.arg('updated_at'), version = version + 1,
+  parent_page_id = sqlc.narg('parent_page_id'), order_key = sqlc.narg('order_key'),
   -- Who trashed it is written by the write that trashes it - its writer - and kept while it stays
   -- in the trash; a board no longer trashed names nobody.
   deleted_by_type = CASE
@@ -38,7 +43,7 @@ WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc
 -- A hub's boards, the last changed first, without their scenes; the trash or the rest; after the
 -- board `after` names when it is given (a page's cursor).
 SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.deleted_at,
-       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version
+       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version, w.parent_page_id, w.order_key
 FROM whiteboard w
 WHERE w.tenant_id = current_tenant_id() AND w.hub_id = sqlc.arg('hub_id')
   AND (w.deleted_at IS NOT NULL) = sqlc.arg('trashed')::boolean
@@ -46,6 +51,17 @@ WHERE w.tenant_id = current_tenant_id() AND w.hub_id = sqlc.arg('hub_id')
     SELECT c.updated_at, c.id FROM whiteboard c
     WHERE c.tenant_id = current_tenant_id() AND c.id = sqlc.narg('after')::uuid))
 ORDER BY w.updated_at DESC, w.id DESC
+LIMIT sqlc.arg('batch');
+
+-- name: ListHubWhiteboardsTree :many
+-- A hub's boards outside the trash in the content tree's order (UC-CNV-10 check 1): by parent, the
+-- top first, then by key; a board a pod of the previous release wrote without a key after the
+-- keyed ones, by title.
+SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.deleted_at,
+       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version, w.parent_page_id, w.order_key
+FROM whiteboard w
+WHERE w.tenant_id = current_tenant_id() AND w.hub_id = sqlc.arg('hub_id') AND w.deleted_at IS NULL
+ORDER BY w.parent_page_id NULLS FIRST, w.order_key NULLS LAST, w.title COLLATE hubtask_name, w.id
 LIMIT sqlc.arg('batch');
 
 -- name: LockHubWhiteboards :exec
@@ -143,3 +159,31 @@ UPDATE whiteboard_comment SET body = sqlc.arg('body'), resolved_at = sqlc.narg('
   resolved_by = sqlc.narg('resolved_by'), edited_at = sqlc.narg('edited_at'),
   deleted_at = sqlc.narg('deleted_at'), version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
+-- name: WhiteboardParentPage :one
+-- The hub of a page a board is placed under, outside the trash (UC-CNV-10).
+SELECT hub_id FROM page
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND deleted_at IS NULL;
+
+-- name: ContentSiblingPages :many
+-- The pages directly under a parent of a hub's content tree (none: its top), outside the trash.
+SELECT id, order_key FROM page
+WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND deleted_at IS NULL
+  AND parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+ORDER BY order_key, id;
+
+-- name: ContentSiblingWhiteboards :many
+-- The boards directly under a parent of a hub's content tree (none: its top) that have a key,
+-- outside the trash.
+SELECT id, order_key::text AS order_key FROM whiteboard
+WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND deleted_at IS NULL
+  AND order_key IS NOT NULL AND parent_page_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
+ORDER BY order_key, id;
+
+-- name: WhiteboardsUnderPages :many
+-- The boards outside the trash standing directly under any of these pages, in tree order - what a
+-- page's trash lifts (UC-CNV-10 check 4).
+SELECT id FROM whiteboard
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL
+  AND parent_page_id = ANY(sqlc.arg('page_ids')::uuid[])
+ORDER BY order_key NULLS LAST, title COLLATE hubtask_name, id;

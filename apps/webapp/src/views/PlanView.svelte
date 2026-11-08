@@ -32,7 +32,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Banner, Button, Checkbox, DataTable, Dialog, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, ViewSwitcher, WorkPage,
-    type DataColumn, type DataRowMenu, type TimelineCarry, type TimelineDependency, type TimelineLink,
+    type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
@@ -63,7 +63,8 @@
   import { SPREADSHEET_TYPE } from '../lib/data/xlsx.ts';
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
 
   interface Props {
     /** The hub or collection the plan is. */
@@ -453,20 +454,19 @@
     { id: 'table', label: t('app.planning.view_table') },
     { id: 'dependencies', label: t('app.timeline.dependencies') },
     ...(undated.length > 0 ? [{ id: 'undated', label: t('app.planning.view_undated', { count: String(undated.length) }) }] : []),
-    ...(place?.type === 'HUB' ? [{ id: 'releases', label: t('app.releases.title') }] : []),
   ]);
-  const viewShown = $derived(placeViews.some((each) => each.id === view && each.id !== 'releases') ? (view as string) : 'chart');
-  const planPath = $derived(`${placePath}/plan`);
+  const viewShown = $derived(placeViews.some((each) => each.id === view) ? (view as string) : 'chart');
+  // A collection's plan is its *Timeline* view; a hub's the tool *Plan* (the navigation concept §8).
+  const planPath = $derived(place?.type === 'COLLECTION' ? `${placePath}/timeline` : `${placePath}/plan`);
   function choose(next: string) {
-    if (next === 'releases') onnavigate(`${placePath}/releases`);
-    else (onreplace ?? onnavigate)(next === 'chart' ? planPath : `${planPath}?view=${next}`);
+    (onreplace ?? onnavigate)(next === 'chart' ? planPath : `${planPath}?view=${next}`);
   }
   /** The chart trays nothing: what has no dates is its own view, the chart with its tray. */
   const chartRows = $derived(viewShown === 'undated' ? timelineRows : timelineRows.filter((row) => !undatedIds.has(row.id)));
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
   // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
   // dates; the standing against the tolerance where it is kept and not exceeded.
-  const figure = $derived.by(() => {
+  const figureText = $derived.by(() => {
     if (!schedule || (rows.length === 0 && undated.length === 0)) return undefined;
     const parts = [
       schedule.finish ? t('app.planning.figure_ends', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates'),
@@ -477,37 +477,33 @@
     return parts.filter((part) => part !== undefined).join(' · ');
   });
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
+  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
+    mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
+  );
+  const headMenu = $derived({
+    label: t('app.planning.more'),
+    items: [
+      { id: 'settings', label: t('app.planning.settings'), icon: 'settings' as const },
+      { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: true },
+      { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' as const },
+      { id: 'png', label: t('app.planning.export_png'), icon: 'image' as const },
+      { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' as const },
+      ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
+    ],
+    onselect: (id: string) => void exportAs(id),
+  });
 </script>
 
-<WorkPage
-  head={{
-    title: t('app.planning.title'),
-    subtitle: figure,
-    breadcrumb: place
-      ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
-          label: t('app.planning.trail'),
-          expandLabel: t('app.planning.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined,
-    secondary: mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
-    menu: {
-      label: t('app.planning.more'),
-      items: [
-        { id: 'settings', label: t('app.planning.settings'), icon: 'settings' },
-        { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text', hasSeparatorBefore: true },
-        { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' },
-        { id: 'png', label: t('app.planning.export_png'), icon: 'image' },
-        { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' },
-        ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
-      ],
-      onselect: (id: string) => void exportAs(id),
-    },
-  }}
-  toolbar={schedule && !refusal && (rows.length > 0 || undated.length > 0) ? toolbar : undefined}
->
-  {#snippet tabs()}<PlaceStrip placeId={planId} current="plan" view="plan" isViewStripShown={false} {onnavigate} />{/snippet}
+{#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
+<WorkPage toolbar={schedule && !refusal && (rows.length > 0 || undated.length > 0) ? toolbar : undefined}>
+  {#snippet top()}
+  {#if place?.type === 'COLLECTION'}
+    <!-- A collection's *Timeline* is one of its views: its head is the collection's (CollectionHead). -->
+    <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+  {:else if place}
+    <ToolHead hubId={planId} tool="plan" current="schedule" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+  {/if}
+  {/snippet}
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -759,7 +755,7 @@
   {#if draft}
     {#if viewport.isCompact}
       <Button size="sm" tone="subtle" aria-label={t('app.planning.timing_of', { title: name })} onclick={() => (timingOpen = each.link_id)}>{t('app.planning.timing')}</Button>
-      <Sheet title={t('app.planning.timing_title', { title: name })} dismissLabel={t('app.page.sheet_close')} grabLabel={t('app.page.sheet_grab')}
+      <Sheet title={t('app.planning.timing_title', { title: name })} closeLabel={t('app.page.sheet_close')} grabLabel={t('app.page.sheet_grab')}
         bind:isOpen={() => timingOpen === each.link_id, (open) => (timingOpen = open ? each.link_id : undefined)}>
         {@render timingFields(each.link_id, name)}
       </Sheet>

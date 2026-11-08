@@ -178,18 +178,20 @@ export interface ProductRow {
   readonly words: string;
   readonly path: string;
   readonly routes: readonly string[];
+  /** The tile's colour in the sidebar, a label token's name (the mockup's product tiles). */
+  readonly color: string;
 }
 
 export const PRODUCTS: readonly ProductRow[] = [
-  { id: 'plans', module: 'PLANNING', icon: 'calendar', code: 'app.nav.plans', words: 'app.nav.words_plans', path: '/plans', routes: ['plans-home'] },
+  { id: 'plans', module: 'PLANNING', icon: 'calendar', code: 'app.nav.plans', words: 'app.nav.words_plans', path: '/plans', routes: ['plans-home'], color: 'orange' },
   // *My notes* is a tab of the pages' home (§2.2); its own address is kept and is this row's.
-  { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'] },
-  { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'] },
-  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-settings'] },
-  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-settings'] },
-  { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'] },
-  { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'goal-results', 'portfolio', 'dashboard'] },
-  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home', 'agent'] },
+  { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'], color: 'teal' },
+  { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'], color: 'amber' },
+  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-reports', 'desk-settings'], color: 'magenta' },
+  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-classes', 'assets-sources', 'assets-settings'], color: 'slate' },
+  { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'], color: 'lime' },
+  { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'goal-results', 'portfolio', 'dashboard'], color: 'green' },
+  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home', 'agent'], color: 'violet' },
 ];
 
 /** The products band: the rows of the modules switched on, in the one order; none while none is on. */
@@ -719,4 +721,70 @@ export function firstScreen(groups: readonly SectionGroup[]): string {
 export function leftToWebApp(id: string, areas: readonly Area[] | undefined): Area | undefined {
   const area = id === ADMINISTRATION_ROW.id ? ADMINISTRATION_ROW.area : DESTINATIONS.find((each) => each.id === id)?.area;
   return area !== undefined && areas?.includes(area) ? area : undefined;
+}
+
+/** A hub tool (§2.4 part 1): one row per product switched on at the hub, in one fixed order. */
+export interface HubTool {
+  readonly id: 'queues' | 'plan' | 'inventory' | 'time' | 'goals';
+  readonly module: string;
+  readonly icon: IconName;
+  readonly code: string;
+}
+
+/** The fixed order; never reordered and never hidden by a person (recognition before customisation). */
+export const HUB_TOOLS: readonly HubTool[] = [
+  { id: 'queues', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.tool_queues' },
+  { id: 'plan', module: 'PLANNING', icon: 'calendar', code: 'app.nav.tool_plan' },
+  { id: 'inventory', module: 'ASSETS', icon: 'shield', code: 'app.nav.tool_inventory' },
+  { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.tool_time' },
+  { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.tool_goals' },
+];
+
+/**
+ * The hub's tools: each where its module is on at the hub (the workspace's narrowed by the hub's,
+ * UC-INS-21 check 11); *Queues* only where the hub also has a desk.
+ */
+export function hubTools(options: { readonly modulesOn: readonly string[]; readonly hasDesk: boolean }): readonly HubTool[] {
+  return HUB_TOOLS.filter((tool) => options.modulesOn.includes(tool.module) && (tool.id !== 'queues' || options.hasDesk));
+}
+
+/** Where a tool's page is: *Queues* opens the hub's first queue, every other tool its first tab. */
+export function toolPath(hubId: string, tool: HubTool['id']): string {
+  switch (tool) {
+    case 'queues': return `/hubs/${hubId}/desk`;
+    case 'plan': return `/hubs/${hubId}/plan`;
+    case 'inventory': return `/hubs/${hubId}/inventory`;
+    case 'time': return `/hubs/${hubId}/time`;
+    case 'goals': return `/hubs/${hubId}/goals`;
+  }
+}
+
+/** The tool a route is, or `overview` for the hub's own page, or nothing for any other. */
+export function toolOf(route: { readonly name: string | null; readonly query: Readonly<Record<string, string | undefined>> }): HubTool['id'] | 'overview' | undefined {
+  switch (route.name) {
+    case 'hub': return 'overview';
+    case 'hub-desk': return 'queues';
+    case 'hub-plan':
+    case 'hub-plan-releases':
+    case 'hub-plan-sprints': return 'plan';
+    case 'hub-inventory':
+    case 'hub-inventory-section':
+    case 'ci': return 'inventory';
+    case 'hub-time':
+    case 'hub-time-workload':
+    case 'hub-time-budget': return 'time';
+    case 'hub-goals':
+    case 'hub-goals-dashboards':
+    case 'goal':
+    case 'dashboard': return 'goals';
+    default: return undefined;
+  }
+}
+
+/**
+ * Where the hub quick switch leads (§2.4 item 1): the same tool at the other hub where it has it -
+ * Plan to Plan - otherwise that hub's overview.
+ */
+export function switchPath(hubId: string, tool: HubTool['id'] | 'overview' | undefined, targetTools: readonly HubTool[]): string {
+  return tool && tool !== 'overview' && targetTools.some((each) => each.id === tool) ? toolPath(hubId, tool) : `/hubs/${hubId}`;
 }

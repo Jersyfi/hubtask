@@ -14,13 +14,13 @@ export default {
 export const collection: Story = {
   name: 'A collection: one primary action, a filter, and a menu of twelve',
   about:
-    'The shape is the rule (ADR-0061): one primary action, at most two secondary, and the rest as the menu’s items — the props’ types leave no slot for a third button. The menu has three groups, the separators are the groups, and trash is last and alone. The notice under the title is the caller’s; the second row is the `ViewSwitcher`. Walk the tab order: the primary action comes before the menu.',
+    'The shape is the rule (ADR-0061): one primary action, at most two secondary, and the rest as the menu’s items — the props’ types leave no slot for a third button. The menu has three groups, the separators are the groups, and trash is last and alone. The notice under the title is the caller’s; the second row is the `ViewSwitcher`. Walk the tab order: the menu comes before the primary action, which stands last at the head’s end.',
 };
 
 export const hub: Story = {
-  name: 'A hub: create a collection, and import beside it',
+  name: 'A hub: its tile on the trail, its star after the title, New ▾',
   about:
-    'The same head with the hub’s actions: the primary is what a hub is for, import is the one secondary, and the menu holds only what a hub can do — no labels, fields, views, templates or policies, which belong to a collection. Its mark before the title is the symbol and the colour its people chose — the caller’s drawing, decorative beside the name, and not drawn where the bar carries the title.',
+    'The head of the navigation concept: the hub’s tile stands on the trail (`breadcrumb.mark`), not before the title; the star stands right after the title (`titleEnd`); the primary is *New ▾*, one button that opens the list of what can be made here (a primary with a `menu` and no `onclick`), last after the boxed ⋯, whose menu holds only what a hub can do.',
   args: { mode: 'hub' },
 };
 

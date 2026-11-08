@@ -285,7 +285,7 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   // The details come before the subtree in the document, so a reader meets them after the head.
   const order = await page.evaluate(() => {
     const details = document.querySelector('details.details-fold');
-    const subtree = document.querySelector('.level');
+    const subtree = document.querySelector('main .level');
     return details && subtree ? details.compareDocumentPosition(subtree) & Node.DOCUMENT_POSITION_FOLLOWING ? 'details first' : 'subtree first' : 'missing';
   });
   assert.equal(order, 'details first');

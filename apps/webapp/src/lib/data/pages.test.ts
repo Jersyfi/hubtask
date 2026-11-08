@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, homePageOf, publicPreviewOf, writersHere, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
+import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, homePageOf, publicPreviewOf, writersHere, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil } from './pages.ts';
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
@@ -21,12 +21,6 @@ test('the tree orders siblings by position and keeps a page whose parent is out 
   assert.deepEqual(tree.map((node) => node.page.id), ['a', 'b', 'orphan']);
   assert.deepEqual(tree[0]?.children.map((node) => node.page.id), ['a1', 'a2']);
   assert.equal(tree[0]?.children[0]?.children[0]?.depth, 2);
-});
-
-test('only an opened branch draws its pages', () => {
-  const tree = pageTree(rows);
-  assert.deepEqual(visibleRows(tree, new Set()).map((node) => node.page.id), ['a', 'b', 'orphan']);
-  assert.deepEqual(visibleRows(tree, new Set(['a', 'a1'])).map((node) => node.page.id), ['a', 'a1', 'a1x', 'a2', 'b', 'orphan']);
 });
 
 test('the pages above one are opened to show it; a move never lands under its own (UC-DOC-01 check 2)', () => {

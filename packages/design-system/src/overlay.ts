@@ -22,15 +22,17 @@ export interface OverlayOptions {
   /** Which rank this takes in the register - what `Escape` reaches first (design-system.md §6). */
   readonly layer: DismissibleLayer;
   readonly trigger: HTMLElement;
+  /** What the surface is drawn against, when it is not the trigger: a sidebar head it drops from. */
+  readonly anchor?: HTMLElement;
   readonly surface: HTMLElement;
   readonly placement: Placement;
   /** Close this overlay. Called by `Escape`, and by a pointer that went elsewhere. */
   readonly onDismiss: () => void;
 }
 
-export function openOverlay({ layer, trigger, surface, placement, onDismiss }: OverlayOptions): () => void {
+export function openOverlay({ layer, trigger, anchor = trigger, surface, placement, onDismiss }: OverlayOptions): () => void {
   const entry = layers.open(layer, onDismiss);
-  const unanchor = anchorTo(trigger, surface, { placement });
+  const unanchor = anchorTo(anchor, surface, { placement });
   const onKeydown = escapeHandler();
 
   // Capture, and `pointerdown` rather than `click`: a menu that closed on click would still be

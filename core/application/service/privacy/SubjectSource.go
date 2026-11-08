@@ -37,6 +37,7 @@ var subjectColumns = map[string][]string{
 	"item_member":          {"account_id"},
 	// What they were told, what they asked to be told, and what they agreed to.
 	"notification_preference": {"account_id"},
+	"account_star":            {"account_id"},
 	"consent_record":          {"account_id"},
 	// Their credentials, which are in the archive as rows about them rather than as usable
 	// secrets: the token's hash is what is stored, and §8.4 keeps a restore from making it valid

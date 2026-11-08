@@ -36,7 +36,7 @@ export interface Workspace {
   readonly itemId?: string;
   /** Whether the jumble is the reader's to see: `READ` on the workspace itself. */
   readonly hasJumble: boolean;
-  /** The first row of the products band, where any product is on (user-experience.md §3.4). */
+  /** The module of the sidebar's first product row, where any product is on (user-experience.md §3.4). */
   readonly firstProduct?: string;
   /**
    * How the frame is drawn: the tree pinned as a column, behind the bar's ☰ (below `expanded`), or
@@ -50,12 +50,16 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   const frame = workspace.frame ?? 'pinned';
   const steps: Step[] = [
     // Below `expanded` the tree is behind the bar's ☰, which is what the step points at and says.
+    // On a phone the hubs are the bottom bar's *Browse* (the navigation concept §9).
     frame === 'pinned'
       ? { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' }
-      : { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'block-end', words: 'hubs_drawer' },
-    // *Your products live here*: the band's first row in the column, which only `expanded` pins.
+      : frame === 'phone'
+        ? { id: 'hubs', route: '/', selector: 'nav a[href="/browse"]', side: 'block-end', words: 'hubs_browse' }
+        : { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'block-end', words: 'hubs_drawer' },
+    // *Your products live here*: the *Products* section's first row in the column, which only
+    // `expanded` pins - found by its module, the id its row in the products' tree carries.
     ...(workspace.firstProduct && frame === 'pinned'
-      ? [{ id: 'products' as const, route: '/', selector: `[data-tour="hubs"] [data-node="${workspace.firstProduct}"]`, side: 'inline-end' as const }]
+      ? [{ id: 'products' as const, route: '/', selector: `[data-tour="hubs"] [role="treeitem"][data-id="${workspace.firstProduct}"]`, side: 'inline-end' as const }]
       : []),
     // Capture from every page (ux-inventory.md §E1): the bar's button, or the bottom bar's ＋ on a
     // phone - the one act among its destinations.
@@ -90,7 +94,7 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   steps.push(
     workspace.collectionId
       ? { id: 'make', route: `/collections/${workspace.collectionId}`, selector: '[data-opener="add-entry"]', side: 'block-end' }
-      : { id: 'make', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' },
+      : { id: 'make', route: '/', selector: frame === 'phone' ? 'nav a[href="/browse"]' : '[data-tour="hubs"]', side: frame === 'phone' ? 'block-end' : 'inline-end' },
   );
   return steps;
 }

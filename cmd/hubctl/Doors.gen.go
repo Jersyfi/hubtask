@@ -26,6 +26,7 @@ var generatedGroups = map[string]string{
 	"setting":           "the settings catalogue: every setting, its level and its source",
 	"sla":               "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
 	"sprint":            "a collection's sprints: planned, run and closed, their burndown, the backlog and the team's velocity",
+	"star":              "a person's stars: the places they keep close, in their order",
 	"time":              "time records: recorded, corrected, listed, summed in reports and exported to accounting; the time policy",
 	"timer":             "the caller's running timer, the same on every device",
 	"timesheet":         "a person's week from Monday: filled in, copied, handed in, approved or sent back",
@@ -1219,6 +1220,15 @@ var generatedCommands = []door{
 			{Name: "type", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "type", "name", "parent_id", "archived_at"}},
+	{Group: "container", Verb: "move preview", OperationID: "previewContainerMove", Method: "POST", Path: "/containers/{containerId}:move-preview", Summary: "Preview a collection's move to another hub",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "before_container_id", Kind: "uuid", Help: "The sibling it would be placed before; null or omitted appends", Required: false},
+			{Name: "target_parent_id", Kind: "uuid", Help: "The hub the collection would move into", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"movable"}},
 	{Group: "container", Verb: "structure preview", OperationID: "previewContainerStructure", Method: "POST", Path: "/containers/{containerId}/structure:preview", Summary: "Answers what a change of a hub's or collection's own structure would stop showing, before it is …",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
@@ -1930,7 +1940,7 @@ var generatedCommands = []door{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
-			{Name: "after_id", Kind: "uuid", Help: "The sibling it follows; absent to place it first", Required: false},
+			{Name: "after_id", Kind: "uuid", Help: "The sibling page or whiteboard it follows; absent to place it first", Required: false},
 			{Name: "parent_id", Kind: "uuid", Help: "The page it moves under; absent for the top of the space", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
@@ -2323,6 +2333,11 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "queue", Verb: "ls", OperationID: "listHubQueues", Method: "GET", Path: "/hubs/{hubId}/queues", Summary: "A hub's queues with their counts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name"}},
 	{Group: "recur", Verb: "rm", OperationID: "removeRecurrence", Method: "DELETE", Path: "/items/{itemId}/recurrence", Summary: "Remove an entry's series; the occurrences it produced stay",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
@@ -2752,6 +2767,19 @@ var generatedCommands = []door{
 			{Name: "collectionId", Kind: "uuid", Help: "The collection - a team's board - the sprints belong to", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"average", "unit"}},
+	{Group: "star", Verb: "list", OperationID: "listStars", Method: "GET", Path: "/accounts/{accountId}/stars", Summary: "Read a person's stars",
+		PathParams: []doorParam{
+			{Name: "accountId", Kind: "uuid", Help: "An account identifier, always a UUID", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"version"}},
+	{Group: "star", Verb: "replace", OperationID: "replaceStars", Method: "PUT", Path: "/accounts/{accountId}/stars", Summary: "Replace a person's stars",
+		PathParams: []doorParam{
+			{Name: "accountId", Kind: "uuid", Help: "An account identifier, always a UUID", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "stars", Kind: "json", Help: "The stars in the person's order", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"version"}},
 	{Group: "suggestion", Verb: "dismiss", OperationID: "dismissSuggestion", Method: "POST", Path: "/suggestions/{suggestionId}:dismiss", Summary: "Dismiss a suggestion",
 		PathParams: []doorParam{
 			{Name: "suggestionId", Kind: "uuid", Help: "", Required: true},
@@ -3069,8 +3097,10 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		Body: []doorParam{
+			{Name: "after_id", Kind: "uuid", Help: "The sibling page or board it follows; absent or null for after the last", Required: false},
 			{Name: "elements", Kind: "json", Help: "", Required: false},
 			{Name: "id", Kind: "uuid", Help: "An identifier the client minted", Required: false},
+			{Name: "parent_page_id", Kind: "uuid", Help: "The page of the same hub the board stands under; absent or null for the top of the space", Required: false},
 			{Name: "title", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
@@ -3094,9 +3124,19 @@ var generatedCommands = []door{
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
+			{Name: "order", Kind: "string", Help: "`CHANGED` (the default) lists the last changed first", Required: false},
 			{Name: "trashed", Kind: "boolean", Help: "Deprecated: `GET /trash?kind=WHITEBOARD` lists the boards in the trash across the workspace's hubs; …", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
+	{Group: "whiteboard", Verb: "move", OperationID: "moveWhiteboard", Method: "POST", Path: "/whiteboards/{whiteboardId}:move", Summary: "Move a whiteboard in the content tree",
+		PathParams: []doorParam{
+			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "after_id", Kind: "uuid", Help: "The sibling page or board it follows; absent or null places it first", Required: false},
+			{Name: "parent_page_id", Kind: "uuid", Help: "The page of the same hub it moves under; absent or null for the top of the space", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
 	{Group: "whiteboard", Verb: "place-file", OperationID: "attachWhiteboardMedia", Method: "POST", Path: "/whiteboards/{whiteboardId}/media", Summary: "Place an uploaded file on a whiteboard",
 		PathParams: []doorParam{
 			{Name: "whiteboardId", Kind: "uuid", Help: "", Required: true},

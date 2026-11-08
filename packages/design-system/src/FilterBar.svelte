@@ -124,7 +124,7 @@
 </div>
 
 {#if filters.length > 0}
-  <Sheet bind:isOpen={isSheetOpen} title={sheetTitle ?? filtersLabel ?? ''} dismissLabel={sheetDismissLabel ?? ''} grabLabel={sheetGrabLabel ?? ''}>
+  <Sheet bind:isOpen={isSheetOpen} title={sheetTitle ?? filtersLabel ?? ''} closeLabel={sheetDismissLabel ?? ''} grabLabel={sheetGrabLabel ?? ''}>
     {#each filters as filter (filter.id)}
       <section class="sheet-filter">
         <h3 class="sheet-filter-name">{filter.label}</h3>

@@ -17,7 +17,7 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { toast } from './toasts.svelte.ts';
-  import { undoRefusal, type ToastEntry } from './toasts.ts';
+  import { isUndoPress, latestUndo, undoRefusal, type ToastEntry } from './toasts.ts';
 
   interface Props {
     /** Whether the phone's bottom bar is drawn, which the stack then sits above. */
@@ -60,6 +60,17 @@
     await entry.undo?.();
   }
 
+  // `Cmd/Ctrl+Z` while a message offers *Undo* takes its newest one (§5.4), unless the device is
+  // offline, where *Undo* waits as its button does.
+  function undoByKey(event: KeyboardEvent) {
+    const field = event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]') !== null;
+    if (!isUndoPress(event, field)) return;
+    const entry = latestUndo(toast.entries);
+    if (!entry || undoRefusal(live.state === 'offline')) return;
+    event.preventDefault();
+    void undo(entry, elements.get(entry.id) ?? null);
+  }
+
   async function act(entry: ToastEntry, element: HTMLElement | null) {
     close(entry, element);
     await entry.action?.run();
@@ -71,6 +82,8 @@
     return () => elements.delete(id);
   };
 </script>
+
+<svelte:window onkeydown={undoByKey} />
 
 <div class="stack" data-above-bar={isAboveBottomBar ? '' : undefined}>
   {#each toast.entries as entry (entry.id)}

@@ -64,7 +64,7 @@ test('chromium: a requester with several portals finds them on the start and in 
   await page.goto(`${served.origin}/`);
   await page.getByText('This is where you get help').waitFor({ timeout: 15_000 });
   assert.equal(await page.getByText('still has to give you access').count(), 0);
-  const nav = page.getByRole('navigation', { name: 'Your portals' });
+  const nav = page.locator('aside.sidenav').getByRole('list', { name: 'Your portals' });
   assert.equal(await nav.getByText(FACILITIES.name).count(), 1, 'the navigation does not list the portal');
   await page.getByRole('button', { name: FACILITIES.name }).click();
   await page.waitForURL(`**/portal/${FACILITIES.collection_id}`, { timeout: 5_000 });

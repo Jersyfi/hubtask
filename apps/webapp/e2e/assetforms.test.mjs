@@ -232,7 +232,7 @@ test('chromium: the class list names each class and spaces its line', async (t) 
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
 
-  await page.goto(`${served.origin}/assets/settings`);
+  await page.goto(`${served.origin}/assets/classes`);
   const meta = page.locator('[data-class-meta]').first();
   await meta.waitFor({ timeout: 15_000 });
   const line = (await meta.textContent()).trim();

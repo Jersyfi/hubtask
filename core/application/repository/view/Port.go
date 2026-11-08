@@ -34,6 +34,10 @@ type SavedViews interface {
 	// the page (domain-model.md §3.2).
 	ListReachable(ctx context.Context, ownerID shared.ID, scopeIDs []shared.ID) ([]view.SavedView, error)
 
+	// ListHubQueues answers the hub's views marked as queues that are the account's own or shared
+	// at the hub, by their place (UC-SVC-03 check 10). READ at the hub is asked before it runs.
+	ListHubQueues(ctx context.Context, ownerID, hubID shared.ID) ([]view.SavedView, error)
+
 	// Insert writes a new view under its own key, or one the store draws from its name (Find
 	// answers it); a key its scope already holds is a conflict.
 	Insert(ctx context.Context, saved view.SavedView) error

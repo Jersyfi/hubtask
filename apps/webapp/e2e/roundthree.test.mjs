@@ -20,7 +20,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { BUCKETS, COLLECTION, GROCERIES, HUB, ITEMS, PAGE, signedIn, stub } from './fixture.mjs';
+import { BUCKETS, COLLECTION, GROCERIES, HUB, ITEMS, PAGE, signedIn, stub, chooseView } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -133,7 +133,7 @@ test('chromium: the twist only on an entry with parts, and one add for a list gr
 test('chromium: a click anywhere on a board card opens it', { timeout: 60_000 }, async () => {
   const { page, close } = await open(1280, `/collections/${COLLECTION.id}`);
   try {
-    await page.getByRole('radio', { name: 'Board' }).click();
+    await chooseView(page, 'Board');
     const card = page.locator(`[data-card="${ITEMS[2].id}"]`);
     await card.waitFor({ timeout: 15_000 });
     const box = await card.boundingBox();

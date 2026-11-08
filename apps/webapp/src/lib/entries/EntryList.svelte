@@ -804,6 +804,24 @@
    */
   let level = $state<HTMLElement | null>(null);
 
+  /**
+   * Whether the fields stand in columns under their heads: only where the heads - the title's
+   * least room (`layout.list.title`) and each field's column - fit the list's own width, which a
+   * viewport query cannot know beside a wide sidebar. The head is laid out either way and its
+   * overflow is the answer, so no width is written here; once in columns it stays while it fits.
+   */
+  let fieldsHead = $state<HTMLElement | null>(null);
+  let hasColumns = $state(false);
+  $effect(() => {
+    const head = fieldsHead;
+    if (!head) return;
+    const measure = () => { hasColumns = head.scrollWidth <= head.clientWidth + 1; };
+    const observer = new ResizeObserver(measure);
+    observer.observe(head);
+    measure();
+    return () => observer.disconnect();
+  });
+
   $effect(() => {
     const node = level;
     if (!node) return;
@@ -1255,8 +1273,9 @@
       {/if}
       <!-- The column heads (L2): what each column beside the titles is, the sortable ones as
            buttons that order by it. From `expanded` up, where the fields stand in columns. -->
+      <div class="columns">
       {#if arrangement && !root && fields.length > 0}
-        <div class="fields-head" data-simple={isSimple ? '' : undefined} aria-hidden={onsort ? undefined : 'true'}>
+        <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
           {#if sortOf('title') && onsort}
             <button type="button" class="col-head title-head" onclick={() => onsort(sortOf('title') ?? '')}>{t('app.list.col_title')}{#if sortField === sortOf('title')}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
           {:else}
@@ -1274,7 +1293,7 @@
           </span>
         </div>
       {/if}
-      <div class="level" bind:this={level} data-simple={isSimple ? '' : undefined}>
+      <div class="level" bind:this={level} data-simple={isSimple ? '' : undefined} data-columns={hasColumns && fieldsHead ? '' : undefined}>
         {#if moment && moment.tier === 3}
           <!-- The rare one takes the level: a slot no taller than the token, at its foot. -->
           <CelebrationSlot current={moment} />
@@ -1357,6 +1376,7 @@
             {@render entryRow(row)}
           {/each}
         {/if}
+      </div>
       </div>
 
       <!-- The collection's list is read a page at a time: what is not on the first page is said
@@ -1777,27 +1797,32 @@
   .cell:empty { display: none; }
   .type-mark { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
 
-  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
-  @media (width >= 905px) {
-    .cells { flex-wrap: nowrap; }
-    .cell { flex: none; flex-wrap: nowrap; overflow: hidden; }
-    .cell:empty { display: inline-flex; }
-    .cell[data-field='key'] { inline-size: calc(var(--sp-1000) * 1.5); }
-    .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
-    .cell[data-field='amount'] { inline-size: var(--sp-1000); }
-    .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
-    .cell[data-field='due'] { inline-size: calc(var(--sp-1000) * 2.5); }
-    .cell[data-field='people'] { inline-size: var(--sp-1000); }
-    .cell[data-field='labels'] { inline-size: calc(var(--sp-1000) * 2.25); }
-    .cell[data-field='progress'] { inline-size: var(--sp-600); }
-  }
+  /* The column heads and the rows' fields under them: the head is always laid out from
+     `expanded` up - its overflow says whether the columns fit (`hasColumns`) - and drawn only where
+     they do; the rows' cells take the columns' widths only then. Out of columns the head keeps
+     the list's width with no height and nothing seen, so the answer it gives is for this width. */
+  .columns { position: relative; display: flex; flex-direction: column; gap: var(--sp-200); }
 
-  /* The column heads: the title's at the start, the fields' over their cells; the rows' own
-     start and end padding, so a head stands over its column. Only where there are columns. */
   .fields-head { display: none; }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
+    .fields-head .cells,
+    .level[data-columns] .cells { flex-wrap: nowrap; }
+    .fields-head .cell,
+    .level[data-columns] .cell { flex: none; flex-wrap: nowrap; overflow: hidden; }
+    .level[data-columns] .cell:empty { display: inline-flex; }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='key'] { inline-size: calc(var(--sp-1000) * 1.5); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='amount'] { inline-size: var(--sp-1000); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='due'] { inline-size: calc(var(--sp-1000) * 2.5); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-1000); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='labels'] { inline-size: calc(var(--sp-1000) * 2.25); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='progress'] { inline-size: var(--sp-600); }
+
+    /* The title's at the start, the fields' over their cells; the rows' own start and end padding,
+       so a head stands over its column. */
     .fields-head {
       display: flex;
       align-items: center;
@@ -1809,6 +1834,16 @@
     }
 
     .fields-head[data-simple] { padding-inline-start: calc(var(--sp-600) + var(--sp-150)); }
+
+    .fields-head:not([data-columns]) {
+      position: absolute;
+      inset-inline: 0;
+      inset-block-start: 0;
+      block-size: 0;
+      overflow: hidden;
+      visibility: hidden;
+      border: 0;
+    }
   }
 
   .col-head {
@@ -1827,7 +1862,7 @@
   button.col-head { cursor: pointer; }
   button.col-head:hover { color: var(--text-primary); }
   button.col-head:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
-  .title-head { flex: 1; min-width: 0; }
+  .title-head { flex: 1 0 var(--layout-list-title); }
 
   /* One group head for every grouping (L4) - the simple list's categories, a column, a person, a
      due band - and the done group's fold (L5). */

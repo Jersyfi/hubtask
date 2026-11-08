@@ -187,6 +187,15 @@ export function isNoSuchObject(error: TransportError): boolean {
   return error.kind === 'problem' && (error.status === 404 || error.detailCode === 'request.parameter_invalid');
 }
 
+/**
+ * Whether a write failed for want of a connection: the server unreachable, or a write the device
+ * keeps no queue for refused (`sync.needs_connection`). A screen that knows what was asked says
+ * why in its own words.
+ */
+export function needsConnection(error: TransportError): boolean {
+  return error.kind === 'offline';
+}
+
 const OBJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 /** Whether an address's id has an object id's shape, so a screen need not ask the server first. */

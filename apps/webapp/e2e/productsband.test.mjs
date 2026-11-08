@@ -150,7 +150,8 @@ async function open(browser, { width, scheme = 'light', path = '/', reducedMotio
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}${path}`);
-  await page.getByRole('button', { name: ACCOUNT.display_name }).waitFor({ timeout: 15_000 });
+  // A phone's deeper screen has the bar's ‹ where a root has the avatar (the navigation concept §9).
+  await page.getByRole('button', { name: ACCOUNT.display_name }).or(page.locator('[data-phone-bar] [data-back]')).first().waitFor({ timeout: 15_000 });
   return { page, failures, close: () => context.close() };
 }
 
@@ -161,19 +162,25 @@ async function noSidewaysScroll(page, label) {
 
 // The colour scheme changes no row or box here: one scheme per width.
 for (const scheme of ['light']) {
-  test(`chromium 1280 px, ${scheme}: the products band, in one order, and a product's home with its hubs`, async (t) => {
+  test(`chromium 1280 px, ${scheme}: the products section, in one order, and a product's home with its hubs`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width: 1280, scheme, modulesOn: ['TIME', 'SERVICE_DESK', 'KNOWLEDGE'] });
     t.after(close);
-    const tree = page.getByRole('navigation', { name: 'Workspace', exact: true });
-    await tree.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
-    const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-    // The places (the approvals where the desk is on), then the products in Module.Keys() order
-    // whatever order the manifest answers, then the hubs.
-    // Today's row counts what waits for the reader's yes beside its name.
-    assert.deepEqual(rows, ['Today  1 waiting', 'Search', 'Inbox', 'Waiting for your yes', 'Pages', 'Service desk', 'Time', HUB.name], JSON.stringify(rows));
-    assert.equal(await page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 1, 'the band has no caption');
+    const side = page.locator('aside.sidenav');
+    await side.getByRole('tree', { name: 'Hubs' }).getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 10_000 });
+    const first = (texts) => texts.map((row) => row.split('\n')[0].trim());
+    // For you (the approvals where the desk is on), its count beside *Waiting for your yes*; then
+    // the products in Module.Keys() order whatever order the manifest answers, then the hubs.
+    const top = side.getByRole('list', { name: 'For you' });
+    assert.deepEqual(first(await top.getByRole('link').allInnerTexts()), ['Today', 'Inbox', 'Waiting for your yes']);
+    await top.getByRole('link', { name: /Waiting for your yes/ }).filter({ hasText: '1' }).waitFor({ timeout: 5_000 });
+    const products = side.getByRole('region', { name: 'Products' });
+    // The products are a tree whose rows are dragged into order (UC-WRK-38 check 7).
+    assert.deepEqual(first(await products.getByRole('treeitem').allInnerTexts()), ['Pages', 'Service desk', 'Time']);
+    assert.deepEqual(first(await side.getByRole('tree', { name: 'Hubs' }).getByRole('treeitem').allInnerTexts()), [HUB.name]);
+    assert.equal(await side.getByText('Products', { exact: true }).count(), 1, 'the section has no caption');
+    const tree = products;
     // The account menu carries none of them.
     await page.getByRole('button', { name: ACCOUNT.display_name }).click();
     const items = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((item) => item.trim());
@@ -185,6 +192,11 @@ for (const scheme of ['light']) {
     assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Pages');
     assert.equal(await tree.getByRole('treeitem', { name: 'Pages' }).getAttribute('aria-current'), 'page', 'the row is not current on its home');
     const tabs = page.getByRole('main').getByRole('navigation', { name: 'Pages' });
+    // The shared vocabulary (the navigation concept §4): *For you* first, the spaces a tab of their own.
+    assert.deepEqual(first(await tabs.getByRole('link').allInnerTexts()), ['For you', 'Spaces', 'My notes']);
+    assert.equal(await tabs.getByRole('link', { name: 'For you' }).getAttribute('aria-current'), 'page');
+    await tabs.getByRole('link', { name: 'Spaces' }).click();
+    await page.waitForFunction(() => location.search === '?tab=spaces', null, { timeout: 5_000 });
     assert.equal(await tabs.getByRole('link', { name: 'Spaces' }).getAttribute('aria-current'), 'page');
     // The hub, one line with the whole name as its tooltip, opening the hub's pages.
     const hub = page.getByRole('main').getByRole('link', { name: HUB.name });
@@ -209,8 +221,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
 
   const none = await open(browser, { width: 1280, path: '/whiteboards', modulesOn: [] });
   t.after(none.close);
-  const tree = none.page.getByRole('navigation', { name: 'Workspace', exact: true });
-  await tree.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
+  await none.page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' }).getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 10_000 });
   assert.equal(await none.page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 0, 'a household with nothing on sees the caption');
   // Reached by a link while off: the neutral screen with its way forward (§2.8).
   await none.page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
@@ -219,7 +230,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
 });
 
 for (const scheme of ['dark']) {
-  test(`chromium 375 px, ${scheme}: More opens the drawer with the products first`, async (t) => {
+  test(`chromium 375 px, ${scheme}: Browse lists the products, the hub and the foot`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width: 375, scheme, modulesOn: ['SERVICE_DESK', 'ASSETS'] });
@@ -228,17 +239,16 @@ for (const scheme of ['dark']) {
     await page.getByRole('region', { name: 'More in Hubtask' }).waitFor({ timeout: 10_000 });
     await noSidewaysScroll(page, `Today 375 ${scheme}`);
     const bar = page.getByRole('navigation', { name: 'Sections' });
-    await bar.getByRole('button', { name: 'More' }).click();
-    const drawer = page.locator('dialog[open]');
-    await drawer.waitFor({ timeout: 5_000 });
-    await drawer.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 5_000 });
-    const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-    // What the bar does not carry: the approvals, then the products, the hub, the administration
-    // and the keeping band.
+    await bar.getByRole('link', { name: 'Browse' }).click();
+    const browse = page.locator('[data-browse-step]');
+    await browse.getByRole('link', { name: new RegExp(HUB.name) }).waitFor({ timeout: 5_000 });
+    const rows = (await browse.locator('a').allInnerTexts()).map((row) => row.split('\n')[0].trim());
+    // What the bottom bar does not carry: the approvals, then the products, the hub, the
+    // administration and the keeping (the navigation concept §9).
     assert.deepEqual(rows, ['Waiting for your yes', 'Service desk', 'Assets', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
-    await drawer.getByRole('treeitem', { name: 'Assets' }).click();
+    await browse.getByRole('link', { name: 'Assets' }).click();
     await page.waitForFunction(() => location.pathname === '/assets', null, { timeout: 5_000 });
-    assert.equal(await bar.getByRole('button', { name: 'More' }).getAttribute('aria-current'), 'page', 'More is not current on a place only the drawer lists');
+    assert.equal(await bar.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page', 'Browse is not current on a product home');
     await page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `375 ${scheme}`);
     assert.deepEqual(failures, []);
@@ -351,7 +361,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 // §2.2, §2.4, §7.4: the desk's home and a hub's Desk tab draw the handler's queues across the
 // hub's desk collections only, with their counts, what breaks first on top (UC-SVC-03).
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
-  test(`chromium ${width} px, ${scheme}: the desk's home and the hub's Desk tab draw the queues`, async (t) => {
+  test(`chromium ${width} px, ${scheme}: the desk's home and the hub's Queues draw the queues`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     queries.length = 0;
@@ -397,14 +407,17 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     await page.getByRole('region', { name: 'About to breach', exact: true }).getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `desk home ${width} ${scheme}`);
 
+    // The hub's desk is its tool *Queues* (the navigation concept, §2.4), current in its level.
     await page.goto(`${served.origin}/hubs/${HUB.id}/desk`);
-    const strip = page.getByRole('navigation', { name: HUB.name });
-    await strip.getByRole('link', { name: 'Desk' }).waitFor({ timeout: 10_000 });
-    assert.equal(await strip.getByRole('link', { name: 'Desk' }).getAttribute('aria-current'), 'page');
-    const desks = page.getByRole('region', { name: 'Desks' });
-    await desks.waitFor({ timeout: 10_000 });
-    assert.deepEqual(await desks.locator('.name').allTextContents(), [DESK.name]);
-    await page.getByRole('radio', { name: 'All open (3)' }).waitFor({ timeout: 10_000 });
+    if (width >= 1280) {
+      const queuesTool = page.locator('aside.sidenav').getByRole('region', { name: HUB.name }).getByRole('link', { name: 'Queues', exact: true });
+      await queuesTool.waitFor({ timeout: 10_000 });
+      assert.equal(await queuesTool.getAttribute('aria-current'), 'page');
+    }
+    // The hub's first queue opens as its table over the hub's desks (UC-SVC-03 check 10), one
+    // queue a page: no choice of the four.
+    await page.getByRole('main').getByRole('table').first().waitFor({ timeout: 10_000 });
+    assert.equal(await page.getByRole('main').getByRole('radiogroup', { name: 'Queues' }).count(), 0, 'the queue page draws the queues\' choice');
     await noSidewaysScroll(page, `hub desk ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
@@ -477,17 +490,18 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['PLANNING', 'KNOWLEDGE', 'ASSETS', 'WHITEBOARD'] });
   t.after(close);
+  // One boxed line per tool, then one for the content tree (the navigation concept §2.4): what it
+  // says first, the tool it leads to at its end.
   const lines = page.getByRole('list', { name: 'What the products say here' });
-  await lines.locator('[data-product-line="assets"]').waitFor({ timeout: 10_000 });
-  await lines.locator('[data-product-line="plan"]').waitFor({ timeout: 10_000 });
-  await lines.locator('[data-product-line="whiteboards"]').waitFor({ timeout: 10_000 });
-  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'pages', 'whiteboards', 'assets']);
-  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /Plan\s+Sprint Kranich · (Its last day has passed|\d+ days? left) · Next: Autumn fixes on /);
-  assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/collections/${SCRUM.id}/sprints`);
-  // Every page of the fixture changed before this week began, the template included.
-  assert.match(await lines.locator('[data-product-line="pages"]').innerText(), /Pages\s+No page changed this week/);
-  assert.equal(await lines.locator('[data-product-line="pages"] a').getAttribute('href'), `/hubs/${HUB.id}/pages`);
-  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /42 configuration items · 2 need attention/);
+  for (const id of ['plan', 'assets', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'assets', 'contents']);
+  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /^Sprint Kranich · (Its last day has passed|\d+ days? left) · Autumn fixes on [A-Z][a-z]{2} \d+\s+Plan$/);
+  assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/hubs/${HUB.id}/plan`);
+  // Every page and board of the fixture changed before this week began, the template included.
+  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^No page and no whiteboard changed this week\s+All contents$/);
+  assert.equal(await lines.locator('[data-product-line="contents"] a').getAttribute('href'), `/hubs/${HUB.id}/contents`);
+  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /^42 configuration items · 2 need attention\s+Inventory$/);
+  assert.equal(await lines.locator('[data-product-line="assets"] a').getAttribute('href'), `/hubs/${HUB.id}/inventory`);
   await noSidewaysScroll(page, 'hub overview');
   assert.deepEqual(failures, []);
 });
@@ -500,16 +514,16 @@ test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK', 'TIME', 'GOALS', 'WHITEBOARD'] });
   t.after(close);
   const lines = page.getByRole('list', { name: 'What the products say here' });
-  for (const id of ['whiteboards', 'desk', 'time', 'goals']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
-  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['whiteboards', 'desk', 'time', 'goals']);
+  for (const id of ['desk', 'time', 'goals', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['desk', 'time', 'goals', 'contents']);
   // Both boards of the fixture changed before this week began.
-  assert.match(await lines.locator('[data-product-line="whiteboards"]').innerText(), /Whiteboards\s+No board changed this week/);
-  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /Desk\s+3 open$/);
+  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^No page and no whiteboard changed this week\s+All contents$/);
+  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /^3 open\s+Queues$/);
   assert.equal(await lines.locator('[data-product-line="desk"] a').getAttribute('href'), `/hubs/${HUB.id}/desk`);
-  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /Time\s+6:30 of yours this week/);
-  assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/actuals`);
-  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /Goals\s+1 goal pursued$/);
-  assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/goals?hub=${HUB.id}`);
+  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /^6:30 of yours this week\s+Time$/);
+  assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/time`);
+  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /^1 goal\s+Goals$/);
+  assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/hubs/${HUB.id}/goals`);
   const recent = page.getByRole('region', { name: 'Recently changed' });
   await recent.waitFor({ timeout: 10_000 });
   assert.deepEqual(await recent.locator('.title').allTextContents(), RECENT.map((entry) => entry.title));
@@ -534,7 +548,8 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await plan.click();
-  await page.waitForURL(`**/collections/${DESK.id}/sprints?new=1`, { timeout: 5_000 });
+  // A collection's sprints are its *Sprint* view (the navigation concept §8).
+  await page.waitForURL(`**/collections/${DESK.id}/sprint?new=1`, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
@@ -590,7 +605,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     t.after(opened.close);
     await opened.page.addInitScript(watch);
     await opened.page.reload();
-    await opened.page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 10_000 });
+    await opened.page.getByRole('region', { name: 'Waiting for your review' }).getByRole('link').first().waitFor({ timeout: 10_000 });
     const seen = await opened.page.evaluate(() => window.__arrivals ?? []);
     assert.deepEqual(opened.failures, []);
     return seen;
@@ -608,7 +623,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     await opened.page.addInitScript(watch);
     if (choice) await opened.page.addInitScript((value) => localStorage.setItem('hubtask.motion', value), choice);
     await opened.page.reload();
-    await opened.page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 10_000 });
+    await opened.page.getByRole('region', { name: 'Waiting for your review' }).getByRole('link').first().waitFor({ timeout: 10_000 });
     assert.deepEqual(await opened.page.evaluate(() => window.__arrivals ?? []), [], `a row moved although ${label} asked for reduced motion`);
     assert.deepEqual(opened.failures, []);
   }

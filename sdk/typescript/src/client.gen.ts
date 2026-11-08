@@ -831,6 +831,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/business-calendars/{calendarKey}", { "calendarKey": calendarKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A hub's queues with their counts */
+  listHubQueues(hubId: string, options: CallOptions = {}): Promise<operations["listHubQueues"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/queues", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A hub's own business calendars */
   listHubCalendars(hubId: string, options: CallOptions = {}): Promise<operations["listHubCalendars"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/business-calendars", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -2058,6 +2063,16 @@ export class HubtaskClient {
   /** Set how the product speaks to an account */
   updateAccountPreferences(accountId: string, body: NonNullable<operations["updateAccountPreferences"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["updateAccountPreferences"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/accounts/{accountId}/preferences", { "accountId": accountId }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Read a person's stars */
+  listStars(accountId: string, options: CallOptions = {}): Promise<operations["listStars"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/{accountId}/stars", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a person's stars */
+  replaceStars(accountId: string, body: NonNullable<operations["replaceStars"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["replaceStars"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/accounts/{accountId}/stars", { "accountId": accountId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** What an account wants to be told about */
@@ -3603,6 +3618,11 @@ export class HubtaskClient {
     return this.call("POST", "/containers/{containerId}:move", { "containerId": containerId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Preview a collection's move to another hub */
+  previewContainerMove(containerId: string, body: NonNullable<operations["previewContainerMove"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["previewContainerMove"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}:move-preview", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /containers/{containerId}:reorder */
   reorderContainer(containerId: string, body: NonNullable<operations["reorderContainer"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string; readonly ifMatch?: string } = {}): Promise<operations["reorderContainer"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/containers/{containerId}:reorder", { "containerId": containerId }, undefined, { "Idempotency-Key": options.idempotencyKey, "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
@@ -4376,6 +4396,11 @@ export class HubtaskClient {
   /** Put a whiteboard in the trash */
   trashWhiteboard(whiteboardId: string, options: CallOptions = {}): Promise<operations["trashWhiteboard"]['responses'][200]['content']["application/json"]> {
     return this.call("DELETE", "/whiteboards/{whiteboardId}", { "whiteboardId": whiteboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Move a whiteboard in the content tree */
+  moveWhiteboard(whiteboardId: string, body: NonNullable<operations["moveWhiteboard"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["moveWhiteboard"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/whiteboards/{whiteboardId}:move", { "whiteboardId": whiteboardId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Bring a whiteboard back from the trash */

@@ -17,12 +17,14 @@ The concept's mockups (`docs/backlog/suite/configuration/ui.md` and the concept'
 the binding look where this document does not draw a picture of its own.
 
 **The mockups** are in [`user-experience/`](./user-experience/): [`shell.html`](./user-experience/shell.html)
-(the column, a product home, a hub with its tab strip, the phone's bars),
+(the column, a product home, a hub with its tab strip — superseded by the hub level of §2.4,
+its hub scene redrawn by the navigation concept's step 5 — and the phone's bars),
 [`first-start.html`](./user-experience/first-start.html) (the starter, Today for a newcomer, a
 module switched on) and [`patterns.html`](./user-experience/patterns.html) (empty states, create
 with a template, a plan in words, a refusal, a settings page, an import) and
 [`administration.html`](./user-experience/administration.html) (the overview's first steps,
-*Changes*, roles). They draw the generated token sheet
+*Changes*, roles). The navigation's binding mockup is the concept's own,
+[`backlog/navigation/mockup.html`](../backlog/navigation/mockup.html) (§2). These draw the generated token sheet
 `packages/design-system/dist/tokens.css` and carry no colour, length or duration of their own
 (rule 15), so they cannot drift from the tokens; open them from a checkout after `make tokens` or
 `pnpm -r build`. They are pictures to build from, not screens: no data in them is real.
@@ -35,7 +37,7 @@ Each principle has a stable identifier a screen, a test or a review cites.
 
 | # | Principle | What it means on a screen |
 |---|---|---|
-| UX-1 | **One home per product** | Every product that is switched on has exactly one row in the column and one workspace-wide home; inside a hub it has one tab, always in the same place. A product is never a page action, never in an overflow menu and never behind the avatar |
+| UX-1 | **One home per product, one place in a hub** | Every product that is switched on has exactly one row under *Products* and one workspace-wide home showing it across the hubs; inside a hub it has one place on the hub's level of the sidebar — a tool, a collection's mark or the content tree — always in the same place, never a tab (§2.4, [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)). A product is never a page action, never in an overflow menu and never behind the avatar |
 | UX-2 | **One anatomy** | A product home, a list, a detail, a create dialog, an empty state and a settings page look and behave the same in every product (§5). A person who learned one product has learned where things are in all of them |
 | UX-3 | **Start from something that works** | The first start, a new hub and every product's first screen offer a template with sample content, and a product works from its shipped defaults (P-17). A blank form is never the only way in |
 | UX-4 | **Disclose by need** | What is needed now is shown; advanced controls fold on the same page (A8 of `configuration/ui.md`), never on a second page. A newcomer meets few choices; nothing is taken away from the expert |
@@ -51,27 +53,40 @@ Each principle has a stable identifier a screen, a test or a review cites.
 The shell's mechanics — the app bar, `SideNav`, `NavDrawer`, `BottomBar`, the five widths — stay
 [`design-system.md`](../design/design-system.md) §11. What changes is **what the list holds**.
 
-### 2.1 Five bands
+### 2.1 Two levels between a fixed top and foot
 
-`apps/webapp/src/lib/navigation.ts` stays the one list every width draws (§11.3 there). It gets
-two more bands, in this order; nothing outside a band, nothing in two.
+The navigation concept *Kompass* ([`backlog/navigation/README.md`](../backlog/navigation/README.md),
+mockup [`mockup.html`](../backlog/navigation/mockup.html), binding in its visual details) replaces
+the five bands. `apps/webapp/src/lib/navigation.ts` stays the one list every width draws (§11.3
+there); the sidebar has three regions:
 
-| Band | Rows | Shown |
+| Region | Rows | Shown |
 |---|---|---|
-| `places` | *Today* (with the count of what is on the reader today), *Search*, *Inbox* (the jumble, with its waiting count), *Waiting for your yes* (approvals, held agent acts and page reviews, with a count) | *Waiting for your yes* only where a module that produces approvals is on (SERVICE_DESK, AGENTS, KNOWLEDGE reviews) |
-| `products` | One row per switched-on product with a home (§2.2), under the caption *Products* | Only where at least one is on; a household with none on never sees the caption (UC-INS-21 check 1) |
-| `tree` | The hubs and their collections, as today, each with its figure (§2.5) | Always |
-| `workspace` | *Administration* | Only where the manifest's `workspace_permissions` carry `STRUCTURE` or `READ_CONFIGURATION` — the condition the account menu's row has today; it leaves the account menu |
-| `keeping` | *Archive*, *Trash* | Pinned to the foot, as today |
+| Top, fixed: *For you* | *Today* (its count), *Inbox* (the jumble, its waiting count), *Waiting for your yes* (approvals, held agent acts and page reviews, with a count) | On both levels. *Waiting for your yes* only where a module that produces approvals is on. *Search* is the palette's field (§11.4 there), not a row |
+| Middle, scrolling: **the workspace level** | *Recent* (one row opening a flyout of the last 20 places, the device's), *Starred* (§2.9), *Products* (§2.2), *Hubs* (each with › to its level; ＋ creates one) | On *Today*, search, the inbox, a product home and a starred thing without a hub |
+| Middle, scrolling: **the hub level** | the hub's head, *Overview* and its tools, *Collections*, *Contents* (§2.4) | On anything of a hub: the hub, a collection, a page, a board, a queue, a tool, and a detail screen the hub owns |
+| Foot, fixed | *Administration* (only where the manifest's `workspace_permissions` carry `STRUCTURE` or `READ_CONFIGURATION`), *Archive*, *Trash* | On both levels, after a hairline |
 
-This changes `design-system.md` §11.3 (three bands become five, the account group's rows) and the
-band type in `navigation.ts`. A test beside `navigation.ts` asserts, for every module of
-`Module.Keys()` with a home: on draws exactly one `products` row in the column, the drawer and
-the phone's *More*; off draws none.
+**A detail screen stays in the level of the place that owns it.** An entry, a page, a whiteboard,
+a CI, a goal or a dashboard of a hub shows that hub's level, with the row it belongs to current (its
+collection, itself in *Contents*, *Inventory*, *Goals*); a goal or a dashboard of the workspace (no
+hub) shows the workspace level with its product current. The route names only the object, so the
+screen names its place once it has read it (`page.locate`, `null` for the workspace); until then
+the level it was opened from stays - it never falls back to the workspace in between, which would
+tear the hub's level down and slide it in again on every step from one page or board to the next.
+
+Only the middle changes between the levels; it slides in (`motion.reveal`, none under reduced
+motion) and focus lands on *‹ All hubs*. *Hubs* shows the shared order by default (`order_key`),
+or personally *Recently visited* or *A–Z*; 12 hubs, then *n more* with a filter. *Starred*,
+*Products*, *Hubs*, *Collections* and *Contents* fold by the chevron on their head, remembered on
+the device; a head that does not fold draws no chevron and no pointer. A test beside
+`navigation.ts` asserts, for every module of `Module.Keys()` with a home: on draws exactly one
+`products` row, and at a hub where it is on exactly one tool, collection mark or content part; off
+draws none (UC-INS-21 check 11).
 
 ### 2.2 The products band
 
-In `Module.Keys()` order, so the band never reorders itself when a module is switched:
+By default in `Module.Keys()` order, so the section never reorders itself when a module is switched; a person may reorder and hide rows for themselves (below):
 
 | Module | Row | Home | What the home lists |
 |---|---|---|---|
@@ -84,6 +99,18 @@ In `Module.Keys()` order, so the band never reorders itself when a module is swi
 | TIME | *Time* | `/time` | The reader's week first (as today), the weeks they decide, the report |
 | GOALS | *Goals* | `/goals` | Goals of the current period, portfolios and dashboards as tabs, as today |
 | AGENTS | *Agents* | `/agents` | The agents working here that the reader may see, their held acts and their recent runs |
+
+**Each home shows its product across every hub**; what belongs to the workspace or the person
+lives there and never in a hub, with the shared vocabulary of tabs of §5.1 (*For you* first where
+the product holds personal work, *Settings* last): Plans *For you · Sprints · Releases · Roadmaps*;
+Pages *For you · Spaces · My notes*; Whiteboards *For you · All · Templates*; Service desk *For you ·
+Desks · Reports · Settings*; Assets *Inventory · Classes · Sources · Settings*; Time *My week · To
+decide · Report · Absences · Settings*; Goals *Goals · Portfolios · Dashboards*; Agents *Agents ·
+Waiting · Runs · Settings*. The rows are ordered personally by drag or `Alt+↑/↓`, and a row's ⋯
+(its long press on touch) hides it: hidden rows stand behind one *More* row below the shown ones,
+folded at first, which opens them in place, each with its tile and ⋯ → *Show*. Hiding moves no
+other row. A hub row's ⋯ hides a hub the same way. Both are kept on the account (§2.9); whether
+*More* is open is the device's. A product whose module is off is neither shown nor behind *More*.
 
 A row is drawn where its module is on **and** the reader may read something it would list; a
 row whose home would be empty for every reader of this role is still drawn for a holder of
@@ -102,42 +129,48 @@ Only what is about the person: the name and e-mail as its head, *Your settings*,
 *Notes*, *Approvals* and *Goals* leave it for the bands above. This changes `design-system.md`
 §11.3's paragraph on the account group.
 
-### 2.4 Inside a hub: the tab strip
+### 2.4 Inside a hub: the hub level
 
-A hub draws **one tab strip** under its `PageHeader`, in one fixed order, each tab only where its
-module is on at that hub (UC-INS-21 check 3):
+A hub draws **no tab strip**. Opening anything of a hub shows its level in the sidebar, in this
+order ([ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md); the
+concept's §2.4 has the tables):
 
-*Overview* · *Plan* · *Pages* · *Whiteboards* · *Desk* · *Assets* · *Time* · *Goals*
+1. **The head**: *‹ All hubs*, the hub's mark and name with ▾ (the quick switch: search, starred and
+   recently visited hubs, *All hubs*; the switch keeps the tool where the target hub has it), ☆, ⋯.
+   The hub's settings are only in its ⋯ (`placeMenu.ts`).
+2. ***Overview* and the hub tools**, one row each where its module is on at the hub, in a fixed
+   order that no person changes: *Queues* (SERVICE_DESK and at least one desk; expands to the hub's
+   queues with live counts, starred first; replaces the tab *Desk*), *Plan* (PLANNING; tabs
+   *Schedule · Releases · Sprints*), *Inventory* (ASSETS; tabs *Inventory · Health · Alerts · Map ·
+   Manage ▾*, the class tree inside the page), *Time* (TIME; tabs *Actuals · Workload · Budget*),
+   *Goals* (GOALS; tabs *Goals · Dashboards*). A tool is switched off at the hub by a holder of
+   `STRUCTURE`, never hidden by a person. Agents, portfolios, types and workflows, approvals, the
+   person's own time and the portal are not on the hub level.
+3. ***Collections***, in their manual order, each with its kind's mark (desk, runs sprints) and its
+   figure (§2.5). A collection's views are never rows of the sidebar.
+4. ***Contents***: one tree of the hub's pages and whiteboards where KNOWLEDGE or WHITEBOARD is on.
+   Pages nest up to twelve levels; a whiteboard stands at the top or under a page and has no
+   children; templates are offered in the create dialog, not in the tree. From 30 entries a filter
+   (*All · Pages · Whiteboards*); modes *Tree*, *Recently changed*, *A–Z*, personal; *All contents*
+   opens the table.
 
-*Overview* is always there and is today's hub page, made live (§7.9). *Plan* holds the hub's plan
-and its releases as sub-views; *Time* holds actuals and workload; *Goals* holds the hub's goals and
-dashboards; *Desk* lists the hub's desk collections' queue. A collection draws the same strip with
-its own tabs: *Entries* · *Plan* · *Sprints* · *Portal* · *Time*, where *Sprints* appears only
-where the collection runs sprints (its template brought them, or a sprint exists) and *Portal* only
-on a desk: a collection whose own or hub's `entry_types` name a type open to the portal. A request
-type of the workspace alone makes no collection a desk, so a service template taken by the
-workspace leaves its Scrum and Kanban collections as they were; a service template's hub part
-names its types. Whether a collection runs sprints is its sprints' read (`runs_sprints`); the
-template that works in sprints is the Scrum team. The palette offers neither *Sprints* nor *Portal*,
-which need reads it does not make.
-
-* The strip is a new design-system component, **`PlaceTabs`**: a `nav` landmark of links with
-  `aria-current`, because it switches routes (the same reason `BottomBar` is not `Tabs`). One tab
-  stop, the arrows between tabs. On `compact` it scrolls sideways inside itself with the current
-  tab kept in view, never wrapping.
-* **The place's menu holds only verbs on the place** (`placeMenu.ts`): *Settings…*, move, import,
-  change position, archive, privacy, trash. `ContainerView.svelte`'s `moduleActions` stop being
-  page actions; the head's two secondary actions go back to the place's own acts. A component test
-  pins the order and asserts that no product appears in the place menu or the head.
-* The tabs are mirrored in the tree: an expanded hub's row shows its collections, then, after a
-  hairline, one quieter row per hub tab other than *Overview*, with the tab's mark. The tree is
-  still the one tree (§11.3 there); these rows are links to the tabs.
+A part appears only where its product is on at the hub; an empty part only for whoever may create
+in it, as one quiet row (*Create the first page*). **One view bar per object**: a collection, a tool
+and a product home draw one `ViewBar` under the `PageHeader` — a `nav` of links with
+`aria-current`, the first fixed, the rest ordered for everyone by `STRUCTURE`, ＋ adding a view —
+and never a second strip. A collection's *Plan* tab and its *Timeline* layout are one view,
+*Timeline*. The place's menu holds only verbs on the place, as before; no product appears in it or
+in the head. The former hub-tab addresses stay as moved addresses (`movedTo`).
 
 ### 2.5 The tree's figures and names
 
-* A hub's and a collection's row carries its figure at the end where it has one — open, progress,
-  *1 over SLA*, a sprint's days left, a plan's next milestone — the same figure its head shows
-  (UC-WRK-29), as the concept's prototype draws them.
+* A collection's row and a tool's row carry their figure at the end where they have one — open,
+  progress, *1 SLA*, a sprint's days left, a plan's next milestone, *6 !*, *2 at risk* — the same
+  figure its head shows (UC-WRK-29). An amount is quiet (mono, `text.subtle`); only what asks for
+  action (SLA, overdue, at risk) stands on the danger surface, with its words. On hover ⋯ and ＋
+  take the figure's cell.
+* The current place has a 3 px brand bar at its start, the selection surface and semibold, with
+  `aria-current`; its ancestors open and it scrolls to the middle.
 * A name is one line with an ellipsis and the whole name as the tooltip and the accessible name;
   it never breaks inside a word (`overflow-wrap: anywhere` is not used in the tree).
 * The member stack in a hub's head (`AvatarGroup`) never overlaps initials beyond its own
@@ -145,11 +178,17 @@ which need reads it does not make.
 
 ### 2.6 By width
 
-* **`compact`**: the bottom bar keeps *Today*, *Search*, *Capture*, *Inbox* and *More*. *More*
-  opens the drawer, whose first band is the products, then the tree, *Administration* and the
-  keeping band. The account is the avatar in the bar.
-* **`medium`**: the drawer holds all five bands.
-* **≥ `expanded`**: the pinned column, all five bands; folded to a rail, each product is one mark.
+* **`compact`**: the bottom bar is *Today · Browse · ＋ (Capture) · Inbox · Search*, each tab with its
+  own stack, a second tap returning to its root; hidden while the keyboard is up, on a whiteboard
+  and in the page editor. *Browse* is the workspace level as a list (*Recent* as cards, *Starred*,
+  *Products*, *Hubs*); a hub is a stack step with the same three parts, *Queues* a step of its own; a
+  content row opens on its name and descends by a separate ›. A collection's view is a chip that
+  opens a sheet of the same views. The top bar shows the avatar on a root (the account sheet with
+  the workspace switch) and *‹ the level above*, ☆ and ⋯ deeper. One main action floats above the
+  bottom bar. A long press opens the context sheet; ordering happens in reorder mode.
+* **`medium`**: the sidebar is a drawer with both levels; no bottom bar.
+* **≥ `expanded`**: the pinned sidebar, 200–400 px wide by drag (264 by default, the device's),
+  foldable to the 56 px rail with a peek on hover.
 
 ### 2.7 The words of the navigation
 
@@ -180,6 +219,30 @@ allowlist of brand words (*Hubtask*).
   `unused`), never a danger banner: it says what the product does in one line, and offers *Switch
   on <product>* to a holder (opening the switch with its card) or names a workspace administrator
   to everybody else. The reference stays behind *Details* (§5.9).
+
+### 2.9 Stars and what is recent
+
+*Starred* holds hubs, collections, queues, pages, whiteboards, dashboards and portfolios, one
+personal list in one order, on the account (`/accounts/{accountId}/stars`), and appears from the
+first star; ☆ in every place's head and `S` star. *Recent* is the device's (`lib/recents.svelte.ts`).
+The order and hiding of *Products*, the hidden hubs, the order of *Hubs* and the mode of *Contents*
+are the account's preferences, so they follow the person; the sidebar's width, the rail and which
+sections are folded stay the device's.
+
+### 2.10 Creating, ordering and moving in the sidebar
+
+One grammar: ＋ on a section head creates at its top, ＋ on a row creates under it, ⋯ manages it.
+Dragging orders inside one part of one hub — collections with collections, contents with contents;
+an entry dragged from a list or board onto a collection moves it (UC-WRK-06 check 8). Hubs move in
+the shared order; moved while the person reads them *Recently visited* or *A–Z*, they turn to the
+shared order first and say so — a drag lands after the hub it was dropped under, `Alt+↑/↓` only
+turns the order. *Change position* is offered where every hub is listed, never in a hub's own
+head. Another hub is
+reached only through *Move to…* with its pre-check, never by drag. The rules of the drag — the 4 px
+threshold, the zones, the line at the target's indent, the 600 ms auto-expand, the 48 px
+auto-scroll, `Esc`, the eight-second *Undo* with `Cmd/Ctrl+Z`, `Alt` with the arrows and `M`, the
+long press and reorder mode on touch, the offline *waiting* mark — are `design-system.md` §11.9 and
+the concept's §5 (UC-WRK-38, UC-WRK-39, UC-CNV-10).
 
 ---
 
@@ -385,7 +448,7 @@ on the first rung of the dialog-or-page ladder that fits it (`design-system.md` 
 
 | Pattern | Design system (`packages/design-system/src/`) | Web app | Status |
 |---|---|---|---|
-| Product home | `PageHeader` (primary with a split), `PlaceTabs` (new), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
+| Product home | `PageHeader` (primary with a split), `ViewBar` (§2.4), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
 | Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | `lib/product/CreateDialog.svelte`, filled by each product | moved + new |
 | Find | `SearchField`, `ListRow` | `lib/data/search.svelte.ts` fan-out, `lib/palette/sources.ts` one source per module | extended |
 | List of objects | `ListPage` with `FilterBar`, `DataTable` or `ResourceGrid` and `ResourceCard`, `BulkBar`, `LoadMore` | `lib/page/` (`Continued`, `list.ts`, `DiscardGuard`), every administration list | built |
@@ -407,14 +470,16 @@ on the first rung of the dialog-or-page ladder that fits it (`design-system.md` 
 
 ### 5.1 A product home
 
-Every product home and every hub tab has one anatomy (mockup: `shell.html`, *Product home*):
+Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Product home*):
 
-1. `PageHeader`: the trail (*Products › Service desk*, or *Hub › Desk*), the title, a one-line
+1. `PageHeader`: the trail (*Products › Service desk*, or *Hub › Queues*), the title, a one-line
    figure (*12 open · 1 over SLA*), **the primary create act** with *From a template…* as its
    split half, at most two secondary acts, the menu.
-2. `PlaceTabs` for the home's views where it has several (*Queues · Desks · Settings*).
-   **Settings is the last tab** wherever the product has settings and the reader may change or
-   read them: the product's configuration lives at its home (§8.2).
+2. `ViewBar` for the home's views where it has several, in the shared vocabulary of §2.2: **For
+   you is the first tab** wherever the product holds personal work (*For you · Desks · Reports ·
+   Settings*), and **Settings is the last tab** wherever the product has settings and the reader
+   may change or read them: the product's configuration lives at its home (§8.2). There is never a
+   second strip; more views of one tab are a menu (*Manage ▾*).
 3. `Toolbar`: filter, sort, *Views*, and *By hub* where the home spans hubs.
 4. The content: a list of `ListRow`s, cards where the object is visual (boards, dashboards), a
    chart where the product is a chart (plans).
@@ -679,6 +744,11 @@ Each product's main screen in one picture of words; the shared anatomy (§5.1) i
 
 ### 7.1 Pages (wiki)
 
+**Target (the navigation concept, §2.4):** the space's tree is the sidebar's *Contents*, shared with
+the hub's whiteboards; the page draws no tree of its own and takes the content region with the page
+and its comments sheet (UC-DOC-01 check 6). What follows describes today's screen until the
+concept's step 5.
+
 Opens on the space's **home page** (or its first page), never on *Open a page*. Three regions: the
 tree with its search at the start (filters — *Changed*, *Only mine* — behind one filter control;
 the drafts setting moves to the hub's settings), the page in the middle with a one-row toolbar
@@ -703,6 +773,10 @@ another page; the preview counts what the body names rather than drawing the pub
 A portal article leaves every internal address out of what a requester reads.
 
 ### 7.2 Whiteboards
+
+**Target (the navigation concept, §2.4):** a hub's boards stand in its *Contents* beside the pages,
+at the top or under a page (UC-CNV-10); the hub's former *Whiteboards* tab becomes *All contents*
+filtered to whiteboards, and the gallery across hubs is the product home's.
 
 A **full-bleed canvas**. One compact floating tool bar of icon buttons (with tooltips and names)
 at the top centre; zoom and the map in a corner; the selected object's properties first in a
@@ -741,11 +815,11 @@ As built: the hub's *Assets* has a `PageHeader` with the trail, a figure (*40 co
 6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New configuration
 item* as the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
 campaign*, each opening its section's own dialog once. No licence count is drawn: no read answers
-which licences expire. The first strip is *Inventory · Health · Alerts · Groups and map · Manage*;
-*Manage* opens *Runs · Duplicates · Connectors · Campaigns · Register · Software · Import* as a
-second strip and is drawn for whoever may write or shape the hub, the import for a writer only;
-for a reader without it, *Register* and *Software*, which only list, join the first strip
-(UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
+which licences expire. The tool's view bar is *Inventory · Health · Alerts · Map · Manage ▾*
+(*Map* holds the groups and the service map); *Manage ▾* is a menu of *Runs · Duplicates ·
+Connectors · Campaigns · Register · Software · Import*, never a second strip, and is drawn for
+whoever may write or shape the hub, the import for a writer only; for a reader without it,
+*Register* and *Software*, which only list, join the view bar (UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
 `ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
 empty inventory offers the create and the import, a reader is told how CIs arrive. A connector is
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched
@@ -759,6 +833,11 @@ list from the expanded width and above it on a phone, hidden from assistive tech
 the list carries every relation with its link.
 
 ### 7.4 Service desk and portal
+
+**Target (the navigation concept, §2.4):** a hub's queues are its tool *Queues* in the sidebar, with
+live counts from one read of the hub (UC-SVC-03 check 10), and replace the hub's *Desk* tab; the desk
+itself is a collection with the desk mark, its head linking *Open portal ↗*; the home's tabs are
+*For you · Desks · Reports · Settings*.
 
 **The handler's queue** (mockup: `shell.html`, *Desk*) is the desk collection's default view and
 the products row's home: columns key, title, requester, status, priority, **SLA remaining**
@@ -867,7 +946,7 @@ primary. The record dialog shows its refusal inside the dialog and field message
 inputs (§5.10). **A timer that ran too long** offers *Record until…* with a time picker prefilled
 with the start's day at the person's usual end of work, recording the bounded span on the start's
 day; *Discard* stays the secondary choice. The absence calendar's heading and days are localised
-(§5.10). *Weeks to decide* and *Report* are tabs.
+(§5.10). *To decide* and *Report* are tabs.
 
 As built: the head carries the trail, the week's total and state as its figure (*29:10 this week ·
 Open*), *Record time* as the primary and the one timer beside it — *Start timer* while idle (on no
@@ -876,7 +955,7 @@ once it has run past a day, *Timer running since …: more than a day* with *Rec
 place. *Record until…* asks for a time on the start's day, prefilled with the start plus that
 weekday's capacity (eight hours without one, never past the day's last minute), refuses a time
 before the start at its field, and stops the timer at that moment; the server records the span,
-bounded to a day by the stop itself. The tabs are a `PlaceTabs` strip (*My week · Weeks to decide ·
+bounded to a day by the stop itself. The tabs are a `ViewBar` (*My week · To decide ·
 Report · Absences · My capacity*). Under the week's navigation the seven days are a strip of cards,
 each with its total, today marked, a locked day marked in words; pressing a day records on it. The
 grid of entries by day is drawn from `medium` up; the records are a table that stacks on a phone,
@@ -922,7 +1001,7 @@ addresses draw the same one. The head names the figure (*2 live · 1 draft · 3 
 person*) and *Add an agent* as its primary, the split offering the shipped roles (ticket triage,
 knowledge draft, duplicate review, CI suggestion), each prefilled with its name, what it does and
 the domain's default budget — a zero budget allows nothing, and a card whose budget holds a zero
-says so. The tabs are *Agents · Waiting for a person · Runs · Settings*, Settings for whoever
+says so. The tabs are *Agents · Waiting · Runs · Settings*, Settings for whoever
 administers agents (the kill switch, MCP's registered-only, the models, the metering). A card
 shows the role, the person it acts for, the model, what it may do in words, its budget and its
 lifecycle presses; its *N waiting* opens the held acts narrowed to it, which is also where Today's
@@ -937,7 +1016,7 @@ per use case, which none has today.
 
 ### 7.9 A hub's overview
 
-The hub's *Overview* tab: the collection cards **with their figures** (open, overdue, SLA
+The hub's *Overview* (a row of the hub level, §2.4; no tabs under its head): the collection cards **with their figures** (open, overdue, SLA
 breaches, the sprint's or the plan's state), the hub's recent activity, and, where they are on,
 one line per product (*3 pages changed this week*, *Sprint 42 · 6 days left*). The dashed card
 creating a collection stays.
@@ -1284,6 +1363,8 @@ claims what the code does not do.
 | `design-system.md` §8 | The onboarding order (§3.1) and product tours (§3.4) |
 | `design-system.md` §4 | `PlaceTabs`, `TemplateCard`, `TemplateGallery`, `PlanSummary`, `Disclosure`, `DurationInput`, `ZonePicker`, `FrequencyPicker` join their waves; `EmptyState`, `ErrorState`, `UploadField`, `Table` gain what §5 names |
 | `voice-and-tone.md` | The navigation words (§2.7); refusals name what next (§5.8) |
+| UC-INS-21, UC-WRK-06, UC-SVC-03, UC-DOC-01, UC-WRK-01 | The navigation concept's approval (2026-11-07): check 11, check 8, check 10, check 6 reworded, *Where it ends* on dragging (`backlog/navigation/README.md` §12) |
+| `design-system.md` §4, §11.3, §11.8, §11.9, §11.10 | The navigation concept: `ViewBar` for `PlaceTabs`, the two levels, the hub screen without a strip, the sidebar's drag, the preferences (ADR-0100) |
 
 ---
 
@@ -1440,3 +1521,9 @@ section of the design system it changes, and is walked against the mockups befor
 35. *Changes* in two questions, the expert's parts folded (§8.6).
 36. Each role card's holders (§8.7).
 37. Your settings name the workspace's value they leave a choice to (§8.8).
+
+**The navigation concept** ([`backlog/navigation/README.md`](../backlog/navigation/README.md))
+
+38. *Kompass*, built whole on one branch in its own eight steps: contracts, design-system pieces,
+    the two levels, the screens, mobile, moving, proof (§2.1, §2.4, §2.6, §2.9, §2.10). It
+    supersedes item 3's tab strip and mirrored rows.

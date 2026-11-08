@@ -10,21 +10,23 @@
 
   import { Icon } from '@hubtask/design-system/components';
 
-  import { chosenColour, markOf, type Look } from './look.ts';
+  import { DEFAULT_TILE, chosenColour, markOf, type Look } from './look.ts';
 
   interface Props {
     look: Look;
-    /** `md` for a page head, `sm` beside a line of text. */
-    size?: 'sm' | 'md';
+    /** `md` for a page head, `sm` beside a line of text, `xs` on a trail's small type. */
+    size?: 'xs' | 'sm' | 'md';
+    /** Whether a place without a colour stands on the default tile, as the navigation draws it on a trail and a card; elsewhere no colour stays none (UC-WRK-33). */
+    hasDefaultTile?: boolean;
   }
 
-  const { look, size = 'sm' }: Props = $props();
+  const { look, size = 'sm', hasDefaultTile = false }: Props = $props();
 
-  const colour = $derived(chosenColour(look));
+  const colour = $derived(chosenColour(look) ?? (hasDefaultTile ? DEFAULT_TILE : undefined));
 </script>
 
 <span class="mark" data-size={size} data-token={colour} aria-hidden="true">
-  <Icon name={markOf(look)} {size} />
+  <Icon name={markOf(look)} size={size === 'xs' ? 'sm' : size} />
 </span>
 
 <style>
@@ -39,6 +41,8 @@
     color: var(--text-subtle);
   }
 
+  .mark[data-size='xs'] { inline-size: var(--sp-200); block-size: var(--sp-200); border-radius: var(--r-xs); }
+  .mark[data-size='xs'] :global(svg) { inline-size: var(--sp-150); block-size: var(--sp-150); }
   .mark[data-size='sm'] { inline-size: var(--sp-250); block-size: var(--sp-250); }
   .mark[data-size='md'] { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); }
 

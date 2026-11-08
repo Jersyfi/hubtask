@@ -14,7 +14,7 @@
     head?: PageHead;
     /** A head of the screen's own instead of `head`. */
     top?: Snippet;
-    /** The place's `PlaceTabs`: layer 2 of §4.3. */
+    /** The place's `ViewBar`: layer 2 of §4.3. */
     tabs?: Snippet;
     /** The `Toolbar`: the view's segmented control and its acts. */
     toolbar?: Snippet;

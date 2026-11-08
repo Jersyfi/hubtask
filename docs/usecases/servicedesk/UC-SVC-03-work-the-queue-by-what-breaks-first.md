@@ -5,9 +5,9 @@ context: servicedesk
 actors: [PE-handler]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
-state: verified
+state: built
 tasks: []
-checked_by: [infrastructure/postgres/query/Sla_test.go, core/domain/model/view/Filter_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, apps/webapp/e2e/servicedeskwalk.test.mjs, apps/webapp/src/lib/servicedesk/queues.test.ts, apps/webapp/e2e/productsband.test.mjs]
+checked_by: [infrastructure/postgres/query/Sla_test.go, core/domain/model/view/Filter_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, apps/webapp/e2e/servicedeskwalk.test.mjs, apps/webapp/src/lib/servicedesk/queues.test.ts, apps/webapp/e2e/productsband.test.mjs, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, core/application/service/servicedesk/Queues_test.go, test/integration/hub_queue_test.go, core/domain/model/view/SavedView_test.go]
 ---
 
 # Work the queue by what breaks first
@@ -31,6 +31,17 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 7. A handler reading a request sees, beside it, who raised it, the portal organisation of their mail domain and their other open requests the handler may see, newest first; the requester's address is not shown, and somebody who may not read the request is answered not found.
 8. After a merge, a public reply on the request merged into reaches the merged request's requester too: a requester by mail gets the reply's mail with the ticket key of the request merged into, each address once, and a portal requester is told under *The team answers a request I raised* on their own request; an internal note reaches neither.
 9. Beside a request the handler also sees up to twenty configuration items its requester owns, by name, only of the hubs where the handler may read them and assets are switched on; merged and disposed ones are left out, and another workspace's never appear.
+
+10. In a hub with a desk and the service desk on, the sidebar's *Queues* lists the hub's queues -
+    its saved views marked as queues, or *Mine*, *Unassigned*, *About to breach* and *All open*
+    where it has none - each with its count from one read of the hub's queues
+    (`GET /hubs/{hubId}/queues`), a count holding entries about to breach or breached on the danger
+    surface; opening one shows its table over every desk of the hub.
+11. On a hub's queue page a handler presses *Filter* and sets a condition: the table shows the
+    queue's requests that also meet it. Once a condition is set, a member who shapes the hub
+    (`STRUCTURE`) sees *Save as queue*; saving it under a name keeps a view of the hub marked as a
+    queue (`queue: true`) with the queue's conditions and the new one, and the new queue opens and
+    stands under the hub's *Queues*.
 
 ## Where it ends
 

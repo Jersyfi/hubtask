@@ -109,7 +109,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await modelDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByRole('main').getByText('Local small', { exact: true }).waitFor({ timeout: 5_000 });
 
-  await page.getByRole('link', { name: 'Agents', exact: true }).click();
+  await page.getByRole('main').getByRole('link', { name: 'Agents', exact: true }).click();
   await page.waitForURL(/\/agents$/);
   await page.getByText('0 live · 1 draft · 1 waiting for a person').waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: 'Start from a role' }).click();
@@ -181,7 +181,9 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
   const dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel('Name').inputValue(), 'Ticket triage');
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
-  await page.getByRole('tab', { name: /^Runs/ }).click();
+  // On a phone the home's views are a chip that opens them as a sheet (the navigation concept, §6).
+  await page.getByRole('main').getByRole('button', { name: 'Agents', exact: true }).click();
+  await page.getByRole('link', { name: 'Runs' }).click();
   await page.getByText('No agent has run a job yet').waitFor({ timeout: 5_000 });
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   assert.equal(scrolls, false, 'the page scrolls sideways on a phone');

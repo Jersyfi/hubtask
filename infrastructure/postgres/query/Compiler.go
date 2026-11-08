@@ -313,6 +313,17 @@ func Count(search repository.ItemSearch) (Statement, error) {
 	return b.statement()
 }
 
+// CountWithin compiles Count's statement with a second number beside the total: how many of the
+// kept entries the within filter keeps too, as a FILTER clause over the same single scan.
+func CountWithin(search repository.ItemSearch, within view.Node) (Statement, error) {
+	b := newBuilder(search)
+	b.write(`SELECT count(*)::bigint, count(*) FILTER (WHERE `)
+	b.node(within)
+	b.write(`)::bigint FROM work_item wi WHERE `)
+	b.predicates(search)
+	return b.statement()
+}
+
 // Search compiles the full text search: one page of entries in the order the database ranked them
 // (ADR-0034).
 //

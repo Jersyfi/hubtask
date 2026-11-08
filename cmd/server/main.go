@@ -2064,7 +2064,8 @@ func run() error {
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
-		Boards: postgres.NewWhiteboardRepository(), Containers: containers, Authorizer: authorizer,
+		Boards: postgres.NewWhiteboardRepository(), Contents: postgres.NewWhiteboardRepository(),
+		Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Texts: pageSpace.Pages, Entries: entryLinks, Reader: authorizer, Media: mediaObjects,
 		Changes: changes, HLC: hybrid,
@@ -2075,6 +2076,8 @@ func run() error {
 			Jobs: jobs, IDs: ids, Signals: metrics,
 		},
 	}
+	// The boards stand among the pages in one content tree (UC-CNV-10).
+	pageSpace.Boards = whiteboardservice.PageSide{Studio: boardStudio}
 	// The service desk's calendars and SLA policies (M5); the clocks run on the durable timers.
 	// Every approval, SLA record and rating written reaches the change log through its store, so
 	// that a device reads them while the server is away (offline-sync.md §3.1).
@@ -2271,6 +2274,12 @@ func run() error {
 	// What another product's dashboard and search box show (UC-INT-20): the searches of the
 	// registry run as the reader, through the catalogue set below.
 	glanceSearches := &deferredCatalogue{}
+	// A person's stars are read as the person through the catalogue set below (UC-WRK-37).
+	starReads := &deferredCatalogue{}
+	starService := identity.Stars{
+		Stars: postgres.NewStarRepository(), Accounts: accounts, Reader: starReads, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	glance := glanceservice.Glance{
 		Invoker: glanceSearches, Addresses: workspaceAddress(cfg), Containers: containers, UnitOfWork: unitOfWork,
 	}
@@ -2437,6 +2446,7 @@ func run() error {
 		whiteboardservice.CreateWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ReadWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.ListWhiteboards{Studio: boardStudio}.Descriptor(),
+		whiteboardservice.MoveWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.UpdateWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.TrashWhiteboard{Studio: boardStudio}.Descriptor(),
 		whiteboardservice.RestoreWhiteboard{Studio: boardStudio}.Descriptor(),
@@ -2454,6 +2464,13 @@ func run() error {
 		servicedeskservice.DefineBusinessCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteBusinessCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListHubCalendars{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ListHubQueues{
+			Desk: serviceDesk, Views: savedViews, EntryTypes: entryTypes, Gate: entryGate,
+			Query: work.QueryItems{
+				Gate: entryGate, Items: items, Containers: containers, Fields: customFields, Counter: items,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+		}.Descriptor(),
 		servicedeskservice.DefineHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),
@@ -2842,6 +2859,8 @@ func run() error {
 			Accounts: accounts, Avatars: accounts, Objects: mediaObjects, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ListStars{Stars: starService}.Descriptor(),
+		identity.ReplaceStars{Stars: starService}.Descriptor(),
 		identity.ListNotificationPreferences{
 			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,
@@ -3358,6 +3377,10 @@ func run() error {
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures, EntryTypes: entryTypes, Workflows: workflows}.Descriptor(),
+		work.PreviewContainerMove{
+			Move:    work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures, EntryTypes: entryTypes, Workflows: workflows},
+			Permits: authorizer, Leftovers: postgres.MovePreviewRepository{},
+		}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
@@ -3923,6 +3946,7 @@ func run() error {
 	alertEntries.catalogue = useCases
 	botEntries.catalogue = useCases
 	glanceSearches.catalogue = useCases
+	starReads.catalogue = useCases
 	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
 	approvalSteps.catalogue = useCases

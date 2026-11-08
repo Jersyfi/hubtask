@@ -996,9 +996,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.whiteboard == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
-    # The suite alone takes about sixteen minutes since the screen walks came in, and the apt
-    # steps up to fifteen on a slow mirror: twenty minutes cancelled green runs.
-    timeout-minutes: 40
+    # The suite alone takes thirty-odd minutes since the navigation's walks came in, and the apt
+    # steps up to fifteen on a slow mirror: forty minutes cancelled a run still passing.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -1138,8 +1138,11 @@ jobs:
           printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
             sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update
+          # Ubuntu 26.04 renamed the driver's package; both ship WebKitWebDriver.
+          driver=webkitgtk-webdriver
+          apt-cache show "$driver" >/dev/null 2>&1 || driver=webkit2gtk-driver
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev file \
-            webkit2gtk-driver xvfb gnome-keyring
+            "$driver" xvfb gnome-keyring
       # SQLCipher, the encrypted copy's cipher (ADR-0033 §4), links OpenSSL's libcrypto: Linux finds
       # libssl-dev's where the compiler looks, the Windows runner's has to be named.
       - name: The system's OpenSSL

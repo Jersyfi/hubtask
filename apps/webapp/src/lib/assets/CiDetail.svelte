@@ -9,6 +9,7 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS there is no edit,
   // no relate and no remove.
+  import { placeMark } from '../workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
   import { Badge, Banner, Button, Checkbox, DataTable, DetailPage, Input, PageHeader, Select, Spinner, Stack, Textarea, type DataColumn, type SelectOption } from '@hubtask/design-system/components';
@@ -280,13 +281,14 @@
     breadcrumb={hub
       ? {
           trail: [
-            { id: 'place', label: hub.name, href: `/hubs/${hub.id}` },
+            { id: hub.id, label: hub.name, href: `/hubs/${hub.id}` },
             { id: 'assets', label: t('app.assets.title'), href: `/hubs/${hub.id}/assets` },
             { id: 'ci', label: ci.name },
           ],
+          mark: placeMark,
           label: t('app.assets.trail'),
           expandLabel: t('app.admin.expand_trail'),
-          onnavigate: (id) => onnavigate(id === 'place' ? `/hubs/${hub.id}` : `/hubs/${hub.id}/assets`),
+          onnavigate: (id) => onnavigate(id === hub.id ? `/hubs/${hub.id}` : `/hubs/${hub.id}/assets`),
         }
       : undefined}
     secondary={[{ label: t('app.assets.copy_reference'), icon: 'link', onclick: () => void copyReference() }]}

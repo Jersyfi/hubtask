@@ -15,8 +15,8 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge, Banner, Button, DataTable, EmptyState, FilterBar, ListPage, Radio, Skeleton, Tabs,
-    type DataColumn, type Filter, type DataRowMenu,
+    Badge, Banner, Button, DataTable, EmptyState, FilterBar, ListPage, Radio, Skeleton, ViewBar,
+    type DataColumn, type Filter, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentHalt, AgentJobList, AgentList, AgentModelList, AgentRequest, AgentRequestList } from '@hubtask/sync-engine';
 
@@ -39,6 +39,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { formatDateTime, formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { matchesSearch } from '../lib/page/list.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -226,10 +227,11 @@
 
   // --- The head and the strip -------------------------------------------------------------------
 
-  const tabs = $derived(
+  const tabs = $derived<ViewLink[]>(
     homeTabs('AGENTS').filter((each) => administers || each.id !== 'settings').map((each) => ({
       id: each.id,
       label: t(each.code),
+      href: hrefOf(each.id),
       ...(each.id === 'agents' && agentsRead.state.status === 'ready' ? { count: all.length } : {}),
       ...(each.id === 'requests' && pending.length > 0 ? { count: pending.length } : {}),
     })),
@@ -263,7 +265,7 @@
 
 <ListPage {head} refused={refusal ? refusedSnippet : undefined}>
   {#snippet strip()}
-    <Tabs label={title} {tabs} selected={current} onselect={(id) => onnavigate?.(hrefOf(id))} />
+    <ViewBar label={title} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
   {/snippet}
   {#snippet filters()}
     <FilterBar

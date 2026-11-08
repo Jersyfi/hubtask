@@ -25,9 +25,10 @@ export const sprintPath = (sprintId: string, zone: string) => `/sprints/${sprint
  * Whether a collection runs sprints - one was planned there, or its template works in sprints
  * (user-experience.md §2.4) - told once its sprints' read answers.
  */
-export function runsSprints(collectionId: string, onNext: (runs: boolean) => void): () => void {
+export function runsSprints(collectionId: string, onNext: (runs: boolean, running?: string) => void): () => void {
   return engine.subscribe<SprintList>({ path: sprintsPath(collectionId) }, (next) => {
-    if (next.status === 'ready') onNext(next.data.runs_sprints);
+    // The running sprint's name too: the view bar's *Sprint* names it (the navigation concept §3).
+    if (next.status === 'ready') onNext(next.data.runs_sprints, next.data.data.find((sprint) => sprint.state === 'ACTIVE')?.name);
   });
 }
 

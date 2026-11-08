@@ -45,7 +45,6 @@
   const BASE = '/assets/settings';
   const title = $derived(t('app.cmdb_admin.settings_title'));
   $effect(() => page.entitle(title));
-
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const words: Words = (code) => (messages.has(code) ? t(code) : undefined);
 
@@ -62,7 +61,6 @@
   const shown = $derived(named ?? 'classes');
   const view = $derived<'list' | 'detail'>(named ? 'detail' : 'list');
   const links = $derived<SectionLink[]>(SECTIONS.map((id) => ({ id, label: t(`app.cmdb_admin.${id}`), href: `${BASE}?section=${id}` })));
-
   // The software aliases (UC-AST-13 check 3), read only once their tab is opened.
   let aliases = $state<readonly SoftwareAlias[] | undefined>(undefined);
   $effect(() => {

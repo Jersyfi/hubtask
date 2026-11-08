@@ -75,6 +75,7 @@ const ROLES = {
   'accent.signature': 'fill',
   'accent.primary-subtle': 'tinted-surface',
   'accent.signature-subtle': 'tinted-surface',
+  'accent.star': 'indicator',
 
   'focus.ring': 'indicator',
 

@@ -10,13 +10,27 @@
 const ROUTE_MODULES: Readonly<Record<string, string>> = {
   'service-desk': 'SERVICE_DESK',
   'desk-desks': 'SERVICE_DESK',
+  'desk-reports': 'SERVICE_DESK',
   'desk-settings': 'SERVICE_DESK',
   'entry-types': 'WORKFLOWS',
   workflows: 'WORKFLOWS',
   'time-settings': 'TIME',
+  'assets-classes': 'ASSETS',
+  'assets-sources': 'ASSETS',
   'assets-settings': 'ASSETS',
   approvals: 'SERVICE_DESK',
   notes: 'KNOWLEDGE',
+  // The hub tools' pages (the navigation concept §2.4): an old link to a tool switched off says so.
+  'hub-plan': 'PLANNING',
+  'hub-plan-releases': 'PLANNING',
+  'hub-plan-sprints': 'PLANNING',
+  'hub-inventory': 'ASSETS',
+  'hub-inventory-section': 'ASSETS',
+  'hub-time': 'TIME',
+  'hub-time-workload': 'TIME',
+  'hub-time-budget': 'TIME',
+  'hub-goals': 'GOALS',
+  'hub-goals-dashboards': 'GOALS',
 };
 
 /** The module the route's page belongs to, or none. */

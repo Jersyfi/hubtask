@@ -27,3 +27,9 @@ test('archived above, there is nothing to archive or restore here; archived here
   assert.equal(restore?.label, 'app.workspace.unarchive');
 });
 
+
+test('a hub\'s own head offers no Change position: the hubs are ordered where they are all listed (R-4)', () => {
+  const head = placeMenu({ type: 'HUB', mayShape: true, mayDelete: true, archival: 'active', offersPosition: false }, t);
+  assert.deepEqual(ids(head), ['settings', 'import', 'archive', 'trash']);
+  assert.equal(head.find((item) => item.id === 'archive')?.hasSeparatorBefore, true, 'the archive still starts its group');
+});

@@ -51,6 +51,12 @@ type UpdateAccountPreferencesCommand struct {
 	// ProductsSeen is the whole list of products whose first-visit mark was seen; nil leaves it,
 	// an empty list - what a null arrives as - clears it.
 	ProductsSeen *[]string
+	// The sidebar's preferences under the same rule: the lists whole, the words empty to clear.
+	NavProducts       *[]string
+	NavProductsHidden *[]string
+	NavHubsHidden     *[]string
+	NavHubsOrder      *string
+	NavContentsMode   *string
 }
 
 // UpdateAccountPreferences sets how the product speaks to one account: its locale, its time zone
@@ -109,6 +115,13 @@ func (h UpdateAccountPreferences) Execute(
 			Celebrations:          valueOr(cmd.Celebrations, celebrationsWord(before.Celebrations)),
 			OnboardingCompletedAt: valueOr(cmd.OnboardingCompletedAt, instantWord(before.OnboardingCompletedAt)),
 			ProductsSeen:          listOr(cmd.ProductsSeen, before.ProductsSeen),
+			Nav: domain.NavPreferences{
+				Products:       listOr(cmd.NavProducts, before.Nav.Products),
+				ProductsHidden: listOr(cmd.NavProductsHidden, before.Nav.ProductsHidden),
+				HubsHidden:     listOr(cmd.NavHubsHidden, before.Nav.HubsHidden),
+				HubsOrder:      valueOr(cmd.NavHubsOrder, before.Nav.HubsOrder),
+				ContentsMode:   valueOr(cmd.NavContentsMode, before.Nav.ContentsMode),
+			},
 		})
 		if err != nil {
 			return err
@@ -174,6 +187,11 @@ func (h UpdateAccountPreferences) recordAudit(
 		audit.Change{Field: "celebrations", Classification: audit.Open, From: celebrationsWord(before.Celebrations), To: celebrationsWord(after.Celebrations)},
 		audit.Change{Field: "onboarding_completed_at", Classification: audit.Open, From: instantWord(before.OnboardingCompletedAt), To: instantWord(after.OnboardingCompletedAt)},
 		audit.Change{Field: "products_seen", Classification: audit.Open, From: strings.Join(before.ProductsSeen, ","), To: strings.Join(after.ProductsSeen, ",")},
+		audit.Change{Field: "nav_products", Classification: audit.Open, From: strings.Join(before.Nav.Products, ","), To: strings.Join(after.Nav.Products, ",")},
+		audit.Change{Field: "nav_products_hidden", Classification: audit.Open, From: strings.Join(before.Nav.ProductsHidden, ","), To: strings.Join(after.Nav.ProductsHidden, ",")},
+		audit.Change{Field: "nav_hubs_hidden", Classification: audit.Open, From: strings.Join(before.Nav.HubsHidden, ","), To: strings.Join(after.Nav.HubsHidden, ",")},
+		audit.Change{Field: "nav_hubs_order", Classification: audit.Open, From: before.Nav.HubsOrder, To: after.Nav.HubsOrder},
+		audit.Change{Field: "nav_contents_mode", Classification: audit.Open, From: before.Nav.ContentsMode, To: after.Nav.ContentsMode},
 	)
 
 	return h.Audit.Append(ctx, audit.Entry{
@@ -233,6 +251,28 @@ func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 				Name: "products_seen", Kind: usecase.KindList,
 				Description: "The products whose first-visit mark was seen, as module keys such as SERVICE_DESK - the whole list. Empty clears it, which shows each product's mark again.",
 			},
+			{
+				Name: "nav_products", Kind: usecase.KindList,
+				Description: "The order of the products in the sidebar, as module keys - the whole list. Empty clears it, which gives back the product's own order.",
+			},
+			{
+				Name: "nav_products_hidden", Kind: usecase.KindList,
+				Description: "The products shown behind More in the sidebar, as module keys - the whole list. Empty clears it.",
+			},
+			{
+				Name: "nav_hubs_hidden", Kind: usecase.KindList,
+				Description: "The hubs shown behind More in the sidebar, by id - the whole list. Empty clears it.",
+			},
+			{
+				Name: "nav_hubs_order", Kind: usecase.KindString,
+				Enum:        []string{"MANUAL", "RECENT", "NAME"},
+				Description: "How the sidebar orders the hubs: the shared order, recently visited first, or by name. Empty clears it, and the default is MANUAL.",
+			},
+			{
+				Name: "nav_contents_mode", Kind: usecase.KindString,
+				Enum:        []string{"TREE", "RECENT", "NAME"},
+				Description: "How the sidebar shows a hub's contents: the tree, recently changed first, or by name. Empty clears it, and the default is TREE.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: AccountPreferencesChangedAction, TargetType: accountTarget,
@@ -250,13 +290,16 @@ func (h UpdateAccountPreferences) invoke(
 		return nil, err
 	}
 
-	var seen *[]string
-	if _, present := in["products_seen"]; present {
-		list, err := in.StringList("products_seen")
+	lists := map[string]*[]string{}
+	for _, name := range []string{"products_seen", "nav_products", "nav_products_hidden", "nav_hubs_hidden"} {
+		if _, present := in[name]; !present {
+			continue
+		}
+		list, err := in.StringList(name)
 		if err != nil {
 			return nil, err
 		}
-		seen = &list
+		lists[name] = &list
 	}
 	account, err := h.Execute(ctx, actor, UpdateAccountPreferencesCommand{
 		AccountID:             accountID,
@@ -265,7 +308,12 @@ func (h UpdateAccountPreferences) invoke(
 		WeekStart:             in.OptionalString("week_start"),
 		Celebrations:          in.OptionalString("celebrations"),
 		OnboardingCompletedAt: in.OptionalString("onboarding_completed_at"),
-		ProductsSeen:          seen,
+		ProductsSeen:          lists["products_seen"],
+		NavProducts:           lists["nav_products"],
+		NavProductsHidden:     lists["nav_products_hidden"],
+		NavHubsHidden:         lists["nav_hubs_hidden"],
+		NavHubsOrder:          in.OptionalString("nav_hubs_order"),
+		NavContentsMode:       in.OptionalString("nav_contents_mode"),
 	})
 	if err != nil {
 		return nil, err

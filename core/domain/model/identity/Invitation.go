@@ -5,6 +5,7 @@ package identity
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -229,6 +230,84 @@ type Preferences struct {
 	OnboardingCompletedAt string
 	// ProductsSeen is the whole list of products whose first-visit mark was seen; empty clears it.
 	ProductsSeen []string
+	// Nav is the sidebar's preferences, each list whole and each word empty for its default.
+	Nav NavPreferences
+}
+
+// NavPreferences is how the sidebar is arranged for one person: the products' order and the ones
+// behind *More* as module keys, the hubs behind *More* by id, and how hubs and a hub's contents
+// are ordered. An empty list or word is the default - the product's own order, nothing hidden,
+// MANUAL, TREE.
+type NavPreferences struct {
+	Products       []string
+	ProductsHidden []string
+	HubsHidden     []string
+	HubsOrder      string
+	ContentsMode   string
+}
+
+// navHubsHiddenBound is the contract's and the column's bound on the hidden hubs.
+const navHubsHiddenBound = 1000
+
+// The closed sets of the two orders; a word outside them is refused by name.
+var (
+	navHubsOrders    = [...]string{"MANUAL", "RECENT", "NAME"}
+	navContentsModes = [...]string{"TREE", "RECENT", "NAME"}
+)
+
+// navOf checks the sidebar's preferences: the lists as products_seen's, the words from their sets.
+func navOf(raw NavPreferences) (NavPreferences, error) {
+	products, err := modulesOf(raw.Products, "accounts.nav_products_invalid")
+	if err != nil {
+		return NavPreferences{}, err
+	}
+	hidden, err := modulesOf(raw.ProductsHidden, "accounts.nav_products_hidden_invalid")
+	if err != nil {
+		return NavPreferences{}, err
+	}
+	hubsHidden, err := hubsHiddenOf(raw.HubsHidden)
+	if err != nil {
+		return NavPreferences{}, err
+	}
+	hubs, err := wordOf(raw.HubsOrder, navHubsOrders[:], "accounts.nav_hubs_order_invalid")
+	if err != nil {
+		return NavPreferences{}, err
+	}
+	contents, err := wordOf(raw.ContentsMode, navContentsModes[:], "accounts.nav_contents_mode_invalid")
+	if err != nil {
+		return NavPreferences{}, err
+	}
+	return NavPreferences{Products: products, ProductsHidden: hidden, HubsHidden: hubsHidden, HubsOrder: hubs, ContentsMode: contents}, nil
+}
+
+// hubsHiddenOf reads the hidden hubs: identifiers, each once in the order given, an empty member
+// ignored. Whether each is a hub the person sees is not asked - a hub that goes out of sight
+// stays listed and shows nothing, and coming back it is still hidden.
+func hubsHiddenOf(raw []string) ([]string, error) {
+	out := make([]string, 0, len(raw))
+	for _, value := range raw {
+		key := strings.TrimSpace(value)
+		if key == "" || slices.Contains(out, key) {
+			continue
+		}
+		if _, err := shared.ParseID(key); err != nil {
+			return nil, shared.ErrValidation.WithDetail("accounts.nav_hubs_hidden_invalid").WithParams(map[string]string{"value": key})
+		}
+		out = append(out, key)
+	}
+	if len(out) > navHubsHiddenBound {
+		return nil, shared.ErrValidation.WithDetail("accounts.nav_hubs_hidden_too_many").WithParams(map[string]string{"max": strconv.Itoa(navHubsHiddenBound)})
+	}
+	return out, nil
+}
+
+// wordOf reads a word of a closed set, upper case, empty for the default.
+func wordOf(raw string, set []string, code string) (string, error) {
+	value := strings.ToUpper(strings.TrimSpace(raw))
+	if value == "" || slices.Contains(set, value) {
+		return value, nil
+	}
+	return "", shared.ErrValidation.WithDetail(code).WithParams(map[string]string{"value": strings.TrimSpace(raw)})
 }
 
 // weekStarts is the closed set. Three rather than seven: those are the ones a calendar in real use
@@ -264,9 +343,14 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 	if err != nil {
 		return Account{}, err
 	}
+	nav, err := navOf(p.Nav)
+	if err != nil {
+		return Account{}, err
+	}
 
 	a.Locale, a.TimeZone, a.WeekStart = locale, zone, weekStart
 	a.Celebrations, a.OnboardingCompletedAt, a.ProductsSeen = celebrations, completedAt, seen
+	a.Nav = nav
 	return a, nil
 }
 
@@ -274,6 +358,12 @@ func (a Account) WithPreferences(p Preferences) (Account, error) {
 // order given, an empty member ignored. An unknown key is refused by name rather than kept, since
 // nothing could ever be shown for it.
 func productsSeenOf(raw []string) ([]string, error) {
+	return modulesOf(raw, "accounts.products_seen_invalid")
+}
+
+// modulesOf reads a list of module keys, each once in the order given, an empty member ignored; an
+// unknown key is refused under code by name.
+func modulesOf(raw []string, code string) ([]string, error) {
 	seen := make([]string, 0, len(raw))
 	for _, value := range raw {
 		key := strings.TrimSpace(value)
@@ -282,7 +372,7 @@ func productsSeenOf(raw []string) ([]string, error) {
 		}
 		if !module.Key(key).Valid() {
 			return nil, shared.ErrValidation.
-				WithDetail("accounts.products_seen_invalid").
+				WithDetail(code).
 				WithParams(map[string]string{"value": key})
 		}
 		seen = append(seen, key)

@@ -17,6 +17,7 @@
   // The trail is data rather than children for the reason a menu's items are: which entry is the
   // last one, and which are the middle, are questions about a list.
 
+  import type { Snippet } from 'svelte';
   import Icon from './Icon.svelte';
   import { collapseTrail, type Crumb } from './structure.ts';
 
@@ -27,9 +28,11 @@
     /** The name of the control that reveals the collapsed levels. */
     expandLabel: string;
     onnavigate?: (id: string) => void;
+    /** A level's mark before its name - a hub's tile -, or nothing; decorative, the name says it. */
+    mark?: Snippet<[Crumb]>;
   }
 
-  const { label, trail, expandLabel, onnavigate }: Props = $props();
+  const { label, trail, expandLabel, onnavigate, mark }: Props = $props();
 
   let isExpanded = $state(false);
 
@@ -61,13 +64,13 @@
       <li class="crumb">
         {#if index === trail.length - 1}
           <!-- The current level is not a link, and says so rather than only looking different. -->
-          <span class="current" aria-current="page">{crumb.label}</span>
+          {#if mark}<span class="mark" aria-hidden="true">{@render mark(crumb)}</span>{/if}<span class="current" aria-current="page">{crumb.label}</span>
         {:else if crumb.href === undefined}
           <!-- A level with no page of its own - *Products* - is named, and still leads on. -->
-          <span class="level">{crumb.label}</span>
+          {#if mark}<span class="mark" aria-hidden="true">{@render mark(crumb)}</span>{/if}<span class="level">{crumb.label}</span>
           <span class="separator" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>
         {:else}
-          <a
+          {#if mark}<span class="mark" aria-hidden="true">{@render mark(crumb)}</span>{/if}<a
             class="link"
             href={crumb.href}
             onclick={(event) => {
@@ -107,6 +110,9 @@
   /* `start`/`end` and never left/right: the separator points the way the text runs, and the
      chevron turns round with the direction by itself (`Icon`'s mirrored set, design-system.md
      §3). */
+  .mark { display: inline-flex; flex: none; }
+  .mark:empty { display: none; }
+
   .separator {
     display: inline-flex;
     flex: none;
@@ -133,7 +139,8 @@
 
   .link:hover { color: var(--text-primary); text-decoration: underline; }
 
-  .current { color: var(--text-primary); font-weight: var(--fw-medium); }
+  /* The place itself reads as quietly as the levels above it; the title under the trail names it. */
+  .current { color: var(--text-secondary); }
 
   .ellipsis {
     display: inline-flex;

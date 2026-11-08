@@ -194,6 +194,13 @@ export const ROUTES: readonly Route[] = [
   // is the work rather than the administration of it. The workspace's own: drawn for somebody who
   // reads the workspace itself, and inside it each control only for the permission it needs.
   { name: 'jumble', pattern: '/jumble' },
+  // The phone's Browse stack (the navigation concept §9): the workspace level, a hub's, its queues
+  // and its contents (`?under=` a page) as steps with addresses of their own, so the system's back
+  // goes one level up. From `medium` up each opens the place the sidebar draws (`phone.ts`).
+  { name: 'browse', pattern: '/browse' },
+  { name: 'browse-hub', pattern: '/browse/hubs/:id' },
+  { name: 'browse-queues', pattern: '/browse/hubs/:id/queues' },
+  { name: 'browse-contents', pattern: '/browse/hubs/:id/contents' },
   // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
   // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
   { name: 'time', pattern: '/time' },
@@ -207,8 +214,12 @@ export const ROUTES: readonly Route[] = [
   { name: 'desk-home', pattern: '/desk' },
   // The desk's home's other views (§7.4): the desks across hubs and the desk's settings.
   { name: 'desk-desks', pattern: '/desk/desks' },
+  { name: 'desk-reports', pattern: '/desk/reports' },
   { name: 'desk-settings', pattern: '/desk/settings' },
   { name: 'assets-home', pattern: '/assets' },
+  // The assets' classes and sources, the workspace's (§8.2), each a tab of the home.
+  { name: 'assets-classes', pattern: '/assets/classes' },
+  { name: 'assets-sources', pattern: '/assets/sources' },
   { name: 'assets-settings', pattern: '/assets/settings' },
   { name: 'agents-home', pattern: '/agents' },
   // An agent as its record page: its ledger, jobs and evaluation (page-system §9.5).
@@ -244,16 +255,35 @@ export const ROUTES: readonly Route[] = [
   // A hub's desk (user-experience.md §2.4): the handler's queues across its desk collections.
   { name: 'hub-desk', pattern: '/hubs/:id/desk' },
   { name: 'whiteboard', pattern: '/whiteboards/:id' },
+  // A hub's pages and boards as one table with search and sort: *All contents* (§2.4 part 4).
+  { name: 'hub-contents', pattern: '/hubs/:id/contents' },
   // A hub's or a collection's plan (M2): the schedule as a Gantt chart and as a table.
   { name: 'hub-plan', pattern: '/hubs/:id/plan' },
+  // The tool *Plan*'s other tabs (the navigation concept §2.4): the hub's releases, the running
+  // sprints of its collections.
+  { name: 'hub-plan-releases', pattern: '/hubs/:id/plan/releases' },
+  { name: 'hub-plan-sprints', pattern: '/hubs/:id/plan/sprints' },
+  // Moved (`movedTo`): a collection's plan is its *Timeline* view.
   { name: 'collection-plan', pattern: '/collections/:id/plan' },
+  { name: 'collection-timeline', pattern: '/collections/:id/timeline' },
   // A collection's sprints (M2): the sprints, the backlog, the burndown and the velocity.
   { name: 'collection-sprints', pattern: '/collections/:id/sprints' },
+  { name: 'collection-sprint', pattern: '/collections/:id/sprint' },
+  // The backlog of a collection that runs sprints, a view of its bar beside the sprint (§3).
+  { name: 'collection-backlog', pattern: '/collections/:id/backlog' },
   // A hub's releases (M2): the releases, their entries and their notes.
   { name: 'hub-releases', pattern: '/hubs/:id/releases' },
   // A hub's or a collection's estimates against the time recorded (M7, UC-TIM-04 check 6).
   { name: 'hub-actuals', pattern: '/hubs/:id/actuals' },
   { name: 'collection-actuals', pattern: '/collections/:id/actuals' },
+  // The tool *Time* (actuals, workload, budget) and a collection's *Time* view.
+  { name: 'hub-time', pattern: '/hubs/:id/time' },
+  { name: 'hub-time-workload', pattern: '/hubs/:id/time/workload' },
+  { name: 'hub-time-budget', pattern: '/hubs/:id/time/budget' },
+  { name: 'collection-time', pattern: '/collections/:id/time' },
+  // The tool *Goals*: the hub's goals and its dashboards.
+  { name: 'hub-goals', pattern: '/hubs/:id/goals' },
+  { name: 'hub-goals-dashboards', pattern: '/hubs/:id/goals/dashboards' },
   // Who has room in a hub or a collection, people by weeks (M7, UC-TIM-06 check 7).
   { name: 'hub-workload', pattern: '/hubs/:id/workload' },
   { name: 'collection-workload', pattern: '/collections/:id/workload' },
@@ -261,6 +291,9 @@ export const ROUTES: readonly Route[] = [
   // impact, a duplicate or a health problem links it without its hub.
   { name: 'hub-assets', pattern: '/hubs/:id/assets' },
   { name: 'hub-assets-section', pattern: '/hubs/:id/assets/:section' },
+  // The tool *Inventory*, which took the former tab's role and its sections.
+  { name: 'hub-inventory', pattern: '/hubs/:id/inventory' },
+  { name: 'hub-inventory-section', pattern: '/hubs/:id/inventory/:section' },
   { name: 'ci', pattern: '/cis/:id' },
   { name: 'collection', pattern: '/collections/:id' },
   // A place's settings, a section each (design-system.md §11.8): an address, so a section is
@@ -304,25 +337,45 @@ export const ADMINISTRATION_PREFIX = '/administration';
 /**
  * Addresses whose screen became a tab of another, by route name: each answers by replacing itself
  * with where its screen now is, so a bookmark or a link in a mail keeps working and the back button
- * does not return to the address that sent the reader on.
+ * does not return to the address that sent the reader on. A move of a place's screen takes the
+ * place's own parameters along.
  */
-const MOVED: Readonly<Record<string, string>> = {
-  'identity-provider': '/administration/sign-in/ways',
-  presets: '/administration/templates',
-  groups: '/administration/people?tab=groups',
-  permissions: '/administration/people?tab=permissions',
-  'service-accounts': '/administration/machines',
-  apps: '/administration/machines?tab=apps',
+type Params = Readonly<Record<string, string | undefined>>;
+const MOVED: Readonly<Record<string, (params: Params, query: Params) => string | undefined>> = {
+  'identity-provider': () => '/administration/sign-in/ways',
+  presets: () => '/administration/templates',
+  groups: () => '/administration/people?tab=groups',
+  permissions: () => '/administration/people?tab=permissions',
+  'service-accounts': () => '/administration/machines',
+  apps: () => '/administration/machines?tab=apps',
   // A product's settings are its home's last tab (user-experience.md §8.2).
-  'service-desk': '/desk/settings',
-  cmdb: '/assets/settings',
-  'time-settings': '/time?tab=settings',
-  agents: '/agents?tab=settings',
+  'service-desk': () => '/desk/settings',
+  cmdb: () => '/assets/settings',
+  'time-settings': () => '/time?tab=settings',
+  agents: () => '/agents?tab=settings',
+  // The hub's former tabs are its tools' pages and *All contents* (the navigation concept §8).
+  'hub-releases': (params) => `/hubs/${params['id']}/plan/releases`,
+  'hub-assets': (params, query) => `/hubs/${params['id']}/inventory${query['new'] ? `?new=${query['new']}` : ''}`,
+  'hub-assets-section': (params) => `/hubs/${params['id']}/inventory/${params['section']}`,
+  'hub-actuals': (params) => `/hubs/${params['id']}/time`,
+  'hub-workload': (params) => `/hubs/${params['id']}/time/workload`,
+  'hub-whiteboards': (params, query) => `/hubs/${params['id']}/contents?kind=whiteboards${query['new'] ? '&new=1' : ''}`,
+  goals: (_params, query) => (query['hub'] ? `/hubs/${query['hub']}/goals${query['tab'] === 'dashboards' ? '/dashboards' : ''}` : undefined),
+  // A collection's *Plan* is its *Timeline* view, its sprints its *Sprint* view, its actuals its *Time* view.
+  'collection-plan': (params) => `/collections/${params['id']}/timeline`,
+  'collection-sprints': (params, query) => `/collections/${params['id']}/sprint${query['new'] ? '?new=1' : ''}`,
+  'collection-actuals': (params) => `/collections/${params['id']}/time`,
 };
 
+/** The moves of a whole screen, whose old query still means the same at the new address. */
+const KEEPS_QUERY: ReadonlySet<string> = new Set(['identity-provider', 'presets', 'groups', 'permissions', 'service-accounts', 'apps', 'service-desk', 'cmdb', 'time-settings', 'agents']);
+
+/** Whether a moved address carries its own query along (`movedWith`). */
+export const keepsQuery = (name: string | null): boolean => name !== null && KEEPS_QUERY.has(name);
+
 /** Where an address that moved now is, or nothing for one that did not. */
-export function movedTo(name: string | null): string | undefined {
-  return name === null ? undefined : MOVED[name];
+export function movedTo(name: string | null, params: Params = {}, query: Params = {}): string | undefined {
+  return name === null ? undefined : MOVED[name]?.(params, query);
 }
 
 /**

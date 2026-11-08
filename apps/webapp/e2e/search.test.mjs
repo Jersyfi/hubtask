@@ -245,7 +245,9 @@ test('chromium: a chip is in the address, and a narrowing with no words is a sea
   await page.goto(`${served.origin}/search`);
   const chip = page.getByRole('button', { name: /^Kind/ });
   await chip.waitFor({ timeout: 10_000 });
-  assert.equal(asked.length, 0, 'an empty screen searched');
+  // The sidebar's *Today* count reads what is on the reader (`today.svelte.ts`); the screen asks nothing.
+  const isMine = (body) => body?.filter?.nodes?.some((node) => node.field === 'assignee_id' && node.value === '@me') && !body.q;
+  assert.equal(asked.filter((body) => !isMine(body)).length, 0, 'an empty screen searched');
 
   // A chip with no words at all — what ADR-0064 made askable.
   await chip.click();
@@ -254,7 +256,7 @@ test('chromium: a chip is in the address, and a narrowing with no words is a sea
   await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'type:task', null, { timeout: 5_000 });
   await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
 
-  const wordless = asked.at(-1);
+  const wordless = asked.filter((body) => !isMine(body)).at(-1);
   assert.equal(wordless.q, undefined, `a wordless search sent ${JSON.stringify(wordless)}`);
   assert.deepEqual(wordless.filter, { op: 'IN', field: 'type', value: ['TASK'] }, `the filter sent was ${JSON.stringify(wordless.filter)}`);
 

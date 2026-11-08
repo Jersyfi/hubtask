@@ -44,19 +44,6 @@ export function pageTree(rows: readonly Page[]): PageNode[] {
   return build('', 0, new Set());
 }
 
-/** The rows drawn: every top page, and under a page its children only while it is opened. */
-export function visibleRows(tree: readonly PageNode[], opened: ReadonlySet<string>): PageNode[] {
-  const out: PageNode[] = [];
-  const walk = (nodes: readonly PageNode[]) => {
-    for (const node of nodes) {
-      out.push(node);
-      if (opened.has(node.page.id)) walk(node.children);
-    }
-  };
-  walk(tree);
-  return out;
-}
-
 /** The pages above one, from the top: the branches to open so the page can be seen in the tree. */
 export function ancestorsOf(rows: readonly Page[], pageId: string): string[] {
   const byId = new Map(rows.map((row) => [row.id, row]));

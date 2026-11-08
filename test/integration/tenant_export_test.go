@@ -329,3 +329,81 @@ func TestSuspendedAndLeavingWorkspacesExport(t *testing.T) {
 		t.Fatalf("resetting the standing: %v", err)
 	}
 }
+
+// UC-INS-21 check 9: a module switched off hides its data and keeps it, so the workspace's
+// archive still carries it. The export reads the same rows as a backup
+// (`postgres.NewBackupExportRepository`), so this archive stands for both.
+func TestAModuleSwitchedOffStillHasItsDataInTheArchive(t *testing.T) {
+	ctx := context.Background()
+	seedExportTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	const hub = "01936f2a-7c1e-7000-8000-00000000e121"
+	page := freshID(t).String()
+	statements := []string{
+		`INSERT INTO page (id, tenant_id, hub_id, title, order_key, created_by, created_at, updated_by, updated_at)
+		 VALUES ('` + page + `', '` + exportTenantX.String() + `', '` + hub + `', 'Kept while off', 'a0',
+		         '` + exportAccountX.String() + `', now(), '` + exportAccountX.String() + `', now())`,
+		// Knowledge off for the workspace and, narrower still, for the hub.
+		`INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, set_by, updated_at)
+		 VALUES ('` + freshID(t).String() + `', '` + exportTenantX.String() + `', 'WORKSPACE', '` + exportTenantX.String() + `',
+		         'module.knowledge', 'false', '` + exportAccountX.String() + `', now()),
+		        ('` + freshID(t).String() + `', '` + exportTenantX.String() + `', 'HUB', '` + hub + `',
+		         'module.knowledge', 'false', '` + exportAccountX.String() + `', now())`,
+	}
+	for _, statement := range statements {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding a module that is off: %v\n%s", err, statement)
+		}
+	}
+	t.Cleanup(func() {
+		done := context.WithoutCancel(ctx)
+		for _, statement := range []string{
+			`DELETE FROM page WHERE id = '` + page + `'`,
+			`DELETE FROM setting_value WHERE tenant_id = '` + exportTenantX.String() + `' AND key = 'module.knowledge'`,
+		} {
+			if _, err := adminPool(done, t).Exec(done, statement); err != nil {
+				t.Errorf("clearing up: %v", err)
+			}
+		}
+	})
+
+	root := t.TempDir()
+	store, err := backupstorage.NewLocalStore(root, "archives")
+	if err != nil {
+		t.Fatalf("opening the local store: %v", err)
+	}
+	archivist := adminservice.TenantExportArchivist{
+		Targets:       exportTargetStore{store: store},
+		Rows:          postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+		Objects:       exportObjects{key: "media/x/one"},
+		Cipher:        cryptoadapter.NewStream(clockadapter.CryptoRandom{}),
+		Snapshot:      postgres.NewUnitOfWork(appPool(ctx, t)),
+		Clock:         clockadapter.System{},
+		SchemaVersion: "test", ProductVersion: "test",
+	}
+	manifest, err := archivist.Write(ctx, adminservice.ExportArchiveRequest{
+		ExportID: shared.MustParseID("01936f2a-7c1e-7000-8000-00000000e3ff"),
+		TenantID: exportTenantX,
+		TargetID: shared.MustParseID("01936f2a-7c1e-7000-8000-00000000e1fe"),
+	})
+	if err != nil {
+		t.Fatalf("writing the archive: %v", err)
+	}
+	if manifest.Counts["pages"] != 1 {
+		t.Errorf("the manifest counts %d pages with knowledge off, want 1", manifest.Counts["pages"])
+	}
+	pages := ""
+	if err := filepath.WalkDir(filepath.Join(root, "archives"), func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(filepath.ToSlash(path), "data/pages.jsonl") {
+			return err
+		}
+		content, err := os.ReadFile(path)
+		pages = string(content)
+		return err
+	}); err != nil {
+		t.Fatalf("walking the archive: %v", err)
+	}
+	if !strings.Contains(pages, page) {
+		t.Errorf("the page of a module that is off is not in the archive: %q", pages)
+	}
+}

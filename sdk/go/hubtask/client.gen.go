@@ -178,6 +178,54 @@ func (e AccountKind) Valid() bool {
 	}
 }
 
+// Defines values for AccountNavContentsMode.
+const (
+	AccountNavContentsModeLessThannil AccountNavContentsMode = "<nil>"
+	AccountNavContentsModeNAME        AccountNavContentsMode = "NAME"
+	AccountNavContentsModeRECENT      AccountNavContentsMode = "RECENT"
+	AccountNavContentsModeTREE        AccountNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the AccountNavContentsMode enum.
+func (e AccountNavContentsMode) Valid() bool {
+	switch e {
+	case AccountNavContentsModeLessThannil:
+		return true
+	case AccountNavContentsModeNAME:
+		return true
+	case AccountNavContentsModeRECENT:
+		return true
+	case AccountNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountNavHubsOrder.
+const (
+	AccountNavHubsOrderLessThannil AccountNavHubsOrder = "<nil>"
+	AccountNavHubsOrderMANUAL      AccountNavHubsOrder = "MANUAL"
+	AccountNavHubsOrderNAME        AccountNavHubsOrder = "NAME"
+	AccountNavHubsOrderRECENT      AccountNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the AccountNavHubsOrder enum.
+func (e AccountNavHubsOrder) Valid() bool {
+	switch e {
+	case AccountNavHubsOrderLessThannil:
+		return true
+	case AccountNavHubsOrderMANUAL:
+		return true
+	case AccountNavHubsOrderNAME:
+		return true
+	case AccountNavHubsOrderRECENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountStatus.
 const (
 	AccountStatusACTIVE     AccountStatus = "ACTIVE"
@@ -223,6 +271,54 @@ func (e AccountWeekStart) Valid() bool {
 	case AccountWeekStartSATURDAY:
 		return true
 	case AccountWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesNavContentsMode.
+const (
+	AccountPreferencesNavContentsModeLessThannil AccountPreferencesNavContentsMode = "<nil>"
+	AccountPreferencesNavContentsModeNAME        AccountPreferencesNavContentsMode = "NAME"
+	AccountPreferencesNavContentsModeRECENT      AccountPreferencesNavContentsMode = "RECENT"
+	AccountPreferencesNavContentsModeTREE        AccountPreferencesNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesNavContentsMode enum.
+func (e AccountPreferencesNavContentsMode) Valid() bool {
+	switch e {
+	case AccountPreferencesNavContentsModeLessThannil:
+		return true
+	case AccountPreferencesNavContentsModeNAME:
+		return true
+	case AccountPreferencesNavContentsModeRECENT:
+		return true
+	case AccountPreferencesNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesNavHubsOrder.
+const (
+	AccountPreferencesNavHubsOrderLessThannil AccountPreferencesNavHubsOrder = "<nil>"
+	AccountPreferencesNavHubsOrderMANUAL      AccountPreferencesNavHubsOrder = "MANUAL"
+	AccountPreferencesNavHubsOrderNAME        AccountPreferencesNavHubsOrder = "NAME"
+	AccountPreferencesNavHubsOrderRECENT      AccountPreferencesNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesNavHubsOrder enum.
+func (e AccountPreferencesNavHubsOrder) Valid() bool {
+	switch e {
+	case AccountPreferencesNavHubsOrderLessThannil:
+		return true
+	case AccountPreferencesNavHubsOrderMANUAL:
+		return true
+	case AccountPreferencesNavHubsOrderNAME:
+		return true
+	case AccountPreferencesNavHubsOrderRECENT:
 		return true
 	default:
 		return false
@@ -5845,6 +5941,54 @@ func (e InvitedAccountKind) Valid() bool {
 	}
 }
 
+// Defines values for InvitedAccountNavContentsMode.
+const (
+	InvitedAccountNavContentsModeLessThannil InvitedAccountNavContentsMode = "<nil>"
+	InvitedAccountNavContentsModeNAME        InvitedAccountNavContentsMode = "NAME"
+	InvitedAccountNavContentsModeRECENT      InvitedAccountNavContentsMode = "RECENT"
+	InvitedAccountNavContentsModeTREE        InvitedAccountNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountNavContentsMode enum.
+func (e InvitedAccountNavContentsMode) Valid() bool {
+	switch e {
+	case InvitedAccountNavContentsModeLessThannil:
+		return true
+	case InvitedAccountNavContentsModeNAME:
+		return true
+	case InvitedAccountNavContentsModeRECENT:
+		return true
+	case InvitedAccountNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountNavHubsOrder.
+const (
+	InvitedAccountNavHubsOrderLessThannil InvitedAccountNavHubsOrder = "<nil>"
+	InvitedAccountNavHubsOrderMANUAL      InvitedAccountNavHubsOrder = "MANUAL"
+	InvitedAccountNavHubsOrderNAME        InvitedAccountNavHubsOrder = "NAME"
+	InvitedAccountNavHubsOrderRECENT      InvitedAccountNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountNavHubsOrder enum.
+func (e InvitedAccountNavHubsOrder) Valid() bool {
+	switch e {
+	case InvitedAccountNavHubsOrderLessThannil:
+		return true
+	case InvitedAccountNavHubsOrderMANUAL:
+		return true
+	case InvitedAccountNavHubsOrderNAME:
+		return true
+	case InvitedAccountNavHubsOrderRECENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountStatus.
 const (
 	InvitedAccountStatusACTIVE     InvitedAccountStatus = "ACTIVE"
@@ -9361,6 +9505,39 @@ func (e SprintEntryOutcome) Valid() bool {
 	}
 }
 
+// Defines values for StarKind.
+const (
+	StarKindCOLLECTION StarKind = "COLLECTION"
+	StarKindDASHBOARD  StarKind = "DASHBOARD"
+	StarKindHUB        StarKind = "HUB"
+	StarKindPAGE       StarKind = "PAGE"
+	StarKindPORTFOLIO  StarKind = "PORTFOLIO"
+	StarKindVIEW       StarKind = "VIEW"
+	StarKindWHITEBOARD StarKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the StarKind enum.
+func (e StarKind) Valid() bool {
+	switch e {
+	case StarKindCOLLECTION:
+		return true
+	case StarKindDASHBOARD:
+		return true
+	case StarKindHUB:
+		return true
+	case StarKindPAGE:
+		return true
+	case StarKindPORTFOLIO:
+		return true
+	case StarKindVIEW:
+		return true
+	case StarKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StarterCollectionPreset.
 const (
 	StarterCollectionPresetFLOW        StarterCollectionPreset = "FLOW"
@@ -11395,6 +11572,24 @@ func (e ListReleasesParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListWhiteboardsParamsOrder.
+const (
+	ListWhiteboardsParamsOrderCHANGED ListWhiteboardsParamsOrder = "CHANGED"
+	ListWhiteboardsParamsOrderTREE    ListWhiteboardsParamsOrder = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the ListWhiteboardsParamsOrder enum.
+func (e ListWhiteboardsParamsOrder) Valid() bool {
+	switch e {
+	case ListWhiteboardsParamsOrderCHANGED:
+		return true
+	case ListWhiteboardsParamsOrderTREE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -12028,6 +12223,21 @@ type Account struct {
 	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
 	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+	NavContentsMode *AccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+	NavHubsOrder *AccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products the person moved behind *More* in the sidebar. Absent or empty: none.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -12063,6 +12273,12 @@ type Account struct {
 // AccountKind defines model for Account.Kind.
 type AccountKind string
 
+// AccountNavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+type AccountNavContentsMode string
+
+// AccountNavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+type AccountNavHubsOrder string
+
 // AccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.
 // `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -12088,6 +12304,21 @@ type AccountPreferences struct {
 	Celebrations *bool   `json:"celebrations,omitempty"`
 	Locale       *string `json:"locale,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
+	NavContentsMode *AccountPreferencesNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty list clears it, which shows every hub again.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+	NavHubsOrder *AccountPreferencesNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The order of the products in the sidebar, written by the client as the whole list. `null` or an empty list clears it, which gives back the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products shown behind *More* in the sidebar, the whole list. `null` or an empty list clears it, which shows every product again.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the tour ended or was skipped, written by the client. `null` clears it, which is how the tour is asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -12096,6 +12327,12 @@ type AccountPreferences struct {
 	TimeZone     *string                      `json:"time_zone,omitempty"`
 	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
+
+// AccountPreferencesNavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
+type AccountPreferencesNavContentsMode string
+
+// AccountPreferencesNavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+type AccountPreferencesNavHubsOrder string
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
 type AccountPreferencesWeekStart string
@@ -15870,6 +16107,18 @@ type ContainerMilestone struct {
 	ReachedAt time.Time `json:"reached_at"`
 }
 
+// ContainerMovePreview defines model for ContainerMovePreview.
+type ContainerMovePreview struct {
+	// Consequences What changes with the move without stopping it.
+	Consequences []MoveFinding `json:"consequences"`
+
+	// Movable True while no obstacle remains; the move then succeeds unless something changes first.
+	Movable bool `json:"movable"`
+
+	// Obstacles What would refuse the move, each with the code the refusal carries.
+	Obstacles []MoveFinding `json:"obstacles"`
+}
+
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
 	Data []Container `json:"data"`
@@ -17854,6 +18103,29 @@ type HubPrivacy struct {
 	Private bool `json:"private"`
 }
 
+// HubQueue defines model for HubQueue.
+type HubQueue struct {
+	// AtRisk How many of them are `AT_RISK` or `BREACHED`; null when `count` is.
+	AtRisk *int `json:"at_risk"`
+
+	// Count How many entries the queue holds; null when it could not be counted in time or read.
+	Count *int `json:"count"`
+
+	// Key The view's key, or the standard queue's - `mine`, `unassigned`, `breaching`, `open` - which the client names.
+	Key string `json:"key"`
+
+	// Name The view's name; null for a standard queue.
+	Name *string `json:"name"`
+
+	// ViewId The saved view; null for a standard queue, which is saved before it is starred or moved.
+	ViewId *openapi_types.UUID `json:"view_id"`
+}
+
+// HubQueueList defines model for HubQueueList.
+type HubQueueList struct {
+	Data []HubQueue `json:"data"`
+}
+
 // HubTemplatePage defines model for HubTemplatePage.
 type HubTemplatePage struct {
 	Icon   *string            `json:"icon,omitempty"`
@@ -18473,6 +18745,21 @@ type InvitedAccount struct {
 	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
 	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+	NavContentsMode *InvitedAccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+	NavHubsOrder *InvitedAccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products the person moved behind *More* in the sidebar. Absent or empty: none.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -18507,6 +18794,12 @@ type InvitedAccount struct {
 
 // InvitedAccountKind defines model for InvitedAccount.Kind.
 type InvitedAccountKind string
+
+// InvitedAccountNavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+type InvitedAccountNavContentsMode string
+
+// InvitedAccountNavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+type InvitedAccountNavHubsOrder string
 
 // InvitedAccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.
@@ -19954,6 +20247,15 @@ type ModulesOn struct {
 	ModulesOn []Module `json:"modules_on"`
 }
 
+// MoveFinding defines model for MoveFinding.
+type MoveFinding struct {
+	// Code A message code the client words.
+	Code string `json:"code"`
+
+	// Params The code's parameters; `account_ids` is a comma-separated list the client names through `GET /accounts`.
+	Params map[string]string `json:"params"`
+}
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -20751,10 +21053,10 @@ type PageMediaAttachment struct {
 
 // PageMove defines model for PageMove.
 type PageMove struct {
-	// AfterId The sibling it follows; absent to place it first.
+	// AfterId The sibling page or whiteboard it follows; absent to place it first.
 	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
 
-	// ParentId The page it moves under; absent for the top of the space.
+	// ParentId The page it moves under; absent for the top of the space. A whiteboard is refused `whiteboards.no_children`.
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
 }
 
@@ -23326,6 +23628,12 @@ type SavedView struct {
 	// A summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.
 	Query map[string]interface{} `json:"query"`
 
+	// Queue Whether the view is one of its hub's queues (`GET /hubs/{hubId}/queues`).
+	Queue bool `json:"queue"`
+
+	// QueuePosition Where the queue stands among its hub's queues, lowest first; null when it is none.
+	QueuePosition *int `json:"queue_position"`
+
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
 	ScopeId *openapi_types.UUID `json:"scope_id,omitempty"`
 
@@ -23353,6 +23661,12 @@ type SavedViewCreate struct {
 
 	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
 	Query map[string]interface{} `json:"query"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true places it after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int `json:"queue_position,omitempty"`
 
 	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
 	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
@@ -23384,8 +23698,14 @@ type SavedViewUpdate struct {
 	Name     *string                 `json:"name,omitempty"`
 
 	// Query The whole query, replaced. Anchored and in the use case's input shape, as at creation - see `SavedView.query`.
-	Query         *map[string]interface{} `json:"query,omitempty"`
-	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. False takes it out of the queues.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true keeps its place, or places a view that was none after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int      `json:"queue_position,omitempty"`
+	VisibleFields *[]string `json:"visible_fields,omitempty"`
 }
 
 // ScimErrorBody A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
@@ -24122,6 +24442,26 @@ type SprintList struct {
 
 	// RunsSprints Whether the collection runs sprints: a sprint was planned here, in any state and whatever the state filter, or the collection or its hub took a template that works in sprints (Scrum team). A client shows its sprints only where this holds.
 	RunsSprints bool `json:"runs_sprints"`
+}
+
+// Star defines model for Star.
+type Star struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// Kind What the star points at; a VIEW is a saved view, a queue among them.
+	Kind StarKind `json:"kind"`
+}
+
+// StarKind What the star points at; a VIEW is a saved view, a queue among them.
+type StarKind string
+
+// StarList defines model for StarList.
+type StarList struct {
+	// Stars The stars in the person's order.
+	Stars []Star `json:"stars"`
+
+	// Version The list's version, 0 before the first write; `If-Match` names it.
+	Version *int `json:"version,omitempty"`
 }
 
 // StartPasswordIssued defines model for StartPasswordIssued.
@@ -25711,12 +26051,18 @@ type Whiteboard struct {
 	Elements     *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -25799,11 +26145,16 @@ type WhiteboardCommentList struct {
 
 // WhiteboardCreate defines model for WhiteboardCreate.
 type WhiteboardCreate struct {
+	// AfterId The sibling page or board it follows; absent or null for after the last.
+	AfterId  *openapi_types.UUID  `json:"after_id,omitempty"`
 	Elements *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// Id An identifier the client minted.
-	Id    *openapi_types.UUID `json:"id,omitempty"`
-	Title string              `json:"title"`
+	Id *openapi_types.UUID `json:"id,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under; absent or null for the top of the space. Another hub's page is refused `whiteboards.parent_other_space`, a board `whiteboards.no_children`.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
 }
 
 // WhiteboardElement One object of a board. A connector's ends are the objects it is attached to (`from`, `to`) and follow them; an end attached to nothing is a point - the start at (x, y), the end at (x + width, y + height), so a connector's width and height may be negative. Members another kind does not draw are dropped.
@@ -25917,6 +26268,15 @@ type WhiteboardMediaPlacement struct {
 	MediaId openapi_types.UUID `json:"media_id"`
 }
 
+// WhiteboardMove defines model for WhiteboardMove.
+type WhiteboardMove struct {
+	// AfterId The sibling page or board it follows; absent or null places it first.
+	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
+
+	// ParentPageId The page of the same hub it moves under; absent or null for the top of the space.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+}
+
 // WhiteboardRead A board with its objects and whether the reader may draw on it.
 type WhiteboardRead struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -25927,12 +26287,18 @@ type WhiteboardRead struct {
 	Elements     []WhiteboardElement `json:"elements"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -26908,6 +27274,12 @@ type StartPasskeyRegistrationParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ReplaceStarsParams defines parameters for ReplaceStars.
+type ReplaceStarsParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -27814,6 +28186,15 @@ type MoveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// PreviewContainerMoveJSONBody defines parameters for PreviewContainerMove.
+type PreviewContainerMoveJSONBody struct {
+	// BeforeContainerId The sibling it would be placed before; null or omitted appends.
+	BeforeContainerId *openapi_types.UUID `json:"before_container_id,omitempty"`
+
+	// TargetParentId The hub the collection would move into.
+	TargetParentId openapi_types.UUID `json:"target_parent_id"`
+}
+
 // ReorderContainerJSONBody defines parameters for ReorderContainer.
 type ReorderContainerJSONBody struct {
 	// BeforeContainerId The sibling to place this container before, at its own level. Null or omitted appends to the end of the level. A sibling that is not at this level is refused rather than treated as an append.
@@ -28192,7 +28573,13 @@ type ListWhiteboardsParams struct {
 	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
 	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Order `CHANGED` (the default) lists the last changed first. `TREE` lists the boards outside the trash in the content tree's order - by `parent_page_id`, the top first, then by `order_key` - whole, in one page.
+	Order *ListWhiteboardsParamsOrder `form:"order,omitempty" json:"order,omitempty"`
 }
+
+// ListWhiteboardsParamsOrder defines parameters for ListWhiteboards.
+type ListWhiteboardsParamsOrder string
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
@@ -29797,6 +30184,12 @@ type ListWhiteboardVersionsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// MoveWhiteboardParams defines parameters for MoveWhiteboard.
+type MoveWhiteboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -29838,6 +30231,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
+
+// ReplaceStarsJSONRequestBody defines body for ReplaceStars for application/json ContentType.
+type ReplaceStarsJSONRequestBody = StarList
 
 // RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
 type RequestAddressJSONRequestBody = AddressRequest
@@ -30279,6 +30675,9 @@ type MakeEntriesJSONRequestBody = EntriesText
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
+
+// PreviewContainerMoveJSONRequestBody defines body for PreviewContainerMove for application/json ContentType.
+type PreviewContainerMoveJSONRequestBody PreviewContainerMoveJSONBody
 
 // ReorderContainerJSONRequestBody defines body for ReorderContainer for application/json ContentType.
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
@@ -30987,6 +31386,9 @@ type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersion
 
 // ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
 type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
+
+// MoveWhiteboardJSONRequestBody defines body for MoveWhiteboard for application/json ContentType.
+type MoveWhiteboardJSONRequestBody = WhiteboardMove
 
 // SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
 type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
@@ -31917,6 +32319,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListStars Read a person's stars
+	//
+	// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+	//
+	// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+	ListStars(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceStarsWithBody Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStarsWithBody(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReplaceStars Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStars(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestAddressWithBody Give a managed account a mail address
 	//
@@ -36093,6 +36520,24 @@ type ClientInterface interface {
 	// Moves a collection into another hub, and ranks it there. The name has to be free at the destination; a collision is refused rather than resolved. A hub sits in nothing and cannot be moved.
 	MoveContainer(ctx context.Context, containerId ContainerId, params *MoveContainerParams, body MoveContainerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PreviewContainerMoveWithBody Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMoveWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewContainerMove Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMove(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReorderContainerWithBody performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -37105,6 +37550,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListHubQueues A hub's queues with their counts
+	//
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	//
+	// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+	ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListReleases A hub's releases
 	//
@@ -39335,7 +39787,7 @@ type ClientInterface interface {
 
 	// TrashPage Put a page in the trash
 	//
-	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 	//
 	// Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
 	TrashPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -42698,6 +43150,24 @@ type ClientInterface interface {
 	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
 	ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// MoveWhiteboardWithBody Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveWhiteboard Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboard(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	//
 	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
@@ -43587,6 +44057,61 @@ func (c *Client) UpdateAccountPreferencesWithBody(ctx context.Context, accountId
 // Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateAccountPreferencesRequestWithApplicationMergePatchPlusJSONBody(c.Server, accountId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListStars Read a person's stars
+//
+// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+//
+// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+func (c *Client) ListStars(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListStarsRequest(c.Server, accountId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceStarsWithBody Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *Client) ReplaceStarsWithBody(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceStarsRequestWithBody(c.Server, accountId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReplaceStars Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *Client) ReplaceStars(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceStarsRequest(c.Server, accountId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -52212,6 +52737,44 @@ func (c *Client) MoveContainer(ctx context.Context, containerId ContainerId, par
 	return c.Client.Do(req)
 }
 
+// PreviewContainerMoveWithBody Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *Client) PreviewContainerMoveWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewContainerMoveRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewContainerMove Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *Client) PreviewContainerMove(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewContainerMoveRequest(c.Server, containerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReorderContainerWithBody performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -54445,6 +55008,23 @@ func (c *Client) CreatePageWithBody(ctx context.Context, hubId openapi_types.UUI
 // Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreatePageRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHubQueues A hub's queues with their counts
+//
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+//
+// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+func (c *Client) ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubQueuesRequest(c.Server, hubId)
 	if err != nil {
 		return nil, err
 	}
@@ -59323,7 +59903,7 @@ func (c *Client) ChangePageCommentWithApplicationMergePatchPlusJSONBody(ctx cont
 
 // TrashPage Put a page in the trash
 //
-// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 //
 // Corresponds with DELETE /pages/{pageId} (the `TrashPage` operationId).
 func (c *Client) TrashPage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -66406,6 +66986,44 @@ func (c *Client) ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId
 	return c.Client.Do(req)
 }
 
+// MoveWhiteboardWithBody Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *Client) MoveWhiteboardWithBody(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveWhiteboardRequestWithBody(c.Server, whiteboardId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveWhiteboard Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *Client) MoveWhiteboard(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveWhiteboardRequest(c.Server, whiteboardId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RestoreWhiteboard Bring a whiteboard back from the trash
 //
 // The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
@@ -67627,6 +68245,102 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListStarsRequest constructs an http.Request for the ListStars method
+func NewListStarsRequest(server string, accountId AccountId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s/stars", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReplaceStarsRequest calls the generic ReplaceStars builder with application/json body
+func NewReplaceStarsRequest(server string, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceStarsRequestWithBody(server, accountId, params, "application/json", bodyReader)
+}
+
+// NewReplaceStarsRequestWithBody constructs an http.Request for the ReplaceStars method, with any body, and a specified content type
+func NewReplaceStarsRequestWithBody(server string, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s/stars", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -81400,6 +82114,53 @@ func NewMoveContainerRequestWithBody(server string, containerId ContainerId, par
 	return req, nil
 }
 
+// NewPreviewContainerMoveRequest calls the generic PreviewContainerMove builder with application/json body
+func NewPreviewContainerMoveRequest(server string, containerId ContainerId, body PreviewContainerMoveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPreviewContainerMoveRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewPreviewContainerMoveRequestWithBody constructs an http.Request for the PreviewContainerMove method, with any body, and a specified content type
+func NewPreviewContainerMoveRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s:move-preview", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReorderContainerRequest calls the generic ReorderContainer builder with application/json body
 func NewReorderContainerRequest(server string, containerId ContainerId, params *ReorderContainerParams, body ReorderContainerJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -85604,6 +86365,40 @@ func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, conte
 	return req, nil
 }
 
+// NewListHubQueuesRequest constructs an http.Request for the ListHubQueues method
+func NewListHubQueuesRequest(server string, hubId HubId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/queues", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListReleasesRequest constructs an http.Request for the ListReleases method
 func NewListReleasesRequest(server string, hubId HubId, params *ListReleasesParams) (*http.Request, error) {
 	var err error
@@ -86099,6 +86894,18 @@ func NewListWhiteboardsRequest(server string, hubId openapi_types.UUID, params *
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Order != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "order", *params.Order, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -106193,6 +107000,68 @@ func NewExportWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId
 	return req, nil
 }
 
+// NewMoveWhiteboardRequest calls the generic MoveWhiteboard builder with application/json body
+func NewMoveWhiteboardRequest(server string, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveWhiteboardRequestWithBody(server, whiteboardId, params, "application/json", bodyReader)
+}
+
+// NewMoveWhiteboardRequestWithBody constructs an http.Request for the MoveWhiteboard method, with any body, and a specified content type
+func NewMoveWhiteboardRequestWithBody(server string, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "whiteboardId", whiteboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/whiteboards/%s:move", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRestoreWhiteboardRequest constructs an http.Request for the RestoreWhiteboard method
 func NewRestoreWhiteboardRequest(server string, whiteboardId WhiteboardId) (*http.Request, error) {
 	var err error
@@ -107184,6 +108053,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
+
+	// ListStarsWithResponse Read a person's stars
+	//
+	// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+	ListStarsWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*ListStarsResult, error)
+
+	// ReplaceStarsWithBodyWithResponse Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStarsWithBodyWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error)
+
+	// ReplaceStarsWithResponse Replace a person's stars
+	//
+	// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+	ReplaceStarsWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error)
 
 	// RequestAddressWithBodyWithResponse Give a managed account a mail address
 	//
@@ -111686,6 +112582,24 @@ type ClientWithResponsesInterface interface {
 	// Moves a collection into another hub, and ranks it there. The name has to be free at the destination; a collision is refused rather than resolved. A hub sits in nothing and cannot be moved.
 	MoveContainerWithResponse(ctx context.Context, containerId ContainerId, params *MoveContainerParams, body MoveContainerJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveContainerResult, error)
 
+	// PreviewContainerMoveWithBodyWithResponse Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMoveWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error)
+
+	// PreviewContainerMoveWithResponse Preview a collection's move to another hub
+	//
+	// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+	PreviewContainerMoveWithResponse(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error)
+
 	// ReorderContainerWithBodyWithResponse performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -112794,6 +113708,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
+
+	// ListHubQueuesWithResponse A hub's queues with their counts
+	//
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+	ListHubQueuesWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListHubQueuesResult, error)
 
 	// ListReleasesWithResponse A hub's releases
 	//
@@ -115278,7 +116201,7 @@ type ClientWithResponsesInterface interface {
 
 	// TrashPageWithResponse Put a page in the trash
 	//
-	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+	// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -118937,6 +119860,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /whiteboards/{whiteboardId}:export (the `ExportWhiteboard` operationId).
 	ExportWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, body ExportWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportWhiteboardResult, error)
 
+	// MoveWhiteboardWithBodyWithResponse Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error)
+
+	// MoveWhiteboardWithResponse Move a whiteboard in the content tree
+	//
+	// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+	MoveWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error)
+
 	// RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
 	//
 	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
@@ -120138,6 +121079,116 @@ func (r UpdateAccountPreferencesResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateAccountPreferencesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ListStarsResult200Headers the declared response headers of an HTTP 200 response for ListStars
+type ListStarsResult200Headers struct {
+	ETag *string
+}
+
+type ListStarsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StarList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ListStarsResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListStarsResult) GetJSON200() *StarList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListStarsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListStarsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListStarsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListStarsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListStarsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ReplaceStarsResult200Headers the declared response headers of an HTTP 200 response for ReplaceStars
+type ReplaceStarsResult200Headers struct {
+	ETag *string
+}
+
+type ReplaceStarsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StarList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ReplaceStarsResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReplaceStarsResult) GetJSON200() *StarList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReplaceStarsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReplaceStarsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceStarsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceStarsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReplaceStarsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -134530,6 +135581,54 @@ func (r MoveContainerResult) ContentType() string {
 	return ""
 }
 
+type PreviewContainerMoveResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ContainerMovePreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewContainerMoveResult) GetJSON200() *ContainerMovePreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewContainerMoveResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewContainerMoveResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewContainerMoveResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewContainerMoveResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewContainerMoveResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ReorderContainerResult200Headers the declared response headers of an HTTP 200 response for ReorderContainer
 type ReorderContainerResult200Headers struct {
 	ETag *string
@@ -138570,6 +139669,54 @@ func (r CreatePageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreatePageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubQueuesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HubQueueList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubQueuesResult) GetJSON200() *HubQueueList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubQueuesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubQueuesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubQueuesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubQueuesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubQueuesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -159827,6 +160974,54 @@ func (r ExportWhiteboardResult) ContentType() string {
 	return ""
 }
 
+type MoveWhiteboardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Whiteboard
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MoveWhiteboardResult) GetJSON200() *Whiteboard {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MoveWhiteboardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MoveWhiteboardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveWhiteboardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveWhiteboardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MoveWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RestoreWhiteboardResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -161015,6 +162210,51 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 		return nil, err
 	}
 	return ParseUpdateAccountPreferencesResult(rsp)
+}
+
+// ListStarsWithResponse Read a person's stars
+//
+// The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/{accountId}/stars (the `ListStars` operationId).
+func (c *ClientWithResponses) ListStarsWithResponse(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*ListStarsResult, error) {
+	rsp, err := c.ListStars(ctx, accountId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListStarsResult(rsp)
+}
+
+// ReplaceStarsWithBodyWithResponse Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *ClientWithResponses) ReplaceStarsWithBodyWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error) {
+	rsp, err := c.ReplaceStarsWithBody(ctx, accountId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceStarsResult(rsp)
+}
+
+// ReplaceStarsWithResponse Replace a person's stars
+//
+// Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /accounts/{accountId}/stars (the `ReplaceStars` operationId).
+func (c *ClientWithResponses) ReplaceStarsWithResponse(ctx context.Context, accountId AccountId, params *ReplaceStarsParams, body ReplaceStarsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceStarsResult, error) {
+	rsp, err := c.ReplaceStars(ctx, accountId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceStarsResult(rsp)
 }
 
 // RequestAddressWithBodyWithResponse Give a managed account a mail address
@@ -168182,6 +169422,36 @@ func (c *ClientWithResponses) MoveContainerWithResponse(ctx context.Context, con
 	return ParseMoveContainerResult(rsp)
 }
 
+// PreviewContainerMoveWithBodyWithResponse Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *ClientWithResponses) PreviewContainerMoveWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error) {
+	rsp, err := c.PreviewContainerMoveWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewContainerMoveResult(rsp)
+}
+
+// PreviewContainerMoveWithResponse Preview a collection's move to another hub
+//
+// Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}:move-preview (the `PreviewContainerMove` operationId).
+func (c *ClientWithResponses) PreviewContainerMoveWithResponse(ctx context.Context, containerId ContainerId, body PreviewContainerMoveJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewContainerMoveResult, error) {
+	rsp, err := c.PreviewContainerMove(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewContainerMoveResult(rsp)
+}
+
 // ReorderContainerWithBodyWithResponse performs a POST /containers/{containerId}:reorder (the `ReorderContainer` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -170027,6 +171297,21 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 		return nil, err
 	}
 	return ParseCreatePageResult(rsp)
+}
+
+// ListHubQueuesWithResponse A hub's queues with their counts
+//
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
+func (c *ClientWithResponses) ListHubQueuesWithResponse(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*ListHubQueuesResult, error) {
+	rsp, err := c.ListHubQueues(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubQueuesResult(rsp)
 }
 
 // ListReleasesWithResponse A hub's releases
@@ -174096,7 +175381,7 @@ func (c *ClientWithResponses) ChangePageCommentWithApplicationMergePatchPlusJSON
 
 // TrashPageWithResponse Put a page in the trash
 //
-// Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.
+// Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179987,6 +181272,36 @@ func (c *ClientWithResponses) ExportWhiteboardWithResponse(ctx context.Context, 
 	return ParseExportWhiteboardResult(rsp)
 }
 
+// MoveWhiteboardWithBodyWithResponse Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *ClientWithResponses) MoveWhiteboardWithBodyWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error) {
+	rsp, err := c.MoveWhiteboardWithBody(ctx, whiteboardId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveWhiteboardResult(rsp)
+}
+
+// MoveWhiteboardWithResponse Move a whiteboard in the content tree
+//
+// Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /whiteboards/{whiteboardId}:move (the `MoveWhiteboard` operationId).
+func (c *ClientWithResponses) MoveWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, params *MoveWhiteboardParams, body MoveWhiteboardJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWhiteboardResult, error) {
+	rsp, err := c.MoveWhiteboard(ctx, whiteboardId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveWhiteboardResult(rsp)
+}
+
 // RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
 //
 // The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
@@ -180981,6 +182296,98 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseListStarsResult parses an HTTP response from a ListStarsWithResponse call
+func ParseListStarsResult(rsp *http.Response) (*ListStarsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListStarsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StarList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ListStarsResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseReplaceStarsResult parses an HTTP response from a ReplaceStarsWithResponse call
+func ParseReplaceStarsResult(rsp *http.Response) (*ReplaceStarsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceStarsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StarList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ReplaceStarsResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil
@@ -191118,6 +192525,39 @@ func ParseMoveContainerResult(rsp *http.Response) (*MoveContainerResult, error) 
 	return response, nil
 }
 
+// ParsePreviewContainerMoveResult parses an HTTP response from a PreviewContainerMoveWithResponse call
+func ParsePreviewContainerMoveResult(rsp *http.Response) (*PreviewContainerMoveResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewContainerMoveResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ContainerMovePreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReorderContainerResult parses an HTTP response from a ReorderContainerWithResponse call
 func ParseReorderContainerResult(rsp *http.Response) (*ReorderContainerResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -193981,6 +195421,39 @@ func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubQueuesResult parses an HTTP response from a ListHubQueuesWithResponse call
+func ParseListHubQueuesResult(rsp *http.Response) (*ListHubQueuesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubQueuesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HubQueueList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -209035,6 +210508,39 @@ func ParseExportWhiteboardResult(rsp *http.Response) (*ExportWhiteboardResult, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WhiteboardExport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveWhiteboardResult parses an HTTP response from a MoveWhiteboardWithResponse call
+func ParseMoveWhiteboardResult(rsp *http.Response) (*MoveWhiteboardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveWhiteboardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Whiteboard
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

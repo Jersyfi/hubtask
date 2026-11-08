@@ -39,6 +39,8 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { id: 'palette', scope: 'everywhere', code: 'app.shortcuts.palette', drawn: ['⌘K', 'Ctrl K', '/'], aria: ['Meta+K', 'Control+K', '/'] },
   { id: 'help', scope: 'everywhere', code: 'app.shortcuts.help', drawn: ['?'], aria: ['Shift+?'] },
   { id: 'capture', scope: 'everywhere', code: 'app.shortcuts.capture', drawn: ['Q'], aria: ['Q'] },
+  { id: 'star', scope: 'everywhere', code: 'app.shortcuts.star', drawn: ['S'], aria: ['S'] },
+  { id: 'sidebar', scope: 'everywhere', code: 'app.shortcuts.sidebar', drawn: ['Ctrl ['], aria: ['Control+['] },
   { id: 'palette-move', scope: 'palette', code: 'app.shortcuts.palette_move', drawn: ['↑', '↓'], aria: ['ArrowUp', 'ArrowDown'] },
   { id: 'palette-enter', scope: 'palette', code: 'app.shortcuts.palette_enter', drawn: ['Enter'], aria: ['Enter'] },
   { id: 'palette-escape', scope: 'palette', code: 'app.shortcuts.palette_escape', drawn: ['Esc'], aria: ['Escape'] },
@@ -59,8 +61,8 @@ export function ariaKeysOf(id: string): readonly string[] {
   return SHORTCUTS.find((each) => each.id === id)?.aria ?? [];
 }
 
-/** What a global press means: open or close the palette, help, or the capture field. */
-export type Intent = 'palette' | 'help' | 'capture';
+/** What a global press means: open or close the palette, help, the capture field, or star the place. */
+export type Intent = 'palette' | 'help' | 'capture' | 'star';
 
 /** The parts of a key press the decision reads - a `KeyboardEvent` is one. */
 export interface Press {
@@ -122,5 +124,6 @@ export function intentOf(press: Press, where: Where): Intent | null {
   if (press.key === '/') return 'palette';
   if (press.key === '?' || press.key === '؟') return 'help';
   if (isLetter(press, 'q')) return 'capture';
+  if (isLetter(press, 's')) return 'star';
   return null;
 }

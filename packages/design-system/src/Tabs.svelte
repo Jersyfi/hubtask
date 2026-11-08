@@ -176,7 +176,7 @@
 
   .tab:hover { color: var(--text-primary); }
 
-  /* The count is quieter than the label it follows, as in PlaceTabs. */
+  /* The count is quieter than the label it follows, as in ViewBar. */
   .count {
     color: var(--text-subtle);
     font-size: var(--fs-075);

@@ -70,6 +70,11 @@ class Account(TypedDict, total=False):
     celebrations: bool | None
     onboarding_completed_at: str | None
     products_seen: list["Module"]
+    nav_products: list["Module"]
+    nav_products_hidden: list["Module"]
+    nav_hubs_hidden: list[str]
+    nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
+    nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
@@ -134,6 +139,11 @@ class InvitedAccount(TypedDict, total=False):
     celebrations: bool | None
     onboarding_completed_at: str | None
     products_seen: list["Module"]
+    nav_products: list["Module"]
+    nav_products_hidden: list["Module"]
+    nav_hubs_hidden: list[str]
+    nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
+    nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
@@ -172,6 +182,28 @@ class AccountPreferences(TypedDict, total=False):
     celebrations: bool | None
     onboarding_completed_at: str | None
     products_seen: list["Module"] | None
+    nav_products: list["Module"] | None
+    nav_products_hidden: list["Module"] | None
+    nav_hubs_hidden: list[str] | None
+    nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
+    nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
+
+class ContainerMovePreview(TypedDict, total=False):
+    movable: Required[bool]
+    obstacles: Required[list["MoveFinding"]]
+    consequences: Required[list["MoveFinding"]]
+
+class MoveFinding(TypedDict, total=False):
+    code: Required[str]
+    params: Required[dict[str, Any]]
+
+class Star(TypedDict, total=False):
+    kind: Required[Literal["HUB", "COLLECTION", "VIEW", "PAGE", "WHITEBOARD", "DASHBOARD", "PORTFOLIO"]]
+    id: Required[str]
+
+class StarList(TypedDict, total=False):
+    stars: Required[list["Star"]]
+    version: int
 
 class NotificationPreference(TypedDict, total=False):
     category: Required[str]
@@ -3879,6 +3911,8 @@ class SavedView(TypedDict, total=False):
     grouping: Required[dict[str, Any]]
     visible_fields: Required[list[str]]
     sharing: Required[Literal["PRIVATE", "SCOPE", "PUBLIC_LINK"]]
+    queue: Required[bool]
+    queue_position: Required[int | None]
     created_at: str
     version: Required[int]
 
@@ -3892,6 +3926,8 @@ class SavedViewCreate(TypedDict, total=False):
     grouping: dict[str, Any]
     visible_fields: list[str]
     sharing: Literal["PRIVATE", "SCOPE", "PUBLIC_LINK"]
+    queue: bool
+    queue_position: int
 
 class SavedViewUpdate(TypedDict, total=False):
     """JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share."""
@@ -3900,6 +3936,18 @@ class SavedViewUpdate(TypedDict, total=False):
     query: dict[str, Any]
     grouping: dict[str, Any]
     visible_fields: list[str]
+    queue: bool
+    queue_position: int
+
+class HubQueueList(TypedDict, total=False):
+    data: Required[list["HubQueue"]]
+
+class HubQueue(TypedDict, total=False):
+    view_id: Required[str | None]
+    key: Required[str]
+    name: Required[str | None]
+    count: Required[int | None]
+    at_risk: Required[int | None]
 
 class SavedViewShare(TypedDict, total=False):
     sharing: Required[Literal["PRIVATE", "SCOPE", "PUBLIC_LINK"]]
@@ -6128,6 +6176,8 @@ class Whiteboard(TypedDict, total=False):
     updated_by: Required[str]
     updated_at: Required[str]
     version: Required[int]
+    parent_page_id: str | None
+    order_key: str | None
 
 class WhiteboardRead(TypedDict, total=False):
     """A board with its objects and whether the reader may draw on it."""
@@ -6142,6 +6192,8 @@ class WhiteboardRead(TypedDict, total=False):
     updated_by: Required[str]
     updated_at: Required[str]
     version: Required[int]
+    parent_page_id: str | None
+    order_key: str | None
     writable: Required[bool]
 
 class CiAttribute(TypedDict, total=False):
@@ -6903,6 +6955,12 @@ class WhiteboardCreate(TypedDict, total=False):
     title: Required[str]
     elements: list["WhiteboardElement"]
     id: str
+    parent_page_id: str | None
+    after_id: str | None
+
+class WhiteboardMove(TypedDict, total=False):
+    parent_page_id: str | None
+    after_id: str | None
 
 class WhiteboardChange(TypedDict, total=False):
     title: str

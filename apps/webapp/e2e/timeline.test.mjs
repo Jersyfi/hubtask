@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, COLLECTION, ITEMS, OWNER_GRANTS, PAGE, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, ITEMS, OWNER_GRANTS, PAGE, signedIn, stub, chooseView } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -65,7 +65,7 @@ async function timeline(browser, { width = 1280, rows, zone = 'UTC', now, role }
     return stub(route);
   });
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-  await page.getByRole('radio', { name: 'Timeline' }).click();
+  await chooseView(page, 'Timeline');
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
   return { page, failures, written, close: () => context.close(), unstubbed };
 }

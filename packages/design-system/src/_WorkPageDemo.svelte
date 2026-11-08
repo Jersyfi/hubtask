@@ -2,7 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import EmptyState from './EmptyState.svelte';
-  import PlaceTabs from './PlaceTabs.svelte';
+  import ViewBar from './ViewBar.svelte';
   import ViewSwitcher from './ViewSwitcher.svelte';
   import WorkPage from './WorkPage.svelte';
   import Refused from './_RefusedDemo.svelte';
@@ -21,7 +21,7 @@
   refused={content === 'refused' ? refused : undefined}
 >
   {#snippet tabs()}
-    <PlaceTabs label="Produktentwicklung" current="plan" tabs={[{ id: 'overview', label: 'Overview', href: '#overview' }, { id: 'plan', label: 'Plan', href: '#plan' }, { id: 'pages', label: 'Pages', href: '#pages' }]} />
+    <ViewBar label="Produktentwicklung" current="plan" views={[{ id: 'overview', label: 'Overview', href: '#overview' }, { id: 'plan', label: 'Plan', href: '#plan' }, { id: 'pages', label: 'Pages', href: '#pages' }]} />
   {/snippet}
   {#snippet toolbar()}
     <ViewSwitcher label="Views of the plan" bind:selected={view} views={[{ id: 'chart', label: 'Chart' }, { id: 'table', label: 'Table' }, { id: 'dependencies', label: 'Dependencies' }, { id: 'releases', label: 'Releases' }]} />

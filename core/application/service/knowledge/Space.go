@@ -119,6 +119,8 @@ type Space struct {
 	// Drafting keeps a space's changes in drafts until they are published (UC-DOC-15); its zero
 	// value keeps every space a live document.
 	Drafting Drafting
+	// Boards are the whiteboards standing among the pages (UC-CNV-10); nil is a space without.
+	Boards BoardPlaces
 }
 
 // Drafting is what a space with drafts needs beside the pages.

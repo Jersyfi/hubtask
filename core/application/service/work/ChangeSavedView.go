@@ -93,6 +93,14 @@ func (h UpdateSavedView) Execute(
 			if err := h.Writer.Views.SetAttributes(ctx, wanted, expected); err != nil {
 				return view.SavedView{}, err
 			}
+			if wanted.Queue && wanted.QueuePosition == 0 {
+				// The place the store drew for a view that became a queue.
+				stored, err := h.Writer.Views.Find(ctx, wanted.ID)
+				if err != nil {
+					return view.SavedView{}, err
+				}
+				wanted.QueuePosition = stored.QueuePosition
+			}
 			wanted.Version = expected + 1
 			if err := recordViewAudit(ctx, h.Writer.Audit, actor, wanted, ViewUpdatedAction, now); err != nil {
 				return view.SavedView{}, err
@@ -361,6 +369,9 @@ func (h UpdateSavedView) Descriptor() usecase.Descriptor {
 				Name: "visible_fields", Kind: usecase.KindList,
 				Description: "The new column list, replacing the stored one whole. Omitted leaves it.",
 			},
+			queueInput("True makes a HUB-scoped view one of the hub's queues, false takes it out " +
+				"of them; any other scope is refused as views.queue_hub_only. Omitted leaves it."),
+			queuePositionInput("Omitted keeps a queue's place, or places a view that was none after the last."),
 		}, savedViewInput("The view to change.")...),
 		Audit: usecase.AuditDeclaration{
 			Action: ViewUpdatedAction, TargetType: viewTarget,
@@ -472,6 +483,14 @@ func (h UpdateSavedView) invoke(
 			fields = append(fields, text)
 		}
 		attributes.VisibleFields = fields
+	}
+	if in.Present("queue") {
+		queue := in.Bool("queue")
+		attributes.Queue = &queue
+	}
+	if in.Present("queue_position") {
+		position := in.Int("queue_position")
+		attributes.QueuePosition = &position
 	}
 	if attributes.IsEmpty() {
 		return nil, shared.ErrValidation.

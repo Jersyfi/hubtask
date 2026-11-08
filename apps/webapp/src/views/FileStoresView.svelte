@@ -41,8 +41,10 @@
 
   const account = $derived(actor.account);
   const read = resource<FileStoreConnectionList>(fileStoresPath);
-  const connections = $derived(read.state.status === 'ready' ? read.state.data.data : []);
-  const kinds = $derived(read.state.status === 'ready' ? read.state.data.kinds : []);
+  // An answer without a list is read as an empty one: no store connected, none to offer - the page's
+  // own empty state rather than the frame's error boundary.
+  const connections = $derived(read.state.status === 'ready' ? (read.state.data.data ?? []) : []);
+  const kinds = $derived(read.state.status === 'ready' ? (read.state.data.kinds ?? []) : []);
   let search = $state('');
 
   let failure = $state<string | undefined>(undefined);

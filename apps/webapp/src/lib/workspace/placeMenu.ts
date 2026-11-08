@@ -22,6 +22,11 @@ export interface PlaceMenuInput {
   readonly privacy?: 'make_private' | 'make_shared';
   /** Why nothing can be changed now, kept on the items that change something. */
   readonly readOnlyReason?: string;
+  /**
+   * Whether *Change position* is offered: where the place stands among its siblings. A hub's own
+   * head says no - the hubs are ordered where they are all listed (navigation concept §5.1).
+   */
+  readonly offersPosition?: boolean;
 }
 
 /** The items, grouped: set it up, place it, keep it, and the trash last and alone. */
@@ -34,9 +39,11 @@ export function placeMenu(input: PlaceMenuInput, t: (code: string) => string): M
           ? [{ id: 'move', label: t('app.move.to_hub'), icon: 'arrow-right-left' as const, disabledReason: input.readOnlyReason }]
           : []),
         { id: 'import', label: t('app.import.open'), icon: 'cloud-upload', disabledReason: input.readOnlyReason },
-        { id: 'position', label: t('app.place.position'), icon: 'chevrons-up-down', disabledReason: input.readOnlyReason, hasSeparatorBefore: true },
+        ...(input.offersPosition === false
+          ? []
+          : [{ id: 'position', label: t('app.place.position'), icon: 'arrow-up-down' as const, disabledReason: input.readOnlyReason, hasSeparatorBefore: true }]),
         ...(input.archival !== 'inherited'
-          ? [{ id: 'archive', label: input.archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
+          ? [{ id: 'archive', label: input.archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const, hasSeparatorBefore: input.offersPosition === false }]
           : []),
       ];
   return [

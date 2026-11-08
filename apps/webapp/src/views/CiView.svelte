@@ -50,6 +50,8 @@
   );
 
   $effect(() => frame.entitle(current?.name ?? t('app.assets.title')));
+  // The sidebar shows this hub's level; the route names only the item (`levelOf`).
+  $effect(() => frame.locate(hubId || undefined));
 </script>
 
 {#if current && classesRead.state.status === 'ready'}

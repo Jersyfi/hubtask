@@ -34,7 +34,7 @@ func (q *Queries) DeleteSavedView(ctx context.Context, arg DeleteSavedViewParams
 
 const findSavedView = `-- name: FindSavedView :one
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version, key
+       visible_fields, sharing, created_at, version, key, queue_position
 FROM saved_view
 WHERE id = $1
 `
@@ -57,6 +57,7 @@ func (q *Queries) FindSavedView(ctx context.Context, id pgtype.UUID) (SavedView,
 		&i.CreatedAt,
 		&i.Version,
 		&i.Key,
+		&i.QueuePosition,
 	)
 	return i, err
 }
@@ -65,14 +66,19 @@ const insertSavedView = `-- name: InsertSavedView :one
 
 INSERT INTO saved_view (
   id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-  visible_fields, sharing, created_at, version, key
+  visible_fields, sharing, created_at, version, key, queue_position
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4,
   normalize($5::text, NFC),
   $6, $7::jsonb, $8::jsonb,
   $9::text[], $10, $11, 1,
-  $12
+  $12,
+  CASE WHEN NOT $13::boolean THEN NULL
+       ELSE coalesce($14::int,
+         (SELECT coalesce(max(q.queue_position), 0) + 1 FROM saved_view q
+          WHERE q.queue_position IS NOT NULL AND q.scope_type = 'HUB' AND q.scope_id = $3::uuid))
+  END
 )
 RETURNING key
 `
@@ -90,6 +96,8 @@ type InsertSavedViewParams struct {
 	Sharing       string
 	CreatedAt     pgtype.Timestamptz
 	Key           *string
+	Queue         bool
+	QueuePosition *int32
 }
 
 // Saved views.
@@ -100,6 +108,7 @@ type InsertSavedViewParams struct {
 // whoever opens it, under their own authorisation.
 // The key is the writer's, or drawn from the name by the store when it names none (migration
 // 0293); the statement answers the one stored.
+// A queue named without a position is placed after the hub's last (migration 0391).
 func (q *Queries) InsertSavedView(ctx context.Context, arg InsertSavedViewParams) (*string, error) {
 	row := q.db.QueryRow(ctx, insertSavedView,
 		arg.ID,
@@ -114,15 +123,70 @@ func (q *Queries) InsertSavedView(ctx context.Context, arg InsertSavedViewParams
 		arg.Sharing,
 		arg.CreatedAt,
 		arg.Key,
+		arg.Queue,
+		arg.QueuePosition,
 	)
 	var key *string
 	err := row.Scan(&key)
 	return key, err
 }
 
+const listHubQueueViews = `-- name: ListHubQueueViews :many
+SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
+       visible_fields, sharing, created_at, version, key, queue_position
+FROM saved_view
+WHERE scope_type = 'HUB' AND scope_id = $1::uuid
+  AND queue_position IS NOT NULL
+  AND (owner_id = $2::uuid OR sharing = 'SCOPE')
+ORDER BY queue_position, created_at, id
+`
+
+type ListHubQueueViewsParams struct {
+	HubID   pgtype.UUID
+	OwnerID pgtype.UUID
+}
+
+// A hub's queues the caller sees: their own and those shared at the hub, by their place. READ at
+// the hub was asked before this runs; saved_view_queue_idx serves it.
+func (q *Queries) ListHubQueueViews(ctx context.Context, arg ListHubQueueViewsParams) ([]SavedView, error) {
+	rows, err := q.db.Query(ctx, listHubQueueViews, arg.HubID, arg.OwnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SavedView{}
+	for rows.Next() {
+		var i SavedView
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ScopeType,
+			&i.ScopeID,
+			&i.OwnerID,
+			&i.Name,
+			&i.Layout,
+			&i.Query,
+			&i.Grouping,
+			&i.VisibleFields,
+			&i.Sharing,
+			&i.CreatedAt,
+			&i.Version,
+			&i.Key,
+			&i.QueuePosition,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSavedViewsOwned = `-- name: ListSavedViewsOwned :many
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version, key
+       visible_fields, sharing, created_at, version, key, queue_position
 FROM saved_view
 WHERE owner_id = $1::uuid
 ORDER BY created_at, id
@@ -155,6 +219,7 @@ func (q *Queries) ListSavedViewsOwned(ctx context.Context, ownerID pgtype.UUID) 
 			&i.CreatedAt,
 			&i.Version,
 			&i.Key,
+			&i.QueuePosition,
 		); err != nil {
 			return nil, err
 		}
@@ -168,7 +233,7 @@ func (q *Queries) ListSavedViewsOwned(ctx context.Context, ownerID pgtype.UUID) 
 
 const listSavedViewsReachable = `-- name: ListSavedViewsReachable :many
 SELECT id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
-       visible_fields, sharing, created_at, version, key
+       visible_fields, sharing, created_at, version, key, queue_position
 FROM saved_view
 WHERE owner_id = $1::uuid
    OR (sharing = 'SCOPE' AND (
@@ -212,6 +277,7 @@ func (q *Queries) ListSavedViewsReachable(ctx context.Context, arg ListSavedView
 			&i.CreatedAt,
 			&i.Version,
 			&i.Key,
+			&i.QueuePosition,
 		); err != nil {
 			return nil, err
 		}
@@ -230,8 +296,14 @@ UPDATE saved_view SET
   query          = $3::jsonb,
   grouping       = $4::jsonb,
   visible_fields = $5::text[],
-  version        = version + 1
-WHERE id = $6::uuid AND version = $7
+  -- A queue keeps its place unless one is named; a view becoming one goes after the hub's last.
+  queue_position = CASE WHEN NOT $6::boolean THEN NULL
+       ELSE coalesce($7::int, saved_view.queue_position,
+         (SELECT coalesce(max(q.queue_position), 0) + 1 FROM saved_view q
+          WHERE q.queue_position IS NOT NULL AND q.scope_type = 'HUB' AND q.scope_id = saved_view.scope_id))
+  END,
+  version        = saved_view.version + 1
+WHERE saved_view.id = $8::uuid AND saved_view.version = $9
 `
 
 type SetSavedViewAttributesParams struct {
@@ -240,6 +312,8 @@ type SetSavedViewAttributesParams struct {
 	Query           []byte
 	Grouping        []byte
 	VisibleFields   []string
+	Queue           bool
+	QueuePosition   *int32
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -255,6 +329,8 @@ func (q *Queries) SetSavedViewAttributes(ctx context.Context, arg SetSavedViewAt
 		arg.Query,
 		arg.Grouping,
 		arg.VisibleFields,
+		arg.Queue,
+		arg.QueuePosition,
 		arg.ID,
 		arg.ExpectedVersion,
 	)

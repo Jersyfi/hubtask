@@ -5,8 +5,8 @@
   // are. Everything it offers comes from `/meta/capabilities` through `lib/data/query.ts`, and
   // nothing in this file names a field.
   //
-  // The layout switch is not here: it is the page head's second row
-  // (`LayoutSwitch`), and this panel is what the head's "Filter" button opens - inline from
+  // The views are not here: they are the collection's view bar, and this panel is what the bar's
+  // "Filter" opens - inline from
   // `expanded`, in a drawer below it. The panel stays mounted either way, because the conditions
   // are its state and a closed filter is still a filter; it reports how many parts are set so the
   // button can say so.

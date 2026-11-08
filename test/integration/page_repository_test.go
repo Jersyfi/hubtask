@@ -49,7 +49,8 @@ func seedSpace(ctx context.Context, t *testing.T) (hub, root, child shared.ID) {
 }
 
 // A space's tree, a page's ancestors and subtree, search, backlinks, trash and restore read what
-// was written (migration 0238).
+// was written (migration 0238); a word finds the page with its passage and a trashed page is left
+// out (UC-DOC-01 check 3).
 func TestASpaceIsReadAsItWasWritten(t *testing.T) {
 	ctx := context.Background()
 	hub, root, child := seedSpace(ctx, t)

@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { actsAsDesk, answersOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart, teamDeskOf } from './portal.ts';
+import { actsAsDesk, answersOf, portalTypesOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart, teamDeskOf } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -110,4 +110,19 @@ test('the team sees its own desk at its portal, though the catalogue is refused 
   assert.equal(deskLogoOf(teamDeskOf({ name: 'IT help' }, null)), undefined, 'no logo draws the icon');
   assert.equal(teamDeskOf(undefined, 'logo-1'), undefined, 'nothing before the collection is read');
   assert.deepEqual(deskHead(desk, { title: 'Ask for help', intro: 'Tell the team.' }), { title: 'IT help', subtitle: 'Tell the team.' });
+});
+
+test('a new desk offers the hub\'s types open to the portal, and is a desk by them', () => {
+  const type = (key: string, channels?: { channel: string; closed?: boolean }[], extra: Record<string, unknown> = {}) =>
+    ({ key, level: 'TASK', system: false, position: 0, archived: false, form: channels ? { channels } : undefined, ...extra }) as never;
+  const types = [
+    type('incident', [{ channel: 'PORTAL' }]),
+    type('story'),
+    type('closed', [{ channel: 'PORTAL', closed: true }]),
+    type('elsewhere', [{ channel: 'PORTAL' }], { hub_id: 'h-2' }),
+    type('access', [{ channel: 'PORTAL' }], { hub_id: 'h-1' }),
+  ];
+  assert.deepEqual(portalTypesOf(types, 'h-1').sort(), ['access', 'incident']);
+  assert.equal(actsAsDesk(types, portalTypesOf(types, 'h-1'), 'h-1'), true, 'what it offers makes it a desk');
+  assert.deepEqual(portalTypesOf([type('story')], 'h-1'), [], 'a hub without a portal type has no desk to offer');
 });

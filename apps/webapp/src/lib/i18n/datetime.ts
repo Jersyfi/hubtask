@@ -58,6 +58,13 @@ export function formatPlainDay(date: string | null | undefined, locale: string):
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(at);
 }
 
+/** A calendar day as a short line says it - "Nov 21" -, without its year; read on UTC's clock as `formatPlainDay`. */
+export function formatShortDay(date: string, locale: string): string {
+  const at = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(at)) return date;
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(at);
+}
+
 /**
  * The reader's day as a heading says it - "Friday, 23 October" - on the clock of their own zone,
  * which is where *Today* is today. A zone the platform does not know falls back to the device's.

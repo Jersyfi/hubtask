@@ -109,6 +109,10 @@ func furnitureSections(hub shared.ID) []section {
 			locate: "view_id", locateFrom: "id",
 			present: func(p places, block domain.Block) domain.Block {
 				block["query"] = mapQuery(block["query"], p.out)
+				// A view that is no queue says nothing of queues, as before views could be one.
+				if queue, _ := block["queue"].(bool); !queue {
+					delete(block, "queue")
+				}
 				return block
 			},
 			opsAt: func(now current, change domain.BlockChange, row map[string]any) ([]operation, error) {
@@ -148,8 +152,9 @@ func furnitureSections(hub shared.ID) []section {
 	}
 }
 
-// viewAttributes are what a shared view's block holds.
-var viewAttributes = []string{"name", "layout", "query", "grouping", "visible_fields"}
+// viewAttributes are what a shared view's block holds; a hub's view marked as a queue holds
+// `queue` and its place (UC-SVC-03 check 10).
+var viewAttributes = []string{"name", "layout", "query", "grouping", "visible_fields", "queue", "queue_position"}
 
 // viewOps writes a shared view under key where scopeType and scopeID say, the places its query
 // names back to identifiers.

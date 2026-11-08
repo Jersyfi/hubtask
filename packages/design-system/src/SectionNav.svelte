@@ -8,7 +8,7 @@
   // choosing one opens the section with a way back - which the page kind draws, not this.
   //
   // A `nav` of links, not tabs: each switches the address. One link at a time is `aria-current`;
-  // the arrows, Home and End move between them as in PlaceTabs, Tab leaves the list.
+  // the arrows, Home and End move between them as in ViewBar, Tab leaves the list.
 
   import type { Snippet } from 'svelte';
 

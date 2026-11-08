@@ -354,6 +354,20 @@ type ItemSearch struct {
 	RaisedFrom *Raisers
 }
 
+// ItemCounter counts what a query keeps, and how many of those a second filter keeps too, in one
+// pass that reads no row (UC-SVC-03 check 10: a queue's count and how many of it are at risk).
+type ItemCounter interface {
+	CountWithin(ctx context.Context, search ItemSearch, within view.Node) (ItemCount, error)
+}
+
+// ItemCount is CountWithin's answer. Uncounted says the count outlasted its budget, as
+// ItemQueryResult.Uncounted does; neither number is meaningful then.
+type ItemCount struct {
+	Total     int
+	Within    int
+	Uncounted bool
+}
+
 // Raisers is an organisation as a portal list asks for it: the active people whose address is at
 // one of the domains, and the asking account whatever its state.
 type Raisers struct {
@@ -1589,4 +1603,14 @@ type Kudos interface {
 	Given(ctx context.Context, itemID, givenBy, givenTo shared.ID) (bool, error)
 	// Received answers the kudos the person received on the entry, oldest first.
 	Received(ctx context.Context, itemID, givenTo shared.ID) ([]work.Kudos, error)
+}
+
+// MoveLeftovers answers what a collection's move to another hub leaves pointing back at the hub it
+// leaves (UC-WRK-39, navigation concept §5.3): nothing refuses the move for them, so the preview
+// says so.
+type MoveLeftovers interface {
+	// KeptReleaseEntries counts the collection's entries held by a release of the hub.
+	KeptReleaseEntries(ctx context.Context, collectionID, hubID shared.ID) (int, error)
+	// KeptSLAClocks counts the collection's running or paused clocks measured by a policy of the hub.
+	KeptSLAClocks(ctx context.Context, collectionID, hubID shared.ID) (int, error)
 }

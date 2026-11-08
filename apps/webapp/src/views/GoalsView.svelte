@@ -19,8 +19,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea, ViewSwitcher, WorkPage,
-    DataTable, type DataColumn,
+    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
+    DataTable, type DataColumn, type ViewLink,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, KeyResult, PortfolioList } from '@hubtask/sync-engine';
@@ -44,7 +44,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the goals where it names none or an unknown one. */
@@ -71,21 +71,25 @@
     if (nextTab !== 'goals') query.set('tab', nextTab);
     const nextPeriod = next.period ?? period;
     if (nextPeriod && nextTab === 'goals') query.set('period', nextPeriod);
-    if (hub) query.set('hub', hub);
     const text = query.toString();
+    // A hub's goals are its tool *Goals* (the navigation concept §2.4): the goals and the dashboards.
+    if (hub) {
+      query.delete('tab');
+      const rest = query.toString();
+      return `/hubs/${hub}/goals${nextTab === 'dashboards' ? '/dashboards' : ''}${rest === '' ? '' : `?${rest}`}`;
+    }
     return text === '' ? '/goals' : `/goals?${text}`;
   }
 
-  // Goals, portfolios and dashboards are views of one product: a segmented control, never a second
-  // strip under a hub's (page-system PS-2), as on Time.
-  const views = $derived(TABS.map((each) => ({ id: each.id, label: t(each.code) })));
+  const homeViews = $derived<ViewLink[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: address({ tab: each.id }) })));
   /** Each tab names itself (§7.7): *Dashboards*, never *Goals of …*. */
   const heading = $derived(
-    current === 'portfolios' ? t('app.goals.tab_portfolios')
-      : current === 'dashboards' ? (hubName ? t('app.dashboards.title_of', { place: hubName }) : t('app.goals.tab_dashboards'))
-        : hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title'),
+    hub ? t('app.nav.tool_goals')
+      : current === 'portfolios' ? t('app.goals.tab_portfolios')
+        : current === 'dashboards' ? t('app.goals.tab_dashboards')
+          : t('app.goals.title'),
   );
-  $effect(() => frame.entitle(heading));
+  $effect(() => frame.entitle(hubName ? (current === 'dashboards' ? t('app.dashboards.title_of', { place: hubName }) : t('app.goals.title_of', { place: hubName })) : heading));
 
   let failure = $state<string | undefined>(undefined);
   async function act(run: () => Promise<unknown>, done?: string): Promise<boolean> {
@@ -273,14 +277,18 @@
   });
 </script>
 
+{#snippet goalsFigure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
 <WorkPage>
   {#snippet top()}
+  {#if hub}
+    <ToolHead hubId={hub} tool="goals" {current} {onnavigate} {primary} figure={goalsFigure} />
+  {:else}
   <PageHeader
     title={heading}
-    subtitle={hub ? undefined : t('app.modules.hint_goals')}
+    subtitle={t('app.modules.hint_goals')}
     isTitleInBar={viewport.isCompact}
     {primary}
-    breadcrumb={hub ? undefined : {
+    breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },
         { id: 'product', label: t('app.nav.goals') },
@@ -288,12 +296,13 @@
       label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  >
-    {#snippet figure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
-  </PageHeader>
+    figure={goalsFigure}
+  />
+  {/if}
   {/snippet}
-  {#snippet tabs()}{#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}{/snippet}
-  {#snippet toolbar()}<ViewSwitcher label={t('app.goals.views')} {views} selected={current} onselect={(next) => onnavigate(address({ tab: next }))} />{/snippet}
+  {#snippet tabs()}
+    {#if !hub}<ViewBar label={t('app.goals.title')} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />{/if}
+  {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

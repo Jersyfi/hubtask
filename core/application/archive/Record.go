@@ -774,7 +774,7 @@ var entities = []Entity{
 	// shape; where it points is rebuilt by the trigger.
 	{
 		Name: "whiteboards", Table: "whiteboard", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
-		References: []Reference{{Field: "hub_id", Table: "container"}},
+		References: []Reference{{Field: "hub_id", Table: "container"}, {Field: "parent_page_id", Table: "page"}},
 	},
 	{
 		Name: "whiteboard_media", Table: "whiteboard_media", Whole: true, Later: true, Keys: []string{"whiteboard_id", "media_id"},
@@ -1361,6 +1361,14 @@ var entities = []Entity{
 	// originals, so a DUPLICATE skips it.
 	{
 		Name: "sample_objects", Table: "sample_object", Whole: true, Later: true, Keys: []string{"key"},
+	},
+	// A person's stars (migration 0389, UC-WRK-37): one list per account, dated by its write and
+	// removed only with its account, as a notification preference is. Its members name rows of
+	// the tables their kinds say, so they have no reference to remap; a copy would name the
+	// originals, so a DUPLICATE skips it.
+	{
+		Name: "account_stars", Table: "account_star", Later: true, Keys: []string{"account_id"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
 	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the

@@ -224,7 +224,7 @@
   <Sheet
     bind:isOpen={isSheetOpen}
     title={sheetRow !== null ? (rowLabel?.(sheetRow) ?? sheetMenu?.label ?? '') : ''}
-    dismissLabel={sheetDismissLabel}
+    closeLabel={sheetDismissLabel}
     grabLabel={sheetGrabLabel}
     items={sheetMenu?.items ?? []}
     onselect={(item) => { if (sheetRow !== null) onmenu?.(sheetRow, item); }}

@@ -150,6 +150,24 @@ test('chromium: a sign-in adds the workspace, and Switch workspace opens another
   await north.page.waitForURL((url) => url.host === `acme.localhost:${PORT}`, { timeout: 10_000 });
 });
 
+test('chromium: on a phone the account sheet lists the workspaces, and one tapped opens (the navigation concept §9)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context } = await device(browser, { width: 390 });
+  t.after(() => context.close());
+
+  await signInAt(context, 'acme.localhost');
+  const north = await signInAt(context, 'north.localhost');
+  await north.page.locator('[data-phone-bar] button.account').click();
+  const sheet = north.page.getByRole('dialog', { name: 'You' });
+  const listed = sheet.locator('[data-workspaces]');
+  await listed.getByRole('link', { name: 'Acme Ltd' }).or(listed.getByRole('button', { name: 'Acme Ltd' })).first().waitFor({ timeout: 10_000 });
+  assert.equal(await listed.locator('[aria-current="page"]').innerText().then((text) => text.trim()), 'Northwind Studio', 'this workspace is not the checked one');
+  assert.equal(await sheet.getByRole('button', { name: 'Switch workspace' }).count(), 0, 'the switch is a row besides the list');
+  await listed.getByText('Acme Ltd').click();
+  await north.page.waitForURL((url) => url.host === `acme.localhost:${PORT}`, { timeout: 10_000 });
+});
+
 test('chromium: forgetting takes the workspace off the menu at once and off the installation\'s address (checks 3, 4)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

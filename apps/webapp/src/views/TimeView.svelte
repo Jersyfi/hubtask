@@ -3,9 +3,8 @@
 <script lang="ts">
   // *Time* (M7, user-experience.md §7.6): the reader's week, the weeks waiting for their decision,
   // and where the time went, under one head - the week's total and state as its figure, the one
-  // timer beside the acts, *Record time* the primary - and its views as one segmented control in
-  // the toolbar (page-system §9.7, PS-2). Its settings are a page of their own, behind the head's
-  // *Settings*.
+  // timer beside the acts, *Record time* the primary - and its views as the home's view bar (the
+  // navigation concept §3). Its settings are a page of their own, the bar's last tab.
   //
   // **My week** (UC-TIM-02 check 8): the week from Monday as a grid of entries by day, the records
   // under it - changed and removed while the week is open and the day unlocked, corrected
@@ -23,12 +22,13 @@
   // **The server decides every rule**: who sees whose week, what is locked, what may change. A
   // refusal is said where it happened, in the server's words.
 
+  import { homeTabs } from '../lib/product/home.ts';
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Textarea, ViewSwitcher, WorkPage,
-    DataTable, type DataColumn, type DataRowMenu,
+    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
+    DataTable, type DataColumn, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -66,19 +66,15 @@
 
   const { tab, week, onnavigate }: Props = $props();
 
-  const VIEWS = [
-    { id: 'week', code: 'app.time.tab_week' },
-    { id: 'approvals', code: 'app.time.tab_approvals' },
-    { id: 'report', code: 'app.time.tab_report' },
-    { id: 'absences', code: 'app.time.tab_absences' },
-    { id: 'capacity', code: 'app.time.tab_capacity' },
-  ] as const;
-  // The kinds of work, the lock and the rates, for whoever may change one of them (§9.6).
+  // The time's tabs are the home's (the shared vocabulary, `homeTabs`): Settings last, for whoever
+  // may change one of the kinds of work, the lock and the rates (user-experience.md §5.1, §8.2).
+  const TABS = homeTabs('TIME');
   const maySetUp = $derived(
     holdsHere('STRUCTURE') === true || holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true,
   );
-  const current = $derived(VIEWS.some((each) => each.id === tab) ? (tab as string) : 'week');
-  const views = $derived(VIEWS.map((each) => ({ id: each.id, label: t(each.code) })));
+  const offered = $derived(TABS.filter((each) => each.id !== 'settings' || maySetUp));
+  const current = $derived(offered.some((each) => each.id === tab) ? (tab as string) : 'week');
+  const homeViews = $derived<ViewLink[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
   function select(next: string) {
     onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
   }
@@ -376,6 +372,7 @@
 </script>
 
 <WorkPage {top} {toolbar}>
+  {#snippet tabs()}<ViewBar label={t('app.time.title')} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={select} />{/snippet}
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if current === 'week'}
@@ -554,7 +551,6 @@
       subtitle={t('app.modules.hint_time')}
       isTitleInBar={viewport.isCompact}
       primary={current === 'week' ? recordPrimary : undefined}
-      secondary={maySetUp ? [{ label: t('app.time.tab_settings'), icon: 'settings', isQuiet: true, onclick: () => onnavigate('/time?tab=settings') }] : []}
       breadcrumb={{
         trail: [
           { id: 'products', label: t('app.nav.products') },
@@ -574,7 +570,6 @@
 {/snippet}
 
 {#snippet toolbar()}
-  <ViewSwitcher label={t('app.time.views')} {views} selected={current} onselect={select} />
   {#if current === 'week'}
     <div class="toolbar">
       <div class="nav">

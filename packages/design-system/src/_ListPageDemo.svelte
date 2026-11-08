@@ -9,7 +9,7 @@
   import Checkbox from './Checkbox.svelte';
   import Input from './Input.svelte';
   import ListPage from './ListPage.svelte';
-  import PlaceTabs from './PlaceTabs.svelte';
+  import ViewBar from './ViewBar.svelte';
   import ResourceCard from './ResourceCard.svelte';
   import ResourceGrid from './ResourceGrid.svelte';
   import Select from './Select.svelte';
@@ -42,7 +42,7 @@
     head={{ title: 'Templates', subtitle: content === 'empty' ? 'None saved yet' : '40 in the catalogue · 4 in use · 2 updates waiting', breadcrumb: crumbs, primary: { label: 'Save from a hub', icon: 'plus', onclick: () => {} } }}
     refused={content === 'refused' ? refused : undefined}
   >
-    {#snippet strip()}<PlaceTabs label="Templates" current="catalogue" tabs={[{ id: 'catalogue', label: 'Catalogue', href: '#catalogue', count: 40 }, { id: 'use', label: 'In use', href: '#use', count: 4 }, { id: 'presets', label: 'Presets', href: '#presets', count: 0 }]} />{/snippet}
+    {#snippet strip()}<ViewBar label="Templates" current="catalogue" views={[{ id: 'catalogue', label: 'Catalogue', href: '#catalogue', count: 40 }, { id: 'use', label: 'In use', href: '#use', count: 4 }, { id: 'presets', label: 'Presets', href: '#presets', count: 0 }]} />{/snippet}
     {#snippet filters()}
       <FilterBar searchLabel="Search templates" clearSearchLabel="Clear the search" filters={families} filtersLabel="Filters" sheetTitle="Filters" sheetDismissLabel="Close" sheetGrabLabel="Pull to full height" showLabel="Show 40 templates" moreLabel="More filters" countLabel={content === 'empty' ? '0' : '40'}>
         {#snippet picker()}<Checkbox label="Teams" />{/snippet}
@@ -72,7 +72,7 @@
     bulk={selecting ? bulk : undefined}
     refused={content === 'refused' ? refused : undefined}
   >
-    {#snippet strip()}<PlaceTabs label="People and access" current="people" tabs={[{ id: 'people', label: 'People', href: '#people', count: 9 }, { id: 'groups', label: 'Groups', href: '#groups', count: 3 }, { id: 'roles', label: 'Roles', href: '#roles', count: 12 }, { id: 'who', label: 'Who may do what', href: '#who' }]} />{/snippet}
+    {#snippet strip()}<ViewBar label="People and access" current="people" views={[{ id: 'people', label: 'People', href: '#people', count: 9 }, { id: 'groups', label: 'Groups', href: '#groups', count: 3 }, { id: 'roles', label: 'Roles', href: '#roles', count: 12 }, { id: 'who', label: 'Who may do what', href: '#who' }]} />{/snippet}
     {#snippet filters()}
       <FilterBar searchLabel="Search people" clearSearchLabel="Clear the search" filters={peopleFilters} moreLabel="More filters" filtersLabel="Filters (1)" sheetTitle="Filters" sheetDismissLabel="Close" sheetGrabLabel="Pull to full height" showLabel="Show 9 people" clearLabel="Clear" countLabel={content === 'empty' ? '0 of 0' : '9 of 9'}>
         {#snippet picker()}<Checkbox label="Administrator" /><Checkbox label="Member" />{/snippet}

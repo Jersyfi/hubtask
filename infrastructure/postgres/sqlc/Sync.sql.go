@@ -3388,7 +3388,8 @@ func (q *Queries) SnapshotTimeBudgets(ctx context.Context, arg SnapshotTimeBudge
 }
 
 const snapshotWhiteboards = `-- name: SnapshotWhiteboards :many
-SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+       parent_page_id, order_key
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id > $1 AND deleted_at IS NULL
 ORDER BY id
@@ -3401,16 +3402,18 @@ type SnapshotWhiteboardsParams struct {
 }
 
 type SnapshotWhiteboardsRow struct {
-	ID        pgtype.UUID
-	HubID     pgtype.UUID
-	Title     string
-	Scene     []byte
-	DeletedAt pgtype.Timestamptz
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	UpdatedBy pgtype.UUID
-	UpdatedAt pgtype.Timestamptz
-	Version   int32
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	Title        string
+	Scene        []byte
+	DeletedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedBy    pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	Version      int32
+	ParentPageID pgtype.UUID
+	OrderKey     *string
 }
 
 // The workspace's boards outside the trash with their scenes (migration 0240), for reading offline;
@@ -3435,6 +3438,8 @@ func (q *Queries) SnapshotWhiteboards(ctx context.Context, arg SnapshotWhiteboar
 			&i.UpdatedBy,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.ParentPageID,
+			&i.OrderKey,
 		); err != nil {
 			return nil, err
 		}

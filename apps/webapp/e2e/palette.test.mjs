@@ -24,7 +24,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, COLLECTION, ITEMS, MANIFEST, PAGE, PERMISSIONS, OWNER_GRANTS, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, ITEMS, MANIFEST, PAGE, PERMISSIONS, OWNER_GRANTS, signedIn, stub, viewLink } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { SHORTCUTS } from '../src/lib/shortcuts.ts';
 
@@ -271,15 +271,15 @@ test('chromium: by keyboard alone, Enter performs the highlighted row and Escape
   await page.getByRole('option', { name: /Open Kitchen as a board/ }).waitFor();
   await arrowTo(page, 'Open Kitchen as a board');
   await page.keyboard.press('Enter');
-  await page.getByRole('radio', { name: 'Board', checked: true }).waitFor();
+  await viewLink(page, 'Board', { current: true }).waitFor();
 
   // Escape closes and returns focus to where it was.
-  await page.getByRole('radio', { name: 'Board' }).focus();
+  await viewLink(page, 'Board').focus();
   await page.keyboard.press('Control+k');
   await listOf(page).waitFor();
   await page.keyboard.press('Escape');
   await listOf(page).waitFor({ state: 'detached' });
-  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim()), await page.getByRole('radio', { name: 'Board' }).evaluate((node) => node.getAttribute('aria-label') ?? node.textContent?.trim()));
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim()), await viewLink(page, 'Board').evaluate((node) => node.getAttribute('aria-label') ?? node.textContent?.trim()));
 
   // Opened in the field, Escape closes and keeps focus there; a second empties the field.
   const field = page.getByRole('combobox', { name: FIELD });
@@ -328,7 +328,8 @@ test('chromium: 375 px — an action that opens a dialog takes focus into it and
 
 /** Opens the palette by its key with focus on the page, and types the words. */
 async function ask(page, words) {
-  await page.locator('body').click({ position: { x: 1, y: 300 } });
+  // Focus leaves any field without a click: the column's left edge is the sidebar, whose rows go places.
+  await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
   await page.keyboard.press('Control+k');
   await listOf(page).waitFor();
   if (words) await page.keyboard.type(words);
@@ -445,6 +446,6 @@ test('chromium: the empty palette offers the common actions and the places opene
   await arrowToFocused(page, 'Open Kitchen as a board');
   await page.keyboard.press('Enter');
   await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}`));
-  await page.getByRole('radio', { name: 'Board', checked: true }).waitFor();
+  await viewLink(page, 'Board', { current: true }).waitFor();
   assert.deepEqual(failures, []);
 });

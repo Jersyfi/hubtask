@@ -59,7 +59,9 @@ risks and incidents with types, fields, links, statuses and comments; sprints, r
 plan with dependencies, milestones and a baseline; portal requests from two organisations, two
 portal articles, SLAs, an approved change and one waiting for the CAB, a macro's run; CIs with
 relations and a service; wiki pages with versions and an image; whiteboards; time records and
-timesheets; goals, portfolios and dashboards; two registered agents.
+timesheets; goals, portfolios and dashboards; a household and seven more hubs from catalogue
+templates (wiki, client project, bugs, onboarding, an event, purchasing, HR), so the sidebar holds
+thirteen hubs; two registered agents.
 `--empty` makes a workspace with nothing in it beside, with its first start and tour. It needs a
 multi-workspace installation (`HUBTASK_TENANCY_MODE=multi`), `HUBTASK_ADMIN_TOKEN` from
 `scripts/dev-workspace.sh --bootstrap`, `HUBTASK_DEMO_PASSWORD` (every demo person's password, not

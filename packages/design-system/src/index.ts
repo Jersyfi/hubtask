@@ -83,13 +83,47 @@ export { default as AppBar, type NavigationToggle } from './AppBar.svelte';
 export { default as NavDrawer } from './NavDrawer.svelte';
 export { default as PageHeader, type PageAction } from './PageHeader.svelte';
 export { default as BottomBar, type Destination } from './BottomBar.svelte';
-export { default as PlaceTabs, type PlaceTab } from './PlaceTabs.svelte';
 export { default as TemplateCard } from './TemplateCard.svelte';
 export { default as TemplateGallery } from './TemplateGallery.svelte';
 export { default as DetailPane } from './DetailPane.svelte';
 export { default as Logo } from './Logo.svelte';
 export { type LogoSize } from './mark.ts';
 export { default as ResizeHandle } from './ResizeHandle.svelte';
+// Wave 5 - the sidebar's pieces (the navigation concept, design-system.md §11.3).
+export { default as ProductTile } from './ProductTile.svelte';
+export { default as NavItem, type RowAction, type RowBadge, type DropState } from './NavItem.svelte';
+export { default as NavGroup, type NavTreeNode, type FilterKind } from './NavGroup.svelte';
+export { default as NavLevel, type HubHead } from './NavLevel.svelte';
+export { default as NavFlyout } from './NavFlyout.svelte';
+export { default as ViewBar, type View as ViewLink } from './ViewBar.svelte';
+export { default as MoveCheck, type MoveCheckItem } from './MoveCheck.svelte';
+export { default as Sheet } from './Sheet.svelte';
+export { default as BrowseStack, type StackLevel } from './BrowseStack.svelte';
+export {
+  AUTO_SCROLL_EDGE_PX,
+  INDENT_LEVELS,
+  MAX_DEPTH,
+  TREE_DRAG_THRESHOLD_PX,
+  ancestorsOf,
+  applyPlacement,
+  autoScrollStep,
+  createPeek,
+  dropTarget,
+  filterTree,
+  indentOf,
+  levelAtInline,
+  moveIntent,
+  positionOf,
+  rowsOf,
+  zoneAt,
+  type DropTarget,
+  type MoveIntent,
+  type MoveKey,
+  type Placement as TreePlacement,
+  type Refusal,
+  type TreeNode,
+  type Zone,
+} from './navtree.ts';
 
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
@@ -199,7 +233,6 @@ export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts'
 // Wave 6 - the page system (docs/backlog/page-system/): the layer above the components, and the
 // page kinds a screen is assembled from.
 export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte';
-export { default as Sheet } from './Sheet.svelte';
 export { default as SectionNav, type SectionLink } from './SectionNav.svelte';
 export { default as FilterBar, type Filter } from './FilterBar.svelte';
 export { default as DataTable, type DataColumn, type RowMenu as DataRowMenu } from './DataTable.svelte';

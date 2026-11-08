@@ -75,6 +75,7 @@
     }));
   });
   $effect(() => frame.entitle(dashboard ? dashboard.name : t('app.dashboards.dashboard')));
+  $effect(() => frame.locate(dashboard ? hubOf(dashboard) : undefined));
 
   /** A private dashboard is its owner's; a shared one is changed by whoever the server lets. */
   const mayEdit = $derived(dashboard !== undefined && (dashboard.sharing !== 'PRIVATE' || dashboard.owner_id === actor.account?.id));

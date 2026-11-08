@@ -250,12 +250,12 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents?tab=settings');
   assert.equal(movedTo(resolve(ROUTES, '/administration/presets').name), '/administration/templates');
   for (const route of ROUTES) {
-    const target = movedTo(route.name);
+    const target = movedTo(route.name, { id: 'x1', section: 'health' }, { hub: 'h1' });
     if (target === undefined) continue;
     // Where it goes is a screen that does not move again.
     const landing = resolve(ROUTES, target);
     assert.ok(landing.name, `${route.name} moves to ${target}, which resolves to nothing`);
-    assert.equal(movedTo(landing.name), undefined, `${route.name} moves twice`);
+    assert.equal(movedTo(landing.name, landing.params, landing.query), undefined, `${route.name} moves twice`);
   }
   assert.equal(movedTo(resolve(ROUTES, '/administration/sign-in').name), undefined);
   assert.equal(movedTo(resolve(ROUTES, '/administration/people').name), undefined);
@@ -266,6 +266,28 @@ test('a moved address keeps its query where the new address does not set the sam
   assert.equal(movedWith('/administration/templates', { template: 'itil_service_desk' }), '/administration/templates?template=itil_service_desk');
   assert.equal(movedWith('/administration/people?tab=groups', { tab: 'roles', q: 'x' }), '/administration/people?tab=groups&q=x');
   assert.equal(movedWith('/administration/machines', {}), '/administration/machines');
+});
+
+test('the former hub tabs open the place that took their role (UC-WRK-36 check 12, the navigation concept §8)', () => {
+  const moved = (address: string) => {
+    const at = resolve(ROUTES, address);
+    return movedTo(at.name, at.params, at.query);
+  };
+  assert.equal(moved('/hubs/h1/releases'), '/hubs/h1/plan/releases');
+  assert.equal(moved('/hubs/h1/assets'), '/hubs/h1/inventory');
+  assert.equal(moved('/hubs/h1/assets/health'), '/hubs/h1/inventory/health');
+  assert.equal(moved('/hubs/h1/actuals'), '/hubs/h1/time');
+  assert.equal(moved('/hubs/h1/workload'), '/hubs/h1/time/workload');
+  assert.equal(moved('/hubs/h1/whiteboards'), '/hubs/h1/contents?kind=whiteboards');
+  assert.equal(moved('/goals?hub=h1'), '/hubs/h1/goals');
+  assert.equal(moved('/goals?hub=h1&tab=dashboards'), '/hubs/h1/goals/dashboards');
+  assert.equal(moved('/goals'), undefined, 'the workspace\'s goals stay the product\'s home');
+  assert.equal(moved('/collections/c1/plan'), '/collections/c1/timeline');
+  assert.equal(moved('/collections/c1/sprints'), '/collections/c1/sprint');
+  assert.equal(moved('/collections/c1/actuals'), '/collections/c1/time');
+  // The desk and the pages are answered by their screens, which know the first queue and page.
+  assert.equal(moved('/hubs/h1/desk'), undefined);
+  assert.equal(moved('/hubs/h1/pages'), undefined);
 });
 
 test('the detail pane is a place, not a feature: a pane from large, a redirect below, the entry page untouched', () => {

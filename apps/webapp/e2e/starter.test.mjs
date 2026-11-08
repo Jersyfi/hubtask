@@ -169,7 +169,7 @@ test('chromium: where the first start is not offered, nobody is asked', async (t
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
-  await page.getByRole('navigation').first().waitFor({ timeout: 10_000 });
+  await page.locator('aside.sidenav').waitFor({ timeout: 10_000 });
   await page.waitForTimeout(1200);
   assert.equal(await dialogOf(page).count() > 0 && (await dialogOf(page).isVisible()), false, 'asked where it is not offered');
   assert.deepEqual(sent, []);

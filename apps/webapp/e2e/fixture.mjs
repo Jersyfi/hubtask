@@ -626,6 +626,8 @@ export const PRESET_SETTINGS = {
     counts: { figure: 'FLOW', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: ['REQUIRED_BEYOND_FIRST_COLUMN'],
   },
 };
+/** A container's structure in force, as every read of it carries one (the settings screen draws it). */
+export const presetStructure = (preset) => ({ preset, settings: PRESET_SETTINGS[preset], sources: own(), locks: {}, counts_clipped: null });
 /** Hubtask's four presets, as `GET /presets` answers them. */
 export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => ({ origin: 'HUBTASK', key, settings }));
 export const SHAPES = {
@@ -1223,6 +1225,10 @@ export function stub(route) {
 export function fallback(route, request, path) {
   const read = path.replace(/^.*\/api\/v1/, '');
 
+  // The sidebar's own reads (the navigation concept): nobody starred anything, no hub has a queue.
+  if (/^\/accounts\/[^/]+\/stars$/.test(read)) return route.fulfill({ json: { stars: [], version: 0 } });
+  if (/^\/hubs\/[^/]+\/queues$/.test(read)) return route.fulfill({ json: { data: [] } });
+
   // Bringing a container back, which is what the archive is for. Answered with the container it
   // makes rather than with a page: a guess here would be a guess in the very walk whose subject
   // it is.
@@ -1344,6 +1350,28 @@ export function fallback(route, request, path) {
   if (read === '/settings/catalogue' && request.method() === 'GET') return route.fulfill({ json: SETTINGS_CATALOGUE });
   if (read === '/roles' && request.method() === 'GET') return route.fulfill({ json: ROLE_CATALOGUE });
   if (read === '/time-work-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
+  // A plan's time and the reader's file stores, empty, in the contract's shapes rather than a list's:
+  // the hub's and a collection's *Time*, the report and *Profile -> Files* read fields a page lacks.
+  const plan = /^\/plans\/([^/]+)\/(actuals|budget|billing-rates)$/.exec(read);
+  if (plan && request.method() === 'GET') {
+    if (plan[2] === 'actuals') return route.fulfill({ json: { plan_id: plan[1], estimate_hours: 0, minutes: 0, data: [] } });
+    if (plan[2] === 'billing-rates') return route.fulfill({ json: { data: [] } });
+    return route.fulfill({ json: { plan_id: plan[1], budgeted: false, budget_minutes: 0, budget_amount_minor: 0, currency: 'EUR', version: 0, minutes: 0, amount_minor: 0, unpriced_minutes: 0, over_time: false, over_money: false, weeks: [] } });
+  }
+  if (read === '/time-records:report' && request.method() === 'POST') {
+    return route.fulfill({ json: { group_by: request.postDataJSON()?.group_by ?? [], groups: [], minutes: 0, withheld_minutes: 0, withheld_groups: 0 } });
+  }
+  // An entry's configuration items, none: a desk's entry reads them beside its fields.
+  const cis = /^\/items\/([^/]+)\/cis$/.exec(read);
+  if (cis && request.method() === 'GET') return route.fulfill({ json: { item_id: cis[1], cis: [], services: [], related: [], collisions: [] } });
+  // The workspace's configuration in force and no sandbox: what *Changes* reads beside its lists.
+  if (read === '/config' && request.method() === 'GET') return route.fulfill({ json: { document: {}, hash: 'h1', version: 1, withheld: [] } });
+  if (read === '/config/sandbox' && request.method() === 'GET') return route.fulfill({ json: { exists: false, writes: 0, updated_at: null, document: {}, promotion: null } });
+  const map = /^\/hubs\/([^/]+)\/service-map$/.exec(read);
+  if (map && request.method() === 'GET') return route.fulfill({ json: { hub_id: map[1], nodes: [], edges: [], truncated: false } });
+  const impact = /^\/cis\/([^/]+)\/impact$/.exec(read);
+  if (impact && request.method() === 'GET') return route.fulfill({ json: { ci_id: impact[1], direction: new URL(request.url()).searchParams.get('direction') ?? 'DOWNSTREAM', reached: [], services: [] } });
+  if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
@@ -1432,22 +1460,18 @@ export async function signedIn(browser, width, height = 800, { timezoneId, hasTo
 }
 
 /**
- * What the navigation's *＋ New* offers, as the rows of its menu; empty where it is not drawn. The
- * menu is left open. `name` is the control's name in the reader's language.
+ * What the sidebar offers to create a hub: the ＋ on its *Hubs* section, by its name - "Create
+ * hub" or "Create private hub" (the navigation concept, §5); empty where it is not drawn.
  */
-export async function newRows(page, { scope = page, name = 'New' } = {}) {
-  const make = scope.getByRole('button', { name, exact: true }).first();
-  if ((await make.count()) === 0) return [];
-  await make.click();
-  const menu = page.getByRole('menu');
-  await menu.waitFor({ timeout: 5_000 });
-  return (await menu.getByRole('menuitem').allTextContents()).map((row) => row.trim());
+export async function newRows(page, { scope = page } = {}) {
+  const labels = await scope.locator('aside.sidenav, dialog[open]').getByRole('button', { name: /^Create (private )?hub$/ })
+    .evaluateAll((buttons) => buttons.map((button) => (button.getAttribute('aria-label') ?? button.textContent ?? '').trim()));
+  return [...new Set(labels.filter(Boolean))];
 }
 
-/** Chooses `row` from the navigation's *＋ New*: "Create hub", "Collection in …". */
+/** Chooses `row` from what the sidebar offers to create: "Create hub", "Create private hub". */
 export async function chooseNew(page, row, { scope = page } = {}) {
-  await scope.getByRole('button', { name: 'New', exact: true }).first().click();
-  await page.getByRole('menu').getByRole('menuitem', { name: row, exact: true }).click();
+  await scope.locator('aside.sidenav, dialog[open]').getByRole('button', { name: row, exact: true }).first().click();
 }
 
 /**
@@ -1458,3 +1482,36 @@ export async function openSettings(page, name) {
   await page.getByRole('button', { name: `Actions for ${name}` }).first().click();
   await page.getByRole('menuitem', { name: 'Settings…' }).click();
 }
+
+/**
+ * A view of a collection's one bar (the navigation concept §3) - *List*, *Board*, *Timeline* -,
+ * the link the layout switch's radio was; on compact the link of the chip's sheet. `current`
+ * narrows it to the view the screen is.
+ */
+export function viewLink(page, name, { current = false } = {}) {
+  const link = page.locator('[data-tour="layouts"], dialog[open]').getByRole('link', { name, exact: true });
+  return current ? link.and(page.locator('[aria-current="page"]')) : link;
+}
+
+/** Opens a view of the collection's bar; on compact through the chip that holds the bar. */
+export async function chooseView(page, name) {
+  const chip = page.locator('[data-tour="layouts"] button[aria-haspopup="dialog"]');
+  await page.locator('[data-tour="layouts"] nav, [data-tour="layouts"] button[aria-haspopup="dialog"]').first().waitFor({ timeout: 15_000 });
+  if (await chip.count() > 0) await chip.click();
+  await viewLink(page, name).first().click();
+}
+
+/** The collection's bar, where the filter and the entries' tools stand at its end (on compact, the filter's own row). */
+export const viewBar = (page) => page.locator('[data-tour="layouts"], [role="toolbar"]');
+
+/** A hub head's *New ▾* (the navigation concept's mockup): one button opening what can be made there. */
+export const newInHead = (page) => page.locator('header.head').getByRole('button', { name: 'New', exact: true });
+
+/** Opens the new-collection dialog from the hub head's *New ▾ → Collection*. */
+export async function openNewCollection(page) {
+  await newInHead(page).first().click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+}
+
+/** A kind's toggle card in the new-collection dialog (the navigation concept's *New collection*), by its name. */
+export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name, exact: true });

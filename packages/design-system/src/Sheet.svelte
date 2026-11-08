@@ -1,35 +1,34 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The bottom sheet of a phone: a menu, a picker or the filters of a list, risen over the page
-  // (page-system §4.4, §6). It opens at most half the height, so the page stays in sight; the
-  // grabber pulls it to full height, and a pull down, the close control or Escape puts it away.
+  // A bottom sheet on compact (design-system.md §4, wave 5; the navigation concept's §9): the
+  // view bar's views, the context sheet of a long press, *New*, the account. A modal dialog
+  // rising from the bottom, with a grabber, a heading and *Close* - every sheet has both - over a
+  // scrim; `Escape` and a press on the scrim close it, and the focus goes back where it was.
   //
-  // A native modal `<dialog>` for Dialog's reasons - the top layer, a real focus trap, `inert`
-  // behind it - on the `overlay` rank of layers.ts, so a popover opened from inside it closes first
-  // and a dialog opened over it closes before it. A list of actions is `items`: one row each, the
-  // destructive one in the danger colour and never the first focused.
-  //
-  // It has two heights and no third: a sheet sized to the pixel is a drawer (Drawer, `block-end`),
-  // and the two heights travel as a `data-` attribute rather than as a style (ADR-0028).
-
+  // A list of actions is `items` (page-system §4.4): one row each, the destructive one in the
+  // danger colour and never the first focused. With `grabLabel` the grabber is a control: the
+  // sheet opens at half the height, so the page stays in sight, and the grabber pulls it to full
+  // height and back - the two heights travel as a `data-` attribute, not a style (ADR-0028).
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
   import type { MenuItem } from './overlay.ts';
 
   interface Props {
-    /** What the sheet holds, as a heading. Resolved text (ADR-0011). */
+    /** The heading and the dialog's name: "Views", "Create under Team". */
     title: string;
+    closeLabel: string;
+    /** The mark of the thing the sheet is about, before its heading: a long press's row. */
+    icon?: IconName;
     isOpen?: boolean;
-    /** The close control's name. A sheet is always dismissible. */
-    dismissLabel: string;
-    /** The grabber's name: it pulls the sheet to full height and back. */
-    grabLabel: string;
     onClose?: () => void;
+    /** The grabber's name; given, it pulls the sheet from half to full height and back. */
+    grabLabel?: string;
     /** A list of actions instead of a body: one row each, closing the sheet before it runs. */
     items?: readonly MenuItem[];
     onselect?: (id: string) => void;
@@ -40,29 +39,28 @@
 
   let {
     title,
+    closeLabel,
+    icon,
     isOpen = $bindable(false),
-    dismissLabel,
-    grabLabel,
     onClose,
+    grabLabel,
     items,
     onselect,
     actions,
     children,
   }: Props = $props();
 
-  const uid = $props.id();
-  const titleId = `sheet-${uid}`;
-
+  const instanceId = $props.id();
+  const titleId = `sheet-${instanceId}`;
   let node = $state<HTMLDialogElement | null>(null);
-  let isFull = $state(false);
   let opener: Element | null = null;
+  let isFull = $state(false);
 
   /** Where a pull began and how far it has gone; a quarter of the sheet decides. */
   let pullFrom: number | null = null;
   let pulled = 0;
 
   function close() {
-    if (!isOpen) return;
     isOpen = false;
   }
 
@@ -126,6 +124,7 @@
 
 <dialog
   class="sheet"
+  data-grab={grabLabel !== undefined ? '' : undefined}
   data-full={isFull ? '' : undefined}
   bind:this={node}
   aria-labelledby={titleId}
@@ -138,23 +137,28 @@
   }}
 >
   <div class="panel">
-    <button
-      type="button"
-      class="grabber"
-      aria-label={grabLabel}
-      aria-expanded={isFull}
-      onclick={() => (isFull = !isFull)}
-      onpointerdown={grab}
-      onpointermove={pull}
-      onpointerup={letGo}
-      onpointercancel={letGo}
-      onkeydown={byKey}
-    >
-      <span class="bar"></span>
-    </button>
+    {#if grabLabel !== undefined}
+      <button
+        type="button"
+        class="grabber"
+        aria-label={grabLabel}
+        aria-expanded={isFull}
+        onclick={() => (isFull = !isFull)}
+        onpointerdown={grab}
+        onpointermove={pull}
+        onpointerup={letGo}
+        onpointercancel={letGo}
+        onkeydown={byKey}
+      >
+        <span class="bar"></span>
+      </button>
+    {:else}
+      <span class="grabber" aria-hidden="true"><span class="bar"></span></span>
+    {/if}
     <header class="head">
-      <h2 class="title" id={titleId}>{title}</h2>
-      <IconButton icon="x" label={dismissLabel} size="sm" onclick={() => close()} />
+      <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
+      <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
+      <IconButton icon="x" label={closeLabel} tone="subtle" onclick={() => close()} />
     </header>
     <div class="body">
       {#if items}
@@ -189,56 +193,69 @@
 </dialog>
 
 <style>
-  /* No `z-index`: the top layer is above every stacking context (Dialog says why). */
+  /* In the top layer as a modal dialog: no z-index, the overlay rank decides what Escape reaches. */
   .sheet {
-    padding: 0;
-    border: 0;
     inline-size: 100%;
     max-inline-size: 100%;
+    max-block-size: 85%;
     margin: auto 0 0;
-    max-block-size: 50%;
-    border-start-start-radius: var(--r-xl);
-    border-start-end-radius: var(--r-xl);
+    padding: 0;
+    border: 0;
+    border-start-start-radius: var(--layout-sheet-radius);
+    border-start-end-radius: var(--layout-sheet-radius);
     background: var(--bg-raised);
-    color: var(--text-primary);
     box-shadow: var(--shadow-overlay);
-    overflow: hidden;
+    color: var(--text-primary);
+    overflow: auto;
     animation: rise var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
 
-  .sheet[open] { display: flex; flex-direction: column; }
+  @keyframes rise {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
 
-  .sheet[data-full] { max-block-size: calc(100% - var(--layout-appbar-height)); block-size: calc(100% - var(--layout-appbar-height)); }
+  /* A grabbable sheet opens at half the height and is pulled to full (page-system §4.4); its body
+     scrolls, so its foot stays in sight. */
+  .sheet[data-grab] { max-block-size: 50%; overflow: hidden; }
+  .sheet[data-grab][open] { display: flex; flex-direction: column; }
+  .sheet[data-grab] .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
+  .sheet[data-grab] .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+  .sheet[data-full] {
+    max-block-size: calc(100% - var(--layout-appbar-height));
+    block-size: calc(100% - var(--layout-appbar-height));
+  }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
   .panel {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-150);
-    flex: 1 1 auto;
-    min-block-size: 0;
-    padding: var(--sp-100) var(--sp-250) calc(var(--sp-300) + env(safe-area-inset-bottom, 0));
-    box-sizing: border-box;
+    padding: var(--sp-100) var(--sp-150) calc(var(--sp-250) + env(safe-area-inset-bottom, 0));
   }
 
   .grabber {
     align-self: center;
     display: grid;
     place-items: center;
-    padding: var(--sp-050) var(--sp-200);
-    margin: 0;
+    padding: 0;
+    margin: 0 auto calc(var(--sp-100) + var(--sp-025));
     border: 0;
     border-radius: var(--r-sm);
     background: none;
+  }
+
+  button.grabber {
+    padding: var(--sp-050) var(--sp-200);
+    margin-block-end: 0;
     cursor: ns-resize;
     touch-action: none;
   }
 
   .grabber .bar {
     display: block;
-    inline-size: var(--sp-500);
-    block-size: var(--sp-050);
+    inline-size: var(--layout-sheet-grabber);
+    block-size: var(--layout-sheet-grabberheight);
     border-radius: var(--r-full);
     background: var(--border-strong);
   }
@@ -249,26 +266,41 @@
     outline-offset: var(--sp-025);
   }
 
-  .head { display: flex; align-items: center; gap: var(--sp-150); }
-
-  .title {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-    overflow-wrap: anywhere;
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-100);
+    margin: 0 var(--sp-050) var(--sp-100);
   }
 
-  .body {
-    flex: 1 1 auto;
-    min-block-size: 0;
-    overflow: auto;
+  .title {
     display: flex;
-    flex-direction: column;
-    gap: var(--sp-200);
-    font-size: var(--fs-100);
+    align-items: center;
+    gap: var(--sp-100);
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--fs-200);
+    font-weight: var(--fw-semibold);
+  }
+
+  .body :global(ul) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The sheet is the surface: its rows stand plain, without a card or a hairline between them,
+     and a second list is set off by one hairline (the navigation concept's phone screens). */
+  .body :global(.row[data-size='touch']) {
+    border-block-end: 0;
+    border-radius: var(--layout-nav-radius);
+  }
+
+  .body :global(ul:has(> .row) + ul:has(> .row)) {
+    margin-block-start: var(--sp-050);
+    padding-block-start: var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
 
   .items { margin: 0; padding: 0; list-style: none; }
@@ -296,13 +328,8 @@
   .item-text { display: flex; flex-direction: column; gap: var(--sp-025); }
   .reason { font-size: var(--fs-075); color: var(--text-secondary); }
 
-  .actions { display: flex; gap: var(--sp-150); }
+  .actions { display: flex; gap: var(--sp-150); margin-block-start: var(--sp-150); }
   .actions :global(> :last-child) { flex: 1; }
-
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(100%); }
-    to { opacity: 1; transform: none; }
-  }
 
   @media (prefers-reduced-motion: reduce) {
     .sheet { animation: none; }

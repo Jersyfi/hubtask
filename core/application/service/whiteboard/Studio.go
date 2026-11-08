@@ -64,7 +64,10 @@ type Authorizer interface {
 
 // Studio is what every board use case shares.
 type Studio struct {
-	Boards     repository.Boards
+	Boards repository.Boards
+	// Contents answers a board's place among its hub's pages and boards (UC-CNV-10); nil places
+	// every board at the top, first.
+	Contents   repository.Contents
 	Containers workrepo.Containers
 	Authorizer Authorizer
 	Audit      audit.Sink
@@ -215,6 +218,10 @@ func BoardOutput(board domain.Board, elements int, withScene bool) usecase.Outpu
 		"element_count": elements, "trashed_at": nil,
 		"created_by": board.CreatedBy.String(), "created_at": board.CreatedAt,
 		"updated_by": board.UpdatedBy.String(), "updated_at": board.UpdatedAt, "version": board.Version,
+		"parent_page_id": nil, "order_key": nilIfEmpty(board.OrderKey),
+	}
+	if !board.ParentPageID.IsZero() {
+		out["parent_page_id"] = board.ParentPageID.String()
 	}
 	if board.DeletedAt != nil {
 		out["trashed_at"] = *board.DeletedAt

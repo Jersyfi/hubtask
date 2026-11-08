@@ -15,12 +15,11 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the collection the
   // screen shows values, not controls.
-
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Textarea,
+    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, Select, Skeleton, Stack, Textarea,
     hasLeftTheHandle, DataTable, WorkPage, type DataColumn, type PageAction,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -37,12 +36,11 @@
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
@@ -52,13 +50,14 @@
     onnavigate: (path: string) => void;
     /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
     isCreateAsked?: boolean;
+    /** The bar's *Backlog*: the backlog alone, each card offering its way into the running sprint. */
+    isBacklog?: boolean;
   }
 
-  const { collectionId, onnavigate, isCreateAsked = false }: Props = $props();
+  const { collectionId, onnavigate, isCreateAsked = false, isBacklog = false }: Props = $props();
 
   const zone = $derived(actor.zone);
   const place = $derived(containers.find(collectionId));
-  const placePath = $derived(`/collections/${collectionId}`);
   const rolePath = $derived({ hubId: place?.parent_id ?? undefined, collectionId });
 
   $effect(() => frame.entitle(place ? t('app.sprints.title_of', { place: place.name }) : t('app.sprints.title')));
@@ -334,27 +333,24 @@
   </li>
 {/snippet}
 
+{#snippet sprintFigure()}
+  <!-- The sprint's own figure in the collection's figure's place: its days and how far it is. -->
+  <span data-sprint-figure>{figure}</span>
+  {@render burndownPicture()}
+{/snippet}
+
 <WorkPage>
   {#snippet top()}
-  <PageHeader
-    title={chosen?.name ?? t('app.sprints.title')}
-    isTitleInBar={viewport.isCompact}
-    subtitle={figure}
-    figure={detail && detail.burndown.length > 0 ? burndownPicture : undefined}
-    breadcrumb={place
-      ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'sprints', label: t('app.sprints.title') }],
-          label: t('app.sprints.trail'),
-          expandLabel: t('app.sprints.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
+  <CollectionHead
+    {collectionId}
+    current={isBacklog ? 'backlog' : 'sprint'}
+    {onnavigate}
+    figure={figure ? sprintFigure : undefined}
     primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
     secondary={headActs}
     menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
   />
   {/snippet}
-  {#snippet tabs()}<PlaceStrip placeId={collectionId} current="sprints" {onnavigate} />{/snippet}
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -374,7 +370,7 @@
         {#if chosen.goal}<p class="goal">{t('app.sprints.goal_is', { goal: chosen.goal })}</p>{/if}
       </div>
 
-      <div class="board" data-sprint-board data-closed={chosen.state === 'CLOSED' ? '' : undefined}>
+      <div class="board" data-sprint-board data-backlog={isBacklog ? '' : undefined} data-closed={chosen.state === 'CLOSED' ? '' : undefined}>
         {#if chosen.state !== 'CLOSED'}
           <div class="lane" data-drop="backlog" data-over={over === 'backlog' ? '' : undefined}>
             <BucketColumn name={t('app.sprints.backlog_column')} count={backlog.length}>
@@ -388,6 +384,7 @@
             </BucketColumn>
           </div>
         {/if}
+        {#if !isBacklog}
         <div class="lane" data-drop="sprint" data-over={over === 'sprint' ? '' : undefined}>
           <BucketColumn name={t('app.sprints.todo_column')} count={detail ? toDo.length : null}>
             {#if !detail}
@@ -427,9 +424,10 @@
             {/if}
           </BucketColumn>
         </div>
+        {/if}
       </div>
 
-      {#if detail && detail.burndown.length > 0}
+      {#if detail && detail.burndown.length > 0 && !isBacklog}
         <Disclosure label={t('app.sprints.burndown')} description={t('app.sprints.burndown_hint')} tone="quiet">
           <DataTable label={t('app.sprints.burndown')} columns={burndownColumns} rows={detail.burndown} key={(point: Point) => point.day}>
             {#snippet cell(point: Point, column: DataColumn)}
@@ -441,7 +439,7 @@
       {/if}
     {/if}
 
-    {#if velocity && velocity.sprints.length > 0}
+    {#if velocity && velocity.sprints.length > 0 && !isBacklog}
       <section class="block" aria-labelledby="sprint-velocity">
         <h2 id="sprint-velocity" class="heading">{t('app.sprints.velocity', { value: String(velocity.average), unit: t(`app.sprints.unit_${velocity.unit}`) })}</h2>
         <DataTable label={t('app.sprints.velocity_table')} columns={velocityColumns} rows={velocity.sprints} key={(past: Past) => past.id}>
@@ -490,6 +488,8 @@
 <style>
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-board-column)), var(--layout-board-column))); gap: var(--sp-200); align-items: start; }
+  /* The backlog alone is a list across the page, not one lane of a board. */
+  .board[data-backlog] { grid-template-columns: minmax(0, 1fr); }
   .lane { min-width: 0; border-radius: var(--r-md); }
   .lane[data-over] { outline: var(--bw-ring) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .cards { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }

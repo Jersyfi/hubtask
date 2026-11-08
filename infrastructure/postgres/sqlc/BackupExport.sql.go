@@ -103,6 +103,59 @@ func (q *Queries) ExportAccountGroups(ctx context.Context, arg ExportAccountGrou
 	return items, nil
 }
 
+const exportAccountStars = `-- name: ExportAccountStars :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT a.account_id::text AS record_id,
+         a.updated_at AS changed_at,
+         (to_jsonb(a) - 'tenant_id')::jsonb AS payload,
+         a.account_id AS key_1
+  FROM account_star a
+) s
+  WHERE ($1::timestamptz IS NULL OR s.changed_at > $1::timestamptz)
+    AND (s.changed_at, s.key_1) > ($2::timestamptz, $3::uuid)
+  ORDER BY s.changed_at, s.key_1
+  LIMIT $4::int
+`
+
+type ExportAccountStarsParams struct {
+	Since   pgtype.Timestamptz
+	AfterAt pgtype.Timestamptz
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportAccountStarsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportAccountStars(ctx context.Context, arg ExportAccountStarsParams) ([]ExportAccountStarsRow, error) {
+	rows, err := q.db.Query(ctx, exportAccountStars,
+		arg.Since,
+		arg.AfterAt,
+		arg.AfterID,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportAccountStarsRow{}
+	for rows.Next() {
+		var i ExportAccountStarsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportAccounts = `-- name: ExportAccounts :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

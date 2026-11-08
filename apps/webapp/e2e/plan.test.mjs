@@ -318,14 +318,15 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
   await page.goBack();
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
 
-  await page.getByRole('button', { name: 'More for the plan' }).click();
+  // A collection's timeline lists the plan's items first in the collection's own ⋯.
+  await page.getByRole('button', { name: /^Actions for / }).click();
   await page.getByRole('menuitem', { name: 'Plan settings' }).click();
   await page.getByRole('button', { name: 'Delete the baseline “Agreed 1 Oct”' }).click();
   await page.getByRole('button', { name: 'Undo' }).click();
   await page.waitForTimeout(300);
   assert.equal(written.some((each) => each.method === 'DELETE'), false, 'Undo sent the deletion');
   const settings = async () => {
-    await page.getByRole('button', { name: 'More for the plan' }).click();
+    await page.getByRole('button', { name: /^Actions for / }).click();
     await page.getByRole('menuitem', { name: 'Plan settings' }).click();
   };
   await settings();

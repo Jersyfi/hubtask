@@ -47,6 +47,8 @@
      panel that is half the page. Inherited into the dialog's top layer. */
   .navdrawer {
     display: contents;
+    /* The drawer's raised panel, for the sticky section heads (NavGroup). */
+    --nav-plane: var(--bg-raised);
     --drawer-inline-size: clamp(
       var(--layout-sidenav-width),
       85vw,

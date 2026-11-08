@@ -13,12 +13,16 @@
     "./components": "./src/index.ts",
     "./icons": "./src/icons/index.ts",
     "./tokens.css": "./dist/tokens.css",
+    "./scrollbar.css": "./src/scrollbar.css",
     "./fonts.css": "./dist/fonts.css",
     "./fonts-scripts.css": "./dist/fonts-scripts.css",
     "./fonts/*": "./dist/fonts/*",
     "./mark/*": "./dist/mark/*",
     "./tokens.json": "./tokens/tokens.json"
   },
+  "sideEffects": [
+    "**/*.css"
+  ],
   "files": [
     "dist",
     "src",

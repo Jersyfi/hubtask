@@ -51,6 +51,18 @@ func (q *Queries) ClearAccountGroupMember(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearAccountStar = `-- name: ClearAccountStar :execrows
+DELETE FROM account_star
+`
+
+func (q *Queries) ClearAccountStar(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearAccountStar)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearActivityEntry = `-- name: ClearActivityEntry :execrows
 DELETE FROM activity_entry
 `
@@ -1728,6 +1740,19 @@ func (q *Queries) HoldsAccountGroupMember(ctx context.Context, payload []byte) (
 	return held, err
 }
 
+const holdsAccountStar = `-- name: HoldsAccountStar :one
+SELECT EXISTS (
+  SELECT 1 FROM account_star WHERE account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsAccountStar(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsAccountStar, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const holdsActivityEntry = `-- name: HoldsActivityEntry :one
 SELECT EXISTS (SELECT 1 FROM activity_entry WHERE id = ($1::jsonb->>'id')::uuid) AS held
 `
@@ -3368,6 +3393,11 @@ INSERT INTO account (
   celebrations,
   onboarding_completed_at,
   products_seen,
+  nav_products,
+  nav_products_hidden,
+  nav_hubs_order,
+  nav_contents_mode,
+  nav_hubs_hidden,
   redemption_token_hash,
   redemption_expires_at,
   password_set_at,
@@ -3399,6 +3429,13 @@ SELECT
   r.onboarding_completed_at,
   -- An archive from before migration 0383 carries none: nobody has seen a mark yet.
   coalesce(r.products_seen, '{}'),
+  -- An archive from before migration 0387 carries none: the defaults.
+  coalesce(r.nav_products, '{}'),
+  coalesce(r.nav_products_hidden, '{}'),
+  r.nav_hubs_order,
+  r.nav_contents_mode,
+  -- An archive from before migration 0393 carries none: every hub shown.
+  coalesce(r.nav_hubs_hidden, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
   r.password_set_at,
@@ -3431,6 +3468,11 @@ ON CONFLICT (id) DO UPDATE SET
   celebrations = EXCLUDED.celebrations,
   onboarding_completed_at = EXCLUDED.onboarding_completed_at,
   products_seen = EXCLUDED.products_seen,
+  nav_products = EXCLUDED.nav_products,
+  nav_products_hidden = EXCLUDED.nav_products_hidden,
+  nav_hubs_order = EXCLUDED.nav_hubs_order,
+  nav_contents_mode = EXCLUDED.nav_contents_mode,
+  nav_hubs_hidden = EXCLUDED.nav_hubs_hidden,
   redemption_token_hash = EXCLUDED.redemption_token_hash,
   redemption_expires_at = EXCLUDED.redemption_expires_at,
   password_set_at = EXCLUDED.password_set_at,
@@ -3553,6 +3595,31 @@ type ImportAccountGroupMemberParams struct {
 
 func (q *Queries) ImportAccountGroupMember(ctx context.Context, arg ImportAccountGroupMemberParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importAccountGroupMember, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importAccountStar = `-- name: ImportAccountStar :execrows
+INSERT INTO account_star (tenant_id, account_id, stars, version, updated_at)
+SELECT r.tenant_id, r.account_id, r.stars, r.version, r.updated_at
+FROM jsonb_populate_record(
+  NULL::account_star,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  stars = EXCLUDED.stars, version = EXCLUDED.version, updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportAccountStarParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportAccountStar(ctx context.Context, arg ImportAccountStarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importAccountStar, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -7335,7 +7402,8 @@ INSERT INTO saved_view (
   sharing,
   created_at,
   version,
-  key
+  key,
+  queue_position
 )
 SELECT
   r.id,
@@ -7353,7 +7421,9 @@ SELECT
   r.version,
   -- The key travels with the row (migration 0293); an archive written before carries none,
   -- and the store then draws one from the name.
-  r.key
+  r.key,
+  -- An archive written before migration 0391 carries no queue: the view is none.
+  r.queue_position
 FROM jsonb_populate_record(
   NULL::saved_view,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -7371,7 +7441,8 @@ ON CONFLICT (id) DO UPDATE SET
   sharing = EXCLUDED.sharing,
   created_at = EXCLUDED.created_at,
   version = EXCLUDED.version,
-  key = coalesce(EXCLUDED.key, saved_view.key)
+  key = coalesce(EXCLUDED.key, saved_view.key),
+  queue_position = EXCLUDED.queue_position
 WHERE $2::boolean
 `
 
@@ -8095,9 +8166,9 @@ func (q *Queries) ImportWebhookSubscription(ctx context.Context, arg ImportWebho
 
 const importWhiteboard = `-- name: ImportWhiteboard :execrows
 INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
-                        deleted_by_type, deleted_by_id)
+                        deleted_by_type, deleted_by_id, parent_page_id, order_key)
 SELECT r.id, r.tenant_id, r.hub_id, r.title, r.scene, r.deleted_at, r.created_by, r.created_at, r.updated_by,
-       r.updated_at, r.version, r.deleted_by_type, r.deleted_by_id
+       r.updated_at, r.version, r.deleted_by_type, r.deleted_by_id, r.parent_page_id, r.order_key
 FROM jsonb_populate_record(
   NULL::whiteboard,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -8110,7 +8181,9 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   version = EXCLUDED.version,
   deleted_by_type = EXCLUDED.deleted_by_type,
-  deleted_by_id = EXCLUDED.deleted_by_id
+  deleted_by_id = EXCLUDED.deleted_by_id,
+  parent_page_id = EXCLUDED.parent_page_id,
+  order_key = EXCLUDED.order_key
 WHERE $2::boolean
 `
 

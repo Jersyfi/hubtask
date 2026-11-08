@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, HUB, LABELS, signedIn, openSettings } from './fixture.mjs';
+import { BUCKETS, COLLECTION, HUB, LABELS, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -50,10 +50,11 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   assert.equal(await head.getByRole('button', { name: 'Filter' }).count(), 0, 'the filter is the toolbar\'s, not the head\'s');
   assert.equal(await head.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).count(), 0, 'a ⚙ beside the menu');
 
-  // The toolbar under it: the layouts at the start; the filter, the order, the views and selecting at the end.
-  const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
+  // The view bar under it (the navigation concept §3): the views at the start; the filter, the
+  // order, the views and selecting at its end.
+  const toolbar = viewBar(page);
   assert.equal(await toolbar.count(), 1);
-  assert.equal(await toolbar.getByRole('radiogroup', { name: 'How these entries are shown' }).count(), 1);
+  assert.equal(await toolbar.getByRole('navigation', { name: COLLECTION.name }).count(), 1);
   for (const name of ['Filter', 'Sort', 'Views', 'Select entries']) {
     assert.equal(await toolbar.getByRole('button', { name }).count(), 1, `${name} is not in the toolbar`);
   }
@@ -100,16 +101,16 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await page.keyboard.press('Escape');
   await capture.waitFor({ state: 'hidden', timeout: 5_000 });
 
-  // The switcher: three, with "show what is inside" within the list.
-  const switcher = page.getByRole('radiogroup', { name: 'How these entries are shown' });
-  assert.deepEqual((await switcher.getByRole('radio').allTextContents()).map((each) => each.trim()), ['List', 'Board', 'Timeline']);
+  // The view bar: three, with "show what is inside" within the list.
+  const switcher = viewBar(page).getByRole('navigation', { name: COLLECTION.name });
+  assert.deepEqual((await switcher.getByRole('link').allTextContents()).map((each) => each.trim()), ['List', 'Board', 'Timeline']);
   const inside = page.getByRole('button', { name: 'Show what is inside', exact: true });
   assert.equal(await inside.count(), 1);
   await inside.click();
   assert.equal(await inside.getAttribute('aria-pressed'), 'true');
-  await switcher.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   assert.equal(await inside.count(), 0, 'the toggle belongs to the list alone');
-  await switcher.getByRole('radio', { name: 'List' }).click();
+  await chooseView(page, 'List');
   assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the list came back as it was left');
 
   // The filter: inline, not a drawer, from expanded.
@@ -182,7 +183,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   assert.equal(await page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add in the head');
 
   // The toolbar: the layouts and one *Filter*, whose sheet holds the views and selecting too.
-  const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
+  const toolbar = viewBar(page);
   assert.equal(await toolbar.getByRole('button', { name: 'Views' }).count(), 0);
   await toolbar.getByRole('button', { name: 'Filter' }).click();
   const drawer = page.locator('dialog[open]');
@@ -194,7 +195,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
 
   // The board: one column, the strip above with every column and its count, a tap switches.
-  await page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   const strip = page.getByRole('radiogroup', { name: 'Which column is shown' });
   await strip.waitFor({ timeout: 10_000 });
   assert.deepEqual((await strip.getByRole('radio').allTextContents()).map((each) => each.trim()), ['No column · 1', 'To do · 2', 'Doing · 1', 'Done · 1']);
@@ -210,7 +211,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   // Selecting is a mode, and its default is off (ADR-0063 decision 8): no row carries a pick and
   // no bar stands above the list until somebody says they are selecting. The way in on a phone is
   // the toolbar's sheet, because a modifier is what a mouse has and a long press is what a finger has.
-  await page.getByRole('radio', { name: 'List' }).click();
+  await chooseView(page, 'List');
   assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'a row carries a pick with nobody selecting');
   assert.equal(await page.locator('main .bar').count(), 0, 'the bulk bar stands above a list nobody is selecting in');
   await toolbar.getByRole('button', { name: 'Filter' }).click();
@@ -241,7 +242,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'the mode outlived Escape');
 
   // The timeline in its own frame.
-  await page.getByRole('radio', { name: 'Timeline' }).click();
+  await chooseView(page, 'Timeline');
   await page.locator('.window').waitFor({ timeout: 10_000 });
   const framed = await page.evaluate(() => { const el = document.querySelector('.window'); return el ? getComputedStyle(el).borderTopWidth !== '0px' : false; });
   assert.equal(framed, true, 'the timeline has no edge of its own on a phone');
@@ -260,12 +261,13 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
-  // Creating a collection is the dashed card among the collections, where the new one will stand;
-  // importing is the place's menu, as on a collection.
-  assert.equal(await page.getByRole('main').getByRole('button', { name: /Create collection/ }).count(), 1);
+  // Creating a collection is the head's *New ▾* (the navigation concept's mockup); importing is the
+  // place's menu, as on a collection.
+  assert.equal(await newInHead(page).count(), 1);
   assert.equal(await page.getByRole('main').getByRole('button', { name: /Import/ }).count(), 0, 'import beside the head as well as in its menu');
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Change position', 'Archive', 'Make private', 'Move to the trash']);
+  // No *Change position* in a hub's own head: the hubs are ordered where they are all listed.
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Archive', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   // A hub's settings are a page as a collection's are: one section list (user-experience.md §5.7).
   await openSettings(page, HUB.name);
@@ -279,7 +281,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.goBack();
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Create collection' }).click();
+  await openNewCollection(page);
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
@@ -295,7 +297,7 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await openCollection(browser, 768);
   t.after(close);
-  await page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   await page.getByRole('region', { name: /To do/ }).waitFor({ timeout: 10_000 });
   const scroll = await page.evaluate(() => ({ page: document.documentElement.scrollWidth - window.innerWidth, board: document.querySelector('.board').scrollWidth - document.querySelector('.board').clientWidth }));
   assert.equal(scroll.page, 0, `the page scrolls sideways by ${scroll.page}px`);
@@ -318,7 +320,7 @@ test('chromium: 1280 px — the filter as a line is read into the conditions and
     if (new URL(request.url()).pathname.endsWith('/items:query')) sent.push(request.postDataJSON());
   });
 
-  await page.getByRole('toolbar', { name: 'What is shown of the entries' }).getByRole('button', { name: 'Filter' }).click();
+  await viewBar(page).getByRole('button', { name: 'Filter' }).click();
   const panel = page.getByRole('group', { name: 'Which entries to show' });
   await panel.waitFor({ state: 'visible', timeout: 5_000 });
   const line = page.getByRole('textbox', { name: 'As a line' });

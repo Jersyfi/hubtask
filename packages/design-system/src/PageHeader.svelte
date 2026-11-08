@@ -38,7 +38,11 @@
   export interface PageAction {
     readonly label: string;
     readonly icon?: IconName;
-    readonly onclick: () => void;
+    /**
+     * What a press does. Absent on a primary whose only answer is its `menu` - *New ▾* -, which
+     * is then one button that opens the list.
+     */
+    readonly onclick?: () => void;
     readonly disabledReason?: string;
     /** Whether a secondary act is drawn quiet, without a frame: *View as file*, which reads rather than does. */
     readonly isQuiet?: boolean;
@@ -63,7 +67,7 @@
     title: string;
     subtitle?: string;
     /** The trail above the title, with its own two names (see `Breadcrumb`). */
-    breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void };
+    breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void; mark?: Snippet<[Crumb]> };
     /** The one thing one does here most. */
     primary?: PageAction;
     /** At most two; the third belongs in the menu, and the type says so. */
@@ -95,17 +99,26 @@
      */
     onmenu?: (menu: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string } | undefined) => void;
     /**
-     * What counts in this place, drawn under the title beside the description: a line of text, a
-     * bar, a row of marks. The caller's drawing; the head gives it its place, so that a figure
-     * arriving later moves neither the title nor the actions.
+     * What counts in this place, drawn on the title's line after the title and its end (under the
+     * title only where the bar carries it): a line of text, a bar, a row of marks. The caller's
+     * drawing; the head gives it its place, so that a figure arriving later moves neither the
+     * title nor the actions.
      */
     figure?: Snippet;
+    /**
+     * Whether the figure has a line of its own under the title, a control's height whether it
+     * holds anything: heads of one place whose figures differ - a collection's views - then stand
+     * alike, and a long figure never wraps under a long title on one view and not on another.
+     */
+    isFigureBelow?: boolean;
     /**
      * A sign drawn before the title: the place's own symbol in its own colour (UC-WRK-33). The
      * caller's drawing and decorative - the title is the name. Not drawn where the bar carries the
      * title, which has room for the words alone.
      */
     mark?: Snippet;
+    /** What stands right after the title on its line: the place's star (the navigation concept's head). */
+    titleEnd?: Snippet;
     /** Lines under the title: an archived notice, a refusal. The caller's `role="alert"` travels with them. */
     notices?: Snippet;
     /** The second row: a `ViewSwitcher`, `Tabs`, or nothing. */
@@ -126,11 +139,13 @@
     secondary = [],
     menu,
     isTitleInBar = false,
+    isFigureBelow = false,
     isMenuInBar = false,
     isPrimaryInFlow = false,
     onmenu,
     figure,
     mark,
+    titleEnd,
     notices,
     views,
     aside,
@@ -164,7 +179,7 @@
     const fromPrimary = /^primary-(.+)$/.exec(id);
     if (fromPrimary) return primary?.menu?.onselect(fromPrimary[1] ?? '');
     const match = /^secondary-(\d+)$/.exec(id);
-    if (match) secondary[Number(match[1])]?.onclick();
+    if (match) secondary[Number(match[1])]?.onclick?.();
     else menu?.onselect(id);
   }
 
@@ -211,37 +226,22 @@
 </script>
 
 {#snippet actionBar()}
+    <!-- The place's own controls, the other verbs, the menu, and the one primary last, at the
+         head's end (the navigation concept's mockup). -->
     <div class="actions">
       {#if aside}<span class="aside">{@render aside()}</span>{/if}
       {#each secondary as action, index (index)}
         <span class="secondary">
-          <Button tone={action.isQuiet ? 'subtle' : 'secondary'} icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
+          <Button size="sm" tone={action.isQuiet ? 'subtle' : 'secondary'} icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
             {action.label}
           </Button>
         </span>
       {/each}
-      {#if primary}
-        <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
-          <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
-            {primary.label}
-          </Button>
-          {#if primary.menu && primary.menu.items.length > 0}
-            {@const submenu = primary.menu}
-            <span class="primary-more">
-              <Menu label={submenu.label} items={submenu.items} placement={{ side: 'block-end', align: 'end' }} onselect={submenu.onselect}>
-                {#snippet trigger(props)}
-                  <IconButton icon="chevron-down" label={submenu.label} tone="primary" {...props} />
-                {/snippet}
-              </Menu>
-            </span>
-          {/if}
-        </span>
-      {/if}
       {#if menu && menu.items.length > 0 && !isMenuInBar}
         <span class="menu menu-full">
           <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu.label} size="sm" data-opener={isFolded ? undefined : menu.opener} {...props} />
+              <IconButton icon="ellipsis" label={menu.label} size="sm" tone="secondary" data-opener={isFolded ? undefined : menu.opener} {...props} />
             {/snippet}
           </Menu>
         </span>
@@ -250,9 +250,38 @@
         <span class="menu menu-folded">
           <Menu label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} size="sm" data-opener={isFolded ? menu?.opener : undefined} {...props} />
+              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} size="sm" tone="secondary" data-opener={isFolded ? menu?.opener : undefined} {...props} />
             {/snippet}
           </Menu>
+        </span>
+      {/if}
+      {#if primary && !primary.onclick && primary.menu}
+        {@const only = primary.menu}
+        <!-- A primary that is a list: one button that opens it, its chevron saying so. -->
+        <span class="primary">
+          <Menu label={only.label} items={only.items} placement={{ side: 'block-end', align: 'end' }} onselect={only.onselect}>
+            {#snippet trigger(props)}
+              <Button size="sm" tone="primary" icon={primary.icon} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener} {...props}>
+                {primary.label}<Icon name="chevron-down" size="sm" />
+              </Button>
+            {/snippet}
+          </Menu>
+        </span>
+      {:else if primary}
+        <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
+          <Button size="sm" tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
+            {primary.label}
+          </Button>
+          {#if primary.menu && primary.menu.items.length > 0}
+            {@const submenu = primary.menu}
+            <span class="primary-more">
+              <Menu label={submenu.label} items={submenu.items} placement={{ side: 'block-end', align: 'end' }} onselect={submenu.onselect}>
+                {#snippet trigger(props)}
+                  <IconButton icon="chevron-down" label={submenu.label} size="sm" tone="primary" {...props} />
+                {/snippet}
+              </Menu>
+            </span>
+          {/if}
         </span>
       {/if}
     </div>
@@ -262,11 +291,12 @@
   {#if breadcrumb}
     <div class="top">
       <div class="trail">
-        <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} />
+        <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} mark={breadcrumb.mark} />
       </div>
-      {#if parent}
+      {#if parent && !isTitleInBar}
         <!-- The way up, on a phone: one link, the parent, with the chevron pointing along the
-             reading direction's start. It mirrors in RTL because the icon set mirrors it. -->
+             reading direction's start. It mirrors in RTL because the icon set mirrors it. Not
+             where the bar carries the title: its *‹ the level above* is the way up there. -->
         <p class="parent">
           <a href={parent.href} onclick={(event) => { if (breadcrumb.onnavigate) { event.preventDefault(); breadcrumb.onnavigate(parent.id); } }}>
             <Icon name="chevron-left" size="sm" />
@@ -285,16 +315,20 @@
     <div class="titles">
       {#if isTitleInBar}
         <VisuallyHidden as="h1">{title}</VisuallyHidden>
-      {:else if mark}
+      {:else if mark || titleEnd || figure}
+        <!-- The figure stands on the title's line, after the star, and wraps under it when the
+             line is full. -->
         <div class="title-line">
-          <span class="title-mark" aria-hidden="true">{@render mark()}</span>
+          {#if mark}<span class="title-mark" aria-hidden="true">{@render mark()}</span>{/if}
           <h1 class="title">{title}</h1>
+          {#if titleEnd}<span class="title-end">{@render titleEnd()}</span>{/if}
+          {#if figure && !isFigureBelow}<div class="head-figure">{@render figure()}</div>{/if}
         </div>
       {:else}
         <h1 class="title">{title}</h1>
       {/if}
       {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
-      {#if figure}<div class="head-figure">{@render figure()}</div>{/if}
+      {#if figure && (isTitleInBar || isFigureBelow)}<div class="head-figure" data-below={isFigureBelow ? '' : undefined}>{@render figure()}</div>{/if}
     </div>
     {#if !actionsOnTrail}{@render actionBar()}{/if}
   </div>
@@ -316,11 +350,14 @@
     min-width: 0;
   }
 
+  /* As tall as its controls whether it holds any: a head with verbs and one without stand alike,
+     so what follows the head - a view bar - keeps its place from view to view. */
   .row {
     display: flex;
     align-items: flex-start;
     gap: var(--sp-200);
     flex-wrap: wrap;
+    min-block-size: var(--density-control-sm-min);
   }
 
   /* The trail's line, which carries the actions when the title row would stand empty. */
@@ -329,6 +366,8 @@
     align-items: center;
     gap: var(--sp-200);
     min-width: 0;
+    /* The trail sits close above the title, closer than the head's own rows. */
+    margin-block-end: calc(var(--sp-050) + var(--sp-025) - var(--sp-150));
   }
 
   .top .trail { flex: 1; min-width: 0; }
@@ -348,8 +387,8 @@
     margin: 0;
     font-family: var(--font-display);
     /* A page kind sets the step for its title (`--page-head-title-size`); alone, the head's own. */
-    font-size: var(--page-head-title-size, var(--fs-500));
-    font-weight: var(--fw-semibold);
+    font-size: var(--page-head-title-size, var(--fs-450));
+    font-weight: var(--fw-bold);
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
     text-wrap: balance;
@@ -357,12 +396,19 @@
 
   .title-line {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--sp-100);
+    gap: var(--sp-050) var(--sp-100);
     min-width: 0;
   }
 
-  .title-mark { display: inline-flex; flex: none; }
+  /* Without a figure on it the line never wraps: a long title breaks between its words and its
+     star stays beside it, rather than standing alone on a line under it. */
+  .title-line:not(:has(> .head-figure)) { flex-wrap: nowrap; }
+  .title-line:not(:has(> .head-figure)) > .title { min-width: 0; }
+
+  .title-mark,
+  .title-end { display: inline-flex; flex: none; }
 
   .subtitle {
     margin: 0;
@@ -380,6 +426,8 @@
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
   }
+
+  .head-figure[data-below] { min-block-size: var(--density-control-sm-min); }
 
   .actions {
     display: flex;
@@ -432,6 +480,8 @@
   .aside { display: inline-flex; align-items: center; gap: var(--sp-100); }
 
   .notices { display: flex; flex-direction: column; gap: var(--sp-100); }
+  /* A notices snippet that says nothing today takes no row, nor the gap before one. */
+  .notices:not(:has(*)) { display: none; }
 
   .views { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
 

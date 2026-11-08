@@ -11,9 +11,10 @@
   // The breadcrumb is built from the **route** rather than from a remembered click, which is what
   // makes a deep link land with a correct trail: ADR-0028's `index.html` fallback exists so a deep
   // link survives a reload, and a trail assembled from navigation history would be empty after one.
+  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import {
-    AvatarGroup,
     Button,
     DetailPane,
     Dialog,
@@ -45,10 +46,9 @@
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
-  import LayoutSwitch from '../lib/entries/LayoutSwitch.svelte';
-  import MoveDialog from '../lib/entries/MoveDialog.svelte';
+  import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
-  import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import PlacePeople from '../lib/workspace/PlacePeople.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
@@ -92,9 +92,9 @@
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
-  import { placeTabs } from '../lib/workspace/placeTabs.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
-  import ContainerMark from '../lib/workspace/ContainerMark.svelte';
+  import { collectionViews } from '../lib/workspace/placeViews.ts';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
+  import { isOwnPage, layoutOfView, viewOfLayout } from '../lib/workspace/placeViews.ts';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import HubProductLines from '../lib/workspace/HubProductLines.svelte';
   import HubActivity from '../lib/workspace/HubActivity.svelte';
@@ -140,10 +140,18 @@
      * navigations, so the address, a reload and the back button agree.
      */
     openItemId?: string;
+    /** The view of the collection's bar the address names (`?layout=list|board|timeline`). */
+    layoutAsked?: string;
+    /** A saved view the address opens (`?view=`), a view of the bar too. */
+    viewAsked?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, openItemId, onnavigate }: Props = $props();
+  const { id: idAsked, openItemId, layoutAsked, viewAsked, onnavigate }: Props = $props();
+  // The id as a derived value: `LazyView` spreads a new props object on every change of address,
+  // and an effect reading the prop itself would re-run on a `?layout=` or `?item=` - its cleanup
+  // emptying the selection the screen keeps across its views (design-system.md §11.9).
+  const id = $derived(idAsked);
 
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
@@ -248,6 +256,8 @@
 
   /** The layouts that may be chosen here: the switch's and the palette's one answer. */
   const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
+  /** Whether both list layouts are offered, so the list carries its *Show what is inside* toggle. */
+  const listsBoth = $derived(['LIST_COLLAPSED', 'LIST_EXPANDED'].every((each) => offer.layouts.includes(each)));
   /** The list layout this collection offers, where the add form lives. */
   const listLayout = $derived(offeredLayouts.find(isListLayout) ?? 'LIST_COLLAPSED');
 
@@ -285,9 +295,37 @@
     });
   });
 
+  // A view of the bar the address names wins over the remembered layout, once what may be chosen is read.
+  $effect(() => {
+    const asked = layoutOfView(layoutAsked, listLayout);
+    void offeredViews;
+    if (!asked || !choosable.includes(asked)) return;
+    untrack(() => {
+      if (asked === listLayout && isListLayout(layout)) return;
+      // The list comes back as it was left: open or folded, as *Show what is inside* last said.
+      chooseLayout(asked === listLayout && lastList && choosable.includes(lastList) ? lastList : asked);
+    });
+  });
+
+  /**
+   * A view of this collection's own screen keeps the entry open beside it (`?item=`), as the
+   * layout switch did; a view that is a screen of its own does not.
+   */
+  function keepingOpen(path: string): string {
+    const open = new URLSearchParams(location.search).get('item');
+    const url = new URL(path, location.origin);
+    if (!open || url.pathname !== location.pathname) return path;
+    url.searchParams.set('item', open);
+    return `${url.pathname}${url.search}`;
+  }
+
+  /** Which list layout was drawn last, so the bar's *List* returns to it. */
+  let lastList = $state<string | undefined>(undefined);
+
   /** A layout the person chose: drawn, and kept for them on this device. */
   function chooseLayout(chosen: string) {
     layout = chosen;
+    if (isListLayout(chosen)) lastList = chosen;
     rememberLayout(deviceStore(), actor.account?.id, id, chosen);
   }
 
@@ -317,6 +355,7 @@
    */
   const myRole = $derived(container ? people.roleOf(containerPath, actor.account?.id, roleOrder()) : undefined);
   const structureRole = $derived(myRole ?? undefined);
+  /** The workspace's shape is the reader's to change: *Save as preset* then offers the workspace. */
   /** Whether the reader may create entries in this collection, and why a row is not theirs to change. */
   const mayCreateHere = $derived(mayDo(myRole, 'create', false) === true);
   function changeRefusalOf(row: WorkItem): string | undefined {
@@ -596,53 +635,8 @@
     }
   }
 
-  /**
-   * Moving a collection into another hub, which is the one placement no position can express.
-   *
-   * Up and down rank it where it already is; this changes which hub holds it, and `:move`'s
-   * `target_parent_id` is required precisely because that is the question it answers. A hub is
-   * offered none of this: it sits in nothing, so there is no destination to name — the same reason
-   * hubs have a `:reorder` of their own.
-   *
-   * Nothing is lost by it. A collection carries its own labels and its own board, so the losses
-   * `MoveResult` reports for an entry (I-W6) have no counterpart here, and the dialog is shown
-   * without a warning rather than with an invented one.
-   */
+  /** Moving a collection into another hub: the dialog with the server's pre-check (§5.3). */
   let isMovingHub = $state(false);
-  let isMovingNow = $state(false);
-
-  const hubs = $derived(
-    containers.hubs
-      .filter((each) => each.id !== container?.parent_id && !each.effective_archived)
-      .map((each) => ({ value: each.id, label: each.name })),
-  );
-
-  async function moveToHub(hubId: string) {
-    if (!container) return;
-    // Both names are read **before** the write, and neither is available afterwards. The move
-    // invalidates `/containers`, so `container` is briefly undefined while the level reloads, and
-    // the destination has stopped being a destination — it is the hub this collection is in now,
-    // so `hubs` no longer offers it. Reading either afterwards throws, and a throw in here would
-    // reach the catch below and be rendered as a transport failure it is not.
-    const moving = container.name;
-    const destination = hubs.find((each) => each.value === hubId)?.label ?? '';
-
-    isMovingNow = true;
-    failure = undefined;
-    try {
-      await containers.move(container.id, hubId, null, crypto.randomUUID());
-      isMovingHub = false;
-    } catch (error) {
-      failure = renderProblem(error as TransportError, messages);
-      return;
-    } finally {
-      isMovingNow = false;
-    }
-    // Outside the try, for the same reason: `renderProblem` reads a problem document, and handing
-    // it anything else fails on `fieldErrors` — which turns a rendering mistake into a sentence
-    // about the server.
-    announcer.say(t('app.move.container_announced', { name: moving, hub: destination }));
-  }
 
   /**
    * Moving a container and everything under it to the trash.
@@ -675,7 +669,6 @@
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
   let subscribing = $state<SavedView | undefined>(undefined);
-  let isManagingMembers = $state(false);
   /**
    * *Import…* is one of capture's ways of adding: the dialog opens on its tab with this place as
    * the place, so an import looks and is chosen like every other add (design-system.md §11.8).
@@ -787,6 +780,41 @@
   // before this the only way to start one was `hubctl`.
   let isCreatingCollection = $state(false);
 
+  /**
+   * *New ▾* in a hub's head (the navigation concept's mockup): what can be made here - a
+   * collection for whoever shapes the hub, a page or a whiteboard where their product is on and the
+   * reader writes. Nothing offered, no button (P-05).
+   */
+  const mayWriteHere = $derived(holds(structureRole, 'WRITE_ITEMS').status === 'permitted');
+  const newItems = $derived(
+    container?.type !== 'HUB' || readOnlyReason
+      ? []
+      : [
+          ...(mayShape ? [{ id: 'collection', label: t('app.nav.create_collection_kind'), icon: 'collection' as const }] : []),
+          ...(mayWriteHere && modulesOn.includes('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }] : []),
+          ...(mayWriteHere && modulesOn.includes('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
+        ],
+  );
+  const newMenu = $derived(
+    newItems.length === 0 || !container
+      ? undefined
+      : {
+          label: t('app.nav.new'),
+          icon: 'plus' as const,
+          opener: 'new-in-hub',
+          menu: {
+            label: t('app.nav.new_in', { name: container.name }),
+            items: newItems,
+            onselect: (kind: string) => {
+              if (kind === 'collection') isCreatingCollection = true;
+              else if (kind === 'page') onnavigate(`/hubs/${id}/pages?new=1`);
+              else onnavigate(`/hubs/${id}/contents?new=whiteboard`);
+            },
+          },
+        },
+  );
+
+
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   // The bar carries the title on a phone (ADR-0061 decision 2); the head then reads its heading
@@ -839,20 +867,6 @@
    */
   const splitsLines = $derived(captureRulesOf(container?.structure, '', []).splitsLines);
 
-  /** Where the people dialog and the *People* tab grant and read roles: the container's own scope and path. */
-  const memberScope = $derived(
-    container?.type === 'HUB'
-      ? { scopeType: 'HUB' as const, scopeId: container.id }
-      : { scopeType: 'COLLECTION' as const, scopeId: container?.id ?? '' },
-  );
-  const memberPath = $derived(
-    container?.type === 'HUB' ? { hubId: container.id } : { hubId: container?.parent_id ?? undefined, collectionId: container?.id },
-  );
-  /** Who holds a role here, for the faces in the head: the same dialog the *People* tab draws. */
-  const memberIds = $derived([...new Set(people.along(containerPath).map((membership) => membership.account_id))]);
-  $effect(() => {
-    accounts.resolve(memberIds);
-  });
 
   /**
    * The page menu, in the three groups of design-system.md §11.8: act on the object, set it up,
@@ -880,11 +894,12 @@
   );
   const sprintsAt = $derived(container?.type === 'COLLECTION' && modulesOn.includes('PLANNING') ? container.id : undefined);
   let sprintsRun = $state(false);
+  let sprintName = $state<string | undefined>(undefined);
   $effect(() => {
     const at = sprintsAt;
     sprintsRun = false;
     if (!at) return;
-    return untrack(() => runsSprints(at, (runs) => { sprintsRun = runs; }));
+    return untrack(() => runsSprints(at, (runs, running) => { sprintsRun = runs; sprintName = running; }));
   });
   /**
    * The place's views (user-experience.md §2.4): the strip under the head, offered to the palette
@@ -894,11 +909,13 @@
   const tabActs = $derived<readonly Act[]>(
     container === undefined
       ? []
-      : placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn, isDesk, runsSprints: sprintsRun })
-          .slice(1)
+      : container.type === 'HUB'
+        ? []
+        : collectionViews({ id: container.id, modulesOn, isDesk, runsSprints: sprintsRun, sprintName })
+          .filter(isOwnPage)
           .map((tab) => ({
             id: `page:tab-${tab.id}`,
-            label: t('app.place_tabs.go_to', { place: container.name, tab: t(tab.code) }),
+            label: t('app.place_tabs.go_to', { place: container.name, tab: tab.code ? t(tab.code) : (('name' in tab ? tab.name : undefined) ?? '') }),
             icon: tab.icon,
             run: () => onnavigate(tab.href),
           })),
@@ -907,7 +924,7 @@
     container === undefined
       ? []
       : [
-          ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
+          ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, offersPosition: container.type !== 'HUB' }, (code) => t(code)),
         ],
   );
 
@@ -924,6 +941,19 @@
     { id: 'export', label: t('app.views.menu_export'), icon: 'file-text' as const, hasSeparatorBefore: true },
     { id: 'feeds', label: t('app.views.menu_feeds'), icon: 'calendar' as const },
   ]);
+
+  // A saved view the address names is opened once it is read (the bar's view, §3).
+  let viewOpened = $state<string | undefined>(undefined);
+  $effect(() => {
+    const wanted = viewAsked;
+    const view = wanted ? heldViews.find((each) => each.id === wanted) : undefined;
+    if (!view || viewOpened === view.id) return;
+    untrack(() => {
+      viewOpened = view.id;
+      applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
+    });
+  });
+  const barCurrent = $derived(viewAsked ? `view:${viewAsked}` : viewOfLayout(layout));
 
   function choseView(id: string) {
     if (id.startsWith('open:')) {
@@ -1176,14 +1206,73 @@
       <Button size="sm" tone="secondary" icon="square-check" data-opener="select" onclick={() => { isFilterOpen = false; selection.start(); }}>{t('app.bulk.select_mode')}</Button>
     {/if}
   {/snippet}
-  {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
+  {#snippet headNotices()}
+    <!-- The two archive states say different things and offer different controls, which is the
+         whole reason `archivalOf` distinguishes them. -->
+    {#if container.type === 'HUB' && container.private}
+      <p class="notice private"><Icon name="lock" size="sm" />{t('app.workspace.private_marker')}</p>
+    {/if}
+    {#if readOnlyReason}
+      <!-- One notice for the whole page; the rows below say nothing about it. -->
+      <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId}>
+        {#snippet action()}
+          {#if archival === 'archived' && mayShape}
+            <Button size="sm" tone="secondary" onclick={() => void toggleArchived()}>{t('app.workspace.unarchive')}</Button>
+          {/if}
+        {/snippet}
+      </ReadOnlyNotice>
+    {/if}
+    {#if failure}
+      <p class="failure" role="alert">{failure.message}</p>
+    {/if}
+  {/snippet}
+  {#snippet people()}<PlacePeople placeId={container.id} />{/snippet}
+    <!-- The collection's one head, the same on each of its views (CollectionHead): the list, the
+         board, the timeline layout and the saved views are this screen; ＋ saves a view; the
+         filter and the entries' tools at the bar's end. On a phone the filter is one button
+         beside the chip, whose sheet holds the rest. -->
+    {#snippet insideToggle()}
+      {#if isListLayout(layout) && listsBoth}
+        <!-- A toggle of the list's own, not a view: pressed, every level is shown open. -->
+        <span data-tour="levels-inside"><Button
+          size="sm"
+          tone="subtle"
+          icon="chevrons-up-down"
+          aria-pressed={layout === 'LIST_EXPANDED'}
+          onclick={() => chooseLayout(layout === 'LIST_EXPANDED' ? 'LIST_COLLAPSED' : 'LIST_EXPANDED')}
+        >{t('app.view.show_inside')}</Button></span>
+      {/if}
+    {/snippet}
+    {#snippet barTools()}
+      {@render insideToggle()}
+      {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
+      <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+      {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
+    {/snippet}
+    {#snippet compactTools()}
+      {@render insideToggle()}
+      <Button size="sm" isRound tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+    {/snippet}
   <WorkPage>
     {#snippet top()}
+    {#if container.type === 'COLLECTION'}
+    <CollectionHead
+      collectionId={container.id}
+      current={barCurrent}
+      onnavigate={(path) => onnavigate(keepingOpen(path))}
+      figure={container.figure || hasAi || hasMilestone ? collectionFigure : undefined}
+      primary={newMenu}
+      place={{ items: pageMenu, onselect: choseFromMenu }}
+      add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
+      tools={barTools}
+      {compactTools}
+      notices={headNotices}
+    />
+    {:else}
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
-         for - a collection - with import beside it; the collection's is an entry, with the filter
-         beside it and the templates as the verb's own list. The title is read rather than drawn
-         where the bar shows it. -->
+         for - a collection - with import beside it. The title is read rather than drawn where the
+         bar shows it. -->
     <PageHeader
       title={container.name}
       subtitle={container.description ?? undefined}
@@ -1192,6 +1281,7 @@
       onmenu={(offered) => page.offer(offered)}
       breadcrumb={{
         trail,
+        mark: placeMark,
         label: t('app.workspace.trail'),
         expandLabel: t('app.workspace.expand_trail'),
         onnavigate: (crumbId) => {
@@ -1200,68 +1290,18 @@
         },
       }}
       menu={headMenu}
-      figure={container.figure || (container.type === 'COLLECTION' && hasAi) || hasMilestone ? collectionFigure : undefined}
-      mark={ownMark}
+      primary={newMenu}
+      figure={container.figure || hasMilestone ? collectionFigure : undefined}
+      notices={headNotices}
+      aside={people}
     >
-      {#snippet notices()}
-        <!-- The two archive states say different things and offer different controls, which is the
-             whole reason `archivalOf` distinguishes them. -->
-        {#if container.type === 'HUB' && container.private}
-          <p class="notice private"><Icon name="lock" size="sm" />{t('app.workspace.private_marker')}</p>
-        {/if}
-        {#if readOnlyReason}
-          <!-- One notice for the whole page; the rows below say nothing about it. -->
-          <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId}>
-            {#snippet action()}
-              {#if archival === 'archived' && mayShape}
-                <Button size="sm" tone="secondary" onclick={() => void toggleArchived()}>{t('app.workspace.unarchive')}</Button>
-              {/if}
-            {/snippet}
-          </ReadOnlyNotice>
-        {/if}
-        {#if failure}
-          <p class="failure" role="alert">{failure.message}</p>
-        {/if}
-      {/snippet}
-      {#snippet aside()}
-        {#if memberIds.length === 0}
-          <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
-          <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
-        {:else}
-          <!-- Who holds a role here, as faces; pressing them opens the people, the same component
-               as *Structure → People*. The faces are decoration on the button: its name is the word. -->
-          <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
-            <span aria-hidden="true">
-              <AvatarGroup
-                people={memberIds.map((accountId) => ({
-                  name: accounts.nameOf(accountId) ?? t('app.people.unnamed'),
-                  src: accounts.pictureOf(accountId),
-                }))}
-                size="sm"
-                max={4}
-                overflowLabel={t('app.people.more_members', { count: String(Math.max(memberIds.length - 4, 0)) })}
-              />
-            </span>
-          </button>
-        {/if}
-        <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
+      {#snippet titleEnd()}
+        <!-- ☆ right after the title (UC-WRK-37, the mockup's head): the same star as the sidebar's. -->
+        <StarToggle kind="HUB" id={container.id} name={container.name} />
       {/snippet}
     </PageHeader>
-    {/snippet}
-    {#snippet tabs()}<PlaceStrip placeId={container.id} current={container.type === 'HUB' ? 'overview' : 'entries'} {onnavigate} />{/snippet}
-
-    {#if container.type === 'COLLECTION'}
-      <!-- The toolbar (design-system.md §11.1): about the entries, where the head is about the
-           place. The layouts at the start; the filter, the views and selecting at the end. On a
-           phone the filter is one button whose sheet holds the rest. -->
-      <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
-        <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
-        <div class="tools">
-          <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-          {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
-        </div>
-      </div>
     {/if}
+    {/snippet}
 
     {#if container.type === 'HUB' && container.private}
       <!-- Who opened this hub through the emergency access, and the opener's own hour (ADR-0073 §4). -->
@@ -1305,10 +1345,8 @@
       {:else}
         <!-- The collections as cards with what counts in each (ux-inventory.md §E4), the way to a
              new one the last card, where they are. -->
-        <CollectionCards
-          {collections}
-          create={mayShape ? { label: t('app.workspace.create_collection'), onclick: () => (isCreatingCollection = true), disabledReason: readOnlyReason } : undefined}
-        />
+        <!-- No card to create one: *New ▾* in the head and ＋ on *Collections* make it (the mockup). -->
+        <CollectionCards {collections} planning={modulesOn.includes('PLANNING')} />
       {/if}
       <!-- What changed last in the hub's collections (user-experience.md §7.9). -->
       <HubActivity hubId={container.id} />
@@ -1434,7 +1472,7 @@
     bind:isOpen={isCreatingCollection}
     type="COLLECTION"
     parentId={container.id}
-    oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
+    oncreated={(collectionId, landing) => onnavigate(landing ?? `/collections/${collectionId}`)}
   />
 {/if}
 
@@ -1497,7 +1535,6 @@
 {#if container}
   <!-- The path is the container's own: a collection composes the workspace, its hub and itself,
        and a hub composes the workspace and itself. -->
-  <MembersDialog bind:isOpen={isManagingMembers} title={t('app.people.title')} scope={memberScope} path={memberPath} />
 {/if}
 
 {#if isTrashing && container}
@@ -1565,20 +1602,7 @@
 {/if}
 
 {#if isMovingHub && container}
-  <MoveDialog
-    bind:isOpen={isMovingHub}
-    title={t('app.rank.actions', { title: container.name })}
-    label={t('app.move.hub')}
-    placeholder={t('app.move.choose_hub')}
-    options={hubs}
-    emptyLabel={t('app.move.no_hub')}
-    confirmLabel={t('app.move.confirm')}
-    busyLabel={t('app.move.moving')}
-    cancelLabel={t('app.workspace.cancel')}
-    chooseFirstLabel={t('app.move.choose_hub_first')}
-    isBusy={isMovingNow}
-    onmove={(hubId) => moveToHub(hubId)}
-  />
+  <CollectionMoveDialog container={container} bind:isOpen={isMovingHub} {onnavigate} />
 {/if}
 
 <style>
@@ -1586,24 +1610,6 @@
 
   .entries { flex: 1; min-width: 0; }
 
-
-  /* The entries' toolbar stays under the bar while the list scrolls (design-system.md §11.1): the
-     layouts at the start, the rest at the end, one line where it fits. */
-  .toolbar {
-    position: sticky;
-    inset-block-start: var(--layout-appbar-height);
-    z-index: var(--z-raised);
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-150);
-    padding-block: var(--sp-100);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    background: var(--bg-canvas);
-  }
-
-  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 
@@ -1617,28 +1623,12 @@
     box-shadow: var(--shadow-raised);
   }
 
-  .members {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--sp-025);
-    border: 0;
-    border-radius: var(--r-full);
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .members:hover { background: var(--bg-surface-hover); }
-
-  .members:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-  }
-
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }
   /* Private is a fact about the hub, not a warning: said quietly, with the lock the tree shows. */
   .notice.private { display: flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+
 
   .workflow-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
