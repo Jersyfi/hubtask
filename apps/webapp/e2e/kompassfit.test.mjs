@@ -307,3 +307,16 @@ test('the touch tablet\'s drawer and the phone\'s hub step: every row keeps its 
     assert.deepEqual(failures, []);
   }
 });
+
+test('R-6: with nothing starred or visited yet, the quick switch still lists the other hubs, in the sidebar\'s order', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}` });
+  t.after(close);
+  await page.getByRole('region', { name: PD.name }).first().waitFor();
+  const panel = await dropsFromHead(page, side(page));
+  const hubs = panel.locator('section', { has: page.getByRole('heading', { name: 'Hubs' }) });
+  await hubs.getByRole('link', { name: IT.name }).waitFor();
+  assert.equal(await hubs.getByRole('link', { name: PD.name }).count(), 0, 'the hub one is in is not offered');
+  assert.deepEqual(failures, []);
+});

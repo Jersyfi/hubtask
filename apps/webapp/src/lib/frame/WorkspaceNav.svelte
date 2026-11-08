@@ -1051,7 +1051,15 @@
   const switchHubs = $derived(shownHubs.filter((each) => each.id !== hubId && each.name.toLocaleLowerCase(messages.locale).includes(switchSearch.trim().toLocaleLowerCase(messages.locale))));
   const starredHubs = $derived(switchHubs.filter((each) => isStarred(stars.all, 'HUB', each.id)));
   const visitedSwitch = $derived(visitedHubs.map((id) => switchHubs.find((each) => each.id === id)).filter((each): each is Container => !!each && !isStarred(stars.all, 'HUB', each.id)).slice(0, 5));
-  const matchedHubs = $derived(switchSearch.trim() ? switchHubs.filter((each) => !starredHubs.includes(each) && !visitedSwitch.includes(each)) : []);
+  /**
+   * The rest under *Hubs*: what the search finds, hidden hubs included - and without a search the
+   * sidebar's own hubs in its order, so the panel never offers *All hubs* alone to someone who has
+   * starred and visited nothing yet.
+   */
+  const matchedHubs = $derived(
+    (switchSearch.trim() ? switchHubs : orderedHubs.filter((each) => switchHubs.includes(each)))
+      .filter((each) => !starredHubs.includes(each) && !visitedSwitch.includes(each)),
+  );
   function switchTo(target: string) {
     isSwitchOpen = false;
     switchSearch = '';
