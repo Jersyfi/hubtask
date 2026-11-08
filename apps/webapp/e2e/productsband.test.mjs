@@ -286,22 +286,23 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   });
 }
 
-// §7.8: the agents' home is their cards, live first and a retired one last, each counting the acts
-// waiting on it; the runs are a tab, the newest first.
-test('chromium 1280 px: the agents\' home shows the agents as cards, their held acts and runs', async (t) => {
+// §7.8, page-system §9.5: the agents' home is their list, live first and a retired one last, each
+// row counting the acts waiting on it; the runs are a tab, the newest first.
+test('chromium 1280 px: the agents\' home lists the agents, their held acts and runs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: '/agents', modulesOn: ['AGENTS'] });
   t.after(close);
-  const cards = page.locator('[data-agent-card]');
-  await cards.first().waitFor({ timeout: 10_000 });
-  assert.deepEqual(await cards.locator('h2').allTextContents(), ['Request sorter', 'Duplicate finder', 'Old sorter']);
-  assert.match((await cards.first().textContent()) ?? '', /Live/u);
-  await cards.first().getByRole('button', { name: '1 waiting' }).click();
+  const names = page.locator('[data-agent-row]');
+  await names.first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(await names.allTextContents(), ['Request sorter', 'Duplicate finder', 'Old sorter']);
+  const first = page.getByRole('row').filter({ hasText: 'Request sorter' });
+  assert.match((await first.textContent()) ?? '', /Live/u);
+  await first.getByRole('button', { name: '1 waiting' }).click();
   await page.waitForURL(new RegExp(`/agents\\?tab=requests&agent=${AGENTS[1].id}$`));
   await page.getByText('Waiting on Request sorter').waitFor({ timeout: 10_000 });
-  await page.getByRole('link', { name: 'Runs' }).click();
-  const runs = page.getByRole('list', { name: 'Runs' });
+  await page.getByRole('tab', { name: /^Runs/ }).click();
+  const runs = page.getByRole('table', { name: 'Runs' });
   await runs.waitFor({ timeout: 10_000 });
   assert.match((await runs.textContent()) ?? '', /Done[\s\S]*Failed/u, 'the newest run first');
   assert.deepEqual(failures, []);

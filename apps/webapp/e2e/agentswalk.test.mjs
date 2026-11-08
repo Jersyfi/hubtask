@@ -18,6 +18,7 @@ import { chromium } from 'playwright';
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, OTHER } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
+import { chooseInRow } from './rowmenu.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -98,7 +99,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   t.after(walk.close);
   const { page } = walk;
 
-  await page.goto(`${served.origin}/agents?tab=settings`);
+  await page.goto(`${served.origin}/agents?tab=settings&section=models`);
   await page.getByRole('button', { name: 'Register a model' }).click();
   const modelDialog = page.getByRole('dialog');
   await modelDialog.getByLabel('Key').fill('local-small');
@@ -106,7 +107,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await modelDialog.getByLabel('Model', { exact: true }).fill('small-7b');
   await modelDialog.getByRole('button', { name: 'Save' }).click();
   await modelDialog.waitFor({ state: 'detached', timeout: 5_000 });
-  await page.getByRole('cell', { name: /^Local small local-small/ }).waitFor({ timeout: 5_000 });
+  await page.getByRole('main').getByText('Local small', { exact: true }).waitFor({ timeout: 5_000 });
 
   await page.getByRole('link', { name: 'Agents', exact: true }).click();
   await page.waitForURL(/\/agents$/);
@@ -125,11 +126,11 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   assert.equal(await agentDialog.getByLabel('Scopes', { exact: true }).count(), 0, 'the typed list is folded under Advanced');
   await agentDialog.getByRole('button', { name: 'Add agent' }).click();
   await agentDialog.waitFor({ state: 'detached', timeout: 5_000 });
-  await page.getByRole('heading', { name: 'Knowledge draft' }).waitFor({ timeout: 5_000 });
+  await page.locator('[data-agent-row]').filter({ hasText: 'Knowledge draft' }).waitFor({ timeout: 5_000 });
 
-  const triage = page.locator('li').filter({ has: page.getByRole('heading', { name: 'Triage helper' }) });
-  await triage.getByRole('button', { name: 'Approve' }).click();
-  await triage.getByRole('button', { name: 'Put live' }).click();
+  const triage = page.getByRole('row').filter({ hasText: 'Triage helper' });
+  await chooseInRow(triage, 'Approve');
+  await chooseInRow(triage, 'Put live');
   await triage.getByText('Live', { exact: true }).waitFor({ timeout: 5_000 });
 
   await triage.getByRole('button', { name: '1 waiting' }).click();
@@ -146,7 +147,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   // Decided, it leaves what waits: the list says nothing waits any more.
   await page.getByText('Nothing waits for a person.').waitFor({ timeout: 5_000 });
 
-  await page.getByRole('link', { name: 'Runs' }).click();
+  await page.getByRole('tab', { name: /^Runs/ }).click();
   await page.getByText('Triage helper on an entry').waitFor({ timeout: 5_000 });
   await page.getByText(/2 proposals · 1,840 tokens/).waitFor({ timeout: 5_000 });
 
@@ -180,7 +181,7 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
   const dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel('Name').inputValue(), 'Ticket triage');
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
-  await page.getByRole('link', { name: 'Runs' }).click();
+  await page.getByRole('tab', { name: /^Runs/ }).click();
   await page.getByText('No agent has run a job yet').waitFor({ timeout: 5_000 });
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   assert.equal(scrolls, false, 'the page scrolls sideways on a phone');

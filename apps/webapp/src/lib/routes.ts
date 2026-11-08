@@ -86,6 +86,8 @@ export const ROUTES: readonly Route[] = [
   // The agents acting for the reader and what they wait on (UC-AGT-02), reached without the
   // administration: a member's agent is theirs, and its notice links here.
   { name: 'own-agents', pattern: '/profile/agents', area: 'profile' },
+  // One of them as its record page (page-system §9.5).
+  { name: 'own-agent', pattern: '/profile/agents/:id', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,
@@ -207,6 +209,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'assets-home', pattern: '/assets' },
   { name: 'assets-settings', pattern: '/assets/settings' },
   { name: 'agents-home', pattern: '/agents' },
+  // An agent as its record page: its ledger, jobs and evaluation (page-system §9.5).
+  { name: 'agent', pattern: '/agents/:id' },
   { name: 'goals', pattern: '/goals' },
   { name: 'goal', pattern: '/goals/:id' },
   { name: 'portfolio', pattern: '/portfolios/:id' },

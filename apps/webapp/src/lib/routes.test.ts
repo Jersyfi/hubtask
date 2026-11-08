@@ -179,6 +179,7 @@ test('every route resolves to one of the four areas, and the profile ones are na
     'filestores',
     'grants',
     'notifications',
+    'own-agent',
     'own-agents',
     'own-rule',
     'own-rule-new',

@@ -230,6 +230,8 @@ async function views() {
     ['own-rule-new', await load('RuleEditorView'), { id: 'new', isOwn: true, onnavigate: noop }],
     ['own-rule', await load('RuleEditorView'), { id: ITEM, isOwn: true, onnavigate: noop }],
     ['own-agents', await load('AgentsView'), { base: '/profile/agents', onnavigate: noop }],
+    ['own-agent', await load('AgentView'), { id: ITEM, base: '/profile/agents', onnavigate: noop }],
+    ['agent', await load('AgentView'), { id: ITEM, onnavigate: noop }],
     ['workspace-settings', await load('WorkspaceSettingsView'), {}],
     ['workspace-section', await load('WorkspaceSettingsView'), { section: 'new-hubs' }],
     ['workspace-address', await load('WorkspaceAddressView'), {}],

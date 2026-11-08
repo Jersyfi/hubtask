@@ -70,7 +70,7 @@ const VIEW_OF: Readonly<Record<string, string>> = {
   '/administration/workspace': 'WorkspaceSettingsView',
   '/administration/ai': 'AiSettingsView',
   '/administration/templates': 'TemplatesView',
-  '/agents?tab=settings': 'AgentsView',
+  '/agents?tab=settings': 'AgentsSettingsView',
   '/time?tab=settings': 'TimeSettingsView',
   '/administration/rules': 'RulesView',
 };

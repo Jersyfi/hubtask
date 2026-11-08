@@ -19,7 +19,6 @@ import { SRC, elements, read, reachable, relative, svelteFiles, uses, within } f
  * it, which the last test holds - and it is empty when the concept lands.
  */
 const NOT_YET_MIGRATED = [
-  'lib/agents/AgentDetail.svelte',
   'lib/ask/AskDialog.svelte',
   'lib/assets/Campaigns.svelte',
   'lib/assets/CiAssetPart.svelte',
@@ -70,7 +69,6 @@ const NOT_YET_MIGRATED = [
   'lib/workspace/PanelOrDialog.svelte',
   'lib/workspace/PositionDialog.svelte',
   'lib/workspace/StarterDialog.svelte',
-  'views/AgentsView.svelte',
   'views/CmdbView.svelte',
   'views/ContainerView.svelte',
   'views/DashboardView.svelte',

@@ -33,7 +33,7 @@ const KINDS = {
  * which the last test holds - and it is empty when the concept lands.
  */
 const NOT_YET_MIGRATED = [
-  'ActualsView', 'AgentsView',
+  'ActualsView',
   'ApprovalsView', 'ArchiveView', 'AssetsView',
   'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
   'GoalView', 'GoalsView',

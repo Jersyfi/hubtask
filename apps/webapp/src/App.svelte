@@ -61,6 +61,8 @@
   const views = onceEach({
     ...workViews,
     AgentsView: () => import('./views/AgentsView.svelte'),
+    AgentsSettingsView: () => import('./views/AgentsSettingsView.svelte'),
+    AgentView: () => import('./views/AgentView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
     JumbleView: () => import('./views/JumbleView.svelte'),
     InstallationView: () => import('./views/InstallationView.svelte'),
@@ -113,6 +115,11 @@
     AdministrationArea: () => import('./views/AdministrationArea.svelte'),
     InstanceArea: () => import('./views/InstanceArea.svelte'),
   });
+
+  // The agents' settings tab is a settings page of its own; `models` and `metering` were tabs once.
+  // Whoever does not administer agents has none and stays on the list (P-05).
+  const isAgentsSettings = (tab: string | undefined) =>
+    (tab === 'settings' || tab === 'models' || tab === 'metering') && holdsHere('MANAGE_MEMBERS') === true;
 
   const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
   $effect(() => leaveGuard.connect((path) => router.navigate(path)));
@@ -442,8 +449,14 @@
     {#key route.params.id}
       <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
+  {:else if route.name === 'own-agents' && isAgentsSettings(route.query['tab'])}
+    <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/profile/agents', onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'own-agents'}
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'own-agent'}
+    {#key route.params.id}
+      <LazyView load={views.AgentView} props={{ id: route.params.id ?? '', base: '/profile/agents', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if movedTo(route.name)}
     <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
   {:else if route.area === 'instance'}
@@ -474,9 +487,16 @@
     <LazyView load={views.ProductHomeView} props={{ module: 'ASSETS', tab: 'settings', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'desk-desks' || route.name === 'desk-settings'}
     <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name === 'desk-desks' ? 'desks' : 'settings', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'agents-home' && isAgentsSettings(route.query['tab'])}
+    <!-- The agents' settings are a settings page of their own (page-system §9.6). -->
+    <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/agents', onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'agents-home'}
-    <!-- The agents' home is their one screen (user-experience.md §7.8), at the product's address. -->
+    <!-- The agents' home is their list (user-experience.md §7.8), at the product's address. -->
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'agent'}
+    {#key route.params.id}
+      <LazyView load={views.AgentView} props={{ id: route.params.id ?? '', base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name && PRODUCT_HOMES[route.name]}
     <LazyView load={views.ProductHomeView} props={{ module: PRODUCT_HOMES[route.name], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal'}

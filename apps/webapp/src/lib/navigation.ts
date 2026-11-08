@@ -189,7 +189,7 @@ export const PRODUCTS: readonly ProductRow[] = [
   { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-settings'] },
   { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'] },
   { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'portfolio', 'dashboard'] },
-  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home'] },
+  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home', 'agent'] },
 ];
 
 /** The products band: the rows of the modules switched on, in the one order; none while none is on. */
@@ -508,7 +508,7 @@ export const SETTINGS: readonly SectionGroup[] = [
       { id: 'calendars', icon: 'calendar', code: 'app.you.row_calendars', titleCode: 'app.pushes.title', path: '/profile/calendars', routes: ['calendars'] },
       { id: 'files', icon: 'paperclip', code: 'app.you.row_files', titleCode: 'app.filestores.title', path: '/profile/files', routes: ['filestores'] },
       { id: 'rules', icon: 'automation', code: 'app.you.row_rules', titleCode: 'app.rules.mine_title', path: '/profile/rules', routes: ['own-rules', 'own-rule', 'own-rule-new'] },
-      { id: 'agents', icon: 'zap', code: 'app.you.row_agents', titleCode: 'app.agents.title', path: '/profile/agents', routes: ['own-agents'], module: 'AGENTS' },
+      { id: 'agents', icon: 'zap', code: 'app.you.row_agents', titleCode: 'app.agents.title', path: '/profile/agents', routes: ['own-agents', 'own-agent'], module: 'AGENTS' },
     ],
   },
 ];
