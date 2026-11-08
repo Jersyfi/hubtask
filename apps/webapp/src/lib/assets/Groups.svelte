@@ -191,7 +191,7 @@
 {/if}
 
 {#if isOpen}
-  <Dialog bind:isOpen title={editing ? t('app.cmdb_admin.edit_named', { name: editing.name }) : t('app.ci_groups.new')} dismissLabel={t('app.assets.cancel')} isWide>
+  <Dialog size="l" bind:isOpen title={editing ? t('app.cmdb_admin.edit_named', { name: editing.name }) : t('app.ci_groups.new')} dismissLabel={t('app.assets.cancel')} primary={{ label: t('app.assets.save'), isBusy: isSaving, disabledReason: missing[0] ? t(missing[0]) : undefined, onclick: () => void save() }}>
     <Stack gap="150">
       {#if !editing}<Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={draft.key} maxlength={63} isRequired />{/if}
       <Input label={t('app.ci_groups.name')} bind:value={draft.name} maxlength={200} isRequired />
@@ -204,7 +204,6 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button tone="primary" isBusy={isSaving} disabledReason={missing[0] ? t(missing[0]) : undefined} onclick={() => void save()}>{t('app.assets.save')}</Button>
     {/snippet}
   </Dialog>
 {/if}

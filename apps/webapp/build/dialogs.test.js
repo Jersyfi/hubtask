@@ -20,10 +20,6 @@ import { SRC, elements, read, reachable, relative, svelteFiles, uses, within } f
  */
 const NOT_YET_MIGRATED = [
   'lib/ask/AskDialog.svelte',
-  'lib/assets/Campaigns.svelte',
-  'lib/assets/CiAssetPart.svelte',
-  'lib/assets/Connectors.svelte',
-  'lib/assets/Groups.svelte',
   'lib/capture/CaptureDialog.svelte',
   'lib/chat/ChatBots.svelte',
   'lib/code/CodeHooks.svelte',
