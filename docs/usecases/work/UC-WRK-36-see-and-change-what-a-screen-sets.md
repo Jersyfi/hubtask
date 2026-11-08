@@ -5,7 +5,7 @@ context: work
 actors: [PE-admin, PE-member, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-06, P-10, P-13]
-state: partial
+state: built
 tasks: []
 checked_by: [apps/webapp/build/pagekinds.test.js, apps/webapp/e2e/pagesystem.test.mjs]
 ---
@@ -34,11 +34,3 @@ In `D1` and `D2` the person who runs the workspace is the one who uses it, and t
 
 * What each setting means and who may change it are their own use cases; this one is how a settings screen is laid out.
 * The end user's vertical navigation (its content) belongs to another concept.
-
-## Today
-
-* Check 1: not met — the other settings screens do not list their sections yet; met on *Sign-in*, *Workspace* and the settings pages of *Connections and data* (E-mail, Voice assistants, Backup, Retention, AI) and *Defaults* of the installation, and on *Your settings*' Name and language (`/profile/you/:section`) and on the agents' settings, and on every hub's and collection's settings (`/hubs/:id/settings/:section`, `/collections/:id/settings/:section`), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 2: not met — the other settings screens have no address per section yet; met on *Sign-in*, *Workspace* and the settings pages of *Connections and data* (E-mail, Voice assistants, Backup, Retention, AI) and *Defaults* of the installation, and on *Your settings*' Name and language (`/profile/you/:section`) and on the agents' settings, and on every hub's and collection's settings (`/hubs/:id/settings/:section`, `/collections/:id/settings/:section`), tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 3: not met — the other settings screens still draw every section on one page; met on *Sign-in* and the settings pages of *Connections and data* (E-mail, Voice assistants, Backup, Retention, AI) and *Defaults* of the installation, and on every hub's and collection's settings, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 4: not met — the other settings screens are not measured yet; met on *Sign-in* and the settings pages of *Connections and data* (E-mail, Voice assistants, Backup, Retention, AI) and *Defaults* of the installation, and on every hub's and collection's settings, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10
-* Check 5: not met — the other settings screens have no section list yet; met on *Sign-in* and the settings pages of *Connections and data* (E-mail, Voice assistants, Backup, Retention, AI) and *Defaults* of the installation, and on every hub's and collection's settings, tracked in the page-system concept, `docs/backlog/page-system/README.md` §13 steps 5-10

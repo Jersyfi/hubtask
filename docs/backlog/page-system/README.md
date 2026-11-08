@@ -1,7 +1,8 @@
 # Concept — one page system
 
-**State:** released by the owner on 2026-11-07 ("Approved as proposed"), with D-1…D-4 as proposed
-(§12). Built whole in concept mode on one branch (`docs/backlog/README.md`, "A concept built
+**State:** built on the branch; shown to the owner before the pull request. Released by the owner
+on 2026-11-07 ("Approved as proposed"), with D-1…D-4 as proposed (§12); the rules now live in the
+subject documents ([ADR-0101](../../adr/ADR-0101-one-page-system.md)). Built whole in concept mode on one branch (`docs/backlog/README.md`, "A concept built
 whole"), commits only, shown locally on the seeded demo before the one pull request is opened. The
 owner's word for the build: the whole application, and the design system records that it goes the
 way of the leading work-management suite's design system.
@@ -577,8 +578,8 @@ locally on the seeded demo at the three widths first. By area, each step complet
 | 2 Principles | UX-2, UX-4, UX-5 served; P-05 kept |
 | 3 The matrix | no change to access or state; every role's screens walked at the end at three widths |
 | 4 The premise | checked against `196ef8214` by the walk (§2) |
-| 5 Decisions | D-1…D-4 open, the owner's |
+| 5 Decisions | D-1…D-4 decided as proposed, 2026-11-07 |
 | 6 The rules | PS-1…PS-18 here; the subject documents change in step 11 |
 | 7 Findings | none open for the area |
-| 9 Standing rules | rule 15, no new dependency, no inline style, `disabledReason`, `LoadMore` (pending D-1), parity across clients (ADR-0032) |
+| 9 Standing rules | rule 15, no new dependency, no inline style, `disabledReason`, `LoadMore` with `page.total` where counted (D-1), parity across clients (ADR-0032) |
 | 10 A look before the build | these mockups |
