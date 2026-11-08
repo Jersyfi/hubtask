@@ -15,6 +15,10 @@
 // search, count and foot, *New type* and *New workflow* opening a Dialog M, a type opening its
 // record page with its delete in the row's menu, a workflow at its own address with a status's
 // Dialog M, a step's Dialog L and the draft bar, and the workspace's sections each at its address.
+// The same on *Connections and data* - E-mail, Webhooks, Voice, Backup, Retention, Restore,
+// Privacy requests, Audit log, History & versions, Private hubs, Limits and AI: one kind each, the
+// lists' and logs' search, count and foot with nothing open on arrival, their create and export
+// acts opening a dialog of its size, and the settings pages' sections listed in the first viewport.
 // Heights are read from `getBoundingClientRect`, never from a screenshot. Against the stubbed API;
 // Chromium, as the other walks.
 
@@ -156,7 +160,30 @@ const SCREENS = [
   ['/administration/link-types', 'list'],
   ['/administration/rules', 'list'],
   ['/administration/runs', 'log'],
+  // Connections and data (page-system §9.3).
+  ['/administration/mail', 'settings'],
+  ['/administration/mail/senders', 'settings'],
+  ['/administration/webhooks', 'list'],
+  ['/administration/voice', 'settings'],
+  ['/administration/backup', 'settings'],
+  ['/administration/retention', 'settings'],
+  ['/administration/retention/holds', 'settings'],
+  ['/administration/restore', 'create'],
+  ['/administration/privacy', 'list'],
+  ['/administration/audit', 'log'],
+  ['/administration/changes', 'log'],
+  ['/administration/private-hubs', 'list'],
+  ['/administration/quotas', 'list'],
+  ['/administration/ai', 'settings'],
 ];
+
+/** Presses a head's act; on a phone a secondary act folds into the head's ⋯. */
+async function pressHead(page, name, title) {
+  const button = page.getByRole('main').getByRole('button', { name, exact: true }).filter({ visible: true });
+  if (await button.count() > 0) return button.first().click();
+  await page.getByRole('button', { name: `More for ${title}` }).first().click();
+  await page.getByRole('menuitem', { name }).click();
+}
 
 /** A sized dialog without a table, tabs or a second dialog, scrolling only as an L at 1280×800. */
 async function assertLadder(page, size, wanted) {
@@ -168,7 +195,8 @@ async function assertLadder(page, size, wanted) {
       size: node.getAttribute('data-size'),
       tables: node.querySelectorAll('table, [role="table"], [role="grid"]').length,
       tabs: node.querySelectorAll('[role="tablist"]').length,
-      dialogs: node.querySelectorAll('dialog').length,
+      // A picker's sheet on a phone is a closed `<dialog>` until pressed: only one open over it counts.
+      dialogs: node.querySelectorAll('dialog[open]').length,
       scrolls: body ? body.scrollHeight > body.clientHeight + 1 : false,
     };
   });
@@ -180,7 +208,7 @@ async function assertLadder(page, size, wanted) {
 for (const size of [DESKTOP, PHONE]) {
   const at = `${size.width}×${size.height}`;
 
-  test(`chromium ${at}: every People & access and How we work screen is exactly one page kind (UC-WRK-38 check 1)`, async (t) => {
+  test(`chromium ${at}: every administration screen is exactly one page kind (UC-WRK-38 check 1)`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await open(browser, size);
@@ -457,6 +485,70 @@ for (const size of [DESKTOP, PHONE]) {
     }
     const height = await page.evaluate(() => document.documentElement.scrollHeight);
     assert.ok(height <= (size === PHONE ? 4 : 2) * size.height, `the section is ${height} px high`);
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: Connections and data's lists and logs narrow and count, nothing open on arrival (UC-WRK-37 checks 1-2)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    for (const [path, search] of [
+      ['/administration/webhooks', 'Search webhooks'],
+      ['/administration/privacy', 'Search by person'],
+      ['/administration/audit', 'Search what, who or about'],
+      ['/administration/changes', 'Search versions and proposals'],
+      ['/administration/private-hubs', 'Search by owner'],
+      ['/administration/quotas', 'Search limits'],
+    ]) {
+      await visit(page, path);
+      const main = page.getByRole('main');
+      // Check 1: the search, and the filters - behind *Filters* on a phone.
+      await main.getByRole('searchbox', { name: search }).waitFor({ timeout: 15_000 });
+      if (size === PHONE) assert.ok(await main.getByRole('button', { name: /^Filters/ }).count() <= 1);
+      // Check 2: no field but the search is open on arrival.
+      const fields = await main.locator('input:not([type="search"]):not([role="switch"]), select, textarea, form').evaluateAll((nodes) => nodes.filter((node) => node.getClientRects().length > 0).length);
+      assert.equal(fields, 0, `${path} opens a field on arrival`);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.equal(overflow, 0, `${path} scrolls sideways`);
+    }
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: Connections and data's create and export acts open a dialog of their size (UC-WRK-38 checks 2-3)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    for (const [path, act, title, wanted] of [
+      ['/administration/webhooks', 'Add a webhook', 'Webhooks', 'm'],
+      ['/administration/privacy', 'Record a request', 'Privacy requests', 'm'],
+      ['/administration/audit', 'Export…', 'Audit log', 'm'],
+    ]) {
+      await visit(page, path);
+      await page.getByRole('main').getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+      await page.waitForTimeout(300);
+      await pressHead(page, act, title);
+      await assertLadder(page, size, wanted);
+      await page.keyboard.press('Escape');
+      await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
+    }
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: Connections and data's settings pages list their sections in the first viewport (UC-WRK-36 check 1)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    for (const path of ['/administration/mail', '/administration/voice', '/administration/backup', '/administration/retention', '/administration/ai']) {
+      await visit(page, path);
+      const nav = page.locator('nav.section-nav');
+      await nav.getByRole('link').first().waitFor({ timeout: 15_000 });
+      const links = await nav.getByRole('link').evaluateAll((nodes) => nodes.map((node) => ({ text: node.textContent?.trim() ?? '', bottom: node.getBoundingClientRect().bottom })));
+      assert.ok(links.length >= 2, `${path}: ${links.length} sections listed`);
+      for (const link of links) assert.ok(link.bottom <= size.height, `${path}: ${link.text} is below the first viewport`);
+    }
     assert.deepEqual(failures, []);
   });
 }
