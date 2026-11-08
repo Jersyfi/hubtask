@@ -477,8 +477,8 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, a name kept
   from when the web app had a settings shell of that name; its `data-page-kind` is `settings`.
   `WorkPage` (`data-page-kind="work"`) is the work surface's frame (page-system §7.8): the head
-  or a head of the screen's own, the place's `PlaceTabs`, one toolbar whose segmented control
-  chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11).
+  or a head of the screen's own, the object's `ViewBar` (the navigation concept §3), one toolbar
+  whose segmented control chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11).
   `DetailPage` (`data-page-kind="detail"`) is one object read and edited in place, as the entry
   screen is built (§11.8): its head, then the details column and the main column - the details
   first in the document, under the head below `expanded`, beside the main column at the inline end
