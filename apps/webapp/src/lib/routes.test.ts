@@ -127,7 +127,8 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // installation's own rows, the other a count per key that names no workspace at all. *Usage* is
   // counts per workspace and day, the metering read `hubctl admin usage` already has. *Templates*
   // and *Configuration file* are the installation's own level too: its presets and its settings
-  // as the document, neither reading into a workspace.
+  // as the document, neither reading into a workspace. A workspace's record page and the page that
+  // creates one show the same `tenant` row the list shows (page-system §9.4).
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
     'instance',
@@ -142,9 +143,12 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
     'instance-platform',
     'instance-providers',
     'instance-settings',
+    'instance-settings-section',
     'instance-targets',
     'instance-templates',
     'instance-usage',
+    'instance-workspace',
+    'instance-workspace-new',
     'instance-workspaces',
   ]);
 });

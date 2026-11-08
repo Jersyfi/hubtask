@@ -539,15 +539,15 @@ export const INSTANCE: readonly SectionGroup[] = [
     code: 'app.instance.group_installation',
     rows: [
       { id: 'overview', icon: 'gauge', code: 'app.instance.overview', path: '/instance', routes: ['instance'] },
-      { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
+      { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces', 'instance-workspace', 'instance-workspace-new'] },
       // Each workspace's people, entries and stored bytes, once metering is on (§8.4).
       { id: 'usage', icon: 'gauge', code: 'app.instance.usage', path: '/instance/usage', routes: ['instance-usage'] },
       { id: 'plans', icon: 'sliders-horizontal', code: 'app.instance.plans', path: '/instance/plans', routes: ['instance-plans', 'instance-plan'] },
-      { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
+      { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings', 'instance-settings-section'] },
       // The workspace's anatomy at this level (user-experience.md §8.4): its templates, its
       // module switches - the settings' *Modules* area - and the file in force.
       { id: 'templates', icon: 'layout-template', code: 'app.instance.templates', path: '/instance/templates', routes: ['instance-templates'] },
-      { id: 'modules', icon: 'shapes', code: 'app.instance.modules', path: '/instance/settings?tab=module', routes: [] },
+      { id: 'modules', icon: 'shapes', code: 'app.instance.modules', path: '/instance/settings/module', routes: [] },
       { id: 'file', icon: 'code', code: 'app.instance.file', path: '/instance/configuration-file', routes: ['instance-file'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
       { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },

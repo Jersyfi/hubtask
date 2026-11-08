@@ -105,6 +105,7 @@
 </script>
 
 <Dialog
+  size="m"
   title={chosen === ''
     ? t('app.instance.move_choose_title', { name: tenant?.display_name ?? '' })
     : t('app.instance.move_title', { name: tenant?.display_name ?? '', plan: targetName })}

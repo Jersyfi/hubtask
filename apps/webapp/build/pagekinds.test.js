@@ -37,7 +37,7 @@ const NOT_YET_MIGRATED = [
   'ApprovalsView', 'ArchiveView', 'AssetsView', 'CalendarPushesView',
   'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
   'DevicesView', 'FileStoresView', 'GoalView', 'GoalsView', 'GrantsView',
-  'HubDeskView', 'InstallationView', 'InstanceAiView', 'InstanceOperatorsView', 'InstancePlanView', 'InstancePlansView', 'InstancePlatformView', 'InstanceProvidersView', 'InstanceSettingsView', 'InstanceTargetsView', 'InstanceTemplatesView', 'InstanceWorkspacesView', 'InstanceEncryptionView', 'ItemView', 'JumbleView',
+  'HubDeskView', 'InstallationView', 'InstanceAiView', 'InstanceOperatorsView', 'InstancePlanView', 'InstancePlansView', 'InstancePlatformView', 'InstanceProvidersView', 'InstanceSettingsView', 'InstanceTargetsView', 'InstanceTemplatesView', 'InstanceEncryptionView', 'ItemView', 'JumbleView',
   'MyTokensView', 'NotesView', 'NotificationsView',
   'OidcCallbackView', 'PagesView', 'PlanView', 'PortalArticleView',
   'PortalRequestView', 'PortalView', 'PortfolioView',
