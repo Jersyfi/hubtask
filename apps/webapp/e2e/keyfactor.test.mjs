@@ -278,7 +278,7 @@ test('chromium: the step-up prompt proves the caller with a security key', async
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await attachKey(context, page);
-  await page.goto(`${origin}/profile/security`);
+  await page.goto(`${origin}/profile/security/passkeys`);
   const panel = page.getByTestId('passkeys');
   await panel.getByRole('listitem').filter({ hasText: 'Old laptop' }).getByRole('button', { name: 'Remove' }).click();
   const dialog = page.getByRole('dialog');

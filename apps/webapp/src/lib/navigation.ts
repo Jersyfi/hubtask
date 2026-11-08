@@ -494,7 +494,7 @@ export const SETTINGS: readonly SectionGroup[] = [
       // Three things rather than one: the password, the second factor and the recovery codes. A row
       // called after the second of them sends a reader looking for "where do I change my password"
       // to every other screen first.
-      { id: 'security', icon: 'shield', code: 'app.security.title', path: '/profile/security', routes: ['security'] },
+      { id: 'security', icon: 'shield', code: 'app.security.title', path: '/profile/security', routes: ['security', 'security-section', 'second-factor-new'] },
       { id: 'sessions', icon: 'user-check', code: 'app.you.row_sessions', titleCode: 'app.sessions.title', path: '/profile/sessions', routes: ['sessions'] },
       { id: 'devices', icon: 'arrow-right-left', code: 'app.you.row_devices', titleCode: 'app.devices.title', path: '/profile/devices', routes: ['devices'] },
     ],

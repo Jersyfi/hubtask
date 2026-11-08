@@ -375,7 +375,7 @@ test('chromium: 1280 px — the profile does not offer to turn off a factor the 
       sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
     });
     const page = await context.newPage();
-    await page.goto(`${served.origin}/profile/security`);
+    await page.goto(`${served.origin}/profile/security/second-factor`);
     await page.getByText('Left: 8 of 10.').waitFor();
     const offered = await page.getByText('Turn the second factor off').count();
     const said = await page.getByText('Your workspace requires a second factor', { exact: false }).count();
@@ -451,7 +451,7 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
 
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor/new`);
   await walkSetup(page, sent, {
     // design-system.md's narrowest width: the secret and the code field fit it, and nothing - the
     // bottom bar included - is pushed past it.
@@ -496,12 +496,16 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   await page.getByText('Left: 4 of 10.').waitFor();
 
-  assert.equal(await page.getByRole('button', { name: 'Change the password' }).count(), 0, 'a password change is offered to an account without one');
+  // The *Password* section says why there is nothing to change, and offers no change.
+  await page.goto(`${served.origin}/profile/security/password`);
+  await page.getByText('signs in through a provider', { exact: false }).first().waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Change password…' }).count(), 0, 'a password change is offered to an account without one');
   assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0, 'a password is asked for on the profile');
-  assert.ok(await page.getByText('signs in through a provider', { exact: false }).first().isVisible(), 'the profile does not say why');
+  await page.goto(`${served.origin}/profile/security/second-factor`);
+  await page.getByText('Left: 4 of 10.').waitFor();
 
   await page.getByRole('button', { name: 'Make new codes' }).click();
   const dialog = page.getByRole('dialog');
@@ -549,7 +553,7 @@ test('chromium: 1280 px — a provider-only member turns the factor off with a c
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   await page.getByText('Left: 6 of 10.').waitFor();
 
   await page.getByText('Turn the second factor off').click();
@@ -617,7 +621,9 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  // The change is a Dialog M from the *Password* section (page-system §9.5).
+  await page.goto(`${served.origin}/profile/security/password`);
+  await page.getByRole('button', { name: 'Change password…' }).click();
   const field = page.getByLabel(/^New password/);
   await field.waitFor();
 
@@ -636,7 +642,7 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
   });
 
   await page.getByRole('button', { name: 'Change the password' }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog').filter({ has: page.getByLabel('Your password') });
   await dialog.waitFor();
   await dialog.getByLabel('Your password').fill('the old one');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
@@ -688,7 +694,7 @@ test('chromium: 1280 px — under a requiring rule the authenticator is replaced
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   await page.getByText('Left: 7 of 10.').waitFor();
 
   assert.equal(await page.getByText('Turn the second factor off').count(), 0, 'turning off is offered under a requiring rule');
@@ -1032,7 +1038,7 @@ test('chromium: 1280 px — the security page says in words that no recovery cod
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   const none = page.getByText('None left. Make new ones before your authenticator is out of reach.');
   await none.waitFor();
   assert.equal(await page.getByText(/^Left: \d+ of 10\.$/).count(), 0, 'zero is not drawn as a count');

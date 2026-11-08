@@ -60,7 +60,7 @@ test('every settings row opens its screen at its own row, said with the screen i
   assert.equal(language?.label, 'app.profile.language');
   assert.equal(language?.context, 'app.profile.title');
   assert.deepEqual(offers.find((offer) => offer.id === 'theme')?.target, { kind: 'setting', path: '/profile/appearance', row: 'theme' });
-  assert.deepEqual(offers.find((offer) => offer.id === 'password')?.target, { kind: 'setting', path: '/profile/security', row: 'password' });
+  assert.deepEqual(offers.find((offer) => offer.id === 'password')?.target, { kind: 'setting', path: '/profile/security/password', row: 'password' });
   for (const offer of offers) assert.equal(offer.kind, 'setting');
 });
 

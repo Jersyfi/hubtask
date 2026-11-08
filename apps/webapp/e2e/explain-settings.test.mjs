@@ -121,7 +121,7 @@ for (const width of [375, 768, 1280]) {
       options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
     });
     // At `localhost`: an address is no relying party, so the add form is drawn only there.
-    await page.goto(`${served.origin.replace('127.0.0.1', 'localhost')}/profile/security`);
+    await page.goto(`${served.origin.replace('127.0.0.1', 'localhost')}/profile/security/passkeys`);
     const name = page.getByTestId('passkeys').getByRole('textbox', { name: /^Name/ });
     await name.waitFor({ timeout: 15_000 });
     await name.fill('');

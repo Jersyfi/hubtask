@@ -347,7 +347,7 @@ test('chromium: by keyboard alone, a setting opens its screen with focus on its 
     { locale: 'de', words: 'Sprache', row: 'Sprache', setting: 'language', path: /\/profile$/ },
     // Found by a word the row does not say: "Design" means *Hell oder dunkel*.
     { locale: 'de', words: 'Design', row: 'Hell oder dunkel', setting: 'theme', path: /\/profile\/appearance$/ },
-    { locale: 'en', words: 'password', row: 'Password', setting: 'password', path: /\/profile\/security$/ },
+    { locale: 'en', words: 'password', row: 'Password', setting: 'password', path: /\/profile\/security\/password$/ },
   ];
   for (const walk of walks) {
     const { context, page, failures } = await as(browser, 'MEMBER', { locale: walk.locale });

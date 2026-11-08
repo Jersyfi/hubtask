@@ -35,18 +35,22 @@
   //
   // **Passkeys and security keys are the account's own devices** (identity.md §23, UC-ID-22), a panel
   // of their own beside the password: `PasskeyPanel` lists them and adds one where adding would work.
+  //
+  // A settings page (page-system §9.5): *Password*, *Passkeys*, *Second factor* and *Other ways in*
+  // each at its own address. Changing the password is a Dialog M; setting up the authenticator app
+  // is a create page of its own with its steps (`SecondFactorView`).
 
   import { untrack } from 'svelte';
 
   import { canCopy } from '@hubtask/design-system/components';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import { Button, EmptyState, OneTimeSecret, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, EmptyState, OneTimeSecret, SettingRow, SettingsLayout, SettingsSection, Stack, type SectionLink } from '@hubtask/design-system/components';
 
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
   import AuthenticatorReplacement from '../lib/frame/AuthenticatorReplacement.svelte';
   import PasskeyPanel from '../lib/frame/PasskeyPanel.svelte';
-  import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import PasswordField from '../lib/signin/PasswordField.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -60,6 +64,20 @@
   import { isStale } from '../lib/data/passkeys.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+
+  interface Props {
+    /** The section the address names (`/profile/security/:section`); none is the list. */
+    section?: string;
+    /** Opens another address, entering it into the history. */
+    onnavigate?: (path: string) => void;
+    /** Moves between the sections, replacing the address. */
+    onreplace?: (path: string) => void;
+  }
+  const { section, onnavigate, onreplace }: Props = $props();
+
+  const BASE = '/profile/security';
+  const title = $derived(profileTitle('security'));
+  $effect(() => page.entitle(title));
 
   const account = $derived(actor.account);
 
@@ -78,10 +96,7 @@
     return list !== undefined && list.passkeys.some((each) => !isStale(each, list));
   });
 
-  // The setup on this screen confirmed its code: the factor is on although the ten codes are still
-  // on screen and the account has not been read again, so the panel's state line says so already.
-  let confirmedHere = $state(false);
-  const isOn = $derived(armed || confirmedHere);
+  const isOn = $derived(armed === true);
 
   // How many recovery codes are left. Answered only where a factor stands, so it needs no defence
   // of its own: the section that reads it is drawn only then.
@@ -113,14 +128,36 @@
     toast.show({ text, tone: 'success' });
   }
 
+  let isChanging = $state(false);
+  let passwordForm = $state<HTMLFormElement | undefined>(undefined);
+
   async function changePassword(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const candidate = newPassword;
     newPassword = '';
     if (await passwordApi.change(candidate)) {
+      isChanging = false;
       confirm(t('app.password.changed'));
     }
   }
+
+  const sections = $derived([
+    { id: 'password', code: 'app.password.change_title' },
+    { id: 'passkeys', code: 'app.passkeys.title' },
+    { id: 'second-factor', code: 'app.mfa.title' },
+    ...(showsProviders ? [{ id: 'providers', code: 'app.identities.title' }] : []),
+  ]);
+  const isKnown = (id: string | undefined) => sections.some((each) => each.id === id);
+  const current = $derived(isKnown(section) ? (section as string) : 'password');
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
+  const links = $derived<SectionLink[]>(
+    sections.map((each) => ({
+      id: each.id,
+      label: t(each.code),
+      href: `${BASE}/${each.id}`,
+      status: each.id === 'second-factor' ? (isOn ? t('app.mfa.state_on') : t('app.mfa.state_off')) : undefined,
+    })),
+  );
 
   async function newCodes(): Promise<void> {
     if (await mfa.regenerate()) {
@@ -128,14 +165,6 @@
       // The count moved. Nothing pushes it, so it is read again rather than guessed at.
       await actor.reread();
     }
-  }
-
-  async function armedFactor(): Promise<void> {
-    confirm(t('app.mfa.armed'));
-    // The confirmation invalidated nothing (mfa.svelte.ts), so both answers that just moved are
-    // read again: the account's, and whether the last passkey may now go.
-    await Promise.all([actor.reread(), passkeys.reread()]);
-    confirmedHere = false;
   }
 
   async function replaced(): Promise<void> {
@@ -154,56 +183,36 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="security" />
-
-    <div class="panel" data-setting="password">
-      <Stack gap="150">
-        <h2>{t('app.password.change_title')}</h2>
-        {#if !actor.hasPassword}
-          <!-- An account that signs in only through a provider: there is no password to change,
-               and offering to would be offering a control the server cannot honour (UC-ID-05
-               check 5). -->
-          <EmptyState kind="unused" title={t('app.password.none')} />
-        {:else}
-        <p class="quiet">{t('app.password.change_body')}</p>
-        {#if passwordApi.problem}
-          <FailureNote problem={passwordApi.problem}>
-            {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
-          </FailureNote>
-        {/if}
-        <form onsubmit={changePassword}>
-          <Stack gap="150">
-            <PasswordField
-              bind:value={newPassword}
-              label={t('app.password.new_label')}
-              context={{ email: account.email ?? undefined, displayName: account.display_name }}
-              proof={{ kind: 'bearer' }}
-              hint={t('app.redeem.password_hint')}
-            />
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={passwordApi.isWorking}
-                busyLabel={t('app.password.changing')}
-              >
-                {t('app.password.change_submit')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-        {/if}
-      </Stack>
-    </div>
-
-    <PasskeyPanel />
-
-    {#if showsProviders}
-      <div class="panel" data-testid="sign-in-providers">
-        <Stack gap="150">
-          <h2>{t('app.identities.title')}</h2>
-          <p class="quiet">{t('app.identities.body')}</p>
+  <SettingsLayout
+    head={profileHead('security')}
+    nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current, onselect: (next: string) => onreplace?.(`${BASE}/${next}`) }}
+    {view}
+    back={{ label: title, onback: () => onreplace?.(BASE) }}
+  >
+    {#if current === 'password'}
+      <div data-setting="password">
+        <SettingsSection title={t('app.password.change_title')} description={actor.hasPassword ? t('app.password.change_body') : undefined}>
+          {#if !actor.hasPassword}
+            <!-- An account that signs in only through a provider: there is no password to change,
+                 and offering to would be offering a control the server cannot honour (UC-ID-05
+                 check 5). -->
+            <EmptyState kind="unused" title={t('app.password.none')} />
+          {:else}
+            <SettingRow label={t('app.password.row')} help={t('app.password.row_help')}>
+              {#snippet control()}
+                <Button tone="secondary" data-opener="change-password" onclick={() => (isChanging = true)}>{t('app.password.change_open')}</Button>
+              {/snippet}
+            </SettingRow>
+          {/if}
+        </SettingsSection>
+      </div>
+    {:else if current === 'passkeys'}
+      <PasskeyPanel />
+    {:else if current === 'providers' && showsProviders}
+      <div data-testid="sign-in-providers">
+        <SettingsSection title={t('app.identities.title')} description={t('app.identities.body')}>
+          <div class="pad">
+            <Stack gap="150">
           {#if identities.failure}
             <FailureNote problem={identities.failure}>
               {#if identities.failure.reference}{identities.failure.reference}{/if}
@@ -233,19 +242,18 @@
               </Button>
             </div>
           {/each}
-        </Stack>
+            </Stack>
+          </div>
+        </SettingsSection>
       </div>
-    {/if}
-
-    <!-- The factor and the codes under one heading, because the codes back the factor: they come
-         with the first one, they stop working when the last one goes, and a panel of their own
-         suggested otherwise. The codes hang off any factor - the app or a passkey - and the app's
-         own controls off the app alone. -->
-    <div class="panel" data-setting="second-factor">
-      <Stack gap="150">
-        <h2>{t('app.mfa.title')}</h2>
-        <p class="quiet">{isOn ? t('app.mfa.on') : factor ? t('app.mfa.off_beside_key') : t('app.mfa.off')}</p>
-
+    {:else}
+      <!-- The factor and the codes under one heading, because the codes back the factor: they come
+           with the first one, they stop working when the last one goes. The codes hang off any
+           factor - the app or a passkey - and the app's own controls off the app alone. -->
+      <div data-setting="second-factor">
+        <SettingsSection title={t('app.mfa.title')} description={isOn ? t('app.mfa.on') : factor ? t('app.mfa.off_beside_key') : t('app.mfa.off')}>
+          <div class="pad">
+            <Stack gap="200">
         {#if factor}
           <div class="section">
             <Stack gap="150">
@@ -327,47 +335,69 @@
             {/if}
           </div>
         {:else}
-          <TotpEnrollment onconfirmed={() => (confirmedHere = true)} onarmed={() => void armedFactor()} />
-          <!-- Said where the codes would be, so that the question "where are my recovery codes"
-               has an answer on the screen rather than a button that refuses - until the setup
-               confirmed, when the codes are the panel above it. -->
-          {#if !confirmedHere && !factor}<p class="quiet">{t('app.recovery.none_yet')}</p>{/if}
+          <SettingRow label={t('app.mfa.app_row')} help={t('app.mfa.intro')}>
+            {#snippet control()}
+              <Button tone="secondary" onclick={() => onnavigate?.(`${BASE}/second-factor/new`)}>{t('app.mfa.set_up')}</Button>
+            {/snippet}
+          </SettingRow>
+          <!-- Said where the codes would be, so that "where are my recovery codes" has an answer on
+               the screen rather than a button that refuses. -->
+          {#if !factor}<p class="quiet">{t('app.recovery.none_yet')}</p>{/if}
         {/if}
-      </Stack>
-    </div>
-  </Stack>
+            </Stack>
+          </div>
+        </SettingsSection>
+      </div>
+    {/if}
+  </SettingsLayout>
+
+  {#if actor.hasPassword}
+    <Dialog
+      size="m"
+      title={t('app.password.change_title')}
+      bind:isOpen={isChanging}
+      dismissLabel={t('app.password.cancel')}
+      onClose={() => (newPassword = '')}
+      primary={{ label: t('app.password.change_submit'), isBusy: passwordApi.isWorking, busyLabel: t('app.password.changing'), onclick: () => passwordForm?.requestSubmit() }}
+    >
+      <form bind:this={passwordForm} onsubmit={changePassword}>
+        <Stack gap="150">
+          <p class="quiet">{t('app.password.change_body')}</p>
+          {#if passwordApi.problem}
+            <FailureNote problem={passwordApi.problem}>
+              {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
+            </FailureNote>
+          {/if}
+          <PasswordField
+            bind:value={newPassword}
+            label={t('app.password.new_label')}
+            context={{ email: account.email ?? undefined, displayName: account.display_name }}
+            proof={{ kind: 'bearer' }}
+            hint={t('app.redeem.password_hint')}
+          />
+        </Stack>
+      </form>
+      {#snippet actions()}
+        <Button tone="subtle" onclick={() => (isChanging = false)}>{t('app.password.cancel')}</Button>
+      {/snippet}
+    </Dialog>
+  {/if}
 {/if}
 
 <style>
-  /* Each half stands on its own surface and keeps a measure: what is here is a form and prose,
-     and neither wants the width (ADR-0065 decision 2). */
-  .panel {
-    max-inline-size: 60ch;
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  /* Inside a section's region: its rows' own inset, and a rule rather than a second box between the
+     parts that belong together (page-system §4.2). */
+  .pad { padding: var(--sp-200) var(--sp-250); }
+  .pad :global(.setting-row) { margin: calc(var(--sp-200) * -1) calc(var(--sp-250) * -1) 0; }
 
-  /* A rule rather than a second box: these belong to the panel above them, and a nested surface
-     would say they are separate things. */
   .section {
     padding-block-start: var(--sp-150);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
 
-  form { margin: 0; max-inline-size: 52ch; }
+  form { margin: 0; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
 
   h3 {
     margin: 0;
@@ -375,6 +405,7 @@
     font-weight: var(--fw-semibold);
     line-height: var(--lh-tight);
   }
+
   .identities {
     margin: 0;
     padding-inline-start: var(--sp-300);

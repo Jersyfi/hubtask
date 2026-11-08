@@ -98,9 +98,9 @@ export const SETTING_ROWS: readonly SettingRow[] = [
   { id: 'theme', code: 'app.profile.theme', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_theme' },
   { id: 'motion', code: 'app.profile.motion', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_motion' },
   { id: 'open', code: 'app.profile.open', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_open' },
-  { id: 'password', code: 'app.password.change_title', path: '/profile/security', screen: 'app.security.title' },
-  { id: 'passkeys', code: 'app.passkeys.title', path: '/profile/security', screen: 'app.security.title' },
-  { id: 'second-factor', code: 'app.mfa.title', path: '/profile/security', screen: 'app.security.title', words: 'app.palette.words_second_factor' },
+  { id: 'password', code: 'app.password.change_title', path: '/profile/security/password', screen: 'app.security.title' },
+  { id: 'passkeys', code: 'app.passkeys.title', path: '/profile/security/passkeys', screen: 'app.security.title' },
+  { id: 'second-factor', code: 'app.mfa.title', path: '/profile/security/second-factor', screen: 'app.security.title', words: 'app.palette.words_second_factor' },
 ];
 
 /** What decides which settings rows are drawn: the notification categories, where mail can reach. */

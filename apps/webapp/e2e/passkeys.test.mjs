@@ -151,7 +151,7 @@ async function open(browser, { list = PASSKEYS, complete, account, onRemoved, af
       hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true,
     },
   });
-  await page.goto(`${origin}/profile/security`);
+  await page.goto(`${origin}/profile/security/passkeys`);
   await page.getByTestId('passkeys').waitFor();
   return { context, page, sent, failures };
 }
@@ -264,7 +264,7 @@ test('chromium: a challenge that ran out is refused with its sentence and the pe
   await dialog.getByLabel('Your password').fill('the one in force');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
   await panel.getByText('That attempt to add a passkey has run out', { exact: false }).waitFor();
-  assert.equal(new URL(page.url()).pathname, '/profile/security', 'the person was sent away');
+  assert.equal(new URL(page.url()).pathname, '/profile/security/passkeys', 'the person was sent away');
   assert.ok(await page.getByRole('navigation', { name: 'Your settings', exact: true }).isVisible(), 'the frame is gone - signed out');
   assert.deepEqual(failures, []);
 });
@@ -357,6 +357,8 @@ test('chromium: with a key alone, the recovery codes are counted and renewable, 
     },
   });
   t.after(() => context.close());
+  // The codes are the *Second factor* section's, a section of its own (page-system §9.5).
+  await page.getByRole('link', { name: /^Second factor/ }).click();
   await page.getByText('Off. Your passkey or security key is your second factor.').waitFor();
   await page.getByText('Left: 9 of 10.').waitFor();
   await page.getByRole('button', { name: 'Make new codes' }).waitFor();
@@ -386,10 +388,13 @@ test('chromium: beside a key the app may be turned off under a rule, and then th
   const panel = page.getByTestId('passkeys');
   await panel.getByRole('listitem').filter({ hasText: 'Laptop' }).getByRole('button', { name: 'Remove' }).waitFor();
 
+  await page.getByRole('link', { name: /^Second factor/ }).click();
   await page.getByText('Turn the second factor off').click();
   await page.getByText('Your recovery codes keep working beside your passkey', { exact: false }).waitFor();
   await page.getByRole('button', { name: 'Turn it off' }).click();
   await proveWithPassword(page);
+  await page.getByText('The second factor is off.', { exact: false }).first().waitFor();
+  await page.getByRole('link', { name: /^Passkeys/ }).click();
   await panel.getByText('this is the last one your account holds', { exact: false }).waitFor();
   assert.equal(await panel.getByRole('button', { name: 'Remove' }).count(), 0, 'the last key stayed removable');
   assert.deepEqual(sent.disables, [null, GRANT]);

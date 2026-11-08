@@ -94,7 +94,7 @@ test('chromium: a signed-in person connects another provider and finds it among 
   const { page, sent, close } = await open(browser, ACCOUNT);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/providers`);
   const panel = page.getByTestId('sign-in-providers');
   await panel.waitFor({ timeout: 15_000 });
   assert.match(await panel.innerText(), /Contoso Entra ID - connected/);
@@ -111,7 +111,7 @@ test('chromium: a signed-in person connects another provider and finds it among 
 
   // Back on the security settings, with the provider listed.
   await page.getByText('Google - connected').waitFor({ timeout: 15_000 });
-  assert.equal(new URL(page.url()).pathname, '/profile/security');
+  assert.equal(new URL(page.url()).pathname, '/profile/security/providers');
   assert.equal(new URL(page.url()).search, '', 'the code stayed in the address');
   assert.deepEqual(sent.proofs, [{ password: 'the one in force' }]);
   assert.deepEqual(sent.starts.map((each) => each.proof), [null, GRANT]);

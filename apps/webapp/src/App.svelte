@@ -76,6 +76,7 @@
     SearchView: () => import('./views/SearchView.svelte'),
     MyTokensView: () => import('./views/MyTokensView.svelte'),
     NewTokenView: () => import('./views/NewTokenView.svelte'),
+    SecondFactorView: () => import('./views/SecondFactorView.svelte'),
     TokenView: () => import('./views/TokenView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
@@ -419,8 +420,10 @@
     <LazyView load={views.AppearanceView} />
   {:else if route.name === 'notifications'}
     <LazyView load={views.NotificationsView} />
-  {:else if route.name === 'security'}
-    <LazyView load={views.SecurityView} />
+  {:else if route.name === 'security' || route.name === 'security-section'}
+    <LazyView load={views.SecurityView} props={{ section: route.params.section, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'second-factor-new'}
+    <LazyView load={views.SecondFactorView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'sessions'}
     <LazyView load={views.SessionsView} />
   {:else if route.name === 'devices'}

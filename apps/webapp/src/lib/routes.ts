@@ -63,6 +63,10 @@ export const ROUTES: readonly Route[] = [
   { name: 'appearance', pattern: '/profile/appearance', area: 'profile' },
   { name: 'notifications', pattern: '/profile/notifications', area: 'profile' },
   { name: 'security', pattern: '/profile/security', area: 'profile' },
+  // Password and sign-in's sections each at an address, and setting up the authenticator app a
+  // create page of its own (page-system §9.5).
+  { name: 'security-section', pattern: '/profile/security/:section', area: 'profile' },
+  { name: 'second-factor-new', pattern: '/profile/security/second-factor/new', area: 'profile' },
   { name: 'sessions', pattern: '/profile/sessions', area: 'profile' },
   { name: 'devices', pattern: '/profile/devices', area: 'profile' },
   { name: 'grants', pattern: '/profile/apps', area: 'profile' },

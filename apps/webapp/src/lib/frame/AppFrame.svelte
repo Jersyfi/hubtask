@@ -733,10 +733,10 @@
                   <!-- A link, because it goes somewhere: announced as one, and it opens in a new tab
                        for whoever asks it to. The click stays inside the application. -->
                   <a
-                    href="/profile/security"
+                    href="/profile/security/second-factor"
                     onclick={(event) => {
                       event.preventDefault();
-                      go('/profile/security');
+                      go('/profile/security/second-factor');
                     }}
                   >
                     {t('app.recovery_note.replace')}
