@@ -15,7 +15,6 @@
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import {
-    AvatarGroup,
     Button,
     DetailPane,
     Dialog,
@@ -51,6 +50,7 @@
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import PlacePeople from '../lib/workspace/PlacePeople.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
@@ -681,7 +681,6 @@
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
   let subscribing = $state<SavedView | undefined>(undefined);
-  let isManagingMembers = $state(false);
   /**
    * *Import…* is one of capture's ways of adding: the dialog opens on its tab with this place as
    * the place, so an import looks and is chosen like every other add (design-system.md §11.8).
@@ -889,11 +888,6 @@
   const memberPath = $derived(
     container?.type === 'HUB' ? { hubId: container.id } : { hubId: container?.parent_id ?? undefined, collectionId: container?.id },
   );
-  /** Who holds a role here, for the faces in the head: the same dialog the *People* tab draws. */
-  const memberIds = $derived([...new Set(people.along(containerPath).map((membership) => membership.account_id))]);
-  $effect(() => {
-    accounts.resolve(memberIds);
-  });
 
   /**
    * The page menu, in the three groups of design-system.md §11.8: act on the object, set it up,
@@ -1391,29 +1385,7 @@
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
   {/snippet}
-  {#snippet people()}
-    {#if memberIds.length === 0}
-      <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
-      <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
-    {:else}
-      <!-- Who holds a role here, as faces; pressing them opens the people, the same component
-           as *Structure → People*. The faces are decoration on the button: its name is the word. -->
-      <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
-        <span aria-hidden="true">
-          <AvatarGroup
-            people={memberIds.map((accountId) => ({
-              name: accounts.nameOf(accountId) ?? t('app.people.unnamed'),
-              src: accounts.pictureOf(accountId),
-            }))}
-            size="sm"
-            max={4}
-            overflowLabel={t('app.people.more_members', { count: String(Math.max(memberIds.length - 4, 0)) })}
-          />
-        </span>
-      </button>
-    {/if}
-    <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
-  {/snippet}
+  {#snippet people()}<PlacePeople placeId={container.id} />{/snippet}
   {#if container.type === 'COLLECTION'}
     <!-- The collection's one head, the same on each of its views (CollectionHead): the list, the
          board, the timeline layout and the saved views are this screen; ＋ saves a view; the
@@ -1447,8 +1419,7 @@
       onnavigate={(path) => onnavigate(keepingOpen(path))}
       figure={container.figure || hasAi || hasMilestone ? collectionFigure : undefined}
       primary={newMenu}
-      menu={headMenu}
-      aside={people}
+      place={{ items: pageMenu, onselect: choseFromMenu }}
       add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
       tools={barTools}
       {compactTools}
@@ -1723,7 +1694,6 @@
 {#if container}
   <!-- The path is the container's own: a collection composes the workspace, its hub and itself,
        and a hub composes the workspace and itself. -->
-  <MembersDialog bind:isOpen={isManagingMembers} title={t('app.people.title')} scope={memberScope} path={memberPath} />
 {/if}
 
 {#if isTrashing && container}
@@ -1808,23 +1778,6 @@
     border-radius: var(--r-md);
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
-  }
-
-  .members {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--sp-025);
-    border: 0;
-    border-radius: var(--r-full);
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .members:hover { background: var(--bg-surface-hover); }
-
-  .members:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
   }
 
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }

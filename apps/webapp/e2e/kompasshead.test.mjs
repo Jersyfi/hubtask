@@ -38,7 +38,7 @@ test('R-11: every view of a collection draws one head - its name, its star, one 
     const seen = [];
     for (const view of VIEWS) {
       await page.goto(new URL(`/collections/${MOBILE.id}${view}`, page.url()).href);
-      const head = page.locator('main [data-collection-head]');
+      const head = page.locator('main [data-head="collection"]');
       await head.getByRole('heading', { level: 1, name: MOBILE.name }).waitFor();
       const bar = size === phone ? page.locator('main .views') : page.getByRole('navigation', { name: MOBILE.name });
       await bar.waitFor();
@@ -69,12 +69,33 @@ test('R-11: the sprint\'s days stand in the figure\'s place, the collection\'s c
   t.after(() => browser.close());
   const { page, close } = await go(browser, { path: `/collections/${MOBILE.id}/sprint`, ...desktop });
   t.after(close);
-  const figure = page.locator('main [data-collection-head] .head-figure');
+  const figure = page.locator('main [data-head="collection"] .head-figure');
   await figure.locator('[data-sprint-figure]').waitFor();
   assert.match(await figure.innerText(), /days left/);
   await page.goto(new URL(`/collections/${MOBILE.id}/time`, page.url()).href);
-  await page.locator('main [data-collection-head]').getByRole('heading', { level: 1, name: MOBILE.name }).waitFor();
+  await page.locator('main [data-head="collection"]').getByRole('heading', { level: 1, name: MOBILE.name }).waitFor();
   assert.match(await figure.innerText(), /12 open/);
+});
+
+test('A collection\'s people and its ⋯ stand in its head on every view, the ⋯ with the collection\'s own items', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const [name, size] of [['desktop', desktop], ['tablet', tablet]]) {
+    const { page, failures, close } = await go(browser, { path: `/collections/${MOBILE.id}`, ...size });
+    t.after(close);
+    for (const view of VIEWS) {
+      await page.goto(new URL(`/collections/${MOBILE.id}${view}`, page.url()).href);
+      const head = page.locator('main [data-head="collection"]');
+      await head.getByRole('heading', { level: 1, name: MOBILE.name }).waitFor();
+      await head.getByRole('button', { name: 'People' }).waitFor();
+      const menu = head.getByRole('button', { name: `Actions for ${MOBILE.name}` });
+      assert.equal(await menu.count(), 1, `${name}: ${view} carries the collection's ⋯`);
+      await menu.click();
+      await page.getByRole('menuitem', { name: 'Settings…' }).waitFor();
+      await page.keyboard.press('Escape');
+    }
+    assert.deepEqual(failures, []);
+  }
 });
 
 /** The bar's views and its tools, side by side and not over each other. */

@@ -51,8 +51,7 @@
   import ReplicaMark from './ReplicaMark.svelte';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { DEFAULT_TILE, chosenSymbol, markOf } from '../workspace/look.ts';
-  import { placeMenu } from '../workspace/placeMenu.ts';
-  import { ownsHub, privacyAction } from '../workspace/privacy.ts';
+  import { placeActions } from '../workspace/placeActions.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -60,7 +59,6 @@
   import { myApprovalsPath } from '../data/approvals.svelte.ts';
   import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { archivalOf } from '../data/containers.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { entryTypesOffered } from '../data/entrytypes.ts';
@@ -86,7 +84,6 @@
   import { stars } from '../data/stars.svelte.ts';
   import { isStarred } from '../data/stars.ts';
   import { boardsPath } from '../data/whiteboards.svelte.ts';
-  import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import {
     COLLECTIONS_FILTER_FROM,
@@ -124,7 +121,6 @@
   import { device } from '../device.svelte.ts';
   import { contentsStep, hubStep, queuesStep, type PhoneStep } from '../phone.ts';
   import { page } from './page.svelte.ts';
-  import { commands } from '../palette/commands.svelte.ts';
   import { actsAsDesk } from '../portal/portal.ts';
   import { platform } from '../platform/index.ts';
   import { needsConnection, renderProblem } from '../problem.ts';
@@ -533,46 +529,16 @@
   const roleIn = (id: string) => people.roleOf({ hubId: id }, actor.account?.id, roleOrder()) ?? undefined;
   const mayRankIn = (id: string) => holds(roleIn(id), 'STRUCTURE').status === 'permitted';
 
-  /** A hub's or collection's ⋯, the page menu's items (`placeMenu`), run by the page itself. */
+  /** A hub's or collection's ⋯, the page menu's items (`placeActions`), run by the page itself. */
   function placeMenuOf(id: string, options: { readonly offersPosition?: boolean } = {}): RowAction | undefined {
     const container = containers.find(id);
     if (!container || isRail) return undefined;
-    const at = container.type === 'HUB' ? container.id : container.parent_id;
-    if (!at) return undefined;
-    const path = container.type === 'HUB' ? { hubId: at } : { hubId: at, collectionId: container.id };
-    const role = people.roleOf(path, actor.account?.id, roleOrder()) ?? undefined;
-    const workspaceRole = people.along({}).find((each) => each.account_id === actor.account?.id && each.scope_type === 'TENANT')?.role;
-    const items = placeMenu(
-      {
-        type: container.type === 'HUB' ? 'HUB' : 'COLLECTION',
-        mayShape: holds(role, 'STRUCTURE').status === 'permitted',
-        mayDelete: holds(role, 'DELETE_CONTAINER').status === 'permitted',
-        archival: archivalOf(container),
-        offersPosition: options.offersPosition,
-        privacy:
-          container.type === 'HUB'
-            ? privacyAction({
-                isPrivate: container.private === true,
-                ownsHub: ownsHub(people.along(path), actor.account?.id, container.id),
-                mayCreateHubs: holds(workspaceRole as string | undefined, 'STRUCTURE').status === 'permitted',
-                isOffered: workspace.workspace?.private_hubs_offered === true,
-              })
-            : undefined,
-      },
-      (code) => t(code),
-    );
-    if (items.length === 0) return undefined;
-    return {
-      label: t('app.nav.row_actions', { name: container.name }),
-      items,
-      onselect: (act) => {
-        const place = container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}`;
-        if (act === 'settings') return onnavigate(`${place}/settings`);
-        if (act === 'move' && container.type === 'COLLECTION') return void (movingCollection = container);
-        if (act) commands.intend({ containerId: container.id, act });
-        onnavigate(place);
-      },
-    };
+    const actions = placeActions(id, {
+      offersPosition: options.offersPosition,
+      onnavigate,
+      onmove: (collectionId) => (movingCollection = containers.find(collectionId)),
+    });
+    return actions ? { label: t('app.nav.row_actions', { name: container.name }), items: [...actions.items], onselect: (act) => actions.onselect(act ?? '') } : undefined;
   }
 
   /**

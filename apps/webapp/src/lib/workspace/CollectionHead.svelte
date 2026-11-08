@@ -2,24 +2,21 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The one head of a collection's views (the navigation concept §3, the mockup's `coll`; the
-  // owner's review R-11): the trail, the collection's name, its ☆ - the collection's star; a
-  // saved view is starred from the sidebar - and one figure slot, then the view bar at one
-  // offset. Every view draws this head and only its figure and its verbs differ, so switching
-  // views moves neither the title nor the bar. A view's figure stands where the collection's
-  // would, on a line of its own under the title that keeps its height empty; without one, the
-  // collection's own (*12 open*). Notices come after the bar, so they never move it.
-  //
-  // Placed before the screen's body, not inside a `Stack`: the bar sticks under the app bar while
-  // the page scrolls, which a box around it would end at the head.
+  // owner's review R-11): the collection's name, its ☆ - the collection's star; a saved view is
+  // starred from the sidebar -, the people's faces and the collection's ⋯ on every view, and one
+  // figure slot: a view's own figure - a sprint's days left - where the collection's (*12 open*)
+  // would stand. Every view draws this head and only its figure and its verbs differ; a view's
+  // own items come first in the ⋯.
   import type { Snippet } from 'svelte';
-  import { PageHeader, type MenuItem, type PageAction } from '@hubtask/design-system/components';
+  import type { MenuItem, PageAction } from '@hubtask/design-system/components';
 
   import CollectionFigure from '../entries/CollectionFigure.svelte';
   import { containers } from '../data/containers.svelte.ts';
-  import { page } from '../frame/page.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { placeMark } from './PlaceMark.svelte';
+  import { placeActions, type PlaceActions } from './placeActions.ts';
+  import PlaceHead from './PlaceHead.svelte';
+  import PlacePeople from './PlacePeople.svelte';
   import PlaceViews from './PlaceViews.svelte';
   import StarToggle from './StarToggle.svelte';
 
@@ -32,9 +29,13 @@
     figure?: Snippet;
     primary?: PageAction;
     secondary?: readonly [] | readonly [PageAction] | readonly [PageAction, PageAction];
-    menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string };
-    /** Who is in the collection, beside the actions. */
-    aside?: Snippet;
+    /** The view's own items, before the collection's in the head's ⋯. */
+    menu?: { label?: string; items: readonly MenuItem[]; onselect: (id: string) => void };
+    /**
+     * The collection's own items, where the screen runs them itself (the collection's own
+     * screen); elsewhere they are the place's (`placeActions`) and run where they belong.
+     */
+    place?: PlaceActions;
     /** ＋ at the bar's end, and the tools there from `medium` up. */
     add?: { readonly label: string; readonly onselect: () => void };
     tools?: Snippet;
@@ -44,7 +45,7 @@
     notices?: Snippet;
   }
 
-  const { collectionId, current, onnavigate, figure, primary, secondary, menu, aside, add, tools, compactTools, notices }: Props = $props();
+  const { collectionId, current, onnavigate, figure: viewFigure, primary, secondary, menu, place, add, tools, compactTools, notices }: Props = $props();
 
   const collection = $derived(containers.find(collectionId));
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
@@ -52,76 +53,53 @@
     ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
     ...(collection ? [{ id: collection.id, label: collection.name }] : []),
   ]);
+
+  const own = $derived(place ?? placeActions(collectionId, { onnavigate }));
+  /** The view's items, then the collection's under a line - their ids kept apart by a prefix. */
+  const headMenu = $derived.by(() => {
+    const viewItems = menu?.items ?? [];
+    const placeItems = (own?.items ?? []).map((item, index) => ({
+      ...item,
+      id: `place:${item.id}`,
+      hasSeparatorBefore: item.hasSeparatorBefore || (index === 0 && viewItems.length > 0),
+    }));
+    if (!collection || viewItems.length + placeItems.length === 0) return undefined;
+    return {
+      label: t('app.workspace.actions', { name: collection.name }),
+      items: [...viewItems, ...placeItems],
+      onselect: (id: string) => (id.startsWith('place:') ? own?.onselect(id.slice('place:'.length)) : menu?.onselect(id)),
+      opener: 'container-menu',
+    };
+  });
 </script>
 
-{#snippet figureSlot()}
-  {#if figure}{@render figure()}{:else if collection?.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
-{/snippet}
-
 {#if collection}
-  <div class="head" data-collection-head>
-    <PageHeader
-      title={collection.name}
-      subtitle={collection.description ?? undefined}
-      isTitleInBar={viewport.isCompact}
-      isMenuInBar={viewport.isCompact}
-      onmenu={(offered) => page.offer(offered)}
-      breadcrumb={{
-        trail,
-        mark: placeMark,
-        label: t('app.workspace.trail'),
-        expandLabel: t('app.workspace.expand_trail'),
-        onnavigate: (crumbId) => {
-          const crumb = containers.find(crumbId);
-          if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
-        },
-      }}
-      {primary}
-      {secondary}
-      {menu}
-      {aside}
-      figure={figureSlot}
-      isFigureBelow
-    >
-      {#snippet titleEnd()}
-        <StarToggle kind="COLLECTION" id={collection.id} name={collection.name} />
-      {/snippet}
-    </PageHeader>
-  </div>
-  <!-- `data-tour`: where the tour points for "the same entries, two ways". On a phone the chip and
-       the tools stand on one line, as the concept's phone draws them. -->
-  <div class="views" data-tour="layouts" data-compact={viewport.isCompact ? '' : undefined}
-    role={viewport.isCompact && compactTools ? 'toolbar' : undefined} aria-label={viewport.isCompact && compactTools ? t('app.toolbar.entries') : undefined}>
-    <PlaceViews placeId={collection.id} {current} {onnavigate} {add} tools={viewport.isCompact ? undefined : tools} />
-    {#if viewport.isCompact && compactTools}<div class="compact-tools">{@render compactTools()}</div>{/if}
-  </div>
-  {#if notices}<div class="notices">{@render notices()}</div>{/if}
+  <PlaceHead
+    kind="collection"
+    title={collection.name}
+    subtitle={collection.description ?? undefined}
+    {trail}
+    trailLabel={t('app.workspace.trail')}
+    expandLabel={t('app.workspace.expand_trail')}
+    oncrumb={(crumbId) => {
+      const crumb = containers.find(crumbId);
+      if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
+    }}
+    {primary}
+    {secondary}
+    menu={headMenu}
+    {compactTools}
+    toolsLabel={t('app.toolbar.entries')}
+    tour="layouts"
+    {notices}
+  >
+    {#snippet titleEnd()}<StarToggle kind="COLLECTION" id={collection.id} name={collection.name} />{/snippet}
+    {#snippet aside()}<PlacePeople placeId={collection.id} />{/snippet}
+    {#snippet figure()}
+      {#if viewFigure}{@render viewFigure()}{:else if collection.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
+    {/snippet}
+    {#snippet views()}
+      <PlaceViews placeId={collection.id} {current} {onnavigate} {add} tools={viewport.isCompact ? undefined : tools} />
+    {/snippet}
+  </PlaceHead>
 {/if}
-
-<style>
-  /* The head's own rhythm, whatever the screen's body below uses. */
-  .head { margin-block-end: var(--sp-150); }
-
-  /* The bar stays under the app bar while the view scrolls. */
-  .views {
-    position: sticky;
-    inset-block-start: var(--layout-appbar-height);
-    z-index: var(--z-raised);
-    margin-block-end: var(--sp-200);
-    background: var(--bg-canvas);
-  }
-
-  .views[data-compact] {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-100);
-    padding-block-end: var(--sp-100);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-  }
-
-  .compact-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
-
-  .notices { display: flex; flex-direction: column; gap: var(--sp-100); margin-block-end: var(--sp-200); }
-  .notices:not(:has(*)) { display: none; }
-</style>
