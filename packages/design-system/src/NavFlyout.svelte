@@ -94,7 +94,7 @@
 </span>
 
 {#if isOpen}
-  <div class="flyout" role="dialog" aria-label={label} {id} bind:this={surface}>
+  <div class="flyout" role="dialog" aria-label={label} {id} data-scrollbar="thin" bind:this={surface}>
     <h2 class="heading">{label}</h2>
     {#if searchLabel !== undefined}
       <label class="search">

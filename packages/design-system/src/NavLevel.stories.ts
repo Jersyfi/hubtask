@@ -14,7 +14,7 @@ export default {
 export const workspace: Story = {
   name: 'The workspace level',
   about:
-    'Recent as a flyout row, Starred, Products with their tiles and n more, Hubs with › and their order. The scrollbar is thin, has no track and shows only on hover; its room is reserved.',
+    'Recent as a flyout row, Starred, Products with their tiles and n more, Hubs with › and their order. The scrollbar is thin and shows only on hover, its track then drawn with a hairline at its inner edge; its room is reserved.',
   args: { mode: 'workspace' },
 };
 

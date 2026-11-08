@@ -176,3 +176,59 @@ test('R-8: the rail\'s peek is drawn above the view tabs and the board; a touch 
     assert.deepEqual(failures, []);
   }
 });
+
+/** The colour of one pixel of a screenshot, read on a blank page. */
+async function pixel(browser, png, x, y) {
+  const reader = await browser.newPage();
+  try {
+    return await reader.evaluate(async ([data, px, py]) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${data}`;
+      await image.decode();
+      const canvas = document.createElement('canvas');
+      [canvas.width, canvas.height] = [image.width, image.height];
+      const context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0);
+      return [...context.getImageData(px, py, 1, 1).data.slice(0, 3)];
+    }, [png.toString('base64'), x, y]);
+  } finally {
+    await reader.close();
+  }
+}
+
+test('R-9: the sidebar\'s thin scrollbar keeps its room, shows nothing idle and a track while hovered', async (t) => {
+  // Headless Chromium hides every scrollbar unless told otherwise.
+  const browser = await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
+  t.after(() => browser.close());
+  const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, height: 520 });
+  t.after(close);
+  const level = side(page).getByRole('region', { name: PD.name });
+  await level.waitFor({ timeout: 10_000 });
+  const style = await level.evaluate((node) => {
+    const computed = getComputedStyle(node);
+    return { thin: node.dataset.scrollbar, gutter: computed.scrollbarGutter, width: computed.scrollbarWidth, color: computed.scrollbarColor, overflows: node.scrollHeight > node.clientHeight, gutterRoom: node.offsetWidth - node.clientWidth };
+  });
+  // Chromium draws the pseudo-elements only where neither standard property is set.
+  assert.deepEqual({ ...style, gutterRoom: undefined }, { thin: 'thin', gutter: 'stable', width: 'auto', color: 'auto', overflows: true, gutterRoom: undefined });
+  const room = Number.parseFloat(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--layout-nav-scrollbar')));
+  assert.equal(style.gutterRoom, room, 'the room reserved is the token\'s');
+  const box = await level.boundingBox();
+  // The track's middle, below the thumb: the level is scrolled to its top.
+  const [x, y] = [Math.floor(box.x + box.width - room / 2), Math.floor(box.y + box.height - 12)];
+  await page.mouse.move(box.x + box.width / 2, box.y + 4);
+  await page.mouse.move(1000, 600);
+  const idle = await pixel(browser, await page.screenshot(), x, y);
+  await level.hover({ position: { x: box.width / 2, y: box.height / 2 } });
+  const hovered = await pixel(browser, await page.screenshot(), x, y);
+  const plane = await level.evaluate((node) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--bg-surface-hover)';
+    node.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour.match(/\d+/g).slice(0, 3).map(Number);
+  });
+  assert.notDeepEqual(idle, hovered, 'the scrollbar looks the same hovered');
+  assert.ok(hovered.every((value, i) => Math.abs(value - plane[i]) <= 2), `the track is ${hovered}, not the hover surface ${plane}`);
+  assert.deepEqual(failures, []);
+});

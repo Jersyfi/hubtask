@@ -28,8 +28,8 @@
   // navigation concept's §2.1, §2.4, §6.1): the workspace level, or a hub level with its head -
   // *‹ All hubs*, the hub's tile and name with the quick switch, ☆ and ⋯ - and its tools above
   // the parts. A new level slides in for `motion.reveal`, none under reduced motion, and focus
-  // lands on *‹ All hubs*. Its scrollbar is thin, has no track, shows only while hovered, and its
-  // room is reserved, so nothing shifts when it appears.
+  // lands on *‹ All hubs*. Its scrollbar is the shared thin one: shown while hovered, its track
+  // then drawn, its room reserved, so nothing shifts when it appears (`scrollbar.css`).
   import { tick, type Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
@@ -65,7 +65,7 @@
   });
 </script>
 
-<div class="level" role="region" aria-label={label} data-nav-scroll>
+<div class="level" role="region" aria-label={label} data-nav-scroll data-scrollbar="thin">
   {#key levelKey}
     <div class="slide">
       {#if hub}
@@ -125,29 +125,13 @@
 </div>
 
 <style>
-  /* The thin scrollbar: no track, a thumb only while hovered, its room always reserved. */
+  /* Its scrollbar is the shared thin one (`scrollbar.css`). */
   .level {
     flex: 1;
     min-block-size: 0;
     overflow: auto;
     padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100) calc(var(--sp-100) + var(--sp-025));
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
   }
-
-  .level:hover { scrollbar-color: var(--border-strong) transparent; }
-
-  .level::-webkit-scrollbar { inline-size: var(--layout-nav-scrollbar); }
-
-  .level::-webkit-scrollbar-thumb {
-    border: calc(var(--sp-025) + var(--bw-hairline)) solid transparent;
-    border-radius: var(--layout-nav-scrollbar);
-    background: transparent;
-    background-clip: padding-box;
-  }
-
-  .level:hover::-webkit-scrollbar-thumb { background-color: var(--border-strong); }
 
   .slide {
     --slide-from: var(--sp-200);

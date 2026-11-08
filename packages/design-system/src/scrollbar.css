@@ -1,0 +1,59 @@
+/* SPDX-License-Identifier: Apache-2.0
+   Copyright (c) 2026 Jérôme Bastian Winkel */
+
+/* The thin scrollbar of the sidebar and its panels, written once for every scroll area that
+   carries `data-scrollbar='thin'` (the navigation concept §2.1; the owner's review R-9). Its room
+   is always reserved, so nothing shifts when it shows. Idle it is invisible; while the area is
+   hovered the thumb shows, and the track takes a background with a hairline at its inner edge -
+   the look the platform's own scrollbar had before the concept.
+
+   Two mechanisms, because an engine honours only one: Chromium and WebKit draw the pseudo-elements
+   below, and Chromium ignores them on an element that sets `scrollbar-width` or
+   `scrollbar-color` - so those two are written only where the pseudo-elements do not exist. */
+
+/* The colours travel as custom properties set on hover: Chromium restyles a scrollbar's
+   pseudo-elements when an inherited property changes, not when `:hover` on the area matches. */
+[data-scrollbar='thin'] {
+  --scrollbar-thumb: transparent;
+  --scrollbar-track: transparent;
+  --scrollbar-edge: transparent;
+  scrollbar-gutter: stable;
+}
+
+[data-scrollbar='thin']:hover {
+  --scrollbar-thumb: var(--border-strong);
+  --scrollbar-track: var(--bg-surface-hover);
+  --scrollbar-edge: var(--border-subtle);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  [data-scrollbar='thin'] {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}
+
+/* Its thickness on either axis: a vertical bar's width, a horizontal one's height. */
+[data-scrollbar='thin']::-webkit-scrollbar {
+  inline-size: var(--layout-nav-scrollbar);
+  block-size: var(--layout-nav-scrollbar);
+  background: transparent;
+}
+
+/* The track, and the hairline at its inner edge. */
+[data-scrollbar='thin']::-webkit-scrollbar-track {
+  border-inline-start: var(--bw-hairline) solid var(--scrollbar-edge);
+  background: var(--scrollbar-track);
+}
+
+/* The thumb sits inside the track: its transparent border is the air around it. */
+[data-scrollbar='thin']::-webkit-scrollbar-thumb {
+  border: calc(var(--sp-025) + var(--bw-hairline)) solid transparent;
+  border-radius: var(--layout-nav-scrollbar);
+  background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+[data-scrollbar='thin']::-webkit-scrollbar-corner {
+  background: transparent;
+}

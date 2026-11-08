@@ -26,6 +26,7 @@
 import '@hubtask/design-system/fonts.css';
 import '@hubtask/design-system/fonts-scripts.css';
 import '@hubtask/design-system/tokens.css';
+import '@hubtask/design-system/scrollbar.css';
 import './app.css';
 
 import { mount } from 'svelte';
