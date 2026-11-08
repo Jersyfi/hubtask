@@ -61,6 +61,7 @@ test('a width that draws no column or no palette field counts no step for them, 
   const phone = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'phone' });
   assert.deepEqual(phone.map((s) => s.id), ['hubs', 'capture', 'layouts', 'levels', 'search', 'profile', 'make']);
   assert.equal(phone[0]?.words, 'hubs_drawer', 'the first step on a phone says the tree is behind the menu button');
+  assert.equal(phone.find((s) => s.id === 'profile')?.route, '/profile/you/name', 'a phone draws the profile form only at its section\'s address');
   const drawer = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'drawer' });
   assert.deepEqual(drawer.slice(0, 3).map((s) => s.id), ['hubs', 'capture', 'palette'], 'the drawer draws the palette\'s way in, but no column for the products');
   assert.equal(stepsFor({ collectionId: 'c', hasJumble: false }).at(0)?.words, undefined);

@@ -81,7 +81,9 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   }
   steps.push(
     { id: 'search', route: '/search', selector: '[data-tour="search"]', side: 'block-end' },
-    { id: 'profile', route: '/profile', selector: '[data-tour="profile"]', side: 'block-end' },
+    // The name section's own address: at `/profile` a phone draws the section list alone, and the
+    // form the step points at only at a section's address (page-system §7, SettingsLayout).
+    { id: 'profile', route: '/profile/you/name', selector: '[data-tour="profile"]', side: 'block-end' },
   );
   // The last: the entry the tour leads to. Where a collection exists, its add control; where
   // none does, the hub that has to come first.
