@@ -432,7 +432,7 @@ the mark the bar carries; how the product uses them is §11.
 `Grid` · `Sheet` · `SectionNav` · `FilterBar` · `DataTable` · `BulkBar` · `ResourceGrid` ·
 `ResourceCard` · `SettingsSection` · `SettingRow` · `BlockList` · `FormLayout` · `FormSection` ·
 `RecordHead` · `DangerZone` · `SummaryCard` · `ListPage` · `RecordPage` · `SettingsLayout` ·
-`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage`
+`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage` · `WorkPage`
 
 The layer above waves 1–5 that the page system concept adds
 ([`docs/backlog/page-system/`](../backlog/page-system/README.md) §4–§7; its mockups are the look).
@@ -459,7 +459,10 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   `LogPage`, `CreatePage`, each with `data-page-kind` on its root and a *Pages/* story with full,
   empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, because the
   web app already has a `SettingsPage` (its settings shell); its `data-page-kind` is `settings`.
-  `WorkPage` and `DetailPage` stay as built (§11).
+  `WorkPage` (`data-page-kind="work"`) is the work surface's frame (page-system §7.8): the head
+  or a head of the screen's own, the place's `PlaceTabs`, one toolbar whose segmented control
+  chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11), as
+  does `DetailPage`.
 
 Their breakpoints are the window's, written as media queries from `primitive.breakpoint` — so a
 story shows its widths when the window is narrowed, not the workbench's width axis. What sticks
