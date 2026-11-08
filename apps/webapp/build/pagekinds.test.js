@@ -42,7 +42,7 @@ const NOT_YET_MIGRATED = [
   'InstanceOverviewView', 'InstancePlanView', 'InstancePlansView', 'InstancePlatformView',
   'InstanceProvidersView', 'InstanceSettingsView', 'InstanceTargetsView', 'InstanceTemplatesView',
   'InstanceUsageView', 'InstanceWorkspacesView', 'ItemView', 'JumbleView',
-  'MailView', 'MyTokensView', 'NotesView', 'NotificationsView',
+  'MyTokensView', 'NotesView', 'NotificationsView',
   'OidcCallbackView', 'PagesView', 'PlanView', 'PortalArticleView',
   'PortalRequestView', 'PortalView', 'PortfolioView',
   'ProductHomeView', 'ProfileView', 'PublicFormView', 'PublicRoadmapView',

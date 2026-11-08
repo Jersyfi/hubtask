@@ -158,8 +158,15 @@
   {/key}
 {:else if route.name === 'voice' || route.name === 'voice-section'}
   <VoiceView section={route.params.section} onreplace={(path) => onreplace(path)} />
-{:else if route.name === 'mail' || route.name === 'mail-oauth'}
-  <MailView providerAnswer={route.name === 'mail-oauth' ? route.query : undefined} onanswered={() => onreplace('/administration/mail')} />
+{:else if route.name === 'mail' || route.name === 'mail-oauth' || route.name === 'mail-section'}
+  <MailView
+    section={route.name === 'mail-section' ? route.params.section : undefined}
+    providerAnswer={route.name === 'mail-oauth' ? route.query : undefined}
+    onanswered={() => onreplace('/administration/mail/mailboxes')}
+    onreplace={(path) => onreplace(path)}
+  />
+  <!-- One branch for the list, its sections and the provider's answer: a move between sections
+       keeps the screen and what another section holds unsaved. -->
 {:else if route.name === 'legal'}
   <SignInSettingsView part="legal" onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'ai' || route.name === 'ai-section'}

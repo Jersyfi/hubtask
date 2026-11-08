@@ -4,7 +4,8 @@
 // The mail intake (ADR-0094, UC-JUM-09, UC-JUM-10), walked against the shared fixture:
 //
 // * the administrator switches the intake on, names the workspace on the receiving domain, chooses
-//   members and allowed senders, allows a domain, adds a sender rule - saved in one write;
+//   members and allowed senders, allows a domain, adds a sender rule - each section at its own
+//   address with its own save, every write keeping what the others saved (page-system §7.3);
 // * the page shows the routing order, every collection's handle and what the last messages became;
 // * a collection's settings show its subject word and address and change its handle;
 // * a jumble card says why the intake put a message there;
@@ -70,52 +71,67 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     return stub(route);
   });
   try {
-    // The administration page: on, a name, a level with its list, a rule - one write.
-    await page.goto(`${served.origin}/administration/mail`);
+    // The administration page: on and a name, a level with its list, a rule - a write per section.
+    await page.goto(`${served.origin}/administration/mail/intake`);
     const on = page.locator('[data-mail-on]');
     await on.waitFor({ timeout: 15_000 });
-    await on.getByText('Take mail').click();
+    await on.getByRole('switch', { name: 'Take mail' }).check();
     await on.getByLabel('Name on the receiving domain').fill('familie');
     await on.locator('[data-mail-address] code').getByText('familie@in.hubtask.test').waitFor();
+    await on.getByRole('button', { name: 'Save', exact: true }).click();
+    await waitFor(() => writes.filter((write) => write.call === 'PUT /mail/settings').length === 1);
+
+    await section(page, 'Who may write');
     const senders = page.locator('[data-mail-senders]');
     await senders.getByText('Members and allowed senders').click();
     await senders.getByLabel('Allowed', { exact: true }).fill('@lieferant.test');
-    const rules = page.locator('[data-mail-routes]');
-    await rules.getByRole('button', { name: 'Add a rule' }).click();
-    await rules.getByLabel('Sender or @domain').fill('@lieferant.test');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.getByText('Mail settings saved.').waitFor({ timeout: 5_000 }).catch(() => undefined);
-    const saved = writes.find((write) => write.call === 'PUT /mail/settings');
-    assert.ok(saved, `writes ${JSON.stringify(writes)}`);
+    await senders.getByRole('button', { name: 'Save', exact: true }).click();
+    await waitFor(() => writes.filter((write) => write.call === 'PUT /mail/settings').length === 2);
+
+    await section(page, 'Sender rules');
+    await page.locator('[data-mail-routes]').getByRole('button', { name: 'Add a rule' }).click();
+    const ruleDialog = page.locator('dialog[open]');
+    await ruleDialog.getByLabel('Sender or @domain').fill('@lieferant.test');
+    await ruleDialog.getByRole('button', { name: 'Add a rule' }).click();
+    await page.locator('[data-mail-routes] [data-mail-rule="@lieferant.test"]').waitFor({ timeout: 5_000 });
+    const saved = writes.filter((write) => write.call === 'PUT /mail/settings').at(-1);
+    assert.equal(writes.filter((write) => write.call === 'PUT /mail/settings').length, 3, `writes ${JSON.stringify(writes)}`);
     assert.equal(saved.body.enabled, true);
     assert.equal(saved.body.name, 'familie');
     assert.deepEqual(saved.body.senders, { level: 'MEMBERS_AND_ALLOWED', allowed: ['@lieferant.test'], blocked: [] });
     assert.equal(saved.body.sender_routes[0].match, '@lieferant.test');
 
     // A mailbox: none yet, so the section says what one is for; the head's act opens the dialog,
-    // a refused password is said in it, the right one connects it and closes it, and the handles
-    // show their plus address through it.
+    // the provider first and then the sign-in; a refused password is said in it, the right one
+    // connects it and closes it, and the handles show their plus address through it.
+    await section(page, 'Mailboxes');
     await page.locator('[data-mail-mailboxes]').getByText('No mailbox is connected').waitFor({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Connect a mailbox' }).first().click();
-    const connect = page.getByRole('dialog').locator('[data-mailbox-connect]');
+    const dialog = page.locator('dialog[open]');
+    await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
+    const connect = dialog.locator('[data-mailbox-connect]');
     await connect.locator('[data-mailbox-hint]').getByText('app password', { exact: false }).waitFor({ timeout: 10_000 });
     await connect.getByLabel('Mailbox address').fill('familie@gmail.com');
     await connect.getByLabel('Password or app password').fill('wrong');
-    await connect.getByRole('button', { name: 'Connect' }).click();
-    await connect.getByText('refused the sign-in', { exact: false }).waitFor({ timeout: 5_000 });
+    await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+    await dialog.getByText('refused the sign-in', { exact: false }).waitFor({ timeout: 5_000 });
     await connect.getByLabel('Password or app password').fill('app-pw');
-    await connect.getByRole('button', { name: 'Connect' }).click();
+    await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
     await page.locator('[data-mailbox="familie@gmail.com"]').waitFor({ timeout: 5_000 });
-    await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 5_000 });
-    await page.locator('[data-mailbox="familie@gmail.com"]').getByText('Reading', { exact: true }).waitFor();
+    await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 });
+    await rowOf(page, 'familie@gmail.com').getByText('Reading', { exact: true }).waitFor();
     const connected = writes.filter((write) => write.call === 'POST /mail/mailboxes').at(-1);
     assert.equal(connected.body.preset, 'gmail');
     assert.equal(connected.body.secret, 'app-pw');
-    await page.locator('[data-mail-handles] [data-handle="kitchen"] [data-plus-address]').getByText('familie+kitchen@gmail.com').waitFor();
+    await section(page, 'Handles');
+    await page.locator('[data-mail-handles] [data-handle-through="kitchen"] [data-plus-address]').getByText('familie+kitchen@gmail.com').waitFor();
 
-    // The order, the handles, the log with its reasons.
-    await page.locator('[data-mail-order]').getByText('[SHOP-42]').waitFor();
+    // The order is the help of *Intake*, folded; the handles; the log with its reasons.
     await page.locator('[data-mail-handles] [data-handle="kitchen"] code').first().waitFor({ timeout: 10_000 });
+    await section(page, 'Intake');
+    await page.locator('[data-mail-on]').getByText('How Hubtask files mail').click();
+    await page.locator('[data-mail-order]').getByText('[SHOP-42]').waitFor();
+    await section(page, 'Recently arrived');
     const log = page.locator('[data-mail-log]');
     await log.getByText('In the inbox · Sender not allowed').waitFor();
     await log.getByRole('link', { name: 'Entry' }).waitFor();
@@ -187,24 +203,27 @@ test('chromium: a mailbox connects through its provider and comes back connected
   try {
     await page.goto(`${served.origin}/administration/mail`);
     await page.getByRole('button', { name: 'Connect a mailbox' }).first().click();
-    const oauth = page.locator('[data-mailbox-oauth]');
+    const dialog = page.locator('dialog[open]');
+    const oauth = dialog.locator('[data-mailbox-oauth]');
     await oauth.waitFor({ timeout: 15_000 });
 
-    // Microsoft without the installation's app: the form for one's own, with the redirect URI to
-    // register; nothing leaves before a client ID is there.
-    await oauth.getByRole('button', { name: 'Connect with Microsoft' }).click();
-    const own = page.locator('[data-mailbox-own-app="microsoft"]');
+    // Microsoft without the installation's app: the provider, then the form for one's own, with the
+    // redirect URI to register; nothing leaves before a client ID is there.
+    await oauth.getByRole('radio', { name: 'Connect with Microsoft' }).check();
+    await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
+    const own = dialog.locator('[data-mailbox-own-app="microsoft"]');
     assert.equal(await own.getByLabel('Redirect URI', { exact: false }).inputValue(), `${served.origin}/administration/mail/oauth`);
-    await own.getByRole('button', { name: 'Cancel' }).click();
+    await dialog.getByRole('button', { name: 'Back', exact: true }).click();
 
     // Google with the installation's app: one button, to the provider and back, connected.
     // The page is on /administration/mail before it leaves, so its URL proves nothing: the
     // completion's request does, after the way to the provider and back.
     const completed = page.waitForRequest((request) => request.url().endsWith('/mail/mailboxes:complete'), { timeout: 30_000 });
-    await oauth.getByRole('button', { name: 'Connect with Google' }).click();
+    await oauth.getByRole('radio', { name: 'Connect with Google' }).check();
+    await dialog.getByRole('button', { name: 'Continue to the provider' }).click();
     await completed;
-    await page.waitForURL(`${served.origin}/administration/mail`, { timeout: 15_000 });
-    const row = page.locator('[data-mailbox="familie@gmail.com"]');
+    await page.waitForURL(`${served.origin}/administration/mail/mailboxes`, { timeout: 15_000 });
+    const row = rowOf(page, 'familie@gmail.com');
     await row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 });
     assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:authorize')?.body, { provider: 'google' });
     assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:complete')?.body, { state: 's-1', code: 'c-1' });
@@ -214,7 +233,7 @@ test('chromium: a mailbox connects through its provider and comes back connected
   }
 });
 
-// A mailbox whose reads fail for an hour: its card says so with the failure beside *Check now*,
+// A mailbox whose reads fail for an hour: its row says so with the failure beside *Check now*,
 // the head counts it, and the column counts it on every screen of the administration
 // (user-experience.md §7.10); a single failed read is said but not counted as an outage.
 test('chromium: a failing mailbox is said beside Check now and counted in the column', { timeout: 120_000 }, async (t) => {
@@ -251,17 +270,32 @@ test('chromium: a failing mailbox is said beside Check now and counted in the co
 
   await page.goto(`${served.origin}/administration/mail`);
   await page.locator('[data-mail-figure]').getByText('2 reading · 1 failing').waitFor({ timeout: 10_000 });
-  const failing = page.locator('[data-mailbox="familie@gmail.com"]');
+  const failing = rowOf(page, 'familie@gmail.com');
   await failing.getByText('Failing for an hour or longer').waitFor();
   await failing.locator('[data-mailbox-failure]').getByText('refused the sign-in', { exact: false }).waitFor();
-  await page.locator('[data-mailbox="büro@gmail.com"]').getByText('Last read failed').waitFor();
-  await page.locator('[data-mailbox="info@gmail.com"]').getByText('Reading', { exact: true }).waitFor();
+  await rowOf(page, 'büro@gmail.com').getByText('Last read failed').waitFor();
+  await rowOf(page, 'info@gmail.com').getByText('Reading', { exact: true }).waitFor();
 
   await failing.getByRole('button', { name: 'Check now' }).click();
   await failing.getByText('Reading', { exact: true }).waitFor({ timeout: 5_000 });
   assert.deepEqual(checks, ['/mail/mailboxes/b1:check']);
   assert.deepEqual(failures, []);
 });
+
+/** Moves to a section of the page through its list, as a press does. */
+async function section(page, name) {
+  await page.getByRole('navigation', { name: 'Sections of E-mail' }).getByRole('link', { name: new RegExp(`^${name}`) }).click();
+}
+
+/** A mailbox's row of the table. */
+function rowOf(page, address) {
+  return page.getByRole('row').filter({ has: page.locator(`[data-mailbox="${address}"]`) });
+}
+
+async function waitFor(condition) {
+  for (let tries = 0; tries < 50 && !condition(); tries++) await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.ok(condition(), 'the write did not arrive');
+}
 
 async function expectWrite(writes, call, body) {
   for (let tries = 0; tries < 50; tries++) {

@@ -245,6 +245,7 @@ async function views() {
     ['voice', await load('VoiceView'), {}],
     ['voice-section', await load('VoiceView'), { section: 'alexa' }],
     ['mail', await load('MailView'), {}],
+    ['mail-section', await load('MailView'), { section: 'rules' }],
     ['quotas', await load('QuotasView'), {}],
     ['private-hubs', await load('PrivateHubsView'), {}],
     ['modules', await load('ModulesView'), {}],

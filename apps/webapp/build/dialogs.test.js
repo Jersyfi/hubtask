@@ -58,7 +58,6 @@ const NOT_YET_MIGRATED = [
   'lib/frame/UnsentChangesDialog.svelte',
   'lib/instance/MovePlanDialog.svelte',
   'lib/instance/OwnDomainsTable.svelte',
-  'lib/mail/MailboxSection.svelte',
   'lib/pages/PageAccess.svelte',
   'lib/palette/Palette.svelte',
   'lib/product/CreateDialog.svelte',
