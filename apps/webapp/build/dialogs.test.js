@@ -13,14 +13,6 @@ import path from 'node:path';
 
 import { SRC, elements, read, reachable, relative, svelteFiles, uses, within } from './markup.js';
 
-/**
- * The files whose dialogs are not yet held to the ladder. Later steps of the concept migrate them
- * area by area (page-system §13); this list may only shrink - a file that meets the rule must leave
- * it, which the last test holds - and it is empty when the concept lands.
- */
-const NOT_YET_MIGRATED = [
-];
-
 /** The confirmation the ladder allows over another dialog. */
 const DISCARD = 'DiscardDialog';
 
@@ -85,15 +77,6 @@ function faults(file) {
 const files = () => svelteFiles().filter((file) => /<Dialog(?=[\s/>])/.test(read(file).markup));
 
 test('every dialog names its size and holds no table, tabs, second dialog or second Disclosure', () => {
-  const wrong = files()
-    .filter((file) => !NOT_YET_MIGRATED.includes(relative(file)))
-    .flatMap(faults);
+  const wrong = files().flatMap(faults);
   assert.deepEqual(wrong, []);
-});
-
-test('the list of files not yet migrated only shrinks', () => {
-  const missing = NOT_YET_MIGRATED.filter((file) => !fs.existsSync(path.join(SRC, file)));
-  assert.deepEqual(missing, [], 'a file that is gone leaves the list');
-  const done = NOT_YET_MIGRATED.filter((file) => faults(path.join(SRC, file)).length === 0);
-  assert.deepEqual(done, [], 'a file whose dialogs meet the ladder leaves the list');
 });
