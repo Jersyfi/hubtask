@@ -144,7 +144,7 @@ for (const width of [375, 768, 1280]) {
         const placeOf = (text) => page.getByText(text, { exact: false }).first().evaluate((node) => {
           const row = node.closest('.with-ai');
           if (row) return row.querySelector('[data-detail]')?.getAttribute('data-detail') ?? 'row';
-          return node.closest('[role="tabpanel"]') ? 'comments' : node.closest('.main-column') ? 'steps' : 'head';
+          return node.closest('[role="tabpanel"]') ? 'comments' : node.closest('.columns > .main') ? 'steps' : 'head';
         });
         assert.equal(await placeOf('Book the tiler for Thursday'), 'head');
         assert.equal(await placeOf('Pick the grout'), 'steps');
