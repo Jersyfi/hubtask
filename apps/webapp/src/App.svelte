@@ -67,6 +67,7 @@
     JumbleView: () => import('./views/JumbleView.svelte'),
     InstallationView: () => import('./views/InstallationView.svelte'),
     ProfileView: () => import('./views/ProfileView.svelte'),
+    PlaceSettingsView: () => import('./views/PlaceSettingsView.svelte'),
     AppearanceView: () => import('./views/AppearanceView.svelte'),
     NotificationsView: () => import('./views/NotificationsView.svelte'),
     SecurityView: () => import('./views/SecurityView.svelte'),
@@ -593,6 +594,17 @@
         }}
       />
     {/key}
+  {:else if PLACE_ROUTES.includes(route.name ?? '') && isSettingsRoute(route.name)}
+    <!-- A place's settings are their own page kind (page-system §9.6); keyed on the id, as the place is. -->
+    {#key route.params.id}
+      <LazyView load={views.PlaceSettingsView} props={{
+        id: route.params.id ?? '',
+        section: route.params.section,
+        template: route.query['template'],
+        onnavigate: (path: string) => router.navigate(path),
+        onreplace: (path: string) => router.replace(path),
+      }} />
+    {/key}
   {:else if PLACE_ROUTES.includes(route.name ?? '')}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
          that navigating from one collection to another rebuilds rather than reusing the state of
@@ -601,8 +613,6 @@
       <LazyView load={views.ContainerView} props={{
         id: route.params.id ?? '',
         openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
-        section: isSettingsRoute(route.name) ? (route.params.section ?? '') : undefined,
-        template: route.name === 'hub-settings-section' ? route.query['template'] : undefined,
         onnavigate: (path: string) => router.navigate(path),
       }} />
     {/key}

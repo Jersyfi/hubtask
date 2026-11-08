@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A hub's or a collection's settings page (UC-WRK-23 checks 1-3, 7; design-system.md §11.8):
-  // the sections as a list at the start, the open one beside it - the shape of the administration,
-  // so setting something up looks the same everywhere. Its *Structure* section is a preset to start
+  // A hub's or a collection's settings page (UC-WRK-23 checks 1-3, 7; page-system §9.6): a
+  // `SettingsLayout` whose section list says each section's state, one section at its address -
+  // the shape of the administration, so setting something up looks the same everywhere. Its *Structure* section is a preset to start
   // from and the nine settings, each with where its value comes from, its lock and a reset; the
   // entry types only where the workflows module is on (UC-FLW-01 check 8).
   //
@@ -20,8 +20,9 @@
 
   import { untrack, type Snippet } from 'svelte';
 
-  import { Button, CheckboxGroup, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
-  import type { Container, CustomFieldDefinition, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
+  import { Button, Checkbox, DataTable, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, SourceChip } from '@hubtask/design-system/components';
+  import type { DataColumn, PageHead, SectionLink } from '@hubtask/design-system/components';
+  import type { Container, CustomFieldDefinition, EntryType, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -44,8 +45,10 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
-  import SettingsPage from '../settings/SettingsPage.svelte';
   import { placePart } from '../settings/asFile.ts';
+  import { viewAsFileAction } from '../settings/viewasfile.svelte.ts';
+  import { leaveGuard } from '../frame/leave.svelte.ts';
+  import TableSection from '../page/TableSection.svelte';
   import {
     SETTINGS,
     changeOf,
@@ -71,10 +74,14 @@
     readonly id: string;
     readonly label: string;
     readonly body: Snippet;
+    /** The section's state in the list: a count, *On*. */
+    readonly status?: string;
   }
 
   interface Props {
     isOpen: boolean;
+    /** The page's head: its title and the trail to the place. */
+    head: PageHead;
     container: Container;
     /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
     mayShapeWorkspace?: boolean;
@@ -83,28 +90,21 @@
     /** The sections before the structure (its general fields) and after it, in the list's order. */
     before?: readonly StructureTab[];
     tabs?: readonly StructureTab[];
-    /** The open section's id; `structure` is the eight settings. */
+    /** The open section's id; none is the list (a phone's first page). */
     tab?: string;
     /** Where each section lives, and going there: every section has its own address. */
     hrefOf: (section: string) => string;
     onsection: (section: string) => void;
+    /** Back from a section to the list, below `expanded`. */
+    onlist: () => void;
   }
 
-  const { isOpen, container, mayShapeWorkspace = false, mayShapeHere = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
-
-  /** On a phone the sections are one row that scrolls: the open one is always brought into it. */
-  let shell = $state<HTMLElement | null>(null);
-  $effect(() => {
-    void tab;
-    const root = shell;
-    if (!root) return;
-    queueMicrotask(() => root.querySelector<HTMLElement>('[data-settings-sections] a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
-  });
+  const { isOpen, head, container, mayShapeWorkspace = false, mayShapeHere = false, before = [], tabs = [], tab, hrefOf, onsection, onlist }: Props = $props();
   // One section list for every place (user-experience.md §5.7): the structure's settings spread over
   // the sections they belong to, in the level's fixed order; one draft and one save bar hold them.
   const groups = $derived((Object.keys(STRUCTURE_GROUPS) as StructureGroup[]).map((id) => ({ id, label: t(GROUP_CODES[id]) })));
   const sections = $derived(orderSections(container.type === 'HUB' ? 'HUB' : 'COLLECTION', [...before, ...groups, ...tabs]));
-  const openSection = $derived(sectionOf(tab));
+  const openSection = $derived(sectionOf(tab || (sections[0]?.id ?? 'general')));
   let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
@@ -112,6 +112,10 @@
   // A10: the hub's document holds the hub's own blocks and, by handle, its collections'; a
   // collection without a handle has no blocks there to show.
   const fileHub = $derived(isHub ? container.id : container.handle ? (container.parent_id ?? undefined) : undefined);
+  let isFileOpen = $state(false);
+  const fileAction = $derived(fileHub ? viewAsFileAction(() => (isFileOpen = true)) : undefined);
+  /** The hub's file holds its module switches and calendars beside the structure (configuration/ui.md A10). */
+  const fileSections = $derived(isHub ? ['modules', ...placePart(true).sections, 'business_calendars'] : placePart(false, container.handle ?? undefined).sections);
 
   // The presets, the accounts that set a lock, and the number fields a sum may name.
   // From `untrack`: subscribing delivers at once and writes the store this effect would read.
@@ -157,6 +161,7 @@
   const chosen = $derived(draft?.preset ? presets.find(draft.preset) : undefined);
   const change = $derived(draft && structure ? changeOf(draft, structure, chosen) : undefined);
   const changeCount = $derived(countOf(change));
+  $effect(() => leaveGuard.hold(() => changeCount));
 
   /**
    * What the change in the draft reaches, asked once the person pauses (configuration/ui.md A3):
@@ -266,10 +271,6 @@
     !isHub && typesShown(manifest.value) ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
   );
   const shownSettings = $derived(SETTINGS.filter((setting) => setting !== 'entry_types' || typesShown(manifest.value)));
-
-  /** A level's types in use, as the entry types setting offers them for ticking. */
-  const typeOptionsOf = (type: string) =>
-    typesOfLevel(entryTypes.all, type, undefined, fileHub).map((each) => ({ value: each.key, label: each.name ?? levelName(type), disabledReason: lockReason('entry_types') }));
 
   /** The key of the type being copied here, while the copy is on its way. */
   let copying = $state<string | undefined>(undefined);
@@ -532,40 +533,228 @@
   }
 
   const titleOf = (setting: SettingName): string => t(`app.structure.setting.${setting}`);
+
+  /** A structure section's state in the list: locked, set here, or the default (PS-9). */
+  function groupStatus(group: StructureGroup): Pick<SectionLink, 'status' | 'statusTone'> {
+    if (!structure) return {};
+    if (group === 'template') return startedFrom ? { status: startedFrom } : {};
+    const settings = shownSettings.filter((setting) => groupOf(setting) === group);
+    if (settings.length === 0) return {};
+    if (settings.some((setting) => lockerOf(setting) !== undefined)) return { status: t('app.settings.status_locked'), statusTone: 'locked' };
+    const set = settings.filter((setting) => isOwn(structure, setting, container.type)).length;
+    return set > 0 ? { status: t('app.settings.status_set', { count: set }), statusTone: 'set' } : { status: t('app.settings.status_default') };
+  }
+  const links = $derived<SectionLink[]>(
+    sections.map((each) => ({
+      id: each.id,
+      label: each.label,
+      href: hrefOf(each.id),
+      ...(isGroup(each.id) ? groupStatus(each.id) : 'status' in each && each.status ? { status: each.status } : {}),
+    })),
+  );
+
+  // The types a new entry here may take, as one table (page-system §9.6): a tick per row says
+  // whether it is offered here, *Make a copy here* sits in the row's menu.
+  interface TypeRow {
+    readonly type: EntryType;
+    readonly name: string;
+    readonly level: string;
+    readonly source: string;
+  }
+  const levelRank = (level: string): number => {
+    const at = types.indexOf(level);
+    return at === -1 ? types.length : at;
+  };
+  function typeSource(type: EntryType): string {
+    if (!type.hub_id) return t('app.structure.hub_types_shared');
+    return type.copied_from ? t('app.structure.hub_types_copied', { from: type.copied_from }) : t('app.structure.hub_types_own');
+  }
+  const typeRows = $derived.by<TypeRow[]>(() => {
+    const atHub = isHub ? typesAtHub(entryTypes.all, container.id) : undefined;
+    const shown = atHub
+      ? [...atHub.shared.filter((each) => !each.archived), ...atHub.own]
+      : offeredTypes.flatMap((level) => typesOfLevel(entryTypes.all, level, undefined, fileHub));
+    return [...shown]
+      .sort((a, b) => levelRank(a.level) - levelRank(b.level))
+      .map((type) => ({ type, name: type.name ?? levelName(type.level), level: levelName(type.level), source: typeSource(type) }));
+  });
+  const offeredKeys = (level: string): string[] => typesOfLevel(entryTypes.all, level, values.entry_types?.[level], fileHub).map((each) => each.key);
+  function offerType(row: TypeRow, isOffered: boolean) {
+    const keys = offeredKeys(row.type.level);
+    chooseEntryTypes(row.type.level, isOffered ? [...keys, row.type.key] : keys.filter((key) => key !== row.type.key));
+  }
+  const typeColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.settings.type_name'), priority: 1 },
+    { id: 'level', label: t('app.settings.type_level'), priority: 2 },
+    { id: 'source', label: t('app.settings.type_source'), priority: 3 },
+    { id: 'offered', label: t('app.settings.type_offered'), priority: 2, isStatus: true },
+  ]);
+  const copyMenu = (isShared: boolean, name: string) =>
+    isHub && mayShapeHere && isShared ? { label: t('app.page.more_for', { name }), items: [{ id: 'copy', label: t('app.structure.hub_types_copy') }] } : undefined;
+
+  interface FieldRow {
+    readonly definition: CustomFieldDefinition;
+    readonly isShared: boolean;
+  }
+  const fieldRows = $derived.by<FieldRow[]>(() => {
+    if (!isHub) return [];
+    const here = fieldsAtHub(customFields.atHub(container.id), container.id);
+    return [...here.shared.map((definition) => ({ definition, isShared: true })), ...here.own.map((definition) => ({ definition, isShared: false }))];
+  });
+  const sourceColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.settings.type_name'), priority: 1 },
+    { id: 'source', label: t('app.settings.type_source'), priority: 2, isStatus: true },
+  ]);
 </script>
 
-<!-- The nine settings: the panel's first tab, or the whole panel where it has no other. -->
+<!-- A tick per option inside a setting's row: the row's name labels the group (PS-11). -->
+{#snippet ticks(nameId: string, options: readonly { value: string; label: string; disabledReason?: string }[], selected: readonly string[], onchange: (selected: readonly string[]) => void)}
+  <div class="ticks" role="group" aria-labelledby={nameId}>
+    {#each options as option (option.value)}
+      <Checkbox
+        label={option.label}
+        density="sm"
+        disabledReason={option.disabledReason}
+        checked={selected.includes(option.value)}
+        onchange={(event: Event) => {
+          const on = (event.currentTarget as HTMLInputElement).checked;
+          onchange(on ? [...selected, option.value] : selected.filter((each) => each !== option.value));
+        }}
+      />
+    {/each}
+  </div>
+{/snippet}
+
+<!-- Where a setting's value comes from, its lock and its reset: the row's source (PS-11). -->
+{#snippet chipFor(setting: SettingName)}
+  {@const chip = chipOf(setting)}
+  <span class="head">
+    <SourceChip
+      label={chip.label}
+      isLocked={chip.isLocked}
+      detailsLabel={t('app.structure.where_from', { setting: titleOf(setting) })}
+      value={chip.value}
+      source={chip.source}
+      whomToAsk={chip.whomToAsk}
+    />
+  </span>
+{/snippet}
+
+
+
+{#snippet fieldsChip()}{@render chipFor('fields')}{/snippet}
+
+{#snippet resetOf(setting: SettingName)}
+  {#if structure && draft && isOwn(structure, setting, container.type) && !draft.reset.includes(setting)}
+    <Button size="sm" tone="subtle" aria-label={t('app.structure.reset_named', { setting: titleOf(setting) })} onclick={() => reset(setting)}>
+      {t('app.structure.reset')}
+    </Button>
+  {/if}
+{/snippet}
+
+{#snippet saveBar()}
+  <SaveBar
+    label={t('app.save_bar.label')}
+    changesLabel={changeCount > 0 ? t('app.save_bar.changes', { count: String(changeCount) }) : undefined}
+    discardLabel={t('app.save_bar.discard')}
+    saveLabel={t('app.workspace.save')}
+    {isSaving}
+    savingLabel={t('app.workspace.saving')}
+    onDiscard={discard}
+    onSave={() => void save()}
+    reachLabel={reach ? reachOf(reach.preview, t) : undefined}
+    planLabel={t('app.settings.show_plan')}
+    onPlan={reach?.preview.narrows ? () => (narrowing = reach) : undefined}
+  />
+{/snippet}
+
+{#snippet typesAdvanced()}
+  {#if draft}
+    {#each offeredTypes as type (type)}
+      <SettingRow label={t('app.structure.level_name', { type: typeName(type) })} fieldWidth="sm">
+        {#snippet control(nameId)}
+          <Input
+            label={t('app.structure.level_name', { type: typeName(type) })}
+            isLabelHidden
+            aria-labelledby={nameId}
+            placeholder={typeName(type)}
+            maxlength={60}
+            disabledReason={lockReason('levels')}
+            value={values.levels?.find((level) => level.type === type)?.name ?? ''}
+            oninput={(event: Event) => nameLevel(type, (event.currentTarget as HTMLInputElement).value)}
+          />
+        {/snippet}
+      </SettingRow>
+    {/each}
+    <div class="setting" data-setting="fields">
+    {#each offeredTypes as type, index (type)}
+      <SettingRow
+        label={t('app.structure.fields_of', { level: levelName(type) })}
+        groupLabel={index === 0 ? titleOf('fields') : undefined}
+        source={index === 0 ? fieldsChip : undefined}
+        fieldWidth="full"
+      >
+        {#snippet control(nameId)}
+          <span class="acts">
+            {@render ticks(nameId, fieldOptions(type), carried(type), (selected) => chooseFields(type, selected))}
+            {#if !isHub}
+              <Button size="sm" tone="secondary" disabledReason={categoriesWait} onclick={() => (categoriesOf = type)}>{t('app.structure.categories_of', { level: levelName(type) })}</Button>
+            {/if}
+            {#if index === 0}{@render resetOf('fields')}{/if}
+          </span>
+        {/snippet}
+                </SettingRow>
+              {/each}
+      {#if draft.reset.includes('fields')}
+        <p class="hint pending" data-reset-pending>{t('app.structure.reset_pending')}</p>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
+<!-- The structure's settings of one section, one row each, and the one save of the shared draft. -->
 {#snippet settingsBody(group: StructureGroup)}
   {#if structure && draft}
+    {@const rows = shownSettings.filter((setting) => groupOf(setting) === group && setting !== 'entry_types' && setting !== 'fields')}
     <form class="panel" data-structure-panel onsubmit={(event) => { event.preventDefault(); void save(); }}>
-      <Stack gap="300">
+      <SettingsSection
+        title={t(GROUP_CODES[group])}
+        description={group === 'template' ? t(isHub ? 'app.structure.intro_hub' : 'app.structure.intro') : undefined}
+        status={groupStatus(group).status}
+        save={saveBar}
+        advanced={group === 'types' && offeredTypes.length > 0 ? { label: t('app.settings.types_advanced'), description: t('app.settings.types_advanced_hint'), rows: typesAdvanced } : undefined}
+      >
+        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
         {#if group === 'template'}
-        <p class="hint">{t(isHub ? 'app.structure.intro_hub' : 'app.structure.intro')}</p>
-
-        <section class="setting" data-setting="preset">
-          <Select
-            label={t('app.structure.preset_label')}
-            hint={draft.preset
-              ? t('app.structure.preset_chosen', { preset: presets.nameOf(draft.preset) ?? '' })
-              : startedFrom
-                ? t('app.structure.preset_from', { preset: startedFrom })
-                : t('app.structure.preset_hint')}
-            placeholder={t('app.structure.preset_choose')}
-            options={presetOptions}
-            bind:value={() => draft?.preset ?? presetInForce, (key) => choosePresetKey(key)}
-          />
-          <!-- What is saved is the structure the server holds, so it waits for the save bar. -->
-          <div class="save-as">
-          <Button
-            size="sm"
-            tone="subtle"
-            disabledReason={changeCount > 0 ? t('app.presets.save_first') : undefined}
-            onclick={() => (isSavingPreset = true)}
-          >
-            {t('app.presets.save_as')}
-          </Button>
+          <div data-setting="preset">
+            <SettingRow
+              label={t('app.structure.preset_label')}
+              help={draft.preset
+                ? t('app.structure.preset_chosen', { preset: presets.nameOf(draft.preset) ?? '' })
+                : startedFrom
+                  ? t('app.structure.preset_from', { preset: startedFrom })
+                  : t('app.structure.preset_hint')}
+              fieldWidth="lg"
+              isChanged={draft.preset !== undefined}
+            >
+              {#snippet control(nameId)}
+                <span class="acts">
+                  <Select
+                    label={t('app.structure.preset_label')}
+                    isLabelHidden
+                    aria-labelledby={nameId}
+                    placeholder={t('app.structure.preset_choose')}
+                    options={presetOptions}
+                    bind:value={() => draft?.preset ?? presetInForce, (key) => choosePresetKey(key)}
+                  />
+                  <!-- What is saved is the structure the server holds, so it waits for the save bar. -->
+                  <Button size="sm" tone="subtle" disabledReason={changeCount > 0 ? t('app.presets.save_first') : undefined} onclick={() => (isSavingPreset = true)}>
+                    {t('app.presets.save_as')}
+                  </Button>
+                </span>
+              {/snippet}
+            </SettingRow>
           </div>
-        </section>
         {/if}
 
         <!-- A collection's Workflow section names the workflow its tasks run, as its head does. -->
@@ -576,259 +765,267 @@
           </p>
         {/if}
 
-        {#each shownSettings.filter((setting) => groupOf(setting) === group) as setting (setting)}
-          {@const chip = chipOf(setting)}
-          <section class="setting" data-setting={setting} aria-labelledby="structure-{setting}">
-            <div class="head">
-              <h3 id="structure-{setting}">{titleOf(setting)}</h3>
-              <SourceChip
-                label={chip.label}
-                isLocked={chip.isLocked}
-                detailsLabel={t('app.structure.where_from', { setting: titleOf(setting) })}
-                value={chip.value}
-                source={chip.source}
-                whomToAsk={chip.whomToAsk}
-              />
-              {#if isOwn(structure, setting, container.type) && !draft.reset.includes(setting)}
-                <Button size="sm" tone="subtle" aria-label={t('app.structure.reset_named', { setting: titleOf(setting) })} onclick={() => reset(setting)}>
-                  {t('app.structure.reset')}
-                </Button>
-              {/if}
-            </div>
-            {#if draft.reset.includes(setting)}
-              <p class="hint" data-reset-pending>{t('app.structure.reset_pending')}</p>
-            {/if}
-
+        {#each rows as setting (setting)}
+          <div class="setting" data-setting={setting}>
             {#if setting === 'levels'}
-              <CheckboxGroup
-                label={t('app.structure.levels_label')}
-                hint={t('app.structure.levels_hint')}
-                options={levelOptions}
-                selected={offeredTypes}
-                onChange={chooseLevels}
-              />
-              <div class="names">
-                {#each offeredTypes as type (type)}
-                  <Input
-                    label={t('app.structure.level_name', { type: typeName(type) })}
-                    placeholder={typeName(type)}
-                    maxlength={60}
-                    disabledReason={lockReason('levels')}
-                    value={values.levels?.find((level) => level.type === type)?.name ?? ''}
-                    oninput={(event: Event) => nameLevel(type, (event.currentTarget as HTMLInputElement).value)}
-                  />
-                {/each}
-              </div>
-            {:else if setting === 'fields'}
-              {#each offeredTypes as type (type)}
-                <CheckboxGroup
-                  label={t('app.structure.fields_of', { level: levelName(type) })}
-                  options={fieldOptions(type)}
-                  selected={carried(type)}
-                  onChange={(selected) => chooseFields(type, selected)}
-                />
-                {#if !isHub}
-                  <Button
-                    size="sm"
-                    tone="secondary"
-                    disabledReason={categoriesWait}
-                    onclick={() => (categoriesOf = type)}
-                  >{t('app.structure.categories_of', { level: levelName(type) })}</Button>
-                {/if}
-              {/each}
+              <SettingRow label={titleOf(setting)} help={t('app.structure.levels_hint')} fieldWidth="lg" lockReason={lockReason('levels')} isChanged={draft.reset.includes(setting)}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    {@render ticks(nameId, levelOptions, offeredTypes, chooseLevels)}
+                    {@render resetOf(setting)}
+                  </span>
+                {/snippet}
+              </SettingRow>
             {:else if setting === 'views'}
-              <CheckboxGroup
-                label={t('app.structure.views_offered')}
-                options={viewOptions}
-                selected={(values.views?.offered ?? []) as readonly string[]}
-                error={isViewMissing ? t('app.structure.views_missing') : undefined}
-                onChange={chooseViews}
-              />
-              <Select
-                label={t('app.structure.views_default')}
-                disabledReason={lockReason('views')}
-                options={((values.views?.offered ?? []) as readonly string[]).map((layout) => ({ value: layout, label: t(`app.view.${layout}`) }))}
-                bind:value={() => (values.views?.default as string | undefined) ?? '', (layout) => chooseOpening(layout)}
-              />
+              <SettingRow label={t('app.structure.views_offered')} fieldWidth="lg" lockReason={lockReason('views')}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    {@render ticks(nameId, viewOptions, (values.views?.offered ?? []) as readonly string[], chooseViews)}
+                    {@render resetOf(setting)}
+                  </span>
+                  {#if isViewMissing}<p class="failure" role="alert">{t('app.structure.views_missing')}</p>{/if}
+                {/snippet}
+              </SettingRow>
+              <SettingRow label={t('app.structure.views_default')} fieldWidth="sm">
+                {#snippet control(nameId)}
+                  <Select
+                    label={t('app.structure.views_default')}
+                    isLabelHidden
+                    aria-labelledby={nameId}
+                    disabledReason={lockReason('views')}
+                    options={((values.views?.offered ?? []) as readonly string[]).map((layout) => ({ value: layout, label: t(`app.view.${layout}`) }))}
+                    bind:value={() => (values.views?.default as string | undefined) ?? '', (layout) => chooseOpening(layout)}
+                  />
+                {/snippet}
+              </SettingRow>
             {:else if setting === 'counts' && figures}
-              <Select
-                label={t('app.figure.choice')}
-                hint={t('app.figure.intro')}
-                disabledReason={lockReason('counts')}
-                options={figures.figures.map((kind) => ({ value: kind, label: t(`app.figure.option.${kind.toLowerCase()}`) }))}
-                bind:value={() => (figures.figures.includes(figure) ? figure : 'NONE'), (kind) => chooseFigure(kind)}
-              />
+              <SettingRow label={titleOf(setting)} help={t('app.figure.intro')} fieldWidth="md" lockReason={lockReason('counts')}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    <Select
+                      label={t('app.figure.choice')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      disabledReason={lockReason('counts')}
+                      options={figures.figures.map((kind) => ({ value: kind, label: t(`app.figure.option.${kind.toLowerCase()}`) }))}
+                      bind:value={() => (figures.figures.includes(figure) ? figure : 'NONE'), (kind) => chooseFigure(kind)}
+                    />
+                    {@render resetOf(setting)}
+                  </span>
+                {/snippet}
+              </SettingRow>
               {#if figure === 'FIELD_SUM'}
-                <Select
-                  label={t('app.figure.field')}
-                  placeholder={t('app.figure.field_choose')}
-                  disabledReason={lockReason('counts')}
-                  error={isFieldMissing ? t('app.figure.field_choose') : undefined}
-                  options={figures.fields.map((option) => ({ value: option.key, label: option.name }))}
-                  bind:value={() => values.counts?.field_key ?? '', (key) => chooseSumField(key)}
-                />
+                <SettingRow label={t('app.figure.field')} fieldWidth="md">
+                  {#snippet control(nameId)}
+                    <Select
+                      label={t('app.figure.field')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      placeholder={t('app.figure.field_choose')}
+                      disabledReason={lockReason('counts')}
+                      error={isFieldMissing ? t('app.figure.field_choose') : undefined}
+                      options={figures.fields.map((option) => ({ value: option.key, label: option.name }))}
+                      bind:value={() => values.counts?.field_key ?? '', (key) => chooseSumField(key)}
+                    />
+                  {/snippet}
+                </SettingRow>
               {/if}
               {#if structure.counts_clipped?.from.figure === 'PROGRESS'}
                 <p class="hint" data-figure-clipped>{t('app.figure.clipped', { source: sourceWords((structure.sources?.counts as string | undefined) ?? 'DEFAULT') })}</p>
               {/if}
             {:else if setting === 'completion'}
-              <Radio
-                label={t('app.policies.completion')}
-                hint={t('app.policies.completion_hint')}
-                disabledReason={lockReason('completion')}
-                options={[
-                  { value: 'MANUAL', label: t('app.policies.completion_manual') },
-                  { value: 'ROLLUP', label: t('app.policies.completion_rollup') },
-                ]}
-                bind:value={() => (values.completion as string | undefined) ?? 'MANUAL', (choice) => draft && (draft = setValue(draft, 'completion', choice as StructureSettings['completion']))}
-              />
+              <SettingRow label={titleOf(setting)} help={t('app.policies.completion_hint')} fieldWidth="md" lockReason={lockReason('completion')}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    <Select
+                      label={t('app.policies.completion')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      disabledReason={lockReason('completion')}
+                      options={[
+                        { value: 'MANUAL', label: t('app.policies.completion_manual') },
+                        { value: 'ROLLUP', label: t('app.policies.completion_rollup') },
+                      ]}
+                      bind:value={() => (values.completion as string | undefined) ?? 'MANUAL', (choice) => draft && (draft = setValue(draft, 'completion', choice as StructureSettings['completion']))}
+                    />
+                    {@render resetOf(setting)}
+                  </span>
+                {/snippet}
+              </SettingRow>
             {:else if setting === 'capture'}
-              <CheckboxGroup
-                label={t('app.structure.capture_label')}
-                disabledReason={lockReason('capture')}
-                options={CAPTURE.map((token) => ({ value: token, label: t(`app.structure.capture.${token}`) }))}
-                selected={(values.capture ?? []) as readonly string[]}
-                onChange={(selected) => draft && (draft = setValue(draft, 'capture', CAPTURE.filter((token) => selected.includes(token))))}
-              />
+              <SettingRow label={titleOf(setting)} help={t('app.structure.capture_label')} fieldWidth="lg" lockReason={lockReason('capture')}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    {@render ticks(
+                      nameId,
+                      CAPTURE.map((token) => ({ value: token, label: t(`app.structure.capture.${token}`), disabledReason: lockReason('capture') })),
+                      (values.capture ?? []) as readonly string[],
+                      (selected) => draft && (draft = setValue(draft, 'capture', CAPTURE.filter((token) => selected.includes(token)))),
+                    )}
+                    {@render resetOf(setting)}
+                  </span>
+                {/snippet}
+              </SettingRow>
             {:else if setting === 'celebration'}
-              <Radio
-                label={t('app.structure.celebration_label')}
-                disabledReason={lockReason('celebration')}
-                options={[
-                  { value: 'ALL', label: t('app.structure.celebration.ALL') },
-                  { value: 'SUBTLE', label: t('app.structure.celebration.SUBTLE') },
-                ]}
-                bind:value={() => (values.celebration as string | undefined) ?? 'ALL', (choice) => draft && (draft = setValue(draft, 'celebration', choice as StructureSettings['celebration']))}
-              />
+              <SettingRow label={titleOf(setting)} help={t('app.structure.celebration_label')} fieldWidth="sm" lockReason={lockReason('celebration')}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    <Select
+                      label={t('app.structure.celebration_label')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      disabledReason={lockReason('celebration')}
+                      options={[
+                        { value: 'ALL', label: t('app.structure.celebration.ALL') },
+                        { value: 'SUBTLE', label: t('app.structure.celebration.SUBTLE') },
+                      ]}
+                      bind:value={() => (values.celebration as string | undefined) ?? 'ALL', (choice) => draft && (draft = setValue(draft, 'celebration', choice as StructureSettings['celebration']))}
+                    />
+                    {@render resetOf(setting)}
+                  </span>
+                {/snippet}
+              </SettingRow>
             {:else if setting === 'automation'}
-              <CheckboxGroup
-                label={t('app.structure.automation_label')}
-                disabledReason={lockReason('automation')}
-                options={AUTOMATION.map((behaviour) => ({ value: behaviour, label: t(`app.structure.automation.${behaviour}`) }))}
-                selected={(values.automation ?? []) as readonly string[]}
-                onChange={(selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour))))}
-              />
-            {:else if setting === 'entry_types'}
-              <p class="hint">{t('app.structure.entry_types_hint')}</p>
-              {#each offeredTypes as type (type)}
-                <CheckboxGroup
-                  label={t('app.structure.entry_types_of', { level: levelName(type) })}
-                  options={typeOptionsOf(type)}
-                  selected={typesOfLevel(entryTypes.all, type, values.entry_types?.[type], fileHub).map((each) => each.key)}
-                  onChange={(selected) => chooseEntryTypes(type, selected)}
-                />
-              {/each}
-              {#if isHub}
-                {@const atHub = typesAtHub(entryTypes.all, container.id)}
-                <div class="hub-types">
-                  <p class="hint">{t('app.structure.hub_types_hint')}</p>
-                  <ul>
-                    {#each atHub.shared.filter((each) => !each.archived) as type (type.key)}
-                      <li>
-                        <span>{type.name ?? levelName(type.level)}</span>
-                        <span class="source">{t('app.structure.hub_types_shared')}</span>
-                        {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === type.key} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyHere(type)}>
-                          {t('app.structure.hub_types_copy')}
-                        </Button>{/if}
-                      </li>
-                    {/each}
-                    {#each atHub.own as type (type.key)}
-                      <li>
-                        <span>{type.name ?? levelName(type.level)}</span>
-                        <span class="source">{type.copied_from ? t('app.structure.hub_types_copied', { from: type.copied_from }) : t('app.structure.hub_types_own')}</span>
-                      </li>
-                    {/each}
-                  </ul>
-                </div>
-                {@const fieldsHere = fieldsAtHub(customFields.atHub(container.id), container.id)}
-                {#if fieldsHere.shared.length + fieldsHere.own.length > 0}
-                  <div class="hub-types" data-hub-fields>
-                    <p class="hint">{t('app.structure.hub_fields_hint')}</p>
-                    <ul>
-                      {#each fieldsHere.shared as definition (definition.id)}
-                        <li>
-                          <span>{fieldName(definition)}</span>
-                          <span class="source">{t('app.structure.hub_types_shared')}</span>
-                          {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `field:${definition.id}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyFieldHere(definition)}>
-                            {t('app.structure.hub_types_copy')}
-                          </Button>{/if}
-                        </li>
-                      {/each}
-                      {#each fieldsHere.own as definition (definition.id)}
-                        <li>
-                          <span>{fieldName(definition)}</span>
-                          <span class="source">{definition.copied_from ? t('app.structure.hub_fields_copied') : t('app.structure.hub_types_own')}</span>
-                        </li>
-                      {/each}
-                    </ul>
-                  </div>
-                {/if}
-              {/if}
+              <SettingRow label={titleOf(setting)} help={t('app.structure.automation_label')} fieldWidth="lg" lockReason={lockReason('automation')}>
+                {#snippet source()}{@render chipFor(setting)}{/snippet}
+                {#snippet control(nameId)}
+                  <span class="acts">
+                    {@render ticks(
+                      nameId,
+                      AUTOMATION.map((behaviour) => ({ value: behaviour, label: t(`app.structure.automation.${behaviour}`), disabledReason: lockReason('automation') })),
+                      (values.automation ?? []) as readonly string[],
+                      (selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour)))),
+                    )}
+                    {@render resetOf(setting)}
+                  </span>
+                {/snippet}
+              </SettingRow>
             {/if}
-          </section>
-        {/each}
-
-        {#if group === 'workflow' && isHub && workflows.list}
-          {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
-          <div class="hub-types" data-hub-workflows>
-            <p class="hint">{t('app.structure.hub_workflows_hint')}</p>
-            <ul>
-              {#each flowsHere.shared as workflow (workflow.key)}
-                <li>
-                  <span>{workflow.name ?? t('workflows.default_name')}</span>
-                  <span class="source">{t('app.structure.hub_types_shared')}</span>
-                  {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `workflow:${workflow.key}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyWorkflowHere(workflow)}>
-                    {t('app.structure.hub_types_copy')}
-                  </Button>{/if}
-                </li>
-              {/each}
-              {#each flowsHere.own as workflow (workflow.key)}
-                <li>
-                  <span>{workflow.name ?? workflow.key}</span>
-                  <span class="source">{workflow.copied_from ? t('app.structure.hub_types_copied', { from: workflow.copied_from }) : t('app.structure.hub_types_own')}</span>
-                </li>
-              {/each}
-            </ul>
+            {#if draft.reset.includes(setting)}
+              <p class="hint pending" data-reset-pending>{t('app.structure.reset_pending')}</p>
+            {/if}
           </div>
-        {/if}
-
-        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-      </Stack>
-
-      <SaveBar
-        label={t('app.save_bar.label')}
-        changesLabel={changeCount > 0 ? t('app.save_bar.changes', { count: String(changeCount) }) : undefined}
-        discardLabel={t('app.save_bar.discard')}
-        saveLabel={t('app.workspace.save')}
-        {isSaving}
-        savingLabel={t('app.workspace.saving')}
-        onDiscard={discard}
-        onSave={() => void save()}
-        reachLabel={reach ? reachOf(reach.preview, t) : undefined}
-        planLabel={t('app.settings.show_plan')}
-        onPlan={reach?.preview.narrows ? () => (narrowing = reach) : undefined}
-      />
+        {/each}
+      </SettingsSection>
     </form>
+
+    {#if group === 'types' && shownSettings.includes('entry_types')}
+      <div class="setting" data-setting="entry_types">
+        <TableSection title={titleOf('entry_types')} note={String(typeRows.length)} description={t(isHub ? 'app.structure.hub_types_hint' : 'app.structure.entry_types_hint')}>
+          {#snippet acts()}
+            {@render chipFor('entry_types')}
+            {@render resetOf('entry_types')}
+          {/snippet}
+          <DataTable
+            label={titleOf('entry_types')}
+            columns={typeColumns}
+            rows={typeRows}
+            key={(row) => row.type.key}
+            rowLabel={(row) => row.name}
+            menu={(row) => copyMenu(!row.type.hub_id, row.name)}
+            onmenu={(row) => void copyHere(row.type)}
+            isBusy={copying !== undefined}
+            actionsLabel={t('app.page.row_actions')}
+            sheetDismissLabel={t('app.page.sheet_close')}
+            sheetGrabLabel={t('app.page.sheet_grab')}
+          >
+            {#snippet cell(row, column)}
+              {#if column.id === 'name'}<span data-entry-type={row.type.key}>{row.name}</span>
+              {:else if column.id === 'level'}{row.level}
+              {:else if column.id === 'source'}<span class="quiet">{row.source}</span>
+              {:else if column.id === 'offered'}
+                {#if offeredTypes.includes(row.type.level)}
+                  <Checkbox
+                    label={t('app.settings.type_offered_named', { name: row.name })}
+                    isLabelHidden
+                    density="sm"
+                    disabledReason={lockReason('entry_types')}
+                    checked={offeredKeys(row.type.level).includes(row.type.key)}
+                    onchange={(event: Event) => offerType(row, (event.currentTarget as HTMLInputElement).checked)}
+                  />
+                {:else}<span class="quiet">{t('app.settings.type_level_off')}</span>{/if}
+              {/if}
+            {/snippet}
+          </DataTable>
+        </TableSection>
+      </div>
+      {#if fieldRows.length > 0}
+        <div data-hub-fields>
+          <TableSection title={t('app.structure.setting.fields')} note={String(fieldRows.length)} description={t('app.structure.hub_fields_hint')}>
+            <DataTable
+              label={t('app.structure.setting.fields')}
+              columns={sourceColumns}
+              rows={fieldRows}
+              key={(row) => row.definition.id}
+              rowLabel={(row) => fieldName(row.definition)}
+              menu={(row) => copyMenu(row.isShared, fieldName(row.definition))}
+              onmenu={(row) => void copyFieldHere(row.definition)}
+              isBusy={copying !== undefined}
+              actionsLabel={t('app.page.row_actions')}
+              sheetDismissLabel={t('app.page.sheet_close')}
+              sheetGrabLabel={t('app.page.sheet_grab')}
+            >
+              {#snippet cell(row, column)}
+                {#if column.id === 'name'}{fieldName(row.definition)}
+                {:else}<span class="quiet">{row.isShared ? t('app.structure.hub_types_shared') : row.definition.copied_from ? t('app.structure.hub_fields_copied') : t('app.structure.hub_types_own')}</span>{/if}
+              {/snippet}
+            </DataTable>
+          </TableSection>
+        </div>
+      {/if}
+    {/if}
+
+    {#if group === 'workflow' && isHub && workflows.list}
+      {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
+      {@const flowRows = [...flowsHere.shared.map((workflow) => ({ workflow, isShared: true })), ...flowsHere.own.map((workflow) => ({ workflow, isShared: false }))]}
+      <div data-hub-workflows>
+        <TableSection title={t('app.settings.workflows_here')} note={String(flowRows.length)} description={t('app.structure.hub_workflows_hint')}>
+          <DataTable
+            label={t('app.settings.workflows_here')}
+            columns={sourceColumns}
+            rows={flowRows}
+            key={(row) => row.workflow.key}
+            rowLabel={(row) => row.workflow.name ?? row.workflow.key}
+            menu={(row) => copyMenu(row.isShared, row.workflow.name ?? row.workflow.key)}
+            onmenu={(row) => void copyWorkflowHere(row.workflow)}
+            isBusy={copying !== undefined}
+            actionsLabel={t('app.page.row_actions')}
+            sheetDismissLabel={t('app.page.sheet_close')}
+            sheetGrabLabel={t('app.page.sheet_grab')}
+          >
+            {#snippet cell(row, column)}
+              {#if column.id === 'name'}{row.isShared ? (row.workflow.name ?? t('workflows.default_name')) : (row.workflow.name ?? row.workflow.key)}
+              {:else}<span class="quiet">{row.isShared ? t('app.structure.hub_types_shared') : row.workflow.copied_from ? t('app.structure.hub_types_copied', { from: row.workflow.copied_from }) : t('app.structure.hub_types_own')}</span>{/if}
+            {/snippet}
+          </DataTable>
+        </TableSection>
+      </div>
+    {/if}
   {/if}
 {/snippet}
 
-<!-- The one settings shell (user-experience.md §5.4, §5.7): the place's sections one at a time,
-     each at its own address, and the leave guard holding the structure's unsaved draft. -->
-<div data-structure-tabs bind:this={shell}>
-  <SettingsPage
-    label={t('app.structure.tabs_label')}
-    sections={sections.map((each) => ({ id: each.id, label: each.label, href: hrefOf(each.id) }))}
-    selected={openSection}
-    onselect={onsection}
-    changes={changeCount}
+<!-- The place's settings page (page-system §7.3): the sections with their state, one at its address,
+     the head's quiet *View as file*, and the leave guard holding the structure's unsaved draft. -->
+<div class="structure" data-structure-tabs>
+  <SettingsLayout
+    head={{ ...head, secondary: fileAction ? [fileAction] : [] }}
+    nav={{ label: t('app.structure.tabs_label'), sections: links, current: openSection, onselect: onsection }}
+    view={tab ? 'detail' : 'list'}
+    back={{ label: head.title, onback: onlist }}
   >
-    {#if fileHub}<div class="file"><ViewSectionsAsFile {...placePart(isHub, container.handle ?? undefined)} hubId={fileHub} /></div>{/if}
     {#if isGroup(openSection)}
       {@render settingsBody(openSection)}
     {/if}
     {@render [...before, ...tabs].find((each) => each.id === openSection)?.body()}
-  </SettingsPage>
+  </SettingsLayout>
 </div>
+{#if fileHub}<ViewSectionsAsFile sections={fileSections} hubId={fileHub} handle={isHub ? undefined : (container.handle ?? undefined)} bind:isOpen={isFileOpen} isTriggerHidden />{/if}
 
 {#if narrowing}
   <NarrowingDialog
@@ -853,17 +1050,13 @@
 {/if}
 
 <style>
-  .panel { display: flex; flex-direction: column; gap: var(--sp-300); }
-  .setting { display: flex; flex-direction: column; gap: var(--sp-150); }
-  .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-  .head h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .names { display: grid; gap: var(--sp-150); }
-  .save-as { align-self: flex-start; }
-  .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
-  .failure { margin: 0; color: var(--text-danger); }
-  .hub-types ul { list-style: none; margin: var(--sp-100) 0 0; padding: 0; display: grid; gap: var(--sp-100); }
-  .hub-types li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
-  .hub-types .source { color: var(--text-secondary); font-size: var(--fs-100); margin-inline-end: auto; }
-
-  .file { display: flex; justify-content: flex-end; }
+  .structure { min-inline-size: 0; }
+  .panel { display: contents; }
+  .ticks { display: flex; flex-wrap: wrap; gap: var(--sp-050) var(--sp-200); }
+  .acts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); min-inline-size: 0; }
+  .head { display: inline-flex; }
+  .hint { margin: 0; color: var(--text-secondary); max-inline-size: 64ch; }
+  .pending { padding: 0 var(--sp-250) var(--sp-150); }
+  .quiet { color: var(--text-secondary); }
+  .failure { margin: 0; padding: var(--sp-150) var(--sp-250) 0; color: var(--text-danger); }
 </style>

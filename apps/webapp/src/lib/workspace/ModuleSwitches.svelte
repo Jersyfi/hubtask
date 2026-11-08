@@ -21,7 +21,6 @@
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
   import SectionFindings from '../settings/SectionFindings.svelte';
-  import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
   import { asksFirst, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -239,9 +238,6 @@
       {/each}
     </div>
     {#if hubId}
-      <Inline gap="150" align="center">
-        <ViewSectionsAsFile sections={['modules', 'structure', 'scheme', 'business_calendars']} {hubId} />
-      </Inline>
       <SectionFindings sections={['scheme', 'tolerance']} {hubId} />
     {:else}
       <ViewAsFile values={shown} {place} bind:isOpen={isFileOpen} {isTriggerHidden} />
