@@ -404,8 +404,12 @@ the mark the bar carries; how the product uses them is §11.
   under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav` of links with `aria-current`, because each switches routes — not `Tabs`, for
   `BottomBar`'s reason. One tab stop, the arrows, Home and End between the links; the first link is
   fixed, the others are dragged into order where the reader holds `STRUCTURE`; ＋ adds a view; tools
-  stand at its end. There is never a second bar. On `compact` it is a chip under the title opening a
-  `Sheet` with the same links in the same order. An optional mark and count per link.
+  stand at its end. There is never a second bar. The tools never overlap the views: whole while
+  both fit, as their marks - the words their name and tooltip - while the marks leave the views
+  `layout.viewbar.views`, behind one ⋯ below that; the bar measures both drawings. A view is a
+  control's height and a little more, so a bar with tools and one without stand alike. On
+  `compact` it is a chip under the title opening a `Sheet` with the same links in the same order.
+  An optional mark and count per link.
 * **The sidebar's pieces** ([`backlog/navigation/README.md`](../backlog/navigation/README.md) §2,
   [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)) — **`NavItem`**
   (a row: twist, mark or `ProductTile`, name, figure, and ⋯ and ＋ in the figure's cell on hover and
@@ -420,7 +424,8 @@ the mark the bar carries; how the product uses them is §11.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
   subtitle, **one** primary action, at most two secondary ones, a `Menu` for the rest, and an
   optional second row for a `ViewSwitcher` or `Tabs`. It cannot draw a fourth button. With
-  `isTitleInBar` it keeps its `h1` and hands its title and folded menu to the bar.
+  `isTitleInBar` it keeps its `h1` and hands its title and folded menu to the bar. Its title row is
+  as tall as its controls whether it holds any, so what follows the head keeps its place.
 * **`DetailPane`** — the column beside the content from `large` up: a head with the type, a close
   and an "open as a page", and a slot. Below `large` it renders nothing and the caller navigates. An
   `aside` landmark with its own heading; it takes no focus and is not a dialog.
