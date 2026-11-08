@@ -71,7 +71,8 @@ const SCREENS = [
   { path: '/administration/rules', buttons: ['Write a rule'], gates: ['AUTOMATION'] },
   { path: '/administration/rules/new', buttons: ['Save the rule'], gates: ['AUTOMATION'] },
   { path: '/administration/webhooks', buttons: ['Add a webhook'], gates: ['AUTOMATION'] },
-  { path: '/administration/ai', buttons: ['Save'], gates: ['STRUCTURE'] },
+  // The own model's form is AI's first section here; its save bar shows only once something changed.
+  { path: '/administration/ai', buttons: [{ role: 'textbox', name: /^Model for proposals/ }], gates: ['STRUCTURE'] },
   // Backup and Retention are one section per address (page-system §9.3): each section's own add.
   { path: '/administration/backup', buttons: ['Back up now'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
   { path: '/administration/backup/targets', buttons: ['Add a target'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
