@@ -17,7 +17,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea, ViewSwitcher,
     type Column,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -240,7 +240,21 @@
       ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
       : undefined}
   />
-  <PlaceStrip placeId={hubId} current="plan" view="releases" {onnavigate} />
+  <PlaceStrip placeId={hubId} current="plan" view="releases" isViewStripShown={false} {onnavigate} />
+  <!-- The plan's views and *Releases* are one segmented control, not a second strip (PS-2). -->
+  <div class="views">
+    <ViewSwitcher
+      label={t('app.planning.views')}
+      views={[
+        { id: 'chart', label: t('app.planning.view_chart') },
+        { id: 'table', label: t('app.planning.view_table') },
+        { id: 'dependencies', label: t('app.timeline.dependencies') },
+        { id: 'releases', label: t('app.releases.title') },
+      ]}
+      selected="releases"
+      onselect={(id) => { if (id !== 'releases') onnavigate(id === 'chart' ? `/hubs/${hubId}/plan` : `/hubs/${hubId}/plan?view=${id}`); }}
+    />
+  </div>
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -399,6 +413,7 @@
 {/if}
 
 <style>
+  .views { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-width: 0; }
   .chooser { max-inline-size: var(--layout-board-column); }
   .card { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
   .name { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }

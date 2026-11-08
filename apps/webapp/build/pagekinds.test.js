@@ -40,7 +40,7 @@ const NOT_YET_MIGRATED = [
   'GoalView', 'GoalsView',
   'HubDeskView', 'InstallationView', 'ItemView', 'JumbleView',
   'NotesView',
-  'OidcCallbackView', 'PagesView', 'PlanView', 'PortalArticleView',
+  'OidcCallbackView', 'PagesView', 'PortalArticleView',
   'PortalRequestView', 'PortalView', 'PortfolioView',
   'ProductHomeView', 'PublicFormView', 'PublicRoadmapView',
   'RateView', 'RedeemView', 'ReleaseView', 'ResetView',

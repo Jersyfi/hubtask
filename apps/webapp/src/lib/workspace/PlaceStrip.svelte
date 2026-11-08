@@ -3,7 +3,8 @@
 <script lang="ts">
   // A hub's or a collection's tab strip under its head (user-experience.md §2.4), drawn by the
   // place's own screen and by every screen one of its tabs opens, so the reader always sees where
-  // they are and can switch. A tab with several views draws them as a second, quieter strip.
+  // they are and can switch. A tab with several views draws them as a second, quieter strip, unless
+  // the screen offers them as its toolbar's segmented control (page-system PS-2).
   // Nothing is drawn until the place's modules have answered, and nothing where only the first
   // tab would stand: a strip of one link is no choice.
   import { untrack } from 'svelte';
@@ -24,9 +25,11 @@
     /** The tab the screen is, and the view inside it where the tab holds several. */
     current: string;
     view?: string;
+    /** False where the screen's toolbar offers the tab's views itself. */
+    isViewStripShown?: boolean;
     onnavigate: (path: string) => void;
   }
-  const { placeId, current, view, onnavigate }: Props = $props();
+  const { placeId, current, view, isViewStripShown = true, onnavigate }: Props = $props();
 
   const place = $derived(containers.find(placeId));
   let placeModules = $state<readonly string[] | undefined>(undefined);
@@ -72,7 +75,7 @@
 {#if place && tabs.length > 1}
   <div class="strip">
     <PlaceTabs label={place.name} {tabs} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
-    {#if views.length > 1}
+    {#if isViewStripShown && views.length > 1}
       <PlaceTabs
         label={tabs.find((each) => each.id === current)?.label ?? ''}
         tabs={views}

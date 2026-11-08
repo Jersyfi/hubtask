@@ -550,7 +550,7 @@
     {/key}
   {:else if route.name === 'hub-plan' || route.name === 'collection-plan'}
     {#key route.path}
-      <LazyView load={views.PlanView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.PlanView} props={{ planId: route.params.id, view: route.query['view'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
   {:else if route.name === 'time' && route.query['tab'] === 'settings'}
     <LazyView load={views.TimeSettingsView} props={{ section: route.query['section'], onreplace: (path: string) => router.replace(path) }} />

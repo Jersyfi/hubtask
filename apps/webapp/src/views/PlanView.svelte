@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Plan* of a hub or a collection (M2, UC-PLN-02 … 05): the schedule as a Gantt chart and as a
-  // table, in one screen. The chart comes first and full width, its window fitting the plan; the
-  // tolerance and the baselines are the plan's settings, behind *Plan settings* in the head
-  // (user-experience.md §7.5).
+  // *Plan* of a hub or a collection (M2, UC-PLN-02 … 05): the schedule as a Gantt chart, as a
+  // table, its dependencies and what has no dates yet - views of one segmented control in the
+  // toolbar, one at a time, with a hub's *Releases* beside them (page-system §9.7, PS-2), at
+  // `?view=`. The chart comes first, its window fitting the plan; the tolerance and the baselines
+  // are the plan's settings, behind *Plan settings* in the head (user-experience.md §7.5).
   //
   // **The server schedules; this screen draws and writes.** Every date is the one
   // `GET /plans/{id}/schedule` answered; a drag, a mode, a milestone, a dependency's timing or an
@@ -12,7 +13,8 @@
   // would be a second scheduler, and two schedulers disagree.
   //
   // **The table is the keyboard path** (UC-PLN-02 check 7, SC 2.5.7): every row has its mode, its
-  // milestone mark and its proposed move as real controls, every dependency its kind and lag, and
+  // milestone mark and its proposed move as real controls, every dependency its kind and lag (in a
+  // popover, a bottom sheet on a phone, §5.1), and
   // the entry's own screen - one press on its title - sets its dates. The chart is the picture of
   // the same answer, never the only way to change it.
   //
@@ -29,8 +31,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
-    type Column, type TimelineCarry, type TimelineDependency, type TimelineLink,
+    Banner, Button, Checkbox, DataTable, Dialog, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, ViewSwitcher, WorkPage,
+    type DataColumn, type DataRowMenu, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
@@ -66,10 +68,14 @@
   interface Props {
     /** The hub or collection the plan is. */
     planId: string;
+    /** The view the address names (`?view=`): the chart where none or an unknown one. */
+    view?: string;
     onnavigate: (path: string) => void;
+    /** Replaces the address: a move between the plan's views. */
+    onreplace?: (path: string) => void;
   }
 
-  const { planId, onnavigate }: Props = $props();
+  const { planId, view, onnavigate, onreplace }: Props = $props();
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
@@ -406,26 +412,57 @@
     { value: 'AUTOMATIC', label: t('app.planning.mode_AUTOMATIC') },
   ]);
   const kinds = $derived((['FS', 'SS', 'FF', 'SF'] as const).map((value) => ({ value, label: t(`app.planning.kind_${value}`) })));
-  const columns = $derived<Column[]>([
-    { id: 'entry', label: t('app.planning.col_entry') },
-    { id: 'start', label: t('app.planning.col_start') },
-    { id: 'finish', label: t('app.planning.col_finish') },
-    { id: 'duration', label: t('app.planning.col_duration'), align: 'end' },
-    { id: 'float', label: t('app.planning.col_float'), align: 'end' },
-    { id: 'critical', label: t('app.planning.col_critical') },
-    ...(comparison ? [{ id: 'slip', label: t('app.planning.col_slip'), align: 'end' as const }] : []),
-    { id: 'mode', label: t('app.planning.col_mode') },
-    { id: 'milestone', label: t('app.planning.col_milestone') },
-    { id: 'move', label: t('app.planning.col_move') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'entry', label: t('app.planning.col_entry'), priority: 1 },
+    { id: 'start', label: t('app.planning.col_start'), priority: 2 },
+    { id: 'finish', label: t('app.planning.col_finish'), priority: 2 },
+    { id: 'duration', label: t('app.planning.col_duration'), align: 'end', priority: 3 },
+    { id: 'float', label: t('app.planning.col_float'), align: 'end', priority: 3 },
+    { id: 'critical', label: t('app.planning.col_critical'), priority: 3 },
+    ...(comparison ? [{ id: 'slip', label: t('app.planning.col_slip'), align: 'end' as const, priority: 3 as const }] : []),
+    { id: 'mode', label: t('app.planning.col_mode'), priority: 2 },
+    { id: 'milestone', label: t('app.planning.col_milestone'), priority: 2 },
+    { id: 'move', label: t('app.planning.col_move'), priority: 2 },
   ]);
-  const dependencyColumns = $derived<Column[]>([
-    { id: 'waiting', label: t('app.planning.col_waiting') },
-    { id: 'waited', label: t('app.planning.col_waited') },
-    { id: 'kind', label: t('app.planning.col_kind') },
-    { id: 'lag', label: t('app.planning.col_lag') },
-    { id: 'save', label: t('app.planning.col_save'), isLabelHidden: true },
-    ...(mayWrite ? [{ id: 'remove', label: t('app.planning.col_remove'), isLabelHidden: true }] : []),
+  const dependencyColumns = $derived<DataColumn[]>([
+    { id: 'waiting', label: t('app.planning.col_waiting'), priority: 1 },
+    { id: 'waited', label: t('app.planning.col_waited'), priority: 2 },
+    { id: 'kind', label: t('app.planning.col_kind'), priority: 2 },
+    { id: 'lag', label: t('app.planning.col_lag'), align: 'end', priority: 2 },
   ]);
+  type PlanRow = (typeof rows)[number];
+  type PlanDependency = PlanSchedule['dependencies'][number];
+  /** A dependency's ⋯: taking it back (PS-6). */
+  const dependencyMenu = (each: PlanDependency): DataRowMenu | undefined => mayWrite
+    ? {
+        label: t('app.planning.dependency_menu', { waiting: titleOf(each.successor_id), waited: titleOf(each.predecessor_id) }),
+        items: [{ id: 'remove', label: t('app.planning.remove_dependency_of', { waiting: titleOf(each.successor_id), waited: titleOf(each.predecessor_id) }), icon: 'trash', isDestructive: true }],
+      }
+    : undefined;
+  /** The dependency whose timing is open in its popover or sheet. */
+  let timingOpen = $state<string | undefined>(undefined);
+  function saveTimingAndClose(linkId: string) {
+    saveTiming(linkId);
+    if (!lagErrors[linkId]) timingOpen = undefined;
+  }
+
+  // The plan's views (§9.7): one at a time; *No dates yet* only while something has none, a hub's
+  // *Releases* its own screen beside them.
+  const placeViews = $derived([
+    { id: 'chart', label: t('app.planning.view_chart') },
+    { id: 'table', label: t('app.planning.view_table') },
+    { id: 'dependencies', label: t('app.timeline.dependencies') },
+    ...(undated.length > 0 ? [{ id: 'undated', label: t('app.planning.view_undated', { count: String(undated.length) }) }] : []),
+    ...(place?.type === 'HUB' ? [{ id: 'releases', label: t('app.releases.title') }] : []),
+  ]);
+  const viewShown = $derived(placeViews.some((each) => each.id === view && each.id !== 'releases') ? (view as string) : 'chart');
+  const planPath = $derived(`${placePath}/plan`);
+  function choose(next: string) {
+    if (next === 'releases') onnavigate(`${placePath}/releases`);
+    else (onreplace ?? onnavigate)(next === 'chart' ? planPath : `${planPath}?view=${next}`);
+  }
+  /** The chart trays nothing: what has no dates is its own view, the chart with its tray. */
+  const chartRows = $derived(viewShown === 'undated' ? timelineRows : timelineRows.filter((row) => !undatedIds.has(row.id)));
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
   // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
   // dates; the standing against the tolerance where it is kept and not exceeded.
@@ -442,21 +479,20 @@
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
 </script>
 
-<Stack gap="200">
-  <PageHeader
-    title={t('app.planning.title')}
-    isTitleInBar={viewport.isCompact}
-    subtitle={figure}
-    breadcrumb={place
+<WorkPage
+  head={{
+    title: t('app.planning.title'),
+    subtitle: figure,
+    breadcrumb: place
       ? {
           trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
           label: t('app.planning.trail'),
           expandLabel: t('app.planning.expand_trail'),
           onnavigate: () => onnavigate(placePath),
         }
-      : undefined}
-    secondary={mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : []}
-    menu={{
+      : undefined,
+    secondary: mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
+    menu: {
       label: t('app.planning.more'),
       items: [
         { id: 'settings', label: t('app.planning.settings'), icon: 'settings' },
@@ -467,9 +503,11 @@
         ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
       ],
       onselect: (id: string) => void exportAs(id),
-    }}
-  />
-  <PlaceStrip placeId={planId} current="plan" view="plan" {onnavigate} />
+    },
+  }}
+  toolbar={schedule && !refusal && (rows.length > 0 || undated.length > 0) ? toolbar : undefined}
+>
+  {#snippet tabs()}<PlaceStrip placeId={planId} current="plan" view="plan" isViewStripShown={false} {onnavigate} />{/snippet}
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -521,6 +559,43 @@
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
+    {#if viewShown === 'table'}
+      {@render planTable()}
+    {:else if viewShown === 'dependencies'}
+      {@render dependencyTable()}
+    {:else}
+      <div class="window" data-plan-view={viewShown}>
+        <Timeline
+          label={t('app.planning.chart')}
+          from={current.from}
+          to={current.to}
+          {scale}
+          rows={chartRows}
+          {gridlines}
+          {today}
+          todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
+          undatedLabel={t('app.timeline.undated')}
+          emptyLabel={t('app.planning.empty')}
+          startHandleLabel={t('app.timeline.move_start')}
+          dueHandleLabel={t('app.timeline.move_due')}
+          onSelect={(id) => onnavigate(`/items/${id}`)}
+          onCarry={carried}
+          dependencies={dependencies}
+          dependenciesLabel={t('app.timeline.dependencies')}
+          onLink={mayWrite ? linked : undefined}
+          linkHandleLabel={t('app.planning.draw_dependency')}
+          criticalLabel={t('app.planning.critical_named')}
+          resizeLabel={t('app.planning.resize_titles')}
+          rowAction={viewShown === 'undated' ? giveDates : undefined}
+        />
+      </div>
+    {/if}
+  {/if}
+</WorkPage>
+
+{#snippet toolbar()}
+  <ViewSwitcher label={t('app.planning.views')} views={placeViews} selected={viewShown} onselect={choose} />
+  {#if viewShown === 'chart' || viewShown === 'undated'}
     <div class="controls" role="group" aria-label={t('app.planning.chart')}>
       <Inline gap="050">
         <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
@@ -546,184 +621,179 @@
       {/if}
       <span class="quiet window-said">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
     </div>
+  {:else if viewShown === 'table' && mayWrite && accepted.length > 0}
+    <Button size="sm" onclick={() => applyMoves(accepted)}>{t('app.planning.accept_chosen', { count: String(accepted.length) })}</Button>
+  {/if}
+{/snippet}
 
-    {#snippet giveDates(id: string)}
-      {#if undatedIds.has(id) && mayWrite}
-        <Button size="sm" tone="subtle" aria-label={t('app.planning.give_dates_of', { title: titleOfUndated(id) })} onclick={() => onnavigate(`/items/${id}`)}>
-          {t('app.planning.give_dates')}
-        </Button>
+{#snippet giveDates(id: string)}
+  {#if undatedIds.has(id) && mayWrite}
+    <Button size="sm" tone="subtle" aria-label={t('app.planning.give_dates_of', { title: titleOfUndated(id) })} onclick={() => onnavigate(`/items/${id}`)}>
+      {t('app.planning.give_dates')}
+    </Button>
+  {/if}
+{/snippet}
+
+{#snippet planTable()}
+  <DataTable label={t('app.planning.table')} {columns} {rows} key={(row: PlanRow) => row.id} rowLabel={(row: PlanRow) => row.title}>
+    {#snippet cell(row: PlanRow, column: DataColumn)}
+      {#if column.id === 'entry'}
+        <span class="what" data-depth={String(Math.min(row.depth, 4))}>
+          <a href={`/items/${row.id}`}>{row.title}</a>
+          {#if row.entry.external}<span class="note">{t('app.planning.outside')}</span>{/if}
+          {#if row.entry.summary}<span class="note">{t('app.planning.summary')}</span>{/if}
+          {#if row.entry.done}<span class="note">{t('app.planning.done')}</span>{/if}
+        </span>
+      {:else if column.id === 'start'}
+        {dayLabel(row.start)}{#if row.entry.moved}<span class="note">{t('app.planning.proposed')}</span>{/if}
+      {:else if column.id === 'finish'}
+        {dayLabel(row.due)}
+      {:else if column.id === 'duration'}
+        <span class="number">{row.entry.duration_days}</span>
+      {:else if column.id === 'float'}
+        <span class="number">{row.entry.total_float_days}</span>
+      {:else if column.id === 'critical'}
+        {row.isCritical ? t('app.planning.critical') : ''}
+      {:else if column.id === 'slip'}
+        {@const slip = slipOf(row.id)}
+        <span class="number">{slip === undefined || slip === null ? '—' : slip > 0 ? `+${slip}` : String(slip)}</span>
+      {:else if column.id === 'mode'}
+        {#if mayWrite && !row.entry.external}
+          {@const chosenMode = modeDraft[row.id] ?? row.entry.mode}
+          <!-- Chosen, then applied: a closed native select changes on every arrow key, and
+               each change would write and reschedule the plan (SC 3.2.2). -->
+          <Inline gap="050" align="end">
+            <Select
+              label={t('app.planning.mode_of', { title: row.title })}
+              isLabelHidden
+              size="sm"
+              value={chosenMode}
+              options={modes}
+              onchange={(event: Event) => (modeDraft[row.id] = (event.currentTarget as HTMLSelectElement).value as 'MANUAL' | 'AUTOMATIC')}
+            />
+            {#if chosenMode !== row.entry.mode}
+              <Button
+                size="sm"
+                tone="secondary"
+                aria-label={t('app.planning.mode_apply_of', { title: row.title })}
+                onclick={() => {
+                  const mode = chosenMode;
+                  void act(() => planning.setScheduling(planId, zone, row.id, { mode })).then(() => delete modeDraft[row.id]);
+                }}
+              >{t('app.planning.mode_apply')}</Button>
+            {/if}
+          </Inline>
+        {:else}
+          {t(`app.planning.mode_${row.entry.mode}`)}
+        {/if}
+      {:else if column.id === 'milestone'}
+        {#if mayWrite && !row.entry.external}
+          <Checkbox
+            label={t('app.planning.milestone_of', { title: row.title })}
+            isLabelHidden
+            checked={row.entry.milestone}
+            onchange={(event: Event) => {
+              const milestone = (event.currentTarget as HTMLInputElement).checked;
+              void act(() => planning.setScheduling(planId, zone, row.id, { milestone }));
+            }}
+          />
+        {:else}
+          {row.entry.milestone ? t('app.planning.milestone') : ''}
+        {/if}
+      {:else if column.id === 'move'}
+        {#if mayWrite && proposed.includes(row.id)}
+          <Checkbox
+            label={t('app.planning.accept_of', { title: row.title })}
+            isLabelHidden
+            checked={accepted.includes(row.id)}
+            onchange={(event: Event) => {
+              const isOn = (event.currentTarget as HTMLInputElement).checked;
+              accepted = isOn ? [...accepted, row.id] : accepted.filter((id) => id !== row.id);
+            }}
+          />
+        {/if}
       {/if}
     {/snippet}
-    <div class="window">
-      <Timeline
-        label={t('app.planning.chart')}
-        from={current.from}
-        to={current.to}
-        {scale}
-        rows={timelineRows}
-        {gridlines}
-        {today}
-        todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
-        undatedLabel={t('app.timeline.undated')}
-        emptyLabel={t('app.planning.empty')}
-        startHandleLabel={t('app.timeline.move_start')}
-        dueHandleLabel={t('app.timeline.move_due')}
-        onSelect={(id) => onnavigate(`/items/${id}`)}
-        onCarry={carried}
-        dependencies={dependencies}
-        dependenciesLabel={t('app.timeline.dependencies')}
-        onLink={mayWrite ? linked : undefined}
-        linkHandleLabel={t('app.planning.draw_dependency')}
-        criticalLabel={t('app.planning.critical_named')}
-        resizeLabel={t('app.planning.resize_titles')}
-        rowAction={undated.length > 0 ? giveDates : undefined}
-      />
-    </div>
+  </DataTable>
+{/snippet}
 
-    <section aria-labelledby="plan-table" class="block">
-      <Inline justify="between" align="center">
-        <h2 id="plan-table" class="heading">{t('app.planning.table')}</h2>
-        {#if mayWrite && accepted.length > 0}
-          <Button size="sm" onclick={() => applyMoves(accepted)}>{t('app.planning.accept_chosen', { count: String(accepted.length) })}</Button>
-        {/if}
-      </Inline>
-      <Table label={t('app.planning.table')} isLabelHidden {columns}>
-        {#each rows as row (row.id)}
-          <tr data-depth={String(Math.min(row.depth, 4))}>
-            <th scope="row" class="what">
-              <a href={`/items/${row.id}`}>{row.title}</a>
-              {#if row.entry.external}<span class="note">{t('app.planning.outside')}</span>{/if}
-              {#if row.entry.summary}<span class="note">{t('app.planning.summary')}</span>{/if}
-              {#if row.entry.done}<span class="note">{t('app.planning.done')}</span>{/if}
-            </th>
-            <td>{dayLabel(row.start)}{#if row.entry.moved}<span class="note">{t('app.planning.proposed')}</span>{/if}</td>
-            <td>{dayLabel(row.due)}</td>
-            <td class="number">{row.entry.duration_days}</td>
-            <td class="number">{row.entry.total_float_days}</td>
-            <td>{row.isCritical ? t('app.planning.critical') : ''}</td>
-            {#if comparison}
-              {@const slip = slipOf(row.id)}
-              <td class="number">{slip === undefined || slip === null ? '—' : slip > 0 ? `+${slip}` : String(slip)}</td>
-            {/if}
-            <td>
-              {#if mayWrite && !row.entry.external}
-                {@const chosenMode = modeDraft[row.id] ?? row.entry.mode}
-                <!-- Chosen, then applied: a closed native select changes on every arrow key, and
-                     each change would write and reschedule the plan (SC 3.2.2). -->
-                <Inline gap="050" align="end">
-                  <Select
-                    label={t('app.planning.mode_of', { title: row.title })}
-                    isLabelHidden
-                    size="sm"
-                    value={chosenMode}
-                    options={modes}
-                    onchange={(event: Event) => (modeDraft[row.id] = (event.currentTarget as HTMLSelectElement).value as 'MANUAL' | 'AUTOMATIC')}
-                  />
-                  {#if chosenMode !== row.entry.mode}
-                    <Button
-                      size="sm"
-                      tone="secondary"
-                      aria-label={t('app.planning.mode_apply_of', { title: row.title })}
-                      onclick={() => {
-                        const mode = chosenMode;
-                        void act(() => planning.setScheduling(planId, zone, row.id, { mode })).then(() => delete modeDraft[row.id]);
-                      }}
-                    >{t('app.planning.mode_apply')}</Button>
-                  {/if}
-                </Inline>
-              {:else}
-                {t(`app.planning.mode_${row.entry.mode}`)}
-              {/if}
-            </td>
-            <td>
-              {#if mayWrite && !row.entry.external}
-                <Checkbox
-                  label={t('app.planning.milestone_of', { title: row.title })}
-                  isLabelHidden
-                  checked={row.entry.milestone}
-                  onchange={(event: Event) => {
-                    const milestone = (event.currentTarget as HTMLInputElement).checked;
-                    void act(() => planning.setScheduling(planId, zone, row.id, { milestone }));
-                  }}
-                />
-              {:else}
-                {row.entry.milestone ? t('app.planning.milestone') : ''}
-              {/if}
-            </td>
-            <td>
-              {#if mayWrite && proposed.includes(row.id)}
-                <Checkbox
-                  label={t('app.planning.accept_of', { title: row.title })}
-                  isLabelHidden
-                  checked={accepted.includes(row.id)}
-                  onchange={(event: Event) => {
-                    const isOn = (event.currentTarget as HTMLInputElement).checked;
-                    accepted = isOn ? [...accepted, row.id] : accepted.filter((id) => id !== row.id);
-                  }}
-                />
-              {/if}
-            </td>
-          </tr>
-        {/each}
-      </Table>
-    </section>
+{#snippet dependencyTable()}
+  <section class="block" aria-label={t('app.timeline.dependencies')}>
+    <DataTable
+      label={t('app.timeline.dependencies')}
+      columns={dependencyColumns}
+      rows={schedule?.dependencies ?? []}
+      key={(each: PlanDependency) => each.link_id}
+      rowLabel={(each: PlanDependency) => titleOf(each.successor_id)}
+      verb={mayWrite ? timingVerb : undefined}
+      menu={dependencyMenu}
+      onmenu={(each: PlanDependency) => removeDependency(each.link_id, each.successor_id, each.predecessor_id)}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      actionsLabel={t('app.planning.col_remove')}
+    >
+      {#snippet cell(each: PlanDependency, column: DataColumn)}
+        {#if column.id === 'waiting'}{titleOf(each.successor_id)}
+        {:else if column.id === 'waited'}{titleOf(each.predecessor_id)}
+        {:else if column.id === 'kind'}{t(`app.planning.kind_${each.dependency_kind}`)}
+        {:else}<span class="number">{each.lag_days}</span>{/if}
+      {/snippet}
+    </DataTable>
+    {#if mayWrite && linkable.length > 1}
+      <div class="controls" role="group" aria-label={t('app.planning.add_dependency')} data-add-dependency>
+        <Select label={t('app.planning.new_waiting')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
+        <Select label={t('app.planning.new_waited')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
+        <Select label={t('app.planning.col_kind')} size="sm" bind:value={newKind} options={kinds} />
+        <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" error={newLagError} />
+        <Button data-list-add size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
+      </div>
+    {/if}
+  </section>
+{/snippet}
 
-    {#if schedule.dependencies.length > 0 || (mayWrite && linkable.length > 1)}
-      <section aria-labelledby="plan-dependencies" class="block">
-        <h2 id="plan-dependencies" class="heading">{t('app.timeline.dependencies')}</h2>
-        {#if schedule.dependencies.length > 0}
-          <Table label={t('app.timeline.dependencies')} isLabelHidden columns={dependencyColumns}>
-            {#each schedule.dependencies as each (each.link_id)}
-              {@const draft = timing[each.link_id]}
-              <tr data-dependency-row={each.link_id}>
-                <th scope="row">{titleOf(each.successor_id)}</th>
-                <td>{titleOf(each.predecessor_id)}</td>
-                {#if mayWrite && draft}
-                  <td><Select label={t('app.planning.kind_of', { title: titleOf(each.successor_id) })} isLabelHidden size="sm" bind:value={draft.kind} options={kinds} /></td>
-                  <td><Input label={t('app.planning.lag_of', { title: titleOf(each.successor_id) })} isLabelHidden size="sm" bind:value={draft.lag} inputmode="numeric" error={lagErrors[each.link_id]} /></td>
-                  <td><Button size="sm" tone="secondary" onclick={() => saveTiming(each.link_id)}>{t('app.planning.save_timing')}</Button></td>
-                {:else}
-                  <td>{t(`app.planning.kind_${each.dependency_kind}`)}</td>
-                  <td>{each.lag_days}</td>
-                  <td></td>
-                {/if}
-                {#if mayWrite}
-                  <td>
-                    <Button
-                      size="sm"
-                      tone="subtle"
-                      icon="trash"
-                      aria-label={t('app.planning.remove_dependency_of', { waiting: titleOf(each.successor_id), waited: titleOf(each.predecessor_id) })}
-                      onclick={() => removeDependency(each.link_id, each.successor_id, each.predecessor_id)}
-                    >{t('app.planning.remove_dependency')}</Button>
-                  </td>
-                {/if}
-              </tr>
-            {/each}
-          </Table>
-        {/if}
-        {#if mayWrite && linkable.length > 1}
-          <div class="controls" role="group" aria-label={t('app.planning.add_dependency')} data-add-dependency>
-            <Select label={t('app.planning.new_waiting')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
-            <Select label={t('app.planning.new_waited')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
-            <Select label={t('app.planning.col_kind')} size="sm" bind:value={newKind} options={kinds} />
-            <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" error={newLagError} />
-            <Button data-list-add size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
-          </div>
-        {/if}
-      </section>
+<!-- A dependency's kind and lag: two values of one thing, a popover's rung (§5.1); a bottom sheet
+     on a phone. -->
+{#snippet timingVerb(each: PlanDependency)}
+  {@const draft = timing[each.link_id]}
+  {@const name = titleOf(each.successor_id)}
+  {#if draft}
+    {#if viewport.isCompact}
+      <Button size="sm" tone="subtle" aria-label={t('app.planning.timing_of', { title: name })} onclick={() => (timingOpen = each.link_id)}>{t('app.planning.timing')}</Button>
+      <Sheet title={t('app.planning.timing_title', { title: name })} dismissLabel={t('app.page.sheet_close')} grabLabel={t('app.page.sheet_grab')}
+        bind:isOpen={() => timingOpen === each.link_id, (open) => (timingOpen = open ? each.link_id : undefined)}>
+        {@render timingFields(each.link_id, name)}
+      </Sheet>
+    {:else}
+      <Popover label={t('app.planning.timing_title', { title: name })} placement={{ side: 'block-end', align: 'end' }}
+        bind:isOpen={() => timingOpen === each.link_id, (open) => (timingOpen = open ? each.link_id : undefined)}>
+        {#snippet trigger(props)}
+          <Button size="sm" tone="subtle" aria-label={t('app.planning.timing_of', { title: name })} {...props}>{t('app.planning.timing')}</Button>
+        {/snippet}
+        {@render timingFields(each.link_id, name)}
+      </Popover>
     {/if}
   {/if}
-</Stack>
+{/snippet}
+
+{#snippet timingFields(linkId: string, name: string)}
+  {@const draft = timing[linkId]}
+  {#if draft}
+    <div class="timing" data-timing={linkId}>
+      <Select label={t('app.planning.kind_of', { title: name })} size="sm" bind:value={draft.kind} options={kinds} />
+      <Input label={t('app.planning.lag_of', { title: name })} size="sm" bind:value={draft.lag} inputmode="numeric" error={lagErrors[linkId]} />
+      <Inline justify="end"><Button size="sm" onclick={() => saveTimingAndClose(linkId)}>{t('app.planning.save_timing')}</Button></Inline>
+    </div>
+  {/if}
+{/snippet}
 
 {#if isImporting}
-  <Dialog bind:isOpen={isImporting} title={t('app.planning.import')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isImporting} title={t('app.planning.import')} dismissLabel={t('app.links.cancel')} size="m">
     <PlanImport collectionId={planId} {zone} ondone={() => (isImporting = false)} />
   </Dialog>
 {/if}
 
 {#if isTaking}
-  <Dialog bind:isOpen={isTaking} title={t('app.planning.take_baseline')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isTaking} title={t('app.planning.take_baseline')} dismissLabel={t('app.links.cancel')} size="s">
     <Stack gap="150">
       <p class="quiet">{t('app.planning.take_baseline_hint')}</p>
       <Input label={t('app.planning.baseline_name')} bind:value={baselineName} maxlength={120} />
@@ -733,7 +803,7 @@
 {/if}
 
 {#if isSetting}
-  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')} size="m">
     <Stack gap="300">
       <section class="block" aria-labelledby="plan-tolerance" data-plan-tolerance>
         <h2 id="plan-tolerance" class="heading">{t('app.planning.tolerance')}</h2>
@@ -788,15 +858,17 @@
   .baseline { display: flex; align-items: center; gap: var(--sp-100); }
   .grow { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; }
   .window { min-width: 0; }
-  .block { display: flex; flex-direction: column; gap: var(--sp-100); }
+  .block { display: flex; flex-direction: column; gap: var(--sp-250); min-width: 0; }
+  .timing { display: grid; gap: var(--sp-150); padding: var(--sp-150); min-inline-size: var(--layout-field-sm); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-050); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; }
-  tr[data-depth='1'] .what { padding-inline-start: var(--sp-150); }
-  tr[data-depth='2'] .what { padding-inline-start: var(--sp-300); }
-  tr[data-depth='3'] .what { padding-inline-start: var(--sp-400); }
-  tr[data-depth='4'] .what { padding-inline-start: var(--sp-500); }
+  .what { display: inline-block; }
+  .what[data-depth='1'] { padding-inline-start: var(--sp-150); }
+  .what[data-depth='2'] { padding-inline-start: var(--sp-300); }
+  .what[data-depth='3'] { padding-inline-start: var(--sp-400); }
+  .what[data-depth='4'] { padding-inline-start: var(--sp-500); }
 </style>
