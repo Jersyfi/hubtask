@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
 import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, leftToWebApp, primary, products, workspaceBand, HUB_TOOLS, hubTools, switchPath, toolOf, toolPath, type SectionGroup } from './navigation.ts';
-import { SECTION_OPEN_AT_FIRST, contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navHubs, navProducts, orderHubs, withHidden, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute } from './sidebar.ts';
+import { SECTION_OPEN_AT_FIRST, contentsCount, contentsTree, figureCount, foot, forYou, levelOf, navHubs, navProducts, orderHubs, withHidden, placedIndex, queuePath, queueRows, viewStarPath, type LevelRoute, type NavLevel } from './sidebar.ts';
 import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -430,8 +430,8 @@ test('the Android app keeps the administration\'s and the installation\'s rows, 
 // ---------------------------------------------------------------------------------------------------
 
 const LEVEL_HUBS: Record<string, string> = { h: 'h', c: 'h' };
-const level = (name: string, params: Record<string, string> = {}, query: Record<string, string> = {}, located?: string) =>
-  levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located);
+const level = (name: string, params: Record<string, string> = {}, query: Record<string, string> = {}, located?: string, held?: NavLevel) =>
+  levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located, held);
 
 test('anything of a hub shows its hub\'s level; everything else the workspace level (§2.4, §6.1)', () => {
   for (const name of ['hub', 'hub-plan', 'hub-plan-releases', 'hub-plan-sprints', 'hub-desk', 'hub-inventory', 'hub-inventory-section', 'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-pages', 'hub-contents', 'hub-settings']) {
@@ -446,6 +446,17 @@ test('anything of a hub shows its hub\'s level; everything else the workspace le
   for (const name of ['home', 'search', 'jumble', 'plans-home', 'pages-home', 'goals', 'trash', 'archive']) {
     assert.deepEqual(level(name), { kind: 'workspace' }, name);
   }
+});
+
+test('a detail screen keeps the level it was opened from until it names its place (R-18): never the workspace in between', () => {
+  const hub = { kind: 'hub', hubId: 'h' } as const;
+  for (const name of ['page', 'whiteboard', 'item', 'ci']) {
+    assert.deepEqual(level(name, { id: 'x' }, {}, undefined, hub), hub, `${name} before it is read`);
+    assert.deepEqual(level(name, { id: 'x' }, {}, undefined, { kind: 'workspace' }), { kind: 'workspace' }, `${name} from the workspace`);
+  }
+  // A route that names its place decides at once; what was held does not linger.
+  assert.deepEqual(level('hub', { id: 'h' }, {}, undefined, { kind: 'workspace' }), hub);
+  assert.deepEqual(level('search', {}, {}, undefined, hub), { kind: 'workspace' });
 });
 
 test('For you is Today, the inbox and what waits for a yes - never Search or Capture (§2.2)', () => {

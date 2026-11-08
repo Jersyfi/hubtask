@@ -35,16 +35,28 @@ const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci']);
 
 /**
  * The level a route shows (§2.4, §6.1): anything of a hub - the hub, a tool, a collection, a page,
- * a whiteboard, an entry - shows its hub's level; everything else the workspace level. `hubOf`
- * answers a container's hub (a hub's is itself); `located` is the container the screen named.
+ * a whiteboard, an entry - shows its hub's level; everything else the workspace level.
+ * `hubOf` answers a container's hub (a hub's is itself); `located` is the container the screen
+ * named. Until a detail screen has named its place the level
+ * it was opened from is `held`: falling back to the workspace in between would tear the hub's level
+ * down and slide it in again on every step from one page or board to the next.
  */
-export function levelOf(route: LevelRoute, hubOf: (containerId: string) => string | undefined, located?: string): NavLevel {
+export function levelOf(
+  route: LevelRoute,
+  hubOf: (containerId: string) => string | undefined,
+  located?: string,
+  held: NavLevel = { kind: 'workspace' },
+): NavLevel {
   const name = route.name ?? '';
   let hubId: string | undefined;
   if (HUB_ROUTES.has(name)) hubId = route.params['id'];
   else if (COLLECTION_ROUTES.has(name)) hubId = route.params['id'] ? hubOf(route.params['id']) : undefined;
-  else if (LOCATED_ROUTES.has(name)) hubId = located ? hubOf(located) : undefined;
-  return hubId ? { kind: 'hub', hubId } : { kind: 'workspace' };
+  else if (LOCATED_ROUTES.has(name)) {
+    if (located === undefined) return held;
+    hubId = hubOf(located);
+  }
+  if (hubId) return held.kind === 'hub' && held.hubId === hubId ? held : { kind: 'hub', hubId };
+  return held.kind === 'workspace' ? held : { kind: 'workspace' };
 }
 
 /**

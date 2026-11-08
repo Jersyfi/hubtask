@@ -56,7 +56,7 @@
   import WorkspaceNav from './WorkspaceNav.svelte';
   import PhoneBar from './PhoneBar.svelte';
   import { TabStacks, ascentOf, depthOf, phoneTabs, starOf, tabOf, type PhoneTab } from '../phone.ts';
-  import { levelOf } from '../sidebar.ts';
+  import { levelOf, type NavLevel } from '../sidebar.ts';
   import { jumble } from '../data/jumble.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { page } from './page.svelte.ts';
@@ -406,8 +406,12 @@
     const container = containers.find(id);
     return container ? (container.type === 'HUB' ? container.id : (container.parent_id ?? undefined)) : undefined;
   };
-  const phoneLevel = $derived(levelOf(route, hubOfPlace, page.place));
-  const phoneHubId = $derived(route.name?.startsWith('browse-') ? route.params['id'] : phoneLevel.kind === 'hub' ? phoneLevel.hubId : undefined);
+  // The sidebar's level, decided here once for every width: a detail screen keeps the level it was
+  // opened from until it has named its place (`levelOf`'s `held`), so the hub's level stands from
+  // one page or board to the next instead of being torn down and slid in again.
+  let heldLevel: NavLevel = { kind: 'workspace' };
+  const navLevel = $derived.by(() => (heldLevel = levelOf(route, hubOfPlace, page.place, heldLevel)));
+  const phoneHubId = $derived(route.name?.startsWith('browse-') ? route.params['id'] : navLevel.kind === 'hub' ? navLevel.hubId : undefined);
   const phoneBack = $derived.by(() => {
     if (!isPhone) return undefined;
     if (page.ascent) return page.ascent;
@@ -822,7 +826,7 @@
           {#if section}
             <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
           {:else}
-            <WorkspaceNav {route} located={page.place} hasForYou={!viewport.isCompact} onnavigate={go} />
+            <WorkspaceNav {route} level={navLevel} located={page.place} hasForYou={!viewport.isCompact} onnavigate={go} />
           {/if}
         </NavDrawer>
       {:else if !viewport.isBelowExpanded}
@@ -845,7 +849,7 @@
                  a column the tree is not in would explain the wrong thing. -->
             <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
-            <WorkspaceNav {route} located={page.place} isRail={isRail && !isPeeking} onnavigate={go} />
+            <WorkspaceNav {route} level={navLevel} located={page.place} isRail={isRail && !isPeeking} onnavigate={go} />
           {/if}
           {#if !isRail && navBounds.max > 0}
             <ResizeHandle

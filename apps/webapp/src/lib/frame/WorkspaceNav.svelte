@@ -99,7 +99,6 @@
     forYou,
     hubTools,
     SECTION_OPEN_AT_FIRST,
-    levelOf,
     navHubs,
     navProducts,
     placedIndex,
@@ -131,6 +130,8 @@
 
   interface Props {
     route: Resolution;
+    /** The level the frame decided for the route (`levelOf`); the workspace's where none is given. */
+    level?: Level;
     /** The container the screen named where the route does not (`page.locate`). */
     located?: string;
     /** Folded to the rail: the marks alone. */
@@ -145,7 +146,7 @@
     onnavigate: (path: string) => void;
   }
 
-  const { route, located, isRail = false, hasForYou = true, step, onnavigate }: Props = $props();
+  const { route, level: routeLevel = { kind: 'workspace' }, located, isRail = false, hasForYou = true, step, onnavigate }: Props = $props();
 
   const workspaceOn = $derived(manifest.value?.modules_on);
   const hasJumble = $derived(holdsHere('READ') === true);
@@ -205,11 +206,6 @@
   });
 
   // ---- The level ----------------------------------------------------------------------------
-  const hubOf = (id: string) => {
-    const container = containers.find(id);
-    return container ? (container.type === 'HUB' ? container.id : (container.parent_id ?? undefined)) : undefined;
-  };
-  const routeLevel = $derived<Level>(levelOf(route, hubOf, located));
   /** *‹ All hubs* shows the workspace level without leaving the page; the next address ends it. */
   let isBrowsingAll = $state(false);
   $effect(() => {
