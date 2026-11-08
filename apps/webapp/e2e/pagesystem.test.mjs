@@ -91,6 +91,27 @@ const RUNS = [0, 1].map((index) => ({
   action_results: [{ index: 0, kind: 'ADD_COMMENT', status: index === 0 ? 'SUCCEEDED' : 'FAILED', error_code: index === 0 ? null : 'items.not_found' }],
 }));
 
+/** One agent of the agents' module, live and acting for the owner. */
+const AGENT = {
+  id: '01a0e2e0-0000-7000-8000-000000000a01', account_id: null, name: 'Request sorter', purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE',
+  owner_id: ACCOUNT.id, status: 'ACTIVE', risk_class: 'MINIMAL', scopes: [], model_id: null, policy: { reversible: 'APPROVAL', irreversible: 'APPROVAL' },
+  budget: { tokens_per_day: 200000, actions_per_hour: 120, concurrent_runs: 2 }, min_accuracy: 0, needs_approval: false, approved_by: null, approved_at: null,
+  suspended_by: null, suspended_at: null, created_at: '2026-11-01T08:00:00Z', version: 1,
+};
+
+/** What the agents read, answered with the module on; nothing for any other path. */
+function agentsAnswer(route, request, path) {
+  if (request.method() !== 'GET') return undefined;
+  if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: [...new Set([...(MANIFEST.modules_on ?? []), 'AGENTS'])] } });
+  if (path === '/tenant/modules') return route.fulfill({ json: { modules: [{ module: 'AGENTS', on: true, source: 'WORKSPACE', locked_by: null }] } });
+  if (path === '/agents') return route.fulfill({ json: { data: [AGENT] } });
+  if (path === `/agents/${AGENT.id}`) return route.fulfill({ json: { ...AGENT, usage: { actions_this_hour: 0, tokens_today: 0 } } });
+  if (path.startsWith(`/agents/${AGENT.id}/`) || path === '/agent-requests' || path === '/agent-models' || path === '/agents:metering') return route.fulfill({ json: { data: [] } });
+  if (path === '/agents:halt') return route.fulfill({ json: { halted: false, set_by: null, set_at: null } });
+  if (path === '/agents:policy') return route.fulfill({ json: { 'agents.registered_only': { value: false, source: 'DEFAULT' } } });
+  return undefined;
+}
+
 /** What *How we work* reads, answered; nothing for any other path. */
 function howWeWork(route, request, path) {
   if (request.method() !== 'GET') return undefined;
@@ -107,7 +128,7 @@ function howWeWork(route, request, path) {
 }
 
 /** Signed in as the fixture's owner, at a width; below `medium` as a phone. */
-async function open(browser, { width, height }, { isNine = false, isInstallation = false } = {}) {
+async function open(browser, { width, height }, { isNine = false, isInstallation = false, isAgents = false } = {}) {
   const isPhone = width < 768;
   const context = await browser.newContext({ viewport: { width, height }, ...(isPhone ? { isMobile: true, hasTouch: true } : {}) });
   await context.route('**/api/v1/**', (route) => {
@@ -124,6 +145,8 @@ async function open(browser, { width, height }, { isNine = false, isInstallation
     if (isInstallation && path === '/auth/sessions:elevate') {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
+    const agentsAnswered = isAgents ? agentsAnswer(route, request, path) : undefined;
+    if (agentsAnswered) return agentsAnswered;
     const answered = howWeWork(route, request, path);
     if (answered) return answered;
     return stub(route);
@@ -665,6 +688,49 @@ for (const size of [DESKTOP, PHONE]) {
     const links = await nav.getByRole('link').evaluateAll((nodes) => nodes.map((node) => ({ text: node.textContent?.trim() ?? '', bottom: node.getBoundingClientRect().bottom })));
     assert.ok(links.length >= 4, `${links.length} sections listed`);
     for (const link of links) assert.ok(link.bottom <= size.height, `${link.text} is below the first viewport`);
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: the agents are a list page, their settings a settings page, an agent its record page, old addresses land (UC-WRK-38 checks 1 and 4-5, UC-WRK-36 check 2)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size, { isAgents: true });
+    t.after(() => context.close());
+    for (const [path, kind] of [
+      ['/agents', 'list'], ['/agents?tab=requests', 'list'], ['/agents?tab=runs', 'list'],
+      ['/agents?tab=settings', 'settings'], ['/agents?tab=settings&section=models', 'settings'], [`/agents/${AGENT.id}`, 'record'],
+      ['/profile/agents', 'list'], [`/profile/agents/${AGENT.id}`, 'record'],
+    ]) {
+      await visit(page, path);
+      const kinds = await page.locator('[data-page-kind]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-page-kind')));
+      assert.deepEqual(kinds, [kind], `${path} draws ${kinds.join(', ') || 'no page kind'}`);
+      if (kind === 'list') {
+        const main = page.getByRole('main');
+        await main.getByRole('searchbox').first().waitFor({ timeout: 15_000 });
+        const fields = await main.locator('input:not([type="search"]):not([role="switch"]), select, textarea, form').evaluateAll((nodes) => nodes.filter((node) => node.getClientRects().length > 0).length);
+        assert.equal(fields, 0, `${path} opens a field on arrival`);
+      }
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.equal(overflow, 0, `${path} scrolls sideways`);
+    }
+
+    // A row opens its record page; retiring is the danger zone's, asked in a Dialog S.
+    await visit(page, '/agents');
+    await page.locator('[data-agent-row]').first().click({ timeout: 15_000 });
+    await page.waitForFunction((id) => location.pathname === `/agents/${id}`, AGENT.id, { timeout: 10_000 });
+    await page.locator('[data-page-kind="record"]').waitFor();
+    await page.getByRole('button', { name: 'Retire…' }).click({ timeout: 15_000 });
+    await assertLadder(page, size, 's');
+    await page.keyboard.press('Escape');
+
+    // The administration's old address and the old tabs land on the settings' sections.
+    await page.goto(`${served.origin}/administration/agents?tab=settings`);
+    await page.locator('nav.section-nav').getByRole('link', { name: /^Every agent/ }).waitFor({ timeout: 15_000 });
+    for (const [old, heading] of [['/agents?tab=models', 'Models'], ['/agents?tab=metering', 'Metering']]) {
+      await page.goto(`${served.origin}${old}`);
+      await page.locator('[data-page-kind="settings"]').waitFor({ timeout: 15_000 });
+      await page.getByRole('main').getByRole('heading', { name: heading, exact: true }).first().waitFor({ timeout: 15_000 });
+    }
     assert.deepEqual(failures, []);
   });
 }
