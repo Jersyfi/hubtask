@@ -311,19 +311,19 @@
 {/if}
 
 {#if dating}
-  <Dialog isOpen={true} title={t('app.due.title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (dating = undefined)}>
+  <Dialog size="m" isOpen={true} title={t('app.due.title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (dating = undefined)}>
     <DuePanel item={items.find(dating.id) ?? dating} />
   </Dialog>
 {/if}
 
 {#if assigning}
-  <Dialog isOpen={true} title={t('app.people.assignee')} dismissLabel={t('app.workspace.cancel')} onClose={() => (assigning = undefined)}>
+  <Dialog size="m" isOpen={true} title={t('app.people.assignee')} dismissLabel={t('app.workspace.cancel')} onClose={() => (assigning = undefined)}>
     <AssigneePanel item={items.find(assigning.id) ?? assigning} path={pathOf(assigning)} />
   </Dialog>
 {/if}
 
 {#if labelling}
-  <Dialog isOpen={true} title={t('app.entry_menu.labels')} dismissLabel={t('app.workspace.cancel')} onClose={() => (labelling = undefined)}>
+  <Dialog size="m" isOpen={true} title={t('app.entry_menu.labels')} dismissLabel={t('app.workspace.cancel')} onClose={() => (labelling = undefined)}>
     <LabelsPanel item={items.find(labelling.id) ?? labelling} />
   </Dialog>
 {/if}

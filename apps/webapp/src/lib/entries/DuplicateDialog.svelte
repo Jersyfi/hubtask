@@ -91,7 +91,7 @@
   }
 </script>
 
-<Dialog
+<Dialog size="m"
   isOpen={item !== undefined}
   title={item ? t('app.duplicate.of', { title: item.title }) : t('app.duplicate.title')}
   dismissLabel={t('app.workspace.cancel')}

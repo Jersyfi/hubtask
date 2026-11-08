@@ -105,7 +105,7 @@
   }
 </script>
 
-<Dialog
+<Dialog size="m" primary={{ label: t('app.workspace.save'), isBusy: isSaving, busyLabel: t('app.workspace.saving'), onclick: save }}
   bind:isOpen
   title={t(bucket ? 'app.board.edit_column' : 'app.board.create_column')}
   dismissLabel={t('app.workspace.cancel')}
@@ -132,13 +132,6 @@
 
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="primary"
-      isBusy={isSaving}
-      busyLabel={t('app.workspace.saving')}
-      onclick={save}
-    >
-      {t('app.workspace.save')}
-    </Button>
   {/snippet}
 </Dialog>
 

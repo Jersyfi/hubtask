@@ -105,7 +105,7 @@
   }
 </script>
 
-<Dialog isOpen={true} title={t('app.entries.categories')} dismissLabel={t('app.entries.cancel')} onClose={onclose}>
+<Dialog size="m" isOpen={true} title={t('app.entries.categories')} dismissLabel={t('app.entries.cancel')} onClose={onclose}>
   <Stack gap="150">
     <p class="hint">{t('app.entries.categories_hint')}</p>
     {#each available as label (label.id)}
