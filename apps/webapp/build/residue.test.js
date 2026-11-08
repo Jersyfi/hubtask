@@ -317,7 +317,7 @@ async function views() {
     ['collection-workload', await load('WorkloadView'), { planId: COLLECTION, onnavigate: noop }],
     ['hub-assets', await load('AssetsView'), { hubId: COLLECTION, onnavigate: noop }],
     ['hub-assets-section', await load('AssetsView'), { hubId: COLLECTION, section: 'health', onnavigate: noop }],
-    ['ci', await load('AssetsView'), { ciId: ITEM, onnavigate: noop }],
+    ['ci', await load('CiView'), { ciId: ITEM, onnavigate: noop }],
     ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
     ['sign-in-section', await load('SignInSettingsView'), { section: 'sessions' }],

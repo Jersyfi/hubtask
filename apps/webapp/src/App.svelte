@@ -106,6 +106,7 @@
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
+    CiView: () => import('./views/CiView.svelte'),
     ...ruleViews,
     // Doors few first screens open - an app's consent, the installed app's own sign-in and its
     // passkey relay, a public form and roadmap - so the first screen's budget
@@ -590,14 +591,17 @@
     {#key route.path}
       <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'hub-assets' || route.name === 'hub-assets-section' || route.name === 'ci'}
-    {#key route.name === 'ci' ? route.path : route.params.id}
+  {:else if route.name === 'ci'}
+    {#key route.path}
+      <LazyView load={views.CiView} props={{ ciId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'hub-assets' || route.name === 'hub-assets-section'}
+    {#key route.params.id}
       <LazyView
         load={views.AssetsView}
         props={{
-          hubId: route.name === 'ci' ? undefined : route.params.id,
+          hubId: route.params.id ?? '',
           section: route.name === 'hub-assets-section' ? route.params.section : undefined,
-          ciId: route.name === 'ci' ? route.params.id : undefined,
           isCreateAsked: route.query['new'] === '1',
           onnavigate: (path: string) => router.navigate(path),
         }}

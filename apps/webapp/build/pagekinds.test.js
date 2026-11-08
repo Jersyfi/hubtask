@@ -36,7 +36,6 @@ const KINDS = {
  * which the last test holds - and it is empty when the concept lands.
  */
 const NOT_YET_MIGRATED = [
-  'AssetsView',
 ];
 
 const DISPATCHERS = ['App.svelte', 'views/AdministrationArea.svelte', 'views/InstanceArea.svelte', 'lib/frame/parts.ts'];
