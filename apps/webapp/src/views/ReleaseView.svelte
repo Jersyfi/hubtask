@@ -17,8 +17,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea, ViewSwitcher,
-    type Column,
+    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea, ViewSwitcher,
+    DataTable, WorkPage, type DataColumn,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Release, ReleaseDetail, ReleaseList } from '@hubtask/sync-engine';
@@ -111,9 +111,6 @@
   }
 
   let selected = $state<string[]>([]);
-  function toggle(id: string, isOn: boolean) {
-    selected = isOn ? [...selected, id] : selected.filter((each) => each !== id);
-  }
   const inRelease = $derived(new Set((detail?.entries ?? []).map((e) => e.item_id)));
   const pickedIn = $derived(selected.filter((id) => inRelease.has(id)));
   const pickedOut = $derived(selected.filter((id) => !inRelease.has(id)));
@@ -204,19 +201,18 @@
     value: r.id,
     label: t('app.releases.option', { name: r.name, state: t(groups.late.has(r.id) ? 'app.releases.state_late' : `app.releases.state_${r.state}`) }),
   })) : []);
-  const entryColumns = $derived<Column[]>([
-    { id: 'pick', label: t('app.releases.col_pick'), isLabelHidden: true },
-    { id: 'entry', label: t('app.releases.col_entry') },
-    { id: 'type', label: t('app.releases.col_type') },
-    { id: 'state', label: t('app.releases.col_state') },
+  const entryColumns = $derived<DataColumn[]>([
+    { id: 'entry', label: t('app.releases.col_entry'), priority: 1 },
+    { id: 'type', label: t('app.releases.col_type'), priority: 2 },
+    { id: 'state', label: t('app.releases.col_state'), priority: 1, isStatus: true },
   ]);
-  const candidateColumns = $derived<Column[]>([
-    { id: 'pick', label: t('app.releases.col_pick'), isLabelHidden: true },
-    { id: 'entry', label: t('app.releases.col_entry') },
-  ]);
+  const candidateColumns = $derived<DataColumn[]>([{ id: 'entry', label: t('app.releases.col_entry'), priority: 1 }]);
+  type InRelease = NonNullable<typeof detail>['entries'][number];
+  type Candidate = (typeof candidates)[number];
 </script>
 
-<Stack gap="200">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={t('app.releases.title')}
     isTitleInBar={viewport.isCompact}
@@ -240,8 +236,10 @@
       ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
       : undefined}
   />
-  <PlaceStrip placeId={hubId} current="plan" view="releases" isViewStripShown={false} {onnavigate} />
+  {/snippet}
+  {#snippet tabs()}<PlaceStrip placeId={hubId} current="plan" view="releases" isViewStripShown={false} {onnavigate} />{/snippet}
   <!-- The plan's views and *Releases* are one segmented control, not a second strip (PS-2). -->
+  {#snippet toolbar()}
   <div class="views">
     <ViewSwitcher
       label={t('app.planning.views')}
@@ -255,6 +253,7 @@
       onselect={(id) => { if (id !== 'releases') onnavigate(id === 'chart' ? `/hubs/${hubId}/plan` : `/hubs/${hubId}/plan?view=${id}`); }}
     />
   </div>
+  {/snippet}
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -316,24 +315,14 @@
         {:else if detail.entries.length === 0}
           <ProductEmpty kind="settled" title={t(mayChange ? 'app.releases.empty_add' : 'app.releases.empty')} />
         {:else}
-          <Table label={t('app.releases.in_release', { count: String(detail.entries.length) })} isLabelHidden
-            columns={mayChange ? entryColumns : entryColumns.slice(1)}>
-            {#each detail.entries as entry (entry.item_id)}
-              <tr>
-                {#if mayChange}
-                  <td>
-                    <Checkbox label={t('app.releases.pick', { title: entry.title })} isLabelHidden checked={selected.includes(entry.item_id)}
-                      onchange={(event: Event) => toggle(entry.item_id, (event.currentTarget as HTMLInputElement).checked)} />
-                  </td>
-                {/if}
-                <th scope="row"><a href={`/items/${entry.item_id}`}>{entry.title}</a></th>
-                <td>{entry.type_name}</td>
-                <td>
-                  {#if entry.done}<Badge tone="success">{t('app.releases.done')}</Badge>{:else}<Badge tone="neutral">{t('app.releases.open')}</Badge>{/if}
-                </td>
-              </tr>
-            {/each}
-          </Table>
+          <DataTable label={t('app.releases.in_release', { count: String(detail.entries.length) })} columns={entryColumns} rows={detail.entries}
+            key={(entry: InRelease) => entry.item_id} isSelecting={mayChange} bind:selected rowLabel={(entry: InRelease) => t('app.releases.pick', { title: entry.title })}>
+            {#snippet cell(entry: InRelease, column: DataColumn)}
+              {#if column.id === 'entry'}<a href={`/items/${entry.item_id}`}>{entry.title}</a>
+              {:else if column.id === 'type'}{entry.type_name}
+              {:else if entry.done}<Badge tone="success">{t('app.releases.done')}</Badge>{:else}<Badge tone="neutral">{t('app.releases.open')}</Badge>{/if}
+            {/snippet}
+          </DataTable>
         {/if}
       </section>
 
@@ -355,26 +344,19 @@
           {:else if candidates.length === 0}
             <ProductEmpty kind="settled" title={t('app.releases.all_in')} />
           {:else}
-            <Table label={t('app.releases.candidates')} isLabelHidden columns={candidateColumns}>
-              {#each candidates as entry (entry.id)}
-                <tr>
-                  <td>
-                    <Checkbox label={t('app.releases.pick', { title: entry.title })} isLabelHidden checked={selected.includes(entry.id)}
-                      onchange={(event: Event) => toggle(entry.id, (event.currentTarget as HTMLInputElement).checked)} />
-                  </td>
-                  <th scope="row"><a href={`/items/${entry.id}`}>{entry.title}</a></th>
-                </tr>
-              {/each}
-            </Table>
+            <DataTable label={t('app.releases.candidates')} columns={candidateColumns} rows={candidates} key={(entry: Candidate) => entry.id}
+              isSelecting bind:selected rowLabel={(entry: Candidate) => t('app.releases.pick', { title: entry.title })}>
+              {#snippet cell(entry: Candidate)}<a href={`/items/${entry.id}`}>{entry.title}</a>{/snippet}
+            </DataTable>
           {/if}
         </section>
       {/if}
     </div>
   {/if}
-</Stack>
+</WorkPage>
 
 {#if isPlanning}
-  <Dialog bind:isOpen={isPlanning} title={editing ? t('app.releases.edit') : t('app.releases.plan')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isPlanning} title={editing ? t('app.releases.edit') : t('app.releases.plan')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.releases.name')} bind:value={draft.name} maxlength={120} isRequired error={nameError} />
       <Textarea label={t('app.releases.description')} bind:value={draft.description} maxlength={2000} />
@@ -386,7 +368,7 @@
 {/if}
 
 {#if isReleasing && chosen}
-  <Dialog bind:isOpen={isReleasing} title={t('app.releases.publish_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isReleasing} title={t('app.releases.publish_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.releases.publish_hint')}</p>
       {#if detail}<p>{t('app.releases.counts', { done: String(detail.done_count), open: String(detail.open_count) })}</p>{/if}
@@ -400,7 +382,7 @@
 {/if}
 
 {#if isDeleting && chosen}
-  <Dialog bind:isOpen={isDeleting} title={t('app.releases.delete_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.releases.delete_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p>{t('app.releases.delete_cost', { count: String(detail?.entries.length ?? 0) })}</p>
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}

@@ -38,8 +38,6 @@ const NOT_YET_MIGRATED = [
   'lib/workspace/CreateContainerDialog.svelte',
   'lib/workspace/PanelOrDialog.svelte',
   'lib/workspace/StarterDialog.svelte',
-  'views/ReleaseView.svelte',
-  'views/SprintView.svelte',
 ];
 
 /** The confirmation the ladder allows over another dialog. */

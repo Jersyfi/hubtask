@@ -41,8 +41,8 @@ const NOT_YET_MIGRATED = [
   'OidcCallbackView', 'PortalArticleView',
   'PortalRequestView', 'PortalView',
   'PublicFormView', 'PublicRoadmapView',
-  'RateView', 'RedeemView', 'ReleaseView', 'ResetView',
-  'SetupView', 'SignInView', 'SprintView',
+  'RateView', 'RedeemView', 'ResetView',
+  'SetupView', 'SignInView',
   'YourWorkspacesView',
 ];
 
