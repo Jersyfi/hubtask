@@ -432,7 +432,7 @@ the mark the bar carries; how the product uses them is §11.
 `Grid` · `Sheet` · `SectionNav` · `FilterBar` · `DataTable` · `BulkBar` · `ResourceGrid` ·
 `ResourceCard` · `SettingsSection` · `SettingRow` · `BlockList` · `FormLayout` · `FormSection` ·
 `RecordHead` · `DangerZone` · `SummaryCard` · `ListPage` · `RecordPage` · `SettingsLayout` ·
-`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage` · `WorkPage`
+`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage` · `WorkPage` · `DetailPage`
 
 The layer above waves 1–5 that the page system concept adds
 ([`docs/backlog/page-system/`](../backlog/page-system/README.md) §4–§7; its mockups are the look).
@@ -461,8 +461,12 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   from when the web app had a settings shell of that name; its `data-page-kind` is `settings`.
   `WorkPage` (`data-page-kind="work"`) is the work surface's frame (page-system §7.8): the head
   or a head of the screen's own, the place's `PlaceTabs`, one toolbar whose segmented control
-  chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11), as
-  does `DetailPage`.
+  chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11).
+  `DetailPage` (`data-page-kind="detail"`) is one object read and edited in place, as the entry
+  screen is built (§11.8): its head, then the details column and the main column - the details
+  first in the document, under the head below `expanded`, beside the main column at the inline end
+  and at the pane's width from `expanded` up, staying in place while it scrolls. Drawn in a work
+  page's side panel (`isInPane`) it is one column and no page kind of its own.
 
 Their breakpoints are the window's, written as media queries from `primitive.breakpoint` — so a
 story shows its widths when the window is narrowed, not the workbench's width axis. What sticks

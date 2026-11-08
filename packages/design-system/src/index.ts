@@ -222,4 +222,5 @@ export { default as OverviewPage } from './OverviewPage.svelte';
 export { default as LogPage } from './LogPage.svelte';
 export { default as CreatePage } from './CreatePage.svelte';
 export { default as WorkPage } from './WorkPage.svelte';
+export { default as DetailPage } from './DetailPage.svelte';
 export type { PageBack, PageHead, PageKind } from './page.ts';

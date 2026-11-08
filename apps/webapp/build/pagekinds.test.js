@@ -16,7 +16,7 @@ import path from 'node:path';
 
 import { SRC, elements, read, reachable, relative, uses, within } from './markup.js';
 
-// The kinds as the design system draws them, and the detail kind built as screens (§7.8).
+// The kinds as the design system draws them (§7).
 const KINDS = {
   ListPage: 'list',
   RecordPage: 'record',
@@ -26,6 +26,7 @@ const KINDS = {
   LogPage: 'log',
   CreatePage: 'create',
   WorkPage: 'work',
+  DetailPage: 'detail',
 };
 
 /**
