@@ -181,10 +181,13 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await first.waitFor({ state: 'detached', timeout: 5_000 });
 
   const second = page.locator('article').filter({ hasText: OTHER_REQUEST.title });
+  // The reason is written in the Dialog M the card's *Decline* opens: a card holds no form (PS-4).
   await second.getByRole('button', { name: 'Decline' }).click();
-  await second.getByRole('alert').filter({ hasText: 'Say why you decline first.' }).waitFor({ timeout: 5_000 });
-  await second.getByLabel('Reason').fill('Not in this quarter\'s budget.');
-  await second.getByRole('button', { name: 'Decline' }).click();
+  const answer = page.getByRole('dialog');
+  await answer.getByRole('button', { name: 'Decline' }).click();
+  await answer.getByRole('alert').filter({ hasText: 'Say why you decline first.' }).waitFor({ timeout: 5_000 });
+  await answer.getByLabel('Reason').fill('Not in this quarter\'s budget.');
+  await answer.getByRole('button', { name: 'Decline' }).click();
   await second.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByText('Nothing waits for your yes').waitFor({ timeout: 5_000 });
 

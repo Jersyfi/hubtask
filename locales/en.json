@@ -13309,6 +13309,8 @@
   "app.approvals.changed_since": "the entry has changed since it was asked",
   "app.approvals.verdict_yes": "Approved",
   "app.approvals.verdict_no": "Declined",
+  "app.approvals.answer_title": "Answer “{title}”",
+  "app.approvals.approve_with_reason": "Approve with this reason",
   "app.approvals.reason": "Reason",
   "app.approvals.reason_hint": "A decline needs one; it is kept in the trail.",
   "app.approvals.reason_first": "Say why you decline first.",
