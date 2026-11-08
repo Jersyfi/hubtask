@@ -32,7 +32,12 @@
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntryCis>(untrack(() => entryCisPath(itemId)));
-  const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
+  // An answer without one of its lists is read as an empty one, so the panel says *none* rather than
+  // taking the whole entry down with it.
+  const answer = $derived(read.state.status === 'ready' ? withLists(read.state.data) : undefined);
+  function withLists(data: EntryCis): EntryCis {
+    return { ...data, cis: data.cis ?? [], services: data.services ?? [], related: data.related ?? [], collisions: data.collisions ?? [] };
+  }
   const failure = $derived(read.state.status === 'failed' ? renderProblem(read.state.error, messages).message : undefined);
   const services = $derived(answer ? reachedServices(answer) : []);
   const collisions = $derived(answer ? collisionsInOrder(answer) : []);
