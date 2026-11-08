@@ -18,6 +18,13 @@ export const hub: Story = {
   args: { mode: 'hub' },
 };
 
+export const narrow: Story = {
+  name: 'At the narrowest sidebar',
+  about:
+    'The sidebar dragged to its minimum: a long figure - the running sprint’s name and days - is cut with an ellipsis first, and the row’s name keeps its room; a count beside a long name stays whole and the name is cut instead. A figure never grows past its token.',
+  args: { mode: 'narrow' },
+};
+
 export const rail: Story = {
   name: 'Folded to the rail',
   about:

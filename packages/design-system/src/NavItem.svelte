@@ -260,7 +260,7 @@
            figure's place, so a row with actions wraps where one without does (§11.3). -->
       <span class="end" data-open={isMenuOpen || isAddOpen ? '' : undefined}>
         {#if figure}
-          <span class="figure" data-urgent={isFigureUrgent ? '' : undefined} aria-label={figureLabel}>{figure}</span>
+          <span class="figure" data-urgent={isFigureUrgent ? '' : undefined} aria-label={figureLabel} title={figure}>{figure}</span>
         {/if}
         {#if (menu || add) && size === 'md'}
           <!-- Inside a link, a press on ⋯ or ＋ neither follows the link nor reaches the row. -->
@@ -493,9 +493,11 @@
     stroke-width: 2;
   }
 
+  /* The name takes what the figure leaves, and never less than its own floor: a figure longer
+     than the room left is cut with an ellipsis before the name is squeezed out. */
   .name {
     flex: 1;
-    min-inline-size: 0;
+    min-inline-size: var(--layout-nav-name);
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -517,11 +519,17 @@
   .end {
     display: flex;
     align-items: center;
-    flex: none;
+    flex: 0 1 auto;
+    min-inline-size: 0;
     margin-inline-start: auto;
   }
 
   .figure {
+    min-inline-size: 0;
+    max-inline-size: var(--layout-nav-figure);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     font-family: var(--font-mono);
     font-size: var(--fs-050);
     font-weight: var(--fw-regular);
@@ -537,6 +545,7 @@
 
   .acts {
     display: none;
+    flex: none;
     gap: var(--sp-025);
   }
 

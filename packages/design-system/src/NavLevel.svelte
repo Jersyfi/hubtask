@@ -176,17 +176,28 @@
     block-size: var(--layout-nav-actionglyph);
   }
 
+  /* The head's marks sit close, as a row's actions do, so the name keeps the room between them. */
   .hub {
     display: flex;
     align-items: center;
-    gap: var(--sp-100);
+    gap: var(--sp-025);
     padding: var(--sp-100) calc(var(--sp-100) + var(--sp-025)) var(--sp-050);
   }
 
+  /* Two lines at most, then an ellipsis: a long name wraps between its words, a word longer than
+     the room breaks, and nothing runs under the switcher, ☆ and ⋯ at the narrowest sidebar. The
+     full words are the title. */
   .hub-name {
     flex: 1;
     min-inline-size: 0;
     margin: 0;
+    margin-inline: calc(var(--sp-100) - var(--sp-025)) var(--sp-050);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: break-word;
     font-family: var(--font-ui);
     font-size: var(--fs-100);
     font-weight: var(--fw-semibold);

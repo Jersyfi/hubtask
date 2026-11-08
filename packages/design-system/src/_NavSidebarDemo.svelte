@@ -3,7 +3,7 @@
 <script lang="ts">
   // The navigation concept's mockup (docs/backlog/navigation/mockup.html, §4) rebuilt from the
   // wave-5 pieces, with its own data: the workspace level, a product team's hub level, an IT hub
-  // with queues, the content tree that drags, and the rail.
+  // with queues, the content tree that drags, the rail, and the narrowest width.
   import Button from './Button.svelte';
   import NavFlyout from './NavFlyout.svelte';
   import NavGroup, { type NavTreeNode } from './NavGroup.svelte';
@@ -12,7 +12,7 @@
   import Toast from './Toast.svelte';
   import { applyPlacement, positionOf, type Placement } from './navtree.ts';
 
-  type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty';
+  type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty' | 'narrow';
   const { mode = 'hub' }: { mode?: Mode } = $props();
   let isMoreOpen = $state(true);
   const hide = (name: string) => ({ label: `Manage ${name}`, items: [{ id: 'hide', label: 'Hide from the sidebar', icon: 'eye-off' as const }], onselect: () => {} });
@@ -93,7 +93,7 @@
   const levelKey = $derived(mode === 'workspace' || mode === 'rail' ? 'workspace' : mode === 'queue' ? 'it' : 'pe');
 </script>
 
-<div class="frame" data-rail={mode === 'rail' ? '' : undefined}>
+<div class="frame" data-rail={mode === 'rail' ? '' : undefined} data-narrow={mode === 'narrow' ? '' : undefined}>
   <aside class="side" aria-label="Navigation">
     <ul class="foryou">
       <NavItem label="Today" icon="sun" href="#today" figure="5" isCurrent={mode === 'workspace'} isRail={mode === 'rail'} />
@@ -190,7 +190,7 @@
             <NavItem label="Inventory" icon="shield" href="#inv" figure="6 !" isFigureUrgent />
             <NavItem label="Goals" icon="flag" href="#goals" />
           {:else}
-            <NavItem label="Plan" icon="calendar" href="#plan" figure="Sprint 42 · 6 d" />
+            <NavItem label="Plan" icon="calendar" href="#plan" figure={mode === 'narrow' ? 'Sprint 24 – Passkeys · 7 d' : 'Sprint 42 · 6 d'} />
             <NavItem label="Time" icon="clock" href="#time" />
             <NavItem label="Goals" icon="flag" href="#goals" figure="1 at risk" />
           {/if}
@@ -318,6 +318,8 @@
   }
 
   [data-rail] .side { inline-size: var(--layout-sidenav-rail); }
+
+  [data-narrow] .side { inline-size: var(--layout-sidenav-min); }
 
   .foryou,
   .foot,

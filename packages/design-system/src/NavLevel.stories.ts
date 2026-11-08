@@ -25,6 +25,13 @@ export const hub: Story = {
   args: { mode: 'hub' },
 };
 
+export const narrow: Story = {
+  name: 'The head at the narrowest sidebar',
+  about:
+    'At the minimum width the hub’s name wraps to two lines at most and ends with an ellipsis; the quick switch, ☆ and ⋯ keep their places and the name never runs under them.',
+  args: { mode: 'narrow' },
+};
+
 export const wiki: Story = {
   name: 'A page current in the tree',
   about:

@@ -232,3 +232,78 @@ test('R-9: the sidebar\'s thin scrollbar keeps its room, shows nothing idle and 
   assert.ok(hovered.every((value, i) => Math.abs(value - plane[i]) <= 2), `the track is ${hovered}, not the hover surface ${plane}`);
   assert.deepEqual(failures, []);
 });
+
+/** Every row and head of the sidebar at its narrowest: nothing overlaps, a name keeps its room. */
+async function fits(page, scope) {
+  return scope.evaluate((root) => {
+    const problems = [];
+    const box = (node) => node.getBoundingClientRect();
+    const floor = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--layout-nav-name'));
+    const name = root.querySelector('.hub-name');
+    if (name) {
+      const marks = [...name.parentElement.querySelectorAll('button')].filter((each) => box(each).width > 0);
+      for (const mark of marks) if (box(name).right > box(mark).left + 0.5) problems.push(`the hub's name runs under ${mark.getAttribute('aria-label')}`);
+      if (box(name).bottom > box(name.parentElement).bottom + 0.5) problems.push('the hub\'s name runs out of its head');
+    }
+    for (const row of root.querySelectorAll('.row, .link')) {
+      const label = row.querySelector(':scope > .name, :scope .name');
+      const end = row.querySelector('.end');
+      if (!label || box(label).width === 0) continue;
+      if (box(label).right > box(row).right + 0.5) problems.push(`${label.title} runs out of its row`);
+      if (end && box(end).width > 0 && box(label).right > box(end).left + 0.5) problems.push(`${label.title} runs under its figure`);
+      const whole = label.scrollWidth <= label.clientWidth;
+      if (!whole && box(label).width + 0.5 < floor) problems.push(`${label.title} is squeezed to ${box(label).width}`);
+    }
+    return problems;
+  });
+}
+
+test('the narrowest sidebar: the hub head and every row fit, the Plan row keeps its name beside the sprint', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, storage: { 'hubtask.nav.width': '200' } });
+  t.after(close);
+  const level = side(page).getByRole('region', { name: PD.name });
+  const plan = level.getByRole('link', { name: /^Plan/ });
+  await plan.locator('.figure').waitFor({ timeout: 10_000 });
+  assert.equal(Math.round((await side(page).boundingBox()).width), 200);
+  assert.deepEqual(await fits(page, side(page)), []);
+  const name = plan.locator('.name');
+  assert.ok(await name.evaluate((node) => node.scrollWidth <= node.clientWidth), 'Plan lost its name to the sprint');
+  assert.ok(await plan.locator('.figure').evaluate((node) => node.scrollWidth > node.clientWidth), 'the sprint\'s figure was not the one cut');
+  // A short figure is never cut: the urgent count beside a long name.
+  const waiting = side(page).getByRole('link', { name: /^Waiting for your yes/ }).locator('.figure');
+  assert.ok(await waiting.evaluate((node) => node.scrollWidth <= node.clientWidth), 'the count was cut');
+  // The rail: marks only, each inside the rail.
+  await page.getByRole('button', { name: 'Collapse the navigation' }).click();
+  await page.locator('aside.sidenav[data-rail]').waitFor();
+  await page.mouse.move(1000, 600);
+  const rail = await side(page).boundingBox();
+  for (const mark of await side(page).locator('.mark').all()) {
+    const each = await mark.boundingBox();
+    if (each) assert.ok(each.x >= rail.x && each.x + each.width <= rail.x + rail.width + 0.5, 'a mark outside the rail');
+  }
+  assert.deepEqual(failures, []);
+});
+
+test('the touch tablet\'s drawer and the phone\'s hub step: every row keeps its name beside its figure', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  {
+    const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, ...tablet });
+    t.after(close);
+    await page.getByRole('button', { name: 'Open the navigation' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Navigation' });
+    await drawer.getByRole('link', { name: /^Plan/ }).locator('.figure').waitFor({ timeout: 10_000 });
+    assert.deepEqual(await fits(page, drawer), []);
+    assert.deepEqual(failures, []);
+  }
+  {
+    const { page, failures, close } = await go(browser, { path: `/browse/hubs/${PD.id}`, ...phone });
+    t.after(close);
+    const step = page.locator('[data-browse-step]');
+    await step.getByRole('link', { name: /^Plan/ }).waitFor({ timeout: 10_000 });
+    assert.deepEqual(await fits(page, step), []);
+    assert.deepEqual(failures, []);
+  }
+});
