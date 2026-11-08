@@ -19,8 +19,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, PlaceTabs, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
-    type Column, type PlaceTab,
+    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea, ViewSwitcher, WorkPage,
+    DataTable, type DataColumn,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, KeyResult, PortfolioList } from '@hubtask/sync-engine';
@@ -76,7 +76,9 @@
     return text === '' ? '/goals' : `/goals?${text}`;
   }
 
-  const tabs = $derived<PlaceTab[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: address({ tab: each.id }) })));
+  // Goals, portfolios and dashboards are views of one product: a segmented control, never a second
+  // strip under a hub's (page-system PS-2), as on Time.
+  const views = $derived(TABS.map((each) => ({ id: each.id, label: t(each.code) })));
   /** Each tab names itself (§7.7): *Dashboards*, never *Goals of …*. */
   const heading = $derived(
     current === 'portfolios' ? t('app.goals.tab_portfolios')
@@ -218,13 +220,14 @@
   let portfoliosRefusal = $state<string | undefined>(undefined);
   follow<PortfolioList>(() => (current === 'portfolios' ? PORTFOLIOS : undefined), (data) => (portfolioList = data?.data), (m) => (portfoliosRefusal = m));
   const portfolioName = (id: string | null) => (id ? (portfolioList?.find((each) => each.id === id)?.name ?? '') : '');
-  const portfolioColumns = $derived<Column[]>([
-    { id: 'name', label: t('app.portfolios.col_name') },
-    { id: 'parent', label: t('app.portfolios.col_parent') },
-    { id: 'owner', label: t('app.goals.col_owner') },
-    { id: 'status', label: t('app.portfolios.col_health') },
-    { id: 'projects', label: t('app.portfolios.col_projects'), align: 'end' },
+  const portfolioColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.portfolios.col_name'), priority: 1 },
+    { id: 'parent', label: t('app.portfolios.col_parent'), priority: 3 },
+    { id: 'owner', label: t('app.goals.col_owner'), priority: 2 },
+    { id: 'status', label: t('app.portfolios.col_health'), priority: 1, isStatus: true },
+    { id: 'projects', label: t('app.portfolios.col_projects'), align: 'end', priority: 3 },
   ]);
+  type PortfolioRow = NonNullable<typeof portfolioList>[number];
   $effect(() => accounts.resolve((portfolioList ?? []).map((each) => each.owner_id)));
 
   let isGathering = $state(false);
@@ -270,7 +273,8 @@
   });
 </script>
 
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={heading}
     subtitle={hub ? undefined : t('app.modules.hint_goals')}
@@ -287,9 +291,9 @@
   >
     {#snippet figure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
-  {#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}
-
-  <PlaceTabs label={t('app.goals.title')} {tabs} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
+  {/snippet}
+  {#snippet tabs()}{#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}{/snippet}
+  {#snippet toolbar()}<ViewSwitcher label={t('app.goals.views')} {views} selected={current} onselect={(next) => onnavigate(address({ tab: next }))} />{/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -370,17 +374,16 @@
       <ProductEmpty product="GOALS" kind="unused" icon="briefcase" title={t('app.portfolios.empty')} description={t('app.portfolios.empty_body')} create={primary}
         whoCan={t('app.portfolios.who_can')} />
     {:else}
-      <Table isStacked label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
-        {#each portfolioList as each (each.id)}
-          <tr>
-            <th scope="row"><a href={`/portfolios/${each.id}`}>{each.name}</a></th>
-            <td>{portfolioName(each.parent_id)}</td>
-            <td>{personName(each.owner_id)}</td>
-            <td>{#if each.status !== 'NONE'}<Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge>{/if}</td>
-            <td class="number">{each.items.length}</td>
-          </tr>
-        {/each}
-      </Table>
+      <DataTable label={t('app.goals.tab_portfolios')} columns={portfolioColumns} rows={portfolioList} key={(each: PortfolioRow) => each.id}
+        href={(each: PortfolioRow) => `/portfolios/${each.id}`}>
+        {#snippet cell(each: PortfolioRow, column: DataColumn)}
+          {#if column.id === 'name'}{each.name}
+          {:else if column.id === 'parent'}{portfolioName(each.parent_id)}
+          {:else if column.id === 'owner'}{personName(each.owner_id)}
+          {:else if column.id === 'status'}{#if each.status !== 'NONE'}<Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge>{/if}
+          {:else}<span class="number">{each.items.length}</span>{/if}
+        {/snippet}
+      </DataTable>
     {/if}
 
   {:else}
@@ -408,10 +411,10 @@
       </ul>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 
 {#if isDefining}
-  <Dialog bind:isOpen={isDefining} title={t('app.goals.new_period')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isDefining} title={t('app.goals.new_period')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.goals.period_name')} hint={t('app.goals.period_name_hint')} bind:value={periodDraft.name} maxlength={200} />
       <Input label={t('app.goals.period_start')} type="date" bind:value={periodDraft.start} />
@@ -425,7 +428,7 @@
 {/if}
 
 {#if isClosing && chosen}
-  <Dialog bind:isOpen={isClosing} title={t('app.goals.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isClosing} title={t('app.goals.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.goals.close_hint')}</p>
       <Inline justify="end"><Button tone="danger" onclick={() => void closePeriod()}>{t('app.goals.close_period')}</Button></Inline>
@@ -434,7 +437,7 @@
 {/if}
 
 {#if isSetting && chosen}
-  <Dialog bind:isOpen={isSetting} title={t('app.goals.new_goal')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isSetting} title={t('app.goals.new_goal')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.goals.goal_title')} bind:value={goalDraft.title} maxlength={200} />
       <Select label={t('app.goals.col_place')} bind:value={goalDraft.place} options={placeChoices} />
@@ -448,7 +451,7 @@
 {/if}
 
 {#if isGathering}
-  <Dialog bind:isOpen={isGathering} title={t('app.portfolios.new')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isGathering} title={t('app.portfolios.new')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.portfolios.col_name')} bind:value={portfolioDraft.name} maxlength={200} />
       <Textarea label={t('app.portfolios.description')} bind:value={portfolioDraft.description} maxlength={10000} />
@@ -462,7 +465,7 @@
 {/if}
 
 {#if isBuilding}
-  <Dialog bind:isOpen={isBuilding} title={t('app.dashboards.new')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isBuilding} title={t('app.dashboards.new')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.dashboards.col_name')} bind:value={dashboardDraft.name} maxlength={200} />
       <Select label={t('app.goals.col_place')} bind:value={dashboardDraft.place}

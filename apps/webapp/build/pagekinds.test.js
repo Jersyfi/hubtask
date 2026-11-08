@@ -36,11 +36,10 @@ const KINDS = {
  */
 const NOT_YET_MIGRATED = [
   'AssetsView',
-  'ConfirmAddressView', 'ConsentView', 'DashboardView',
-  'GoalView', 'GoalsView',
+  'ConfirmAddressView', 'ConsentView',
   'InstallationView',
   'OidcCallbackView', 'PortalArticleView',
-  'PortalRequestView', 'PortalView', 'PortfolioView',
+  'PortalRequestView', 'PortalView',
   'PublicFormView', 'PublicRoadmapView',
   'RateView', 'RedeemView', 'ReleaseView', 'ResetView',
   'SetupView', 'SignInView', 'SprintView',

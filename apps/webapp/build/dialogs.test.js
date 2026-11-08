@@ -38,10 +38,6 @@ const NOT_YET_MIGRATED = [
   'lib/workspace/CreateContainerDialog.svelte',
   'lib/workspace/PanelOrDialog.svelte',
   'lib/workspace/StarterDialog.svelte',
-  'views/DashboardView.svelte',
-  'views/GoalView.svelte',
-  'views/GoalsView.svelte',
-  'views/PortfolioView.svelte',
   'views/ReleaseView.svelte',
   'views/SprintView.svelte',
 ];

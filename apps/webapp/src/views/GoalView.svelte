@@ -16,8 +16,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, EmptyState, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
-    type Column,
+    Badge, Button, Dialog, EmptyState, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu,
   } from '@hubtask/design-system/components';
   import type { Goal, GoalCheckInList, GoalList, KeyResultWrite, SavedView, WorkItem } from '@hubtask/sync-engine';
 
@@ -115,25 +115,29 @@
     }
   }
 
-  const resultColumns = $derived<Column[]>([
-    { id: 'title', label: t('app.goals.kr_title') },
-    { id: 'kind', label: t('app.goals.kr_kind') },
-    { id: 'start', label: t('app.goals.kr_start'), align: 'end' },
-    { id: 'target', label: t('app.goals.kr_target'), align: 'end' },
-    { id: 'current', label: t('app.goals.kr_current'), align: 'end' },
-    { id: 'progress', label: t('app.goals.col_progress') },
+  const resultColumns = $derived<DataColumn[]>([
+    { id: 'title', label: t('app.goals.kr_title'), priority: 1 },
+    { id: 'kind', label: t('app.goals.kr_kind'), priority: 3 },
+    { id: 'start', label: t('app.goals.kr_start'), align: 'end', priority: 3 },
+    { id: 'target', label: t('app.goals.kr_target'), align: 'end', priority: 3 },
+    { id: 'current', label: t('app.goals.kr_current'), align: 'end', priority: 2 },
+    { id: 'progress', label: t('app.goals.col_progress'), priority: 1, isStatus: true },
   ]);
-  const entryColumns = $derived<Column[]>([
-    { id: 'entry', label: t('app.goals.entry') },
-    { id: 'done', label: t('app.goals.entry_state') },
-    { id: 'actions', label: t('app.goals.actions'), isLabelHidden: true },
+  type Result = NonNullable<typeof goal>['key_results'][number];
+  type Linked = NonNullable<NonNullable<typeof goal>['linked_entries']>[number];
+  type CheckInRow = (typeof checkIns)[number];
+  const entryColumns = $derived<DataColumn[]>([
+    { id: 'entry', label: t('app.goals.entry'), priority: 1 },
+    { id: 'done', label: t('app.goals.entry_state'), priority: 1, isStatus: true },
   ]);
-  const checkInColumns = $derived<Column[]>([
-    { id: 'when', label: t('app.goals.checkin_when') },
-    { id: 'who', label: t('app.goals.checkin_who') },
-    { id: 'status', label: t('app.goals.col_status') },
-    { id: 'confidence', label: t('app.goals.col_confidence'), align: 'end' },
-    { id: 'note', label: t('app.goals.checkin_note') },
+  const entryMenu = (entry: Linked): DataRowMenu | undefined =>
+    mayWrite ? { label: t('app.page.more_for', { name: entry.title }), items: [{ id: 'unlink', label: t('app.goals.unlink', { title: entry.title }), isDestructive: true }] } : undefined;
+  const checkInColumns = $derived<DataColumn[]>([
+    { id: 'when', label: t('app.goals.checkin_when'), priority: 2 },
+    { id: 'who', label: t('app.goals.checkin_who'), priority: 1 },
+    { id: 'status', label: t('app.goals.col_status'), priority: 1, isStatus: true },
+    { id: 'confidence', label: t('app.goals.col_confidence'), align: 'end', priority: 3 },
+    { id: 'note', label: t('app.goals.checkin_note'), priority: 3 },
   ]);
   const locale = $derived(messages.locale);
 
@@ -277,7 +281,8 @@
   const KINDS = ['NUMBER', 'PERCENT', 'BINARY', 'MILESTONE'] as const;
 </script>
 
-<Stack gap="300">
+<DetailPage>
+  {#snippet top()}
   <PageHeader
     title={goal?.title ?? t('app.goals.goal')}
     subtitle={goal ? t('app.goals.goal_subtitle', { place: placeName }) : undefined}
@@ -293,6 +298,7 @@
     secondary={mayWrite ? [{ label: t('app.goals.check_in'), icon: 'circle-check', onclick: openCheckIn }, { label: t('app.goals.change'), icon: 'pencil', onclick: openChange }] : []}
     menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
   />
+  {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -326,25 +332,22 @@
         <h2 id="goal-results" class="heading">{t('app.goals.key_results')}</h2>
         {#if mayWrite}<Button size="sm" tone="secondary" icon="pencil" onclick={openResults}>{t('app.goals.edit_results')}</Button>{/if}
       </div>
-      <div class="scroll">
-        <Table label={t('app.goals.key_results')} isLabelHidden columns={resultColumns}>
-          {#snippet empty()}{t('app.goals.no_results')}{/snippet}
-          {#each goal.key_results as result (result.id)}
-            <tr>
-              <th scope="row">{result.title}{#if result.live}<span class="note">{t('app.goals.kr_live')}</span>{/if}</th>
-              <td>{t(`app.goals.kind_${result.kind}`)}{#if result.source === 'VIEW'}<span class="note">{t('app.goals.kr_from_view')}</span>{/if}</td>
-              <td class="number">{result.kind === 'NUMBER' ? valueText(result.kind, result.start, result.unit) : ''}</td>
-              <td class="number">{result.kind === 'NUMBER' ? valueText(result.kind, result.target, result.unit) : ''}</td>
-              <td class="number">
-                {#if result.kind === 'MILESTONE'}
-                  {#if result.entry_id}<a href={`/items/${result.entry_id}`}>{result.progress >= 1 ? t('app.goals.kr_reached') : t('app.goals.kr_not_reached')}</a>{/if}
-                {:else}{valueText(result.kind, result.current, result.unit)}{/if}
-              </td>
-              <td class="progress"><ProgressBar size="sm" label={t('app.goals.progress_of', { title: result.title })} value={percentOf(result.progress)} valueLabel={t('app.goals.percent', { percent: percentText(result.progress) })} /></td>
-            </tr>
-          {/each}
-        </Table>
-      </div>
+      <DataTable label={t('app.goals.key_results')} columns={resultColumns} rows={goal.key_results} key={(result: Result) => result.id}>
+        {#snippet empty()}<p class="quiet">{t('app.goals.no_results')}</p>{/snippet}
+        {#snippet cell(result: Result, column: DataColumn)}
+          {#if column.id === 'title'}{result.title}{#if result.live}<span class="note">{t('app.goals.kr_live')}</span>{/if}
+          {:else if column.id === 'kind'}{t(`app.goals.kind_${result.kind}`)}{#if result.source === 'VIEW'}<span class="note">{t('app.goals.kr_from_view')}</span>{/if}
+          {:else if column.id === 'start'}<span class="number">{result.kind === 'NUMBER' ? valueText(result.kind, result.start, result.unit) : ''}</span>
+          {:else if column.id === 'target'}<span class="number">{result.kind === 'NUMBER' ? valueText(result.kind, result.target, result.unit) : ''}</span>
+          {:else if column.id === 'current'}
+            <span class="number">
+              {#if result.kind === 'MILESTONE'}
+                {#if result.entry_id}<a href={`/items/${result.entry_id}`}>{result.progress >= 1 ? t('app.goals.kr_reached') : t('app.goals.kr_not_reached')}</a>{/if}
+              {:else}{valueText(result.kind, result.current, result.unit)}{/if}
+            </span>
+          {:else}<span class="progress"><ProgressBar size="sm" label={t('app.goals.progress_of', { title: result.title })} value={percentOf(result.progress)} valueLabel={t('app.goals.percent', { percent: percentText(result.progress) })} /></span>{/if}
+        {/snippet}
+      </DataTable>
     </section>
 
     {#if children.length > 0 || goal.child_count > 0}
@@ -363,45 +366,38 @@
         <h2 id="goal-entries" class="heading">{t('app.goals.entries', { done: String(goal.entries.done), total: String(goal.entries.total) })}</h2>
         {#if mayWrite}<Button size="sm" tone="secondary" icon="link" onclick={() => { linking = undefined; isLinking = true; }}>{t('app.goals.link_entry')}</Button>{/if}
       </div>
-      <div class="scroll">
-        <Table label={t('app.goals.entries_label')} isLabelHidden columns={entryColumns}>
-          {#snippet empty()}{t('app.goals.no_entries')}{/snippet}
-          {#each goal.linked_entries ?? [] as entry (entry.id)}
-            <tr>
-              <th scope="row"><a href={`/items/${entry.id}`}>{entry.title}</a>{#if entry.key}<span class="note">{entry.key}</span>{/if}</th>
-              <td>{entry.completed ? t('app.goals.entry_done') : t('app.goals.entry_open')}</td>
-              <td>{#if mayWrite}<IconButton icon="x" size="sm" label={t('app.goals.unlink', { title: entry.title })} onclick={() => void act(() => goals.unlink(goalId, entry.id), t('app.goals.unlinked', { title: entry.title }))} />{/if}</td>
-            </tr>
-          {/each}
-        </Table>
-      </div>
+      <DataTable label={t('app.goals.entries_label')} columns={entryColumns} rows={goal.linked_entries ?? []} key={(entry: Linked) => entry.id}
+        menu={entryMenu} onmenu={(entry: Linked) => void act(() => goals.unlink(goalId, entry.id), t('app.goals.unlinked', { title: entry.title }))}
+        rowLabel={(entry: Linked) => entry.title} actionsLabel={t('app.goals.actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+        {#snippet empty()}<p class="quiet">{t('app.goals.no_entries')}</p>{/snippet}
+        {#snippet cell(entry: Linked, column: DataColumn)}
+          {#if column.id === 'entry'}<a href={`/items/${entry.id}`}>{entry.title}</a>{#if entry.key}<span class="note">{entry.key}</span>{/if}
+          {:else}{entry.completed ? t('app.goals.entry_done') : t('app.goals.entry_open')}{/if}
+        {/snippet}
+      </DataTable>
     </section>
 
     <section class="block" aria-labelledby="goal-checkins">
       <h2 id="goal-checkins" class="heading">{t('app.goals.checkins')}</h2>
-      <div class="scroll">
-        <Table label={t('app.goals.checkins')} isLabelHidden columns={checkInColumns}>
-          {#snippet empty()}{t('app.goals.no_checkins')}{/snippet}
-          {#each checkIns as each (each.id)}
-            <tr>
-              <td>{formatDateTime(each.created_at, locale)}</td>
-              <th scope="row">{personName(each.author_id)}</th>
-              <td><Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge></td>
-              <td class="number">{t('app.goals.confidence_of', { value: String(each.confidence) })}</td>
-              <td class="clip">{each.note}</td>
-            </tr>
-          {/each}
-        </Table>
-      </div>
+      <DataTable label={t('app.goals.checkins')} columns={checkInColumns} rows={checkIns} key={(each: CheckInRow) => each.id}>
+        {#snippet empty()}<p class="quiet">{t('app.goals.no_checkins')}</p>{/snippet}
+        {#snippet cell(each: CheckInRow, column: DataColumn)}
+          {#if column.id === 'when'}{formatDateTime(each.created_at, locale)}
+          {:else if column.id === 'who'}{personName(each.author_id)}
+          {:else if column.id === 'status'}<Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge>
+          {:else if column.id === 'confidence'}<span class="number">{t('app.goals.confidence_of', { value: String(each.confidence) })}</span>
+          {:else}<span class="clip">{each.note}</span>{/if}
+        {/snippet}
+      </DataTable>
       {#if !isHistoryAsked && (goal.check_ins?.length ?? 0) >= 20}
         <Inline><Button size="sm" tone="subtle" onclick={() => (isHistoryAsked = true)}>{t('app.goals.all_checkins')}</Button></Inline>
       {/if}
     </section>
   {/if}
-</Stack>
+</DetailPage>
 
 {#if isChanging && goal}
-  <Dialog bind:isOpen={isChanging} title={t('app.goals.change')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isChanging} title={t('app.goals.change')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.goals.goal_title')} bind:value={draft.title} maxlength={200} />
       <Textarea label={t('app.goals.description')} bind:value={draft.description} maxlength={10000} />
@@ -415,7 +411,7 @@
 {/if}
 
 {#if isDeleting && goal}
-  <Dialog bind:isOpen={isDeleting} title={t('app.goals.delete_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.goals.delete_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.goals.delete_hint')}</p>
       <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.goals.delete')}</Button></Inline>
@@ -424,7 +420,7 @@
 {/if}
 
 {#if isEditingResults}
-  <Dialog bind:isOpen={isEditingResults} title={t('app.goals.edit_results')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="l" bind:isOpen={isEditingResults} title={t('app.goals.edit_results')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="200">
       {#each results as result, i (result.id ?? `new-${i}`)}
         <fieldset class="result">
@@ -468,7 +464,7 @@
 {/if}
 
 {#if isLinking}
-  <Dialog bind:isOpen={isLinking} title={t('app.goals.link_entry')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="l" bind:isOpen={isLinking} title={t('app.goals.link_entry')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <EntryPicker excluded={linked} chosen={linking} onchoose={(item) => (linking = item)} />
       <Inline justify="end"><Button disabledReason={linking ? undefined : t('app.goals.pick_entry')} onclick={() => void link()}>{t('app.goals.link')}</Button></Inline>
@@ -477,7 +473,7 @@
 {/if}
 
 {#if isCheckingIn && goal}
-  <Dialog bind:isOpen={isCheckingIn} title={t('app.goals.check_in_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isCheckingIn} title={t('app.goals.check_in_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Select label={t('app.goals.col_status')} bind:value={checkIn.status} options={STATUSES.filter((each) => each !== 'NONE').map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
       <Input label={t('app.goals.col_confidence')} hint={t('app.goals.confidence_hint')} bind:value={checkIn.confidence} inputmode="numeric" error={confidenceError} />
@@ -501,13 +497,12 @@
   .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .description { margin: 0; white-space: pre-wrap; }
-  .scroll { overflow-x: auto; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .progress { min-width: var(--layout-board-column); }
-  .clip { max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
+  .progress { display: block; min-width: var(--layout-board-column); }
+  .clip { display: block; max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
   .result { margin: 0; padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); }
   .result legend { padding-inline: var(--sp-050); font-size: var(--fs-075); color: var(--text-secondary); }
