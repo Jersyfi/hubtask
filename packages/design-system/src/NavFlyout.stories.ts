@@ -14,7 +14,7 @@ export default {
 export const switcher: Story = {
   name: 'The hub quick switch',
   about:
-    '▾ beside the hub’s name: a search field, starred hubs, recently visited hubs, All hubs. Escape or a press outside closes it and focus returns to ▾.',
+    '▾ beside the hub’s name: the panel drops from the hub’s head, under it. A search field, starred hubs, recently visited hubs, All hubs; the section heads are the panel’s own surface, aligned with the search, and fold nothing. Escape or a press outside closes it and focus returns to ▾.',
   args: { mode: 'hub' },
 };
 

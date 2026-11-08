@@ -1080,6 +1080,8 @@
   // The quick switch (§2.4 item 1): the same tool at the other hub where it has it.
   let switchSearch = $state('');
   let isSwitchOpen = $state(false);
+  // The quick switch drops from the hub's head, under it and as wide as the sidebar (§2.4, ▾).
+  const SWITCH_PLACEMENT = { side: 'block-end', align: 'start' } as const;
   const switchHubs = $derived(shownHubs.filter((each) => each.id !== hubId && each.name.toLocaleLowerCase(messages.locale).includes(switchSearch.trim().toLocaleLowerCase(messages.locale))));
   const starredHubs = $derived(switchHubs.filter((each) => isStarred(stars.all, 'HUB', each.id)));
   const visitedSwitch = $derived(visitedHubs.map((id) => switchHubs.find((each) => each.id === id)).filter((each): each is Container => !!each && !isStarred(stars.all, 'HUB', each.id)).slice(0, 5));
@@ -1574,8 +1576,8 @@
         menu: hubMenuOf(hub.id),
       }}
     >
-      {#snippet switcher()}
-        <NavFlyout label={t('app.nav.switch_hub')} trigger="icon" icon="chevrons-up-down" triggerLabel={t('app.nav.switch_hub')} searchLabel={t('app.nav.find_hub')} bind:search={switchSearch} bind:isOpen={isSwitchOpen}>
+      {#snippet switcher(head)}
+        <NavFlyout label={t('app.nav.switch_hub')} trigger="icon" icon="chevrons-up-down" triggerLabel={t('app.nav.switch_hub')} searchLabel={t('app.nav.find_hub')} anchor={head} placement={SWITCH_PLACEMENT} bind:search={switchSearch} bind:isOpen={isSwitchOpen}>
           {#if starredHubs.length > 0}
             <NavGroup label={t('app.nav.starred')}>
               {#each starredHubs as each (each.id)}

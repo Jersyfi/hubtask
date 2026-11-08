@@ -166,8 +166,8 @@
           menu: { label: 'Manage this hub', items: [{ id: 'settings', label: 'Settings…' }, { id: 'products', label: 'Products' }], onselect: () => {} },
         }}
       >
-        {#snippet switcher()}
-          <NavFlyout label="Switch hub" trigger="icon" icon="chevrons-up-down" triggerLabel="Switch hub" searchLabel="Find a hub">
+        {#snippet switcher(head)}
+          <NavFlyout label="Switch hub" trigger="icon" icon="chevrons-up-down" triggerLabel="Switch hub" searchLabel="Find a hub" anchor={head} placement={{ side: 'block-end', align: 'start' }}>
             <NavGroup label="Starred">
               <NavItem label="IT operations" icon="hub" color="teal" href="#it" />
             </NavGroup>

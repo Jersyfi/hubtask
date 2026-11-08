@@ -551,7 +551,9 @@
 <style>
   .group { display: block; }
 
-  /* The head sticks while its rows scroll under it, over the column's own surface. */
+  /* The head sticks while its rows scroll under it, over the plane it stands on: the column's
+     surface, or the raised panel (`--nav-plane`) of a flyout or a drawer - never a band of
+     another colour across it. */
   .head {
     position: sticky;
     inset-block-start: calc(-1 * (var(--sp-050) + var(--sp-025)));
@@ -560,7 +562,7 @@
     align-items: center;
     gap: var(--sp-050);
     padding: var(--sp-150) calc(var(--sp-050) + var(--sp-025)) var(--sp-050);
-    background: var(--bg-surface);
+    background: var(--nav-plane, var(--bg-surface));
     color: var(--text-subtle);
   }
 

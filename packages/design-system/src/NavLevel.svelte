@@ -42,8 +42,8 @@
     /** What the region is called for a screen reader: the level's name. */
     label: string;
     hub?: HubHead;
-    /** The quick switch beside the hub's name, usually a `NavFlyout`. */
-    switcher?: Snippet;
+    /** The quick switch beside the hub's name, usually a `NavFlyout`; given the head to drop from. */
+    switcher?: Snippet<[HTMLElement | null]>;
     /** *Overview* and the hub tools, above a hairline. */
     tools?: Snippet;
     children: Snippet;
@@ -52,6 +52,7 @@
   const { levelKey, label, hub, switcher, tools, children }: Props = $props();
 
   let back = $state<HTMLElement | null>(null);
+  let head = $state<HTMLElement | null>(null);
   let isMenuOpen = $state(false);
   let shown: string | undefined;
 
@@ -86,10 +87,10 @@
             <Icon name="chevron-left" size="sm" />{hub.backLabel}
           </svelte:element>
         </div>
-        <div class="hub">
+        <div class="hub" bind:this={head}>
           <ProductTile icon={hub.icon} color={hub.color} />
-          <h2 class="hub-name">{hub.name}</h2>
-          {#if switcher}{@render switcher()}{/if}
+          <h2 class="hub-name" title={hub.name}>{hub.name}</h2>
+          {#if switcher}{@render switcher(head)}{/if}
           <button
             type="button"
             class="hub-act"

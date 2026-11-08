@@ -27,6 +27,12 @@
     /** The words in it, bindable. */
     search?: string;
     isOpen?: boolean;
+    /**
+     * What the panel lines up with, when not its trigger: the hub's head, which the quick switch
+     * drops from. The anchor needs a box of its own - a `display: contents` wrapper has none, and
+     * the panel then lands at the viewport's corner.
+     */
+    anchor?: HTMLElement | null;
     placement?: Placement;
     children: Snippet;
   }
@@ -39,32 +45,34 @@
     searchLabel,
     search = $bindable(''),
     isOpen = $bindable(false),
+    anchor,
     placement = { side: 'inline-end', align: 'start' },
     children,
   }: Props = $props();
 
   const instanceId = $props.id();
   const id = `flyout-${instanceId}`;
-  let anchor = $state<HTMLElement | null>(null);
+  let button = $state<HTMLButtonElement | null>(null);
   let surface = $state<HTMLElement | null>(null);
   let opener: Element | null = null;
 
   function close() {
     if (!isOpen) return;
     isOpen = false;
-    if (!focusReturn(opener)) focusReturn(anchor?.querySelector('button'));
+    if (!focusReturn(opener)) focusReturn(button);
   }
 
   $effect(() => {
-    if (!isOpen || !anchor || !surface) return;
-    const release = openOverlay({ layer: 'popover', trigger: anchor, surface, placement, onDismiss: close });
+    if (!isOpen || !button || !surface) return;
+    const release = openOverlay({ layer: 'popover', trigger: button, anchor: anchor ?? button, surface, placement, onDismiss: close });
     focusables(surface)[0]?.focus();
     return release;
   });
 </script>
 
-<span class="anchor" data-trigger={trigger} bind:this={anchor}>
+<span class="anchor" data-trigger={trigger}>
   <button
+    bind:this={button}
     type="button"
     class="trigger"
     aria-expanded={isOpen}
@@ -118,6 +126,7 @@
 
   [data-trigger='icon'] .trigger {
     display: grid;
+    flex: none;
     place-items: center;
     inline-size: var(--layout-nav-action);
     block-size: var(--layout-nav-action);
@@ -169,11 +178,14 @@
     color: var(--text-subtle);
   }
 
+  /* One inline edge for the heading, the search and the rows. The plane is the sticky section
+     heads' background, so a head is the panel's own surface and never a band across it. */
   .flyout {
+    --nav-plane: var(--bg-raised);
     inline-size: var(--layout-sidenav-width);
     max-block-size: min(var(--layout-panel-width), 80vh);
     overflow: auto;
-    padding: var(--sp-050);
+    padding: var(--sp-050) calc(var(--sp-050) + var(--sp-025));
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
@@ -189,7 +201,7 @@
 
   .heading {
     margin: 0;
-    padding: var(--sp-100) var(--sp-100) var(--sp-050);
+    padding: var(--sp-100) calc(var(--sp-100) + var(--bw-hairline)) var(--sp-050);
     font-size: var(--fs-090);
     font-weight: var(--fw-semibold);
   }
@@ -199,7 +211,7 @@
     align-items: center;
     gap: calc(var(--sp-050) + var(--sp-025));
     block-size: var(--layout-nav-filter);
-    margin: var(--sp-050) var(--sp-025);
+    margin-block: var(--sp-050);
     padding: 0 var(--sp-100);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--layout-nav-radius);
