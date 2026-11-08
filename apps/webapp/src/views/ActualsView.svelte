@@ -27,6 +27,7 @@
   import BillingRates from '../lib/time/BillingRates.svelte';
   import BudgetPanel from '../lib/time/BudgetPanel.svelte';
   import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
 
   interface Props {
     /** The hub or collection whose plan this is. */
@@ -68,11 +69,15 @@
   ]);
 </script>
 
+{#if place && !isHub}
+  <!-- A collection's *Time* is one of its views: its head is the collection's (CollectionHead). -->
+  <CollectionHead collectionId={planId} current="time" {onnavigate} secondary={[{ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`/collections/${planId}/workload`) }]} />
+{/if}
 <Stack gap="300">
+  {#if !place || isHub}
   <PageHeader
     {title}
     isTitleInBar={viewport.isCompact}
-    secondary={place && !isHub ? [{ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`/collections/${planId}/workload`) }] : []}
     breadcrumb={place
       ? {
           trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'actuals', label: title }],
@@ -83,7 +88,8 @@
         }
       : undefined}
   />
-  <PlaceViews placeId={planId} tool="time" current={isHub ? part : 'time'} {onnavigate} />
+  <PlaceViews placeId={planId} tool="time" current={part} {onnavigate} />
+  {/if}
 
   {#if mayCost && (!isHub || part === 'budget')}<BudgetPanel {planId} /><BillingRates {planId} />{/if}
 

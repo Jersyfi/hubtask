@@ -31,7 +31,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
-    type Column, type TimelineCarry, type TimelineDependency, type TimelineLink,
+    type Column, type PageAction, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
@@ -63,6 +63,7 @@
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
   import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
 
   interface Props {
     /** The hub or collection the plan is. */
@@ -441,10 +442,30 @@
     return parts.filter((part) => part !== undefined).join(' · ');
   });
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
+  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
+    mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
+  );
+  const headMenu = $derived({
+    label: t('app.planning.more'),
+    items: [
+      { id: 'settings', label: t('app.planning.settings'), icon: 'settings' as const },
+      { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: true },
+      { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' as const },
+      { id: 'png', label: t('app.planning.export_png'), icon: 'image' as const },
+      { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' as const },
+      ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
+    ],
+    onselect: (id: string) => void exportAs(id),
+  });
 </script>
 
 {#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
+{#if place?.type === 'COLLECTION'}
+  <!-- A collection's *Timeline* is one of its views: its head is the collection's (CollectionHead). -->
+  <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+{/if}
 <Stack gap="200">
+  {#if place?.type !== 'COLLECTION'}
   <PageHeader
     title={t('app.planning.title')}
     isTitleInBar={viewport.isCompact}
@@ -458,21 +479,11 @@
           onnavigate: () => onnavigate(placePath),
         }
       : undefined}
-    secondary={mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : []}
-    menu={{
-      label: t('app.planning.more'),
-      items: [
-        { id: 'settings', label: t('app.planning.settings'), icon: 'settings' },
-        { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text', hasSeparatorBefore: true },
-        { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' },
-        { id: 'png', label: t('app.planning.export_png'), icon: 'image' },
-        { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' },
-        ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
-      ],
-      onselect: (id: string) => void exportAs(id),
-    }}
+    secondary={headSecondary}
+    menu={headMenu}
   />
-  <PlaceViews placeId={planId} tool="plan" current={containers.find(planId)?.type === 'COLLECTION' ? 'timeline' : 'schedule'} {onnavigate} />
+  <PlaceViews placeId={planId} tool="plan" current="schedule" {onnavigate} />
+  {/if}
 
   {#if refusal}
     <FailureNote problem={refusal} />

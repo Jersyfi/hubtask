@@ -331,11 +331,14 @@
     min-width: 0;
   }
 
+  /* As tall as its controls whether it holds any: a head with verbs and one without stand alike,
+     so what follows the head - a view bar - keeps its place from view to view. */
   .row {
     display: flex;
     align-items: flex-start;
     gap: var(--sp-200);
     flex-wrap: wrap;
+    min-block-size: var(--density-control-sm-min);
   }
 
   /* The trail's line, which carries the actions when the title row would stand empty. */

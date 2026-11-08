@@ -15,13 +15,11 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the collection the
   // screen shows values, not controls.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
-
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Textarea,
+    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, Select, Skeleton, Stack, Table, Textarea,
     hasLeftTheHandle, type Column, type PageAction,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -38,12 +36,11 @@
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
@@ -61,7 +58,6 @@
 
   const zone = $derived(actor.zone);
   const place = $derived(containers.find(collectionId));
-  const placePath = $derived(`/collections/${collectionId}`);
   const rolePath = $derived({ hubId: place?.parent_id ?? undefined, collectionId });
 
   $effect(() => frame.entitle(place ? t('app.sprints.title_of', { place: place.name }) : t('app.sprints.title')));
@@ -335,26 +331,22 @@
   </li>
 {/snippet}
 
+{#snippet sprintFigure()}
+  <!-- The sprint's own figure in the collection's figure's place: its days and how far it is. -->
+  <span data-sprint-figure>{figure}</span>
+  {@render burndownPicture()}
+{/snippet}
+
+<CollectionHead
+  {collectionId}
+  current={isBacklog ? 'backlog' : 'sprint'}
+  {onnavigate}
+  figure={figure ? sprintFigure : undefined}
+  primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
+  secondary={headActs}
+  menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
+/>
 <Stack gap="200">
-  <PageHeader
-    title={chosen?.name ?? t('app.sprints.title')}
-    isTitleInBar={viewport.isCompact}
-    subtitle={figure}
-    figure={detail && detail.burndown.length > 0 ? burndownPicture : undefined}
-    breadcrumb={place
-      ? {
-          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'sprints', label: t('app.sprints.title') }],
-          mark: placeMark,
-          label: t('app.sprints.trail'),
-          expandLabel: t('app.sprints.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
-    primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
-    secondary={headActs}
-    menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
-  />
-  <PlaceViews placeId={collectionId} current={isBacklog ? 'backlog' : 'sprint'} {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

@@ -95,7 +95,7 @@
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import { collectionViews } from '../lib/workspace/placeViews.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
   import { isOwnPage, layoutOfView, viewOfLayout } from '../lib/workspace/placeViews.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
@@ -1371,12 +1371,96 @@
       {/if}
     </Stack>
   {:else}
+  {#snippet headNotices()}
+    <!-- The two archive states say different things and offer different controls, which is the
+         whole reason `archivalOf` distinguishes them. -->
+    {#if container.type === 'HUB' && container.private}
+      <p class="notice private"><Icon name="lock" size="sm" />{t('app.workspace.private_marker')}</p>
+    {/if}
+    {#if readOnlyReason}
+      <!-- One notice for the whole page; the rows below say nothing about it. -->
+      <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId}>
+        {#snippet action()}
+          {#if archival === 'archived' && mayShape}
+            <Button size="sm" tone="secondary" onclick={() => void toggleArchived()}>{t('app.workspace.unarchive')}</Button>
+          {/if}
+        {/snippet}
+      </ReadOnlyNotice>
+    {/if}
+    {#if failure}
+      <p class="failure" role="alert">{failure.message}</p>
+    {/if}
+  {/snippet}
+  {#snippet people()}
+    {#if memberIds.length === 0}
+      <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
+      <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
+    {:else}
+      <!-- Who holds a role here, as faces; pressing them opens the people, the same component
+           as *Structure → People*. The faces are decoration on the button: its name is the word. -->
+      <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
+        <span aria-hidden="true">
+          <AvatarGroup
+            people={memberIds.map((accountId) => ({
+              name: accounts.nameOf(accountId) ?? t('app.people.unnamed'),
+              src: accounts.pictureOf(accountId),
+            }))}
+            size="sm"
+            max={4}
+            overflowLabel={t('app.people.more_members', { count: String(Math.max(memberIds.length - 4, 0)) })}
+          />
+        </span>
+      </button>
+    {/if}
+    <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
+  {/snippet}
+  {#if container.type === 'COLLECTION'}
+    <!-- The collection's one head, the same on each of its views (CollectionHead): the list, the
+         board, the timeline layout and the saved views are this screen; ＋ saves a view; the
+         filter and the entries' tools at the bar's end. On a phone the filter is one button
+         beside the chip, whose sheet holds the rest. -->
+    {#snippet insideToggle()}
+      {#if isListLayout(layout) && listsBoth}
+        <!-- A toggle of the list's own, not a view: pressed, every level is shown open. -->
+        <span data-tour="levels-inside"><Button
+          size="sm"
+          tone="subtle"
+          icon="chevrons-up-down"
+          aria-pressed={layout === 'LIST_EXPANDED'}
+          onclick={() => chooseLayout(layout === 'LIST_EXPANDED' ? 'LIST_COLLAPSED' : 'LIST_EXPANDED')}
+        >{t('app.view.show_inside')}</Button></span>
+      {/if}
+    {/snippet}
+    {#snippet barTools()}
+      {@render insideToggle()}
+      {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
+      <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+      {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
+    {/snippet}
+    {#snippet compactTools()}
+      {@render insideToggle()}
+      <Button size="sm" isRound tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+    {/snippet}
+    <CollectionHead
+      collectionId={container.id}
+      current={barCurrent}
+      onnavigate={(path) => onnavigate(keepingOpen(path))}
+      figure={container.figure || hasAi || hasMilestone ? collectionFigure : undefined}
+      primary={newMenu}
+      menu={headMenu}
+      aside={people}
+      add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
+      tools={barTools}
+      {compactTools}
+      notices={headNotices}
+    />
+  {/if}
   <Stack gap="150">
+    {#if container.type !== 'COLLECTION'}
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
-         for - a collection - with import beside it; the collection's is an entry, with the filter
-         beside it and the templates as the verb's own list. The title is read rather than drawn
-         where the bar shows it. -->
+         for - a collection - with import beside it. The title is read rather than drawn where the
+         bar shows it. -->
     <PageHeader
       title={container.name}
       subtitle={container.description ?? undefined}
@@ -1395,98 +1479,15 @@
       }}
       menu={headMenu}
       primary={newMenu}
-      figure={container.figure || (container.type === 'COLLECTION' && hasAi) || hasMilestone ? collectionFigure : undefined}
+      figure={container.figure || hasMilestone ? collectionFigure : undefined}
+      notices={headNotices}
+      aside={people}
     >
       {#snippet titleEnd()}
         <!-- ☆ right after the title (UC-WRK-37, the mockup's head): the same star as the sidebar's. -->
-        <StarToggle kind={container.type === 'HUB' ? 'HUB' : 'COLLECTION'} id={container.id} name={container.name} />
-      {/snippet}
-      {#snippet notices()}
-        <!-- The two archive states say different things and offer different controls, which is the
-             whole reason `archivalOf` distinguishes them. -->
-        {#if container.type === 'HUB' && container.private}
-          <p class="notice private"><Icon name="lock" size="sm" />{t('app.workspace.private_marker')}</p>
-        {/if}
-        {#if readOnlyReason}
-          <!-- One notice for the whole page; the rows below say nothing about it. -->
-          <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId}>
-            {#snippet action()}
-              {#if archival === 'archived' && mayShape}
-                <Button size="sm" tone="secondary" onclick={() => void toggleArchived()}>{t('app.workspace.unarchive')}</Button>
-              {/if}
-            {/snippet}
-          </ReadOnlyNotice>
-        {/if}
-        {#if failure}
-          <p class="failure" role="alert">{failure.message}</p>
-        {/if}
-      {/snippet}
-      {#snippet aside()}
-        {#if memberIds.length === 0}
-          <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
-          <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
-        {:else}
-          <!-- Who holds a role here, as faces; pressing them opens the people, the same component
-               as *Structure → People*. The faces are decoration on the button: its name is the word. -->
-          <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
-            <span aria-hidden="true">
-              <AvatarGroup
-                people={memberIds.map((accountId) => ({
-                  name: accounts.nameOf(accountId) ?? t('app.people.unnamed'),
-                  src: accounts.pictureOf(accountId),
-                }))}
-                size="sm"
-                max={4}
-                overflowLabel={t('app.people.more_members', { count: String(Math.max(memberIds.length - 4, 0)) })}
-              />
-            </span>
-          </button>
-        {/if}
-        <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
+        <StarToggle kind="HUB" id={container.id} name={container.name} />
       {/snippet}
     </PageHeader>
-    {#if container.type === 'COLLECTION'}
-      <!-- One view bar (the navigation concept §3): the list, the board, the timeline, the sprint,
-           the time and the saved views; ＋ saves a view; the filter and the entries' tools at its
-           end. On a phone the bar is a chip and the filter one button whose sheet holds the rest. -->
-      <!-- `data-tour`: where the tour points for "the same entries, two ways". -->
-      <!-- On a phone the chip and the filter stand on one line, as the concept's phone draws them. -->
-      <div class="views" data-tour="layouts" data-compact={viewport.isCompact ? '' : undefined}
-        role={viewport.isCompact ? 'toolbar' : undefined} aria-label={viewport.isCompact ? t('app.toolbar.entries') : undefined}>
-        <PlaceViews
-          placeId={container.id}
-          current={barCurrent}
-          onnavigate={(path) => onnavigate(keepingOpen(path))}
-          add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
-          tools={viewport.isCompact ? undefined : barTools}
-        />
-        {#if viewport.isCompact}
-          <div class="toolbar">
-            <div class="tools">
-              {@render insideToggle()}
-              <Button size="sm" isRound tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-            </div>
-          </div>
-        {/if}
-      </div>
-      {#snippet insideToggle()}
-        {#if isListLayout(layout) && listsBoth}
-          <!-- A toggle of the list's own, not a view: pressed, every level is shown open. -->
-          <span data-tour="levels-inside"><Button
-            size="sm"
-            tone="subtle"
-            icon="chevrons-up-down"
-            aria-pressed={layout === 'LIST_EXPANDED'}
-            onclick={() => chooseLayout(layout === 'LIST_EXPANDED' ? 'LIST_COLLAPSED' : 'LIST_EXPANDED')}
-          >{t('app.view.show_inside')}</Button></span>
-        {/if}
-      {/snippet}
-      {#snippet barTools()}
-        {@render insideToggle()}
-        {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
-        <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-        {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
-      {/snippet}
     {/if}
 
     {#if container.type === 'HUB' && container.private}
@@ -1796,38 +1797,6 @@
 
   .entries { flex: 1; min-width: 0; }
 
-
-  /* The entries' toolbar stays under the bar while the list scrolls (design-system.md §11.1): the
-     layouts at the start, the rest at the end, one line where it fits. */
-  /* A starred place's star is filled in gold (the mockup's head), as the sidebar's. */
-
-  /* The view bar stays under the app bar while the entries scroll, as the toolbar it replaced. */
-
-  .views {
-    position: sticky;
-    inset-block-start: var(--layout-appbar-height);
-    z-index: var(--z-raised);
-    background: var(--bg-canvas);
-  }
-
-  .toolbar {
-    position: sticky;
-    inset-block-start: var(--layout-appbar-height);
-    z-index: var(--z-raised);
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-150);
-    padding-block: var(--sp-100);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    background: var(--bg-canvas);
-  }
-
-  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .views[data-compact] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); padding-block-end: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .views[data-compact] .toolbar { position: static; padding: 0; border: 0; }
 
   .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 
