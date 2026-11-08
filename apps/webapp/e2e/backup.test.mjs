@@ -256,7 +256,8 @@ test('chromium: where the operator keeps the backups, the screen says so and off
   const { page, written, failures, close } = await backupScreen(browser, [], undefined, { backup_targets: false }, '/administration/backup/targets');
   t.after(close);
 
-  await page.getByText('The operator of this installation backs this workspace up.').waitFor({ timeout: 15_000 });
+  // Targets says it in one line; the whole explanation is the first section's, said once.
+  await page.getByText('The operator of this installation keeps the targets.').waitFor({ timeout: 15_000 });
   assert.equal(await page.getByRole('button', { name: 'Back up this workspace every night' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Add a target', exact: true }).count(), 0, 'no form the server refuses at its end');
   assert.deepEqual(written, []);

@@ -5603,6 +5603,7 @@
   "app.backup.download_done": "The workspace was downloaded.",
   "app.backup.download_incomplete": "The download broke off before the archive was complete, so the file was discarded. Download it again.",
   "app.backup.no_targets": "No target is configured, so nothing is being backed up.",
+  "app.backup.targets_operator": "The operator of this installation keeps the targets.",
   "app.backup.operator_keeps_title": "The operator of this installation backs this workspace up.",
   "app.backup.operator_keeps_description": "This installation keeps the backups of its workspaces itself, so a workspace adds no target of its own. Ask the operator how often it runs and how a workspace is restored.",
   "app.backup.guided_title": "Nothing in this workspace is backed up yet.",

@@ -249,7 +249,8 @@
     { id: 'rule', label: t('app.backup.column_when'), priority: 1 },
     { id: 'target', label: t('app.backup.schedule_target'), priority: 2 },
     { id: 'next', label: t('app.backup.column_next'), priority: 3 },
-    { id: 'state', label: t('app.backup.enabled'), isStatus: true },
+    // One state indicator: the switch where the reader may turn it, the badge where not.
+    ...(mayOwn ? [] : [{ id: 'state', label: t('app.backup.enabled'), isStatus: true }]),
   ]);
   const targetColumns: readonly DataColumn[] = $derived([
     { id: 'name', label: t('app.backup.target_name'), priority: 1 },
@@ -487,7 +488,11 @@
               <Badge size="sm" tone="success">{t('app.backup.encrypted')}</Badge>
             {/if}
           {/snippet}
-          {#snippet empty()}{@render noTargets()}{/snippet}
+          {#snippet empty()}
+            <!-- The whole explanation, with its guided start, is the first section's (Schedules);
+                 here the one line, so the page does not say it twice. -->
+            <EmptyState kind="unused" title={mayAddTarget ? t('app.backup.no_targets') : t('app.backup.targets_operator')} />
+          {/snippet}
         </DataTable>
         {#if onlyHere && mayOwn && mayAddTarget}
           <!-- A suggestion, not a warning: nothing is wrong yet, so the mark is the accent. -->
