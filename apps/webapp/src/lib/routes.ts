@@ -168,6 +168,7 @@ export const ROUTES: readonly Route[] = [
   // The AI provider and the consent that lets it be used: where a workspace's content may
   // be sent is administration, exactly as the sign-in provider above it is.
   { name: 'ai', pattern: '/administration/ai', area: 'administration' },
+  { name: 'ai-section', pattern: '/administration/ai/:section', area: 'administration' },
   // The governed agents, their models, held acts and metering, where the agents module is on (M9).
   { name: 'agents', pattern: '/administration/agents', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content

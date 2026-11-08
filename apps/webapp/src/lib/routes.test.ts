@@ -39,6 +39,7 @@ test('the administration area is exactly these screens, by name', () => {
     'administration',
     'agents',
     'ai',
+    'ai-section',
     'app',
     'apps',
     'audit',

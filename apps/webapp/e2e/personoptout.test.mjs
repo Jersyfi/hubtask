@@ -113,7 +113,7 @@ test('chromium: a workspace of one is asked nothing about people keeping their c
   t.after(close);
 
   await page.goto(`${served.origin}/administration/ai?tab=consent`);
-  await page.locator('[data-settings-sections]').getByRole('link', { name: 'Source', exact: true }).waitFor({ timeout: 15_000 });
+  await page.getByRole('navigation', { name: 'Sections of AI' }).getByRole('link', { name: /^Budget/ }).first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-person-opt-out]').count(), 0, 'the position is asked of a workspace of one');
 

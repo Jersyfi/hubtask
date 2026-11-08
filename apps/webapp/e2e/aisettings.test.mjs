@@ -139,10 +139,10 @@ test('chromium: a consumer switches on the offered model with one control', asyn
   assert.deepEqual(sent[0], { source: 'OFFERED', offered_model_id: LARGE.id });
   assert.ok(await use.isChecked(), 'the switch does not show the model in use');
 
-  // The budget is its own tab (ux-inventory §E8): only the offered model's, and no word of an own
-  // one (P-05).
-  await page.locator('[data-settings-sections]').getByRole('link', { name: 'Budget', exact: true }).click();
-  await page.waitForFunction(() => location.search === '?tab=budget');
+  // The budget is its own section (ux-inventory §E8, page-system §7.3): only the offered model's,
+  // and no word of an own one (P-05).
+  await page.getByRole('navigation', { name: 'Sections of AI' }).getByRole('link', { name: /^Budget/ }).click();
+  await page.waitForFunction(() => location.pathname === '/administration/ai/budget');
   await page.getByRole('heading', { name: 'The budget' }).waitFor();
   assert.match(await page.locator('main').textContent() ?? '', /The offered model: today 1,234 tokens of 200,000 tokens used/);
   assert.doesNotMatch(await page.locator('main').textContent() ?? '', /Our own model:/);
@@ -188,12 +188,17 @@ test('chromium: a company chooses between the offered model and its own', async 
   await page.getByRole('switch', { name: 'Use Large (EU)' }).waitFor({ timeout: 15_000 });
   const own = page.getByRole('switch', { name: 'Use our own model' });
   assert.ok(await own.isChecked(), 'the own model in use is not shown as chosen');
-  await page.getByLabel(/^Provider/).waitFor();
+  await page.getByLabel('This workspace may use').waitFor();
+  // The own model's form is its own section (page-system §7.3, PS-10).
+  await page.goto(`${served.origin}/administration/ai/own`);
+  await page.getByLabel(/^Provider/).waitFor({ timeout: 15_000 });
   assert.match(await page.locator('main').textContent() ?? '', /must process content in the EEA: set for every workspace on this installation/);
   // A declaration the minimum refuses is not offered (P-05).
   const offeredWhere = await page.getByLabel(/^Where the provider processes/).locator('option').allTextContents();
   assert.ok(!offeredWhere.some((each) => /adequacy|third country/i.test(each)), offeredWhere.join(' | '));
-  await page.getByLabel('This workspace may use').waitFor();
+
+  await page.goto(`${served.origin}/administration/ai/source`);
+  await page.getByRole('switch', { name: 'Use Large (EU)' }).waitFor({ timeout: 15_000 });
 
   await page.getByRole('switch', { name: 'Use Large (EU)' }).check();
   for (let i = 0; i < 50 && sent.length === 0; i++) await page.waitForTimeout(100);
@@ -255,12 +260,13 @@ test('chromium: the AI sections open at their address and an unsaved consent is 
 
   await page.goto(`${served.origin}/administration/ai`);
   const sections = page.getByRole('navigation', { name: 'Sections of AI' });
-  await sections.getByRole('link', { name: 'Budget', exact: true }).click();
-  await page.waitForFunction(() => location.search === '?tab=budget');
-  await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'The budget', null, { timeout: 5_000 });
-  assert.equal(await sections.locator('a[aria-current="page"]').textContent(), 'Budget');
+  await sections.getByRole('link', { name: /^Budget/ }).click();
+  await page.waitForFunction(() => location.pathname === '/administration/ai/budget');
+  await page.getByRole('heading', { name: 'The budget' }).waitFor({ timeout: 5_000 });
+  assert.match(await sections.locator('a[aria-current="page"]').textContent() ?? '', /^\s*Budget/);
 
-  await sections.getByRole('link', { name: 'Source', exact: true }).click();
+  // The consent is the own model's, saved with its form, in that section.
+  await sections.getByRole('link', { name: /^Our own model/ }).click();
   const consent = page.getByRole('switch', { name: /Send this workspace/ });
   await consent.click();
   await page.evaluate(() => {
@@ -273,7 +279,7 @@ test('chromium: the AI sections open at their address and an unsaved consent is 
   const question = page.getByRole('dialog', { name: 'Leave without saving?' });
   await question.waitFor({ timeout: 5_000 });
   await question.getByRole('button', { name: 'Stay' }).last().click();
-  assert.equal(new URL(page.url()).pathname, '/administration/ai');
+  assert.equal(new URL(page.url()).pathname, '/administration/ai/own');
   await consent.click();
   await page.evaluate(() => {
     const link = document.createElement('a');
@@ -315,8 +321,10 @@ test('chromium: the provider is changed and removed on the screen, and its key i
   assert.equal(writes[0].body.completion_model, 'chat-large');
   assert.ok(!('api_key' in writes[0].body), `a change without a new key sent one: ${JSON.stringify(writes[0].body)}`);
 
-  await page.getByRole('button', { name: 'Remove the provider', exact: true }).click();
-  await page.getByRole('button', { name: 'Remove it', exact: true }).click();
+  // Destructive, so the head's ⋯ and a Dialog S (page-system §7.3).
+  await page.getByRole('button', { name: 'More for AI' }).first().click();
+  await page.getByRole('menuitem', { name: 'Remove the provider…' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Remove it', exact: true }).click();
   for (let i = 0; i < 50 && writes.length < 2; i++) await page.waitForTimeout(100);
   assert.equal(writes[1]?.method, 'DELETE', 'the removal reached no DELETE');
 });

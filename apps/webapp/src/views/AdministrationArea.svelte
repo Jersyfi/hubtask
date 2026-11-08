@@ -162,6 +162,6 @@
   <MailView providerAnswer={route.name === 'mail-oauth' ? route.query : undefined} onanswered={() => onreplace('/administration/mail')} />
 {:else if route.name === 'legal'}
   <SignInSettingsView part="legal" onnavigate={(path) => onnavigate(path)} />
-{:else if route.name === 'ai'}
-  <AiSettingsView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+{:else if route.name === 'ai' || route.name === 'ai-section'}
+  <AiSettingsView section={route.params.section} tab={route.query['tab']} onreplace={(path) => onreplace(path)} />
 {/if}

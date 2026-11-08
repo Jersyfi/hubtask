@@ -265,6 +265,7 @@ async function views() {
     ['privacy', await load('PrivacyView'), { onnavigate: noop }],
     ['privacy-case', await load('PrivacyCaseView'), { id: '01a0e2e0-0000-7000-8000-0000000000a1', onnavigate: noop }],
     ['ai', await load('AiSettingsView'), {}],
+    ['ai-section', await load('AiSettingsView'), { section: 'budget' }],
     ['search', await load('SearchView'), {}],
     ['jumble', await load('JumbleView'), { onnavigate: noop }],
     ['trash', await load('TrashView'), {}],
