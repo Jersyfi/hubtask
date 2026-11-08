@@ -147,7 +147,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   // Decided, it leaves what waits: the list says nothing waits any more.
   await page.getByText('Nothing waits for a person.').waitFor({ timeout: 5_000 });
 
-  await page.getByRole('tab', { name: /^Runs/ }).click();
+  await page.getByRole('main').getByRole('link', { name: /^Runs/ }).click();
   await page.getByText('Triage helper on an entry').waitFor({ timeout: 5_000 });
   await page.getByText(/2 proposals · 1,840 tokens/).waitFor({ timeout: 5_000 });
 

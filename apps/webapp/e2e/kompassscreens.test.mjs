@@ -275,7 +275,8 @@ test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub ha
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-newcoll.png` });
   await dialog.getByRole('textbox', { name: 'Name' }).fill('Help');
   await kindChoice(dialog, 'Desk').click();
-  await dialog.locator('[data-create-container]').click();
+  // The dialog's primary is its own button at its foot (page-system §5.1), named for what it does.
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 10_000 });
   const created = written.find((each) => each.path === '/containers');
   assert.equal(created?.body.preset, 'TASKS', 'a desk starts from Tasks');

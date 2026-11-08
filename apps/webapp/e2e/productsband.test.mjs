@@ -311,7 +311,7 @@ test('chromium 1280 px: the agents\' home lists the agents, their held acts and 
   await first.getByRole('button', { name: '1 waiting' }).click();
   await page.waitForURL(new RegExp(`/agents\\?tab=requests&agent=${AGENTS[1].id}$`));
   await page.getByText('Waiting on Request sorter').waitFor({ timeout: 10_000 });
-  await page.getByRole('tab', { name: /^Runs/ }).click();
+  await page.getByRole('main').getByRole('link', { name: /^Runs/ }).click();
   const runs = page.getByRole('table', { name: 'Runs' });
   await runs.waitFor({ timeout: 10_000 });
   assert.match((await runs.textContent()) ?? '', /Done[\s\S]*Failed/u, 'the newest run first');
