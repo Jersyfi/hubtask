@@ -57,6 +57,8 @@ async function open(browser, role, holds = []) {
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
   await page.goto(`${served.origin}/administration/restore`);
+  // How it is put back is the second of the create page's steps (page-system §9.3).
+  await page.getByRole('radio', { name: '2 Plan' }).click({ timeout: 15_000 });
   await page.getByLabel('How').waitFor();
   return { page, failures, close: () => context.close() };
 }
@@ -79,8 +81,8 @@ test('chromium: the owner is offered replacing the workspace', async () => {
   }
 });
 
-// UC-WRK-32 check 3: the rehearsal is never switched off for what is missing; pressed, the target
-// is marked and focused, and nothing is sent.
+// UC-WRK-32 check 3: the rehearsal is never switched off for what is missing; pressed - from a
+// later step -, the step that misses it opens, the target is marked and focused, and nothing is sent.
 test('chromium: rehearsing with nothing chosen marks the target and sends nothing', async () => {
   const browser = await chromium.launch();
   try {
