@@ -47,7 +47,7 @@ const NOT_YET_MIGRATED = [
   'PortalRequestView', 'PortalView', 'PortfolioView',
   'PrivateHubsView', 'ProductHomeView', 'ProfileView', 'PublicFormView', 'PublicRoadmapView',
   'QuotasView', 'RateView', 'RedeemView', 'ReleaseView', 'ResetView', 'RestoreView',
-  'RetentionView', 'RoadmapView', 'RuleEditorView', 'SearchView',
+  'RoadmapView', 'RuleEditorView', 'SearchView',
   'SecurityView', 'SessionsView', 'SetupView', 'SignInView', 'SprintView',
   'TimeView', 'TodayView', 'TrashView', 'VoiceView', 'WhiteboardsView',
   'WorkloadView',

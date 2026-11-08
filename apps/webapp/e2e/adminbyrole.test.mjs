@@ -75,7 +75,8 @@ const SCREENS = [
   // Backup and Retention are one section per address (page-system §9.3): each section's own add.
   { path: '/administration/backup', buttons: ['Back up now'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
   { path: '/administration/backup/targets', buttons: ['Add a target'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
-  { path: '/administration/retention', buttons: ['Write it', 'Place it'], gates: ['DELETE_CONTAINER'] },
+  { path: '/administration/retention', buttons: ['Write a rule'], gates: ['DELETE_CONTAINER'] },
+  { path: '/administration/retention/holds', buttons: ['Place a hold'], gates: ['DELETE_CONTAINER'] },
   { path: '/administration/restore', buttons: ['See what it would do'], gates: ['STRUCTURE'] },
   // Where the chain is anchored is a Dialog M from the head's ⋯ (page-system §9.3).
   { path: '/administration/audit', open: [{ role: 'button', name: 'More for Audit log' }, { role: 'menuitem', name: 'Anchoring…' }], buttons: ['Anchor here'], gates: ['STRUCTURE'] },
@@ -87,7 +88,8 @@ const SCREENS = [
  */
 const OWNERS_ONLY = [
   { path: '/administration/backup/targets', buttons: ['Add a target'] },
-  { path: '/administration/retention', buttons: ['Write it', 'Place it'] },
+  { path: '/administration/retention', buttons: ['Write a rule'] },
+  { path: '/administration/retention/holds', buttons: ['Place a hold'] },
 ];
 
 /** A control as the table names it: a button by its words, or another role by its name. */

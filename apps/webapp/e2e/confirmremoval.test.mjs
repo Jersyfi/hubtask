@@ -102,16 +102,19 @@ test('chromium: withdrawing a retention rule asks first, and cancelling sends no
   const { page, removed, failures, close } = await open(browser, '/administration/retention');
   t.after(close);
 
-  const press = page.getByRole('button', { name: 'Withdraw it' });
-  await press.waitFor();
-  await press.click();
+  // Withdrawing is the rule's ⋯ (page-system PS-6).
+  const press = async () => {
+    await page.getByRole('button', { name: 'More for What is in the trash' }).click({ timeout: 15_000 });
+    await page.getByRole('menuitem', { name: 'Withdraw it' }).click();
+  };
+  await press();
   const dialog = page.getByRole('dialog', { name: 'Withdraw this rule?' });
   await dialog.getByText('What it already removed stays removed', { exact: false }).waitFor();
   await dialog.getByRole('button', { name: 'Cancel' }).first().click();
   await dialog.waitFor({ state: 'detached' });
   assert.deepEqual(removed, [], 'cancelling withdrew the rule');
 
-  await press.click();
+  await press();
   await page.getByRole('dialog', { name: 'Withdraw this rule?' }).getByRole('button', { name: 'Withdraw it' }).click();
   await settle(page, removed, 1);
   assert.deepEqual(removed, [`/retention-policies/${POLICY.id}`]);

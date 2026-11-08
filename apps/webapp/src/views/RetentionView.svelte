@@ -1,85 +1,68 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The rules that delete things, and the preview that has to come first.
+  // The rules that delete things, the preview that has to come first, and the holds above them.
   //
-  // **A rule is written switched off, previewed, and only then armed.** `:preview` is a `POST` on
-  // a stored rule, so the rule has to exist before anybody can see what it would catch — and a
-  // rule that existed *and was enabled* before it had been looked at would be exactly the thing
-  // the preview exists to prevent. So the form writes `enabled: false`, the preview runs, and
-  // arming it is a second, deliberate press.
+  // **One section per address** (page-system §7.3, §9.3, PS-9): *Rules* and *Holds*, each at
+  // `/administration/retention/<section>`, each a table. Every act is its own write - a dialog's -,
+  // so neither has a save bar (PS-10). A rule opens as a Dialog M with what it would do and its
+  // switch; a new rule, a hold and *What is in force where* are Dialogs M; withdrawing a rule and
+  // lifting a hold Dialogs S.
   //
-  // **The mode a broad rule lands in is said where it lands.** `data-retention.md` §7: a new rule
-  // whose first run would affect more than five per cent of the holdings is stored as
-  // `NOTIFY_ONLY` whatever was asked for. The server does that; the screen compares what came back
-  // with what was asked and says so, rather than letting somebody discover it at the first pass
-  // that removed nothing.
+  // **A rule is written switched off, previewed, and only then armed** - the dialog that writes it
+  // hands the rule to its own dialog with the preview, where arming is a second, deliberate press.
+  // **The mode a broad rule lands in is said where it lands** (`data-retention.md` §7).
   //
-  // **`:retain` is not a hold**, and the screen says which is which: one takes a single entry out
-  // of a running period, the other is an instruction that overrides every rule and reaches
-  // everything under it. Confusing them is how somebody believes a case is protected when one
-  // object is.
-  //
-  // **The kinds come from the manifest.** `data-retention.md` §3 says a new kind is immediately
-  // configurable with no code change to the engine; a list typed here would be the one place that
-  // still needed one. A kind whose `actions` is empty is named by the catalogue and removed by
-  // nothing, and the picker says so rather than offering a rule that would be refused.
+  // **A hold is beside the rules rather than on a page of its own**: it overrides the workspace's
+  // own periods and belongs where somebody reads what those periods are.
 
   import { untrack } from 'svelte';
 
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import { Badge, Banner, Button, DataTable, EmptyState, SettingsLayout, Spinner, Stack, type DataColumn, type SectionLink } from '@hubtask/design-system/components';
+  import type { WorkItem } from '@hubtask/sync-engine';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, SearchField, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
-
-  import type { RetentionDataKind as DataKind, WorkItem } from '@hubtask/sync-engine';
-
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { people } from '../lib/data/people.svelte.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { itemPath } from '../lib/data/item.svelte.ts';
-  import { search } from '../lib/data/search.svelte.ts';
-  import { policies, type Policy, type RetentionAction } from '../lib/data/policies.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
-  import { announcer } from '../lib/announce.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
-  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
+  import { policies, type Hold, type Policy } from '../lib/data/policies.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import TableSection from '../lib/page/TableSection.svelte';
+  import { renderProblem } from '../lib/problem.ts';
+  import EffectiveDialog from '../lib/retention/EffectiveDialog.svelte';
+  import LiftHoldDialog from '../lib/retention/LiftHoldDialog.svelte';
+  import PlaceHoldDialog from '../lib/retention/PlaceHoldDialog.svelte';
+  import RuleDialog from '../lib/retention/RuleDialog.svelte';
+  import WithdrawRuleDialog from '../lib/retention/WithdrawRuleDialog.svelte';
+  import WriteRuleDialog from '../lib/retention/WriteRuleDialog.svelte';
+  import { actionWord, kindWord } from '../lib/retention/words.svelte.ts';
+  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
 
-  /** §7's five per cent: above this on a first run and the rule is stored as an announcement. */
-  const BROAD_SHARE = 0.05;
+  interface Props {
+    /** The section the address names (`/administration/retention/:section`); none is the list. */
+    section?: string;
+    /** Replaces the address: a move between sections. */
+    onreplace?: (path: string) => void;
+  }
 
-  /** What a hold can cover. `TENANT` names nothing because it covers everything. */
-  const HOLD_SCOPES = ['TENANT', 'CONTAINER', 'ITEM', 'ACCOUNT'];
+  const { section, onreplace }: Props = $props();
 
-  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let isWorking = $state(false);
-  /** The rule being asked about before it is withdrawn - final, so it confirms (ux-inventory §E10). */
-  let withdrawing = $state<string | undefined>(undefined);
+  const BASE = '/administration/retention';
 
-  let draftKind = $state('');
-  let draftDays = $state('30');
-  let draftAction = $state<string>('NOTIFY_ONLY');
-  let draftJustification = $state('');
-
-  let effectiveIn = $state('');
-
-  let holdScope = $state('TENANT');
-  let holdTarget = $state('');
-  /** The entry a hold on one entry names, found by its title rather than typed as an identifier (P-08). */
-  let holdTerm = $state('');
-  let holdEntry = $state<{ id: string; title: string } | undefined>(undefined);
-  let holdReason = $state('');
+  let isWriting = $state(false);
+  let isPlacing = $state(false);
+  let isEffectiveOpen = $state(false);
   let showReleased = $state(false);
-  let releasing = $state('');
-  let releaseReason = $state('');
-
-  /** Set when a rule came back in a mode nobody asked for. Cleared by the next write. */
+  let openedRule = $state<string | undefined>(undefined);
+  let withdrawing = $state<Policy | undefined>(undefined);
+  let lifting = $state<Hold | undefined>(undefined);
+  /** Set when a rule came back in a mode nobody asked for. Cleared by the next rule written. */
   let landedIn = $state<{ policyId: string; asked: string } | undefined>(undefined);
 
   $effect(() => untrack(() => policies.open()));
@@ -89,9 +72,9 @@
   });
   $effect(() => untrack(() => containers.start()));
 
-  // Placing and lifting a hold are the owner's (DELETE_CONTAINER, UC-LIF-06 check 1); everybody
-  // who reaches this screen reads the list. Asked of the manifest's `workspace_permissions`, which
-  // counts a group's membership as the server does. A prediction; the server decides (P-05).
+  // Placing and lifting a hold, and writing, arming and withdrawing a rule, are the owner's
+  // (DELETE_CONTAINER, UC-LIF-06 check 1); everybody who reaches this screen reads them. Asked of
+  // the manifest's `workspace_permissions`. A prediction; the server decides (P-05).
   $effect(() => untrack(() => people.open({})));
   const mayHold = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
 
@@ -105,27 +88,14 @@
   const holdContainers = $derived(
     containers.hubs.flatMap((hub) => [
       { value: hub.id, label: hub.name },
-      ...containers.collectionsOf(hub.id).map((collection) => ({
-        value: collection.id,
-        label: `${hub.name} / ${collection.name}`,
-      })),
+      ...containers.collectionsOf(hub.id).map((collection) => ({ value: collection.id, label: `${hub.name} / ${collection.name}` })),
     ]),
   );
+  // Guarded: an answer that is not a list (an older server, a stub) names nobody.
+  const placed = $derived<readonly Hold[]>(Array.isArray(policies.placed) ? policies.placed : []);
   $effect(() => {
-    // Guarded: an answer that is not a list (an older server, a stub) names nobody.
-    const placed = Array.isArray(policies.placed) ? policies.placed : [];
     const named = placed.filter((hold) => hold.scope.kind === 'ACCOUNT').map((hold) => hold.scope.id);
     untrack(() => accounts.resolve(named));
-  });
-
-  $effect(() => {
-    const question = holdScope === 'ITEM' ? holdTerm.trim() : '';
-    if (question === '') {
-      untrack(() => search.reset());
-      return;
-    }
-    const timer = setTimeout(() => void search.run({ q: question }), 250);
-    return () => clearTimeout(timer);
   });
 
   /**
@@ -134,7 +104,6 @@
    */
   let entryTitles = $state<Record<string, string>>({});
   $effect(() => {
-    const placed = Array.isArray(policies.placed) ? policies.placed : [];
     const ids = [...new Set(placed.filter((hold) => hold.scope.kind === 'ITEM' && hold.scope.id).map((hold) => hold.scope.id as string))];
     return untrack(() => {
       const stops = ids.map((id) =>
@@ -161,649 +130,225 @@
       }
     }
   };
-  $effect(() => {
-    const where = effectiveIn;
-    if (!where) return;
-    return untrack(() => policies.open({ containerId: where, effective: true }));
-  });
 
   const reading = $derived(policies.stateOf());
   const listed = $derived(policies.of());
-  const refusal = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
-  const effective = $derived(
-    effectiveIn ? policies.of({ containerId: effectiveIn, effective: true }) : [],
-  );
+  const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
+  const failing = $derived(listed.filter((policy) => policy.last_failure));
+  const opened = $derived(openedRule ? listed.find((policy) => policy.id === openedRule) : undefined);
 
-  /** The catalogue, from the manifest and from nowhere else. */
-  const kinds = $derived<readonly DataKind[]>(manifest.value?.retention_data_kinds ?? []);
-  const chosenKind = $derived(kinds.find((kind) => kind.data_kind === draftKind));
-  /** What this build can do to the chosen kind. Empty means the catalogue names it and nothing removes it. */
-  const kindActions = $derived<readonly string[]>(chosenKind?.actions ?? []);
-
-  const when = (at: string | null | undefined) =>
-    at ? formatDateTime(at, messages.locale) : undefined;
-
-  const actionWord = (action: string) =>
-    messages.has(`app.retention.action_${action.toLowerCase()}`)
-      ? t(`app.retention.action_${action.toLowerCase()}`)
-      : action;
-
-  // A class the catalogue gained before this client learnt its words is shown by its constant
-  // rather than not at all; the locale test holds every class the server names to its words.
-  const kindWord = (kind: string | null | undefined) =>
-    kind && messages.has(`app.retention.kind.${kind}`) ? t(`app.retention.kind.${kind}`) : (kind ?? '');
-
-  const containerName = (id: string | null | undefined) =>
-    (id ? containers.hubs.find((container) => container.id === id)?.name : undefined) ?? id ?? '';
-
+  const when = (at: string | null | undefined) => (at ? formatDateTime(at, messages.locale) : undefined);
+  const containerName = (id: string | null | undefined) => (id ? containers.hubs.find((container) => container.id === id)?.name : undefined) ?? id ?? '';
   const scopeWord = (policy: Policy) =>
-    policy.scope?.kind === 'TENANT' || !policy.scope?.id
-      ? t('app.retention.scope_workspace')
-      : containerName(policy.scope.id);
+    policy.scope?.kind === 'TENANT' || !policy.scope?.id ? t('app.retention.scope_workspace') : containerName(policy.scope.id);
 
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
-    failure = undefined;
-    isWorking = true;
-    try {
-      await work();
-      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
-      if (said) announcer.say(said);
-    } catch (cause) {
-      failure = renderProblem(cause as never, messages);
-    } finally {
-      isWorking = false;
+  /** The rule as written opens with its preview, which runs at once: arming waits for it. */
+  function written(policy: Policy, asked: string): void {
+    // §7's switch, as the caller sees it: what came back is not what was asked for.
+    landedIn = policy.action === asked ? undefined : { policyId: policy.id, asked };
+    openedRule = policy.id;
+    void policies.preview(policy.id).catch(() => undefined);
+  }
+
+  const SECTIONS = [
+    { id: 'rules', code: 'app.retention.rules_title' },
+    { id: 'holds', code: 'app.retention.holds_title' },
+  ] as const;
+  const isKnown = (id: string | undefined): boolean => id !== undefined && SECTIONS.some((each) => each.id === id);
+  const shown = $derived(isKnown(section) ? (section as string) : 'rules');
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
+
+  const ruleColumns: readonly DataColumn[] = $derived([
+    { id: 'kind', label: t('app.retention.kind'), priority: 1 },
+    { id: 'action', label: t('app.retention.action'), priority: 2 },
+    { id: 'days', label: t('app.retention.days'), priority: 3 },
+    { id: 'scope', label: t('app.retention.column_where'), priority: 3 },
+    { id: 'state', label: t('app.retention.column_state'), isStatus: true },
+  ]);
+  const holdColumns: readonly DataColumn[] = $derived([
+    { id: 'covers', label: t('app.retention.hold_scope'), priority: 1 },
+    { id: 'reason', label: t('app.retention.hold_reason_field'), priority: 2 },
+    { id: 'placed', label: t('app.retention.column_placed'), priority: 3 },
+    { id: 'state', label: t('app.retention.column_state'), isStatus: true },
+  ]);
+
+  function ruleMenu(policy: Policy) {
+    return {
+      label: t('app.page.more_for', { name: kindWord(policy.data_kind) }),
+      items: [
+        { id: 'open', label: t('app.retention.preview') },
+        ...(mayHold ? [{ id: 'withdraw', label: t('app.retention.withdraw'), isDestructive: true, hasSeparatorBefore: true }] : []),
+      ],
+    };
+  }
+
+  function onRuleMenu(policy: Policy, id: string): void {
+    if (id === 'withdraw') withdrawing = policy;
+    else {
+      openedRule = policy.id;
+      void policies.preview(policy.id).catch(() => undefined);
     }
   }
 
-  /**
-   * Writes the rule **switched off**, then previews it at once.
-   *
-   * Off, because arming a rule nobody has looked at is what the preview exists to prevent — and
-   * because `:preview` needs a stored rule to run against.
-   */
-  async function write(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const days = Number.parseInt(draftDays, 10);
-    if (!draftKind || !Number.isFinite(days)) return;
-    await attempt(async () => {
-      const asked = draftAction;
-      const written = await policies.create({
-        scope: { kind: 'TENANT' },
-        data_kind: draftKind,
-        retain_days: days,
-        action: asked as RetentionAction,
-        enabled: false,
-        ...(draftJustification.trim() ? { justification: draftJustification.trim() } : {}),
-      });
-      // §7's switch, as the caller sees it: what came back is not what was asked for.
-      landedIn =
-        written.action === asked ? undefined : { policyId: written.id, asked };
-      draftJustification = '';
-      await policies.preview(written.id);
-    }, t('app.retention.written_announced'));
+  function statusOf(id: string): Pick<SectionLink, 'status' | 'statusTone'> {
+    if (id === 'rules' && reading.status === 'ready') {
+      if (failing.length > 0) return { status: t('app.retention.failing_badge'), statusTone: 'danger' };
+      const on = listed.filter((policy) => policy.enabled !== false).length;
+      return on > 0 ? { status: t('app.retention.status_on', { count: String(on) }), statusTone: 'set' } : { status: t('app.retention.off') };
+    }
+    if (id === 'holds' && policies.holds.status === 'ready') {
+      const inForce = placed.filter((hold) => !hold.released_at).length;
+      return inForce > 0 ? { status: t('app.retention.status_held', { count: String(inForce) }), statusTone: 'warning' } : { status: t('app.retention.status_none') };
+    }
+    return {};
   }
-  const sections = $derived([
-    { id: 'retention-part-rules', label: t('app.retention.rules_title') },
-    { id: 'retention-part-effective', label: t('app.retention.effective_title') },
-    { id: 'retention-part-holds', label: t('app.retention.holds_title') },
-  ]);
 
-  /**
-   * What is typed and not yet sent, for the leave guard: every write here is its own act, so there
-   * is no save bar, but a justification or a reason typed and left would be lost.
-   */
-  const changes = $derived(
-    [draftJustification, holdReason, releaseReason].filter((typed) => typed.trim() !== '').length,
-  );
+  const title = $derived(t('app.retention.title'));
+  const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: `${BASE}/${each.id}`, ...statusOf(each.id) })));
 
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.retention.title')));
+  $effect(() => page.entitle(title));
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.retention.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'retention', label: t('app.retention.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
-    <Stack gap="300">
-    <p class="quiet">{t('app.retention.intro')}</p>
-
-    {#if failure}
-      <FailureNote problem={failure}>
-        {#if failure.fields.size > 0}
-          <Stack gap="050">
-            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
-          </Stack>
-        {/if}
-      </FailureNote>
-    {/if}
-
-    {#if landedIn}
-      <!-- Said where it happened rather than discovered at the first pass that removed nothing. -->
-      <Banner tone="warning" title={t('app.retention.landed_title')}>
-        {t('app.retention.landed_note', { asked: actionWord(landedIn.asked) })}
-      </Banner>
-    {/if}
-
-    <SettingsPage label={t('app.settings_page.sections', { name: t('app.retention.title') })} {sections} {changes}>
-
-    <section id="retention-part-rules" class="part" aria-labelledby="retention-rules">
-      <h2 class="section" id="retention-rules">{t('app.retention.rules_title')}</h2>
-
-      {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="waiting">
-          <Spinner label={t('app.retention.reading')} /> <span>{t('app.retention.reading')}</span>
-        </p>
-      {:else if refusal}
-        <FailureNote problem={refusal} />
-      {:else}
-        {#each listed as policy (policy.id)}
-          {@const preview = policies.previewOf(policy.id)}
-          <section class="panel">
-            <Stack gap="100">
-              <div class="row">
-                <span class="name">{kindWord(policy.data_kind)}</span>
-                <Badge tone={policy.action === 'NOTIFY_ONLY' ? 'info' : 'warning'}>
-                  {actionWord(policy.action)}
-                </Badge>
-                <Badge tone={policy.enabled === false ? 'neutral' : 'success'}>
-                  {policy.enabled === false ? t('app.retention.off') : t('app.retention.on')}
-                </Badge>
-                {#if policy.last_failure}
-                  <Badge tone="danger">{t('app.retention.failing_badge')}</Badge>
-                {/if}
-              </div>
-
-              {#if policy.last_failure}
-                <!-- UC-LIF-04 check 10: the rule's condition failed on an entry, so the rule acts on
-                     nothing until a pass evaluates it again, and the other rules go on. The code's
-                     own sentence says what failed. -->
-                <Banner tone="danger" title={t('app.retention.failing_title')}>
-                  {t('app.retention.failing', { at: when(policy.last_failure.at) ?? policy.last_failure.at })}
-                  {#if messages.has(policy.last_failure.code)}
-                    {t(policy.last_failure.code)}
-                  {/if}
-                </Banner>
-              {/if}
-
-              <p class="quiet small">
-                {t('app.retention.after_days', { days: String(policy.retain_days) })}
-                · {t('app.retention.at_scope', { scope: scopeWord(policy) })}
-              </p>
-
-              {#if policy.justification}
-                <!-- The sentence somebody will read in an audit, kept beside the period it
-                     justifies. -->
-                <p class="quiet small">
-                  {t('app.retention.justified', { reason: policy.justification })}
-                </p>
-              {/if}
-
-              {#if preview}
-                <div class="preview">
-                  <Stack gap="050">
-                    <p class="quiet small">
-                      {t('app.retention.preview_matched', { count: String(preview.matched ?? 0) })}
-                      {#if preview.share_of_scope !== undefined}
-                        · {t('app.retention.preview_share', {
-                          percent: String(Math.round((preview.share_of_scope ?? 0) * 100)),
-                        })}
-                      {/if}
-                    </p>
-                    {#if (preview.share_of_scope ?? 0) > BROAD_SHARE}
-                      <p class="warning">{t('app.retention.preview_broad')}</p>
-                    {/if}
-                    {#each Object.entries(preview.blocked ?? {}) as [reason, count] (reason)}
-                      <!-- What the rule would *not* take, and why. A legal hold is the one an
-                           operator is usually looking for. -->
-                      <p class="quiet small">
-                        {messages.has(`app.retention.blocked_${reason}`)
-                          ? t(`app.retention.blocked_${reason}`, { count: String(count) })
-                          : t('app.retention.blocked_other', { reason, count: String(count) })}
-                      </p>
-                    {/each}
-                    {#if (preview.samples ?? []).length > 0}
-                      <ul class="samples">
-                        {#each preview.samples ?? [] as sample (sample.id)}
-                          <li class="quiet small">
-                            {sample.title} · {when(sample.effective_at)}
-                          </li>
-                        {/each}
-                      </ul>
-                    {/if}
-                    <p class="quiet small">{t('app.retention.preview_wrote_nothing')}</p>
-                  </Stack>
-                </div>
-              {/if}
-
-              <div class="row">
-                <Button
-                  size="sm"
-                  tone="secondary"
-                  isBusy={isWorking}
-                  busyLabel={t('app.retention.previewing')}
-                  onclick={() => void attempt(() => policies.preview(policy.id))}
-                >
-                  {t('app.retention.preview')}
-                </Button>
-                {#if !mayHold}
-                  <!-- Arm, disarm and withdraw are absent; the rule form's gate below says why. -->
-                {:else if policy.enabled === false}
-                  <!-- Armed only after somebody has seen what it would do. -->
-                  <Button
-                    size="sm"
-                    tone="danger"
-                    isBusy={isWorking}
-                    busyLabel={t('app.retention.arming')}
-                    disabledReason={preview ? undefined : t('app.retention.preview_first')}
-                    onclick={() =>
-                      void attempt(() => policies.update(policy.id, { enabled: true }), t('app.retention.armed_announced'))}
-                  >
-                    {t('app.retention.arm')}
-                  </Button>
-                {:else}
-                  <Button
-                    size="sm"
-                    tone="secondary"
-                    isBusy={isWorking}
-                    busyLabel={t('app.retention.saving')}
-                    onclick={() =>
-                      void attempt(() => policies.update(policy.id, { enabled: false }), t('app.retention.disarmed_announced'))}
-                  >
-                    {t('app.retention.disarm')}
-                  </Button>
-                {/if}
-                {#if mayHold}
-                <Button
-                  size="sm"
-                  tone="subtle"
-                  isBusy={isWorking}
-                  busyLabel={t('app.retention.withdrawing')}
-                  onclick={() => (withdrawing = policy.id)}
-                >
-                  {t('app.retention.withdraw')}
-                </Button>
-                {/if}
-              </div>
-              <p class="quiet small">{t('app.retention.withdraw_note')}</p>
-            </Stack>
-          </section>
-        {:else}
-          <p class="quiet">{t('app.retention.no_rules')}</p>
-        {/each}
+<SettingsLayout
+  head={{
+    title,
+    subtitle: t('app.retention.intro'),
+    breadcrumb: adminTrail({ id: 'retention', label: title }),
+    menu: { label: t('app.page.more_for', { name: title }), items: [{ id: 'effective', label: t('app.retention.effective_menu') }], onselect: () => (isEffectiveOpen = true) },
+  }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
+  {view}
+  back={{ label: title, onback: () => onreplace?.(BASE) }}
+>
+  <div class="content">
+    <WorkspaceRefusal permission="DELETE_CONTAINER" />
+    {#if shown === 'rules'}
+      {#if landedIn}
+        <!-- Said where it happened rather than discovered at the first pass that removed nothing. -->
+        <Banner tone="warning" title={t('app.retention.landed_title')}>
+          {t('app.retention.landed_note', { asked: actionWord(landedIn.asked) })}
+        </Banner>
       {/if}
-
-      <WorkspaceGate permission="DELETE_CONTAINER">
-        {#snippet actions()}
-        <form class="panel" onsubmit={write}>
-          <Stack gap="150">
-            <h3 class="section">{t('app.retention.write_title')}</h3>
-            <p class="quiet small">{t('app.retention.write_note')}</p>
-            <Select
-              label={t('app.retention.kind')}
-              bind:value={draftKind}
-              placeholder={t('app.retention.choose_kind')}
-              options={kinds.map((kind) => ({
-                value: kind.data_kind ?? '',
-                label: kindWord(kind.data_kind),
-              }))}
-            />
-            {#if draftKind && kindActions.length === 0}
-              <!-- Named by the catalogue and removed by nothing. Not the same as a kind that does
-                   not exist, and a rule for it would be refused. -->
-              <p class="warning">{t('app.retention.kind_not_swept')}</p>
-            {:else if draftKind}
-              <Select
-                label={t('app.retention.action')}
-                bind:value={draftAction}
-                options={kindActions.map((action) => ({ value: action, label: actionWord(action) }))}
-              />
-            {/if}
-            <Input
-              label={t('app.retention.days')}
-              hint={chosenKind?.max_days
-                ? t('app.retention.days_hint_ceiling', { days: String(chosenKind.max_days) })
-                : t('app.retention.days_hint')}
-              type="number"
-              bind:value={draftDays}
-            />
-            <Textarea
-              label={t('app.retention.justification')}
-              hint={t('app.retention.justification_hint')}
-              bind:value={draftJustification}
-              rows={2}
-            />
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={isWorking}
-                busyLabel={t('app.retention.writing')}
-              >
-                {t('app.retention.write')}
-              </Button>
-            </div>
+      {#if failing.length > 0}
+        <!-- UC-LIF-04 check 10: a rule whose condition failed acts on nothing until a pass evaluates
+             it again, and the other rules go on. The code's own sentence says what failed. -->
+        <Banner tone="danger" title={t('app.retention.failing_title')}>
+          <Stack gap="050">
+            {#each failing as policy (policy.id)}
+              <span data-failing={policy.id}>
+                {kindWord(policy.data_kind)}:
+                {t('app.retention.failing', { at: when(policy.last_failure?.at) ?? policy.last_failure?.at ?? '' })}
+                {#if policy.last_failure && messages.has(policy.last_failure.code)}{t(policy.last_failure.code)}{/if}
+              </span>
+            {/each}
           </Stack>
-        </form>
+        </Banner>
+      {/if}
+      <TableSection title={t('app.retention.rules_title')} note={reading.status === 'ready' ? String(listed.length) : undefined} description={t('app.retention.rules_intro')}>
+        {#snippet acts()}
+          {#if mayHold}<Button icon="plus" data-list-add onclick={() => (isWriting = true)}>{t('app.retention.write_title')}</Button>{/if}
         {/snippet}
-      </WorkspaceGate>
-    </section>
-
-    <section id="retention-part-effective" class="part" aria-labelledby="retention-effective">
-      <h2 class="section" id="retention-effective">{t('app.retention.effective_title')}</h2>
-      <p class="quiet small">{t('app.retention.effective_intro')}</p>
-      <Select
-        label={t('app.retention.effective_where')}
-        bind:value={effectiveIn}
-        placeholder={t('app.retention.choose_container')}
-        options={containers.hubs.map((container) => ({
-          value: container.id,
-          label: container.name,
-        }))}
-      />
-      {#if effectiveIn}
-        {#each effective as policy (policy.id)}
-          <p class="line">
-            <Badge tone={policy.in_force ? 'success' : 'neutral'}>
-              {policy.in_force ? t('app.retention.in_force') : t('app.retention.overridden')}
-            </Badge>
-            <span>{kindWord(policy.data_kind)}</span>
-            <span class="quiet small">
-              {actionWord(policy.action)}
-              · {t('app.retention.after_days', { days: String(policy.retain_days) })}
-              · {t('app.retention.comes_from', { scope: scopeWord(policy) })}
-            </span>
-          </p>
+        {#if reading.status === 'loading' || reading.status === 'idle'}
+          <p class="waiting"><Spinner label={t('app.retention.reading')} /> <span>{t('app.retention.reading')}</span></p>
+        {:else if refusal}
+          <FailureNote problem={refusal} />
         {:else}
-          <p class="quiet">{t('app.retention.no_effective')}</p>
-        {/each}
-      {/if}
-    </section>
-
-    <section id="retention-part-holds" class="part" aria-labelledby="retention-holds">
-      <h2 class="section" id="retention-holds">{t('app.retention.holds_title')}</h2>
-      <!-- Beside the rules rather than on a page of its own: a hold overrides the workspace's own
-           periods, and it belongs where somebody reads what those periods are. -->
-      <p class="quiet small">{t('app.retention.holds_intro')}</p>
-
-      {#each policies.placed as hold (hold.id)}
-        <section class="panel">
-          <Stack gap="050">
-            <div class="row">
-              <Badge tone={hold.released_at ? 'neutral' : 'danger'}>
+          <DataTable
+            label={t('app.retention.rules_title')}
+            columns={ruleColumns}
+            rows={listed}
+            key={(policy: Policy) => policy.id}
+            onopen={(policy: Policy) => (openedRule = policy.id)}
+            rowLabel={(policy: Policy) => kindWord(policy.data_kind)}
+            menu={ruleMenu}
+            onmenu={onRuleMenu}
+            actionsLabel={t('app.page.row_actions')}
+            sheetDismissLabel={t('app.page.sheet_close')}
+            sheetGrabLabel={t('app.page.sheet_grab')}
+            shownLabel={listed.length === 0 ? undefined : t('app.page.showing', { count: String(listed.length) })}
+          >
+            {#snippet cell(policy: Policy, column: DataColumn)}
+              {#if column.id === 'kind'}
+                <span class="name">{kindWord(policy.data_kind)}</span>
+              {:else if column.id === 'action'}
+                <Badge size="sm" tone={policy.action === 'NOTIFY_ONLY' ? 'info' : 'warning'}>{actionWord(policy.action)}</Badge>
+              {:else if column.id === 'days'}
+                <span class="quiet">{t('app.retention.days_value', { days: String(policy.retain_days) })}</span>
+              {:else if column.id === 'scope'}
+                <span class="quiet">{scopeWord(policy)}</span>
+              {:else if policy.last_failure}
+                <Badge size="sm" tone="danger">{t('app.retention.failing_badge')}</Badge>
+              {:else}
+                <Badge size="sm" tone={policy.enabled === false ? 'neutral' : 'success'}>{policy.enabled === false ? t('app.retention.off') : t('app.retention.on')}</Badge>
+              {/if}
+            {/snippet}
+            {#snippet empty()}<EmptyState kind="unused" title={t('app.retention.no_rules')} />{/snippet}
+          </DataTable>
+        {/if}
+      </TableSection>
+    {:else}
+      <TableSection title={t('app.retention.holds_title')} note={String(placed.filter((hold) => !hold.released_at).length)} description={t('app.retention.holds_intro')}>
+        {#snippet acts()}
+          <Button tone="subtle" size="sm" onclick={() => (showReleased = !showReleased)}>
+            {showReleased ? t('app.retention.hide_released') : t('app.retention.show_released')}
+          </Button>
+          {#if mayHold}<Button icon="plus" data-list-add onclick={() => (isPlacing = true)}>{t('app.retention.place_title')}</Button>{/if}
+        {/snippet}
+        <DataTable
+          label={t('app.retention.holds_title')}
+          columns={holdColumns}
+          rows={placed}
+          key={(hold: Hold) => hold.id}
+          rowLabel={(hold: Hold) => holdCovers(hold.scope)}
+          menu={(hold: Hold) => (mayHold && !hold.released_at
+            ? { label: t('app.page.more_for', { name: holdCovers(hold.scope) }), items: [{ id: 'lift', label: t('app.retention.release'), isDestructive: true }] }
+            : undefined)}
+          onmenu={(hold: Hold) => (lifting = hold)}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={placed.length === 0 ? undefined : t('app.page.showing', { count: String(placed.length) })}
+        >
+          {#snippet cell(hold: Hold, column: DataColumn)}
+            {#if column.id === 'covers'}
+              <span class="name">{holdCovers(hold.scope)}</span>
+            {:else if column.id === 'reason'}
+              <span class="quiet">{hold.reason}</span>
+              {#if hold.released_at}
+                <span class="quiet small block">{t('app.retention.hold_lifted', { at: when(hold.released_at) ?? '', reason: hold.released_reason ?? '' })}</span>
+              {/if}
+            {:else if column.id === 'placed'}
+              <span class="quiet">{when(hold.placed_at)}</span>
+            {:else}
+              <Badge size="sm" tone={hold.released_at ? 'neutral' : 'danger'}>
                 {hold.released_at ? t('app.retention.hold_released') : t('app.retention.hold_in_force')}
               </Badge>
-              <span class="name">{holdCovers(hold.scope)}</span>
-            </div>
-            <p class="quiet small">{t('app.retention.hold_reason', { reason: hold.reason })}</p>
-            <p class="quiet small">{t('app.retention.hold_placed', { at: when(hold.placed_at) ?? '' })}</p>
-            {#if hold.released_at}
-              <p class="quiet small">
-                {t('app.retention.hold_lifted', {
-                  at: when(hold.released_at) ?? '',
-                  reason: hold.released_reason ?? '',
-                })}
-              </p>
-            {:else if releasing === hold.id}
-              <Input label={t('app.retention.release_reason')} bind:value={releaseReason} isRequired />
-              <div class="row">
-                <Button
-                  size="sm"
-                  tone="danger"
-                  isBusy={isWorking}
-                  busyLabel={t('app.retention.releasing')}
-                  onclick={() =>
-                    void attempt(async () => {
-                      await policies.release(hold.id, releaseReason.trim());
-                      releasing = '';
-                      releaseReason = '';
-                    }, t('app.retention.released_announced'))}
-                >
-                  {t('app.retention.release_confirm')}
-                </Button>
-                <Button size="sm" tone="subtle" onclick={() => (releasing = '')}>
-                  {t('app.workspace.cancel')}
-                </Button>
-              </div>
-            {:else if mayHold}
-              <div>
-                <Button size="sm" tone="secondary" onclick={() => (releasing = hold.id)}>
-                  {t('app.retention.release')}
-                </Button>
-              </div>
             {/if}
-          </Stack>
-        </section>
-      {:else}
-        <p class="quiet">{t('app.retention.no_holds')}</p>
-      {/each}
+          {/snippet}
+          {#snippet verb(hold: Hold)}
+            {#if mayHold && !hold.released_at}
+              <Button size="sm" tone="subtle" onclick={() => (lifting = hold)}>{t('app.retention.release')}</Button>
+            {/if}
+          {/snippet}
+          {#snippet empty()}<EmptyState kind="settled" title={t('app.retention.no_holds')} />{/snippet}
+        </DataTable>
+      </TableSection>
+    {/if}
+  </div>
+</SettingsLayout>
 
-      <div>
-        <Button size="sm" tone="subtle" onclick={() => (showReleased = !showReleased)}>
-          {showReleased ? t('app.retention.hide_released') : t('app.retention.show_released')}
-        </Button>
-      </div>
-
-      <WorkspaceGate permission="DELETE_CONTAINER">
-        {#snippet actions()}
-      <form
-        class="panel"
-        onsubmit={(event) => {
-          event.preventDefault();
-          if (!holdReason.trim()) return;
-          void attempt(async () => {
-            await policies.place(
-              { kind: holdScope, id: holdTarget.trim() || null },
-              holdReason.trim(),
-            );
-            holdReason = '';
-            holdTarget = '';
-            holdTerm = '';
-            holdEntry = undefined;
-          }, t('app.retention.placed_announced'));
-        }}
-      >
-        <Stack gap="150">
-          <h3 class="section">{t('app.retention.place_title')}</h3>
-          <Select
-            label={t('app.retention.hold_scope')}
-            bind:value={holdScope}
-            onchange={() => {
-              holdTarget = '';
-              holdEntry = undefined;
-            }}
-            options={HOLD_SCOPES.map((kind) => ({
-              value: kind,
-              label: t(`app.retention.hold_scope_${kind.toLowerCase()}`),
-            }))}
-          />
-          {#if holdScope === 'ACCOUNT'}
-            <Select
-              label={t('app.retention.hold_person')}
-              bind:value={holdTarget}
-              placeholder={t('app.retention.choose_person')}
-              options={holdPeople.map((id) => ({ value: id, label: accounts.nameOf(id) ?? id }))}
-            />
-            <p class="quiet small">{t('app.retention.hold_person_note')}</p>
-          {:else if holdScope === 'CONTAINER'}
-            <Select
-              label={t('app.retention.hold_container')}
-              bind:value={holdTarget}
-              placeholder={t('app.retention.choose_container')}
-              options={holdContainers}
-            />
-          {:else if holdScope === 'ITEM'}
-            <Stack gap="050">
-              <SearchField
-                label={t('app.retention.hold_entry')}
-                clearLabel={t('app.search.clear')}
-                bind:value={holdTerm}
-                onclear={() => {
-                  holdTarget = '';
-                  holdEntry = undefined;
-                }}
-              />
-              <span class="quiet small">{t('app.retention.hold_entry_hint')}</span>
-              {#if holdEntry}
-                <span class="name">{t('app.retention.hold_entry_chosen', { title: holdEntry.title })}</span>
-              {/if}
-              {#if holdTerm.trim() !== '' && search.status === 'done'}
-                {#if search.hits.length === 0}
-                  <span class="quiet small">{t('app.retention.hold_entry_none')}</span>
-                {:else}
-                  <ul class="hits">
-                    {#each search.hits.slice(0, 8) as hit (hit.id)}
-                      <li>
-                        <button
-                          class="hit"
-                          type="button"
-                          aria-pressed={holdEntry?.id === hit.id}
-                          onclick={() => {
-                            holdEntry = { id: hit.id, title: hit.title };
-                            holdTarget = hit.id;
-                          }}>{hit.title}</button
-                        >
-                      </li>
-                    {/each}
-                  </ul>
-                {/if}
-              {/if}
-            </Stack>
-          {/if}
-          <Textarea
-            label={t('app.retention.hold_reason_field')}
-            hint={t('app.retention.hold_reason_hint')}
-            bind:value={holdReason}
-            rows={2}
-            isRequired
-          />
-          <p class="quiet small">{t('app.retention.hold_not_retain')}</p>
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.retention.placing')}
-            >
-              {t('app.retention.place')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-        {/snippet}
-      </WorkspaceGate>
-    </section>
-    </SettingsPage>
-    </Stack>
-</Stack>
-
-
-{#if withdrawing}
-  {@const policy = withdrawing}
-  <Dialog
-    isOpen={true}
-    title={t('app.retention.withdraw_title')}
-    dismissLabel={t('app.workspace.cancel')}
-    onClose={() => (withdrawing = undefined)}
-  >
-    <p>{t('app.retention.withdraw_note')}</p>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (withdrawing = undefined)}>{t('app.workspace.cancel')}</Button>
-      <Button
-        tone="danger"
-        isBusy={isWorking}
-        busyLabel={t('app.retention.withdrawing')}
-        onclick={async () => {
-          // Closed either way: a refusal is said in the page's banner, not behind the dialog.
-          await attempt(() => policies.withdraw(policy), t('app.retention.withdrawn_announced'));
-          withdrawing = undefined;
-        }}
-      >
-        {t('app.retention.withdraw')}
-      </Button>
-    {/snippet}
-  </Dialog>
-{/if}
+<WriteRuleDialog bind:isOpen={isWriting} onWritten={written} />
+<RuleDialog policy={opened} scope={opened ? scopeWord(opened) : ''} mayArm={mayHold} onClose={() => (openedRule = undefined)} />
+<WithdrawRuleDialog policy={withdrawing} onClose={() => (withdrawing = undefined)} />
+<PlaceHoldDialog bind:isOpen={isPlacing} people={holdPeople} places={holdContainers} />
+<LiftHoldDialog hold={lifting} covers={lifting ? holdCovers(lifting.scope) : ''} onClose={() => (lifting = undefined)} />
+<EffectiveDialog bind:isOpen={isEffectiveOpen} hubs={containers.hubs.map((hub) => ({ value: hub.id, label: hub.name }))} {scopeWord} />
 
 <style>
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .part { display: flex; flex-direction: column; gap: var(--sp-150); }
-
-  .section {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-  }
-
-  h3.section { font-size: var(--fs-200); }
-
+  .content { display: flex; flex-direction: column; gap: var(--sp-250); min-width: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
-
   .small { font-size: var(--fs-075); }
-
-  .warning { margin: 0; color: var(--text-warning); font-size: var(--fs-075); }
-
-  .waiting {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    color: var(--text-secondary);
-  }
-
+  .block { display: block; }
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
-
-  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
-     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
-     say so themselves - they are a grid of their own. */
-  form.panel { max-inline-size: 52ch; }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .preview {
-    padding: var(--sp-150);
-    border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
-  }
-
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .samples { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
-
-  /* An entry found for a hold: the same list of titles the probe's subject search draws. */
-  .hits { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-025); }
-
-  .hit { inline-size: 100%; text-align: start; padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-sm); background: var(--bg-surface); color: var(--text-primary); font-size: var(--fs-075); }
-
-  .hit:hover { background: var(--bg-surface-hover); }
-
-  .hit[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
-
-  .hit:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 </style>

@@ -69,6 +69,7 @@ test('the administration area is exactly these screens, by name', () => {
     'quotas',
     'restore',
     'retention',
+    'retention-section',
     'role',
     'rule',
     'rule-new',

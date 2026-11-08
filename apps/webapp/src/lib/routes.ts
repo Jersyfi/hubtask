@@ -147,6 +147,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'backup-target', pattern: '/administration/backup/targets/:id', area: 'administration' },
   { name: 'backup-section', pattern: '/administration/backup/:section', area: 'administration' },
   { name: 'retention', pattern: '/administration/retention', area: 'administration' },
+  { name: 'retention-section', pattern: '/administration/retention/:section', area: 'administration' },
   { name: 'restore', pattern: '/administration/restore', area: 'administration' },
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
   { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },

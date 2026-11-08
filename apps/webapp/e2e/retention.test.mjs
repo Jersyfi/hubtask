@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The legal holds, walked as the owner and as an administrator (UC-LIF-06 checks 1 and 8): the owner
-// is offered the four scopes, picks a person or a hub rather than typing an identifier, and sees
+// The legal holds, walked as the owner and as an administrator (UC-LIF-06 checks 1 and 8), on the
+// *Holds* section with *Place a hold* a Dialog M (page-system §9.3): the owner is offered the four scopes, picks a person or a hub rather than typing an identifier, and sees
 // what each hold covers in words; an administrator reads the list and is offered neither placing
 // nor lifting (P-05).
 //
@@ -36,7 +36,7 @@ const ENTRY_HOLD = { ...HOLD, id: '01a0e2e0-0000-7000-8000-0000000003a3', scope:
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, role, { policies = [], kinds = [] } = {}) {
+async function open(browser, role, { policies = [], kinds = [], section = 'holds', ready = "Mara Lind's data" } = {}) {
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
@@ -72,16 +72,25 @@ async function open(browser, role, { policies = [], kinds = [] } = {}) {
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
-  await page.goto(`${served.origin}/administration/retention`);
-  await page.getByText("Mara Lind's data").waitFor();
+  await page.goto(`${served.origin}/administration/retention/${section}`);
+  await page.getByText(ready).first().waitFor();
   return { page, failures, written, close: () => context.close() };
+}
+
+/** *Place a hold*, the Holds section's own add: its Dialog M. */
+async function placeHold(page) {
+  await page.getByRole('button', { name: 'Place a hold' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Place a hold' });
+  await dialog.waitFor();
+  return dialog;
 }
 
 test('chromium: the owner places a hold on a person, picked by name', async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, written, close } = await open(browser, 'OWNER');
-    const form = page.locator('form', { hasText: 'Place a hold' });
+    assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 2);
+    const form = await placeHold(page);
     // Exactly the four scopes a hold can be placed on (UC-LIF-06 check 8), nothing else.
     const scopes = await form.getByLabel('What it covers').locator('option')
       .evaluateAll((options) => options.map((option) => option.value));
@@ -95,9 +104,9 @@ test('chromium: the owner places a hold on a person, picked by name', async () =
     assert.deepEqual(written[0], { scope: { kind: 'ACCOUNT', id: OTHER.id }, reason: 'Pending litigation' });
 
     // A hub is picked from the tree, not typed.
-    await form.getByLabel('What it covers').selectOption('CONTAINER');
-    assert.ok((await form.getByLabel('Which hub or collection').locator('option').allTextContents()).includes(HUB.name));
-    assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 2);
+    const again = await placeHold(page);
+    await again.getByLabel('What it covers').selectOption('CONTAINER');
+    assert.ok((await again.getByLabel('Which hub or collection').locator('option').allTextContents()).includes(HUB.name));
     assert.deepEqual(failures, []);
     await close();
   } finally {
@@ -110,10 +119,10 @@ test('chromium: the owner holds one entry found by its title, and the list names
   try {
     const { page, failures, written, close } = await open(browser, 'OWNER');
     // The hold already placed on an entry reads as the entry's title.
-    await page.getByText(`The entry “${ITEMS[1].title}”, and everything under it`).waitFor();
+    await page.getByText(`The entry “${ITEMS[1].title}”, and everything under it`, { exact: true }).waitFor();
     assert.equal(await page.getByText(ITEMS[1].id).count(), 0, 'no identifier on the screen');
 
-    const form = page.locator('form', { hasText: 'Place a hold' });
+    const form = await placeHold(page);
     await form.getByLabel('What it covers').selectOption('ITEM');
     assert.equal(await form.locator('input:not([type="search"])').count(), 0, 'no box to type an identifier into');
     await form.getByLabel('Which entry').fill('tiles');
@@ -138,7 +147,7 @@ test('chromium: an administrator reads the holds and is offered neither placing 
     // Placing a hold creates something: the whole form is absent (UC-AUD-05 check 5), and the page
     // says once why, with the permission it needs named.
     await page.getByText('That needs the permission “Delete containers”.', { exact: false }).first().waitFor();
-    assert.equal(await page.locator('form', { hasText: 'Place a hold' }).count(), 0, 'placing a hold is offered');
+    assert.equal(await page.getByRole('button', { name: 'Place a hold' }).count(), 0, 'placing a hold is offered');
     assert.equal(await page.getByText('That needs the permission “Delete containers”.', { exact: false }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 0);
     assert.deepEqual(failures, []);
@@ -161,12 +170,13 @@ test('chromium: the rules and the form name each class of data in words', async 
       id: '01a0e2e0-0000-7000-8000-0000000003b1', scope: { kind: 'TENANT' }, data_kind: 'AI_SUGGESTION',
       retain_days: 30, action: 'HARD_DELETE', enabled: true,
     }];
-    const { page, failures, close } = await open(browser, 'OWNER', { policies, kinds });
+    const { page, failures, close } = await open(browser, 'OWNER', { policies, kinds, section: 'rules', ready: 'AI suggestions' });
     await page.locator('.name', { hasText: 'AI suggestions' }).waitFor();
-    const options = await page.getByLabel('What it applies to').locator('option').allTextContents();
+    const text = await page.locator('main').innerText();
+    await page.getByRole('button', { name: 'Write a rule' }).click();
+    const options = await page.getByRole('dialog', { name: 'Write a rule' }).getByLabel('What it applies to').locator('option').allTextContents();
     assert.ok(options.includes('Completed tasks, work packages and activities'), options.join(' | '));
     assert.ok(options.includes('AI suggestions'), options.join(' | '));
-    const text = await page.locator('main').innerText();
     for (const key of ['AI_SUGGESTION', 'COMPLETED_ITEM']) assert.ok(!text.includes(key), `${key} is on the screen`);
     assert.deepEqual(failures, []);
     await close();
@@ -192,16 +202,17 @@ test('chromium: a rule whose condition failed is shown as failing, with the reas
         retain_days: 90, action: 'TRASH', enabled: true,
       },
     ];
-    const { page, failures, close } = await open(browser, 'OWNER', { policies, kinds });
-    await page.getByText("This rule's condition failed").waitFor();
-    const panels = page.locator('section.panel');
-    const failing = panels.filter({ hasText: 'Days it is kept: 365' });
+    const { page, failures, close } = await open(browser, 'OWNER', { policies, kinds, section: 'rules', ready: "This rule's condition failed" });
+    const rows = page.getByRole('row');
+    const failing = rows.filter({ hasText: '365 days' });
     assert.equal(await failing.getByText('Failing', { exact: true }).count(), 1);
-    const said = await failing.innerText();
+    // The reason is said above the table, for the failing rule alone (UC-LIF-04 check 10).
+    assert.equal(await page.locator('[data-failing]').count(), 1);
+    const said = await page.locator('[data-failing="01a0e2e0-0000-7000-8000-0000000003c1"]').innerText();
     assert.ok(said.includes('announces and removes nothing until a pass evaluates it again'), said);
     assert.ok(said.includes('failed on the values it was given'), said);
     assert.ok(!said.includes('expression.evaluation_failed'), 'the code is on the screen');
-    const clean = panels.filter({ hasText: 'Days it is kept: 90' });
+    const clean = rows.filter({ hasText: '90 days' });
     assert.equal(await clean.getByText('Failing', { exact: true }).count(), 0);
     assert.deepEqual(failures, []);
     await close();

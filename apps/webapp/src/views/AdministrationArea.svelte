@@ -136,8 +136,8 @@
   {#key route.params.id}
     <BackupTargetView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
   {/key}
-{:else if route.name === 'retention'}
-  <RetentionView />
+{:else if route.name === 'retention' || route.name === 'retention-section'}
+  <RetentionView section={route.params.section} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'restore'}
   <RestoreView />
 {:else if route.name === 'audit'}

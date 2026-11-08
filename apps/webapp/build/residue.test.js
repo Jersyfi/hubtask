@@ -258,6 +258,7 @@ async function views() {
     ['backup-section', await load('BackupView'), { section: 'runs' }],
     ['backup-target', await load('BackupTargetView'), { id: '01a0e2e0-0000-7000-8000-0000000007a1', onnavigate: noop }],
     ['retention', await load('RetentionView'), {}],
+    ['retention-section', await load('RetentionView'), { section: 'holds' }],
     ['restore', await load('RestoreView'), {}],
     ['audit', await load('AuditView'), {}],
     ['privacy', await load('PrivacyView'), { onnavigate: noop }],

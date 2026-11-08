@@ -332,7 +332,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // neither a hub to show nor anybody to keep one from.
       { id: 'private-hubs', icon: 'lock', code: 'app.admin.private_hubs', path: '/administration/private-hubs', routes: ['private-hubs'] },
       { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup', 'backup-section', 'backup-target'] },
-      { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
+      { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention', 'retention-section'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'], words: 'app.nav.words_audit' },
       { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy', 'privacy-case'], words: 'app.nav.words_privacy' },
