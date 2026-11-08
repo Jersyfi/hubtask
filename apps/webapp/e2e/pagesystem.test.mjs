@@ -101,6 +101,13 @@ const RECEIPTS = [MAILBOX.address, 'inbound'].map((door, index) => ({
   subject: index === 0 ? 'Printer on floor 2' : 'Through the operator', outcome: 'JUMBLE', reason: null, door,
 }));
 
+/** One file store connection and one calendar push of the reader's own. */
+const FILE_STORE = { id: '01a0e2e0-0000-7000-8000-000000002f01', kind: 'NEXTCLOUD', server: 'https://cloud.example.org', login: 'ada', used_at: '2026-11-03T09:15:00Z', created_at: '2026-10-30T10:00:00Z' };
+const CALENDAR_PUSH = {
+  id: '01a0e2e0-0000-7000-8000-000000002f02', feed_id: '01a0e2e0-0000-7000-8000-000000002f03', provider: 'GOOGLE', address: 'ada@example.org',
+  state: 'ACTIVE', pushed_at: '2026-11-03T09:15:00Z', created_at: '2026-10-30T10:00:00Z',
+};
+
 /** One agent of the agents' module, live and acting for the owner. */
 const AGENT = {
   id: '01a0e2e0-0000-7000-8000-000000000a01', account_id: null, name: 'Request sorter', purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE',
@@ -161,6 +168,9 @@ async function open(browser, { width, height }, { isNine = false, isInstallation
     if (agentsAnswered) return agentsAnswered;
     const answered = howWeWork(route, request, path);
     if (answered) return answered;
+    // The reader's own file stores and calendar pushes, one each, for their lists' search and count.
+    if (path === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [FILE_STORE], kinds: ['NEXTCLOUD'] } });
+    if (path === '/integrations/calendar-pushes' && request.method() === 'GET') return route.fulfill({ json: { data: [CALENDAR_PUSH], providers: ['GOOGLE'] } });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -609,6 +619,7 @@ for (const size of [DESKTOP, PHONE]) {
       ['/profile', 'settings'], ['/profile/you/language', 'settings'], ['/profile/appearance', 'settings'],
       ['/profile/notifications', 'settings'], ['/profile/security', 'settings'],
       ['/profile/sessions', 'list'], ['/profile/devices', 'list'], ['/profile/apps', 'list'], ['/profile/tokens', 'list'],
+      ['/profile/files', 'list'], ['/profile/calendars', 'list'],
     ]) {
       await visit(page, path);
       await page.locator('[data-page-kind]').first().waitFor({ timeout: 15_000 });
@@ -619,6 +630,9 @@ for (const size of [DESKTOP, PHONE]) {
         await main.getByRole('searchbox').first().waitFor({ timeout: 15_000 });
         const fields = await main.locator('input:not([type="search"]):not([role="switch"]), select, textarea, form').evaluateAll((nodes) => nodes.filter((node) => node.getClientRects().length > 0).length);
         assert.equal(fields, 0, `${path} opens a field on arrival`);
+      }
+      if (path === '/profile/files' || path === '/profile/calendars') {
+        await main.locator('.filter-bar').getByText(/^\d+ of \d+$/).waitFor({ timeout: 15_000 });
       }
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.equal(overflow, 0, `${path} scrolls sideways`);

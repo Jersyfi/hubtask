@@ -5,7 +5,7 @@ context: work
 actors: [PE-admin, PE-auditor, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-12, P-13]
-state: partial
+state: built
 tasks: []
 checked_by: [apps/webapp/build/pagekinds.test.js, apps/webapp/e2e/pagesystem.test.mjs]
 ---
@@ -34,7 +34,3 @@ In `D1` a list holds a handful of rows and the search is rarely needed; in `D4`�
 
 * The total behind *Showing n of y* needs a count from the API (page-system decision D-1); until it lands the foot says *Showing n*.
 * Narrowing that the API cannot answer yet narrows what is loaded.
-
-## Today
-
-* Check 1: not met — *Your settings* › *File stores* and *Calendar pushes* are list pages without a filter bar; met on every other list and log page.

@@ -13,7 +13,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, DataTable, Dialog, EmptyState, Input, ListPage, Radio, Stack, type DataColumn, type DataRowMenu, type DialogAction } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, Radio, Stack, type DataColumn, type DataRowMenu, type DialogAction } from '@hubtask/design-system/components';
   import type { FileStoreConnection, FileStoreConnectionList } from '@hubtask/sync-engine';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
@@ -26,6 +26,7 @@
   import { fileStores } from '../lib/data/filestore.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -42,6 +43,7 @@
   const read = resource<FileStoreConnectionList>(fileStoresPath);
   const connections = $derived(read.state.status === 'ready' ? read.state.data.data : []);
   const kinds = $derived(read.state.status === 'ready' ? read.state.data.kinds : []);
+  let search = $state('');
 
   let failure = $state<string | undefined>(undefined);
   let connected = $state<FileStoreConnection | undefined>(undefined);
@@ -116,6 +118,8 @@
 
   const storeName = (conn: FileStoreConnection) => t(conn.kind === 'NEXTCLOUD' ? 'app.filestores.nextcloud' : 'app.filestores.microsoft');
 
+  const shown = $derived(connections.filter((conn) => matchesSearch(search, [connectionLabel(conn, storeName(conn)), storeName(conn)])));
+
   const columns = $derived<DataColumn[]>([
     { id: 'store', label: t('app.filestores.store_column'), priority: 1 },
     { id: 'used', label: t('app.filestores.used_column'), priority: 2 },
@@ -148,6 +152,14 @@
 {:else}
   <ListPage head={profileHead('files', { primary: { label: t('app.filestores.connect'), icon: 'plus', opener: 'connect-file-store', onclick: openConnect } })}>
     {#snippet intro()}<p class="quiet">{t('app.filestores.intro')}</p>{/snippet}
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.filestores.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        countLabel={read.state.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(connections.length) }) : undefined}
+      />
+    {/snippet}
 
     {#if connected}<p class="done" role="status">{t('app.filestores.connected', { store: connectionLabel(connected, storeName(connected)) })}</p>{/if}
     {#if failure && !isConnecting}<p class="failure" role="alert">{failure}</p>{/if}
@@ -155,7 +167,7 @@
     <DataTable
       label={title}
       {columns}
-      rows={connections}
+      rows={shown}
       key={(conn: FileStoreConnection) => conn.id}
       rowLabel={(conn: FileStoreConnection) => connectionLabel(conn, storeName(conn))}
       menu={rowMenu}
@@ -163,7 +175,7 @@
       actionsLabel={t('app.page.row_actions')}
       sheetDismissLabel={t('app.page.sheet_close')}
       sheetGrabLabel={t('app.page.sheet_grab')}
-      shownLabel={connections.length === 0 ? undefined : t('app.page.showing', { count: String(connections.length) })}
+      shownLabel={shown.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
     >
       {#snippet cell(conn: FileStoreConnection, column: DataColumn)}
         {#if column.id === 'store'}
@@ -173,7 +185,13 @@
         {/if}
       {/snippet}
       {#snippet empty()}
-        <EmptyState kind="unused" title={t('app.filestores.none')} />
+        {#if connections.length === 0}
+          <EmptyState kind="unused" title={t('app.filestores.none')} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.filestores.filtered_title')}>
+            {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear_search')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
       {/snippet}
     </DataTable>
   </ListPage>

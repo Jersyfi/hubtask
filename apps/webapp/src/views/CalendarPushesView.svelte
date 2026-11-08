@@ -15,7 +15,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Button, DataTable, EmptyState, ListPage, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, EmptyState, FilterBar, ListPage, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CalendarPush, CalendarPushList } from '@hubtask/sync-engine';
@@ -29,6 +29,7 @@
   import { calendarPushes } from '../lib/data/calendarpush.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -83,6 +84,8 @@
   });
 
   const providerName = (push: CalendarPush) => t(push.provider === 'GOOGLE' ? 'app.pushes.google' : 'app.pushes.microsoft');
+  let search = $state('');
+  const shown = $derived(pushes.filter((push) => matchesSearch(search, [providerName(push), push.address ?? undefined])));
 
   const title = $derived(profileTitle('calendars'));
   $effect(() => page.entitle(title));
@@ -106,6 +109,14 @@
 {:else}
   <ListPage head={profileHead('calendars', { figure: figureText ? pushesFigure : undefined })}>
     {#snippet intro()}<p class="quiet">{t('app.pushes.intro')} {t('app.pushes.how')}</p>{/snippet}
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.pushes.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        countLabel={read.state.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(pushes.length) }) : undefined}
+      />
+    {/snippet}
 
     {#if connected}<p class="done" role="status">{t('app.pushes.connected', { calendar: providerName(connected) })}</p>{/if}
     {#if failure}<FailureNote problem={failure} />{/if}
@@ -114,7 +125,7 @@
       <DataTable
         label={title}
         {columns}
-        rows={pushes}
+        rows={shown}
         key={(push: CalendarPush) => push.id}
         rowLabel={providerName}
         menu={rowMenu}
@@ -122,7 +133,7 @@
         actionsLabel={t('app.page.row_actions')}
         sheetDismissLabel={t('app.page.sheet_close')}
         sheetGrabLabel={t('app.page.sheet_grab')}
-        shownLabel={pushes.length === 0 ? undefined : t('app.page.showing', { count: String(pushes.length) })}
+        shownLabel={shown.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
       >
         {#snippet cell(push: CalendarPush, column: DataColumn)}
           {#if column.id === 'calendar'}
@@ -157,7 +168,13 @@
           {/if}
         {/snippet}
         {#snippet empty()}
-          <EmptyState kind="unused" icon="calendar" title={t('app.pushes.none')} description={t('app.pushes.empty_body')} />
+          {#if pushes.length === 0}
+            <EmptyState kind="unused" icon="calendar" title={t('app.pushes.none')} description={t('app.pushes.empty_body')} />
+          {:else}
+            <EmptyState kind="filtered" title={t('app.pushes.filtered_title')}>
+              {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear_search')}</Button>{/snippet}
+            </EmptyState>
+          {/if}
         {/snippet}
       </DataTable>
     {/if}
