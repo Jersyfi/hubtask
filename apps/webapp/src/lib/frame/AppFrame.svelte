@@ -1153,7 +1153,12 @@
 
   .sidenav[data-levels][data-rail] { padding: 0; }
 
-  /* The peek: the whole sidebar over the content, from the rail's edge, until the pointer leaves. */
+  /* The peek: the whole sidebar over the content, from the rail's edge, until the pointer leaves.
+     The column is sticky, so it is a stacking context of its own and the peek's rank is the
+     column's: raised to the overlay layer, above every sticky bar of the page (a view's tabs, a
+     board's heads), below the dialogs and sheets of the top layer. */
+  .sidenav[data-peek] { z-index: var(--z-overlay); }
+
   .sidenav[data-peek] :global(> .column) {
     position: absolute;
     inset-block: 0;

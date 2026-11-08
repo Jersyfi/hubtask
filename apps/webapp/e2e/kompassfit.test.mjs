@@ -143,3 +143,36 @@ test('R-6: Switch hub and Change position draw different marks, and no menu of t
   assert.equal(new Set(create).size, create.length, 'Page and From a template… share a mark');
   assert.deepEqual(failures, []);
 });
+
+test('R-8: the rail\'s peek is drawn above the view tabs and the board; a touch tablet\'s drawer above the page\'s bars', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const path = `/collections/${MOBILE.id}?layout=board`;
+  {
+    const { page, failures, close } = await go(browser, { path, storage: { 'hubtask.nav': 'rail' } });
+    t.after(close);
+    const tabs = page.getByRole('main').getByRole('link', { name: /^Board/ }).first();
+    await tabs.waitFor({ timeout: 10_000 });
+    const column = page.getByRole('main').getByRole('link', { name: 'Push notifications' });
+    await side(page).hover({ position: { x: 20, y: 400 } });
+    await page.locator('aside.sidenav[data-peek]').waitFor();
+    for (const under of [tabs, column]) {
+      const box = await under.boundingBox();
+      const top = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('aside.sidenav'), [box.x + box.width / 2, box.y + box.height / 2]);
+      assert.ok(top, `${await under.innerText()} is drawn above the peek`);
+    }
+    assert.deepEqual(failures, []);
+  }
+  {
+    const { page, failures, close } = await go(browser, { path, ...tablet });
+    t.after(close);
+    const tabs = page.getByRole('main').getByRole('link', { name: /^Board/ }).first();
+    await tabs.waitFor({ timeout: 10_000 });
+    const box = await tabs.boundingBox();
+    await page.getByRole('button', { name: 'Open the navigation' }).click();
+    await page.getByRole('dialog', { name: 'Navigation' }).getByRole('region').first().waitFor();
+    const top = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('dialog'), [box.x + box.width / 2, box.y + box.height / 2]);
+    assert.ok(top, 'the view tabs are drawn above the drawer');
+    assert.deepEqual(failures, []);
+  }
+});
