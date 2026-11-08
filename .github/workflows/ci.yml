@@ -996,9 +996,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.whiteboard == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
-    # The suite alone takes about sixteen minutes since the screen walks came in, and the apt
-    # steps up to fifteen on a slow mirror: twenty minutes cancelled green runs.
-    timeout-minutes: 40
+    # The suite alone takes thirty-odd minutes since the navigation's walks came in, and the apt
+    # steps up to fifteen on a slow mirror: forty minutes cancelled a run still passing.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
