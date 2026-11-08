@@ -5,6 +5,7 @@ package identity
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -234,14 +235,19 @@ type Preferences struct {
 }
 
 // NavPreferences is how the sidebar is arranged for one person: the products' order and the ones
-// behind *More* as module keys, and how hubs and a hub's contents are ordered. An empty list or
-// word is the default - the product's own order, nothing hidden, MANUAL, TREE.
+// behind *More* as module keys, the hubs behind *More* by id, and how hubs and a hub's contents
+// are ordered. An empty list or word is the default - the product's own order, nothing hidden,
+// MANUAL, TREE.
 type NavPreferences struct {
 	Products       []string
 	ProductsHidden []string
+	HubsHidden     []string
 	HubsOrder      string
 	ContentsMode   string
 }
+
+// navHubsHiddenBound is the contract's and the column's bound on the hidden hubs.
+const navHubsHiddenBound = 1000
 
 // The closed sets of the two orders; a word outside them is refused by name.
 var (
@@ -259,6 +265,10 @@ func navOf(raw NavPreferences) (NavPreferences, error) {
 	if err != nil {
 		return NavPreferences{}, err
 	}
+	hubsHidden, err := hubsHiddenOf(raw.HubsHidden)
+	if err != nil {
+		return NavPreferences{}, err
+	}
 	hubs, err := wordOf(raw.HubsOrder, navHubsOrders[:], "accounts.nav_hubs_order_invalid")
 	if err != nil {
 		return NavPreferences{}, err
@@ -267,7 +277,28 @@ func navOf(raw NavPreferences) (NavPreferences, error) {
 	if err != nil {
 		return NavPreferences{}, err
 	}
-	return NavPreferences{Products: products, ProductsHidden: hidden, HubsOrder: hubs, ContentsMode: contents}, nil
+	return NavPreferences{Products: products, ProductsHidden: hidden, HubsHidden: hubsHidden, HubsOrder: hubs, ContentsMode: contents}, nil
+}
+
+// hubsHiddenOf reads the hidden hubs: identifiers, each once in the order given, an empty member
+// ignored. Whether each is a hub the person sees is not asked - a hub that goes out of sight
+// stays listed and shows nothing, and coming back it is still hidden.
+func hubsHiddenOf(raw []string) ([]string, error) {
+	out := make([]string, 0, len(raw))
+	for _, value := range raw {
+		key := strings.TrimSpace(value)
+		if key == "" || slices.Contains(out, key) {
+			continue
+		}
+		if _, err := shared.ParseID(key); err != nil {
+			return nil, shared.ErrValidation.WithDetail("accounts.nav_hubs_hidden_invalid").WithParams(map[string]string{"value": key})
+		}
+		out = append(out, key)
+	}
+	if len(out) > navHubsHiddenBound {
+		return nil, shared.ErrValidation.WithDetail("accounts.nav_hubs_hidden_too_many").WithParams(map[string]string{"max": strconv.Itoa(navHubsHiddenBound)})
+	}
+	return out, nil
 }
 
 // wordOf reads a word of a closed set, upper case, empty for the default.

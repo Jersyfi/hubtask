@@ -211,6 +211,13 @@ func accountResponse(out usecase.Output) openapi.Account {
 	}
 	account.NavProducts = modulesOf(out["nav_products"])
 	account.NavProductsHidden = modulesOf(out["nav_products_hidden"])
+	if hubs, ok := out["nav_hubs_hidden"].([]string); ok && len(hubs) > 0 {
+		ids := make([]openapi_types.UUID, 0, len(hubs))
+		for _, hub := range hubs {
+			ids = append(ids, uuidValue(hub))
+		}
+		account.NavHubsHidden = &ids
+	}
 	if order := out.String("nav_hubs_order"); order != "" {
 		word := openapi.AccountNavHubsOrder(order)
 		account.NavHubsOrder = &word

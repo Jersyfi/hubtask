@@ -367,6 +367,9 @@ func accountOutput(account domain.Account) usecase.Output {
 	if len(account.Nav.ProductsHidden) > 0 {
 		out["nav_products_hidden"] = append([]string(nil), account.Nav.ProductsHidden...)
 	}
+	if len(account.Nav.HubsHidden) > 0 {
+		out["nav_hubs_hidden"] = append([]string(nil), account.Nav.HubsHidden...)
+	}
 	if account.Nav.HubsOrder != "" {
 		out["nav_hubs_order"] = account.Nav.HubsOrder
 	}

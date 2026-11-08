@@ -54,6 +54,7 @@ type UpdateAccountPreferencesCommand struct {
 	// The sidebar's preferences under the same rule: the lists whole, the words empty to clear.
 	NavProducts       *[]string
 	NavProductsHidden *[]string
+	NavHubsHidden     *[]string
 	NavHubsOrder      *string
 	NavContentsMode   *string
 }
@@ -117,6 +118,7 @@ func (h UpdateAccountPreferences) Execute(
 			Nav: domain.NavPreferences{
 				Products:       listOr(cmd.NavProducts, before.Nav.Products),
 				ProductsHidden: listOr(cmd.NavProductsHidden, before.Nav.ProductsHidden),
+				HubsHidden:     listOr(cmd.NavHubsHidden, before.Nav.HubsHidden),
 				HubsOrder:      valueOr(cmd.NavHubsOrder, before.Nav.HubsOrder),
 				ContentsMode:   valueOr(cmd.NavContentsMode, before.Nav.ContentsMode),
 			},
@@ -187,6 +189,7 @@ func (h UpdateAccountPreferences) recordAudit(
 		audit.Change{Field: "products_seen", Classification: audit.Open, From: strings.Join(before.ProductsSeen, ","), To: strings.Join(after.ProductsSeen, ",")},
 		audit.Change{Field: "nav_products", Classification: audit.Open, From: strings.Join(before.Nav.Products, ","), To: strings.Join(after.Nav.Products, ",")},
 		audit.Change{Field: "nav_products_hidden", Classification: audit.Open, From: strings.Join(before.Nav.ProductsHidden, ","), To: strings.Join(after.Nav.ProductsHidden, ",")},
+		audit.Change{Field: "nav_hubs_hidden", Classification: audit.Open, From: strings.Join(before.Nav.HubsHidden, ","), To: strings.Join(after.Nav.HubsHidden, ",")},
 		audit.Change{Field: "nav_hubs_order", Classification: audit.Open, From: before.Nav.HubsOrder, To: after.Nav.HubsOrder},
 		audit.Change{Field: "nav_contents_mode", Classification: audit.Open, From: before.Nav.ContentsMode, To: after.Nav.ContentsMode},
 	)
@@ -257,6 +260,10 @@ func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 				Description: "The products shown behind More in the sidebar, as module keys - the whole list. Empty clears it.",
 			},
 			{
+				Name: "nav_hubs_hidden", Kind: usecase.KindList,
+				Description: "The hubs shown behind More in the sidebar, by id - the whole list. Empty clears it.",
+			},
+			{
 				Name: "nav_hubs_order", Kind: usecase.KindString,
 				Enum:        []string{"MANUAL", "RECENT", "NAME"},
 				Description: "How the sidebar orders the hubs: the shared order, recently visited first, or by name. Empty clears it, and the default is MANUAL.",
@@ -284,7 +291,7 @@ func (h UpdateAccountPreferences) invoke(
 	}
 
 	lists := map[string]*[]string{}
-	for _, name := range []string{"products_seen", "nav_products", "nav_products_hidden"} {
+	for _, name := range []string{"products_seen", "nav_products", "nav_products_hidden", "nav_hubs_hidden"} {
 		if _, present := in[name]; !present {
 			continue
 		}
@@ -304,6 +311,7 @@ func (h UpdateAccountPreferences) invoke(
 		ProductsSeen:          lists["products_seen"],
 		NavProducts:           lists["nav_products"],
 		NavProductsHidden:     lists["nav_products_hidden"],
+		NavHubsHidden:         lists["nav_hubs_hidden"],
 		NavHubsOrder:          in.OptionalString("nav_hubs_order"),
 		NavContentsMode:       in.OptionalString("nav_contents_mode"),
 	})

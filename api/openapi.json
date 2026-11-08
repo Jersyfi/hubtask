@@ -16917,7 +16917,8 @@
         "x-hubtask-rest-null-as": {
           "products_seen": [],
           "nav_products": [],
-          "nav_products_hidden": []
+          "nav_products_hidden": [],
+          "nav_hubs_hidden": []
         },
         "x-hubtask-rest-words": [
           "celebrations"
@@ -36809,6 +36810,14 @@
               "$ref": "#/components/schemas/Module"
             }
           },
+          "nav_hubs_hidden": {
+            "type": "array",
+            "description": "The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.\n",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           "nav_hubs_order": {
             "type": [
               "string",
@@ -37263,6 +37272,19 @@
             "description": "The products shown behind *More* in the sidebar, the whole list. `null` or an empty list clears it, which shows every product again.\n",
             "items": {
               "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_hubs_hidden": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty list clears it, which shows every hub again.\n",
+            "items": {
+              "type": "string",
+              "format": "uuid"
             }
           },
           "nav_hubs_order": {

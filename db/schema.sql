@@ -8098,6 +8098,10 @@ ALTER TABLE account ADD COLUMN nav_products text[] NOT NULL DEFAULT '{}',
     AND (nav_hubs_order IS NULL OR nav_hubs_order IN ('MANUAL', 'RECENT', 'NAME'))
     AND (nav_contents_mode IS NULL OR nav_contents_mode IN ('TREE', 'RECENT', 'NAME')));
 
+-- Migrations 0393, 0394: the hubs behind *More* in the sidebar.
+ALTER TABLE account ADD COLUMN nav_hubs_hidden uuid[] NOT NULL DEFAULT '{}',
+  ADD CONSTRAINT account_nav_hubs_hidden_bound CHECK (cardinality(nav_hubs_hidden) <= 1000);
+
 -- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
 CREATE TABLE sample_object (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,

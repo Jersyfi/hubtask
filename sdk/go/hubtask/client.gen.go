@@ -12226,6 +12226,9 @@ type Account struct {
 	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
 	NavContentsMode *AccountNavContentsMode `json:"nav_contents_mode,omitempty"`
 
+	// NavHubsHidden The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
 	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
 	NavHubsOrder *AccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
 
@@ -12303,6 +12306,9 @@ type AccountPreferences struct {
 
 	// NavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
 	NavContentsMode *AccountPreferencesNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty list clears it, which shows every hub again.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
 
 	// NavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
 	NavHubsOrder *AccountPreferencesNavHubsOrder `json:"nav_hubs_order,omitempty"`
@@ -18741,6 +18747,9 @@ type InvitedAccount struct {
 
 	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
 	NavContentsMode *InvitedAccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
 
 	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
 	NavHubsOrder *InvitedAccountNavHubsOrder `json:"nav_hubs_order,omitempty"`

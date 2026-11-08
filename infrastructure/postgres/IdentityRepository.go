@@ -67,7 +67,7 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 	// preferences' write read through, and the other lookups serve sign-in.
 	account.ProductsSeen = row.ProductsSeen
 	account.Nav = identity.NavPreferences{
-		Products: row.NavProducts, ProductsHidden: row.NavProductsHidden,
+		Products: row.NavProducts, ProductsHidden: row.NavProductsHidden, HubsHidden: idStrings(row.NavHubsHidden),
 		HubsOrder: stringFrom(row.NavHubsOrder), ContentsMode: stringFrom(row.NavContentsMode),
 	}
 	if !row.AvatarMediaID.Valid {
@@ -401,6 +401,11 @@ func (r AccountRepository) UpdatePreferences(
 		return err
 	}
 
+	hubsHidden, err := hubKeysOf(account.Nav.HubsHidden)
+	if err != nil {
+		return err
+	}
+
 	affected, err := queries.UpdateAccountPreferences(ctx, sqlc.UpdateAccountPreferencesParams{
 		Locale:                optionalText(account.Locale),
 		TimeZone:              optionalText(account.TimeZone),
@@ -412,6 +417,7 @@ func (r AccountRepository) UpdatePreferences(
 		NavProductsHidden:     productsSeenOf(account.Nav.ProductsHidden),
 		NavHubsOrder:          optionalText(account.Nav.HubsOrder),
 		NavContentsMode:       optionalText(account.Nav.ContentsMode),
+		NavHubsHidden:         hubsHidden,
 		UpdatedAt:             timestampOf(at),
 		ID:                    id,
 	})
@@ -498,6 +504,30 @@ func productsSeenOf(seen []string) []string {
 		return []string{}
 	}
 	return seen
+}
+
+// hubKeysOf maps the hidden hubs into the column's array: empty, never null, as the column is.
+func hubKeysOf(ids []string) ([]pgtype.UUID, error) {
+	keys := make([]pgtype.UUID, 0, len(ids))
+	for _, id := range ids {
+		key, err := uuidOf(shared.ID(id))
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+// idStrings answers the hidden hubs as the account carries them.
+func idStrings(keys []pgtype.UUID) []string {
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if id, err := idFrom(key); err == nil && !id.IsZero() {
+			out = append(out, id.String())
+		}
+	}
+	return out
 }
 
 // accountFrom rebuilds an account from its columns. Shared by both lookups, so the two cannot

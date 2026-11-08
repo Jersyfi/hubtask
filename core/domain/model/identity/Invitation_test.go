@@ -5,6 +5,7 @@ package identity
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -195,6 +196,9 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 		{"the sidebar's orders, any case", Preferences{Nav: NavPreferences{HubsOrder: "recent", ContentsMode: "NAME"}}, ""},
 		{"an unknown product in the sidebar's order", Preferences{Nav: NavPreferences{Products: []string{"CHESS"}}}, "accounts.nav_products_invalid"},
 		{"an unknown hidden product", Preferences{Nav: NavPreferences{ProductsHidden: []string{"CHESS"}}}, "accounts.nav_products_hidden_invalid"},
+		{"hidden hubs by id", Preferences{Nav: NavPreferences{HubsHidden: []string{"01a0e2e0-0000-7000-8000-000000000101", " 01a0e2e0-0000-7000-8000-000000000101"}}}, ""},
+		{"a hidden hub that is not an id", Preferences{Nav: NavPreferences{HubsHidden: []string{"Marketing"}}}, "accounts.nav_hubs_hidden_invalid"},
+		{"more hidden hubs than the bound", Preferences{Nav: NavPreferences{HubsHidden: manyHubs(navHubsHiddenBound + 1)}}, "accounts.nav_hubs_hidden_too_many"},
 		{"a hub order that does not exist", Preferences{Nav: NavPreferences{HubsOrder: "SIZE"}}, "accounts.nav_hubs_order_invalid"},
 		{"a contents mode that does not exist", Preferences{Nav: NavPreferences{ContentsMode: "FOLDERS"}}, "accounts.nav_contents_mode_invalid"},
 	}
@@ -215,6 +219,9 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 				}
 				if c.given.OnboardingCompletedAt != "" && (updated.OnboardingCompletedAt == nil || updated.OnboardingCompletedAt.Location() != time.UTC || updated.OnboardingCompletedAt.Hour() != 8) {
 					t.Errorf("onboarding completed at %v, want the instant kept in UTC", updated.OnboardingCompletedAt)
+				}
+				if len(c.given.Nav.HubsHidden) > 0 && len(updated.Nav.HubsHidden) != 1 {
+					t.Errorf("hidden hubs %v, want each once", updated.Nav.HubsHidden)
 				}
 				if c.given.Nav.HubsOrder != "" && updated.Nav.HubsOrder != strings.ToUpper(c.given.Nav.HubsOrder) {
 					t.Errorf("hubs order %q, want it upper case", updated.Nav.HubsOrder)
@@ -323,4 +330,13 @@ func TestProductsSeenAreKeptOnceEachAndClearedByNothing(t *testing.T) {
 	if err != nil || len(cleared.ProductsSeen) != 0 {
 		t.Fatalf("got %v, %v; want the list cleared", cleared.ProductsSeen, err)
 	}
+}
+
+// manyHubs answers n distinct hub identifiers.
+func manyHubs(n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = fmt.Sprintf("01a0e2e0-0000-7000-8000-%012d", i)
+	}
+	return out
 }

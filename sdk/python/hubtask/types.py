@@ -71,6 +71,7 @@ class Account(TypedDict, total=False):
     products_seen: list["Module"]
     nav_products: list["Module"]
     nav_products_hidden: list["Module"]
+    nav_hubs_hidden: list[str]
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
@@ -139,6 +140,7 @@ class InvitedAccount(TypedDict, total=False):
     products_seen: list["Module"]
     nav_products: list["Module"]
     nav_products_hidden: list["Module"]
+    nav_hubs_hidden: list[str]
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
@@ -181,6 +183,7 @@ class AccountPreferences(TypedDict, total=False):
     products_seen: list["Module"] | None
     nav_products: list["Module"] | None
     nav_products_hidden: list["Module"] | None
+    nav_hubs_hidden: list[str] | None
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
 

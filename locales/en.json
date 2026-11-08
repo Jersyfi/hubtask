@@ -13585,6 +13585,8 @@
   "app.sync.draft.field.body": "Text",
   "accounts.nav_products_invalid": "{value} is not a product that can be ordered in the sidebar.",
   "accounts.nav_products_hidden_invalid": "{value} is not a product that can be hidden in the sidebar.",
+  "accounts.nav_hubs_hidden_invalid": "{value} is not a hub that can be hidden in the sidebar.",
+  "accounts.nav_hubs_hidden_too_many": "At most {max} hubs can be hidden in the sidebar.",
   "accounts.nav_hubs_order_invalid": "{value} is not a way to order the hubs.",
   "accounts.nav_contents_mode_invalid": "{value} is not a way to show a hub's contents.",
   "stars.too_many": "You can star at most {max} places.",

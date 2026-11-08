@@ -226,7 +226,7 @@ func TestTheSidebarPreferencesAreWrittenLeftAndCleared(t *testing.T) {
 	}
 	out, err := invoke(usecase.Input{
 		"nav_products": []any{"TIME", "KNOWLEDGE"}, "nav_products_hidden": []any{"AGENTS"},
-		"nav_hubs_order": "RECENT", "nav_contents_mode": "NAME",
+		"nav_hubs_order": "RECENT", "nav_contents_mode": "NAME", "nav_hubs_hidden": []any{"01a0e2e0-0000-7000-8000-000000000101"},
 	})
 	if err != nil {
 		t.Fatalf("writing the sidebar's preferences: %v", err)
@@ -237,11 +237,20 @@ func TestTheSidebarPreferencesAreWrittenLeftAndCleared(t *testing.T) {
 	if hidden, _ := out["nav_products_hidden"].([]string); strings.Join(hidden, ",") != "AGENTS" {
 		t.Errorf("nav_products_hidden = %v", out["nav_products_hidden"])
 	}
+	if hubs, _ := out["nav_hubs_hidden"].([]string); strings.Join(hubs, ",") != "01a0e2e0-0000-7000-8000-000000000101" {
+		t.Errorf("nav_hubs_hidden = %v", out["nav_hubs_hidden"])
+	}
 	out, err = invoke(usecase.Input{"locale": "nl"})
 	if err != nil || out["nav_hubs_order"] != "RECENT" || out["nav_contents_mode"] != "NAME" {
 		t.Errorf("a write that did not name them changed them: %v, %v, %v", out["nav_hubs_order"], out["nav_contents_mode"], err)
 	}
-	out, err = invoke(usecase.Input{"nav_products": []any{}, "nav_hubs_order": ""})
+	if _, present := out["nav_hubs_hidden"]; !present {
+		t.Errorf("a write that did not name the hidden hubs cleared them")
+	}
+	out, err = invoke(usecase.Input{"nav_products": []any{}, "nav_hubs_order": "", "nav_hubs_hidden": []any{}})
+	if _, present := out["nav_hubs_hidden"]; present {
+		t.Errorf("an empty list did not clear the hidden hubs: %v", out["nav_hubs_hidden"])
+	}
 	if _, present := out["nav_products"]; err != nil || present || out["nav_hubs_order"] != nil {
 		t.Errorf("an empty value did not clear them: %v, %v, %v", out["nav_products"], out["nav_hubs_order"], err)
 	}

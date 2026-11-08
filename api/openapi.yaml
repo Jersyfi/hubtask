@@ -10611,7 +10611,7 @@ paths:
       operationId: updateAccountPreferences
       x-hubtask-rest: generated
       x-hubtask-rest-null: empty
-      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [] }
+      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [], nav_hubs_hidden: [] }
       x-hubtask-rest-words: [celebrations]
       x-hubtask-rest-utc: [onboarding_completed_at]
       x-hubtask-rest-answer: accountResponse
@@ -25297,6 +25297,12 @@ components:
           description: >
             The products the person moved behind *More* in the sidebar. Absent or empty: none.
           items: { $ref: "#/components/schemas/Module" }
+        nav_hubs_hidden:
+          type: array
+          description: >
+            The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none.
+            An id of a hub the person no longer sees is kept and shows nothing.
+          items: { type: string, format: uuid }
         nav_hubs_order:
           type: [string, "null"]
           enum: [MANUAL, RECENT, NAME, null]
@@ -25615,6 +25621,14 @@ components:
             The products shown behind *More* in the sidebar, the whole list. `null` or an empty
             list clears it, which shows every product again.
           items: { $ref: "#/components/schemas/Module" }
+        nav_hubs_hidden:
+          type: [array, "null"]
+          maxItems: 1000
+          uniqueItems: true
+          description: >
+            The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty
+            list clears it, which shows every hub again.
+          items: { type: string, format: uuid }
         nav_hubs_order:
           type: [string, "null"]
           enum: [MANUAL, RECENT, NAME, null]
