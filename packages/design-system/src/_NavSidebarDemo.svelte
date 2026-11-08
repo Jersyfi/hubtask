@@ -14,6 +14,8 @@
 
   type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty';
   const { mode = 'hub' }: { mode?: Mode } = $props();
+  let isMoreOpen = $state(true);
+  const hide = (name: string) => ({ label: `Manage ${name}`, items: [{ id: 'hide', label: 'Hide from the sidebar', icon: 'eye-off' as const }], onselect: () => {} });
 
   const manage = (name: string) => ({
     label: `Manage ${name}`,
@@ -121,20 +123,29 @@
             </NavFlyout>
           </li>
         </ul>
-        <NavGroup label="Starred">
+        <NavGroup label="Starred" collapseLabel="Fold Starred">
           <NavItem label="Web app" icon="collection" color="blue" href="#web" figure="Sprint 42" isMovable menu={manage('Web app')} />
           <NavItem label="About to breach · IT" icon="columns-3" href="#q" figure="1" isFigureUrgent isMovable menu={manage('About to breach')} />
           <NavItem label="Onboarding handbook" icon="book-open" color="teal" href="#onb" isMovable menu={manage('Onboarding handbook')} />
         </NavGroup>
-        <NavGroup label="Products" menu={{ label: 'Customise the sidebar', onselect: () => {} }}>
-          <NavItem label="Plans" icon="calendar" color="orange" href="#plans" menu={manage('Plans')} />
-          <NavItem label="Pages" icon="book-open" color="teal" href="#pages" menu={manage('Pages')} />
-          <NavItem label="Whiteboards" icon="layout-template" color="amber" href="#boards" menu={manage('Whiteboards')} />
-          <NavItem label="Service desk" icon="inbox" color="magenta" href="#desk" figure="2" isFigureUrgent menu={manage('Service desk')} />
-          <NavItem label="Assets" icon="shield" color="slate" href="#assets" menu={manage('Assets')} />
-          <NavItem label="3 more" icon="ellipsis" tone="more" />
+        <NavGroup
+          label="Products"
+          collapseLabel="Fold Products"
+          hiddenLabel="More"
+          hiddenRows={[
+            { id: 'time', label: 'Time', icon: 'clock', color: 'green', href: '#time' },
+            { id: 'goals', label: 'Goals', icon: 'flag', color: 'violet', href: '#goals' },
+          ]}
+          rowMenu={(id) => ({ label: `Manage ${id}`, items: [{ id: 'show', label: 'Show in the sidebar', icon: 'eye' }], onselect: () => {} })}
+          bind:isHiddenOpen={isMoreOpen}
+        >
+          <NavItem label="Plans" icon="calendar" color="orange" href="#plans" menu={hide('Plans')} />
+          <NavItem label="Pages" icon="book-open" color="teal" href="#pages" menu={hide('Pages')} />
+          <NavItem label="Whiteboards" icon="layout-template" color="amber" href="#boards" menu={hide('Whiteboards')} />
+          <NavItem label="Service desk" icon="inbox" color="magenta" href="#desk" figure="2" isFigureUrgent menu={hide('Service desk')} />
+          <NavItem label="Assets" icon="shield" color="slate" href="#assets" menu={hide('Assets')} />
         </NavGroup>
-        <NavGroup label="Hubs" add={{ label: 'New hub', onselect: () => {} }} menu={{ label: 'Order hubs', onselect: () => {} }}>
+        <NavGroup label="Hubs" collapseLabel="Fold Hubs" add={{ label: 'New hub', onselect: () => {} }} menu={{ label: 'Order hubs', onselect: () => {} }}>
           {#each [['Product development', 'orange'], ['IT operations', 'teal'], ['Marketing', 'magenta'], ['People', 'green'], ['Finance', 'blue'], ['Facilities', 'violet'], ['Sales', 'amber'], ['Purchasing', 'slate']] as [name, color] (name)}
             <NavItem label={name!} icon="hub" {color} href="#hub" figure="›" isMovable menu={manage(name!)} add={{ label: `New collection in ${name}`, onselect: () => {} }} />
           {/each}

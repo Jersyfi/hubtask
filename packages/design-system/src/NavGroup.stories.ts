@@ -31,3 +31,10 @@ export const empty: Story = {
     'A personal hub: only lists, and the quiet Create the first page for somebody who may create.',
   args: { mode: 'empty' },
 };
+
+export const workspace: Story = {
+  name: 'The workspace level, folding',
+  about:
+    'Starred, Products and Hubs fold by their chevron; a section that does not fold draws none. The products the person hid stand behind More, which opens in place and lists each with its tile and a ⋯ to show it again.',
+  args: { mode: 'workspace' },
+};

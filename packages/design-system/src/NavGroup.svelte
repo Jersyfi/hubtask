@@ -119,6 +119,16 @@
     size?: 'md' | 'touch';
     /** On compact: a link at the head's end, *All*. */
     headLink?: { readonly label: string; readonly onselect: () => void };
+
+    /**
+     * Rows the person put away: drawn behind one *More* row after the section's rows, which
+     * folds them in place. Each opens with `onnavigate` and carries `rowMenu`'s ⋯ (*Show*).
+     */
+    hiddenRows?: readonly NavTreeNode[];
+    /** The *More* row's words. */
+    hiddenLabel?: string;
+    /** Whether the hidden rows show; bindable, folded at first. */
+    isHiddenOpen?: boolean;
   }
 
   let {
@@ -155,6 +165,9 @@
     kindLabel,
     size = 'md',
     headLink,
+    hiddenRows,
+    hiddenLabel,
+    isHiddenOpen = $bindable(false),
   }: Props = $props();
 
   const instanceId = $props.id();
@@ -383,7 +396,8 @@
         <Icon name={isOpen ? 'chevron-down' : 'chevron-right'} size="sm" />
       </button>
     {:else}
-      <span class="twist" aria-hidden="true"><Icon name="chevron-down" size="sm" /></span>
+      <!-- A section that does not fold draws no chevron: a mark that does nothing misleads. -->
+      <span class="twist" aria-hidden="true"></span>
     {/if}
     <h3 class="title" id={headId}>{label}{#if count}<span class="count">{` · ${count}`}</span>{/if}</h3>
     {#if headLink}
@@ -491,6 +505,36 @@
     {:else if children}
       <ul class="rows">{@render children()}</ul>
     {/if}
+    {#if hiddenRows && hiddenRows.length > 0 && hiddenLabel}
+      <ul class="rows" data-hidden-rows>
+        <NavItem
+          label={hiddenLabel}
+          icon="ellipsis"
+          tone="more"
+          {size}
+          figure={String(hiddenRows.length)}
+          twist={isHiddenOpen ? 'expanded' : 'collapsed'}
+          onnavigate={() => (isHiddenOpen = !isHiddenOpen)}
+        />
+        {#if isHiddenOpen}
+          {#each hiddenRows as node (node.id)}
+            <NavItem
+              id={node.id}
+              label={node.label}
+              href={node.href}
+              icon={node.icon}
+              color={node.color}
+              badge={node.badge}
+              level={size === 'md' ? 1 : 0}
+              {size}
+              isCurrent={node.id === current}
+              menu={rowMenu?.(node.id)}
+              onnavigate={() => onnavigate?.(node.id)}
+            />
+          {/each}
+        {/if}
+      </ul>
+    {/if}
   {/if}
 </section>
 
@@ -545,8 +589,9 @@
     border-radius: var(--r-xs);
     background: none;
     color: inherit;
-    cursor: pointer;
   }
+
+  button.twist { cursor: pointer; }
 
   .twist :global(.icon) {
     inline-size: var(--layout-nav-twistglyph);

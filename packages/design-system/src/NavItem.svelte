@@ -140,6 +140,8 @@
   let isAddOpen = $state(false);
 
   const indent = $derived(String(indentOf(level)));
+  /** A row that is a button with a twist (*More*): pressing it opens and closes what is under it. */
+  const isToggleRow = $derived(!isTreeItem && !href && twist !== undefined);
 
   function follow(event: MouseEvent) {
     if (!onnavigate || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -219,7 +221,10 @@
     <span class="grip" aria-hidden="true"><Icon name="grip-vertical" size="sm" /></span>
   {/if}
   {#if !isRail && size === 'md'}
-    {#if twist}
+    {#if twist && isToggleRow}
+      <!-- The whole row opens and closes, so its chevron is a mark, not a second control. -->
+      <span class="twist" aria-hidden="true"><Icon name={twist === 'expanded' ? 'chevron-down' : 'chevron-right'} size="sm" /></span>
+    {:else if twist}
       <button
         type="button"
         class="twist"
@@ -258,8 +263,9 @@
           <span class="figure" data-urgent={isFigureUrgent ? '' : undefined} aria-label={figureLabel}>{figure}</span>
         {/if}
         {#if (menu || add) && size === 'md'}
+          <!-- Inside a link, a press on ⋯ or ＋ neither follows the link nor reaches the row. -->
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span class="acts" onclick={(event) => event.stopPropagation()}>
+          <span class="acts" onclick={(event) => { event.preventDefault(); event.stopPropagation(); }}>
             {#if menu}{@render action('menu', menu)}{/if}
             {#if add}{@render action('add', add)}{/if}
           </span>
@@ -268,6 +274,8 @@
     {/if}
     {#if size === 'touch' && isReordering}
       <span class="reorder" aria-hidden="true"><Icon name="grip-vertical" size="sm" /></span>
+    {:else if size === 'touch' && isToggleRow && twist}
+      <span class="chevron" aria-hidden="true"><Icon name={twist === 'expanded' ? 'chevron-up' : 'chevron-down'} size="sm" /></span>
     {:else if size === 'touch' && isDrillDown}
       <span class="chevron" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>
     {/if}
@@ -321,6 +329,7 @@
       type={href ? undefined : 'button'}
       {href}
       aria-current={isCurrent ? 'page' : undefined}
+      aria-expanded={isToggleRow ? twist === 'expanded' : undefined}
       aria-label={isRail ? label : undefined}
       title={isRail ? label : undefined}
       onclick={follow}
@@ -539,6 +548,16 @@
   .row:hover .end:has(.acts) .figure,
   .row:focus-within .end:has(.acts) .figure,
   .end[data-open] .figure { display: none; }
+
+  /* A finger cannot hover (a tablet's drawer): the actions stand beside the figure for good. */
+  @media (hover: none) {
+    .row[data-size='md'] .acts { display: flex; }
+    .row[data-size='md'] .end { gap: var(--sp-050); }
+    .row[data-size='md'] .end .figure,
+    .row[data-size='md']:hover .end:has(.acts) .figure,
+    .row[data-size='md']:focus-within .end:has(.acts) .figure,
+    .row[data-size='md'] .end[data-open] .figure { display: inline; }
+  }
 
   .act {
     display: grid;
