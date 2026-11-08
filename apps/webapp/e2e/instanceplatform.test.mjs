@@ -15,6 +15,8 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { chooseInRow, rowOffers } from './rowmenu.mjs';
+
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
@@ -106,10 +108,10 @@ test('chromium: an operator sees the dead letters, is told the subscription stay
   assert.match((await main.textContent()) ?? '', /The subscription stays on/);
   assert.match((await main.textContent()) ?? '', /never content/);
 
-  await row.getByRole('button', { name: 'Deliver again' }).click();
+  await chooseInRow(row, 'Deliver again');
   await page.getByRole('row').filter({ hasText: 'Delivering' }).waitFor({ timeout: 10_000 });
   assert.ok(sent.some((each) => each.method === 'POST' && each.path === `/admin/subscriptions/${SUBSCRIPTION.id}:redeliver`));
-  assert.equal(await page.getByRole('button', { name: 'Deliver again' }).count(), 0, 'redelivery is offered with nothing to redeliver');
+  assert.equal(await rowOffers(row, 'Deliver again'), 0, 'redelivery is offered with nothing to redeliver');
   assert.doesNotMatch((await main.textContent()) ?? '', /could not be reached/);
 });
 
@@ -126,19 +128,23 @@ test('chromium: an operator subscribes a platform and sees its secret once, then
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Address of the platform').fill('https://billing.provider.example/events');
   await dialog.getByRole('button', { name: 'Subscribe' }).click();
-  await page.getByText("The subscription's signing secret").waitFor({ timeout: 10_000 });
+  const secret = page.getByRole('dialog', { name: "The subscription's signing secret" });
+  await secret.waitFor({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await secret.waitFor({ state: 'hidden' });
   const created = sent.find((each) => each.method === 'POST' && each.path === '/admin/subscriptions');
   assert.deepEqual(created?.body, { target_url: 'https://billing.provider.example/events' });
   await page.getByRole('row').filter({ hasText: 'billing.provider.example' }).waitFor({ timeout: 10_000 });
 
   const first = page.getByRole('row').filter({ hasText: 'shop.provider.example' });
-  await first.getByRole('button', { name: 'Pause' }).click();
-  await first.getByRole('button', { name: 'Resume' }).waitFor({ timeout: 10_000 });
+  await chooseInRow(first, 'Pause');
+  await first.getByText('Paused', { exact: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await rowOffers(first, 'Resume'), 1);
   assert.ok(sent.some((each) => each.method === 'PATCH' && each.body?.state === 'PAUSED'));
   assert.match((await first.textContent()) ?? '', /Paused/);
-  assert.equal(await first.getByRole('button', { name: 'Deliver again' }).count(), 0, 'a paused subscription offers a redelivery');
+  assert.equal(await rowOffers(first, 'Deliver again'), 0, 'a paused subscription offers a redelivery');
 
-  await first.getByRole('button', { name: 'Remove' }).click();
+  await chooseInRow(first, 'Remove…');
   await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click();
   await page.getByRole('row').filter({ hasText: 'shop.provider.example' }).waitFor({ state: 'detached', timeout: 10_000 });
   assert.ok(sent.some((each) => each.method === 'DELETE' && each.path === `/admin/subscriptions/${SUBSCRIPTION.id}`));
@@ -152,11 +158,11 @@ test('chromium: on a phone the dead letters are seen and delivered again', async
   t.after(close);
 
   await page.goto(`${served.origin}/instance/platform`);
-  const card = page.locator('li').filter({ hasText: 'shop.provider.example' });
+  const card = page.getByRole('row').filter({ hasText: 'shop.provider.example' });
   await card.waitFor({ timeout: 15_000 });
   assert.match((await card.textContent()) ?? '', /4 undeliverable/);
-  await card.getByRole('button', { name: 'Deliver again' }).click();
-  await page.locator('li').filter({ hasText: 'Delivering' }).waitFor({ timeout: 10_000 });
+  await chooseInRow(card, 'Deliver again');
+  await page.getByRole('row').filter({ hasText: 'Delivering' }).waitFor({ timeout: 10_000 });
   assert.ok(sent.some((each) => each.path === `/admin/subscriptions/${SUBSCRIPTION.id}:redeliver`));
 });
 
@@ -171,9 +177,9 @@ test('chromium: subscriptions the instance file decides offer only a redelivery'
   await page.goto(`${served.origin}/instance/platform`);
   const row = page.getByRole('row').filter({ hasText: 'shop.provider.example' });
   await row.waitFor({ timeout: 15_000 });
-  assert.equal(await row.getByRole('button', { name: 'Deliver again' }).count(), 1);
-  assert.equal(await row.getByRole('button', { name: 'Pause' }).count(), 0);
-  assert.equal(await row.getByRole('button', { name: 'Remove' }).count(), 0);
+  assert.equal(await rowOffers(row, 'Deliver again'), 1);
+  assert.equal(await rowOffers(row, 'Pause'), 0, 'a subscription the file sets is paused here');
+  assert.equal(await rowOffers(row, 'Remove…'), 0, 'a subscription the file sets is removed here');
   assert.equal(await page.getByRole('button', { name: 'Add subscription' }).count(), 0);
 });
 

@@ -89,15 +89,18 @@ test('chromium: an operator adds a target of the installation behind a fresh pro
   // Where it points is the operator's to read here.
   assert.match(await row.textContent() ?? '', /installation-exports/);
 
-  await page.getByLabel('Name').fill('Second exports');
-  await page.getByLabel('Kind').selectOption('S3');
-  await page.getByLabel('Endpoint').fill('https://s3.example.org');
-  await page.getByLabel('Bucket').fill('second-exports');
-  await page.getByLabel('Access key').fill('AKIA');
-  await page.getByLabel('Secret key').fill('the-secret-key');
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  // The one target form, in its Dialog M (page-system §9.4).
+  await page.getByRole('main').getByRole('button', { name: 'Add a target of the installation' }).click();
+  const adding = page.getByRole('dialog', { name: 'Add a target' });
+  await adding.getByLabel('Name').fill('Second exports');
+  await adding.getByLabel('Kind').selectOption('S3');
+  await adding.getByLabel('Endpoint').fill('https://s3.example.org');
+  await adding.getByLabel('Bucket').fill('second-exports');
+  await adding.getByLabel('Access key').fill('AKIA');
+  await adding.getByLabel('Secret key').fill('the-secret-key');
+  await adding.getByRole('button', { name: 'Add a target', exact: true }).click();
 
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Prove it is you' });
   await dialog.getByLabel('Your password').fill('the operator');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
   await page.getByRole('row').filter({ hasText: 'Second exports' }).waitFor({ timeout: 10_000 });

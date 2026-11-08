@@ -14,6 +14,8 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { chooseInRow, pressHead, rowMenu } from './rowmenu.mjs';
+
 import { ACCOUNT, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
@@ -73,15 +75,17 @@ test('chromium: the register names its operators and marks the reader', async (t
 
   for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 }]) {
     const { context, page } = await operatorsScreen(browser, [ME, ADA], viewport);
-    const table = page.getByRole('table');
-    await table.getByText('Ada Lovelace').waitFor();
+    const table = page.getByRole('main');
+    await table.getByText('Ada Lovelace').first().waitFor();
     const text = await table.textContent() ?? '';
     assert.match(text, /Jérôme Winkel\s*you/, 'the reader\'s own row is not marked');
     assert.match(text, /ada@example\.invalid/);
     assert.match(text, /House \(house\)/);
     assert.match(text, /by Jérôme Winkel/);
     assert.doesNotMatch(text, /01a0e2e0-/, 'an identifier is drawn');
-    // The service account of the reader's own workspace, by name.
+    // The service account of the reader's own workspace, by name, in its dialog.
+    await pressHead(page, 'Make a service account an operator');
+    await page.getByRole('dialog').getByRole('combobox', { name: /^Service account/ }).waitFor();
     assert.equal(await page.getByRole('option', { name: 'The shop' }).count(), 1);
     await context.close();
   }
@@ -92,8 +96,9 @@ test('chromium: the first addition says it adds the reader too, and a service ac
   t.after(() => browser.close());
   const { context, page, sent } = await operatorsScreen(browser, []);
 
-  await page.getByText('Adding somebody adds you as well').first().waitFor();
-  await page.getByLabel('Service account').selectOption({ label: 'The shop' });
+  await pressHead(page, 'Make a service account an operator');
+  await page.getByRole('dialog').getByText('Adding somebody adds you as well').waitFor();
+  await page.getByRole('dialog').getByRole('combobox', { name: /^Service account/ }).selectOption({ label: 'The shop' });
   await page.getByRole('button', { name: 'Make it an operator' }).click();
   await assertEventually(() => sent.added.length === 1);
   assert.deepEqual(sent.added[0], { account_id: SHOP.id });
@@ -104,10 +109,10 @@ test('chromium: removing somebody asks once; removing oneself asks twice; the la
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, sent } = await operatorsScreen(browser, [ME, ADA]);
-  await page.getByRole('table').getByText('Ada Lovelace').waitFor();
+  await page.getByRole('table').getByText('Ada Lovelace').first().waitFor();
 
   const rows = page.getByRole('table').getByRole('row');
-  await rows.filter({ hasText: 'Ada Lovelace' }).getByRole('button', { name: 'Remove' }).click();
+  await chooseInRow(rows.filter({ hasText: 'Ada Lovelace' }), 'Remove…');
   const dialog = page.getByRole('dialog');
   await dialog.getByText('Remove Ada Lovelace as an operator?').waitFor();
   assert.match(await dialog.textContent() ?? '', /Ada Lovelace of House \(house\)/);
@@ -115,8 +120,7 @@ test('chromium: removing somebody asks once; removing oneself asks twice; the la
   await assertEventually(() => sent.removed.length === 1);
   assert.equal(sent.removed[0], ADA.account_id);
 
-  await rows.filter({ has: page.getByRole('rowheader', { name: /Jérôme Winkel/ }) })
-    .getByRole('button', { name: 'Remove' }).click();
+  await chooseInRow(rows.filter({ has: page.getByText('you', { exact: true }) }), 'Remove…');
   await dialog.getByText('Remove yourself as an operator?').waitFor();
   await dialog.getByRole('button', { name: 'Remove' }).click();
   await dialog.getByText('The installation closes to you at once').waitFor();
@@ -127,10 +131,11 @@ test('chromium: removing somebody asks once; removing oneself asks twice; the la
   await context.close();
 
   const alone = await operatorsScreen(browser, [ME]);
-  await alone.page.getByRole('table').getByText('Jérôme Winkel').waitFor();
-  // The last operator's Remove stays in its place, unavailable, its reason its own description
-  // (UC-WRK-32 check 1); pressing it opens nothing.
-  const remove = alone.page.getByRole('button', { name: 'Remove' });
+  await alone.page.getByRole('table').getByText('Jérôme Winkel').first().waitFor();
+  // The last operator's Remove stays in its place in the row's menu, unavailable, its reason its
+  // own description (UC-WRK-32 check 1); pressing it opens nothing.
+  await rowMenu(alone.page.getByRole('table').getByRole('row').filter({ has: alone.page.getByText('you', { exact: true }) })).click();
+  const remove = alone.page.getByRole('menuitem', { name: /^Remove…/ });
   assert.equal(await remove.getAttribute('aria-disabled'), 'true', 'the last operator offers Remove');
   const described = await remove.evaluate((button) =>
     (button.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
@@ -155,6 +160,7 @@ test('chromium: an operator is added by workspace and address, and an unknown ad
   t.after(() => browser.close());
   const { context, page, sent } = await operatorsScreen(browser, [ME]);
 
+  await pressHead(page, 'Add an operator');
   const workspace = page.getByLabel(/^Their workspace/);
   await workspace.waitFor();
   const choice = (await workspace.locator('option').allTextContents()).find((label) => !/Pick a workspace/.test(label));

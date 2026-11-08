@@ -15,7 +15,10 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, DataTable, EmptyState, FilterBar, ListPage, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
+  import type { EncryptionStatus } from '@hubtask/sync-engine';
+
+  type EncryptionKey = EncryptionStatus['keys'][number];
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { instance } from '../lib/data/instance.svelte.ts';
@@ -23,7 +26,7 @@
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -44,11 +47,15 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
-  const columns = $derived([
-    { id: 'key', label: t('app.instance.column_key') },
-    { id: 'standing', label: t('app.instance.column_standing') },
-    { id: 'sealed', label: t('app.instance.column_sealed') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'key', label: t('app.instance.column_key'), priority: 1 },
+    { id: 'standing', label: t('app.instance.column_standing'), priority: 2, isStatus: true },
+    { id: 'sealed', label: t('app.instance.column_sealed'), align: 'end', priority: 2 },
   ]);
+
+  let search = $state('');
+  const keys = $derived(status?.keys ?? []);
+  const shown = $derived(keys.filter((key) => matchesSearch(search, [key.key_id])));
 
   /** A key nothing holds while something still names it — the one state that needs repairing. */
   const stranded = $derived(
@@ -58,22 +65,32 @@
   $effect(() => page.entitle(t('app.instance.encryption')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.encryption')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.encryption') })} />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.encryption_intro')}</p>
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage head={{ title: t('app.instance.encryption'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.encryption') }) }} refused={door ?? (unreadable ? failed : undefined)}>
+      {#snippet intro()}
+        <Stack gap="100">
+          <p class="quiet">{t('app.instance.encryption_intro')}</p>
+          {#if status && status.active_key_id !== ''}
+            <p class="quiet-line">{t('app.instance.encryption_active', { key: status.active_key_id })}</p>
+          {/if}
+        </Stack>
+      {/snippet}
+      {#snippet filters()}
+        {#if status && status.active_key_id !== ''}
+          <FilterBar
+            searchLabel={t('app.instance.encryption_search')}
+            clearSearchLabel={t('app.page.clear_search')}
+            bind:search
+            countLabel={t('app.page.found', { shown: String(shown.length), count: String(keys.length) })}
+          />
+        {/if}
+      {/snippet}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else if status && status.active_key_id === ''}
-        <Banner tone="info">{t('app.instance.encryption_none')}</Banner>
+        <EmptyState kind="unused" title={t('app.instance.encryption_none')} />
       {:else if status}
         {#if stranded.length > 0}
           <Banner tone="danger" title={t('app.instance.encryption_stranded_title')}>
@@ -90,40 +107,51 @@
             </ul>
           </Banner>
         {/if}
-
-        <p class="quiet-line">{t('app.instance.encryption_active', { key: status.active_key_id })}</p>
-
-        <Table label={t('app.instance.encryption')} isLabelHidden columns={columns}>
-          {#each status.keys as key (key.key_id)}
-            <tr>
-              <td class="mono">{key.key_id}</td>
-              <td>
-                {#if key.active}
-                  <Badge tone="success">{t('app.instance.key_active')}</Badge>
-                {:else if !key.in_ring}
-                  <Badge tone="danger">{t('app.instance.key_missing')}</Badge>
-                {:else if key.sealed_values === 0}
-                  <Badge tone="neutral">{t('app.instance.key_removable')}</Badge>
-                {:else}
-                  <Badge tone="warning">{t('app.instance.key_held')}</Badge>
-                {/if}
-              </td>
-              <td class="numeric">{key.sealed_values}</td>
-            </tr>
-          {/each}
-        </Table>
-
+        <DataTable
+          label={t('app.instance.encryption')}
+          {columns}
+          rows={shown}
+          key={(key: EncryptionKey) => key.key_id}
+          rowLabel={(key: EncryptionKey) => key.key_id}
+          shownLabel={t('app.page.showing', { count: String(shown.length) })}
+        >
+          {#snippet cell(key: EncryptionKey, column: DataColumn)}
+            {#if column.id === 'key'}
+              <span class="mono">{key.key_id}</span>
+            {:else if column.id === 'standing'}
+              {#if key.active}
+                <Badge tone="success">{t('app.instance.key_active')}</Badge>
+              {:else if !key.in_ring}
+                <Badge tone="danger">{t('app.instance.key_missing')}</Badge>
+              {:else if key.sealed_values === 0}
+                <Badge tone="neutral">{t('app.instance.key_removable')}</Badge>
+              {:else}
+                <Badge tone="warning">{t('app.instance.key_held')}</Badge>
+              {/if}
+            {:else}
+              <span class="numeric">{key.sealed_values}</span>
+            {/if}
+          {/snippet}
+          {#snippet empty()}
+            <EmptyState kind="filtered" title={t('app.instance.encryption_none_found')}>
+              {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+            </EmptyState>
+          {/snippet}
+        </DataTable>
         <!-- Said where the absent buttons would be, rather than left to be noticed. -->
         <Banner tone="info" title={t('app.instance.encryption_rotation_title')}>
           {t('app.instance.encryption_rotation')}
         </Banner>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </ListPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <style>
-  .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
   .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
