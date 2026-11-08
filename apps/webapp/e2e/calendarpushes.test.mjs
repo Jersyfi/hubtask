@@ -58,7 +58,7 @@ test('chromium: a stopped calendar push says why beside Connect again, and the c
   const column = page.getByRole('navigation', { name: 'Your settings' });
   assert.equal(await column.getByRole('treeitem', { name: /1 stopped/ }).count(), 1, 'the figure is not heard with the row');
 
-  const writing = page.locator('[data-push="GOOGLE"]');
+  const writing = page.getByRole('row').filter({ has: page.locator('[data-push="GOOGLE"]') });
   await writing.getByText('Writing', { exact: true }).waitFor();
   // UC-INT-16 check 3: each push names its provider, the account, whether it writes and when it
   // last did.
@@ -67,7 +67,7 @@ test('chromium: a stopped calendar push says why beside Connect again, and the c
   await writing.getByText('Last written', { exact: false }).waitFor();
   assert.equal(await writing.getByRole('button', { name: 'Connect again' }).count(), 0, 'a push that writes offers no reconnection');
 
-  const stopped = page.locator('[data-push="MICROSOFT"]');
+  const stopped = page.getByRole('row').filter({ has: page.locator('[data-push="MICROSOFT"]') });
   await stopped.getByText('Stopped', { exact: true }).waitFor();
   await stopped.locator('[data-push-failure]').getByText('no longer gives access', { exact: false }).waitFor();
   await stopped.getByRole('button', { name: 'Connect again' }).click();

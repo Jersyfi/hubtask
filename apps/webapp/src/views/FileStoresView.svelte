@@ -7,15 +7,18 @@
   //
   // A Nextcloud is connected by its login flow: its page opens in a new tab, the reader grants
   // access there and comes back to finish; until then the connection waits. Microsoft is a sign-in
-  // in this tab that comes back here.
+  // in this tab that comes back here. A list page (page-system §9.5): connecting is the head's
+  // primary and a Dialog M of the store and its server, which holds the waiting login flow too;
+  // disconnecting is the row's ⋯ and a Dialog S.
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, Input, Stack, Table } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, EmptyState, Input, ListPage, Radio, Stack, type DataColumn, type DataRowMenu, type DialogAction } from '@hubtask/design-system/components';
   import type { FileStoreConnection, FileStoreConnectionList } from '@hubtask/sync-engine';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { providerAnswerOf } from '../lib/data/calendarpush.ts';
@@ -61,6 +64,14 @@
       .finally(() => onanswered?.());
   });
 
+  let isConnecting = $state(false);
+  let kind = $state<'NEXTCLOUD' | 'MICROSOFT'>('NEXTCLOUD');
+  function openConnect() {
+    failure = undefined;
+    kind = 'NEXTCLOUD';
+    isConnecting = true;
+  }
+
   async function connectNextcloud() {
     isStarting = true;
     failure = undefined;
@@ -85,6 +96,7 @@
       connected = await fileStores.complete({ state: waiting.state });
       waiting = undefined;
       server = '';
+      isConnecting = false;
     } catch (error) {
       fail(error);
     } finally {
@@ -104,70 +116,96 @@
 
   const storeName = (conn: FileStoreConnection) => t(conn.kind === 'NEXTCLOUD' ? 'app.filestores.nextcloud' : 'app.filestores.microsoft');
 
-  const columns = $derived([
-    { id: 'store', label: t('app.filestores.store_column') },
-    { id: 'used', label: t('app.filestores.used_column') },
-    { id: 'stop', label: t('app.filestores.disconnect'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'store', label: t('app.filestores.store_column'), priority: 1 },
+    { id: 'used', label: t('app.filestores.used_column'), priority: 2 },
   ]);
+
+  const title = $derived(profileTitle('files'));
+  $effect(() => page.entitle(title));
+
+  const rowMenu = (conn: FileStoreConnection): DataRowMenu => ({
+    label: t('app.page.more_for', { name: connectionLabel(conn, storeName(conn)) }),
+    items: [{ id: 'disconnect', label: t('app.filestores.disconnect_menu'), isDestructive: true }],
+  });
+
+  const primary = $derived<DialogAction>(
+    waiting
+      ? { label: t('app.filestores.finish'), isBusy: isFinishing, onclick: (): void => void finishNextcloud() }
+      : kind === 'MICROSOFT'
+        ? { label: t('app.filestores.connect_microsoft'), onclick: (): void => void connectMicrosoft() }
+        : {
+            label: t('app.filestores.connect_nextcloud'),
+            isBusy: isStarting,
+            disabledReason: server.trim() ? undefined : t('filestore.server_required'),
+            onclick: (): void => void connectNextcloud(),
+          },
+  );
 </script>
 
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="files" />
+  <ListPage head={profileHead('files', { primary: { label: t('app.filestores.connect'), icon: 'plus', opener: 'connect-file-store', onclick: openConnect } })}>
+    {#snippet intro()}<p class="quiet">{t('app.filestores.intro')}</p>{/snippet}
 
-    <Stack gap="150">
-      <p class="quiet">{t('app.filestores.intro')}</p>
-      {#if connected}<p class="done" role="status">{t('app.filestores.connected', { store: connectionLabel(connected, storeName(connected)) })}</p>{/if}
-      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+    {#if connected}<p class="done" role="status">{t('app.filestores.connected', { store: connectionLabel(connected, storeName(connected)) })}</p>{/if}
+    {#if failure && !isConnecting}<p class="failure" role="alert">{failure}</p>{/if}
 
-      {#if connections.length === 0}
+    <DataTable
+      label={title}
+      {columns}
+      rows={connections}
+      key={(conn: FileStoreConnection) => conn.id}
+      rowLabel={(conn: FileStoreConnection) => connectionLabel(conn, storeName(conn))}
+      menu={rowMenu}
+      onmenu={(conn: FileStoreConnection) => (asking = conn)}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={connections.length === 0 ? undefined : t('app.page.showing', { count: String(connections.length) })}
+    >
+      {#snippet cell(conn: FileStoreConnection, column: DataColumn)}
+        {#if column.id === 'store'}
+          <span class="what" data-file-store={conn.kind}>{connectionLabel(conn, storeName(conn))}</span>
+        {:else}
+          <span class="meta">{formatDateTime(conn.used_at, messages.locale)}</span>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
         <EmptyState kind="unused" title={t('app.filestores.none')} />
-      {:else}
-        <Table isStacked label={t('app.filestores.title')} isLabelHidden {columns}>
-          {#each connections as conn (conn.id)}
-            <tr data-file-store={conn.kind}>
-              <th scope="row" class="what">{connectionLabel(conn, storeName(conn))}</th>
-              <td class="meta">{formatDateTime(conn.used_at, messages.locale)}</td>
-              <td><Button size="sm" tone="danger" onclick={() => (asking = conn)}>{t('app.filestores.disconnect')}</Button></td>
-            </tr>
-          {/each}
-        </Table>
-      {/if}
-    </Stack>
+      {/snippet}
+    </DataTable>
+  </ListPage>
 
+  <Dialog size="m" title={t('app.filestores.connect_title')} bind:isOpen={isConnecting} dismissLabel={t('app.filestores.cancel')} onClose={() => (waiting = undefined)} {primary}>
     <Stack gap="150">
-      <h2 class="head">{t('app.filestores.nextcloud')}</h2>
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       {#if waiting}
         <p class="quiet" role="status">{t('app.filestores.waiting')}</p>
-        <div class="row">
-          <Button tone="primary" isBusy={isFinishing} data-finish-nextcloud onclick={() => void finishNextcloud()}>{t('app.filestores.finish')}</Button>
-          <a href={waiting.url} target="_blank" rel="noopener noreferrer">{t('app.filestores.open_again')}</a>
-          <Button tone="subtle" onclick={() => (waiting = undefined)}>{t('app.filestores.cancel')}</Button>
-        </div>
+        <a href={waiting.url} target="_blank" rel="noopener noreferrer">{t('app.filestores.open_again')}</a>
       {:else}
-        <div class="row">
-          <Input label={t('app.filestores.server_label')} hint={t('app.filestores.server_hint')} bind:value={server} maxlength={512} type="url" />
-          <Button
-            tone="secondary"
-            isBusy={isStarting}
-            data-connect-nextcloud
-            disabledReason={server.trim() ? undefined : t('filestore.server_required')}
-            onclick={() => void connectNextcloud()}
-          >{t('app.filestores.connect_nextcloud')}</Button>
-        </div>
+        {#if kinds.includes('MICROSOFT')}
+          <Radio
+            label={t('app.filestores.kind_label')}
+            bind:value={kind}
+            options={[
+              { value: 'NEXTCLOUD', label: t('app.filestores.nextcloud') },
+              { value: 'MICROSOFT', label: t('app.filestores.microsoft') },
+            ]}
+          />
+        {/if}
+        {#if kind === 'NEXTCLOUD'}
+          <Input label={t('app.filestores.server_label')} hint={t('app.filestores.server_hint')} bind:value={server} maxlength={512} type="url" data-connect-nextcloud />
+        {:else}
+          <p class="quiet">{t('app.filestores.microsoft_hint')}</p>
+        {/if}
       {/if}
     </Stack>
-
-    {#if kinds.includes('MICROSOFT')}
-      <Stack gap="150">
-        <h2 class="head">{t('app.filestores.microsoft')}</h2>
-        <p class="quiet">{t('app.filestores.microsoft_hint')}</p>
-        <div class="row"><Button tone="secondary" data-connect-microsoft onclick={() => void connectMicrosoft()}>{t('app.filestores.connect_microsoft')}</Button></div>
-      </Stack>
-    {/if}
-  </Stack>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => { isConnecting = false; waiting = undefined; }}>{t('app.filestores.cancel')}</Button>
+    {/snippet}
+  </Dialog>
 
   <FinalActDialog
     isOpen={asking !== undefined}
@@ -190,9 +228,7 @@
 <style>
   .what { font-weight: var(--fw-medium); overflow-wrap: anywhere; }
   .meta { color: var(--text-secondary); font-size: var(--fs-075); }
-  .head { margin: 0; font-size: var(--fs-100); }
-  .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-  .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+  .quiet { margin: 0; color: var(--text-secondary); }
   .done { margin: 0; color: var(--text-success); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>
