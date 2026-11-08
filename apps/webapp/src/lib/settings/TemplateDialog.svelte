@@ -13,7 +13,7 @@
   import type { ConfigTemplate, ConfigTemplatePlan, TransportError } from '@hubtask/sync-engine';
 
   import FailureNote from '../frame/FailureNote.svelte';
-  import TemplatePreview from './TemplatePreview.svelte';
+  import TemplateCreates from './TemplateCreates.svelte';
   import PlanReach from './PlanReach.svelte';
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -264,7 +264,7 @@
           <section class="group" aria-label={t('app.templates.creates_title')}>
             <h3>{t('app.templates.creates_title')}</h3>
             {#if summaryOf(chosen)}<p class="quiet">{summaryOf(chosen)}</p>{/if}
-            {#if creates.length > 0}<TemplatePreview template={chosen} isUnfolded />{/if}
+            {#if creates.length > 0}<TemplateCreates template={chosen} />{/if}
             {#if offerOf(chosen) === 'IN_USE'}
               <p class="quiet" data-template-note>{t('app.templates.in_use', { version: chosen.version })}</p>
             {/if}
