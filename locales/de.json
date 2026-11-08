@@ -9325,7 +9325,7 @@
   "app.profile.notification_saved_announced": "Benachrichtigungseinstellung gespeichert.",
   "app.profile.device_section": "Auf diesem Gerät",
   "app.profile.device_title": "Wie es aussieht und sich öffnet",
-  "app.profile.device_hint": "Diese beiden gehören zum Gerät vor dir und nicht zu dir, deshalb behält jedes deiner Geräte seine eigenen (ADR-0043). Sie werden in diesem Browser gespeichert.",
+  "app.profile.device_hint": "Diese beiden gehören zum Gerät vor dir und nicht zu dir, deshalb behält jedes deiner Geräte seine eigenen. Sie werden in diesem Browser gespeichert.",
   "app.profile.theme_system": "Dem Gerät folgen",
   "app.profile.theme_light": "Hell",
   "app.profile.theme_dark": "Dunkel",

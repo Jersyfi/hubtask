@@ -9325,7 +9325,7 @@
   "app.profile.notification_saved_announced": "Notification preference saved.",
   "app.profile.device_section": "On this device",
   "app.profile.device_title": "How it looks and opens",
-  "app.profile.device_hint": "These two belong to the device in front of you rather than to you, so each of your devices keeps its own (ADR-0043). They are kept in this browser.",
+  "app.profile.device_hint": "These two belong to the device in front of you rather than to you, so each of your devices keeps its own. They are kept in this browser.",
   "app.profile.theme_system": "Follow the device",
   "app.profile.theme_light": "Light",
   "app.profile.theme_dark": "Dark",
