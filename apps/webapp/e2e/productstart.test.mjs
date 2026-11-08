@@ -352,7 +352,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`);
+  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/template?template=${SCRUM.key}`);
   const dialog = page.getByRole('dialog');
   await dialog.locator('[data-template-workspace-first]').waitFor({ timeout: 15_000 });
   await dialog.getByRole('button', { name: 'Take template' }).click();
@@ -415,7 +415,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`);
+  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/template?template=${SCRUM.key}`);
   const dialog = page.getByRole('dialog');
   await dialog.locator('[data-template-workspace-first]').waitFor({ timeout: 15_000 });
   await dialog.getByRole('button', { name: 'Take template' }).click();
@@ -473,13 +473,15 @@ test('chromium: a template the workspace has not taken names its administrators 
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules`);
-  const asked = page.locator(`[data-template="${SCRUM.key}"][data-ask-admin]`);
-  await asked.waitFor({ timeout: 15_000 });
+  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/template`);
+  // The templates are a table's rows (page-system §9.6): the name, its state and its take each a cell.
+  const rowOf = (key) => page.getByRole('row').filter({ has: page.locator(`[data-template="${key}"]`) });
+  const asked = rowOf(SCRUM.key);
+  await asked.locator('[data-ask-admin]').waitFor({ timeout: 15_000 });
   await asked.getByText(`Ask an administrator to add it: ${OTHER.display_name}.`).waitFor({ timeout: 10_000 });
   assert.equal(await asked.locator(`[data-take]`).count(), 0, 'a take is offered that the server would refuse');
-  const kanban = page.locator(`[data-template="${KANBAN.key}"]`);
-  assert.equal(await kanban.getAttribute('data-ask-admin'), null, 'a template the workspace took sends to an administrator');
+  const kanban = rowOf(KANBAN.key);
+  assert.equal(await kanban.locator('[data-ask-admin]').count(), 0, 'a template the workspace took sends to an administrator');
   assert.equal(await kanban.locator(`[data-take="${KANBAN.key}"]`).count(), 1, 'a template the workspace took is not offered');
   assert.deepEqual(plans, []);
   assert.deepEqual(failures, []);

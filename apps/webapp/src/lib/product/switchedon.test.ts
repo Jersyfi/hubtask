@@ -46,6 +46,6 @@ test('the card starts with the templates that need the module, linked to the hub
   const desk = { key: 'itil_service_desk', origin: 'HUBTASK', hub_document: {}, document: { modules: { service_desk: { switch: 'ON' } } } };
   const plain = { key: 'kanban_team', origin: 'HUBTASK', hub_document: {}, document: { modules: { workflows: { switch: 'ON' } } } };
   assert.deepEqual(startsOf('SERVICE_DESK', [plain, desk]).map(({ template, href }) => [template.key, href]), [['itil_service_desk', undefined]]);
-  assert.deepEqual(startsOf('SERVICE_DESK', [desk], 'h 1').map(({ href }) => href), ['/hubs/h%201/settings/modules?template=itil_service_desk']);
+  assert.deepEqual(startsOf('SERVICE_DESK', [desk], 'h 1').map(({ href }) => href), ['/hubs/h%201/settings/template?template=itil_service_desk']);
   assert.deepEqual(startsOf('WHITEBOARD', [plain, desk]), []);
 });

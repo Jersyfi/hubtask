@@ -9,7 +9,10 @@
   // with a collection part, which the collection takes under its own handle.
 
   import { untrack } from 'svelte';
-  import { Button, Spinner, TemplateCard, TemplateGallery, ViewSwitcher } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, Spinner, ViewSwitcher } from '@hubtask/design-system/components';
+  import type { DataColumn } from '@hubtask/design-system/components';
+  import TableSection from '../page/TableSection.svelte';
+  import { Continued } from '../page/continued.svelte.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { ConfigTemplate, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
 
@@ -22,7 +25,7 @@
   import { byOrigin, galleryScope, offerOf } from '../data/configtemplates.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
-  import { familiesOf, familyOf, markOf, switchedOn } from '../workspace/hubGallery.ts';
+  import { familiesOf, familyOf, switchedOn } from '../workspace/hubGallery.ts';
 
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
@@ -75,6 +78,12 @@
     list?.status !== 'ready' ? [] : family === 'all' ? list.data.data : list.data.data.filter((each) => familyOf(each) === family),
   );
   const groups = $derived(byOrigin(shown));
+  // A long catalogue continues at its foot (PS-8), at the device's rows per page.
+  const continued = new Continued(() => groups.flatMap((group) => group.templates));
+  $effect(() => {
+    void family;
+    untrack(() => continued.restart());
+  });
   const refusal = $derived(list?.status === 'failed' ? renderProblem(list.error, messages) : undefined);
 
   /** Hubtask's templates are named by their key, in the reader's language. */
@@ -88,6 +97,13 @@
 
   /** The template opened in its dialog, and the one whose plan is being asked. */
   let opened = $state<ConfigTemplate>();
+  /** The template whose content is shown, from the row's menu. */
+  let previewed = $state<ConfigTemplate>();
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.settings.type_name'), priority: 1 },
+    { id: 'products', label: t('app.templates.products'), priority: 3 },
+    { id: 'state', label: t('app.templates.state'), priority: 2, isStatus: true },
+  ]);
   let pending = $state<string>();
 
   // A template chosen on a product's empty home before its hub existed: its plan opens once the
@@ -103,9 +119,12 @@
   });
 </script>
 
-<section class="block" aria-labelledby="templates-gallery" data-templates>
-  <h2 id="templates-gallery">{t(scope === 'collection' ? 'app.templates.collection_gallery' : scope === 'hub' ? 'app.templates.hub_gallery' : 'app.templates.gallery')}</h2>
-  <p class="quiet">{t(scope === 'collection' ? 'app.templates.collection_about' : scope === 'hub' ? 'app.templates.hub_about' : 'app.templates.about')}</p>
+<!-- A place's templates as one table (page-system §9.6, PS-4): the take or the update the row's
+     verb, what it creates behind its ⋯. -->
+<TableSection
+  title={t(scope === 'collection' ? 'app.templates.collection_gallery' : scope === 'hub' ? 'app.templates.hub_gallery' : 'app.templates.gallery')}
+  description={t(scope === 'collection' ? 'app.templates.collection_about' : scope === 'hub' ? 'app.templates.hub_about' : 'app.templates.about')}
+>
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if list?.status !== 'ready'}
@@ -118,48 +137,67 @@
     {#if families.length > 1}
       <ViewSwitcher label={t('app.templates.families')} views={filterViews} selected={family} onselect={(id) => (family = id)} />
     {/if}
-    {#each groups as group (group.origin)}
-      <div data-origin={group.origin}>
-        <TemplateGallery label={t(`app.templates.origin.${group.origin}`)}>
-          {#each group.templates as template (template.key)}
-            {@const offer = offerOf(template)}
-            {@const isAsked = isAskedOf(template)}
-            <TemplateCard
-              name={nameOf(template)}
-              mark={markOf(template)}
-              summary={summaryOf(template)}
-              products={productsOf(template)}
-              data-template={template.key}
-              note={isAsked
+    <div data-templates>
+      <DataTable
+        label={t('app.templates.gallery')}
+        {columns}
+        rows={continued.shown}
+        shownLabel={continued.shownLabel}
+        more={continued.more}
+        perPage={continued.perPage}
+        key={(template) => template.key}
+        rowLabel={nameOf}
+        group={(template) => t(`app.templates.origin.${template.origin}`)}
+        menu={(template) => ({ label: t('app.page.more_for', { name: nameOf(template) }), items: [{ id: 'preview', label: t('app.templates.preview') }] })}
+        onmenu={(template) => (previewed = template)}
+        actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+      >
+        {#snippet cell(template, column)}
+          {@const offer = offerOf(template)}
+          {@const isAsked = isAskedOf(template)}
+          {#if column.id === 'name'}
+            <span class="name" data-template={template.key} data-origin={template.origin} data-ask-admin={isAsked ? '' : undefined}>{nameOf(template)}</span>
+          {:else if column.id === 'products'}
+            <span class="quiet">{productsOf(template).join(', ')}</span>
+          {:else if column.id === 'state'}
+            <span class={offer === 'UPDATE' ? 'news' : 'quiet'}>
+              {isAsked
                 ? administratorNames ? t('app.templates.ask_admin_named', { names: administratorNames }) : t('app.templates.ask_admin')
                 : offer === 'UPDATE'
-                ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
-                : offer === 'IN_USE'
-                  ? t('app.templates.in_use', { version: template.version })
-                  : undefined}
-              isNoteNews={offer === 'UPDATE'}
-              {details}
-              data-ask-admin={isAsked ? '' : undefined}
-              action={offer === 'IN_USE' || isAsked ? undefined : takeAct}
-            />
-            {#snippet details()}<TemplatePreview {template} />{/snippet}
-            {#snippet takeAct()}
-              <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={pending === template.key}
-                data-take={template.key} data-update-available={offer === 'UPDATE' ? '' : undefined} onclick={() => (opened = template)}>
-                {t(offer === 'UPDATE' ? 'app.templates.update' : 'app.templates.take')}
-              </Button>
-            {/snippet}
-          {/each}
-        </TemplateGallery>
-      </div>
-    {/each}
+                  ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
+                  : offer === 'IN_USE'
+                    ? t('app.templates.in_use', { version: template.version })
+                    : ''}
+            </span>
+          {/if}
+        {/snippet}
+        {#snippet verb(template)}
+          {@const offer = offerOf(template)}
+          {#if offer !== 'IN_USE' && !isAskedOf(template)}
+            <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={pending === template.key}
+              data-take={template.key} data-update-available={offer === 'UPDATE' ? '' : undefined} onclick={() => (opened = template)}>
+              {t(offer === 'UPDATE' ? 'app.templates.update' : 'app.templates.take')}
+            </Button>
+          {/if}
+        {/snippet}
+      </DataTable>
+    </div>
   {/if}
-</section>
+</TableSection>
 
 <TemplateDialog template={opened} {hubId} {collectionId} {onnavigate} bind:pending onClose={() => (opened = undefined)} />
 
+{#if previewed}
+  <Dialog size="m" isOpen title={nameOf(previewed)} dismissLabel={t('app.page.close')} onClose={() => (previewed = undefined)}>
+    {#if summaryOf(previewed)}<p class="quiet">{summaryOf(previewed)}</p>{/if}
+    <TemplatePreview template={previewed} />
+  </Dialog>
+{/if}
+
 <style>
-  .block { display: flex; flex-direction: column; gap: var(--sp-150); }
-  .block h2 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .name { font-weight: var(--fw-medium); }
+  .news { color: var(--text-brand); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
 </style>

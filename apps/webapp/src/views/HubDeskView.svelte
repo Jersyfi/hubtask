@@ -91,7 +91,7 @@
       title={t('app.desk_queues.none')}
       description={t('app.desk_queues.none_body')}
       create={mayShape
-        ? { label: t('app.desk.itil_defaults'), onclick: () => onnavigate(`/hubs/${encodeURIComponent(hubId)}/settings/modules?template=${ITIL_TEMPLATE}`) }
+        ? { label: t('app.desk.itil_defaults'), onclick: () => onnavigate(`/hubs/${encodeURIComponent(hubId)}/settings/template?template=${ITIL_TEMPLATE}`) }
         : undefined}
     />
   {:else}

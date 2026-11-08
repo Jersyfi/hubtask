@@ -60,6 +60,6 @@ export function startsOf<T extends Parameters<typeof productTemplates>[0][number
 ): { template: T; href?: string }[] {
   return productTemplates(catalogue, module).map((template) => ({
     template,
-    ...(hubId ? { href: `/hubs/${encodeURIComponent(hubId)}/settings/modules?template=${encodeURIComponent(template.key)}` } : {}),
+    ...(hubId ? { href: `/hubs/${encodeURIComponent(hubId)}/settings/template?template=${encodeURIComponent(template.key)}` } : {}),
   }));
 }

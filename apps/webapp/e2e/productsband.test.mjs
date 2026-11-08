@@ -410,7 +410,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   });
 }
 
-// UX-5, §5.5: a hub with no desk yet offers whoever shapes it the ITIL desk's plan at its Products.
+// UX-5, §5.5: a hub with no desk yet offers whoever shapes it the ITIL desk's plan at its *Templates and presets*.
 test('chromium 1280 px: a hub with no desk offers the ITIL desk to whoever shapes it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -418,7 +418,7 @@ test('chromium 1280 px: a hub with no desk offers the ITIL desk to whoever shape
   t.after(close);
   await page.getByText('This hub has no desk yet').waitFor({ timeout: 10_000 });
   await page.getByRole('button', { name: 'Start from the ITIL defaults' }).click();
-  await page.waitForFunction(() => location.pathname.endsWith('/settings/modules') && location.search === '?template=itil_service_desk', null, { timeout: 5_000 });
+  await page.waitForFunction(() => location.pathname.endsWith('/settings/template') && location.search === '?template=itil_service_desk', null, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
