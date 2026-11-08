@@ -302,6 +302,8 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
   const single = await operatorConsole(browser, { mode: 'single', rows: [workspace(), suspended] });
   t.after(single.close);
   await single.page.getByRole('row').filter({ hasText: 'acme' }).waitFor();
+  // Both rows drawn before their menus are counted: the suspended one is the one that resumes.
+  await single.page.getByRole('row').filter({ hasText: 'paused' }).getByRole('button', { name: /^Actions for / }).waitFor();
   assert.equal(await single.page.getByRole('button', { name: 'New workspace' }).count(), 0);
   assert.equal(await pageOffers(single.page, 'Suspend'), 0);
   assert.equal(await pageOffers(single.page, 'Delete'), 0);

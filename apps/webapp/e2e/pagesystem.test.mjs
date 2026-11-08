@@ -795,6 +795,8 @@ for (const size of [DESKTOP, PHONE]) {
     await main.getByRole('link', { name: MAILBOX.address }).first().click({ timeout: 15_000 });
     await page.waitForFunction((id) => location.pathname === `/administration/mail/mailboxes/${id}`, MAILBOX.id, { timeout: 10_000 });
     await page.locator('[data-page-kind="record"]').waitFor();
+    // The record page names itself *Reading the settings* until the mailbox is read.
+    await main.getByRole('heading', { level: 1, name: MAILBOX.address }).waitFor({ timeout: 15_000 });
     assert.deepEqual((await headings()).map((each) => each.trim()), [MAILBOX.address]);
     const arrived = page.locator('[data-mailbox-arrived]');
     await arrived.getByText('Printer on floor 2').first().waitFor({ timeout: 15_000 });

@@ -86,7 +86,7 @@ test('chromium: approvals - an agent\'s held act approved in the one inbox, and 
   const entries = page.locator('[data-kind="approvals"]');
   assert.equal(await entries.locator('[data-approval]').count(), 50, 'the first page holds fifty');
   await entries.getByRole('button', { name: 'Show more - 50 shown' }).click();
-  await entries.getByText('Laptop order 52').waitFor({ timeout: 5_000 });
+  await entries.getByText('Laptop order 52').filter({ visible: true }).waitFor({ timeout: 5_000 });
   assert.equal(await entries.locator('[data-approval]').count(), 52);
   assert.equal(await entries.getByRole('button', { name: /Show more/ }).count(), 0, 'the last page offers no more');
   assert.ok(asked.length >= 2 && asked[0] === null && asked.at(-1) !== null, `the pages were asked as ${JSON.stringify(asked)}`);
