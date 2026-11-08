@@ -9,7 +9,7 @@
   // refuses anybody else all the same.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, Dialog, Inline, Input, Stack, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { BudgetBurn } from '@hubtask/sync-engine';
 
@@ -43,11 +43,12 @@
   const timeShare = $derived(burn ? burnShare(burn, 'time') : null);
   const moneyShare = $derived(burn ? burnShare(burn, 'money') : null);
 
-  const columns = $derived<Column[]>([
-    { id: 'week', label: t('app.budget.col_week') },
-    { id: 'minutes', label: t('app.budget.col_time'), align: 'end' },
-    { id: 'amount', label: t('app.budget.col_cost'), align: 'end' },
+  const columns = $derived<DataColumn[]>([
+    { id: 'week', label: t('app.budget.col_week'), priority: 1 },
+    { id: 'minutes', label: t('app.budget.col_time'), align: 'end', priority: 1, isStatus: true },
+    { id: 'amount', label: t('app.budget.col_cost'), align: 'end', priority: 2 },
   ]);
+  type Week = NonNullable<typeof burn>['weeks'][number];
 
   let isEditing = $state(false);
   const draft = $state({ hours: '', amount: '', currency: '' });
@@ -111,29 +112,25 @@
       {/if}
     </dl>
     {#if burn.weeks.length > 0}
-      <div class="scroll">
-        <Table label={t('app.budget.burn')} {columns}>
-          {#each burn.weeks as week (week.week)}
-            <tr>
-              <th scope="row">{weekText(week.week, locale)}</th>
-              <td class="number">{minutesText(week.minutes)}</td>
-              <td class="number">{burn.currency ? money(week.amount_minor) : ''}</td>
-            </tr>
-          {/each}
-        </Table>
-      </div>
+      <DataTable label={t('app.budget.burn')} {columns} rows={burn.weeks} key={(week: Week) => week.week}>
+        {#snippet cell(week: Week, column: DataColumn)}
+          {#if column.id === 'week'}{weekText(week.week, locale)}
+          {:else if column.id === 'minutes'}<span class="number">{minutesText(week.minutes)}</span>
+          {:else}<span class="number">{burn?.currency ? money(week.amount_minor) : ''}</span>{/if}
+        {/snippet}
+      </DataTable>
     {/if}
   {/if}
 </section>
 
 {#if isEditing}
-  <Dialog bind:isOpen={isEditing} title={t('app.budget.edit')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isEditing} title={t('app.budget.edit')} dismissLabel={t('app.links.cancel')} size="m"
+    primary={{ label: t('app.budget.save'), onclick: () => void save() }}>
     <Stack gap="150">
       <Input label={t('app.budget.hours')} hint={t('app.budget.hours_hint')} bind:value={draft.hours} />
       <Input label={t('app.budget.amount')} bind:value={draft.amount} />
       <Input label={t('app.budget.currency')} hint={t('app.budget.currency_hint')} maxlength={3} bind:value={draft.currency} />
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-      <Inline justify="end"><Button onclick={() => void save()}>{t('app.budget.save')}</Button></Inline>
     </Stack>
   </Dialog>
 {/if}
@@ -145,7 +142,6 @@
   .facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-050) var(--sp-200); margin: 0; }
   .facts dt { color: var(--text-secondary); }
   .facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
-  .scroll { overflow-x: auto; }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

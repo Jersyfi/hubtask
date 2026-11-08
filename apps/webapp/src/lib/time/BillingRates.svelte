@@ -8,7 +8,7 @@
   // **Drawn only for MANAGE_COSTS or MANAGE_MEMBERS at the plan** (P-05), as the budget is.
 
   import { untrack } from 'svelte';
-  import { Button, Dialog, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, Inline, Input, Stack, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { BillingRate, BillingRateList } from '@hubtask/sync-engine';
 
@@ -41,12 +41,15 @@
     }));
   });
 
-  const columns = $derived<Column[]>([
-    { id: 'rate', label: t('app.billing.col_rate'), align: 'end' },
-    { id: 'from', label: t('app.rates.col_from') },
-    { id: 'to', label: t('app.rates.col_to') },
-    { id: 'actions', label: t('app.rates.col_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'rate', label: t('app.billing.col_rate'), align: 'end', priority: 1 },
+    { id: 'from', label: t('app.rates.col_from'), priority: 2 },
+    { id: 'to', label: t('app.rates.col_to'), priority: 2 },
   ]);
+  const rowMenu = (rate: BillingRate): DataRowMenu => ({
+    label: t('app.page.more_for', { name: moneyText(rate.hour_minor, rate.currency, locale) }),
+    items: [{ id: 'remove', label: t('app.rates.remove'), isDestructive: true }],
+  });
 
   let isEditing = $state(false);
   let editing = $state<BillingRate | undefined>(undefined);
@@ -96,34 +99,30 @@
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if rates}
-    <Table label={t('app.billing.title')} isLabelHidden {columns}>
-      {#snippet empty()}{t('app.billing.empty')}{/snippet}
-      {#each rates as rate (rate.id)}
-        <tr>
-          <td class="number">{moneyText(rate.hour_minor, rate.currency, locale)}</td>
-          <td>{formatPlainDay(rate.from, locale)}</td>
-          <td>{rate.to ? formatPlainDay(rate.to, locale) : t('app.rates.open_ended')}</td>
-          <td>
-            <Inline gap="050">
-              <Button size="sm" tone="subtle" icon="pencil" onclick={() => open(rate)}>{t('app.rates.edit')}</Button>
-              <Button size="sm" tone="subtle" icon="trash" onclick={() => void remove(rate)}>{t('app.rates.remove')}</Button>
-            </Inline>
-          </td>
-        </tr>
-      {/each}
-    </Table>
+    <DataTable label={t('app.billing.title')} {columns} rows={rates} key={(rate: BillingRate) => rate.id}
+      onopen={(rate: BillingRate) => open(rate)} menu={rowMenu} onmenu={(rate: BillingRate) => void remove(rate)}
+      rowLabel={(rate: BillingRate) => moneyText(rate.hour_minor, rate.currency, locale)} actionsLabel={t('app.rates.col_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+      {#snippet empty()}<p class="quiet">{t('app.billing.empty')}</p>{/snippet}
+      {#snippet cell(rate: BillingRate, column: DataColumn)}
+        {#if column.id === 'rate'}<span class="number">{moneyText(rate.hour_minor, rate.currency, locale)}</span>
+        {:else if column.id === 'from'}{formatPlainDay(rate.from, locale)}
+        {:else}{rate.to ? formatPlainDay(rate.to, locale) : t('app.rates.open_ended')}{/if}
+      {/snippet}
+      {#snippet verb(rate: BillingRate)}<Button size="sm" tone="subtle" icon="pencil" onclick={() => open(rate)}>{t('app.rates.edit')}</Button>{/snippet}
+    </DataTable>
   {/if}
 </section>
 
 {#if isEditing}
-  <Dialog bind:isOpen={isEditing} title={editing ? t('app.rates.edit') : t('app.rates.add')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isEditing} title={editing ? t('app.rates.edit') : t('app.rates.add')} dismissLabel={t('app.links.cancel')} size="m"
+    primary={{ label: t('app.rates.save'), onclick: () => void save() }}>
     <Stack gap="150">
       <Input label={t('app.rates.amount')} bind:value={draft.amount} />
       <Input label={t('app.rates.currency')} hint={t('app.budget.currency_hint')} maxlength={3} bind:value={draft.currency} />
       <Input label={t('app.rates.col_from')} type="date" bind:value={draft.from} />
       <Input label={t('app.rates.col_to')} hint={t('app.rates.to_hint')} type="date" bind:value={draft.to} />
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-      <Inline justify="end"><Button onclick={() => void save()}>{t('app.rates.save')}</Button></Inline>
     </Stack>
   </Dialog>
 {/if}
