@@ -8,20 +8,20 @@
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { PERMISSIONS, PRESETS, ROLES, fallback } from './fixture.mjs';
+import { MANIFEST, PERMISSIONS, PRESETS, ROLES, fallback, presetStructure } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
 export const id = (n) => `01a0e2e0-0000-7000-8000-${String(n).padStart(12, '0')}`;
 export const ACCOUNT = { id: id(1), kind: 'USER', display_name: 'Mara Lind', email: 'mara@example.invalid', status: 'ACTIVE', locale: 'en', onboarding_completed_at: '2026-09-01T00:00:00Z', products_seen: ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'] };
-export const hub = (n, name, color) => ({ id: id(n), type: 'HUB', parent_id: null, name, color_token: color, order_key: `a${n}`, version: 1 });
+export const hub = (n, name, color) => ({ id: id(n), type: 'HUB', parent_id: null, name, color_token: color, order_key: `a${n}`, version: 1, structure: presetStructure('PROJECT') });
 export const IT = hub(100, 'IT operations', 'teal');
 export const PD = hub(101, 'Product development', 'orange');
 export const HOME = hub(102, 'Household', 'violet');
 export const OTHERS = ['Marketing', 'People', 'Finance', 'Facilities', 'Sales', 'Purchasing', 'Legal', 'Research', 'Support', 'Design', 'Data'].map((name, i) => hub(110 + i, name, 'blue'));
 export const HUBS = [PD, IT, HOME, ...OTHERS];
-export const collection = (n, parent, name, extra = {}) => ({ id: id(n), type: 'COLLECTION', parent_id: parent.id, name, order_key: `a${n}`, version: 1, ...extra });
+export const collection = (n, parent, name, extra = {}) => ({ id: id(n), type: 'COLLECTION', parent_id: parent.id, name, order_key: `a${n}`, version: 1, ...extra, structure: { ...presetStructure('PROJECT'), settings: { ...presetStructure('PROJECT').settings, ...extra.structure?.settings } } });
 export const DESK = collection(200, IT, 'Service desk', { structure: { settings: { entry_types: { TASK: ['incident'] } } }, figure: { kind: 'DUE', due: 1 } });
 export const CHANGES = collection(201, IT, 'Changes', { figure: { kind: 'OPEN', open: 4 } });
 export const WEB = collection(210, PD, 'Web app', { figure: { kind: 'OPEN', open: 18 } });
@@ -51,7 +51,12 @@ export const RELEASES = [{ id: id(710), hub_id: PD.id, name: 'Release 3.2', stat
 /** What is on the reader today: five entries due by tonight, and one later. */
 export const MINE = [0, 0, 0, -1, -2, 6].map((offset, i) => ({ id: id(800 + i), title: `Entry ${i + 1}`, collection_id: WEB.id, due_at: `${day(offset)}T00:00:00Z`, due_date_only: true, completion: { is_completed: false } }));
 export const ARRIVALS = [0, 1, 2].map((i) => ({ id: id(900 + i), channel: 'EMAIL', attachments: [], status: 'NEW', received_at: '2026-11-07T08:00:00Z' }));
-export const APPROVALS = [0, 1].map((i) => ({ id: id(950 + i), state: 'PENDING' }));
+// Two approvals in the contract's shape: *Waiting for your yes* draws each as a card.
+export const APPROVALS = ['Laptop for the new designer', 'Firewall rule for the build server'].map((title, i) => ({
+  id: id(950 + i), item_id: id(960 + i), item_title: title, item_number: 70 + i, on_behalf_of: null, workflow: 'requests', step: 'approve',
+  item_version: 1, state: 'PENDING', current_level: 1, levels: [{ rule: 'ANY', count: 1, approvers: [ACCOUNT.id], roles: [], needed: 1 }],
+  decisions: [], requested_by: id(2), requested_at: '2026-11-06T09:00:00Z', decided_at: null, due_at: null, may_decide: true, version: 1,
+}));
 export const KB = { id: id(300), hub_id: IT.id, parent_id: null, title: 'Knowledge base', order_key: 'a1', template: false, version: 1 };
 export const VPN = { id: id(301), hub_id: IT.id, parent_id: KB.id, title: 'Set up the VPN', order_key: 'a1', template: false, version: 1 };
 export const RUNBOOKS = { id: id(302), hub_id: IT.id, parent_id: null, title: 'Runbooks', order_key: 'a2', template: false, version: 1 };
@@ -63,15 +68,91 @@ export const QUEUES = [
   { view_id: id(502), key: 'unassigned', name: 'Unassigned', count: 2, at_risk: 0 },
 ];
 export const PAGE = { items: [], page: { next_cursor: null, has_more: false } };
+/** The one request a queue lists. */
+export const QUEUE_REQUEST = { id: id(1200), title: 'Printer on the 2nd floor does not print', collection_id: DESK.id, number: 41, created_by: id(1), assignee_id: null, status: null, completion: { is_completed: false } };
+
+// Each collection's entries and its board's columns, so a collection, its board and its sprint
+// show work rather than an empty list. The desk keeps its own answer (one request, by the queue).
+const COLUMNS = ['To do', 'Doing', 'Done'];
+export const BUCKETS = Object.fromEntries(COLLECTIONS.map((at, c) => [at.id, COLUMNS.map((name, i) => ({
+  id: id(3000 + c * 10 + i), collection_id: at.id, name, order_key: `a${i}`, wip_limit: null, is_done_bucket: i === 2, color_token: null, version: 1,
+}))]));
+const TITLES = {
+  [WEB.id]: ['Sign-in with passkeys', 'Faster first load', 'Offline banner', 'Keyboard shortcuts sheet', 'Dark mode contrast', 'Export to CSV'],
+  [MOBILE.id]: ['Push notifications', 'Swipe to complete', 'Share sheet', 'Widget for today', 'Haptics on drop', 'Crash on rotate'],
+  [DESIGN.id]: ['Icon set review', 'Empty states', 'Colour tokens audit', 'Onboarding illustrations'],
+  [BUGS.id]: ['Timeline jumps on scroll', 'Duplicate toast', 'Avatar blurry on retina'],
+  [CHANGES.id]: ['Upgrade the database', 'Rotate the certificates', 'New firewall rule', 'Move the backups'],
+  [TODO.id]: ['Pay the electricity bill', 'Book the chimney sweep', 'Buy a new kettle'],
+};
+export const ENTRIES = Object.entries(TITLES).flatMap(([at, titles], c) => titles.map((title, i) => ({
+  id: id(4000 + c * 20 + i), type: 'TASK', title, collection_id: at, parent_id: null, depth: 0, order_key: `a${i}`, version: 1, number: 10 + i,
+  completion: { is_completed: i % 4 === 3 }, labels: [], label_ids: [], bucket_id: BUCKETS[at][i % 4 === 3 ? 2 : i % 2].id,
+  ...(i === 1 ? { due_at: `${day(3)}T09:00:00Z`, due_date_only: true } : {}),
+})));
+/** Every entry a link on the walks' screens opens: the collections', *Today*'s, the backlog's, the approvals'. */
+const asEntry = (each, at = WEB.id) => ({ type: 'TASK', collection_id: at, parent_id: null, depth: 0, order_key: 'a', version: 1, number: 1, completion: { is_completed: false }, labels: [], label_ids: [], ...each });
+const OPENABLE = () => [
+  ...ENTRIES, ...MINE.map((each) => asEntry(each)), asEntry({ id: id(650), title: 'Offline mode' }, MOBILE.id),
+  ...APPROVALS.map((each) => asEntry({ id: each.item_id, title: each.item_title, number: each.item_number }, DESK.id)),
+];
+/** The sprint's entries, as `GET /sprints/{id}` lists them: the collection's first four. */
+const sprintEntries = (at) => ENTRIES.filter((each) => each.collection_id === at).slice(0, 4).map((each) => ({
+  item_id: each.id, title: each.title, added_at: '2026-11-01T08:00:00Z', removed_at: null, committed: true, outcome: null,
+  done: each.completion.is_completed, started: true, completed_at: null, estimate: 3,
+}));
+/** Every page of every hub a walk opens: the handbook and IT operations' knowledge. */
+const PAGES = () => [...PD_PAGES, KB, VPN, RUNBOOKS, TEMPLATE];
+const BOARDS = () => [...PD_BOARDS, MAP];
+/** A page as `GET /pages/{id}` answers it (PageRead). */
+export function pageRead(found, writable = true) {
+  const parent = PAGES().find((each) => each.id === found.parent_id);
+  return {
+    icon: null, position: 0, content_language: 'en', owner_id: null, verified_until: null, verified_at: null, verified_by: null, due_for_review: false,
+    archived: false, restricted: false, daily_for: null, trashed_at: null, created_by: ACCOUNT.id, created_at: '2026-11-01T08:00:00Z', updated_by: ACCOUNT.id,
+    body: 'Welcome to the team.', labels: [], drafts: false, unpublished: false, draft: null, shared: false,
+    ...found, writable, ancestors: parent ? [{ id: parent.id, title: parent.title }] : [], updated_at: '2026-11-06T10:00:00Z',
+  };
+}
+/** A whiteboard as `GET /whiteboards/{id}` answers it (WhiteboardRead): two stickies on it. */
+export function boardRead(found, writable = true) {
+  const sticky = (n, x, text) => ({ id: `s${n}`, kind: 'STICKY', x, y: 80, width: 180, height: 120, text, color_token: null });
+  const elements = [sticky(1, 80, 'What went well'), sticky(2, 320, 'What to change')];
+  return {
+    element_count: elements.length, elements, trashed_at: null, created_by: ACCOUNT.id, created_at: '2026-11-01T08:00:00Z', updated_by: ACCOUNT.id,
+    updated_at: '2026-11-06T10:00:00Z', parent_page_id: null, order_key: null, ...found, writable,
+  };
+}
 
 /** `extra(route, request, url)` answers first where a walk needs more; it returns whether it did. */
 export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, administration = true, owner = false, extra }) {
-  const written = { preferences: [], stars: [] };
+  const written = { preferences: [], stars: [], pages: [], boards: [] };
   const handler = async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
     if (extra && (await extra(route, request, url))) return;
+    // A queue's one request, and the move dialog's pre-check: IT operations with obstacles, every
+    // other hub with warnings only.
+    if (path.endsWith('/api/v1/items:query') && (request.postDataJSON()?.filter?.nodes ?? []).some((node) => node.field === 'sla_standing')) {
+      return route.fulfill({ json: { data: [QUEUE_REQUEST], groups: [], total: 1, page: { next_cursor: null, has_more: false } } });
+    }
+    if (path.endsWith(':move-preview')) {
+      const to = request.postDataJSON()?.target_parent_id;
+      return route.fulfill({
+        json: to === IT.id
+          ? {
+              movable: false,
+              obstacles: [{ code: 'containers.name_taken', params: {} }, { code: 'entry_types.hub_bound', params: {} }],
+              consequences: [
+                { code: 'containers.move_loses_access', params: { count: '2', account_ids: `${id(61)},${id(62)}` } },
+                { code: 'containers.move_takes_structure', params: { hub_id: IT.id } },
+                { code: 'containers.move_keeps_releases', params: { count: '4', hub_id: PD.id } },
+              ],
+            }
+          : { movable: true, obstacles: [], consequences: [{ code: 'containers.move_loses_access', params: { count: '1', account_ids: id(61) } }] },
+      });
+    }
     // `owner`: the reader owns the workspace, so every ＋ and ⋯ a hub offers is drawn.
     if (owner && path.endsWith('/api/v1/memberships')) {
       const scope = url.searchParams.get('scope_type');
@@ -100,7 +181,9 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
       return route.fulfill({ json: { stars, version: written.stars.length } });
     }
     if (path.endsWith('/api/v1/meta/capabilities')) {
-      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: administration ? PERMISSIONS.OWNER : ['READ', 'WRITE_ITEMS'], modules_on: modulesOn, ...(owner ? { roles: ROLES } : {}) } });
+      // The shared manifest's types and query fields: a board groups by `bucket_id` because the manifest
+      // says it may, and a collection offers *Add an entry* for a type the manifest declares.
+      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: MANIFEST.item_types, query_fields: MANIFEST.query_fields, view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: administration ? PERMISSIONS.OWNER : ['READ', 'WRITE_ITEMS'], modules_on: modulesOn, ...(owner ? { roles: ROLES } : {}) } });
     }
     const modules = /\/api\/v1\/containers\/([^/]+)\/modules$/.exec(path);
     if (modules) {
@@ -126,7 +209,7 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith(`/api/v1/hubs/${IT.id}/cmdb-health`)) return route.fulfill({ json: { total: 120, problems: Array.from({ length: 6 }, (_, i) => ({ ci_id: id(980 + i), kind: 'STALE' })) } });
     if (path.endsWith('/api/v1/goals') && url.searchParams.get('hub_id') === PD.id) return route.fulfill({ json: { data: GOALS, ...PAGE } });
     // The reader's week and timer, empty: *Today* draws its time line from them.
-    if (/\/api\/v1\/timesheets\/[^/]+$/.test(path)) return route.fulfill({ json: { week: url.pathname.split('/').pop(), days: [], minutes: 0, entries: [], state: 'OPEN' } });
+    if (/\/api\/v1\/timesheets\/[^/]+$/.test(path)) return route.fulfill({ json: { week: url.pathname.split('/').pop(), days: [], minutes: 0, entries: [], records: [], state: 'OPEN' } });
     if (path.endsWith('/api/v1/timer')) return route.fulfill({ json: { running: null } });
     if (path.endsWith('/api/v1/jumble/entries')) return route.fulfill({ json: { data: url.searchParams.get('status') === 'NEW' ? ARRIVALS : [], page: { next_cursor: null } } });
     if (path.endsWith('/api/v1/approvals')) return route.fulfill({ json: { data: APPROVALS, page: { next_cursor: null, has_more: false } } });
@@ -136,8 +219,54 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith('/api/v1/items:query')) {
       const body = request.postDataJSON() ?? {};
       const nodes = body.filter?.nodes ?? [];
-      if (nodes.some((node) => node.field === 'collection_id' && node.value?.includes?.(DESK.id))) return route.fulfill({ json: { data: [], total: 1, page: { next_cursor: null, has_more: false } } });
-      return route.fulfill({ json: { data: [], total: 0, page: { next_cursor: null, has_more: false } } });
+      const none = { next_cursor: null, has_more: false };
+      if (nodes.some((node) => node.field === 'collection_id' && node.value?.includes?.(DESK.id))) return route.fulfill({ json: { data: [], groups: [], total: 1, page: none } });
+      const at = body.scope?.container_id;
+      const level = at && !body.scope?.item_id ? ENTRIES.filter((each) => each.collection_id === at) : [];
+      if (body.group_by && BUCKETS[at]) {
+        const groups = [...BUCKETS[at].map((each) => each.id), null].map((key) => {
+          const data = level.filter((each) => (each.bucket_id ?? null) === key);
+          return { key, count: data.length, data, page: none };
+        });
+        return route.fulfill({ json: { data: [], groups, total: level.length, page: none } });
+      }
+      return route.fulfill({ json: { data: level, groups: [], total: level.length, page: none } });
+    }
+    const entry = OPENABLE().find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+    if (entry && request.method() === 'GET') return route.fulfill({ json: entry });
+    const buckets = /\/api\/v1\/containers\/([^/]+)\/buckets$/.exec(path);
+    if (buckets && request.method() === 'GET') return route.fulfill({ json: BUCKETS[buckets[1]] ?? [] });
+    // A page or a whiteboard opened, and one made: answered in the contract's shapes, so opening
+    // content and *New page* or *New whiteboard* land on a page rather than on a list's shape.
+    const opened = /\/api\/v1\/pages\/([^/:]+)$/.exec(path);
+    const known = opened && PAGES().find((each) => each.id === opened[1]);
+    if (known && request.method() === 'GET') return route.fulfill({ json: pageRead(known, owner) });
+    const board = /\/api\/v1\/whiteboards\/([^/:]+)$/.exec(path);
+    const drawn = board && BOARDS().find((each) => each.id === board[1]);
+    if (drawn && request.method() === 'GET') return route.fulfill({ json: boardRead(drawn, owner) });
+    if (path.endsWith('/api/v1/pages') && request.method() === 'POST') {
+      const body = request.postDataJSON() ?? {};
+      const made = { id: id(5000 + written.pages.length), hub_id: body.hub_id, parent_id: body.parent_id ?? null, title: body.title ?? '', order_key: 'z', template: false, version: 1 };
+      written.pages.push(made);
+      PD_PAGES.push(made);
+      return route.fulfill({ status: 201, json: pageRead(made) });
+    }
+    // An opened page's own lists, a release, a plan's workload and the other hubs' inventory health,
+    // in the contract's shapes rather than a list's.
+    if (/\/api\/v1\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { labels: [] } });
+    if (/\/api\/v1\/pages\/[^/]+\/[a-z-]+$/.test(path) && request.method() === 'GET') return route.fulfill({ json: { data: [], ...PAGE } });
+    const release = /\/api\/v1\/releases\/([^/]+)$/.exec(path);
+    const shipped = release && RELEASES.find((each) => each.id === release[1]);
+    if (shipped && request.method() === 'GET') return route.fulfill({ json: { description: '', released_at: null, notes_page_id: null, ...shipped, entries: [], done_count: 0, open_count: 0 } });
+    const workload = /\/api\/v1\/plans\/([^/]+)\/workload$/.exec(path);
+    if (workload) return route.fulfill({ json: { plan_id: workload[1], aggregated: false, cells: [], team: [], unscheduled_minutes: 0 } });
+    if (/\/api\/v1\/hubs\/[^/]+\/cmdb-health$/.test(path) && !path.includes(IT.id)) return route.fulfill({ json: { total: 0, problems: [], review_overdue: 0 } });
+    if (path.endsWith('/api/v1/whiteboards') && request.method() === 'POST') {
+      const body = request.postDataJSON() ?? {};
+      const made = { id: id(5500 + written.boards.length), hub_id: body.hub_id, title: body.title ?? '', parent_page_id: body.parent_page_id ?? null, order_key: 'z', version: 1 };
+      written.boards.push(made);
+      PD_BOARDS.push(made);
+      return route.fulfill({ status: 201, json: boardRead(made) });
     }
     if (/\/api\/v1\/collections\/[^/]+\/sprints$/.test(path)) {
       const at = /collections\/([^/]+)\/sprints/.exec(path)[1];
@@ -147,14 +276,18 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (/\/api\/v1\/collections\/[^/]+\/sprint-backlog$/.test(path)) return route.fulfill({ json: { data: [{ item_id: id(650), title: 'Offline mode', estimate: null }] } });
     if (/\/api\/v1\/collections\/[^/]+\/velocity$/.test(path)) return route.fulfill({ json: { unit: 'POINTS', average: 0, sprints: [] } });
     const running = Object.values(SPRINTS).flat().find((each) => path.endsWith(`/api/v1/sprints/${each.id}`));
-    if (running) return route.fulfill({ json: { sprint: running, entries: [], burndown: [] } });
+    if (running) return route.fulfill({ json: { sprint: running, entries: sprintEntries(running.collection_id), burndown: [] } });
+    const single = /\/api\/v1\/containers\/([^/:]+)$/.exec(path);
+    const place = single && [...HUBS, ...COLLECTIONS].find((each) => each.id === single[1]);
+    if (place && request.method() === 'GET') return route.fulfill({ json: place });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: HUBS } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: COLLECTIONS.filter((each) => each.parent_id === url.searchParams.get('parent_id')) } });
     // A plan's schedule, empty: the tool's and a collection's timeline open on it.
     if (/\/api\/v1\/plans\/[^/]+\/schedule$/.test(path)) return route.fulfill({ json: { zone: 'UTC', finish: null, entries: [], dependencies: [], conflicts: [], unscheduled: [], undated: [], critical_path: [] } });
     if (/\/api\/v1\/plans\/[^/]+\/baselines$/.test(path)) return route.fulfill({ json: { data: [] } });
     if (/\/api\/v1\/plans\/[^/]+\/tolerance$/.test(path)) return route.fulfill({ json: { time_tolerance_days: null, source: 'DEFAULT', locked_by: null, baseline_id: null, exception: null } });
-    if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
+    // A place's own lists, bare arrays; the workspace's templates (`/config/templates`) are a page.
+    if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path) && !path.includes('/api/v1/config/')) return route.fulfill({ json: [] });
     return fallback(route, request, path);
   };
   return { handler, written };

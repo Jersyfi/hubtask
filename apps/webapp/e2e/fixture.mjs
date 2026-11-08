@@ -626,6 +626,8 @@ export const PRESET_SETTINGS = {
     counts: { figure: 'FLOW', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: ['REQUIRED_BEYOND_FIRST_COLUMN'],
   },
 };
+/** A container's structure in force, as every read of it carries one (the settings screen draws it). */
+export const presetStructure = (preset) => ({ preset, settings: PRESET_SETTINGS[preset], sources: own(), locks: {}, counts_clipped: null });
 /** Hubtask's four presets, as `GET /presets` answers them. */
 export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => ({ origin: 'HUBTASK', key, settings }));
 export const SHAPES = {
@@ -1346,6 +1348,21 @@ export function fallback(route, request, path) {
   if (read === '/settings/catalogue' && request.method() === 'GET') return route.fulfill({ json: SETTINGS_CATALOGUE });
   if (read === '/roles' && request.method() === 'GET') return route.fulfill({ json: ROLE_CATALOGUE });
   if (read === '/time-work-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
+  // A plan's time and the reader's file stores, empty, in the contract's shapes rather than a list's:
+  // the hub's and a collection's *Time*, the report and *Profile -> Files* read fields a page lacks.
+  const plan = /^\/plans\/([^/]+)\/(actuals|budget|billing-rates)$/.exec(read);
+  if (plan && request.method() === 'GET') {
+    if (plan[2] === 'actuals') return route.fulfill({ json: { plan_id: plan[1], estimate_hours: 0, minutes: 0, data: [] } });
+    if (plan[2] === 'billing-rates') return route.fulfill({ json: { data: [] } });
+    return route.fulfill({ json: { plan_id: plan[1], budgeted: false, budget_minutes: 0, budget_amount_minor: 0, currency: 'EUR', version: 0, minutes: 0, amount_minor: 0, unpriced_minutes: 0, over_time: false, over_money: false, weeks: [] } });
+  }
+  if (read === '/time-records:report' && request.method() === 'POST') {
+    return route.fulfill({ json: { group_by: request.postDataJSON()?.group_by ?? [], groups: [], minutes: 0, withheld_minutes: 0, withheld_groups: 0 } });
+  }
+  // An entry's configuration items, none: a desk's entry reads them beside its fields.
+  const cis = /^\/items\/([^/]+)\/cis$/.exec(read);
+  if (cis && request.method() === 'GET') return route.fulfill({ json: { item_id: cis[1], cis: [], services: [], related: [], collisions: [] } });
+  if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
