@@ -517,7 +517,10 @@ level may configure, shared blocks read-only with *Make a copy here*. A hub's mo
 its templates are separate sections (*Products*, *Templates and presets*). Both words stay
 (`design-system.md`); the section and the administration's page that lists them read *Templates
 and presets*, so a person looking for either word finds it. Entry templates are called *Entry templates*,
-so a template of entries means one thing. A test pins the section order per level.
+so a template of entries means one thing. A collection's policies - whether completion rolls up,
+how new entries are handed out - are a section of their own after *Rules*, *Completion and
+assignment*: a document saved on its own, so each section keeps one save model (page-system PS-10).
+A test pins the section order per level.
 
 ### 5.8 Refusals and failures
 
