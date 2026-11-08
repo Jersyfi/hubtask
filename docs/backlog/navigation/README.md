@@ -681,20 +681,20 @@ after the list.
 
 | # | Finding | Status |
 |---|---|---|
-| R-1 | *This screen stopped working* appears very often. Check for each whether the reader lacks a permission — then the view is not offered at all — or whether it is a bug. An option the reader may not use is never selectable; it only confuses. | open |
-| R-2 | *Waiting for your yes* → *This screen stopped working*. | open |
+| R-1 | *This screen stopped working* appears very often. Check for each whether the reader lacks a permission — then the view is not offered at all — or whether it is a bug. An option the reader may not use is never selectable; it only confuses. | triaged: every crash was the preview's stub, none on the real demo (below); no option a reader may not use was found offered - done |
+| R-2 | *Waiting for your yes* → *This screen stopped working*. | demo gap, fixed (`48f924e02`) - done |
 | R-3 | Products in the sidebar: hiding and showing is hard to use. Hidden and shown persist for the account; *More* expands the hidden products below it, collapsible, collapsed by default; the hide/show dropdown is poor (clicking again and again, the order changes, no icon colours, nothing to recognise); a product whose module is off for the workspace does not appear. | open |
-| R-4 | Hubs: the same hiding and showing, per hub through its ⋯ menu (persisting), the same *More*; moving hubs does not work (perhaps the sort choice — a manual order is needed); *Settings* shows *Only someone who may change how this place is set up sees its settings* — without the permission the entry is not shown. | open |
-| R-5 | In a hub, clicking existing content or creating a new page → *This screen stopped working*. What one can see and click matches what one may do. | open |
+| R-4 | Hubs: the same hiding and showing, per hub through its ⋯ menu (persisting), the same *More*; moving hubs does not work (perhaps the sort choice — a manual order is needed); *Settings* shows *Only someone who may change how this place is set up sees its settings* — without the permission the entry is not shown. | *Settings*: demo gap and a refusal said while loading, fixed (`48f924e02`, `f6878b5b0`); hiding, *More* and moving hubs open |
+| R-5 | In a hub, clicking existing content or creating a new page → *This screen stopped working*. What one can see and click matches what one may do. | demo gap, fixed (`48f924e02`); the real demo creates and opens pages as a member - done |
 | R-6 | *Switch hub*: the flyout opens at the screen's top-left edge; *Recently visited* carries a grey bar that does not fit the cards; the side spacing is narrower than the search's; the text is not centred; a collapse arrow with a pointer cursor does nothing; the same bars in the burger-menu sidebar on narrow screens (decide whether collapsing makes sense there); the *Switch hub* icon equals the *Change position* icon; changing a hub's position belongs only where all hubs are listed, not inside a hub. | open |
-| R-7 | Whiteboards do not work in the demo. | open |
+| R-7 | Whiteboards do not work in the demo. | demo gap, fixed (`48f924e02`) - done |
 | R-8 | Sidebar collapsed, hovering opens it (good), but the view tab bar (*Board*, *Sprint 9*) is drawn above it. | open |
 | R-9 | The scrollbar looked better before: on hover a track background and its border. | open |
-| R-10 | In any collection or sprint, no entries are shown. | open |
-| R-11 | *Product development → Mobile*: switching views changes the tab bar's height depending on what is above it; the *Time* view crashes; on *Board* one can star and *12 open* stands beside it, on *Sprint 9* one cannot star and *8 days left* stands below. | open |
+| R-10 | In any collection or sprint, no entries are shown. | demo gap, fixed (`48f924e02`) - done |
+| R-11 | *Product development → Mobile*: switching views changes the tab bar's height depending on what is above it; the *Time* view crashes; on *Board* one can star and *12 open* stands beside it, on *Sprint 9* one cannot star and *8 days left* stands below. | *Time* crash: demo gap, fixed (`48f924e02`); the bar's height and the star open |
 | R-12 | *Starred*, *Products*, *Hubs*: the chevron shows a pointer and is clickable, but nothing expands or collapses. | open |
 | R-13 | Collection *Design*, narrowing the window: the tabs and the horizontal tools overlap; the tabs scroll, but *Filter*, for example, should shrink to its icon. | open |
-| R-14 | *Profile → Files* → *This screen stopped working*. Check whether something broke in general. | open |
+| R-14 | *Profile → Files* → *This screen stopped working*. Check whether something broke in general. | demo gap, fixed (`48f924e02`, `7e59a80bb`); nothing broken in general - done |
 | R-15 | Phone: navigating to another page keeps the scroll position instead of starting at the top. | open |
 
 ### Triage of the crashes
@@ -706,3 +706,31 @@ machine") as an owner and as a plain member, at 1440 px and 390 px. *Class* is o
 
 | Screen | Reader | Class | Cause | Fixed by |
 |---|---|---|---|---|
+| *Waiting for your yes* (R-2) | preview | demo gap | the stub's approvals carried an id and a state only - no `decisions`, `levels`, entry | the stub answers the `Approval` shape |
+| *Profile -> Files* (R-14) | preview | demo gap | `/integrations/file-stores` answered as a page, without `kinds` | the fixture answers the list; the screen reads a missing list as empty |
+| A hub's page, *New page* (R-5) | preview | demo gap | only Product development's pages were answered, and in `preview.mjs` alone; `POST /pages` answered a list | the stub answers every hub's pages and the create |
+| An approval's or the backlog's entry | preview | demo gap | `GET /items/{id}` and its configuration items answered a list | the stub answers the entries, the fixture the CI read; the CI panel reads a missing list as empty |
+| A whiteboard (R-7) | preview | demo gap | `GET /whiteboards/{id}` answered a list: no id, the realtime connection went to `whiteboard/undefined` | the stub answers `WhiteboardRead` with two stickies |
+| A collection, its board, its sprint (R-10) | preview | demo gap | `items:query` answered nothing; the stub's manifest declared no entry types and no query fields, so the board asked no `group_by` | the stub's entries and buckets, the shared manifest's types and fields, the sprint's entries |
+| A collection's *Time*, a hub's budget, the time report (R-11) | preview | demo gap | actuals, budget, billing rates and the report answered as a page | the fixture answers them |
+| A hub's *Settings* (R-4) | owner, preview | demo gap; bug before this branch | the stub's containers had no `structure`, and the screen said *Only someone who may change …* whenever the structure or the role was still unread - to the owner who had chosen *Settings* | the stub's structures; the refusal only where the role refuses `STRUCTURE`, a skeleton while either is unread |
+| *Administration*, *Changes*, IT operations' inventory health and groups | preview | demo gap | the stub's catch-all answered `/config/templates` with a bare array; `/config`, the sandbox, the service map and the health in other shapes | narrowed; the fixture answers them |
+
+On the real demo (`docs/evidence/README.md`, "The whole demo on one machine", with a household and
+eight more hubs now) a crawl that opens every link it finds - every sidebar entry, hub tool,
+collection view (list, board, sprint, backlog, timeline, time), pages, whiteboards, product homes,
+*Waiting for your yes*, *Profile -> Files*, the administration - met no boundary: owner 105 and
+member 86 screens at 1440 px, owner 127 and member 105 at 390 px, and no `403`. The preview after
+the fixes: none either (`e2e/kompassreview.test.mjs` opens each screen above).
+
+**Permissions (R-1).** An option is drawn from the reader's role at the place
+(`people.roleOf(path)`) and the manifest's matrix (`holds(role, permission)`,
+`lib/data/capability.svelte.ts`) - one mechanism, used by the sidebar's ⋯ and ＋ (`placeMenu`), the
+page head and the screens. Walked on the real demo: a viewer's hub ⋯ holds *Copy link* only and no
+＋; a member's ＋ offers *Page*, *From a template…*, *Whiteboard*, and *Page* creates one; *Settings*
+stands only for a holder of `STRUCTURE`. Its address typed by a member says the refusal, as a
+screen reached by address does (P-05).
+
+Seen on the real demo beside the review, open: the sidebar's *Plan* row loses its name to the
+running sprint's figure (*P Sprint 24 – Passkeys · 7 T*, German, 1440 px); *Today*'s *Lists* card
+overflows its column sideways.
