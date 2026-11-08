@@ -551,4 +551,40 @@ for (const size of [DESKTOP, PHONE]) {
     }
     assert.deepEqual(failures, []);
   });
+
+  test(`chromium ${at}: Your settings are one page kind each, their lists narrow and count, Name and language lists its sections (UC-WRK-36 check 1, UC-WRK-37 checks 1-2, UC-WRK-38 check 1)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    for (const [path, kind] of [
+      ['/profile', 'settings'], ['/profile/you/language', 'settings'], ['/profile/appearance', 'settings'],
+      ['/profile/notifications', 'settings'], ['/profile/security', 'settings'],
+      ['/profile/sessions', 'list'], ['/profile/devices', 'list'], ['/profile/apps', 'list'], ['/profile/tokens', 'list'],
+    ]) {
+      await visit(page, path);
+      await page.locator('[data-page-kind]').first().waitFor({ timeout: 15_000 });
+      const kinds = await page.locator('[data-page-kind]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-page-kind')));
+      assert.deepEqual(kinds, [kind], `${path} draws ${kinds.join(', ') || 'no page kind'}`);
+      const main = page.getByRole('main');
+      if (kind === 'list') {
+        await main.getByRole('searchbox').first().waitFor({ timeout: 15_000 });
+        const fields = await main.locator('input:not([type="search"]):not([role="switch"]), select, textarea, form').evaluateAll((nodes) => nodes.filter((node) => node.getClientRects().length > 0).length);
+        assert.equal(fields, 0, `${path} opens a field on arrival`);
+      }
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.equal(overflow, 0, `${path} scrolls sideways`);
+    }
+    // Name and language: its sections listed in the first viewport, each at its own address.
+    await visit(page, '/profile');
+    const nav = page.locator('nav.section-nav');
+    await nav.getByRole('link').first().waitFor({ timeout: 15_000 });
+    const links = await nav.getByRole('link').evaluateAll((nodes) => nodes.map((node) => ({ href: node.getAttribute('href'), bottom: node.getBoundingClientRect().bottom })));
+    assert.ok(links.length >= 3, `${links.length} sections listed`);
+    for (const link of links) {
+      assert.match(link.href ?? '', /^\/profile\/you\/[a-z]+$/);
+      assert.ok(link.bottom <= size.height, `${link.href} is below the first viewport`);
+    }
+    assert.deepEqual(failures, []);
+  });
 }
