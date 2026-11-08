@@ -819,7 +819,7 @@
                 {#each lists as list (list.id)}
                   <li>
                     <a class="tile" href={`/collections/${list.id}`} data-token={list.color_token ?? undefined}>
-                      <span class="tile-name"><ContainerMark look={list} size="md" /><span class="name">{list.name}</span></span>
+                      <span class="tile-name"><ContainerMark look={list} size="md" /><span class="name" title={list.name}>{list.name}</span></span>
                       {#if list.figure}<span class="tile-figure"><CollectionFigure figure={list.figure} name={list.name} /></span>{/if}
                     </a>
                   </li>
@@ -1255,15 +1255,13 @@
   .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* A list's name in its tile: two lines at most, then an ellipsis - a narrow column cut it after
-     a word. */
+     a word. A word longer than the tile ends in the ellipsis, as a hub's name does (`NavLevel`). */
   .tile .name {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     white-space: normal;
-    overflow-wrap: break-word;
-    hyphens: auto;
   }
 
   .tile-figure { color: var(--text-secondary); font-size: var(--fs-075); }

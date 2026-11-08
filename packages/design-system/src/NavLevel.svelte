@@ -184,10 +184,11 @@
     padding: var(--sp-100) calc(var(--sp-100) + var(--sp-025)) var(--sp-050);
   }
 
-  /* Two lines at most, then an ellipsis: a long name wraps between its words, a word longer than
-     the room is hyphenated by the document's language (or broken where it has no dictionary),
-     and nothing runs under the switcher, ☆ and ⋯ at the narrowest sidebar. The full words are
-     the title. */
+  /* Two lines at most, then an ellipsis: a long name wraps between its words, and nothing runs
+     under the switcher, ☆ and ⋯ at the narrowest sidebar. A word longer than the room ends in the
+     ellipsis rather than breaking or being hyphenated: a name states no language, and the
+     document's - the reader's - would hyphenate a German word by English rules (i18n-l10n.md §6).
+     The full words are the title. */
   .hub-name {
     flex: 1;
     min-inline-size: 0;
@@ -198,8 +199,7 @@
     -webkit-line-clamp: 2;
     line-clamp: 2;
     overflow: hidden;
-    overflow-wrap: break-word;
-    hyphens: auto;
+    text-overflow: ellipsis;
     font-family: var(--font-ui);
     font-size: var(--fs-100);
     font-weight: var(--fw-semibold);

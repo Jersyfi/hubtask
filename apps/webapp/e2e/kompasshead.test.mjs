@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 
 import { chromium } from 'playwright';
 
-import { ALL, COLLECTIONS, DESIGN, MOBILE, PD, WEB, open, served, side } from './kompassstub.mjs';
+import { ALL, COLLECTIONS, DESIGN, HUBS, MOBILE, PD, WEB, open, served, side } from './kompassstub.mjs';
 
 test.after(() => served.close());
 
@@ -286,4 +286,33 @@ test('The list\'s column heads stand over their columns where they fit, and are 
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: the page scrolls sideways`);
     assert.deepEqual(failures, []);
   }
+});
+
+test('A long one-word hub name ends in an ellipsis in the hub\'s head, never broken or hyphenated by the reader\'s language', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const long = 'Produktentwicklungsabteilung';
+  const named = (each) => (each.id === PD.id ? { ...each, name: long } : each);
+  const extra = async (route, request, url) => {
+    if (url.pathname.endsWith(`/api/v1/containers/${PD.id}`) && request.method() === 'GET') {
+      await route.fulfill({ json: named(PD) });
+      return true;
+    }
+    if (!url.pathname.endsWith('/api/v1/containers') || url.searchParams.get('type') !== 'HUB') return false;
+    await route.fulfill({ json: { data: HUBS.map(named), page: { next_cursor: null, has_more: false } } });
+    return true;
+  };
+  const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, extra, ...desktop });
+  t.after(close);
+  const name = side(page).locator('.hub-name');
+  await name.waitFor();
+  const drawn = await name.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { hyphens: style.hyphens, lines: Math.round(node.clientHeight / parseFloat(style.lineHeight)), cut: node.scrollWidth > node.clientWidth, title: node.getAttribute('title') };
+  });
+  assert.equal(drawn.hyphens, 'manual', 'only a hyphen the name carries');
+  assert.equal(drawn.lines, 1, 'the word stays on one line');
+  assert.ok(drawn.cut, 'the word is cut at the ellipsis');
+  assert.equal(drawn.title, long, 'the full name is the title');
+  assert.deepEqual(failures, []);
 });
