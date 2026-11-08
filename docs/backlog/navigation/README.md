@@ -644,8 +644,8 @@ main..HEAD` against this table.
 ## Open points
 
 What the concept asks and this branch does not build or prove, each too big for it (`AGENTS.md`, "A finding
-is fixed where it is found"). Each is a `finding` issue to file once the pull request opens, with
-the text below.
+is fixed where it is found"). Each is filed as a `finding` issue with the text below: 1 as #1810,
+2 as #1811, 3 as #1812. The five use-case changes of §12 item 7 are recorded on `decision` #1809.
 
 **1. `[Finding] A move of a page, a whiteboard or a collection made offline is refused rather than kept`**
 
