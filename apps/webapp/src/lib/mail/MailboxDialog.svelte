@@ -10,7 +10,7 @@
   import { mailboxStateOf, type Mailbox } from '../data/mailintake.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { STATE_TONE, wayOf } from './mailboxes.ts';
+  import { STATE_TONE, wayOf } from './mailboxes.svelte.ts';
 
   interface Props {
     box: Mailbox | undefined;

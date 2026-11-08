@@ -129,6 +129,9 @@ test('chromium: at a phone width the sections are a row of their own and nothing
     assert.equal(await wide(), false, 'the section is wider than the screen');
     await page.getByRole('button', { name: /E-mail/ }).first().click();
     await page.waitForURL('**/administration/mail', { timeout: 5_000 });
+    // The head's act works from the list too: the dialog is the page's, not a section's.
+    await page.getByRole('button', { name: 'Connect a mailbox' }).filter({ visible: true }).first().click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Continue', exact: true }).waitFor({ timeout: 5_000 });
     assert.deepEqual(failures, []);
   } finally {
     await browser.close();

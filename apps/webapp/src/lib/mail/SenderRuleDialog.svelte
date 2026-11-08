@@ -12,7 +12,7 @@
   import FailureNote from '../frame/FailureNote.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
   import DiscardDialog from '../page/DiscardDialog.svelte';
-  import type { SenderRule } from './mailboxes.ts';
+  import type { SenderRule } from './mailboxes.svelte.ts';
   import { DiscardGuard } from '../page/discard.svelte.ts';
 
   interface Props {

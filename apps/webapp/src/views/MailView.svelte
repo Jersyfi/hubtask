@@ -55,7 +55,6 @@
     readMailSettings,
     saveMailSettings,
     suggestedName,
-    type Mailbox,
     type MailReceipt,
     type MailSettings,
     type SenderLevel,
@@ -67,8 +66,11 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import ConnectMailboxDialog from '../lib/mail/ConnectMailboxDialog.svelte';
+  import MailboxDialog from '../lib/mail/MailboxDialog.svelte';
   import MailboxSection from '../lib/mail/MailboxSection.svelte';
-  import type { SenderRule } from '../lib/mail/mailboxes.ts';
+  import { MailboxList, type SenderRule } from '../lib/mail/mailboxes.svelte.ts';
+  import RemoveMailboxDialog from '../lib/mail/RemoveMailboxDialog.svelte';
   import SenderRuleDialog from '../lib/mail/SenderRuleDialog.svelte';
   import TableSection from '../lib/page/TableSection.svelte';
 
@@ -99,9 +101,9 @@
   let isSaving = $state(false);
   let saveFailure = $state<string | undefined>(undefined);
   let receipts = $state<readonly MailReceipt[]>([]);
-  /** The connected mailboxes, for the addresses a collection is reached at through one. */
-  let mailboxes = $state<readonly Mailbox[]>([]);
-  let isAddingMailbox = $state(false);
+  /** The connected mailboxes: their section, the head's figure, the addresses through one. */
+  const boxes = new MailboxList();
+  const mailboxes = $derived(boxes.mailboxes);
 
   const mayShape = $derived(holdsHere('AUTOMATION') === true);
 
@@ -127,7 +129,16 @@
         .then((settings) => settings && take(settings))
         .catch((error) => (readFailure = renderProblem(error as never, messages).message));
       void readMailReceipts().then((rows) => (receipts = rows), () => undefined);
+      void boxes.read();
     });
+  });
+
+  // Back from the provider: its answer is handed on once, then the address drops the code and the
+  // state - on whatever section, and on a phone's list of sections too.
+  $effect(() => {
+    const answer = providerAnswer;
+    if (!answer?.['state']) return;
+    untrack(() => void boxes.complete(answer, () => onanswered?.()));
   });
 
   // A name on the receiving domain is suggested from the workspace's own, until somebody types one.
@@ -237,7 +248,7 @@
     title,
     subtitle: t('app.mail.intro'),
     breadcrumb: adminTrail({ id: 'mail', label: title }),
-    primary: mayShape && loaded ? { label: t('app.mail.mailbox_add'), icon: 'plus' as const, onclick: () => (isAddingMailbox = true) } : undefined,
+    primary: mayShape && loaded ? { label: t('app.mail.mailbox_add'), icon: 'plus' as const, onclick: () => (boxes.isAdding = true) } : undefined,
     figure: figureText ? figure : undefined,
   });
   $effect(() => page.entitle(title));
@@ -374,9 +385,9 @@
         <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
       {:else}
         {#if saveFailure && editing === undefined}<FailureNote problem={saveFailure} />{/if}
-        <MailboxSection {providerAnswer} {onanswered} isShown={shown === 'mailboxes'} bind:isAdding={isAddingMailbox} onchange={(next) => (mailboxes = next)} />
-
-        {#if shown === 'intake'}
+        {#if shown === 'mailboxes'}
+          <MailboxSection list={boxes} />
+        {:else if shown === 'intake'}
           <div data-mail-on>
             <SettingsSection title={t('app.mail.section_on')} save={intakeBar} advanced={{ label: t('app.mail.section_order'), rows: orderRows }}>
               <SettingRow label={t('app.mail.enabled')} help={t('app.mail.enabled_hint')} fieldWidth="xs" isChanged={enabled !== loaded.enabled}>
@@ -529,6 +540,30 @@
     {/snippet}
   </WorkspaceGate>
 </SettingsLayout>
+
+<!-- Outside the layout: the head's act opens it while a phone shows only the list of sections. -->
+<ConnectMailboxDialog
+  bind:isOpen={boxes.isAdding}
+  presets={boxes.presets}
+  oauthProviders={boxes.oauthProviders}
+  redirectUrl={boxes.redirectUrl}
+  oauthFailure={boxes.oauthFailure}
+  onconnected={(box) => boxes.add(box)}
+/>
+<MailboxDialog
+  box={boxes.opened}
+  isChecking={boxes.working !== undefined && boxes.working === boxes.openedId}
+  onClose={() => (boxes.openedId = undefined)}
+  oncheck={(box) => void boxes.check(box)}
+  onremove={(box) => boxes.askRemoval(box)}
+/>
+<RemoveMailboxDialog
+  box={boxes.removing}
+  isWorking={boxes.working !== undefined && boxes.working === boxes.removing?.id}
+  failure={boxes.rowFailure}
+  onClose={() => (boxes.removing = undefined)}
+  onremove={(box) => void boxes.remove(box)}
+/>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
