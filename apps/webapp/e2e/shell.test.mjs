@@ -502,7 +502,8 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
   const tree = page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' });
   const row = tree.getByRole('treeitem', { name: new RegExp(EMPTY_HUB.name) });
   await row.waitFor({ timeout: 15_000 });
-  assert.equal(await tree.locator('[aria-expanded]').count(), 0, 'a hub row offers to be opened where it stands');
+  // The row's ⋯ (*Hide from the sidebar*) is a menu button of its own, not a branch.
+  assert.equal(await tree.locator('[role="treeitem"][aria-expanded], .twist[aria-expanded]').count(), 0, 'a hub row offers to be opened where it stands');
 
   await row.click();
   await page.waitForFunction((id) => location.pathname === `/hubs/${id}`, EMPTY_HUB.id, { timeout: 5_000 })
