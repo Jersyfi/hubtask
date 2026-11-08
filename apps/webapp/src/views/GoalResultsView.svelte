@@ -159,30 +159,30 @@
         <FormSection title={t('app.goals.kr_number', { n: String(i + 1) })}>
           <div class="result" data-key-result>
             <Stack gap="150">
-              <Input label={t('app.goals.kr_title')} bind:value={result.title} maxlength={200} />
-              <Select label={t('app.goals.kr_kind')} bind:value={result.kind} options={KINDS.map((each) => ({ value: each, label: t(`app.goals.kind_${each}`) }))} />
+              <div class="lg"><Input label={t('app.goals.kr_title')} bind:value={result.title} maxlength={200} /></div>
+              <div class="sm"><Select label={t('app.goals.kr_kind')} bind:value={result.kind} options={KINDS.map((each) => ({ value: each, label: t(`app.goals.kind_${each}`) }))} /></div>
               {#if result.kind === 'NUMBER' || result.kind === 'PERCENT'}
-                <Select label={t('app.goals.kr_source')} bind:value={result.source}
-                  options={[{ value: 'MANUAL', label: t('app.goals.source_MANUAL') }, { value: 'VIEW', label: t('app.goals.source_VIEW') }]} />
+                <div class="sm"><Select label={t('app.goals.kr_source')} bind:value={result.source}
+                  options={[{ value: 'MANUAL', label: t('app.goals.source_MANUAL') }, { value: 'VIEW', label: t('app.goals.source_VIEW') }]} /></div>
               {/if}
               {#if result.kind === 'NUMBER'}
                 <Inline gap="100" isWrapping>
-                  <Input label={t('app.goals.kr_start')} bind:value={result.start} inputmode="decimal" />
-                  <Input label={t('app.goals.kr_target')} bind:value={result.target} inputmode="decimal" />
-                  <Input label={t('app.goals.kr_unit')} bind:value={result.unit} maxlength={16} />
+                  <div class="sm"><Input label={t('app.goals.kr_start')} bind:value={result.start} inputmode="decimal" /></div>
+                  <div class="sm"><Input label={t('app.goals.kr_target')} bind:value={result.target} inputmode="decimal" /></div>
+                  <div class="xs"><Input label={t('app.goals.kr_unit')} bind:value={result.unit} maxlength={16} /></div>
                 </Inline>
               {/if}
               {#if result.source === 'VIEW' && (result.kind === 'NUMBER' || result.kind === 'PERCENT')}
-                <Select label={t('app.goals.kr_view')} hint={t('app.goals.kr_view_hint')} bind:value={result.viewId} placeholder={t('app.goals.kr_view_pick')}
-                  options={summaryViews.map((each) => ({ value: each.id, label: each.name }))} />
+                <div class="md"><Select label={t('app.goals.kr_view')} hint={t('app.goals.kr_view_hint')} bind:value={result.viewId} placeholder={t('app.goals.kr_view_pick')}
+                  options={summaryViews.map((each) => ({ value: each.id, label: each.name }))} /></div>
               {:else if result.kind === 'MILESTONE'}
                 {#if result.entry}<p class="quiet">{t('app.goals.kr_waits_for', { title: result.entry.title })}</p>{/if}
                 <EntryPicker onchoose={(item) => { if (item) result.entry = { id: item.id, title: item.title }; }} />
               {:else if result.kind === 'BINARY'}
-                <Select label={t('app.goals.kr_current')} bind:value={result.current}
-                  options={[{ value: '0', label: t('app.goals.kr_not_reached') }, { value: '1', label: t('app.goals.kr_reached') }]} />
+                <div class="sm"><Select label={t('app.goals.kr_current')} bind:value={result.current}
+                  options={[{ value: '0', label: t('app.goals.kr_not_reached') }, { value: '1', label: t('app.goals.kr_reached') }]} /></div>
               {:else if result.source === 'MANUAL'}
-                <Input label={t('app.goals.kr_current')} bind:value={result.current} inputmode="decimal" />
+                <div class="sm"><Input label={t('app.goals.kr_current')} bind:value={result.current} inputmode="decimal" /></div>
               {/if}
               <Inline justify="end">
                 <Button size="sm" tone="subtle" icon="trash" onclick={() => (results = results?.filter((_, j) => j !== i))}>{t('app.goals.kr_remove')}</Button>
@@ -203,5 +203,11 @@
 
 <style>
   .result { padding: var(--sp-150) var(--sp-200); }
+  /* Each field as wide as what it holds (PS-13), never wider than the page. */
+  .xs, .sm, .md, .lg { max-inline-size: 100%; }
+  .xs { inline-size: var(--layout-field-xs); }
+  .sm { inline-size: var(--layout-field-sm); }
+  .md { inline-size: var(--layout-field-md); }
+  .lg { inline-size: var(--layout-field-lg); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
