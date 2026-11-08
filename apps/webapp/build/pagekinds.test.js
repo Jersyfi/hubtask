@@ -27,6 +27,7 @@ const KINDS = {
   CreatePage: 'create',
   WorkPage: 'work',
   DetailPage: 'detail',
+  StandalonePage: 'standalone',
 };
 
 /**
@@ -36,14 +37,9 @@ const KINDS = {
  */
 const NOT_YET_MIGRATED = [
   'AssetsView',
-  'ConfirmAddressView', 'ConsentView',
   'InstallationView',
-  'OidcCallbackView', 'PortalArticleView',
+  'PortalArticleView',
   'PortalRequestView', 'PortalView',
-  'PublicFormView', 'PublicRoadmapView',
-  'RateView', 'RedeemView', 'ResetView',
-  'SetupView', 'SignInView',
-  'YourWorkspacesView',
 ];
 
 const DISPATCHERS = ['App.svelte', 'views/AdministrationArea.svelte', 'views/InstanceArea.svelte', 'lib/frame/parts.ts'];
