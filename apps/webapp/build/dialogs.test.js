@@ -35,7 +35,6 @@ const NOT_YET_MIGRATED = [
   'lib/frame/SwitchWorkspace.svelte',
   'lib/frame/UnsentChangesDialog.svelte',
   'lib/palette/Palette.svelte',
-  'lib/time/AbsenceCalendar.svelte',
   'lib/time/BillingRates.svelte',
   'lib/time/BudgetPanel.svelte',
   'lib/time/RunningTimer.svelte',

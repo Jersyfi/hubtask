@@ -12906,6 +12906,7 @@
   "app.billing.empty": "No billing rate is set.",
   "app.billing.col_rate": "An hour billed",
   "app.absences.title": "Absences",
+  "app.absences.col_month": "Days of the month",
   "app.absences.col_person": "Person",
   "app.absences.month_before": "Month before",
   "app.absences.month_after": "Month after",

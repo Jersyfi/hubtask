@@ -27,8 +27,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Table, Textarea, ViewSwitcher, WorkPage,
-    type Column,
+    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Textarea, ViewSwitcher, WorkPage,
+    DataTable, type DataColumn, type DataRowMenu,
   } from '@hubtask/design-system/components';
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -139,20 +139,38 @@
     for (const record of sheet?.records ?? []) if (record.entry_id && !seen.has(record.entry_id)) seen.set(record.entry_id, record.entry_title);
     return [{ value: '', label: t('app.time.no_entry') }, ...[...seen].map(([value, label]) => ({ value, label: label || t('app.time.entry_unreadable') }))];
   });
-  const gridColumns = $derived<Column[]>([
-    { id: 'entry', label: t('app.time.col_entry') },
-    { id: 'kind', label: t('app.time.col_kind') },
-    ...days.map((day) => ({ id: day, label: dayHeading(day, locale), align: 'end' as const })),
-    { id: 'total', label: t('app.time.col_total'), align: 'end' },
+  const gridColumns = $derived<DataColumn[]>([
+    { id: 'entry', label: t('app.time.col_entry'), priority: 1 },
+    { id: 'kind', label: t('app.time.col_kind'), priority: 3 },
+    ...days.map((day) => ({ id: day, label: dayHeading(day, locale), align: 'end' as const, priority: 2 as const })),
+    { id: 'total', label: t('app.time.col_total'), align: 'end', priority: 1, isStatus: true },
   ]);
-  const recordColumns = $derived<Column[]>([
-    { id: 'day', label: t('app.time.col_day') },
-    { id: 'entry', label: t('app.time.col_entry') },
-    { id: 'kind', label: t('app.time.col_kind') },
-    { id: 'minutes', label: t('app.time.col_minutes'), align: 'end' },
-    { id: 'note', label: t('app.time.col_note') },
-    { id: 'actions', label: t('app.time.col_actions'), isLabelHidden: true },
+  const recordColumns = $derived<DataColumn[]>([
+    { id: 'entry', label: t('app.time.col_entry'), priority: 1 },
+    { id: 'day', label: t('app.time.col_day'), priority: 2 },
+    { id: 'kind', label: t('app.time.col_kind'), priority: 2 },
+    { id: 'minutes', label: t('app.time.col_minutes'), align: 'end', priority: 1, isStatus: true },
+    { id: 'note', label: t('app.time.col_note'), priority: 3 },
   ]);
+  /** A row of a week's grid, the totals last: the grid's foot is its last row (DataTable has no foot row). */
+  type GridLine = { key: string; entryId?: string | null; title?: string; workType?: string; minutes: readonly number[]; total: number; isTotal?: boolean };
+  const gridLines = (rows: readonly GridLine[], totals?: { days: readonly { minutes: number }[]; minutes: number }): GridLine[] =>
+    totals ? [...rows, { key: '__total', minutes: totals.days.map((day) => day.minutes), total: totals.minutes, isTotal: true }] : [...rows];
+  // The verb repeats in the menu: a phone draws the menu's sheet, not the verb.
+  const isCorrectable = (record: PlacedTimeRecord) =>
+    !!sheet && record.source !== 'CORRECTION' && (sheet.state === 'APPROVED' || sheet.days.some((d) => d.day === record.day && d.locked));
+  const recordMenu = (record: PlacedTimeRecord): DataRowMenu | undefined => {
+    const label = t('app.page.more_for', { name: record.entry_title || t('app.time.no_entry') });
+    if (sheet && isChangeable(record, sheet)) {
+      return { label, items: [{ id: 'change', label: t('app.time.change') }, { id: 'remove', label: t('app.time.remove'), isDestructive: true, hasSeparatorBefore: true }] };
+    }
+    return isCorrectable(record) ? { label, items: [{ id: 'correct', label: t('app.time.correct') }] } : undefined;
+  };
+  function onRecordMenu(record: PlacedTimeRecord, id: string) {
+    if (id === 'change') openRecord(record);
+    else if (id === 'correct') openCorrection(record);
+    else if (id === 'remove') void act(() => time.remove(record, [monday]), t('app.time.removed'));
+  }
 
   /** The record dialog: a new record (`editing` undefined) or a change to one. */
   let isRecording = $state(false);
@@ -268,17 +286,16 @@
   });
   const decidedDays = $derived(deciding ? weekDays(deciding.week_start) : []);
   const decidedGrid = $derived(decided ? weekGrid(decided.records, decidedDays) : []);
-  const decidedColumns = $derived<Column[]>([
-    { id: 'entry', label: t('app.time.col_entry') },
-    { id: 'kind', label: t('app.time.col_kind') },
-    ...decidedDays.map((day) => ({ id: day, label: dayHeading(day, locale), align: 'end' as const })),
-    { id: 'total', label: t('app.time.col_total'), align: 'end' },
+  const decidedColumns = $derived<DataColumn[]>([
+    { id: 'entry', label: t('app.time.col_entry'), priority: 1 },
+    { id: 'kind', label: t('app.time.col_kind'), priority: 3 },
+    ...decidedDays.map((day) => ({ id: day, label: dayHeading(day, locale), align: 'end' as const, priority: 2 as const })),
+    { id: 'total', label: t('app.time.col_total'), align: 'end', priority: 1, isStatus: true },
   ]);
-  const queueColumns = $derived<Column[]>([
-    { id: 'person', label: t('app.time.col_person') },
-    { id: 'week', label: t('app.time.col_week') },
-    { id: 'minutes', label: t('app.time.col_total'), align: 'end' },
-    { id: 'actions', label: t('app.time.col_actions'), isLabelHidden: true },
+  const queueColumns = $derived<DataColumn[]>([
+    { id: 'person', label: t('app.time.col_person'), priority: 1 },
+    { id: 'week', label: t('app.time.col_week'), priority: 2 },
+    { id: 'minutes', label: t('app.time.col_total'), align: 'end', priority: 1, isStatus: true },
   ]);
   let isRejecting = $state(false);
   let reason = $state('');
@@ -330,11 +347,11 @@
     yes: t('app.time.billable_yes'), no: t('app.time.billable_no'), none: t('app.time.none'),
   });
   const dimensionOptions = $derived(DIMENSIONS.map((each) => ({ value: each, label: t(`app.time.dimension_${each}`) })));
-  const reportColumns = $derived<Column[]>([
-    ...(answer?.group_by ?? []).map((each) => ({ id: each, label: t(`app.time.dimension_${each}`) })),
-    { id: 'minutes', label: t('app.time.col_total'), align: 'end' },
-    { id: 'billable', label: t('app.time.col_billable'), align: 'end' },
-    { id: 'records', label: t('app.time.col_records'), align: 'end' },
+  const reportColumns = $derived<DataColumn[]>([
+    ...(answer?.group_by ?? []).map((each, i) => ({ id: `key${i}`, label: t(`app.time.dimension_${each}`), priority: (i === 0 ? 1 : 2) as 1 | 2 })),
+    { id: 'minutes', label: t('app.time.col_total'), align: 'end', priority: 1, isStatus: true },
+    { id: 'billable', label: t('app.time.col_billable'), align: 'end', priority: 3 },
+    { id: 'records', label: t('app.time.col_records'), align: 'end', priority: 3 },
   ]);
   let isExporting = $state(false);
   async function exportRecords() {
@@ -401,50 +418,34 @@
         {#if !viewport.isCompact}
           <section class="block" aria-labelledby="time-grid">
             <h2 id="time-grid" class="heading">{t('app.time.grid', { minutes: minutesText(sheet.minutes) })}</h2>
-            <Table label={t('app.time.grid', { minutes: minutesText(sheet.minutes) })} isLabelHidden columns={gridColumns}>
-              {#each grid as row (row.key)}
-                <tr>
-                  <th scope="row">{#if row.entryId}<a href={`/items/${row.entryId}`}>{row.title || t('app.time.entry_unreadable')}</a>{:else}{t('app.time.no_entry')}{/if}</th>
-                  <td>{kindName(row.workType)}</td>
-                  {#each row.minutes as minutes, i (days[i])}<td class="number">{minutes === 0 ? '' : minutesText(minutes)}</td>{/each}
-                  <td class="number strong">{minutesText(row.total)}</td>
-                </tr>
-              {/each}
-              <tr class="foot">
-                <th scope="row">{t('app.time.col_total')}</th>
-                <td></td>
-                {#each sheet.days as day (day.day)}
-                  <td class="number">{minutesText(day.minutes)}</td>
-                {/each}
-                <td class="number strong">{minutesText(sheet.minutes)}</td>
-              </tr>
-            </Table>
+            <DataTable label={t('app.time.grid', { minutes: minutesText(sheet.minutes) })} columns={gridColumns} rows={gridLines(grid, sheet)} key={(row: GridLine) => row.key}>
+              {#snippet cell(row: GridLine, column: DataColumn)}{@render gridCell(row, column, days, true)}{/snippet}
+            </DataTable>
           </section>
         {/if}
 
         <section class="block" aria-labelledby="time-records">
           <h2 id="time-records" class="heading">{t('app.time.records', { count: String(sheet.records.length) })}</h2>
-          <Table isStacked label={t('app.time.records', { count: String(sheet.records.length) })} isLabelHidden columns={recordColumns}>
-            {#each [...sheet.records].sort((a, b) => a.day.localeCompare(b.day)) as record (record.id)}
-              <tr>
-                <td class="nowrap">{dayHeading(record.day, locale)}</td>
-                <th scope="row">{#if record.entry_id}<a href={`/items/${record.entry_id}`}>{record.entry_title || t('app.time.entry_unreadable')}</a>{:else}{t('app.time.no_entry')}{/if}</th>
-                <td>{kindName(record.work_type)}{#if record.billable}<span class="note">{t('app.time.billable_yes')}</span>{/if}</td>
-                <td class="number">{minutesText(record.minutes)}{#if record.source === 'CORRECTION'}<span class="note">{t('app.time.a_correction')}</span>{/if}</td>
-                <td class="clip">{record.note}</td>
-                <td>
-                  <Inline gap="050">
-                    {#if isChangeable(record, sheet)}
-                      <IconButton size="sm" icon="pencil" label={t('app.time.change')} onclick={() => openRecord(record)} />
-                      <IconButton size="sm" icon="trash" label={t('app.time.remove')} onclick={() => void act(() => time.remove(record, [monday]), t('app.time.removed'))} />
-                    {:else if record.source !== 'CORRECTION' && (sheet.state === 'APPROVED' || sheet.days.some((d) => d.day === record.day && d.locked))}
-                      <Button size="sm" tone="subtle" onclick={() => openCorrection(record)}>{t('app.time.correct')}</Button>
-                    {/if}
-                  </Inline>
-                </td>
-              </tr>
-            {/each}
-          </Table>
+          <DataTable label={t('app.time.records', { count: String(sheet.records.length) })} columns={recordColumns}
+            rows={[...sheet.records].sort((a, b) => a.day.localeCompare(b.day))} key={(record: PlacedTimeRecord) => record.id}
+            rowLabel={(record: PlacedTimeRecord) => record.entry_title || t('app.time.no_entry')}
+            menu={recordMenu} onmenu={onRecordMenu}
+            actionsLabel={t('app.time.col_actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+            {#snippet cell(record: PlacedTimeRecord, column: DataColumn)}
+              {#if column.id === 'day'}<span class="nowrap">{dayHeading(record.day, locale)}</span>
+              {:else if column.id === 'entry'}{#if record.entry_id}<a href={`/items/${record.entry_id}`}>{record.entry_title || t('app.time.entry_unreadable')}</a>{:else}{t('app.time.no_entry')}{/if}
+              {:else if column.id === 'kind'}{kindName(record.work_type)}{#if record.billable}<span class="note">{t('app.time.billable_yes')}</span>{/if}
+              {:else if column.id === 'minutes'}<span class="number">{minutesText(record.minutes)}</span>{#if record.source === 'CORRECTION'}<span class="note">{t('app.time.a_correction')}</span>{/if}
+              {:else}<span class="clip">{record.note}</span>{/if}
+            {/snippet}
+            {#snippet verb(record: PlacedTimeRecord)}
+              {#if isChangeable(record, sheet!)}
+                <IconButton size="sm" icon="pencil" label={t('app.time.change')} onclick={() => openRecord(record)} />
+              {:else if isCorrectable(record)}
+                <Button size="sm" tone="subtle" onclick={() => openCorrection(record)}>{t('app.time.correct')}</Button>
+              {/if}
+            {/snippet}
+          </DataTable>
         </section>
       {/if}
     {/if}
@@ -457,21 +458,17 @@
     {:else if waiting.length === 0}
       <ProductEmpty kind="settled" icon="check" title={t('app.time.queue_empty')} description={t('app.time.queue_empty_body')} />
     {:else}
-      <Table isStacked label={t('app.time.queue')} columns={queueColumns}>
-        {#each waiting as each (`${each.account_id}:${each.week_start}`)}
-          <tr>
-            <th scope="row">{personName(each.account_id)}</th>
-            <td>{t('app.time.week_of', { from: formatPlainDay(each.week_start, messages.locale), to: formatPlainDay(addDays(each.week_start, 6), messages.locale) })}</td>
-            <td class="number">{minutesText(each.submitted_minutes)}</td>
-            <td>
-              <Inline gap="050">
-                <Button size="sm" tone="secondary" onclick={() => (deciding = each)}>{t('app.time.open_week')}</Button>
-                <Button size="sm" icon="check" onclick={() => void approve(each)}>{t('app.time.approve')}</Button>
-              </Inline>
-            </td>
-          </tr>
-        {/each}
-      </Table>
+      <DataTable label={t('app.time.queue')} columns={queueColumns} rows={waiting} key={(each: Timesheet) => `${each.account_id}:${each.week_start}`}
+        onopen={(each: Timesheet) => (deciding = each)} rowLabel={(each: Timesheet) => personName(each.account_id)} actionsLabel={t('app.time.col_actions')}>
+        {#snippet cell(each: Timesheet, column: DataColumn)}
+          {#if column.id === 'person'}{personName(each.account_id)}
+          {:else if column.id === 'week'}{t('app.time.week_of', { from: formatPlainDay(each.week_start, messages.locale), to: formatPlainDay(addDays(each.week_start, 6), messages.locale) })}
+          {:else}<span class="number">{minutesText(each.submitted_minutes)}</span>{/if}
+        {/snippet}
+        {#snippet verb(each: Timesheet)}
+          <Button size="sm" tone="subtle" icon="check" onclick={() => void approve(each)}>{t('app.time.approve')}</Button>
+        {/snippet}
+      </DataTable>
     {/if}
 
     {#if deciding}
@@ -487,16 +484,9 @@
         {#if !decided}
           <Skeleton lines={3} />
         {:else}
-          <Table isStacked label={t('app.time.grid', { minutes: minutesText(decided.minutes) })} isLabelHidden columns={decidedColumns}>
-            {#each decidedGrid as row (row.key)}
-              <tr>
-                <th scope="row">{row.entryId ? row.title || t('app.time.entry_unreadable') : t('app.time.no_entry')}</th>
-                <td>{kindName(row.workType)}</td>
-                {#each row.minutes as minutes, i (decidedDays[i])}<td class="number">{minutes === 0 ? '' : minutesText(minutes)}</td>{/each}
-                <td class="number strong">{minutesText(row.total)}</td>
-              </tr>
-            {/each}
-          </Table>
+          <DataTable label={t('app.time.grid', { minutes: minutesText(decided.minutes) })} columns={decidedColumns} rows={decidedGrid} key={(row: GridLine) => row.key}>
+            {#snippet cell(row: GridLine, column: DataColumn)}{@render gridCell(row, column, decidedDays, false)}{/snippet}
+          </DataTable>
         {/if}
       </section>
     {/if}
@@ -527,23 +517,18 @@
           <p class="quiet">{t('app.time.withheld', { groups: String(answer.withheld_groups), minutes: minutesText(answer.withheld_minutes) })}</p>
         {/if}
       {/if}
-      <Table isStacked label={t('app.time.tab_report')} isLabelHidden columns={reportColumns}>
-        {#each answer.groups as group, i (i)}
-          <tr>
-            {#each group.keys as key, k (k)}
-              {#if k === 0}<th scope="row">{keyLabel(key, names)}</th>{:else}<td>{keyLabel(key, names)}</td>{/if}
-            {/each}
-            <td class="number">
-              <span class="share">
-                <span class="bar" aria-hidden="true" style:inline-size={`${Math.round((group.minutes / reportPeak) * 100)}%`}></span>
-                <span>{minutesText(group.minutes)}</span>
-              </span>
-            </td>
-            <td class="number">{minutesText(group.billable_minutes)}</td>
-            <td class="number">{group.records}</td>
-          </tr>
-        {/each}
-      </Table>
+      <DataTable label={t('app.time.tab_report')} columns={reportColumns} rows={answer.groups} key={(group: TimeReport['groups'][number]) => group.keys.join('|')}>
+        {#snippet cell(group: TimeReport['groups'][number], column: DataColumn)}
+          {#if column.id === 'minutes'}
+            <span class="share">
+              <span class="bar" aria-hidden="true" style:inline-size={`${Math.round((group.minutes / reportPeak) * 100)}%`}></span>
+              <span class="number">{minutesText(group.minutes)}</span>
+            </span>
+          {:else if column.id === 'billable'}<span class="number">{minutesText(group.billable_minutes)}</span>
+          {:else if column.id === 'records'}<span class="number">{group.records}</span>
+          {:else}{@const key = group.keys[Number(column.id.slice(3))]}{key ? keyLabel(key, names) : ''}{/if}
+        {/snippet}
+      </DataTable>
     {/if}
   {:else if current === 'absences'}
     <AbsenceCalendar />
@@ -551,6 +536,16 @@
     <CapacityEditor />
   {/if}
 </WorkPage>
+
+{#snippet gridCell(row: GridLine, column: DataColumn, columnDays: readonly string[], isLinked: boolean)}
+  {#if column.id === 'entry'}
+    {#if row.isTotal}<span class="strong">{t('app.time.col_total')}</span>
+    {:else if row.entryId && isLinked}<a href={`/items/${row.entryId}`}>{row.title || t('app.time.entry_unreadable')}</a>
+    {:else if row.entryId}{row.title || t('app.time.entry_unreadable')}{:else}{t('app.time.no_entry')}{/if}
+  {:else if column.id === 'kind'}{row.workType ? kindName(row.workType) : ''}
+  {:else if column.id === 'total'}<span class="number strong">{minutesText(row.total)}</span>
+  {:else}{@const minutes = row.minutes[columnDays.indexOf(column.id)] ?? 0}<span class="number">{minutes === 0 && !row.isTotal ? '' : minutesText(minutes)}</span>{/if}
+{/snippet}
 
 {#snippet top()}
   <div class="top">
@@ -662,8 +657,7 @@
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .strong { font-weight: var(--fw-medium); }
   .nowrap { white-space: nowrap; }
-  .clip { max-inline-size: var(--layout-board-column); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .foot th, .foot td { border-block-start: var(--bw-hairline) solid var(--border-strong); }
+  .clip { display: inline-block; max-inline-size: var(--layout-board-column); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* No global `box-sizing`: a locked day is a `div`, whose padding and border would add to its 100%. */
   .day {

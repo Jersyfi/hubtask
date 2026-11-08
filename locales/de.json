@@ -12906,6 +12906,7 @@
   "app.billing.empty": "Kein Verrechnungssatz ist gesetzt.",
   "app.billing.col_rate": "Pro Stunde berechnet",
   "app.absences.title": "Abwesenheiten",
+  "app.absences.col_month": "Tage des Monats",
   "app.absences.col_person": "Person",
   "app.absences.month_before": "Monat davor",
   "app.absences.month_after": "Monat danach",

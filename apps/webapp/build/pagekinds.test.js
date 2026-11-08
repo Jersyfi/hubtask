@@ -46,7 +46,6 @@ const NOT_YET_MIGRATED = [
   'RateView', 'RedeemView', 'ReleaseView', 'ResetView',
   'RoadmapView',
   'SetupView', 'SignInView', 'SprintView',
-  'TimeView',
   'WorkloadView',
   'YourWorkspacesView',
 ];

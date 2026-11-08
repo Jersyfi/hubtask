@@ -6,7 +6,7 @@
   // as able to give. The capacities so far are listed, the latest last.
 
   import { untrack } from 'svelte';
-  import { Button, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, DataTable, Inline, Input, Stack, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
   import type { Capacity, CapacityList } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -34,11 +34,14 @@
   const draft = $state({ from: '', hours: ['8', '8', '8', '8', '8', '0', '0'] });
   $effect(() => { if (!draft.from) draft.from = todayIn(actor.zone); });
 
-  const columns = $derived<Column[]>([
-    { id: 'from', label: t('app.capacity.col_from') },
-    ...heads.map((head, i) => ({ id: `d${i}`, label: head, align: 'end' as const })),
-    { id: 'actions', label: t('app.capacity.col_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'from', label: t('app.capacity.col_from'), priority: 1 },
+    ...heads.map((head, i) => ({ id: `d${i}`, label: head, align: 'end' as const, priority: 2 as const })),
   ]);
+  const rowMenu = (capacity: Capacity): DataRowMenu => ({
+    label: t('app.page.more_for', { name: formatPlainDay(capacity.from, locale) }),
+    items: [{ id: 'remove', label: t('app.capacity.remove'), isDestructive: true }],
+  });
 
   async function save() {
     failure = undefined;
@@ -73,17 +76,14 @@
   <Inline justify="end"><Button onclick={() => void save()}>{t('app.capacity.save')}</Button></Inline>
 
   {#if capacities && capacities.length > 0}
-    <div class="scroll">
-      <Table label={t('app.capacity.title')} {columns}>
-        {#each capacities as capacity (capacity.from)}
-          <tr>
-            <th scope="row">{formatPlainDay(capacity.from, locale)}</th>
-            {#each capacity.week_minutes as minutes, i (i)}<td class="number">{minutesText(minutes)}</td>{/each}
-            <td><Button size="sm" tone="subtle" icon="trash" onclick={() => void remove(capacity)}>{t('app.capacity.remove')}</Button></td>
-          </tr>
-        {/each}
-      </Table>
-    </div>
+    <DataTable label={t('app.capacity.title')} {columns} rows={capacities} key={(capacity: Capacity) => capacity.from}
+      menu={rowMenu} onmenu={(capacity: Capacity) => void remove(capacity)} rowLabel={(capacity: Capacity) => formatPlainDay(capacity.from, locale)}
+      actionsLabel={t('app.capacity.col_actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+      {#snippet cell(capacity: Capacity, column: DataColumn)}
+        {#if column.id === 'from'}{formatPlainDay(capacity.from, locale)}
+        {:else}<span class="number">{minutesText(capacity.week_minutes[Number(column.id.slice(1))] ?? 0)}</span>{/if}
+      {/snippet}
+    </DataTable>
   {:else if capacities}
     <p class="quiet">{t('app.capacity.none')}</p>
   {/if}
@@ -91,7 +91,6 @@
 
 <style>
   .week { display: grid; grid-template-columns: repeat(auto-fill, minmax(12ch, 1fr)); gap: var(--sp-100); }
-  .scroll { overflow-x: auto; }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }

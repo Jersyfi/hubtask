@@ -153,7 +153,8 @@ test('chromium: time - a colleague\'s week is opened from the queue and sent bac
   const row = queue.getByRole('row').filter({ hasText: OTHER.display_name });
   await row.waitFor({ timeout: 5_000 });
   await row.getByText('7:30').waitFor();
-  await row.getByRole('button', { name: 'Open' }).click();
+  // The row opens the week to decide: its title is the press (PS-6).
+  await row.getByRole('button', { name: OTHER.display_name }).click();
   await page.getByRole('button', { name: 'Send back' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Why').fill('Tuesday is missing.');
