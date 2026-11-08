@@ -41,7 +41,7 @@ export function placeMenu(input: PlaceMenuInput, t: (code: string) => string): M
         { id: 'import', label: t('app.import.open'), icon: 'cloud-upload', disabledReason: input.readOnlyReason },
         ...(input.offersPosition === false
           ? []
-          : [{ id: 'position', label: t('app.place.position'), icon: 'chevrons-up-down' as const, disabledReason: input.readOnlyReason, hasSeparatorBefore: true }]),
+          : [{ id: 'position', label: t('app.place.position'), icon: 'arrow-up-down' as const, disabledReason: input.readOnlyReason, hasSeparatorBefore: true }]),
         ...(input.archival !== 'inherited'
           ? [{ id: 'archive', label: input.archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const, hasSeparatorBefore: input.offersPosition === false }]
           : []),

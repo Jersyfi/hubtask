@@ -211,6 +211,11 @@ export const DECLARED = {
     // voice-and-tone.md §7.2 - and it takes the text's colour like every other glyph.
     'sparkles',
   ],
+  'The sidebar': [
+    // *Change position…*: a place moved up or down among its siblings. The hub quick switch keeps
+    // `chevrons-up-down`, and no two actions of the sidebar share a mark (the navigation concept).
+    'arrow-up-down',
+  ],
 };
 
 /**

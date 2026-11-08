@@ -99,3 +99,47 @@ test('R-6 on a phone: the Browse step\'s section heads are quiet labels - no ban
   }
   assert.deepEqual(failures, []);
 });
+
+/** The glyph a control draws, as its drawing: two controls with the same mark draw the same paths. */
+const glyph = (locator) => locator.locator('svg').first().innerHTML();
+
+test('R-6: Switch hub and Change position draw different marks, and no menu of the sidebar repeats one', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await go(browser, { path: '/' });
+  t.after(close);
+  const hubs = side(page).getByRole('tree', { name: 'Hubs' });
+  const row = hubs.getByRole('treeitem', { name: /^Household/ });
+  await row.waitFor({ timeout: 10_000 });
+  /** Opens a menu and returns its items' marks, closing it again. */
+  const marks = async (trigger) => {
+    await trigger.click();
+    await page.getByRole('menuitem').first().waitFor();
+    const drawn = (await Promise.all((await page.getByRole('menuitem').all()).map(async (item) => ((await item.locator('svg').count()) ? glyph(item) : null)))).filter(Boolean);
+    await page.keyboard.press('Escape');
+    return drawn;
+  };
+  await row.hover();
+  const rowMenu = await marks(row.getByRole('button', { name: /^Manage / }));
+  await row.hover();
+  await row.getByRole('button', { name: /^Manage / }).click();
+  const position = await glyph(page.getByRole('menuitem', { name: /^Change position/ }));
+  await page.keyboard.press('Escape');
+  assert.equal(new Set(rowMenu).size, rowMenu.length, 'a hub row\'s ⋯ repeats a mark');
+
+  await hubs.getByRole('treeitem', { name: /^Product development/ }).click();
+  const level = side(page).getByRole('region', { name: PD.name });
+  const switcher = level.getByRole('button', { name: 'Switch hub' });
+  await switcher.waitFor();
+  assert.notEqual(await glyph(switcher), position, 'Switch hub draws Change position\'s mark');
+  const head = level.locator('.hub');
+  const headMarks = await Promise.all((await head.getByRole('button').all()).map(glyph));
+  assert.equal(new Set(headMarks).size, headMarks.length, 'the hub head repeats a mark');
+  const hubMenu = await marks(level.getByRole('button', { name: `Manage ${PD.name}` }));
+  assert.equal(new Set(hubMenu).size, hubMenu.length, 'the hub\'s ⋯ repeats a mark');
+  const contents = side(page).locator('section', { has: page.getByRole('heading', { name: /^Contents/ }) });
+  await contents.locator('.head').hover();
+  const create = await marks(contents.getByRole('button', { name: 'Create in Contents' }));
+  assert.equal(new Set(create).size, create.length, 'Page and From a template… share a mark');
+  assert.deepEqual(failures, []);
+});

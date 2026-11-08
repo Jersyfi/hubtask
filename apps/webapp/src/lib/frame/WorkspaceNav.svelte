@@ -1048,7 +1048,7 @@
   // ＋ on *Contents* creates at the top, ＋ on a page under it (§5.2): *Page · From a template… ·
   // Whiteboard*; a whiteboard has no children and so no ＋.
   const createItems = $derived([
-    ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }, { id: 'template', label: t('app.nav.create_from_template'), icon: 'file-text' as const }] : []),
+    ...(isOn('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }, { id: 'template', label: t('app.nav.create_from_template'), icon: 'copy' as const }] : []),
     ...(isOn('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
   ]);
   const createPath = (at: string, kind: string, under?: string) =>
