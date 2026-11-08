@@ -9948,6 +9948,7 @@
   "app.voice.section_names": "Namen, die Leute sagen",
   "app.voice.names_hint": "Jede Sammlung und jede Kategorie wird unter ihrem eigenen Namen verstanden, „Einkaufsliste“ für „Einkauf“ eingeschlossen. Lege hier Namen an, wo Leute etwas anderes sagen, etwa „Kühlschrank“ für die Einkaufsliste oder „Metro“ für eine Kategorie.",
   "app.voice.alias_phrase": "Gesagt als",
+  "app.voice.alias_new": "Ein neuer Name",
   "app.voice.alias_list": "Liste",
   "app.voice.alias_category": "Kategorie",
   "app.voice.alias_whole_list": "Die ganze Liste",

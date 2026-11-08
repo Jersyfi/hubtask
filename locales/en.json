@@ -9948,6 +9948,7 @@
   "app.voice.section_names": "Names people say",
   "app.voice.names_hint": "Every collection and every category is understood by its own name, \"shopping list\" for \"Shopping\" included. Add a name here where people say something else, such as \"fridge\" for the shopping list or \"Metro\" for a category.",
   "app.voice.alias_phrase": "Said as",
+  "app.voice.alias_new": "A new name",
   "app.voice.alias_list": "List",
   "app.voice.alias_category": "Category",
   "app.voice.alias_whole_list": "The whole list",

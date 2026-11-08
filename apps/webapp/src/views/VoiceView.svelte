@@ -373,16 +373,24 @@
         {:else if shown === 'names'}
           <div data-voice-names>
             <SettingsSection title={t('app.voice.section_names')} description={t('app.voice.names_hint')} save={namesBar}>
-              <div class="rows">
+              <div>
+                <!-- One name, one row (PS-11, PS-12): the phrase names the row, its list and category
+                     are the row's control. -->
                 {#each aliases as alias (alias.key)}
-                  <div class="alias" data-alias>
-                    <Input label={t('app.voice.alias_phrase')} bind:value={alias.phrase} />
-                    <Select label={t('app.voice.alias_list')} options={collections} bind:value={alias.collection} />
-                    <Select label={t('app.voice.alias_category')} placeholder={t('app.voice.alias_whole_list')} options={categoriesOf(alias.collection)} bind:value={alias.label} />
-                    <IconButton icon="trash" label={t('app.voice.alias_remove', { name: alias.phrase || '…' })} onclick={() => removeAlias(alias.key)} />
+                  <div data-alias>
+                    <SettingRow label={alias.phrase.trim() || t('app.voice.alias_new')} fieldWidth="full">
+                      {#snippet control()}
+                        <span class="alias">
+                          <Input label={t('app.voice.alias_phrase')} isLabelHidden placeholder={t('app.voice.alias_phrase')} bind:value={alias.phrase} />
+                          <Select label={t('app.voice.alias_list')} isLabelHidden options={collections} bind:value={alias.collection} />
+                          <Select label={t('app.voice.alias_category')} isLabelHidden placeholder={t('app.voice.alias_whole_list')} options={categoriesOf(alias.collection)} bind:value={alias.label} />
+                          <IconButton icon="trash" label={t('app.voice.alias_remove', { name: alias.phrase || '…' })} onclick={() => removeAlias(alias.key)} />
+                        </span>
+                      {/snippet}
+                    </SettingRow>
                   </div>
                 {/each}
-                <div><Button data-list-add tone="secondary" size="sm" icon="plus" onclick={addAlias}>{t('app.voice.alias_add')}</Button></div>
+                <div class="add"><Button data-list-add tone="secondary" size="sm" icon="plus" onclick={addAlias}>{t('app.voice.alias_add')}</Button></div>
               </div>
             </SettingsSection>
           </div>
@@ -503,6 +511,8 @@
 
   /* A section's own content where it is not setting rows: the region's padding, rows apart. */
   .rows { display: grid; gap: var(--sp-150); margin: 0; padding: var(--sp-200); }
+
+  .add { padding: var(--sp-150) var(--sp-200); }
 
   .field { max-inline-size: calc(var(--sp-1000) * 5); }
 
