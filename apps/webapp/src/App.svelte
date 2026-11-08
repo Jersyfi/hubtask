@@ -10,7 +10,7 @@
   //
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { Spinner } from '@hubtask/design-system/components';
   import type { ConnectorLocated } from '@hubtask/sync-engine';
 
@@ -19,6 +19,7 @@
   import ViewFailed from './lib/frame/ViewFailed.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
+  import { ScrollMemory, landingOf, windowScroller } from './lib/frame/scroll.ts';
   import { leaveGuard } from './lib/frame/leave.svelte.ts';
   import LeaveDialog from './lib/frame/LeaveDialog.svelte';
   import { loadReleaseAt } from './lib/frame/release.ts';
@@ -139,11 +140,31 @@
   }
 
   $effect(() => {
-    const unsubscribe = router.subscribe((resolution) => (route = resolution));
     const stop = router.start();
+    // A new screen starts at its top, back and forward return to where the reader was (R-15).
+    // The position is kept while the old screen still stands - the listener runs before the DOM
+    // changes - and set once the new one is drawn.
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    const memory = new ScrollMemory(windowScroller());
+    let entry = router.entry;
+    let shown: Resolution | undefined;
+    const unsubscribe = router.subscribe((resolution) => {
+      const landing = landingOf(shown, resolution, router.move);
+      const left = entry;
+      entry = router.entry;
+      shown = resolution;
+      route = resolution;
+      if (left === entry && landing !== 'restore') return;
+      memory.left(left);
+      const arrived = entry;
+      void tick().then(() => memory.arrived(arrived, landing));
+    });
+    const interrupt = () => memory.interrupted();
+    for (const kind of ['wheel', 'touchstart', 'keydown'] as const) window.addEventListener(kind, interrupt, { passive: true });
     return () => {
       unsubscribe();
       stop();
+      for (const kind of ['wheel', 'touchstart', 'keydown'] as const) window.removeEventListener(kind, interrupt);
     };
   });
 

@@ -131,3 +131,51 @@ test('R-13: narrower than the marks and the views, the tools move behind one ⋯
   await page.getByRole('menuitem', { name: 'The order you arranged' }).waitFor();
   assert.deepEqual(failures, []);
 });
+
+test('R-15: a new screen starts at its top, back returns to where the reader was', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 600 }]]) {
+    const { page, failures, close } = await go(browser, { path: '/', ...size });
+    t.after(close);
+    const tile = page.locator('section[aria-labelledby="today-lists"] a', { hasText: WEB.name });
+    await tile.waitFor();
+    const reach = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+    assert.ok(reach > 120, `${name}: Today is taller than the screen`);
+    await tile.scrollIntoViewIfNeeded();
+    await page.evaluate(() => scrollBy(0, 60));
+    const at = await page.evaluate(() => scrollY);
+    assert.ok(at > 100, `${name}: Today scrolled to ${at}`);
+    await tile.click();
+    await page.locator('main').getByRole('heading', { level: 1, name: WEB.name }).waitFor({ state: 'attached' });
+    await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => scrollY), 0, `${name}: the collection opened where Today was scrolled to`);
+    await page.goBack();
+    await tile.waitFor();
+    await page.waitForFunction((y) => Math.abs(scrollY - y) <= 2, at, { timeout: 5_000 });
+    assert.deepEqual(failures, []);
+  }
+});
+
+test('R-15 on desktop: a row of the sidebar opens its screen at the top, and the sidebar keeps its own scroll', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await go(browser, { path: `/collections/${WEB.id}?layout=list`, width: 1440, height: 520 });
+  t.after(close);
+  await page.locator('main').getByRole('heading', { level: 1, name: WEB.name }).waitFor();
+  const middle = side(page).locator('[data-scrollbar="thin"]').first();
+  await middle.evaluate((node) => { node.scrollTop = 30; });
+  await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  assert.ok((await page.evaluate(() => scrollY)) > 0, 'the collection is taller than the window');
+  // The pointer brings the row into view first, as a reader's would; from there nothing moves it.
+  const row = side(page).getByRole('treeitem', { name: /^Design\b/ });
+  await row.hover();
+  const kept = await middle.evaluate((node) => node.scrollTop);
+  assert.ok(kept > 0, 'the hub level scrolls at this height');
+  await row.click();
+  await page.locator('main').getByRole('heading', { level: 1, name: DESIGN.name }).waitFor();
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => scrollY), 0, 'the next collection opened scrolled down');
+  assert.equal(await middle.evaluate((node) => node.scrollTop), kept, 'the sidebar jumped');
+  assert.deepEqual(failures, []);
+});
