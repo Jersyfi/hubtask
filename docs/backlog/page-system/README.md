@@ -388,6 +388,13 @@ token, New rule, New workflow, New workspace.*
 The work surface (collection, hub, product homes, plan, time, goals) and one object read and edited
 in place (entry, page, goal), held to PS-2 (*Plan · Releases* becomes a segmented control) and PS-6.
 
+### 7.9 `StandalonePage` — outside the frame
+A page nobody reaches through the app frame - signed out, or by a public link: no bar, nowhere to
+go. Two variants of one kind: `card`, one centred card on the canvas (sign-in, setup, reset,
+invitation, address confirmation, consent, a provider's return, rating, public form, the device's
+workspaces) as sign-in is built; `public`, the content at the window's full width under its title
+(a shared roadmap). The portal is inside the frame and takes the kinds of the frame.
+
 ## 8. The rules
 
 | # | Rule |

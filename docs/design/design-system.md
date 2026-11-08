@@ -432,7 +432,7 @@ the mark the bar carries; how the product uses them is §11.
 `Grid` · `Sheet` · `SectionNav` · `FilterBar` · `DataTable` · `BulkBar` · `ResourceGrid` ·
 `ResourceCard` · `SettingsSection` · `SettingRow` · `BlockList` · `FormLayout` · `FormSection` ·
 `RecordHead` · `DangerZone` · `SummaryCard` · `ListPage` · `RecordPage` · `SettingsLayout` ·
-`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage` · `WorkPage` · `DetailPage`
+`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage` · `WorkPage` · `DetailPage` · `StandalonePage`
 
 The layer above waves 1–5 that the page system concept adds
 ([`docs/backlog/page-system/`](../backlog/page-system/README.md) §4–§7; its mockups are the look).
@@ -467,6 +467,12 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   first in the document, under the head below `expanded`, beside the main column at the inline end
   and at the pane's width from `expanded` up, staying in place while it scrolls. Drawn in a work
   page's side panel (`isInPane`) it is one column and no page kind of its own.
+  `StandalonePage` (`data-page-kind="standalone"`) is a page outside the app frame - nobody is
+  signed in, or the visitor is no member, so there is no bar and nowhere to go: `card`, one centred
+  card on the canvas with the two ambient washes and the operator's legal links under it (sign-in,
+  setup, a reset, an invitation, an address to confirm, a consent, a provider's return, a rating,
+  a public form, the device's workspaces), or `public`, the content at the window's full width
+  under its title (a shared roadmap).
 
 Their breakpoints are the window's, written as media queries from `primitive.breakpoint` — so a
 story shows its widths when the window is narrowed, not the workbench's width axis. What sticks
