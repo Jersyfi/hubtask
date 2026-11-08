@@ -410,8 +410,9 @@ the mark the bar carries; how the product uses them is §11.
   [ADR-0100](../adr/ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md)) — **`NavItem`**
   (a row: twist, mark or `ProductTile`, name, figure, and ⋯ and ＋ in the figure's cell on hover and
   focus; current with the brand bar and `aria-current`), **`NavGroup`** (a section head that sticks,
-  with ＋ and ⋯, *n more* and a filter past its bound), **`NavFlyout`** (*Recent*, the hub quick
-  switch), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
+  with ＋ and ⋯, *n more* and a filter past its bound; its head stands on the plane it is drawn on,
+  `--nav-plane`, the raised panel of a flyout or a drawer), **`NavFlyout`** (*Recent*, the hub quick
+  switch, which drops from the hub's head through `anchor`), **`NavLevel`** (the workspace or the hub level, sliding in), **`ProductTile`** (a
   product's mark on its label tile), **`MoveCheck`** (the pre-check's list of obstacles and
   warnings, each with its way out); on `compact` **`BrowseStack`** (a stack per bottom-bar tab) and
   **`Sheet`** (a bottom sheet with a heading and *Close*). The content tree is a `role="tree"` with
@@ -850,8 +851,10 @@ outside a region, nothing in two.
 | The foot | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing; *Archive*, *Trash* | Fixed at the foot on every width, after a hairline — where a reader looks when something is **missing** |
 
 A row is 30 px high with a 7 px radius; each level indents 12 px, growing to the sixth level and no
-further; the middle's scrollbar is thin, without a track, shown on hover, its room reserved. These
-lengths are tokens (rule 15).
+further; the middle's scrollbar is thin, shown on hover with its track and a hairline at the track's
+inner edge, its room reserved - one style for every scroll area of the sidebar and its panels
+(`data-scrollbar="thin"`, `scrollbar.css`). A row's figure grows to `layout.nav.figure` at most and
+is cut before the row's name, which keeps `layout.nav.name`. These lengths are tokens (rule 15).
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
 in its settings' *General* section, beside its name and description: one of the ten label colours and a symbol from the set

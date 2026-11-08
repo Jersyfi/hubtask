@@ -70,8 +70,12 @@ that model from the products' actual data (the inventory).
   device's (`hubtask.nav.width`, built). `Ctrl+[` or the toggle folds it to the 56 px rail
   (`layout.sidenav.rail`); hovering the rail for 300 ms opens a peek of the whole sidebar over the
   content, leaving it closes the peek.
-* **The scrollbar** of the middle is thin, has no track, shows only while hovered, and its room is
-  reserved (`scrollbar-gutter: stable`), so nothing shifts when it appears.
+* **The scrollbar** of the middle is thin and shows only while hovered, its track then drawn with a
+  hairline at its inner edge (the owner's review, R-9); its room is reserved
+  (`scrollbar-gutter: stable`), so nothing shifts when it appears. One style for every scroll area
+  of the sidebar and its panels (`data-scrollbar="thin"`, the design system's `scrollbar.css`).
+* **The peek** is drawn on the overlay layer, above every sticky bar of the page (a view's tabs, a
+  board's heads), below the dialogs and sheets of the top layer (R-8).
 
 ### 2.2 The fixed top: For you
 
@@ -100,7 +104,10 @@ hub level of its hub. From the top:
    change), then the hub's mark and name, ▾ for the **hub quick switch** (a search field, starred
    hubs, recently visited hubs, *All hubs*; switching keeps the tool when the target hub has it —
    Plan to Plan — otherwise opens its overview), ☆, ⋯. **The hub's settings are only in its ⋯**
-   (`placeMenu.ts`, unchanged).
+   (`placeMenu.ts`, unchanged). The quick switch drops from the head, under it; its section heads
+   are the panel's own surface, aligned with its search, and fold nothing (R-6). At the narrowest
+   sidebar the name wraps to two lines at most and ends with an ellipsis; it never runs under ▾, ☆
+   and ⋯. A row's figure is cut before its name (`layout.nav.figure`, `layout.nav.name`).
 2. **Overview** and **the hub tools**, one row per tool switched on at the hub, in this fixed
    order (never reordered, never hidden personally — recognition before customisation; whoever
    holds `STRUCTURE` switches a tool off at the hub, UC-INS-21):
@@ -703,16 +710,18 @@ after the list.
 | R-3 | Products in the sidebar: hiding and showing is hard to use. Hidden and shown persist for the account; *More* expands the hidden products below it, collapsible, collapsed by default; the hide/show dropdown is poor (clicking again and again, the order changes, no icon colours, nothing to recognise); a product whose module is off for the workspace does not appear. | done: a product row's ⋯ (its long press on touch) → *Hide from the sidebar*; hidden ones under *More* below the shown ones, folded at first, opened in place, each with its tile and ⋯ → *Show*; the order never jumps (one order, split); a module off is nowhere; the section's *Customise the sidebar* list removed; persisted on the account, read back after a reload and on another device (integration test and real demo); on a touch tablet the ⋯ stands beside the figure |
 | R-4 | Hubs: the same hiding and showing, per hub through its ⋯ menu (persisting), the same *More*; moving hubs does not work (perhaps the sort choice — a manual order is needed); *Settings* shows *Only someone who may change how this place is set up sees its settings* — without the permission the entry is not shown. | *Settings*: demo gap and a refusal said while loading, fixed (`48f924e02`, `f6878b5b0`); hiding: done, the same ⋯ and *More*, `nav_hubs_hidden` on the account (0393-0394). Moving: on the real demo the shared order already moved; it failed where the person had chosen *Recently visited* or *A–Z* (no grip, a key said nothing) and in the preview, whose stub answered `:reorder` without keeping it. Now a move in another order turns the hubs to the shared order first and says so; the stub keeps the order; *Change position* is on the workspace row only, never in a hub's head - done |
 | R-5 | In a hub, clicking existing content or creating a new page → *This screen stopped working*. What one can see and click matches what one may do. | demo gap, fixed (`48f924e02`); the real demo creates and opens pages as a member - done |
-| R-6 | *Switch hub*: the flyout opens at the screen's top-left edge; *Recently visited* carries a grey bar that does not fit the cards; the side spacing is narrower than the search's; the text is not centred; a collapse arrow with a pointer cursor does nothing; the same bars in the burger-menu sidebar on narrow screens (decide whether collapsing makes sense there); the *Switch hub* icon equals the *Change position* icon; changing a hub's position belongs only where all hubs are listed, not inside a hub. | open |
+| R-6 | *Switch hub*: the flyout opens at the screen's top-left edge; *Recently visited* carries a grey bar that does not fit the cards; the side spacing is narrower than the search's; the text is not centred; a collapse arrow with a pointer cursor does nothing; the same bars in the burger-menu sidebar on narrow screens (decide whether collapsing makes sense there); the *Switch hub* icon equals the *Change position* icon; changing a hub's position belongs only where all hubs are listed, not inside a hub. | done: the panel drops from the hub's head through the design system's anchor (`NavFlyout`'s `anchor`; its `display: contents` wrapper had no box, so the panel stood at the viewport's corner); its section heads stand on the panel's surface (`--nav-plane`), on the search's edges, and fold nothing - no chevron, no pointer; the drawer's heads below 905 px stand on the drawer's surface and fold as R-12's do, a phone's stay quiet labels; *Change position* now draws `arrow-up-down`, *Switch hub* keeps `chevrons-up-down`, *From a template…* `copy` (it shared *Page*'s mark); position only on the workspace's hub rows (R-4). Desktop, a touch tablet's drawer, the phone (`e2e/kompassfit.test.mjs`) |
 | R-7 | Whiteboards do not work in the demo. | demo gap, fixed (`48f924e02`) - done |
-| R-8 | Sidebar collapsed, hovering opens it (good), but the view tab bar (*Board*, *Sprint 9*) is drawn above it. | open |
-| R-9 | The scrollbar looked better before: on hover a track background and its border. | open |
+| R-8 | Sidebar collapsed, hovering opens it (good), but the view tab bar (*Board*, *Sprint 9*) is drawn above it. | done: the peek's column is raised to `--z-overlay` - a sticky column is a stacking context of its own, so the column's rank, not the peek's, met the view tabs and the board; above every sticky bar of the page, below the top layer's dialogs and sheets. Desktop rail; a touch tablet's drawer and a phone's sheets are in the top layer (`elementFromPoint`, `e2e/kompassfit.test.mjs`) |
+| R-9 | The scrollbar looked better before: on hover a track background and its border. | done: one shared thin scrollbar (`scrollbar.css`, `data-scrollbar="thin"`, the sidebar's middle and its flyouts): idle invisible with its room kept, hovered the thumb and a track on `bg.surface.hover` with a hairline at its inner edge - the platform's look before the concept; the colours travel as custom properties, because Chromium does not restyle a scrollbar's pseudo-elements on the area's `:hover`, and the standard properties stand only where those pseudo-elements do not exist (Firefox). Proven at 1440 px by the pixels of the track (`e2e/kompassfit.test.mjs`); a touch tablet's and a phone's bars are the platform's, not walked |
 | R-10 | In any collection or sprint, no entries are shown. | demo gap, fixed (`48f924e02`) - done |
 | R-11 | *Product development → Mobile*: switching views changes the tab bar's height depending on what is above it; the *Time* view crashes; on *Board* one can star and *12 open* stands beside it, on *Sprint 9* one cannot star and *8 days left* stands below. | *Time* crash: demo gap, fixed (`48f924e02`); the bar's height and the star open |
 | R-12 | *Starred*, *Products*, *Hubs*: the chevron shows a pointer and is clickable, but nothing expands or collapses. | done: *Starred*, *Products*, *Hubs* (and *Collections*, *Contents*) fold by their chevron, remembered on the device (`hubtask.nav.sections`); a head that does not fold draws no chevron and no pointer (`NavGroup`); a phone's section heads never fold and draw none |
 | R-13 | Collection *Design*, narrowing the window: the tabs and the horizontal tools overlap; the tabs scroll, but *Filter*, for example, should shrink to its icon. | open |
 | R-14 | *Profile → Files* → *This screen stopped working*. Check whether something broke in general. | demo gap, fixed (`48f924e02`, `7e59a80bb`); nothing broken in general - done |
 | R-15 | Phone: navigating to another page keeps the scroll position instead of starting at the top. | open |
+| R-16 | The sidebar dragged to its minimum width: the hub's name runs under the head's ▾, ☆ and ⋯, while the rows end with *…*. | done: the name wraps to two lines at most and ends with an ellipsis, its full words the title; the head's marks sit as close as a row's actions. Every row and head checked by their boxes at 200 px, in the rail, in a touch tablet's drawer and on a phone's hub step (`e2e/kompassfit.test.mjs`) |
+| R-17 | Seen on the real demo: the *Plan* row loses its name to the running sprint's figure (*P Sprint 24 – Passkeys · 7 T*). | done: a figure grows to `layout.nav.figure` at most and is cut first; a row's name keeps `layout.nav.name` beside it, so a count beside a long name stays whole and the name is cut instead (`NavItem`, the workbench's *At the narrowest sidebar*) |
 
 ### Triage of the crashes
 
@@ -749,8 +758,7 @@ page head and the screens. Walked on the real demo: a viewer's hub ⋯ holds *Co
 stands only for a holder of `STRUCTURE`. Its address typed by a member says the refusal, as a
 screen reached by address does (P-05).
 
-Seen on the real demo beside the review, open: the sidebar's *Plan* row loses its name to the
-running sprint's figure (*P Sprint 24 – Passkeys · 7 T*, German, 1440 px); *Today*'s *Lists* card
+Seen on the real demo beside the review, open: *Today*'s *Lists* card
 overflows its column sideways. `e2e/productsband.test.mjs` (*the desk's home … draw the queues*) failed
 once in the full engine run on *Breached 19 min ago* against an expected 18 - a clock read twice under
 load; it passes alone. After R-3, R-4 and R-12 the full engine run (`pnpm test:engines`) was 1,063 of 1,065: `shell`'s
