@@ -319,7 +319,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'], words: 'app.nav.words_mail' },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks', 'webhook'], isAdvanced: true },
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
-      { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'], isAdvanced: true },
+      { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice', 'voice-section'], isAdvanced: true },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
     ],
   },

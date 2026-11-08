@@ -156,8 +156,8 @@
   {#key route.params.id}
     <IdentityProviderView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
   {/key}
-{:else if route.name === 'voice'}
-  <VoiceView />
+{:else if route.name === 'voice' || route.name === 'voice-section'}
+  <VoiceView section={route.params.section} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'mail' || route.name === 'mail-oauth'}
   <MailView providerAnswer={route.name === 'mail-oauth' ? route.query : undefined} onanswered={() => onreplace('/administration/mail')} />
 {:else if route.name === 'legal'}

@@ -243,6 +243,7 @@ async function views() {
     ['webhooks', await load('WebhooksView'), { onnavigate: noop }],
     ['webhook', await load('WebhookView'), { id: '01a0e2e0-0000-7000-8000-0000000000a1', onnavigate: noop }],
     ['voice', await load('VoiceView'), {}],
+    ['voice-section', await load('VoiceView'), { section: 'alexa' }],
     ['mail', await load('MailView'), {}],
     ['quotas', await load('QuotasView'), {}],
     ['private-hubs', await load('PrivateHubsView'), {}],

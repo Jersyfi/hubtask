@@ -84,6 +84,7 @@ test('the administration area is exactly these screens, by name', () => {
     'templates',
     'time-settings',
     'voice',
+    'voice-section',
     'webhook',
     'webhooks',
     'workflow',

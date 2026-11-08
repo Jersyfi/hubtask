@@ -106,6 +106,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
   { name: 'voice', pattern: '/administration/voice', area: 'administration' },
+  { name: 'voice-section', pattern: '/administration/voice/:section', area: 'administration' },
   { name: 'mail', pattern: '/administration/mail', area: 'administration' },
   // Where a mail provider sends the browser back after connecting a mailbox (ADR-0094): the mail
   // screen, which hands the code and the state to the API and then drops them from the address.
