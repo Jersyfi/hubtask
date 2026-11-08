@@ -89,6 +89,9 @@
   const carries = (role: MatrixRole, permission: string) => role.permissions.includes(permission);
 </script>
 
+<!-- A matrix wider than its region scrolls sideways inside its own frame, the role column pinned
+     so every tick still has its row's name beside it (page-system §4.4). -->
+<div class="matrix" class:is-pinned={!isStacked}>
 <Table {label} {isLabelHidden} {columns} {isStacked}>
   {#each roles as role (role.id)}
     <tr>
@@ -126,9 +129,27 @@
     </tr>
   {/each}
 </Table>
+</div>
 
 <style>
+  .matrix { display: contents; }
+
   .role { color: var(--text-primary); font-weight: var(--fw-medium); white-space: nowrap; }
+
+  .is-pinned .role {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: var(--z-raised);
+    background: var(--bg-surface);
+  }
+
+  .is-pinned tr:hover .role { background: var(--bg-surface-hover); }
+
+  /* The head's corner stays over the column heads that scroll under it. */
+  .is-pinned :global(thead th:first-child) {
+    inset-inline-start: 0;
+    z-index: calc(var(--z-sticky) + 1);
+  }
 
   .mark { color: var(--text-secondary); }
 
