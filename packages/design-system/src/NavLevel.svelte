@@ -185,8 +185,9 @@
   }
 
   /* Two lines at most, then an ellipsis: a long name wraps between its words, a word longer than
-     the room breaks, and nothing runs under the switcher, ☆ and ⋯ at the narrowest sidebar. The
-     full words are the title. */
+     the room is hyphenated by the document's language (or broken where it has no dictionary),
+     and nothing runs under the switcher, ☆ and ⋯ at the narrowest sidebar. The full words are
+     the title. */
   .hub-name {
     flex: 1;
     min-inline-size: 0;
@@ -198,6 +199,7 @@
     line-clamp: 2;
     overflow: hidden;
     overflow-wrap: break-word;
+    hyphens: auto;
     font-family: var(--font-ui);
     font-size: var(--fs-100);
     font-weight: var(--fw-semibold);
