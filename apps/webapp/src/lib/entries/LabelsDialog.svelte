@@ -21,7 +21,8 @@
   import { untrack } from 'svelte';
 
   import { labelTokens } from '@hubtask/design-system';
-  import { Button, IconButton, Inline, Input, LabelChip, Stack } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, Input, LabelChip, Stack } from '@hubtask/design-system/components';
+  import type { DataColumn } from '@hubtask/design-system/components';
 
   import { labels } from '../data/labels.svelte.ts';
   import { offerUndo } from './undo.svelte.ts';
@@ -31,16 +32,18 @@
   import { focusFirst } from '../forms/missing.ts';
 
   import type { Label } from '@hubtask/sync-engine';
-  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
+  import { DiscardGuard } from '../page/discard.svelte.ts';
+  import DiscardDialog from '../page/DiscardDialog.svelte';
+  import TableSection from '../page/TableSection.svelte';
 
   interface Props {
-    /** Drawn as a tab of the *Structure* panel rather than as a dialog of its own. */
-    isEmbedded?: boolean;
-    isOpen: boolean;
     collectionId: string;
   }
 
-  let { isEmbedded = false, isOpen = $bindable(), collectionId }: Props = $props();
+  const { collectionId }: Props = $props();
+
+  /** The label dialog: a new one, or `editing`'s name and colour (a Dialog S, page-system §5.1). */
+  let isOpen = $state(false);
 
   let name = $state('');
   let colour = $state<string>(labelTokens[0]);
@@ -56,7 +59,6 @@
   const deleted = $derived(labels.deletedOf(collectionId));
 
   $effect(() => {
-    if (!isOpen) return;
     const wanted = collectionId;
     return untrack(() => labels.openDeleted(wanted));
   });
@@ -71,30 +73,47 @@
     }
   }
 
-  // Opening starts from nothing. Closing leaves the fields alone: they are re-read on the next
-  // open, and clearing them here would blank the dialog while it is still fading out.
-  $effect(() => {
-    if (!isOpen) return;
-    reset();
-  });
-
   function reset() {
     name = '';
     colour = labelTokens[0];
     editing = undefined;
     failure = undefined;
+    isNameMissing = false;
+  }
+
+  function startNew() {
+    reset();
+    isOpen = true;
   }
 
   function startEditing(label: Label) {
+    reset();
     editing = label;
     name = label.name;
     colour = label.color_token ?? labelTokens[0];
-    failure = undefined;
+    isOpen = true;
   }
+
+  const guard = new DiscardGuard(
+    () => (editing ? name.trim() !== editing.name || colour !== (editing.color_token ?? labelTokens[0]) : name.trim() !== ''),
+    () => (isOpen = false),
+  );
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.labels.name'), priority: 1 },
+    { id: 'colour', label: t('app.workspace.colour'), priority: 2 },
+  ]);
+  const menuOf = (label: Label) => ({
+    label: t('app.page.more_for', { name: label.name }),
+    items: [
+      { id: 'rename', label: t('app.labels.rename', { name: label.name }) },
+      { id: 'delete', label: t('app.labels.delete', { name: label.name }), isDestructive: true, hasSeparatorBefore: true },
+    ],
+  });
 
   /** The save was pressed without a name: the field says so (design-system.md §4, case 3). */
   let isNameMissing = $state(false);
-  let form = $state<HTMLElement | null>(null);
+  let form = $state<HTMLFormElement | null>(null);
 
   async function save() {
     if (isSaving) return;
@@ -122,6 +141,7 @@
         );
       }
       announcer.say(t('app.labels.saved_announced'));
+      isOpen = false;
       reset();
     } catch (error) {
       failure = renderProblem(error as never, messages);
@@ -136,56 +156,70 @@
       await labels.remove(collectionId, label.id, label.version);
       // At once, with the way back (UC-WRK-28 check 3): the entries that carried it carry it again.
       offerUndo({ kind: 'label-deleted', collectionId, labelId: label.id, name: label.name });
-      if (editing?.id === label.id) reset();
+
     } catch (error) {
       failure = renderProblem(error as never, messages);
     }
   }
 </script>
 
-<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.labels.manage')} dismissLabel={t('app.workspace.cancel')}>
-  <Stack gap="200">
-    {#if existing.length === 0}
-      <p class="notice">{t('app.labels.none_yet')}</p>
-    {:else}
-      <Stack gap="050">
-        {#each existing as label (label.id)}
-          <Inline gap="100">
-            <LabelChip name={label.name} colorToken={label.color_token} />
-            <IconButton
-              icon="pencil"
-              label={t('app.labels.rename', { name: label.name })}
-              size="sm"
-              onclick={() => startEditing(label)}
-            />
-            <IconButton
-              icon="trash"
-              label={t('app.labels.delete', { name: label.name })}
-              size="sm"
-              onclick={() => remove(label)}
-            />
-          </Inline>
-        {/each}
-      </Stack>
-    {/if}
+<!-- The collection's labels as one table (page-system §9.6, PS-4): rename and delete behind each
+     row's ⋯, a new one and a change in a Dialog S; what was deleted below with its way back. -->
+{#snippet newLabel()}
+  <Button size="sm" tone="secondary" onclick={startNew}>{t('app.labels.new')}</Button>
+{/snippet}
 
-    {#if deleted.length > 0}
-      <section class="deleted" aria-labelledby="labels-deleted">
-        <h3 id="labels-deleted" class="heading">{t('app.labels.deleted_heading')}</h3>
-        <Stack gap="050">
-          {#each deleted as label (label.id)}
-            <Inline gap="100">
-              <LabelChip name={label.name} colorToken={label.color_token} />
-              <Button size="sm" tone="secondary" onclick={() => restore(label)}>
-                {t('app.labels.restore', { name: label.name })}
-              </Button>
-            </Inline>
-          {/each}
-        </Stack>
-      </section>
-    {/if}
+<TableSection title={t('app.labels.manage')} note={String(existing.length)} acts={newLabel}>
+  {#if failure && !isOpen}<p class="failure" role="alert">{failure.message}</p>{/if}
+  <DataTable
+    label={t('app.labels.choose')}
+    {columns}
+    rows={existing}
+    key={(label) => label.id}
+    rowLabel={(label) => label.name}
+    menu={menuOf}
+    onmenu={(label, id) => (id === 'delete' ? void remove(label) : startEditing(label))}
+    actionsLabel={t('app.page.row_actions')}
+    sheetDismissLabel={t('app.page.sheet_close')}
+    sheetGrabLabel={t('app.page.sheet_grab')}
+  >
+    {#snippet cell(label, column)}
+      {#if column.id === 'name'}<LabelChip name={label.name} colorToken={label.color_token} />
+      {:else}<span class="quiet">{label.color_token ? t(`app.colour.${label.color_token}`) : ''}</span>{/if}
+    {/snippet}
+    {#snippet empty()}<p class="quiet">{t('app.labels.none_yet')}</p>{/snippet}
+  </DataTable>
+</TableSection>
 
-    <div bind:this={form}>
+{#if deleted.length > 0}
+  <!-- What was taken out of the vocabulary stays with its way back (UC-WRK-28 check 3). -->
+  <TableSection title={t('app.labels.deleted_heading')} note={String(deleted.length)}>
+    <DataTable
+      label={t('app.labels.deleted_heading')}
+      columns={columns.slice(0, 1)}
+      rows={deleted}
+      key={(label) => label.id}
+      rowLabel={(label) => label.name}
+      actionsLabel={t('app.page.row_actions')}
+    >
+      {#snippet cell(label)}<LabelChip name={label.name} colorToken={label.color_token} />{/snippet}
+      {#snippet verb(label)}
+        <Button size="sm" tone="secondary" onclick={() => void restore(label)}>{t('app.labels.restore', { name: label.name })}</Button>
+      {/snippet}
+    </DataTable>
+  </TableSection>
+{/if}
+
+<Dialog
+  size="s"
+  title={editing ? t('app.labels.rename', { name: editing.name }) : t('app.labels.new')}
+  bind:isOpen
+  dismissLabel={t('app.workspace.cancel')}
+  onDismiss={guard.dismiss}
+  onClose={reset}
+  primary={{ label: t(editing ? 'app.workspace.save' : 'app.labels.create'), isBusy: isSaving, busyLabel: t('app.workspace.saving'), onclick: () => void save() }}
+>
+  <form bind:this={form} onsubmit={(event) => { event.preventDefault(); void save(); }}>
     <Stack gap="150">
       <Input
         label={t('app.labels.name')}
@@ -196,8 +230,8 @@
       />
 
       <!-- A radio group by hand rather than ten `Radio`s: what a reader is choosing between is the
-           chips themselves, drawn with the label's own name. The chip is what is seen; the radio is
-           named by its colour, or every swatch would be read out as the name field's label. -->
+           chips themselves, drawn with the label's own name. The radio is named by its colour, or
+           every swatch would be read out as the name field's label. -->
       <fieldset class="colours">
         <legend>{t('app.workspace.colour')}</legend>
         {#each labelTokens as token (token)}
@@ -209,30 +243,17 @@
       </fieldset>
 
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-
-      <Inline gap="100">
-        <Button
-          isBusy={isSaving}
-          busyLabel={t('app.workspace.saving')}
-          onclick={save}
-        >
-          {t(editing ? 'app.workspace.save' : 'app.labels.create')}
-        </Button>
-        {#if editing}
-          <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
-        {/if}
-      </Inline>
     </Stack>
-    </div>
-  </Stack>
-</PanelOrDialog>
+  </form>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => { if (guard.dismiss()) isOpen = false; }}>{t('app.workspace.cancel')}</Button>
+  {/snippet}
+</Dialog>
+<DiscardDialog {guard} />
 
 <style>
-  .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
-  .deleted { display: flex; flex-direction: column; gap: var(--sp-100); }
-  .heading { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
+  .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
-
   .colours {
     display: flex;
     flex-wrap: wrap;

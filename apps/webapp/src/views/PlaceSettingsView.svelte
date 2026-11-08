@@ -132,7 +132,7 @@
     <PlaceGeneral {container} />
   {/snippet}
   {#snippet labelsTab()}
-    <LazyView load={settingsParts.LabelsDialog} props={{ isEmbedded: true, isOpen: true, collectionId: container.id }} />
+    <LazyView load={settingsParts.LabelsDialog} props={{ collectionId: container.id }} />
   {/snippet}
   {#snippet fieldsTab()}
     <LazyView load={settingsParts.CustomFieldsDialog} props={{ isEmbedded: true, isOpen: true, collectionId: container.id, role: structureRole }} />

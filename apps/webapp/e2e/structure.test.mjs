@@ -127,9 +127,11 @@ for (const width of [390, 1280]) {
       assert.ok(box.right <= width + 1 && box.left >= -1, `a section stands at ${box.left}-${box.right}, past the screen's ${width}`);
     }
     await tabs.filter({ hasText: 'Labels' }).click();
-    // The section's editor is loaded when it is opened (LazyView).
-    await panel.getByRole('radio').first().waitFor({ timeout: 10_000 });
-    const colours = await panel.getByRole('radio').evaluateAll((each) => each.map((radio) => radio.getAttribute('aria-label')));
+    // The section's table is loaded when it is opened (LazyView); a label is made in its Dialog S.
+    await page.getByRole('button', { name: 'New label' }).click();
+    const made = page.getByRole('dialog', { name: 'New label' });
+    await made.getByRole('radio').first().waitFor({ timeout: 10_000 });
+    const colours = await made.getByRole('radio').evaluateAll((each) => each.map((radio) => radio.getAttribute('aria-label')));
     assert.ok(colours.length >= 10);
     assert.ok(colours.includes('Slate') && colours.includes('Violet'), `the colours are named ${colours.join(', ')}`);
     assert.deepEqual(failures, []);
