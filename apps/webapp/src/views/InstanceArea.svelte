@@ -19,6 +19,8 @@
   import InstanceTargetsView from './InstanceTargetsView.svelte';
   import InstanceTemplatesView from './InstanceTemplatesView.svelte';
   import InstanceUsageView from './InstanceUsageView.svelte';
+  import InstanceWorkspaceNewView from './InstanceWorkspaceNewView.svelte';
+  import InstanceWorkspaceView from './InstanceWorkspaceView.svelte';
   import InstanceWorkspacesView from './InstanceWorkspacesView.svelte';
   import type { Resolution } from '../lib/router.ts';
 
@@ -38,14 +40,20 @@
   <InstanceOverviewView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'instance-workspaces'}
   <InstanceWorkspacesView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'instance-workspace-new'}
+  <InstanceWorkspaceNewView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'instance-workspace'}
+  {#key route.params.id}
+    <InstanceWorkspaceView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'instance-plans'}
   <InstancePlansView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'instance-plan'}
   {#key route.params.name}
     <InstancePlanView name={route.params.name ?? ''} onnavigate={(path) => onnavigate(path)} />
   {/key}
-{:else if route.name === 'instance-settings'}
-  <InstanceSettingsView tab={route.query['tab']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
+{:else if route.name === 'instance-settings' || route.name === 'instance-settings-section'}
+  <InstanceSettingsView section={route.params.section} tab={route.query['tab']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'instance-providers'}
   <InstanceProvidersView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'instance-ai'}

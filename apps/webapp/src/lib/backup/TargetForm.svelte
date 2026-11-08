@@ -4,16 +4,16 @@
   // A backup target's creation form - the workspace's and the installation's share it, because a
   // target is one thing wherever it belongs, and two forms would be two sets of field rules.
   //
-  // In a dialog (`place="dialog"`, the workspace's *Add a target*, a Dialog M) the dialog carries
-  // the heading and the primary, and what most targets leave as it is - the encryption, a bucket's
-  // region, an SFTP key - is folded under *Advanced* (page-system §5.1).
+  // It stands in *Add a target*, a Dialog M: the dialog carries the heading and the primary, and
+  // what most targets leave as it is - the encryption, a bucket's region, an SFTP key - is folded
+  // under *Advanced* (page-system §5.1).
   //
   // **The credentials are write-only by construction**: typed here, handed to the owner of the form
   // once, and never read back into it.
 
   import { tick } from 'svelte';
 
-  import { Banner, Button, Checkbox, Disclosure, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Banner, Checkbox, Disclosure, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
   import type { Target, TargetDraft } from '../data/backup.svelte.ts';
   import { insecureReasons, sftpTarget, webdavTarget } from '../data/backup.ts';
@@ -21,19 +21,15 @@
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
-    heading?: string;
-    isWorking: boolean;
     /** Adds the target; true when it was added, so the form empties. */
     onadd: (draft: TargetDraft) => Promise<boolean>;
-    /** On a page, a panel with its own heading and *Add*; in a dialog, the fields alone. */
-    place?: 'panel' | 'dialog';
     /** The form, for a dialog's primary to submit. */
     form?: HTMLFormElement;
     /** Whether anything is typed or chosen: what a dialog's *Discard changes?* asks about. */
     isTouched?: boolean;
   }
 
-  let { heading, isWorking, onadd, place = 'panel', form = $bindable(), isTouched = $bindable(false) }: Props = $props();
+  let { onadd, form = $bindable(), isTouched = $bindable(false) }: Props = $props();
 
   /**
    * The kinds this build speaks (UC-BAK-01 check 10). The other names in the contract are refused
@@ -172,9 +168,8 @@
   {/if}
 {/snippet}
 
-<form class:panel={place === 'panel'} bind:this={form} onsubmit={createTarget}>
+<form bind:this={form} onsubmit={createTarget}>
   <Stack gap="150">
-    {#if place === 'panel' && heading}<h3 class="section">{heading}</h3>{/if}
     <Input label={t('app.backup.target_name')} bind:value={draftName} isRequired error={missing.name && !draftName.trim() ? t(missing.name) : undefined} />
     <Select
       label={t('app.backup.target_kind')}
@@ -188,12 +183,11 @@
         bind:value={draftPath}
       />
     {:else if draftKind === 'S3'}
-      <div class="group" class:pair={place === 'dialog'}>
+      <div class="group pair">
         <Input label={t('app.backup.target_endpoint')} bind:value={draftEndpoint} />
         <Input label={t('app.backup.target_bucket')} bind:value={draftBucket} />
       </div>
-      {#if place === 'panel'}{@render region()}{/if}
-      <div class="group" class:pair={place === 'dialog'}>
+      <div class="group pair">
         <Input label={t('app.backup.target_access_key')} bind:value={draftAccessKey} />
         <Input
           label={t('app.backup.target_secret_key')}
@@ -209,12 +203,12 @@
         bind:value={draftUrl}
         isRequired
       />
-      <div class="group" class:pair={place === 'dialog'}>
+      <div class="group pair">
         <Input label={t('app.backup.target_user')} bind:value={draftUser} />
         <Input label={t('app.backup.target_password')} type="password" bind:value={draftPassword} />
       </div>
     {:else}
-      <div class="group" class:pair={place === 'dialog'}>
+      <div class="group pair">
         <Input label={t('app.backup.target_host')} bind:value={draftHost} />
         <Input label={t('app.backup.target_path')} bind:value={draftPath} />
       </div>
@@ -226,7 +220,7 @@
         bind:value={draftHostKey}
         isRequired
       />
-      <div class="group" class:pair={place === 'dialog'}>
+      <div class="group pair">
         <Input label={t('app.backup.target_user')} bind:value={draftUser} />
         <Input
           label={t('app.backup.target_password')}
@@ -234,20 +228,15 @@
           bind:value={draftPassword}
         />
       </div>
-      {#if place === 'panel'}{@render privateKey()}{/if}
     {/if}
-    {#if place === 'panel'}
-      {@render encryption()}
-    {:else}
-      <!-- The risk an unencrypted target carries is said below the fold, never inside it. -->
-      <Disclosure tone="quiet" label={t('app.backup.target_advanced')} description={t('app.backup.target_advanced_says')}>
-        <Stack gap="150">
-          {#if draftKind === 'S3'}{@render region()}{/if}
-          {#if draftKind === 'SFTP'}{@render privateKey()}{/if}
-          {@render encryption()}
-        </Stack>
-      </Disclosure>
-    {/if}
+    <!-- The risk an unencrypted target carries is said below the fold, never inside it. -->
+    <Disclosure tone="quiet" label={t('app.backup.target_advanced')} description={t('app.backup.target_advanced_says')}>
+      <Stack gap="150">
+        {#if draftKind === 'S3'}{@render region()}{/if}
+        {#if draftKind === 'SFTP'}{@render privateKey()}{/if}
+        {@render encryption()}
+      </Stack>
+    </Disclosure>
     {#if insecure.length > 0}
       <!-- The risk in the server's own words, and the owner's acceptance of it, before the
            add: the server refuses such a target without it (UC-BAK-01 check 6). -->
@@ -261,50 +250,19 @@
     <!-- Said where the credentials are typed: they go in and the contract answers `config`
          without them, so there is nothing to come back and check later. -->
     <p class="quiet small">{t('app.backup.credentials_write_only')}</p>
-    {#if place === 'panel'}
-      <div>
-        <Button
-          type="submit"
-          tone="primary"
-          isBusy={isWorking}
-          busyLabel={t('app.backup.adding')}
-        >
-          {t('app.backup.add')}
-        </Button>
-      </div>
-    {/if}
   </Stack>
 </form>
 
 <style>
-  .section {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-200);
-    font-weight: var(--fw-semibold);
-  }
-
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }
 
-  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
-     the screen take the region (ADR-0065 decision 2). */
-  form.panel { max-inline-size: 52ch; }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  form { margin: 0; }
 
   .reasons { margin: 0; padding-inline-start: var(--sp-200); }
 
   /* Without a pair, the two fields stack as every other field of the form does. */
-  .group:not(.pair) { display: contents; }
-
   /* Two short fields that belong together share a line in a dialog, so the form needs no scrolling
      (page-system §5.1); a full-screen dialog on a phone stacks them again. */
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-150); }

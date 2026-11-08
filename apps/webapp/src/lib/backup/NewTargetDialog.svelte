@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Add a target* as a Dialog M (page-system §9.3): the name, the kind and what the kind needs; the
-  // rare fields under *Advanced*. The form is the one the installation's targets use too.
+  // *Add a target* as a Dialog M (page-system §9.3, §9.4): the name, the kind and what the kind
+  // needs; the rare fields under *Advanced*. The workspace's targets and the installation's alike:
+  // the caller says where the target is created.
   import { Button, Dialog } from '@hubtask/design-system/components';
 
   import { announcer } from '../announce.svelte.ts';
@@ -14,7 +15,15 @@
   import { renderProblem } from '../problem.ts';
   import TargetForm from './TargetForm.svelte';
 
-  let { isOpen = $bindable(false) }: { isOpen: boolean } = $props();
+  interface Props {
+    isOpen: boolean;
+    /** Creates the target where it belongs: the workspace's by default. */
+    create?: (draft: TargetDraft) => Promise<unknown>;
+    /** What is announced once it is added. */
+    addedLabel?: string;
+  }
+
+  let { isOpen = $bindable(false), create = (draft) => backup.createTarget(draft), addedLabel }: Props = $props();
 
   let form = $state<HTMLFormElement | undefined>(undefined);
   let isTouched = $state(false);
@@ -33,8 +42,8 @@
     failure = undefined;
     isWorking = true;
     try {
-      await backup.createTarget(draft);
-      announcer.say(t('app.backup.target_added_announced'));
+      await create(draft);
+      announcer.say(addedLabel ?? t('app.backup.target_added_announced'));
       close();
       return true;
     } catch (cause) {
@@ -57,7 +66,7 @@
 >
   {#if failure}<FailureNote problem={failure} />{/if}
   {#key round}
-    <TargetForm place="dialog" {isWorking} onadd={add} bind:form bind:isTouched />
+    <TargetForm onadd={add} bind:form bind:isTouched />
   {/key}
   {#snippet actions()}
     <Button tone="subtle" onclick={() => { if (guard.dismiss()) close(); }}>{t('app.workspace.cancel')}</Button>

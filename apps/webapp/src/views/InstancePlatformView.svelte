@@ -23,13 +23,17 @@
     Badge,
     Banner,
     Button,
+    DataTable,
     Dialog,
+    EmptyState,
+    FilterBar,
     Input,
+    ListPage,
     OneTimeSecret,
-    PageHeader,
     Spinner,
     Stack,
-    Table,
+    type DataColumn,
+    type MenuItem,
     type PageAction,
   } from '@hubtask/design-system/components';
   import { actionsOfHead } from '../lib/palette/actions.ts';
@@ -51,7 +55,7 @@
   /** Whether *Add* was pressed without an address: marked at the field (UC-WRK-32 check 3). */
   let targetMissing = $state(false);
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -85,12 +89,42 @@
   const waiting = $derived(subscriptions.some((each) => each.dead_letters > 0));
   const isFromFile = $derived(subscriptions.some((each) => each.from_file));
 
-  const columns = $derived([
-    { id: 'target', label: t('app.instance.platform_column_target') },
-    { id: 'delivery', label: t('app.instance.platform_column_delivery') },
-    { id: 'last', label: t('app.instance.platform_column_last') },
-    { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'target', label: t('app.instance.platform_column_target'), priority: 1 },
+    { id: 'delivery', label: t('app.instance.platform_column_delivery'), priority: 2, isStatus: true },
+    { id: 'last', label: t('app.instance.platform_column_last'), priority: 3 },
   ]);
+
+  let search = $state('');
+  const shown = $derived(subscriptions.filter((each) => matchesSearch(search, [each.target_url])));
+
+  /**
+   * A subscription's ⋯: deliver again what waits, pause or resume, and remove it last. One the file
+   * sets offers only the redelivery; in the menu, so a phone's sheet offers it too.
+   */
+  function rowMenu(subscription: PlatformSubscription) {
+    const items: MenuItem[] = [
+      ...(subscription.dead_letters > 0 && subscription.state === 'ACTIVE' ? [{ id: 'redeliver', label: t('app.instance.platform_redeliver') }] : []),
+      ...(subscription.from_file
+        ? []
+        : [
+            { id: 'state', label: subscription.state === 'PAUSED' ? t('app.instance.platform_resume') : t('app.instance.platform_pause') },
+            { id: 'remove', label: `${t('app.instance.platform_remove')}…`, isDestructive: true, hasSeparatorBefore: true },
+          ]),
+    ];
+    return items.length === 0 ? undefined : { label: t('app.page.more_for', { name: subscription.target_url }), items };
+  }
+
+  function onRowMenu(subscription: PlatformSubscription, id: string): void {
+    if (id === 'redeliver') {
+      void run(`redeliver:${subscription.id}`, () => platformSubscriptions.redeliver(subscription.id), t('app.instance.platform_redelivered_announced'));
+    } else if (id === 'state') {
+      void run(`state:${subscription.id}`, () => platformSubscriptions.setState(subscription.id, subscription.state === 'PAUSED' ? 'ACTIVE' : 'PAUSED'));
+    } else {
+      removing = subscription;
+      failure = undefined;
+    }
+  }
 
   const last = (subscription: PlatformSubscription): string =>
     subscription.last_delivery_at
@@ -141,126 +175,106 @@
   $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.instance.platform')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.platform') })}
-    primary={headPrimary}
-  />
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage
+      head={{ title: t('app.instance.platform'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.platform') }), primary: headPrimary }}
+      refused={door ?? (unreadable ? failed : undefined)}
+    >
+      {#snippet intro()}
+        <Stack gap="100">
+          <p class="quiet">{t('app.instance.platform_sent')}</p>
+          {#if !isSingle && waiting}
+            <Banner tone="warning" title={t('app.instance.platform_unreachable_title')}>{t('app.instance.platform_unreachable_body')}</Banner>
+          {/if}
+        </Stack>
+      {/snippet}
+      {#snippet filters()}
+        {#if !isSingle}
+          <FilterBar
+            searchLabel={t('app.instance.platform_search')}
+            clearSearchLabel={t('app.page.clear_search')}
+            bind:search
+            countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(subscriptions.length) }) : undefined}
+          />
+        {/if}
+      {/snippet}
 
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      {#if minted}
-        <OneTimeSecret
-          value={minted.secret}
-          label={t('app.instance.platform_secret_title')}
-          hint={t('app.instance.platform_secret_hint')}
-          revealLabel={t('app.apps.reveal')}
-          hideLabel={t('app.apps.hide')}
-          copyLabel={t('app.apps.copy')}
-          copiedLabel={t('app.apps.copied')}
-          acknowledgementLabel={t('app.apps.kept')}
-          notAcknowledgedReason={t('app.apps.keep_first')}
-          dismissLabel={t('app.apps.done')}
-          onDismiss={() => (minted = undefined)}
-        />
-      {/if}
-
-      {#if failure && !removing && !isAdding}
-        <FailureNote problem={failure} />
-      {/if}
-
+      {#if failure && !removing && !isAdding}<FailureNote problem={failure} />{/if}
       {#if isSingle}
         <Banner tone="info">{t('app.instance.platform_single')}</Banner>
       {:else if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else}
-        {#if subscriptions.length === 0}
-          <Banner tone="info">{t('app.instance.platform_none')}</Banner>
-        {:else}
-          {#snippet delivery(subscription: PlatformSubscription)}
-            {#if subscription.state === 'PAUSED'}
-              <Badge tone="neutral">{t('app.instance.platform_paused')}</Badge>
-            {:else if subscription.dead_letters > 0}
-              <Badge tone="warning">{t('app.instance.platform_dead_letters', { count: subscription.dead_letters })}</Badge>
+        <DataTable
+          label={t('app.instance.platform')}
+          {columns}
+          rows={shown}
+          key={(subscription: PlatformSubscription) => subscription.id}
+          rowLabel={(subscription: PlatformSubscription) => subscription.target_url}
+          menu={rowMenu}
+          onmenu={onRowMenu}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={subscriptions.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+        >
+          {#snippet cell(subscription: PlatformSubscription, column: DataColumn)}
+            {#if column.id === 'target'}
+              <span class="mono">{subscription.target_url}</span>
+            {:else if column.id === 'delivery'}
+              {#if subscription.state === 'PAUSED'}
+                <Badge tone="neutral">{t('app.instance.platform_paused')}</Badge>
+              {:else if subscription.dead_letters > 0}
+                <Badge tone="warning">{t('app.instance.platform_dead_letters', { count: subscription.dead_letters })}</Badge>
+              {:else}
+                <Badge tone="success">{t('app.instance.platform_delivering')}</Badge>
+              {/if}
+              {#if working === `state:${subscription.id}` || working === `redeliver:${subscription.id}`}<Spinner label={t('app.instance.working')} />{/if}
             {:else}
-              <Badge tone="success">{t('app.instance.platform_delivering')}</Badge>
+              <span class="quiet">{last(subscription)}</span>
             {/if}
           {/snippet}
-          {#snippet controls(subscription: PlatformSubscription)}
-            <div class="row">
-              {#if subscription.dead_letters > 0 && subscription.state === 'ACTIVE'}
-                <Button
-                  isBusy={working === `redeliver:${subscription.id}`}
-                  busyLabel={t('app.instance.working')}
-                  onclick={() =>
-                    void run(`redeliver:${subscription.id}`, () => platformSubscriptions.redeliver(subscription.id),
-                      t('app.instance.platform_redelivered_announced'))}
-                >
-                  {t('app.instance.platform_redeliver')}
-                </Button>
-              {/if}
-              {#if !subscription.from_file}
-                <Button
-                  tone="subtle"
-                  isBusy={working === `state:${subscription.id}`}
-                  busyLabel={t('app.instance.working')}
-                  onclick={() =>
-                    void run(`state:${subscription.id}`, () =>
-                      platformSubscriptions.setState(subscription.id, subscription.state === 'PAUSED' ? 'ACTIVE' : 'PAUSED'))}
-                >
-                  {subscription.state === 'PAUSED' ? t('app.instance.platform_resume') : t('app.instance.platform_pause')}
-                </Button>
-                <Button tone="danger" onclick={() => ((removing = subscription), (failure = undefined))}>
-                  {t('app.instance.platform_remove')}
-                </Button>
-              {/if}
-            </div>
+          {#snippet empty()}
+            {#if subscriptions.length === 0}
+              <EmptyState kind="unused" title={t('app.instance.platform_none')} />
+            {:else}
+              <EmptyState kind="filtered" title={t('app.instance.platform_none_found')}>
+                {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {/if}
           {/snippet}
-          {#if viewport.isCompact}
-            <!-- A phone has no room for four columns: each subscription reads top to bottom, its
-                 address whole on a line of its own. -->
-            <ul class="cards">
-              {#each subscriptions as subscription (subscription.id)}
-                <li class="card">
-                  <span class="mono">{subscription.target_url}</span>
-                  <span class="meta">{@render delivery(subscription)}<span class="quiet">{last(subscription)}</span></span>
-                  {@render controls(subscription)}
-                </li>
-              {/each}
-            </ul>
-          {:else}
-            <Table label={t('app.instance.platform')} isLabelHidden columns={columns}>
-              {#each subscriptions as subscription (subscription.id)}
-                <tr>
-                  <td><span class="mono">{subscription.target_url}</span></td>
-                  <td>{@render delivery(subscription)}</td>
-                  <td><span class="quiet">{last(subscription)}</span></td>
-                  <td>{@render controls(subscription)}</td>
-                </tr>
-              {/each}
-            </Table>
-          {/if}
-        {/if}
-
-        {#if waiting}
-          <Banner tone="warning" title={t('app.instance.platform_unreachable_title')}>
-            {t('app.instance.platform_unreachable_body')}
-          </Banner>
-        {/if}
-        <p class="quiet prose">{t('app.instance.platform_sent')}</p>
+        </DataTable>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </ListPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
+
+<!-- The secret once, in a dialog of its own: it is shown here and nowhere else, ever. -->
+<Dialog size="s" title={t('app.instance.platform_secret_title')} isOpen={minted !== undefined} dismissLabel={t('app.apps.done')} onClose={() => (minted = undefined)}>
+  {#if minted}
+    <OneTimeSecret
+      value={minted.secret}
+      label={t('app.instance.platform_secret_title')}
+      hint={t('app.instance.platform_secret_hint')}
+      revealLabel={t('app.apps.reveal')}
+      hideLabel={t('app.apps.hide')}
+      copyLabel={t('app.apps.copy')}
+      copiedLabel={t('app.apps.copied')}
+      acknowledgementLabel={t('app.apps.kept')}
+      notAcknowledgedReason={t('app.apps.keep_first')}
+      dismissLabel={t('app.apps.done')}
+      onDismiss={() => (minted = undefined)}
+    />
+  {/if}
+</Dialog>
 
 <Dialog
+  size="s"
   title={t('app.instance.platform_add')}
   isOpen={isAdding}
   dismissLabel={t('app.instance.cancel')}
@@ -295,6 +309,7 @@
 </Dialog>
 
 <Dialog
+  size="s"
   title={t('app.instance.platform_remove_title')}
   isOpen={removing !== undefined}
   dismissLabel={t('app.instance.cancel')}
@@ -324,16 +339,6 @@
 </Dialog>
 
 <style>
-  .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
-  .cards { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
-  .card {
-    display: grid; gap: var(--sp-100); padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 </style>

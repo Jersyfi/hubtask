@@ -18,20 +18,22 @@
   // **Narrowed at the server, a page at a time** (ux-inventory §E8): what happened - a kind of act,
   // as the action's prefix - and the workspace it was about, by the address the journal kept, which
   // is also how a workspace that is gone is found. *Show more* walks on under the same narrowing;
-  // narrowing what one page held would hide entries the next page has.
+  // narrowing what one page held would hide entries the next page has. A log page (page-system
+  // §7.6, §9.4): the kind a chip, the address the search, an entry a Dialog M.
   import { untrack } from 'svelte';
 
-  import { Banner, Input, LoadMore, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Button, DataTable, EmptyState, FilterBar, LogPage, Radio, Spinner, type DataColumn, type Filter } from '@hubtask/design-system/components';
+  import type { InstanceJournalEntry } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance, type JournalFilter } from '../lib/data/instance.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import LogRecordDialog from '../lib/instance/LogRecordDialog.svelte';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -46,9 +48,17 @@
     { value: 'plan.', code: 'app.instance.journal_kind_plans' },
     { value: 'instance.', code: 'app.instance.journal_kind_installation' },
   ] as const;
-  let action = $state('');
+  let kind = $state('');
   let workspace = $state('');
-  const filter = $derived<JournalFilter>({ action: action || undefined, workspace: workspace.trim() || undefined });
+  // The search is the workspace's address, read at the server; it waits for the typing to pause,
+  // so a word half typed asks for nothing.
+  let search = $state('');
+  $effect(() => {
+    const typed = search;
+    const timer = setTimeout(() => (workspace = typed), SEARCH_PAUSE);
+    return () => clearTimeout(timer);
+  });
+  const filter = $derived<JournalFilter>({ action: kind || undefined, workspace: workspace.trim() || undefined });
 
   $effect(() => {
     if (!instance.isElevated) return;
@@ -87,12 +97,37 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
-  const columns = $derived([
-    { id: 'occurred', label: t('app.instance.column_when') },
-    { id: 'action', label: t('app.instance.column_action') },
-    { id: 'workspace', label: t('app.instance.column_workspace') },
-    { id: 'actor', label: t('app.instance.column_actor') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'action', label: t('app.instance.column_action'), priority: 1 },
+    { id: 'occurred', label: t('app.instance.column_when'), priority: 2 },
+    ...(manifest.isSingleTenant ? [] : [{ id: 'workspace', label: t('app.instance.column_workspace'), priority: 2 as const }]),
+    { id: 'actor', label: t('app.instance.column_actor'), priority: 3 },
   ]);
+
+  const kinds = $derived(KINDS.filter((kind) => !(manifest.isSingleTenant && kind.value === 'plan.')));
+  const chips = $derived<Filter[]>([
+    { id: 'kind', label: kind ? t(KINDS.find((each) => each.value === kind)?.code ?? 'app.instance.journal_kind_all') : t('app.instance.journal_kind_all'), isActive: kind !== '' },
+  ]);
+
+  let opened = $state<InstanceJournalEntry | undefined>(undefined);
+  const openedFacts = $derived(
+    opened
+      ? [
+          { label: t('app.instance.column_when'), value: formatDateTime(opened.occurred_at, messages.locale) },
+          ...(opened.tenant_slug ? [{ label: t('app.instance.column_workspace'), value: opened.tenant_slug }] : []),
+          ...(opened.actor_label ? [{ label: t('app.instance.column_actor'), value: opened.actor_label }] : []),
+          ...Object.entries(opened.details ?? {}).map(([key, value]) => ({ label: key, value: shorten(value) })),
+        ]
+      : [],
+  );
+  const openedSupport = $derived(
+    opened
+      ? [
+          { label: t('app.instance.journal_support_action'), value: opened.action },
+          ...(opened.tenant_id ? [{ label: t('app.instance.journal_support_workspace'), value: opened.tenant_id }] : []),
+        ]
+      : [],
+  );
 
   /**
    * The word for an action, or the code where this build has none.
@@ -120,6 +155,7 @@
       .join(' · ');
   }
 
+  const SEARCH_PAUSE = 400;
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   function shorten(value: unknown): string {
@@ -130,93 +166,95 @@
   $effect(() => page.entitle(t('app.instance.journal')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.journal')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.journal') })} />
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <LogPage head={{ title: t('app.instance.journal'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.journal') }) }} refused={door}>
+      {#snippet intro()}<p class="quiet">{t(manifest.isSingleTenant ? 'app.instance.journal_intro_single' : 'app.instance.journal_intro')}</p>{/snippet}
+      {#snippet filters()}
+        <FilterBar
+          searchLabel={t('app.instance.journal_search')}
+          clearSearchLabel={t('app.page.clear_search')}
+          bind:search
+          filters={chips}
+          moreLabel={t('app.page.more_filters')}
+          filtersLabel={t('app.page.filters', { count: String(kind ? 1 : 0) })}
+          sheetTitle={t('app.page.filters', { count: '0' })}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          showLabel={t('app.page.show_results', { count: String(entries.length) })}
+          clearLabel={t('app.page.clear')}
+          onclear={() => { kind = ''; search = ''; }}
+          countLabel={reading.status === 'ready' ? t('app.instance.journal_found', { count: String(entries.length) }) : undefined}
+        >
+          {#snippet picker()}
+            <Radio
+              label={t('app.instance.journal_kind')}
+              bind:value={kind}
+              options={[{ value: '', label: t('app.instance.journal_kind_all') }, ...kinds.map((each) => ({ value: each.value, label: t(each.code) }))]}
+            />
+          {/snippet}
+        </FilterBar>
+      {/snippet}
 
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t(manifest.isSingleTenant ? 'app.instance.journal_intro_single' : 'app.instance.journal_intro')}</p>
-      <div class="narrow" role="search" aria-label={t('app.instance.journal_narrow')}>
-        <Select
-          label={t('app.instance.journal_kind')}
-          value={action}
-          onchange={(event) => (action = (event.currentTarget as HTMLSelectElement).value)}
-          options={[
-            { value: '', label: t('app.instance.journal_kind_all') },
-            ...KINDS.filter((kind) => !(manifest.isSingleTenant && kind.value === 'plan.')).map((kind) => ({ value: kind.value, label: t(kind.code) })),
-          ]}
-        />
-        {#if !manifest.isSingleTenant}
-          <!-- The address, typed: a workspace the journal names is usually gone, so there is no
-               list to pick it from. Applied when the field is left or Enter is pressed. -->
-          <Input
-            label={t('app.instance.journal_workspace')}
-            hint={t('app.instance.journal_workspace_hint')}
-            value={workspace}
-            onchange={(event) => (workspace = (event.currentTarget as HTMLInputElement).value)}
-            autocomplete="off"
-            spellcheck={false}
-          />
-        {/if}
-      </div>
       {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else if unreadable}
         <FailureNote problem={unreadable} />
-      {:else if entries.length === 0}
-        <Banner tone="info">{t(isNarrowed ? 'app.instance.journal_none_narrowed' : 'app.instance.journal_empty')}</Banner>
       {:else}
-        <Table isStacked label={t('app.instance.journal')} isLabelHidden columns={columns}>
-          {#each entries as entry (entry.id)}
-            <tr>
-              <td class="quiet-cell">{formatDateTime(entry.occurred_at, messages.locale)}</td>
-              <td>
-                <span class="action">{wordFor(entry.action)}</span>
-                {#if entry.details}
-                  <span class="quiet-cell">{summarise(entry.details)}</span>
-                {/if}
-              </td>
-              <td>
-                {#if entry.tenant_slug}
-                  <span class="action">{entry.tenant_slug}</span>
-                {:else if entry.tenant_id}
-                  <!-- The identifier only where there is no slug. A workspace the journal names is
-                       usually gone, and the slug is what a person recognises; the identifier beside
-                       it would be a column of wrapped hex nobody reads. -->
-                  <span class="mono">{entry.tenant_id}</span>
-                {/if}
-              </td>
-              <td class="quiet-cell">{entry.actor_label ?? ''}</td>
-            </tr>
-          {/each}
-        </Table>
-        <LoadMore
-          label={t('app.instance.journal_more')}
-          busyLabel={t('app.instance.journal_loading_more')}
-          hasMore={Boolean(instance.journalMoreAfter(filter))}
-          isBusy={isLoadingMore}
-          arrivedLabel={arrived}
-          failedLabel={moreFailed}
-          onLoadMore={() => void more()}
-        />
+        <DataTable
+          label={t('app.instance.journal')}
+          {columns}
+          rows={entries}
+          key={(entry: InstanceJournalEntry) => entry.id}
+          onopen={(entry: InstanceJournalEntry) => (opened = entry)}
+          rowLabel={(entry: InstanceJournalEntry) => wordFor(entry.action)}
+          group={(entry: InstanceJournalEntry) => formatDay(entry.occurred_at, messages.locale)}
+          shownLabel={entries.length === 0 ? undefined : t('app.page.showing', { count: String(entries.length) })}
+          more={instance.journalMoreAfter(filter) || arrived || moreFailed
+            ? {
+                label: t('app.instance.journal_more'),
+                busyLabel: t('app.instance.journal_loading_more'),
+                hasMore: Boolean(instance.journalMoreAfter(filter)),
+                isBusy: isLoadingMore,
+                arrivedLabel: arrived,
+                failedLabel: moreFailed,
+                onLoadMore: () => void more(),
+              }
+            : undefined}
+        >
+          {#snippet cell(entry: InstanceJournalEntry, column: DataColumn)}
+            {#if column.id === 'action'}
+              <span class="action">{wordFor(entry.action)}</span>
+              {#if entry.details}<span class="quiet-cell">{summarise(entry.details)}</span>{/if}
+            {:else if column.id === 'occurred'}
+              <span class="quiet">{formatDateTime(entry.occurred_at, messages.locale)}</span>
+            {:else if column.id === 'workspace'}
+              <!-- The slug a person recognises; a workspace that is gone has only its identifier,
+                   which is under *Details for support*. -->
+              <span>{entry.tenant_slug ?? ''}</span>
+            {:else}
+              <span class="quiet">{entry.actor_label ?? ''}</span>
+            {/if}
+          {/snippet}
+          {#snippet empty()}
+            {#if isNarrowed}
+              <EmptyState kind="filtered" title={t('app.instance.journal_none_narrowed')}>
+                {#snippet action()}<Button onclick={() => { kind = ''; search = ''; }}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {:else}
+              <EmptyState kind="unused" title={t('app.instance.journal_empty')} />
+            {/if}
+          {/snippet}
+        </DataTable>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </LogPage>
+  {/snippet}
+</InstanceGate>
+
+<LogRecordDialog isOpen={opened !== undefined} title={opened ? wordFor(opened.action) : ''} facts={openedFacts} support={openedSupport} onClose={() => (opened = undefined)} />
 
 <style>
-  .prose { margin: 0; max-inline-size: 60ch; }
-  .narrow {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 32ch), 1fr));
-    gap: var(--sp-150);
-    max-inline-size: 80ch;
-  }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-  .quiet-cell { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
+  .quiet-cell { display: block; color: var(--text-secondary); font-size: var(--fs-100); overflow-wrap: anywhere; }
   .action { display: block; font-weight: var(--fw-medium); }
-  .mono { display: block; font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
 </style>

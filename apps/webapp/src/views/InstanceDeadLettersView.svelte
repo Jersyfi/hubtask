@@ -9,19 +9,20 @@
   // it has none. A workspace is named by its address where the workspaces list has it.
   import { untrack } from 'svelte';
 
-  import { Banner, Button, LoadMore, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
-  import { TransportError } from '@hubtask/sync-engine';
+  import { Button, DataTable, EmptyState, FilterBar, LogPage, Spinner, type DataColumn } from '@hubtask/design-system/components';
+  import { TransportError, type DeadLetter } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { deadLetters } from '../lib/data/deadletters.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDay } from '../lib/i18n/datetime.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
+  import LogRecordDialog from '../lib/instance/LogRecordDialog.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -78,13 +79,41 @@
     }
   }
 
-  const columns = $derived([
-    { id: 'finished', label: t('app.instance.column_when') },
-    { id: 'kind', label: t('app.instance.dead_letters_column_kind') },
-    { id: 'workspace', label: t('app.instance.column_workspace') },
-    { id: 'failure', label: t('app.instance.dead_letters_column_failure') },
-    { id: 'act', label: t('app.instance.dead_letters_column_act') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'kind', label: t('app.instance.dead_letters_column_kind'), priority: 1 },
+    { id: 'finished', label: t('app.instance.column_when'), priority: 3 },
+    { id: 'workspace', label: t('app.instance.column_workspace'), priority: 2 },
+    { id: 'failure', label: t('app.instance.dead_letters_column_failure'), priority: 2 },
   ]);
+
+  const whereOf = (letter: DeadLetter): string =>
+    letter.tenant_id ? (slugs.get(letter.tenant_id) ?? `${letter.tenant_id.slice(0, 8)}…`) : t('app.instance.dead_letters_installation');
+
+  // The search narrows the failed jobs loaded, by job, workspace and failure.
+  let search = $state('');
+  const shown = $derived(letters.filter((letter) => matchesSearch(search, [letter.kind, whereOf(letter), letter.error_code ? wordFor(letter.error_code) : undefined])));
+
+  let opened = $state<DeadLetter | undefined>(undefined);
+  const openedFacts = $derived(
+    opened
+      ? [
+          { label: t('app.instance.column_when'), value: opened.finished_at ? formatDateTime(opened.finished_at, messages.locale) : '' },
+          { label: t('app.instance.column_workspace'), value: whereOf(opened) },
+          { label: t('app.instance.dead_letters_tries'), value: t('app.instance.dead_letters_attempts', { count: opened.attempts }) },
+          ...(opened.error_code ? [{ label: t('app.instance.dead_letters_column_failure'), value: wordFor(opened.error_code) }] : []),
+        ]
+      : [],
+  );
+  const openedSupport = $derived(
+    opened
+      ? [
+          { label: t('app.instance.dead_letters_column_kind'), value: opened.kind },
+          ...(opened.error_code ? [{ label: t('app.instance.dead_letters_support_code'), value: opened.error_code }] : []),
+          ...(opened.tenant_id ? [{ label: t('app.instance.journal_support_workspace'), value: opened.tenant_id }] : []),
+          { label: t('app.instance.dead_letters_support_id'), value: opened.id },
+        ]
+      : [],
+  );
 
   /** The word for a failure's code, or the code where this build has none. */
   function wordFor(code: string): string {
@@ -95,85 +124,92 @@
   $effect(() => page.entitle(t('app.instance.dead_letters')));
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.instance.dead_letters')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.dead_letters') })}
-  />
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <LogPage head={{ title: t('app.instance.dead_letters'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.dead_letters') }) }} refused={door}>
+      {#snippet intro()}<p class="quiet">{t('app.instance.dead_letters_intro')}</p>{/snippet}
+      {#snippet filters()}
+        <FilterBar
+          searchLabel={t('app.instance.dead_letters_search')}
+          clearSearchLabel={t('app.page.clear_search')}
+          bind:search
+          countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(letters.length) }) : undefined}
+        />
+      {/snippet}
 
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.dead_letters_intro')}</p>
-      {#if failure}
-        <FailureNote problem={failure} />
-      {/if}
+      {#if failure}<FailureNote problem={failure} />{/if}
       {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else if unreadable}
         <FailureNote problem={unreadable} />
-      {:else if letters.length === 0}
-        <Banner tone="success">{t('app.instance.dead_letters_empty')}</Banner>
       {:else}
-        <Table isStacked label={t('app.instance.dead_letters')} isLabelHidden columns={columns}>
-          {#each letters as letter (letter.id)}
-            <tr>
-              <td class="quiet-cell">{letter.finished_at ? formatDateTime(letter.finished_at, messages.locale) : ''}</td>
-              <td>
-                <span class="strong mono">{letter.kind}</span>
-                <span class="quiet-cell">{t('app.instance.dead_letters_attempts', { count: letter.attempts })}</span>
-              </td>
-              <td>
-                {#if letter.tenant_id}
-                  {#if slugs.get(letter.tenant_id)}
-                    <span class="strong">{slugs.get(letter.tenant_id)}</span>
-                  {:else}
-                    <span class="mono">{letter.tenant_id.slice(0, 8)}…</span>
-                  {/if}
-                {:else}
-                  <span class="quiet-cell">{t('app.instance.dead_letters_installation')}</span>
-                {/if}
-              </td>
-              <td>
-                {#if letter.error_code}
-                  <span>{wordFor(letter.error_code)}</span>
-                  <span class="quiet-cell mono">{letter.error_code}</span>
-                {/if}
-              </td>
-              <td>
-                <Button
-                  isBusy={working === letter.id}
-                  busyLabel={t('app.instance.working')}
-                  disabledReason={working !== undefined && working !== letter.id ? t('app.instance.dead_letters_one_at_a_time') : undefined}
-                  onclick={() => void requeue(letter.id)}
-                >
-                  {t('app.instance.dead_letters_requeue')}
-                </Button>
-              </td>
-            </tr>
-          {/each}
-        </Table>
-        <LoadMore
-          label={t('app.instance.dead_letters_more')}
-          busyLabel={t('app.instance.dead_letters_loading_more')}
-          hasMore={Boolean(deadLetters.moreAfter)}
-          isBusy={isLoadingMore}
-          arrivedLabel={arrived}
-          failedLabel={moreFailed}
-          onLoadMore={() => void more()}
-        />
+        <DataTable
+          label={t('app.instance.dead_letters')}
+          {columns}
+          rows={shown}
+          key={(letter: DeadLetter) => letter.id}
+          onopen={(letter: DeadLetter) => (opened = letter)}
+          rowLabel={(letter: DeadLetter) => letter.kind}
+          group={(letter: DeadLetter) => (letter.finished_at ? formatDay(letter.finished_at, messages.locale) : '')}
+          shownLabel={letters.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+          more={deadLetters.moreAfter || arrived || moreFailed
+            ? {
+                label: t('app.instance.dead_letters_more'),
+                busyLabel: t('app.instance.dead_letters_loading_more'),
+                hasMore: Boolean(deadLetters.moreAfter),
+                isBusy: isLoadingMore,
+                arrivedLabel: arrived,
+                failedLabel: moreFailed,
+                onLoadMore: () => void more(),
+              }
+            : undefined}
+        >
+          {#snippet cell(letter: DeadLetter, column: DataColumn)}
+            {#if column.id === 'kind'}
+              <span class="strong">{letter.kind}</span>
+              <span class="quiet-cell">{t('app.instance.dead_letters_attempts', { count: letter.attempts })}</span>
+            {:else if column.id === 'finished'}
+              <span class="quiet">{letter.finished_at ? formatDateTime(letter.finished_at, messages.locale) : ''}</span>
+            {:else if column.id === 'workspace'}
+              <span>{whereOf(letter)}</span>
+            {:else}
+              <span>{letter.error_code ? wordFor(letter.error_code) : ''}</span>
+            {/if}
+          {/snippet}
+          {#snippet verb(letter: DeadLetter)}{@render runAgain(letter)}{/snippet}
+          {#snippet empty()}
+            {#if letters.length === 0}
+              <EmptyState kind="settled" title={t('app.instance.dead_letters_empty')} />
+            {:else}
+              <EmptyState kind="filtered" title={t('app.instance.dead_letters_none_found')}>
+                {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {/if}
+          {/snippet}
+        </DataTable>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </LogPage>
+  {/snippet}
+</InstanceGate>
+
+<LogRecordDialog isOpen={opened !== undefined} title={opened?.kind ?? ''} facts={openedFacts} support={openedSupport} onClose={() => (opened = undefined)}>
+  {#snippet extra()}{#if opened}{@render runAgain(opened)}{/if}{/snippet}
+</LogRecordDialog>
+
+{#snippet runAgain(letter: DeadLetter)}
+  <Button
+    tone="subtle"
+    isBusy={working === letter.id}
+    busyLabel={t('app.instance.working')}
+    disabledReason={working !== undefined && working !== letter.id ? t('app.instance.dead_letters_one_at_a_time') : undefined}
+    onclick={() => void requeue(letter.id)}
+  >
+    {t('app.instance.dead_letters_requeue')}
+  </Button>
+{/snippet}
 
 <style>
-  .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-cell { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
-  .strong { display: block; font-weight: var(--fw-medium); }
-  .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
+  .strong { display: block; font-weight: var(--fw-medium); overflow-wrap: anywhere; }
 </style>
