@@ -101,7 +101,7 @@ const OPENABLE = () => [
 /** The sprint's entries, as `GET /sprints/{id}` lists them: the collection's first four. */
 const sprintEntries = (at) => ENTRIES.filter((each) => each.collection_id === at).slice(0, 4).map((each) => ({
   item_id: each.id, title: each.title, added_at: '2026-11-01T08:00:00Z', removed_at: null, committed: true, outcome: null,
-  done: each.completion.is_completed, started: true, completed_at: null, estimate: 3,
+  done: each.completion.is_completed, started: true, completed_at: null, estimate: { unit: 'POINTS', value: 3, size: null },
 }));
 /** Every page of every hub a walk opens: the handbook and IT operations' knowledge. */
 const PAGES = () => [...PD_PAGES, KB, VPN, RUNBOOKS, TEMPLATE];
