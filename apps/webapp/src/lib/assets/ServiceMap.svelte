@@ -170,7 +170,9 @@
     background: var(--bg-surface);
   }
   .card a { color: var(--text-primary); font-weight: var(--fw-medium); white-space: nowrap; }
-  .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; white-space: nowrap; }
+  .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
+  /* A card keeps its class on one line; the legend and the empty sentence wrap with the page. */
+  .card .meta { white-space: nowrap; }
   .words { font-size: var(--fs-075); color: var(--text-secondary); }
   .words summary { cursor: pointer; }
   .said { margin: var(--sp-050) 0 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-025); }
