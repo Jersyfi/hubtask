@@ -763,4 +763,4 @@ overflows its column sideways. `e2e/productsband.test.mjs` (*the desk's home …
 once in the full engine run on *Breached 19 min ago* against an expected 18 - a clock read twice under
 load; it passes alone. After R-3, R-4 and R-12 the full engine run (`pnpm test:engines`) was 1,063 of 1,065: `shell`'s
 empty hub counted the new ⋯ as a branch (the walk fixed), and `kompassmove`'s carried page timed out
-once under load and passes alone.
+once under load and passes alone. After R-6, R-8, R-9, R-16 and R-17 it was 1,070 of 1,073: `kompassmove`'s carried page, `instanceworkspaces`' mail to a new owner and `voice`'s large walk timed out under load, and each passes alone.
