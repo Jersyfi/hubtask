@@ -13,7 +13,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Dialog, Disclosure, EmptyState, Input, PageHeader, Skeleton, Spinner, Stack, UploadField,
+    Banner, Button, Dialog, Disclosure, EmptyState, Input, PageHeader, Skeleton, Spinner, UploadField, WorkPage,
   } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardList, WhiteboardRead } from '@hubtask/sync-engine';
   import { elementId } from '@hubtask/whiteboard';
@@ -204,7 +204,7 @@
 
 {#if boardId}
   {#if openRefusal || !current}
-    <div class="waiting">
+    <div class="waiting" data-page-kind="work">
       <h1 class="title">{t('app.whiteboards.title')}</h1>
       {#if openRefusal}
         <FailureNote problem={openRefusal} />
@@ -225,7 +225,8 @@
     {/key}
   {/if}
 {:else}
-  <Stack gap="300">
+  <WorkPage>
+    {#snippet top()}
     <PageHeader
       title={t('app.whiteboards.title')}
       isTitleInBar={viewport.isCompact}
@@ -247,7 +248,10 @@
           }
         : undefined}
     />
-    {#if hubFromRoute}<PlaceStrip placeId={hubFromRoute} current="whiteboards" {onnavigate} />{/if}
+    {/snippet}
+    {#snippet tabs()}
+      {#if hubFromRoute}<PlaceStrip placeId={hubFromRoute} current="whiteboards" {onnavigate} />{/if}
+    {/snippet}
 
     {#if listRefusal}
       <FailureNote problem={listRefusal} />
@@ -274,8 +278,7 @@
         {/each}
       </ul>
     {/if}
-
-  </Stack>
+  </WorkPage>
 {/if}
 
 {#if isCreating}
@@ -314,7 +317,7 @@
 {/if}
 
 {#if renaming}
-  <Dialog bind:isOpen={renaming} title={t('app.whiteboards.rename')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={renaming} title={t('app.whiteboards.rename')} dismissLabel={t('app.links.cancel')}>
     <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} maxlength={200} />
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (renaming = false)}>{t('app.links.cancel')}</Button>

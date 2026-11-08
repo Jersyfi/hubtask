@@ -36,18 +36,17 @@ const KINDS = {
  */
 const NOT_YET_MIGRATED = [
   'ActualsView',
-  'ApprovalsView', 'ArchiveView', 'AssetsView',
+  'ArchiveView', 'AssetsView',
   'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
   'GoalView', 'GoalsView',
   'HubDeskView', 'InstallationView', 'ItemView', 'JumbleView',
-  'NotesView',
   'OidcCallbackView', 'PagesView', 'PortalArticleView',
   'PortalRequestView', 'PortalView', 'PortfolioView',
   'ProductHomeView', 'PublicFormView', 'PublicRoadmapView',
   'RateView', 'RedeemView', 'ReleaseView', 'ResetView',
   'RoadmapView', 'SearchView',
   'SetupView', 'SignInView', 'SprintView',
-  'TimeView', 'TodayView', 'TrashView', 'WhiteboardsView',
+  'TimeView', 'TodayView', 'TrashView',
   'WorkloadView',
   'YourWorkspacesView',
 ];

@@ -8,7 +8,7 @@
   // place with its own presses.
 
   import { untrack } from 'svelte';
-  import { EmptyState, LoadMore, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, LoadMore, PageHeader, Skeleton, Stack, WorkPage } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { AgentList, AgentRequest, AgentRequestList, ApprovalList } from '@hubtask/sync-engine';
 
@@ -83,8 +83,11 @@
   const isEmpty = $derived(rows !== undefined && rows.length === 0 && acts.length === 0);
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.approvals.mine_title')} subtitle={t('app.approvals.mine_subtitle')} isTitleInBar={viewport.isCompact} />
+<!-- A work surface, not a list page: each request is decided in its card (page-system §7.8). -->
+<WorkPage>
+  {#snippet top()}
+    <PageHeader title={t('app.approvals.mine_title')} subtitle={t('app.approvals.mine_subtitle')} isTitleInBar={viewport.isCompact} />
+  {/snippet}
   {#if countsActs}
     <!-- The agents' acts have a second place, with the decided ones too (accepted: two places stay). -->
     <p class="quiet" data-agent-requests><a href="/profile/agents?tab=requests">{t('app.approvals.agent_requests_link')}</a></p>
@@ -124,7 +127,7 @@
       </section>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }

@@ -55,12 +55,10 @@ const NOT_YET_MIGRATED = [
   'lib/frame/UnsentChangesDialog.svelte',
   'lib/pages/PageAccess.svelte',
   'lib/palette/Palette.svelte',
-  'lib/product/CreateDialog.svelte',
   'lib/time/AbsenceCalendar.svelte',
   'lib/time/BillingRates.svelte',
   'lib/time/BudgetPanel.svelte',
   'lib/time/RunningTimer.svelte',
-  'lib/whiteboards/BoardCanvas.svelte',
   'lib/workspace/CreateContainerDialog.svelte',
   'lib/workspace/NarrowingDialog.svelte',
   'lib/workspace/PanelOrDialog.svelte',
@@ -75,7 +73,6 @@ const NOT_YET_MIGRATED = [
   'views/ReleaseView.svelte',
   'views/SprintView.svelte',
   'views/TrashView.svelte',
-  'views/WhiteboardsView.svelte',
 ];
 
 /** The confirmation the ladder allows over another dialog. */

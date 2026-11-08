@@ -57,7 +57,7 @@ test('chromium: choosing templates in the gallery puts nothing; the button puts 
   await page.waitForTimeout(300);
   assert.equal(await objects(), 0, 'choosing in the gallery put a template on the board');
 
-  await dialog.locator('[data-put-template]').click();
+  await dialog.getByRole('button', { name: 'Put on board', exact: true }).click();
   await canvas.locator('g.frame').first().waitFor({ timeout: 5_000 });
   assert.equal(await dialog.count(), 0, 'the dialog stays open after putting');
   const put = await objects();

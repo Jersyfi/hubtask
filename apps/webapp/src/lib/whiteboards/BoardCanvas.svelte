@@ -1171,7 +1171,7 @@
 
 <svelte:window oncopy={(event) => copied(event, false)} oncut={(event) => copied(event, true)} onpaste={pasted} />
 
-<div class="board" data-board>
+<div class="board" data-board data-page-kind="work">
   <header class="head">
     <div class="name">{@render heading()}</div>
     <div class="aside">
@@ -1743,18 +1743,18 @@
 </div>
 
 {#if isPickingEntry}
-  <Dialog bind:isOpen={isPickingEntry} title={t('app.whiteboards.put_entry')} dismissLabel={t('app.links.cancel')} onClose={() => (picked = undefined)}>
+  <Dialog size="l" bind:isOpen={isPickingEntry} title={t('app.whiteboards.put_entry')} dismissLabel={t('app.links.cancel')} onClose={() => (picked = undefined)}
+    primary={{ label: t('app.whiteboards.put_entry_confirm'), disabledReason: picked ? undefined : t('app.links.choose_first'), onclick: putEntry }}>
     <EntryPicker chosen={picked} onchoose={(item) => (picked = item)} />
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isPickingEntry = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" disabledReason={picked ? undefined : t('app.links.choose_first')} onclick={putEntry}>{t('app.whiteboards.put_entry_confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if restoring && isRestoreAsked}
   {@const asked = restoring}
-  <Dialog bind:isOpen={isRestoreAsked} title={t('app.whiteboards.restore_title')} dismissLabel={t('app.links.cancel')} onClose={() => (restoring = undefined)}>
+  <Dialog size="s" bind:isOpen={isRestoreAsked} title={t('app.whiteboards.restore_title')} dismissLabel={t('app.links.cancel')} onClose={() => (restoring = undefined)}>
     <p>{t('app.whiteboards.restore_body', { when: formatDateTime(asked.created_at, messages.locale) })}</p>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => { isRestoreAsked = false; restoring = undefined; }}>{t('app.links.cancel')}</Button>
@@ -1764,17 +1764,17 @@
 {/if}
 
 {#if isTemplating}
-  <Dialog bind:isOpen={isTemplating} title={t('app.whiteboards.template_put_menu')} dismissLabel={t('app.links.cancel')} isWide>
+  <Dialog size="l" bind:isOpen={isTemplating} title={t('app.whiteboards.template_put_menu')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.whiteboards.template_put_button'), onclick: () => { const name = templateOf(templateStart, templateFormat); if (name) putTemplate(name); } }}>
     <BoardTemplates bind:chosen={templateStart} bind:format={templateFormat} withBlank={false} />
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isTemplating = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" data-put-template onclick={() => { const name = templateOf(templateStart, templateFormat); if (name) putTemplate(name); }}>{t('app.whiteboards.template_put_button')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isLinking}
-  <Dialog bind:isOpen={isLinking} title={t('app.whiteboards.link_put')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isLinking} title={t('app.whiteboards.link_put')} dismissLabel={t('app.links.cancel')}>
     <Input label={t('app.whiteboards.link_address')} type="url" bind:value={linkDraft} error={linkError} placeholder="https://" />
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isLinking = false)}>{t('app.links.cancel')}</Button>
