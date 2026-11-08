@@ -13,7 +13,7 @@
   const count = $derived(leaveGuard.pending === undefined ? 0 : leaveGuard.unsaved);
 </script>
 
-<Dialog title={t('app.leave.title')} isOpen={leaveGuard.pending !== undefined} dismissLabel={t('app.leave.stay')} onClose={() => leaveGuard.stay()}>
+<Dialog size="s" title={t('app.leave.title')} isOpen={leaveGuard.pending !== undefined} dismissLabel={t('app.leave.stay')} onClose={() => leaveGuard.stay()}>
   <p class="body" data-leave-question>{t('app.leave.body', { count: String(count) })}</p>
   {#snippet actions()}
     <Button tone="danger" onclick={() => leaveGuard.leave()}>{t('app.leave.leave')}</Button>

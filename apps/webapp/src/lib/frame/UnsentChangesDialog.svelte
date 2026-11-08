@@ -47,7 +47,7 @@
   }
 </script>
 
-<Dialog title={t('app.signout.unsent_title')} isOpen={count > 0} dismissLabel={t('app.workspace.cancel')} onClose={close}>
+<Dialog size="s" title={t('app.signout.unsent_title')} isOpen={count > 0} dismissLabel={t('app.workspace.cancel')} onClose={close}>
   <p class="body">{t('app.signout.unsent_body', { count: waiting })}</p>
   {#if left !== undefined && left > 0}
     <p class="body" role="status">{t('app.signout.unsent_still')}</p>

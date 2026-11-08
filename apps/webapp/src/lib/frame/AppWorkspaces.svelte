@@ -160,7 +160,7 @@
       {@render list()}
     </Drawer>
   {:else}
-    <Dialog bind:isOpen={isSwitchOpen} title={t('app.workspaces.switch')} dismissLabel={t('app.dismiss')}>
+    <Dialog size="m" bind:isOpen={isSwitchOpen} title={t('app.workspaces.switch')} dismissLabel={t('app.dismiss')}>
       {@render list()}
     </Dialog>
   {/if}
@@ -169,6 +169,7 @@
 {#if isAddOpen}
   <!-- One dialog for the address and the wait: a second one in its place would close the first. -->
   <Dialog
+    size="s"
     isOpen
     title={isWaiting ? t('app.app_sign_in.waiting_title') : t('app.app_workspaces.add')}
     dismissLabel={t('app.dismiss')}
@@ -213,7 +214,7 @@
 
 {#if forgetting}
   {@const name = forgetting.workspace.name ?? forgetting.workspace.host}
-  <Dialog isOpen title={t('app.app_workspaces.forget_title', { name })} dismissLabel={t('app.dismiss')} onClose={() => (forgetting = undefined)}>
+  <Dialog size="s" isOpen title={t('app.app_workspaces.forget_title', { name })} dismissLabel={t('app.dismiss')} onClose={() => (forgetting = undefined)}>
     <Stack gap="200">
       <p class="prose">{t('app.app_workspaces.forget_body', { name })}</p>
       {#if forgetting.waiting > 0}

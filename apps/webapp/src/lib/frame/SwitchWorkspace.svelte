@@ -47,7 +47,7 @@
     {@render content()}
   </Drawer>
 {:else}
-  <Dialog bind:isOpen title={t('app.workspaces.switch')} dismissLabel={t('app.dismiss')}>
+  <Dialog size="m" bind:isOpen title={t('app.workspaces.switch')} dismissLabel={t('app.dismiss')}>
     {@render content()}
   </Dialog>
 {/if}

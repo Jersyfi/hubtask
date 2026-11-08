@@ -726,6 +726,7 @@
   </form>
 {:else}
   <Dialog
+    size="m"
     title={t('app.palette.title')}
     dismissLabel={t('app.palette.close')}
     isOpen={palette.isOpen}
