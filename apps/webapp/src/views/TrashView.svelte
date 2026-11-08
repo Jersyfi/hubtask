@@ -383,7 +383,7 @@
         {#if trash.rows.length === 0}
           <!-- `settled` rather than `unused`: an empty trash is the good outcome, and §4.3 offers
                nothing to do about it. The same empty as the archive's, in one form (G4). -->
-          <EmptyState kind="settled" title={t(kind ? 'app.trash.empty_kind' : 'app.trash.empty')} description={t('app.trash.empty_detail')} icon="trash" />
+          <EmptyState kind="settled" title={t(kind ? 'app.trash.empty_kind' : 'app.trash.empty')} icon="trash" />
         {:else}
           <EmptyState kind="filtered" title={t('app.trash.filtered_title')}>
             {#snippet action()}<Button onclick={clearFilters}>{t('app.people.filtered_clear')}</Button>{/snippet}
