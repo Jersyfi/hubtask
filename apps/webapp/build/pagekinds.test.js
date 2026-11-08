@@ -36,7 +36,7 @@ const KINDS = {
  */
 const NOT_YET_MIGRATED = [
   'ActualsView',
-  'ArchiveView', 'AssetsView',
+  'AssetsView',
   'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
   'GoalView', 'GoalsView',
   'HubDeskView', 'InstallationView', 'ItemView', 'JumbleView',
@@ -46,7 +46,7 @@ const NOT_YET_MIGRATED = [
   'RateView', 'RedeemView', 'ReleaseView', 'ResetView',
   'RoadmapView', 'SearchView',
   'SetupView', 'SignInView', 'SprintView',
-  'TimeView', 'TodayView', 'TrashView',
+  'TimeView', 'TodayView',
   'WorkloadView',
   'YourWorkspacesView',
 ];

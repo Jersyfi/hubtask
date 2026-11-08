@@ -28,14 +28,16 @@
   import {
     Badge,
     Button,
+    DataTable,
     Dialog,
     EmptyState,
-    Inline,
-    ListRow,
-    PageHeader,
-    Select,
+    FilterBar,
+    ListPage,
+    Radio,
     Skeleton,
-    Stack,
+    type DataColumn,
+    type DataRowMenu,
+    type Filter,
   } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { TrashEntry } from '@hubtask/sync-engine';
@@ -63,7 +65,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
 
   // `untrack` for the reason every store here records: the load writes the store and writing it
   // reads it, so an effect that tracks that read re-runs on its own first answer.
@@ -232,31 +234,89 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.trash.title')));
+
+  /** The kind chip writes the address, so a hub's *Trash* link and a reload land on the same list. */
+  function choose(value: string): void {
+    const chosen = knownKind(value);
+    if (onnavigate) onnavigate(chosen ? `/trash?kind=${chosen}` : '/trash');
+    else chosenHere = chosen;
+  }
+
+  // The kind narrows on the server; the search narrows the rows loaded.
+  let search = $state('');
+  const shown = $derived(trash.rows.filter((row) => matchesSearch(search, [row.title, row.subtype])));
+  const chips = $derived<Filter[]>([
+    { id: 'kind', label: t('app.trash.kind_chip', { choice: t(kind ? `app.trash.kind_${kind.toLowerCase()}` : 'app.trash.kind_all') }), isActive: kind !== undefined },
+  ]);
+  function clearFilters(): void {
+    search = '';
+    if (kind !== undefined) choose('');
+  }
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'title', label: t('app.trash.column_title'), priority: 1 },
+    { id: 'deleted', label: t('app.trash.column_deleted'), priority: 2 },
+    { id: 'kept', label: t('app.trash.column_kept'), priority: 3 },
+  ]);
+
+  /** Delete for good is destructive, so it lives in the row's ⋯ only (PS-6). */
+  function rowMenu(row: TrashEntry): DataRowMenu {
+    return {
+      label: t('app.page.more_for', { name: row.title }),
+      items: [
+        {
+          id: 'purge',
+          label: t('app.trash.purge'),
+          isDestructive: true,
+          disabledReason: isPurgeableAlone(row.kind) ? undefined : t(isContainer(row.kind) ? 'app.trash.purge_container' : 'app.trash.purge_document'),
+        },
+      ],
+    };
+  }
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.trash.title')} isTitleInBar={viewport.isCompact} />
+<ListPage
+  head={{
+    title: t('app.trash.title'),
+    menu: mayEmpty && trash.rows.length > 0
+      ? { label: t('app.trash.more'), items: [{ id: 'empty', label: t('app.trash.empty_all'), isDestructive: true }], onselect: () => (isEmptying = true) }
+      : undefined,
+  }}
+>
+  {#snippet intro()}<p class="detail">{t('app.trash.empty_detail')} {t('app.trash.batch')}</p>{/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.trash.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      filters={chips}
+      moreLabel={t('app.page.more_filters')}
+      filtersLabel={t('app.page.filters', { count: String(kind ? 1 : 0) })}
+      sheetTitle={t('app.page.filters', { count: '0' })}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      showLabel={t('app.page.show_results', { count: String(shown.length) })}
+      clearLabel={t('app.page.clear')}
+      onclear={clearFilters}
+      countLabel={trash.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(trash.rows.length) }) : undefined}
+    >
+      {#snippet picker(_filter: Filter)}
+        <Radio
+          label={t('app.trash.kind_filter')}
+          bind:value={() => kind ?? '', (next) => choose(next)}
+          options={[
+            { value: '', label: t('app.trash.kind_all') },
+            ...TRASH_KINDS.map((each) => ({ value: each, label: t(`app.trash.kind_${each.toLowerCase()}`) })),
+          ]}
+        />
+      {/snippet}
+    </FilterBar>
+  {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-  <div class="fields">
-    <Select
-      label={t('app.trash.kind_filter')}
-      value={kind ?? ''}
-      options={[
-        { value: '', label: t('app.trash.kind_all') },
-        ...TRASH_KINDS.map((each) => ({ value: each, label: t(`app.trash.kind_${each.toLowerCase()}`) })),
-      ]}
-      onchange={(event) => {
-        const chosen = knownKind((event.currentTarget as HTMLSelectElement).value);
-        if (onnavigate) onnavigate(chosen ? `/trash?kind=${chosen}` : '/trash');
-        else chosenHere = chosen;
-      }}
-    />
-  </div>
-
   {#if summary}
-    <div class="summary">
+    <div class="summary" role="status">
       <p>{t('app.trash.summary', { removed: summary.removed, matched: summary.matched })}</p>
       <!-- What was **kept**, and why. A legal hold does not fail the call; it is counted in the
            answer, and an answer that reported only a number would leave the reader wondering
@@ -281,73 +341,64 @@
     <FailureState problem={listFailure} onRetry={() => trash.load(kind)} />
   {:else if trash.status === 'loading' && trash.rows.length === 0}
     <div aria-busy="true"><Skeleton lines={4} /></div>
-  {:else if trash.rows.length === 0}
-    <!-- `settled` rather than `unused`: an empty trash is the good outcome, not a thing nobody
-         has got round to — and §4.3 offers nothing to do about it, which is what that kind
-         refuses a call to action for. -->
-    <!-- The same empty as the archive's: an empty place says what it is for, in one form (G4). -->
-    <EmptyState
-      kind="settled"
-      title={t(kind ? 'app.trash.empty_kind' : 'app.trash.empty')}
-      description={t('app.trash.empty_detail')}
-      icon="trash"
-    />
   {:else}
-    <Stack gap="050">
-      {#each trash.rows as row (row.id)}
-        <ListRow>
-          {#snippet leading()}
-            <Badge>{row.subtype}</Badge>
-          {/snippet}
-          <span class="row">
-            <span class="title">{row.title}</span>
-            <span class="detail">
-              {t('app.trash.deleted_at', { when: formatDateTime(row.deleted_at, messages.locale) })}
-              {#if whoDeleted(row)}· {whoDeleted(row)}{/if}
-              · {window(row)}
-              · {t('app.trash.batch')}
-            </span>
+    <DataTable
+      label={t('app.trash.title')}
+      {columns}
+      rows={shown}
+      key={(row: TrashEntry) => row.id}
+      rowLabel={(row: TrashEntry) => row.title}
+      menu={rowMenu}
+      onmenu={(row: TrashEntry) => (purging = row)}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={trash.rows.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(row: TrashEntry, column: DataColumn)}
+        {#if column.id === 'title'}
+          <span class="title"><Badge size="sm">{row.subtype}</Badge> {row.title}</span>
+        {:else if column.id === 'deleted'}
+          <span class="detail">
+            {t('app.trash.deleted_at', { when: formatDateTime(row.deleted_at, messages.locale) })}
+            {#if whoDeleted(row)}· {whoDeleted(row)}{/if}
           </span>
-          {#snippet trailing()}
-            <Inline gap="100">
-              <Button
-                size="sm"
-                tone="secondary"
-                isBusy={busyId === row.id}
-                busyLabel={t('app.trash.restore')}
-                onclick={() => restore(row)}
-                disabledReason={isRestorable(row.kind) ? undefined : t('app.trash.restore_unknown')}
-              >
-                {t('app.trash.restore')}
-              </Button>
-              <Button
-                size="sm"
-                tone="danger"
-                onclick={() => (purging = row)}
-                disabledReason={isPurgeableAlone(row.kind)
-                  ? undefined
-                  : t(isContainer(row.kind) ? 'app.trash.purge_container' : 'app.trash.purge_document')}
-              >
-                {t('app.trash.purge')}
-              </Button>
-            </Inline>
-          {/snippet}
-        </ListRow>
-      {/each}
-    </Stack>
+        {:else}
+          <span class="detail">{window(row)}</span>
+        {/if}
+      {/snippet}
+      {#snippet verb(row: TrashEntry)}
+        <Button
+          size="sm"
+          tone="subtle"
+          isBusy={busyId === row.id}
+          busyLabel={t('app.trash.restore')}
+          onclick={() => restore(row)}
+          disabledReason={isRestorable(row.kind) ? undefined : t('app.trash.restore_unknown')}
+        >
+          {t('app.trash.restore')}
+        </Button>
+      {/snippet}
+      {#snippet empty()}
+        {#if trash.rows.length === 0}
+          <!-- `settled` rather than `unused`: an empty trash is the good outcome, and §4.3 offers
+               nothing to do about it. The same empty as the archive's, in one form (G4). -->
+          <EmptyState kind="settled" title={t(kind ? 'app.trash.empty_kind' : 'app.trash.empty')} description={t('app.trash.empty_detail')} icon="trash" />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.trash.filtered_title')}>
+            {#snippet action()}<Button onclick={clearFilters}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
 
     {#if trash.isPartial}<p class="detail">{t('app.trash.partial')}</p>{/if}
-
-    {#if mayEmpty}
-      <div>
-        <Button tone="danger" onclick={() => (isEmptying = true)}>{t('app.trash.empty_all')}</Button>
-      </div>
-    {/if}
   {/if}
-</Stack>
+</ListPage>
 
 {#if purging}
   <Dialog
+    size="s"
     isOpen={true}
     title={t('app.trash.purge_title', { title: purging.title })}
     dismissLabel={t('app.workspace.cancel')}
@@ -372,6 +423,7 @@
 
 {#if isEmptying && mayEmpty}
   <Dialog
+    size="s"
     bind:isOpen={isEmptying}
     title={t('app.trash.empty_title')}
     dismissLabel={t('app.workspace.cancel')}
@@ -397,11 +449,6 @@
 
 <style>
 
-  /* The filter takes the width a field wants, not the region's (ADR-0065 decision 2). */
-  .fields { max-width: 26ch; }
-
-  .row { display: flex; flex-direction: column; gap: var(--sp-025); }
-
   .title { overflow-wrap: anywhere; }
 
   .detail { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); max-width: 64ch; }
@@ -417,7 +464,6 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
     font-size: var(--fs-075);
   }
 

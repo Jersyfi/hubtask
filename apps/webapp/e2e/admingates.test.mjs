@@ -106,11 +106,28 @@ test('chromium: a reader who may not manage members is not told the group is abo
   assert.equal(await page.getByText('a role you do not hold yourself', { exact: false }).count(), 0);
 });
 
+/** Whether the trash's head ⋯ offers *Empty the trash* - destructive, so in the menu (page-system §7.3). */
+async function emptyOffered(browser, permissions) {
+  const { context, page } = await as(browser, permissions);
+  try {
+    await page.goto(`${served.origin}/trash`);
+    await page.getByText(TRASHED.title).first().waitFor({ timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
+    const more = page.getByRole('button', { name: 'More for the trash', exact: true });
+    if ((await more.count()) === 0) return 0;
+    await more.click();
+    await page.getByRole('menu').waitFor();
+    return await page.getByRole('menu').getByRole('menuitem', { name: 'Empty the trash', exact: true }).count();
+  } finally {
+    await context.close();
+  }
+}
+
 test('chromium: emptying the trash is offered only to whom may delete a hub', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.OWNER, '/trash', TRASHED.title, 'Empty the trash'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/trash', TRASHED.title, 'Empty the trash'), 0);
+  assert.equal(await emptyOffered(browser, PERMISSIONS.OWNER), 1);
+  assert.equal(await emptyOffered(browser, PERMISSIONS.ADMIN), 0);
 });
 
 test('chromium: a service account\'s tokens are offered only to whom may manage members', async (t) => {

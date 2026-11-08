@@ -72,7 +72,6 @@ const NOT_YET_MIGRATED = [
   'views/PortfolioView.svelte',
   'views/ReleaseView.svelte',
   'views/SprintView.svelte',
-  'views/TrashView.svelte',
 ];
 
 /** The confirmation the ladder allows over another dialog. */
