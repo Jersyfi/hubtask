@@ -19,7 +19,7 @@
     Badge, Button, Dialog, EmptyState, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
     DataTable, DetailPage, type DataColumn, type DataRowMenu,
   } from '@hubtask/design-system/components';
-  import type { Goal, GoalCheckInList, GoalList, KeyResultWrite, SavedView, WorkItem } from '@hubtask/sync-engine';
+  import type { Goal, GoalCheckInList, GoalList, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -30,7 +30,6 @@
     checkInsPath, goalPath, goals, goalsPath, goalWrite, hubOf, parentChoices, percentOf, percentText, type CheckIn,
   } from '../lib/data/goals.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { views } from '../lib/data/views.svelte.ts';
   import EntryPicker from '../lib/entries/EntryPicker.svelte';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -178,65 +177,12 @@
 
   // --- Key results ------------------------------------------------------------------------------
 
-  type ResultDraft = {
-    id?: string; title: string; kind: KeyResultWrite['kind']; source: 'MANUAL' | 'VIEW';
-    start: string; target: string; current: string; unit: string; viewId: string; entry?: { id: string; title: string };
-  };
-  let isEditingResults = $state(false);
-  let results = $state<ResultDraft[]>([]);
-  $effect(() => {
-    if (!isEditingResults) return;
-    return untrack(() => views.open());
-  });
-  const summaryViews = $derived<SavedView[]>(isEditingResults ? views.of().filter((each) => each.query && 'aggregate' in each.query) : []);
-  function openResults() {
-    if (!goal) return;
-    results = goal.key_results.map((each) => ({
-      id: each.id, title: each.title, kind: each.kind, source: each.source,
-      start: String(each.start), target: String(each.target), current: String(each.current), unit: each.unit,
-      viewId: each.view_id ?? '', ...(each.entry_id ? { entry: { id: each.entry_id, title: t('app.goals.milestone_entry') } } : {}),
-    }));
-    isEditingResults = true;
-  }
-  function addResult() {
-    results = [...results, { title: '', kind: 'NUMBER', source: 'MANUAL', start: '0', target: '100', current: '0', unit: '', viewId: '' }];
-  }
+  // Up to twenty repeated groups: a page of their own, past a Dialog L (page-system §5.1).
+  const openResults = () => onnavigate(`/goals/${goalId}/results`);
   const numberOf = (text: string): number | undefined => {
     const value = Number(text.trim().replace(',', '.'));
     return text.trim() === '' || !Number.isFinite(value) ? undefined : value;
   };
-  const resultsProblem = $derived.by(() => {
-    for (const each of results) {
-      if (each.title.trim() === '') return t('app.goals.kr_title_needed');
-      if (each.kind === 'MILESTONE' && !each.entry) return t('app.goals.kr_entry_needed');
-      if (each.source === 'VIEW' && each.viewId === '') return t('app.goals.kr_view_needed');
-      if (each.kind === 'NUMBER' && (numberOf(each.start) === undefined || numberOf(each.target) === undefined)) return t('app.goals.kr_numbers_needed');
-    }
-    return undefined;
-  });
-  function resultWrite(each: ResultDraft): KeyResultWrite {
-    const write: KeyResultWrite = { title: each.title.trim(), kind: each.kind, source: each.kind === 'NUMBER' || each.kind === 'PERCENT' ? each.source : 'MANUAL' };
-    if (each.id) write.id = each.id;
-    if (each.kind === 'NUMBER') {
-      write.start = numberOf(each.start) ?? 0;
-      write.target = numberOf(each.target) ?? 0;
-      write.unit = each.unit.trim();
-    }
-    if (each.kind === 'PERCENT') { write.start = 0; write.target = 100; }
-    if (write.source === 'MANUAL' && each.kind !== 'MILESTONE') {
-      const current = numberOf(each.current);
-      if (current !== undefined) write.current = current;
-    }
-    if (write.source === 'VIEW') write.view_id = each.viewId;
-    if (each.kind === 'MILESTONE' && each.entry) write.entry_id = each.entry.id;
-    return write;
-  }
-  async function saveResults() {
-    const at = goal;
-    if (!at) return;
-    const ok = await act(() => goals.update(at, goalWrite(at, { key_results: results.map(resultWrite) })), t('app.goals.saved'));
-    if (ok) isEditingResults = false;
-  }
   const valueText = (kind: string, value: number, unit: string) =>
     kind === 'BINARY' ? (value >= 1 ? t('app.goals.kr_reached') : t('app.goals.kr_not_reached'))
       : kind === 'PERCENT' ? t('app.goals.percent', { percent: String(value) })
@@ -278,7 +224,6 @@
   }
 
   const STATUSES = ['NONE', 'ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'DONE', 'DROPPED'] as const;
-  const KINDS = ['NUMBER', 'PERCENT', 'BINARY', 'MILESTONE'] as const;
 </script>
 
 <DetailPage>
@@ -419,50 +364,6 @@
   </Dialog>
 {/if}
 
-{#if isEditingResults}
-  <Dialog size="l" bind:isOpen={isEditingResults} title={t('app.goals.edit_results')} dismissLabel={t('app.links.cancel')}>
-    <Stack gap="200">
-      {#each results as result, i (result.id ?? `new-${i}`)}
-        <fieldset class="result">
-          <legend>{t('app.goals.kr_number', { n: String(i + 1) })}</legend>
-          <Stack gap="100">
-            <Input label={t('app.goals.kr_title')} bind:value={result.title} maxlength={200} />
-            <Select label={t('app.goals.kr_kind')} bind:value={result.kind} options={KINDS.map((each) => ({ value: each, label: t(`app.goals.kind_${each}`) }))} />
-            {#if result.kind === 'NUMBER' || result.kind === 'PERCENT'}
-              <Select label={t('app.goals.kr_source')} bind:value={result.source}
-                options={[{ value: 'MANUAL', label: t('app.goals.source_MANUAL') }, { value: 'VIEW', label: t('app.goals.source_VIEW') }]} />
-            {/if}
-            {#if result.kind === 'NUMBER'}
-              <Inline gap="100" isWrapping>
-                <Input label={t('app.goals.kr_start')} bind:value={result.start} inputmode="decimal" />
-                <Input label={t('app.goals.kr_target')} bind:value={result.target} inputmode="decimal" />
-                <Input label={t('app.goals.kr_unit')} bind:value={result.unit} maxlength={16} />
-              </Inline>
-            {/if}
-            {#if result.source === 'VIEW' && (result.kind === 'NUMBER' || result.kind === 'PERCENT')}
-              <Select label={t('app.goals.kr_view')} hint={t('app.goals.kr_view_hint')} bind:value={result.viewId} placeholder={t('app.goals.kr_view_pick')}
-                options={summaryViews.map((each) => ({ value: each.id, label: each.name }))} />
-            {:else if result.kind === 'MILESTONE'}
-              {#if result.entry}<p class="quiet">{t('app.goals.kr_waits_for', { title: result.entry.title })}</p>{/if}
-              <EntryPicker onchoose={(item) => { if (item) result.entry = { id: item.id, title: item.title }; }} />
-            {:else if result.kind === 'BINARY'}
-              <Select label={t('app.goals.kr_current')} bind:value={result.current}
-                options={[{ value: '0', label: t('app.goals.kr_not_reached') }, { value: '1', label: t('app.goals.kr_reached') }]} />
-            {:else if result.source === 'MANUAL'}
-              <Input label={t('app.goals.kr_current')} bind:value={result.current} inputmode="decimal" />
-            {/if}
-            <Inline justify="end"><Button size="sm" tone="subtle" icon="trash" onclick={() => (results = results.filter((_, j) => j !== i))}>{t('app.goals.kr_remove')}</Button></Inline>
-          </Stack>
-        </fieldset>
-      {/each}
-      <Inline justify="between">
-        <Button size="sm" tone="secondary" icon="plus" disabledReason={results.length >= 20 ? t('app.goals.kr_at_most') : undefined} onclick={addResult}>{t('app.goals.kr_add')}</Button>
-        <Button disabledReason={resultsProblem} onclick={() => void saveResults()}>{t('app.goals.save')}</Button>
-      </Inline>
-    </Stack>
-  </Dialog>
-{/if}
-
 {#if isLinking}
   <Dialog size="l" bind:isOpen={isLinking} title={t('app.goals.link_entry')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
@@ -504,6 +405,4 @@
   .progress { display: block; min-width: var(--layout-board-column); }
   .clip { display: block; max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
-  .result { margin: 0; padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); }
-  .result legend { padding-inline: var(--sp-050); font-size: var(--fs-075); color: var(--text-secondary); }
 </style>

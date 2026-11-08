@@ -308,6 +308,7 @@ async function views() {
     ['time', await load('TimeView'), { onnavigate: noop }],
     ['goals', await load('GoalsView'), { onnavigate: noop }],
     ['goal', await load('GoalView'), { goalId: ITEM, onnavigate: noop }],
+    ['goal-results', await load('GoalResultsView'), { goalId: ITEM, onnavigate: noop }],
     ['portfolio', await load('PortfolioView'), { portfolioId: ITEM, onnavigate: noop }],
     ['portfolio-roadmap', await load('RoadmapView'), { portfolioId: ITEM, onnavigate: noop }],
     ['dashboard', await load('DashboardView'), { dashboardId: ITEM, onnavigate: noop }],

@@ -153,7 +153,7 @@ test('the account menu holds only what is about the person', () => {
   assert.equal(rows().includes('entry-types'), false);
   assert.equal(rows(['WORKFLOWS']).includes('entry-types'), true);
   // UC-GOL-01 check 9: the goals row stays current on each of their pages.
-  for (const name of ['goals', 'goal', 'portfolio', 'dashboard']) {
+  for (const name of ['goals', 'goal', 'goal-results', 'portfolio', 'dashboard']) {
     assert.equal(currentDestination({ name, area: 'end-user' }), 'goals');
   }
 });

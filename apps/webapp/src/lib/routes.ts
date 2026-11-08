@@ -214,6 +214,7 @@ export const ROUTES: readonly Route[] = [
   // An agent as its record page: its ledger, jobs and evaluation (page-system §9.5).
   { name: 'agent', pattern: '/agents/:id' },
   { name: 'goals', pattern: '/goals' },
+  { name: 'goal-results', pattern: '/goals/:id/results' },
   { name: 'goal', pattern: '/goals/:id' },
   { name: 'portfolio', pattern: '/portfolios/:id' },
   // A portfolio's roadmap (M2): a lane per hub, a bar per top-level entry.
