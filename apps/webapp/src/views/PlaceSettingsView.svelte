@@ -23,7 +23,7 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
+  import TemplatesSection from '../lib/entries/TemplatesSection.svelte';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import StructurePanel from '../lib/workspace/StructurePanel.svelte';
   import PlaceGeneral from '../lib/workspace/PlaceGeneral.svelte';
@@ -138,7 +138,7 @@
     <LazyView load={settingsParts.CustomFieldsDialog} props={{ collectionId: container.id, role: structureRole }} />
   {/snippet}
   {#snippet templatesTab()}
-    <TemplatesDialog isEmbedded isOpen collectionId={container.id} path={containerPath} role={structureRole} onopened={(itemId) => onnavigate(`/items/${itemId}`)} />
+    <TemplatesSection collectionId={container.id} path={containerPath} role={structureRole} onopened={(itemId) => onnavigate(`/items/${itemId}`)} />
   {/snippet}
   {#snippet presetsTab()}
     <!-- The configuration templates this place takes (configuration.md §6): a catalogue beside the

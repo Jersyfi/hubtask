@@ -261,14 +261,21 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
     // A viewer adds nothing, so is offered no template to use either.
     assert.equal(dialog === undefined, !may.use, 'the templates are offered against the role');
     if (dialog) {
-    await dialog.getByText('Room checklist').waitFor({ timeout: 10_000 });
+    await dialog.getByText('Room checklist').first().waitFor({ timeout: 10_000 });
     // Let the role arrive: nothing that writes is drawn before it, so wait for the answer first.
     await page.waitForTimeout(400);
-    const rows = dialog.locator('li');
-    assert.equal(await rows.nth(0).getByRole('button', { name: 'Use this template' }).count(), may.use ? 1 : 0);
-    assert.equal(await rows.nth(0).getByRole('button', { name: 'Edit' }).count(), may.shape ? 1 : 0);
-    // A workspace-wide template is changed where it was defined, which no screen here is.
-    assert.equal(await rows.nth(1).getByRole('button', { name: 'Edit' }).count(), 0);
+    if (may.shape) {
+      // In the settings the templates are a table: *Use* the row's verb, *Edit* behind its ⋯.
+      const row = (name) => dialog.getByRole('row').filter({ hasText: name });
+      assert.equal(await row('Room checklist').getByRole('button', { name: 'Use this template' }).count(), 1);
+      assert.equal(await row('Room checklist').getByRole('button', { name: 'More for Room checklist' }).count(), 1);
+      // A workspace-wide template is changed where it was defined, which no screen here is.
+      assert.equal(await row('Weekly review').getByRole('button', { name: 'More for Weekly review' }).count(), 0);
+    } else {
+      const rows = dialog.locator('li');
+      assert.equal(await rows.nth(0).getByRole('button', { name: 'Use this template' }).count(), may.use ? 1 : 0);
+      assert.equal(await rows.nth(0).getByRole('button', { name: 'Edit' }).count(), 0);
+    }
     assert.equal(await dialog.getByRole('button', { name: 'Define a template' }).count(), may.shape ? 1 : 0);
     assert.equal(await dialog.locator('[aria-disabled="true"]').count(), 0, 'a control is drawn off with a reason');
 
@@ -277,7 +284,7 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
       const generate = dialog.getByRole('button', { name: /Generate from a description/ });
       if ((await generate.count()) > 0) {
         await generate.click();
-        await dialog.getByRole('button', { name: 'Generate', exact: true }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Draft it', exact: true }).click();
         await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
       }
     }

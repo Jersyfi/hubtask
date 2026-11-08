@@ -9094,6 +9094,8 @@
   "app.templates.generation_asked_announced": "Der Entwurf wurde angefragt; er erscheint hier, sobald er da ist.",
   "app.templates.root_of_draft": "Der Eintrag, den die Vorlage anlegt — benannt, wenn sie verwendet wird",
   "app.templates.kept_announced": "Die Vorlage wurde behalten; sie steht in der Vorlagenliste.",
+  "app.templates.scope": "Festgelegt für",
+  "app.templates.applying_label": "Die Vorlagen, die hier gelten",
   "app.views.title": "Gespeicherte Ansichten",
   "app.views.save_title": "Diese Ansicht speichern",
   "app.views.menu": "Ansichten",

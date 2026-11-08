@@ -9094,6 +9094,8 @@
   "app.templates.generation_asked_announced": "The draft was asked for; it appears here when it arrives.",
   "app.templates.root_of_draft": "The entry the template creates, named when it is used",
   "app.templates.kept_announced": "The template was kept; it is in the templates list.",
+  "app.templates.scope": "Defined for",
+  "app.templates.applying_label": "The templates that apply here",
   "app.views.title": "Saved views",
   "app.views.save_title": "Save this view",
   "app.views.menu": "Views",
