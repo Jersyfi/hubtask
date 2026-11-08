@@ -16,6 +16,8 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { chooseInRow, rowMenu } from './rowmenu.mjs';
+
 import { MANIFEST, PRESET_SETTINGS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
@@ -88,31 +90,41 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   t.after(close);
 
   const section = page.locator('[data-installation-presets]');
-  const craft = section.locator(`[data-installation-preset="${CRAFT.id}"]`);
+  const rowOf = (id) => section.getByRole('row').filter({ has: page.locator(`[data-installation-preset="${id}"]`) });
+  const craft = rowOf(CRAFT.id);
   await craft.waitFor({ timeout: 10_000 });
-  const practice = section.locator(`[data-installation-preset="${PRACTICE.id}"]`);
+  const practice = rowOf(PRACTICE.id);
 
-  // Check 1: created from one of Hubtask's.
-  const create = section.locator('[data-installation-preset-create]');
+  // Check 1: created from one of Hubtask's, in its Dialog M.
+  await page.getByRole('main').getByRole('button', { name: 'New preset' }).click();
+  const create = page.locator('[data-installation-preset-create]');
   await create.getByRole('textbox', { name: 'New preset' }).fill('Site visit');
   await create.getByLabel('Starts from').selectOption('PROJECT');
-  await create.getByRole('button', { name: 'Create preset' }).click();
+  await page.getByRole('dialog', { name: 'New preset' }).getByRole('button', { name: 'Create preset' }).click();
   await page.waitForTimeout(300);
   const created = written.find((write) => write.method === 'POST' && write.path === '/admin/presets');
   assert.deepEqual(created?.body, { name: 'Site visit', preset: 'PROJECT' });
 
   // Check 1: renamed, and its settings started again from one of Hubtask's, on the version read.
-  await practice.getByRole('textbox').fill('Practice visits');
-  await practice.getByRole('button', { name: 'Rename' }).click();
+  await chooseInRow(practice, 'Rename');
+  const renaming = page.getByRole('dialog', { name: 'Rename “Practice appointments”' });
+  await renaming.getByRole('textbox').fill('Practice visits');
+  await renaming.getByRole('button', { name: 'Rename' }).click();
   await page.waitForTimeout(300);
-  await practice.getByLabel('Settings').selectOption('LIST');
+  await chooseInRow(practice, 'Start again from…');
+  const restarting = page.getByRole('dialog', { name: /^Start “/ });
+  await restarting.getByLabel('Settings').selectOption('LIST');
+  await restarting.getByRole('button', { name: 'Start again' }).click();
   await page.waitForTimeout(300);
   const changes = written.filter((write) => write.method === 'PATCH' && write.path === `/admin/presets/${PRACTICE.id}`);
   assert.deepEqual(changes.map((write) => write.body), [{ name: 'Practice visits' }, { preset: 'LIST' }]);
   assert.equal(changes[0]?.ifMatch, '"1"');
 
-  // Check 3: the default's locks - a whole setting added, the capability lock kept.
-  const locks = section.locator('[data-installation-preset-locks]');
+  // Check 3: the default's locks - a whole setting added, the capability lock kept - in the head's
+  // *Default and locks…*.
+  await page.getByRole('main').getByRole('button', { name: 'Default and locks…' }).click();
+  const defaults = page.getByRole('dialog', { name: 'Default and locks…' });
+  const locks = defaults.locator('[data-installation-preset-locks]');
   assert.equal(await locks.getByRole('checkbox', { name: 'Views' }).isChecked(), true, "the default's lock is not drawn");
   await locks.getByRole('checkbox', { name: 'Success' }).check();
   await page.waitForTimeout(300);
@@ -121,7 +133,7 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   assert.equal(locked?.ifMatch, '"3"');
 
   // Check 3: another preset made the default; none made the default.
-  const defaultSelect = section.getByLabel('New workspaces start from');
+  const defaultSelect = defaults.getByLabel('New workspaces start from');
   await defaultSelect.selectOption(PRACTICE.id);
   await page.waitForTimeout(300);
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${PRACTICE.id}`).at(-1)?.body, { is_default: true });
@@ -129,14 +141,20 @@ test('chromium: an operator creates, renames, starts again, makes default, locks
   await page.waitForTimeout(300);
   assert.deepEqual(written.filter((write) => write.path === `/admin/presets/${CRAFT.id}`).at(-1)?.body, { is_default: false });
 
+  await page.keyboard.press('Escape');
+  await defaults.waitFor({ state: 'hidden' });
+
   // The default's withdrawal is unavailable, with its reason, and sends nothing; another's is sent.
-  const withdrawDefault = craft.getByRole('button', { name: 'Withdraw “Craft order”' });
+  await rowMenu(craft).click();
+  const withdrawDefault = page.getByRole('menuitem', { name: /^Withdraw/ });
   assert.equal(await withdrawDefault.getAttribute('aria-disabled'), 'true', "the default's withdrawal is offered");
   await withdrawDefault.click({ force: true });
-  const reason = await withdrawDefault.evaluate((button) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
+  const reason = await withdrawDefault.evaluate((item) => document.getElementById(item.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
+  await page.keyboard.press('Escape');
   assert.ok(reason.includes('New workspaces start from this preset'), `the reason reads ${JSON.stringify(reason)}`);
   assert.ok(!written.some((write) => write.method === 'DELETE' && write.path === `/admin/presets/${CRAFT.id}`), "the default's withdrawal was sent");
-  await practice.getByRole('button', { name: 'Withdraw “Practice appointments”' }).click();
+  await chooseInRow(practice, 'Withdraw');
+  await page.getByRole('dialog', { name: /^Withdraw “/ }).getByRole('button', { name: 'Withdraw' }).click();
   await page.waitForTimeout(300);
   const withdrawn = written.find((write) => write.method === 'DELETE' && write.path === `/admin/presets/${PRACTICE.id}`);
   assert.ok(withdrawn, 'the withdrawal was not sent');
@@ -151,7 +169,7 @@ test('chromium: a file that enforces the level shows the presets and offers no c
   t.after(close);
 
   const section = page.locator('[data-installation-presets]');
-  const craft = section.locator(`[data-installation-preset="${CRAFT.id}"]`);
+  const craft = section.getByRole('row').filter({ has: page.locator(`[data-installation-preset="${CRAFT.id}"]`) });
   await craft.waitFor({ timeout: 10_000 });
   const said = await craft.textContent();
   assert.ok(said?.includes('New workspaces start from this preset.'), `the default is not marked: ${JSON.stringify(said)}`);

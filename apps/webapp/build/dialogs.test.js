@@ -79,8 +79,6 @@ const NOT_YET_MIGRATED = [
   'views/GoalsView.svelte',
   'views/InstanceAiView.svelte',
   'views/InstanceOperatorsView.svelte',
-  'views/InstancePlanView.svelte',
-  'views/InstancePlansView.svelte',
   'views/InstancePlatformView.svelte',
   'views/InstanceProvidersView.svelte',
   'views/InstanceTargetsView.svelte',

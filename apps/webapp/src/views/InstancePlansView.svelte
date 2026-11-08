@@ -14,7 +14,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table, type PageAction } from '@hubtask/design-system/components';
+  import { Banner, Button, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, Spinner, Stack, type DataColumn, type PageAction } from '@hubtask/design-system/components';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
   import type { Plan, PlanFeature } from '@hubtask/sync-engine';
@@ -31,7 +31,7 @@
 
   /** What *Create* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
   let missing = $state<Missing>({});
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
@@ -55,12 +55,16 @@
   const enforced = $derived(settings?.is_enforced_from_file === true);
   const withoutPlan = $derived(instance.workspaces.filter((workspace) => !workspace.plan).length);
 
-  const columns = $derived([
-    { id: 'plan', label: t('app.instance.plans_col_plan') },
-    { id: 'name', label: t('app.instance.plans_col_name') },
-    { id: 'workspaces', label: t('app.instance.plans_col_workspaces'), align: 'end' as const },
-    { id: 'left_out', label: t('app.instance.plans_col_left_out') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'plan', label: t('app.instance.plans_col_plan'), priority: 1 },
+    { id: 'workspaces', label: t('app.instance.plans_col_workspaces'), align: 'end', priority: 2 },
+    { id: 'left_out', label: t('app.instance.plans_col_left_out'), priority: 3 },
   ]);
+
+  // The search narrows the plans loaded, by their names.
+  let search = $state('');
+  const shown = $derived(plans.all.filter((plan) => matchesSearch(search, [plan.display_name, plan.name])));
+  const recordOf = (plan: Plan) => `/instance/plans/${encodeURIComponent(plan.name)}`;
 
   /** What a plan leaves out, in words, in the domain's order. */
   const leftOutWords = (plan: Plan): string =>
@@ -112,95 +116,113 @@
       : undefined,
   );
   $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
+
+  let createForm = $state<HTMLFormElement | undefined>(undefined);
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.instance.plans')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.plans') })}
-    primary={headPrimary}
-  />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      {#if !manifest.isMultiTenant}
-        <p class="prose">{t('app.instance.plans_single')}</p>
-      {:else}
-        <p class="prose">{t('app.instance.plans_intro')}</p>
-        {#if enforced}
-          <Banner tone="info" title={t('app.instance.source_file_enforced')}>{settings?.source ?? ''}</Banner>
-        {/if}
-
-        {#if reading.status === 'loading' || reading.status === 'idle'}
-          <p class="quiet"><Spinner label={t('app.instance.reading')} /> <span>{t('app.instance.reading')}</span></p>
-        {:else if unreadable}
-          <FailureNote problem={unreadable} />
-        {:else}
-          {#if plans.all.length === 0}
-            <Banner tone="info">{t('app.instance.plans_none')}</Banner>
-          {:else}
-            <Table label={t('app.instance.plans')} isLabelHidden {columns}>
-              {#each plans.all as plan (plan.name)}
-                <tr>
-                  <td><a href={`/instance/plans/${encodeURIComponent(plan.name)}`}>{plan.display_name}</a></td>
-                  <td><code>{plan.name}</code></td>
-                  <td class="count">{plan.workspaces}</td>
-                  <td>{leftOutWords(plan)}</td>
-                </tr>
-              {/each}
-            </Table>
-          {/if}
-          {#if instance.workspacesState.status === 'ready'}
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage head={{ title: t('app.instance.plans'), breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.plans') }), primary: headPrimary }} refused={door ?? (unreadable ? failed : undefined)}>
+      {#snippet intro()}
+        <Stack gap="100">
+          <p class="quiet">{t(manifest.isMultiTenant ? 'app.instance.plans_intro' : 'app.instance.plans_single')}</p>
+          {#if enforced}<Banner tone="info" title={t('app.instance.source_file_enforced')}>{settings?.source ?? ''}</Banner>{/if}
+          {#if manifest.isMultiTenant && instance.workspacesState.status === 'ready'}
             <p class="quiet" data-testid="without-plan">{t('app.instance.plans_without', { count: withoutPlan })}</p>
           {/if}
+        </Stack>
+      {/snippet}
+      {#snippet filters()}
+        {#if manifest.isMultiTenant}
+          <FilterBar
+            searchLabel={t('app.instance.plans_search')}
+            clearSearchLabel={t('app.page.clear_search')}
+            bind:search
+            countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(plans.all.length) }) : undefined}
+          />
+        {/if}
+      {/snippet}
+
+      {#if manifest.isMultiTenant}
+        {#if reading.status === 'loading' || reading.status === 'idle'}
+          <p class="quiet"><Spinner label={t('app.instance.reading')} /> <span>{t('app.instance.reading')}</span></p>
+        {:else}
+          <DataTable
+            label={t('app.instance.plans')}
+            {columns}
+            rows={shown}
+            key={(plan: Plan) => plan.name}
+            href={recordOf}
+            rowLabel={(plan: Plan) => plan.display_name}
+            shownLabel={plans.all.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+          >
+            {#snippet cell(plan: Plan, column: DataColumn)}
+              {#if column.id === 'plan'}
+                <span class="name">{plan.display_name}</span>
+                <span class="small">{plan.name}</span>
+              {:else if column.id === 'workspaces'}
+                <span class="count">{plan.workspaces}</span>
+              {:else}
+                <span class="quiet">{leftOutWords(plan)}</span>
+              {/if}
+            {/snippet}
+            {#snippet empty()}
+              {#if plans.all.length === 0}
+                <EmptyState kind="unused" title={t('app.instance.plans_none')} />
+              {:else}
+                <EmptyState kind="filtered" title={t('app.instance.plans_none_found')}>
+                  {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+                </EmptyState>
+              {/if}
+            {/snippet}
+          </DataTable>
         {/if}
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </ListPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <Dialog
+  size="m"
   title={t('app.instance.plan_create_title')}
   isOpen={isCreating}
   dismissLabel={t('app.instance.cancel')}
   onClose={() => (isCreating = false)}
+  primary={{ label: t('app.instance.plan_create'), isBusy: isWorking, busyLabel: t('app.instance.working'), onclick: () => createForm?.requestSubmit() }}
 >
   {#snippet actions()}
     <Button tone="subtle" onclick={() => (isCreating = false)}>{t('app.instance.cancel')}</Button>
-    <Button
-      tone="primary"
-      isBusy={isWorking}
-      busyLabel={t('app.instance.working')}
-      onclick={() => void create()}
-    >
-      {t('app.instance.plan_create')}
-    </Button>
   {/snippet}
-  <Stack gap="150">
-    {#if failure && !failure.fields.size}
-      <FailureNote problem={failure} />
-    {/if}
-    <Input
-      label={t('app.instance.plan_display_name')}
-      bind:value={displayName}
-      error={failure?.fields.get('/display_name') ?? (missing.displayName && !displayName.trim() ? t(missing.displayName) : undefined)}
-      isRequired
-    />
-    <Input
-      label={t('app.instance.plan_short_name')}
-      hint={t('app.instance.plan_short_name_hint')}
-      bind:value={name}
-      error={failure?.fields.get('/name') ?? (missing.name && !name.trim() ? t(missing.name) : undefined)}
-      isRequired
-    />
-  </Stack>
+  <form bind:this={createForm} onsubmit={(event) => { event.preventDefault(); void create(); }}>
+    <Stack gap="150">
+      {#if failure && !failure.fields.size}
+        <FailureNote problem={failure} />
+      {/if}
+      <Input
+        label={t('app.instance.plan_display_name')}
+        bind:value={displayName}
+        error={failure?.fields.get('/display_name') ?? (missing.displayName && !displayName.trim() ? t(missing.displayName) : undefined)}
+        isRequired
+      />
+      <Input
+        label={t('app.instance.plan_short_name')}
+        hint={t('app.instance.plan_short_name_hint')}
+        bind:value={name}
+        error={failure?.fields.get('/name') ?? (missing.name && !name.trim() ? t(missing.name) : undefined)}
+        isRequired
+      />
+    </Stack>
+  </form>
 </Dialog>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); display: flex; align-items: center; gap: var(--sp-100); }
-
-  .count { font-variant-numeric: tabular-nums; text-align: end; }
-
-  code { font-family: var(--font-mono); font-size: var(--fs-075); }
+  .name { display: block; font-weight: var(--fw-medium); }
+  .small { display: block; color: var(--text-subtle); font-size: var(--fs-075); }
+  .count { font-variant-numeric: tabular-nums; }
+  form { margin: 0; }
 </style>

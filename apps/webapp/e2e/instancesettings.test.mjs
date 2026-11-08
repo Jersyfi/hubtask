@@ -54,11 +54,35 @@ const LEVEL = {
   is_enforced_from_file: false,
 };
 
-/** Opens the tab of an area, as an operator does: the defaults show one area at a time. */
+/** Opens the section of an area, as an operator does: the defaults show one area at a time. */
 async function inArea(page, name) {
-  await page.getByRole('tab', { name, exact: true }).click();
-  await page.getByRole('tab', { name, exact: true, selected: true }).waitFor();
+  const link = page.locator('nav.section-nav').getByRole('link', { name: new RegExp(`^${name}`) });
+  await link.click();
+  await page.locator('nav.section-nav [aria-current="page"]', { hasText: name }).waitFor();
 }
+
+/** A setting's row, by its name. */
+const rowOf = (page, name) => page.locator('.setting-row').filter({ has: page.locator('.about .name', { hasText: name }) }).first();
+
+/**
+ * What a setting's row says, as a person reads it: its name, its help and the value in its
+ * control - a field's text or placeholder, a choice's chosen words, the hints under them.
+ */
+const said = (page, name) =>
+  rowOf(page, name).evaluate((node) => [
+    node.querySelector('.about')?.textContent ?? '',
+    ...[...node.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), select')].map((control) =>
+      control instanceof HTMLSelectElement ? (control.selectedOptions[0]?.textContent ?? '') : (control.value || control.placeholder)),
+    (() => {
+      // The words beside the controls - a hint, a size - without every choice a select holds.
+      const value = node.querySelector('.value')?.cloneNode(true);
+      value?.querySelectorAll('select').forEach((each) => each.remove());
+      return value?.textContent ?? '';
+    })(),
+  ].join(' · '));
+
+/** The section's save bar. */
+const barOf = (page) => page.getByRole('region', { name: 'Unsaved changes' });
 
 async function open(browser, { level = LEVEL, refuse = undefined, width = 1280 } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
@@ -88,8 +112,8 @@ async function open(browser, { level = LEVEL, refuse = undefined, width = 1280 }
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/instance/settings`);
-  await page.getByRole('row').filter({ hasText: 'Minimum length' }).waitFor({ timeout: 15_000 });
+  await page.goto(`${served.origin}/instance/settings/sign-in`);
+  await rowOf(page, 'Minimum length').waitFor({ timeout: 15_000 });
   return { page, sent, preconditions, close: () => context.close() };
 }
 
@@ -103,51 +127,55 @@ test('chromium: every value is named in words, and the lock says what a workspac
   // No key as the contract spells it, and no value as the contract spells it.
   assert.doesNotMatch(text, /sign_in\.|legal\.|localisation\.|quotas\.|ai\.sources|min_length|ADMINS|OFFERED/);
 
-  const row = (name) => page.getByRole('row').filter({ hasText: name });
-  assert.match(await row('Minimum length').textContent() ?? '', /14.*not change it/);
-  assert.match(await row('Second factor').textContent() ?? '', /Owners and administrators.*make it stricter/i);
+  // Each value in place in its row, with what a workspace may still do with it.
+  const both = async (name, value, may) => {
+    const text = await said(page, name);
+    assert.match(text, value, text);
+    assert.match(text, may, text);
+  };
+  await both('Minimum length', /14/, /not change it/);
+  await both('Second factor', /Owners and administrators/, /make it stricter/i);
   await inArea(page, 'Limits');
-  assert.match(await row('Entries').textContent() ?? '', /Unlimited.*go higher/);
-  assert.match(await row('Exports').textContent() ?? '', /3.*not go higher/);
+  await both('Entries', /Unlimited/, /go higher/);
+  await both('Exports', /3/, /not go higher/);
   await inArea(page, 'Legal information');
-  assert.match(await row('Imprint').textContent() ?? '', /provider\.example.*not change it/);
-  assert.match(await row('Accessibility').textContent() ?? '', /Each workspace decides.*use their own/);
+  await both('Imprint', /provider\.example/, /not change it/);
+  await both('Accessibility', /Each workspace decides/, /use their own/);
   // A language is a default and never locked: its row says nothing about what a workspace may do.
   await inArea(page, 'Language and time');
-  const language = (await row('Language').textContent()) ?? '';
+  const language = await rowOf(page, 'Language').locator('.about').textContent() ?? '';
   assert.doesNotMatch(language, /stricter|change it|higher|their own/);
 });
 
-// ux-inventory §E8: the defaults are one area at a time, in tabs, the tab in the address; the
-// editor opens on the whole level, keeps what was changed on another tab, and its one save bar
-// counts every area's changes because the save replaces the whole level.
-test('chromium: the defaults are tabs per area, and the editor keeps every tab\'s changes', async (t) => {
+// page-system §9.4, PS-9: the defaults are one section per area, each at its own address, every
+// value in place; the draft keeps what was changed in another section, and the save bar counts
+// every area's changes because the save replaces the whole level.
+test('chromium: the defaults are a section per area, and the draft keeps every section\'s changes', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, sent, close } = await open(browser);
   t.after(close);
 
-  assert.deepEqual(
-    await page.getByRole('tab').allTextContents(),
-    // No AI tab: the fixture's installation is a private one, which offers no model (UC-AI-06 check 8).
-    ['Signing in', 'Legal information', 'Language and time', 'Limits'],
-  );
-  // One area's table at a time.
-  assert.equal(await page.getByRole('row').filter({ hasText: 'Entries' }).count(), 0);
+  const links = await page.locator('nav.section-nav').getByRole('link').allTextContents();
+  // No AI section: the fixture's installation is a private one, which offers no model (UC-AI-06 check 8).
+  for (const name of ['Signing in', 'Legal information', 'Language and time', 'Limits', 'History']) {
+    assert.ok(links.some((link) => link.trim().startsWith(name)), `${name} is not listed: ${links.join(' | ')}`);
+  }
+  assert.ok(!links.some((link) => link.trim().startsWith('AI')), 'the AI section is listed');
+  // One area at a time.
+  assert.equal(await rowOf(page, 'Entries').count(), 0);
   await inArea(page, 'Limits');
-  assert.match(page.url(), /\/instance\/settings\?tab=quotas$/, 'the tab is not in the address');
-  assert.equal(await page.getByRole('row').filter({ hasText: 'Minimum length' }).count(), 0);
+  assert.match(page.url(), /\/instance\/settings\/quotas$/, 'the section is not in the address');
+  assert.equal(await rowOf(page, 'Minimum length').count(), 0);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
-  const form = page.locator('form');
-  await form.locator('[data-value="quotas.items"]').getByRole('spinbutton').first().fill('500');
+  await page.locator('[data-value="quotas.items"]').getByRole('spinbutton').first().fill('500');
   await inArea(page, 'Signing in');
-  await form.getByRole('spinbutton', { name: 'Digits, at least' }).fill('2');
-  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  await page.getByRole('spinbutton', { name: 'Digits, at least' }).fill('2');
+  const bar = barOf(page);
   await bar.getByText('2 changes').waitFor();
-  await form.getByRole('button', { name: 'Save' }).click();
+  await bar.getByRole('button', { name: 'Save' }).click();
   await page.getByText('Saved.').first().waitFor({ timeout: 10_000 });
-  assert.equal(sent.at(-1).quotas.items.value, 500, 'the other tab\'s change was lost');
+  assert.equal(sent.at(-1).quotas.items.value, 500, 'the other section\'s change was lost');
   assert.equal(sent.at(-1).sign_in.min_digits.value, 2);
 });
 
@@ -157,8 +185,7 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
   const { page, sent, close } = await open(browser);
   t.after(close);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
-  const form = page.locator('form');
+  const form = page.locator('main');
 
   const digits = form.getByRole('spinbutton', { name: 'Digits, at least' });
   assert.equal(await digits.getAttribute('min'), '0');
@@ -175,7 +202,7 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
   // No lock for a language, a zone or a week start.
   assert.equal(await form.locator('[data-value="localisation.week_start"]').getByRole('combobox', { name: 'Workspaces may' }).count(), 0);
 
-  await form.getByRole('button', { name: 'Save' }).click();
+  await barOf(page).getByRole('button', { name: 'Save' }).click();
   await page.getByText('Saved.').first().waitFor({ timeout: 10_000 });
 
   const body = sent.at(-1);
@@ -209,9 +236,8 @@ test("chromium: the terms' version follows its link, in place and in its lock", 
   const { page, close } = await open(browser, { level });
   t.after(close);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
   await inArea(page, 'Legal information');
-  const form = page.locator('form');
+  const form = page.locator('main');
   const order = await form.locator('[data-value^="legal."]').evaluateAll(
     (rows) => rows.map((row) => row.getAttribute('data-value')),
   );
@@ -237,9 +263,7 @@ test('chromium: a refusal lands at the value it is about', async (t) => {
   });
   t.after(close);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
-  // No save stands under an untouched editor: the bar comes with the first change (UC-WRK-32
-  // check 3).
+  // No save stands under untouched values: the bar comes with the first change (UC-WRK-32 check 3).
   const bar = page.getByRole('region', { name: 'Unsaved changes' });
   assert.equal(await bar.count(), 0);
   await inArea(page, 'Limits');
@@ -264,10 +288,9 @@ test('chromium: a save on values somebody else saved since says so and keeps the
   });
   t.after(close);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
-  const form = page.locator('form');
+  const form = page.locator('main');
   await form.getByRole('spinbutton', { name: 'Digits, at least' }).fill('3');
-  await form.getByRole('button', { name: 'Save' }).click();
+  await barOf(page).getByRole('button', { name: 'Save' }).click();
 
   await page.getByText('Somebody else saved the installation’s defaults first')
     .or(page.getByText("Somebody else saved the installation's defaults first"))
@@ -286,7 +309,8 @@ test('chromium: a level a file enforces is shown with its path and no control', 
   t.after(close);
 
   await page.getByText('/etc/hubtask/instance.json').waitFor({ timeout: 10_000 });
-  assert.equal(await page.getByRole('button', { name: 'Change these values' }).count(), 0);
+  assert.equal(await page.locator('main').getByRole('spinbutton').count(), 0, 'a value is offered for change');
+  assert.equal(await page.locator('main').getByRole('combobox').count(), 0, 'a choice is offered for change');
 });
 
 test('chromium: at 375 px the form keeps every value and its lock inside the screen', async (t) => {
@@ -295,7 +319,6 @@ test('chromium: at 375 px the form keeps every value and its lock inside the scr
   const { page, close } = await open(browser, { width: 375 });
   t.after(close);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
 });
@@ -312,17 +335,14 @@ test('chromium: a language is named and stored files are a size', async (t) => {
   const { page, close } = await open(browser, { level });
   t.after(close);
 
-  const row = (name) => page.getByRole('row').filter({ hasText: name });
   await inArea(page, 'Language and time');
-  const language = (await row('Language').textContent()) ?? '';
+  const language = await said(page, 'Language');
   assert.match(language, /Deutsch/, language);
   await inArea(page, 'Limits');
-  const stored = (await row('Stored files').textContent()) ?? '';
+  const stored = await rowOf(page, 'Stored files').textContent() ?? '';
   assert.match(stored, /10\.7\s?GB/, stored);
-  assert.doesNotMatch(stored, /10737418240/, stored);
 
-  await page.getByRole('button', { name: 'Change these values' }).click();
-  const form = page.locator('form');
+  const form = page.locator('main');
   await inArea(page, 'Language and time');
   const options = await form.getByRole('combobox', { name: 'Language' }).locator('option').allTextContents();
   assert.ok(options.some((each) => /English/.test(each)) && options.some((each) => /Deutsch/.test(each)), options.join(' | '));
@@ -348,13 +368,14 @@ test('chromium: the account link is drawn with what plans may, and without a loc
   const { page, close } = await open(browser, { level: multi });
   t.after(close);
   await inArea(page, 'Legal information');
-  const row = page.getByRole('row').filter({ hasText: 'Provider\'s account page' });
-  assert.match(await row.textContent() ?? '', /shop\.example\/account.*set their own \(plans\)/);
+  const account = await said(page, 'Provider\'s account page');
+  assert.match(account, /shop\.example\/account/, account);
+  assert.match(account, /set their own \(plans\)/, account);
 
   const single = { ...LEVEL, legal: { ...LEVEL.legal, account_url: { set: false, locked: false, kind: 'LINK' } } };
   const second = await open(browser, { level: single });
   t.after(second.close);
   await inArea(second.page, 'Legal information');
-  const plain = (await second.page.getByRole('row').filter({ hasText: 'Provider\'s account page' }).textContent()) ?? '';
+  const plain = await said(second.page, 'Provider\'s account page');
   assert.doesNotMatch(plain, /plans|their own|change it/);
 });

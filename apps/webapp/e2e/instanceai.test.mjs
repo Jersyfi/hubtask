@@ -14,6 +14,8 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { chooseInRow } from './rowmenu.mjs';
+
 import { MANIFEST, OFFERED_AI, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
@@ -102,7 +104,7 @@ test('chromium: an operator offers a model, and withdraws one knowing what it co
   await page.getByRole('row').filter({ hasText: 'Small (EU)' }).waitFor();
   assert.doesNotMatch(await page.content(), /the-offered-key/);
 
-  await row.getByRole('button', { name: 'Withdraw' }).click();
+  await chooseInRow(row, 'Withdraw…');
   const withdraw = page.getByRole('dialog', { name: 'Withdraw this model' });
   await withdraw.waitFor();
   assert.match(await withdraw.textContent() ?? '', /Every workspace that uses Large \(EU\) gets no AI answer until it chooses again/);
@@ -141,11 +143,11 @@ test('chromium: the defaults say in words which AI workspaces may use', async (t
   const { page, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/instance/settings`);
-  const sources = page.getByRole('row').filter({ hasText: 'Workspaces may use' });
+  await page.goto(`${served.origin}/instance/settings/ai`);
+  const sources = page.locator('.setting-row').filter({ hasText: 'Workspaces may use' });
   await sources.waitFor({ timeout: 15_000 });
   assert.match(await sources.textContent() ?? '', /Only the offered model/);
-  const minimum = page.getByRole('row').filter({ hasText: 'Their own model must process content' });
+  const minimum = page.locator('.setting-row').filter({ hasText: 'Their own model must process content' });
   assert.match(await minimum.textContent() ?? '', /In the EEA/);
   assert.doesNotMatch(await sources.textContent() ?? '', /OFFERED|ai\.sources/);
 });
@@ -172,8 +174,8 @@ test('chromium: an offered model no workspace may choose is said to be unreachab
   await banner.waitFor({ timeout: 15_000 });
   assert.match(await banner.textContent() ?? '', /"Workspaces may use" in the defaults leaves the offered model out/);
   await banner.getByRole('button', { name: 'Change the default' }).click();
-  await page.waitForURL(/\/instance\/settings\?tab=ai$/);
-  await page.getByRole('row').filter({ hasText: 'Workspaces may use' }).waitFor({ timeout: 15_000 });
+  await page.waitForURL(/\/instance\/settings\/ai$/);
+  await page.locator('.setting-row').filter({ hasText: 'Workspaces may use' }).waitFor({ timeout: 15_000 });
 });
 
 // UC-AI-06 check 8: a private installation (one workspace) has no model to offer, so neither the
@@ -189,7 +191,8 @@ test('chromium: a single-workspace installation draws no offered AI', async (t) 
   await read;
   await page.locator('nav').first().waitFor();
   await page.waitForTimeout(500);
-  assert.equal(await page.getByRole('row').filter({ hasText: 'Workspaces may use' }).count(), 0, 'the AI area is drawn');
+  assert.equal(await page.locator('.setting-row').filter({ hasText: 'Workspaces may use' }).count(), 0, 'the AI area is drawn');
+  assert.equal(await page.locator('a[href="/instance/settings/ai"]').count(), 0, 'the AI section is listed');
   const text = (await page.locator('main').textContent()) ?? '';
   assert.doesNotMatch(text, /offered model/i, 'the defaults speak of an offered model');
   assert.equal(await page.locator('a[href="/instance/ai"]').count(), 0, 'the installation offers an AI row');
