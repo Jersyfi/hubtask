@@ -320,7 +320,7 @@
 </section>
 
 {#if isPreviewing}
-  <Dialog bind:isOpen={isPreviewing} title={t('app.pages.public_preview_title', { title: page.title })} dismissLabel={t('app.pages.cancel')}>
+  <Dialog size="l" primary={{ label: t('app.pages.public_make'), onclick: makeLink }} bind:isOpen={isPreviewing} title={t('app.pages.public_preview_title', { title: page.title })} dismissLabel={t('app.pages.cancel')}>
     <div class="preview" data-public-preview>
       <p class="quiet">{t('app.pages.public_preview_lead')}</p>
       <h4 class="sub">{t('app.pages.public_shows')}</h4>
@@ -337,7 +337,6 @@
     </div>
     {#snippet actions()}
       <Button tone="subtle" onclick={() => (isPreviewing = false)}>{t('app.pages.cancel')}</Button>
-      <Button tone="primary" icon="link" onclick={makeLink}>{t('app.pages.public_make')}</Button>
     {/snippet}
   </Dialog>
 {/if}

@@ -170,20 +170,13 @@
 </section>
 
 {#if isOpen}
-  <Dialog bind:isOpen title={t('app.affected.picker_title')} dismissLabel={t('app.assets.cancel')} onClose={() => { chosen = undefined; }}>
+  <Dialog size="l" primary={{ label: t('app.affected.confirm'), isBusy: isNaming, disabledReason: chosen ? undefined : t('app.affected.choose_first'), onclick: () => void name() }} bind:isOpen title={t('app.affected.picker_title')} dismissLabel={t('app.assets.cancel')} onClose={() => { chosen = undefined; }}>
     <Stack gap="200">
       <CiPicker {chosen} onchoose={(found) => (chosen = found)} />
       {#if nameRefusal}<p class="refusal" role="alert">{nameRefusal}</p>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button
-        tone="primary"
-        data-confirm-ci
-        isBusy={isNaming}
-        disabledReason={chosen ? undefined : t('app.affected.choose_first')}
-        onclick={name}
-      >{t('app.affected.confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}

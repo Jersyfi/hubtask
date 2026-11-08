@@ -45,7 +45,7 @@
 </script>
 
 {#if isOpen}
-  <Dialog
+  <Dialog size="l" primary={{ label: t('app.mentions.confirm'), disabledReason: ready ? undefined : t('app.links.choose_first'), onclick: insert }}
     bind:isOpen
     title={t('app.mentions.picker_title')}
     dismissLabel={t('app.links.cancel')}
@@ -68,12 +68,6 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.links.cancel')}</Button>
-      <Button
-        tone="primary"
-        data-insert-mention
-        disabledReason={ready ? undefined : t('app.links.choose_first')}
-        onclick={insert}
-      >{t('app.mentions.confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}
