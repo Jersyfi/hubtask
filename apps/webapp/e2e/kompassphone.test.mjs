@@ -46,6 +46,8 @@ test('UC-WRK-36 check 13: Today · Browse · ＋ · Inbox · Search; Browse hold
   await at(page, `/browse/hubs/${IT.id}`);
   // The hub's three parts: its tools, its collections, its contents.
   await step(page).getByRole('list', { name: `Tools of ${IT.name}` }).waitFor();
+  // *Queues* follows once the hub's collections are read: one of them acts as a desk.
+  await step(page).getByRole('list', { name: `Tools of ${IT.name}` }).getByRole('link', { name: /^Queues/ }).waitFor();
   assert.deepEqual(await texts(step(page).getByRole('list', { name: `Tools of ${IT.name}` }).getByRole('link')), ['Overview', 'Queues', 'Inventory', 'Goals']);
   assert.deepEqual(await heads(step(page).locator('h3')), ['Collections', 'Contents']);
   await step(page).getByRole('link', { name: /^Queues/ }).click();
