@@ -55,7 +55,8 @@
     min-width: 0;
   }
 
-  .page[data-page-kind='record'] { gap: var(--sp-300); }
+  .page[data-page-kind='record'],
+  .page[data-page-kind='detail'] { gap: var(--sp-300); }
 
   .refused {
     padding: var(--sp-400) var(--sp-200);
