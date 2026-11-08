@@ -309,8 +309,10 @@
           });
           editor = current;
           isLive = true;
-          // A page with a body and no live document yet: the first writer seeds it.
-          if (seedFromMarkdown(current, body)) changed(markdownOf(current));
+          // A page with a body and no live document yet: the first writer seeds it. The seed is the
+          // body itself, only written out again: nothing to save, or opening a page gave it a
+          // version nobody wrote.
+          if (seedFromMarkdown(current, body)) lastSaved = markdownOf(current);
         },
       });
       const present = () => onpresent?.(writersHere(connection.awareness.getStates(), doc.clientID));
