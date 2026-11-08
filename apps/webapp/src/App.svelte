@@ -417,9 +417,9 @@
       <LazyView load={views.TokenView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'appearance'}
-    <LazyView load={views.AppearanceView} />
+    <LazyView load={views.AppearanceView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'notifications'}
-    <LazyView load={views.NotificationsView} />
+    <LazyView load={views.NotificationsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'security' || route.name === 'security-section'}
     <LazyView load={views.SecurityView} props={{ section: route.params.section, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'second-factor-new'}

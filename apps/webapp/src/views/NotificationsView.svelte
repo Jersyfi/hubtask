@@ -30,6 +30,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
+  const { onnavigate }: { onnavigate?: (path: string) => void } = $props();
+
   const account = $derived(actor.account);
   const accountId = $derived(account?.id);
 
@@ -91,7 +93,7 @@
     head={profileHead('notifications')}
     nav={{ label: t('app.settings_page.sections', { name: title }), sections: [{ id: 'notifications', label: title, href: '/profile/notifications' }], current: 'notifications' }}
     view="detail"
-    back={{ label: t('app.nav.profile'), onback: () => history.back() }}
+    back={{ label: t('app.nav.profile'), onback: () => onnavigate?.('/profile') }}
   >
     {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
