@@ -1297,6 +1297,8 @@ export function fallback(route, request, path) {
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
+  // A backup target's archives, read by its record page: a bare array too, under the target's id.
+  if (/^\/backup-targets\/[^/]+\/backups$/.test(read)) return route.fulfill({ json: [] });
   // The mail intake as a workspace starts: off, members only, no receiving domain (ADR-0094).
   if (read === '/mail/settings' && request.method() === 'GET') {
     return route.fulfill({ json: { enabled: false, senders: { level: 'MEMBERS', allowed: [], blocked: [] }, sender_routes: [] } });
