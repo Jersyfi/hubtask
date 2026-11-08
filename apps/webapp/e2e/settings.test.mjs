@@ -293,20 +293,22 @@ test('chromium: 1280 px — the moments are switched on You, and On this device 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — what you are told about is a grid, and every row’s switches line up', async (t) => {
+test('chromium: 1280 px — what you are told about is a row per category, and every row’s switches line up', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser);
   t.after(close);
 
   await page.goto(`${served.origin}/profile/notifications`);
-  const table = page.getByRole('table', { name: 'What you are told about' });
-  await table.waitFor({ timeout: 15_000 });
-  assert.equal(await table.getByRole('row').count(), CATEGORIES.length + 1, 'a row per category and one for the headings');
+  // A setting is one row (page-system PS-11): the category's name, its boxes at the control's place.
+  const table = page.locator('main');
+  const rows = page.locator('[data-setting^="notify-"]');
+  await rows.first().waitFor({ timeout: 15_000 });
+  assert.equal(await rows.count(), CATEGORIES.length, 'a row per category');
 
   // The finding, measured: every "Tell me" sits at one x, and so does every "Name the entry".
-  const columns = await table.locator('tbody tr').evaluateAll((rows) =>
-    rows.map((row) => [...row.querySelectorAll('input[type="checkbox"]')].map((box) => Math.round(box.getBoundingClientRect().x))),
+  const columns = await rows.evaluateAll((all) =>
+    all.map((row) => [...row.querySelectorAll('input[type="checkbox"]')].map((box) => Math.round(box.getBoundingClientRect().x))),
   );
   assert.equal(columns.length, CATEGORIES.length);
   const first = columns[0];
@@ -315,7 +317,7 @@ test('chromium: 1280 px — what you are told about is a grid, and every row’s
   }
 
   // The one category nobody can switch off says why, rather than being absent or silently on.
-  const invitation = table.getByRole('row').filter({ hasText: 'I am invited to the workspace' });
+  const invitation = table.locator('[data-setting^="notify-"]').filter({ hasText: 'I am invited to the workspace' });
   // Unavailable rather than natively disabled: focusable, and it says why (design-system.md §4).
   assert.equal(await invitation.locator('input[type="checkbox"][aria-disabled="true"]').count(), 1, 'the always-on row is switchable');
 

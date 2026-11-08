@@ -13828,6 +13828,7 @@
   "app.profile.undeliverable_retry": "E-Mails erneut versuchen",
   "app.profile.undeliverable_retrying": "Wird erneut versucht…",
   "app.profile.undeliverable_cleared": "Nachrichten an deine Adresse werden wieder gesendet.",
+  "app.profile.notifications_section": "Worüber dieser Arbeitsbereich dich informiert",
   "app.changes.draft_of": "Entwurf: {section} „{key}“",
   "app.changes.difference_text": "Der Text der Datei",
   "app.changes.search": "Versionen und Vorschläge suchen",

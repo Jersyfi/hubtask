@@ -13828,6 +13828,7 @@
   "app.profile.undeliverable_retry": "Try mail again",
   "app.profile.undeliverable_retrying": "Trying again…",
   "app.profile.undeliverable_cleared": "Messages to your address are sent again.",
+  "app.profile.notifications_section": "Things this workspace tells you about",
   "app.changes.draft_of": "Draft of the {section} “{key}”",
   "app.changes.difference_text": "The file's text",
   "app.changes.search": "Search versions and proposals",

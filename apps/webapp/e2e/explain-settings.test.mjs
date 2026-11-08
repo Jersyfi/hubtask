@@ -83,7 +83,7 @@ for (const width of [375, 768, 1280]) {
     const { page, context, failures } = await signedIn(browser, width, 900);
     await withNotifications(context);
     await page.goto(`${served.origin}/profile/notifications`);
-    const row = page.locator('tbody tr', { hasText: 'I am invited to the workspace' });
+    const row = page.locator('[data-setting^="notify-"]', { hasText: 'I am invited to the workspace' });
     await row.waitFor({ timeout: 15_000 });
     assert.equal(await page.getByText('You are always told about this one').count(), 1, 'the always-on sentence is said more than once');
     const box = row.getByRole('checkbox', { name: 'Tell me' });

@@ -15,10 +15,11 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, SettingsLayout, SettingsSection, Skeleton } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
   import NotificationRow from '../lib/profile/NotificationRow.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -44,21 +45,6 @@
   const reading = $derived(accountId ? preferences.stateOf(accountId) : undefined);
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-
-  /**
-   * The columns: what happens, then two per channel.
-   *
-   * The channel's own word joins the heading only where there is more than one, because a table
-   * whose every heading repeats "By email" spends a third of its width saying one thing seven
-   * times. With one channel the two questions are the two headings.
-   */
-  const columns = $derived([
-    { id: 'category', label: t('app.profile.category_column') },
-    ...channels.flatMap((channel) => [
-      { id: `${channel}-enabled`, label: channels.length > 1 ? `${t(`app.profile.channel_${channel}`)} · ${t('app.profile.enabled')}` : t('app.profile.enabled') },
-      { id: `${channel}-title`, label: channels.length > 1 ? `${t(`app.profile.channel_${channel}`)} · ${t('app.profile.include_title')}` : t('app.profile.include_title') },
-    ]),
-  ]);
 
   /**
    * The boxes being written, as `category:channel:field`: each shows its progress in its own place
@@ -89,6 +75,9 @@
     }
   }
 
+  const title = $derived(profileTitle('notifications'));
+  $effect(() => page.entitle(title));
+
   /** A managed account (ADR-0074 §5): no address, so no mail and no table of switches for it. */
   const withoutMailbox = $derived(account?.kind === 'USER' && !account.email);
 </script>
@@ -96,46 +85,49 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="notifications" />
+  <!-- A settings page of one section (page-system §9.5): every box is written the moment it is
+       pressed, so the section has no save bar (PS-10). -->
+  <SettingsLayout
+    head={profileHead('notifications')}
+    nav={{ label: t('app.settings_page.sections', { name: title }), sections: [{ id: 'notifications', label: title, href: '/profile/notifications' }], current: 'notifications' }}
+    view="detail"
+    back={{ label: t('app.nav.profile'), onback: () => history.back() }}
+  >
+    {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-    <Stack gap="150">
-      <!-- The lead promises rows, so it stands only where the rows can be drawn. -->
-      {#if !withoutMailbox}<p class="quiet">{t('app.profile.notifications_hint')}</p>{/if}
-
-      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-
+    <!-- The lead promises rows, so it stands only where the rows can be drawn. -->
+    <SettingsSection title={t('app.profile.notifications_section')} description={withoutMailbox ? undefined : t('app.profile.notifications_hint')}>
       {#if withoutMailbox}
-        <!-- A managed account (ADR-0074 §5): mail has nowhere to go, and a table of switches for it
-             would be a promise nothing keeps. -->
-        <p class="quiet">{t('app.profile.no_mailbox')}</p>
+        <!-- A managed account (ADR-0074 §5): mail has nowhere to go, and switches for it would be
+             a promise nothing keeps. -->
+        <p class="quiet pad">{t('app.profile.no_mailbox')}</p>
       {:else if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}
-        <div aria-busy="true"><Skeleton lines={3} /></div>
+        <div class="pad" aria-busy="true"><Skeleton lines={3} /></div>
       {:else if reading.status === 'failed'}
         <FailureState problem={renderProblem(reading.error, messages)} onRetry={() => accountId && preferences.open(accountId)()} />
       {:else if categories.length === 0}
         <EmptyState kind="unused" title={t('app.profile.none')} />
       {:else}
-        <Table label={t('app.profile.notifications')} isLabelHidden {columns}>
-          {#each categories as category (category)}
-            <NotificationRow
-              {category}
-              {channels}
-              {rows}
-              isAlwaysOn={isAlwaysOn(category)}
-              busy={busyOf(category)}
-              onset={(channel, next) => void setRow(category, channel, next)}
-            />
-          {/each}
-        </Table>
-        <p class="quiet small">{t('app.profile.include_title_hint')}</p>
+        {#each categories as category (category)}
+          <NotificationRow
+            {category}
+            {channels}
+            {rows}
+            isAlwaysOn={isAlwaysOn(category)}
+            busy={busyOf(category)}
+            onset={(channel, next) => void setRow(category, channel, next)}
+          />
+        {/each}
       {/if}
-    </Stack>
-  </Stack>
+    </SettingsSection>
+    {#if !withoutMailbox && categories.length > 0}<p class="quiet small">{t('app.profile.include_title_hint')}</p>{/if}
+  </SettingsLayout>
 {/if}
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .pad { padding: var(--sp-200) var(--sp-250); }
 
   .small { font-size: var(--fs-075); }
 
