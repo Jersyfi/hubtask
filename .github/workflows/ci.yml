@@ -1138,8 +1138,11 @@ jobs:
           printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
             sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update
+          # Ubuntu 26.04 renamed the driver's package; both ship WebKitWebDriver.
+          driver=webkitgtk-webdriver
+          apt-cache show "$driver" >/dev/null 2>&1 || driver=webkit2gtk-driver
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev file \
-            webkit2gtk-driver xvfb gnome-keyring
+            "$driver" xvfb gnome-keyring
       # SQLCipher, the encrypted copy's cipher (ADR-0033 §4), links OpenSSL's libcrypto: Linux finds
       # libssl-dev's where the compiler looks, the Windows runner's has to be named.
       - name: The system's OpenSSL
