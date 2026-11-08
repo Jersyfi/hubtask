@@ -40,6 +40,7 @@
   import EntryPicker from '../entries/EntryPicker.svelte';
   import { keyboardTool, sizeOf, tabTarget } from './keys.ts';
   import { keepThenReplace } from './restore.ts';
+  import { sceneKey } from './scene.ts';
   import { followedViewport, peersOf, stillFollowing, type Peer } from './peers.ts';
   import BoardComments from './BoardComments.svelte';
   import BoardTemplates, { templateOf, type BoardStart, type RetroFormat } from './BoardTemplates.svelte';
@@ -166,9 +167,16 @@
     timer = setTimeout(() => void save(), SAVE_AFTER);
   }
 
+  // The scene the server holds: a save of the same again is not sent, so opening and leaving a
+  // board write nothing (`sceneKey`).
+  let heldScene = untrack(() => sceneKey(saved));
   async function save() {
+    const scene = model.scene();
+    const key = sceneKey(scene);
+    if (key === heldScene) return;
     try {
-      await whiteboards.saveScene(board, model.scene() as never);
+      await whiteboards.saveScene(board, scene as never);
+      heldScene = key;
     } catch (error) {
       toast.show({ text: t('app.whiteboards.save_failed', { reason: renderProblem(error as never, messages).message }), tone: 'danger' });
     }
@@ -987,7 +995,11 @@
       const when = formatDateTime(version.created_at, messages.locale);
       const back = await keepThenReplace({
         // Not save(), which reports and goes on: a state that could not be kept is not replaced.
-        save: async () => void (await whiteboards.saveScene(board, model.scene() as never)),
+        save: async () => {
+          const scene = model.scene();
+          await whiteboards.saveScene(board, scene as never);
+          heldScene = sceneKey(scene);
+        },
         versions: () => whiteboards.versions(board.id),
         name: (kept, name) => whiteboards.nameVersion(board.id, kept, name),
         replace: () => {
