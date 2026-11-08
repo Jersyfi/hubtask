@@ -76,6 +76,20 @@ async function carry(page, from, to, share, { release = true, wait = 0 } = {}) {
   if (release) await page.mouse.up();
 }
 
+/** Hovers a share of a row's height, measured afresh, until the drop line shows. */
+async function expectLine(page, target, share) {
+  for (let tries = 0; ; tries += 1) {
+    const box = await target.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * share, { steps: 4 });
+    try {
+      await contents(page).locator('.line').waitFor({ timeout: 2_000 });
+      return;
+    } catch (error) {
+      if (tries === 4) throw error;
+    }
+  }
+}
+
 test('UC-WRK-38 checks 1-5, UC-CNV-10 check 6: a page carried into a folded page, the reason on a board, Esc, Undo and Cmd/Ctrl+Z', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -93,9 +107,8 @@ test('UC-WRK-38 checks 1-5, UC-CNV-10 check 6: a page carried into a folded page
   assert.equal(await row(page, 'Release notes').getAttribute('aria-expanded'), 'true');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/drag-inside.png`, clip: { x: 0, y: 0, width: 420, height: 900 } });
   // Check 2: the lower quarter of a row is *after*: a line at its level.
-  const notes = await row(page, 'Meeting notes').boundingBox();
-  await page.mouse.move(notes.x + notes.width / 2, notes.y + notes.height * 0.9, { steps: 4 });
-  await contents(page).locator('.line').waitFor();
+  // Measured again until the line shows: the page that just opened pushes the rows below it down.
+  await expectLine(page, row(page, 'Meeting notes'), 0.9);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/drag-line.png`, clip: { x: 0, y: 0, width: 420, height: 900 } });
   // Check 3: a board takes nothing in - no line, one sentence on the drag image.
   await row(page, 'Retro board').scrollIntoViewIfNeeded();

@@ -18,6 +18,8 @@ test.after(() => served.close());
 const tree = (page, name) => side(page).getByRole('tree', { name });
 const rowsOf = (page, name) => texts(tree(page, name).locator('[role="treeitem"] .name'));
 const more = (page, section) => side(page).locator('section', { has: page.getByRole('heading', { name: section }) }).locator('[data-hidden-rows]');
+/** The answer to the next preference write. */
+const preferencesAnswered = (page) => page.waitForResponse((answer) => answer.url().endsWith('/preferences') && answer.request().method() === 'PATCH');
 /** Opens a row's ⋯ and chooses an item. */
 async function choose(page, row, item) {
   await row.hover();
@@ -96,14 +98,21 @@ test('UC-WRK-38 check 7: a hub dragged while the hubs read A-Z turns them to the
   assert.deepEqual((await rowsOf(page, 'Hubs')).slice(0, 3), ['Data', 'Design', 'Facilities']);
   // Alt+↓ while A-Z: the order turns, nothing moves yet.
   await hub('Design').focus();
+  // Each write's answer lands before the next gesture: a late one would redraw the hubs under the
+  // drag below.
+  let answered = preferencesAnswered(page);
   await page.keyboard.press('Alt+ArrowDown');
+  await answered;
   await page.waitForFunction(() => document.body.innerText.includes('The hubs are in the shared order now'));
   assert.deepEqual(written.preferences.at(-1), { nav_hubs_order: null });
   assert.deepEqual((await rowsOf(page, 'Hubs')).slice(0, 3), HUBS.slice(0, 3).map((each) => each.name));
   // Back to A-Z, then drag Legal onto the line above IT operations, under Household: the shared
   // order, Legal right after Household.
   await side(page).getByRole('button', { name: 'Order hubs' }).click();
+  answered = preferencesAnswered(page);
   await page.getByRole('menuitem', { name: 'A–Z' }).click();
+  await answered;
+  await page.getByRole('menuitem', { name: 'A–Z' }).waitFor({ state: 'hidden' });
   await page.waitForFunction(() => document.querySelector('aside.sidenav [role="tree"][aria-label="Hubs"] [role="treeitem"]')?.textContent?.includes('Data'));
   const from = await hub('Legal').boundingBox();
   const to = await hub('IT operations').boundingBox();
