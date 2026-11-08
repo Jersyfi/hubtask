@@ -386,7 +386,7 @@ component or composition**; the app holds only how a product fills it.
 | Product home | `PageHeader` (primary with a split), `PlaceTabs` (new), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
 | Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | `lib/product/CreateDialog.svelte`, filled by each product | moved + new |
 | Find | `SearchField`, `ListRow` | `lib/data/search.svelte.ts` fan-out, `lib/palette/sources.ts` one source per module | extended |
-| Configure | `SourceChip`, `SaveBar`, `Disclosure` (new: *Advanced*), `PlanSummary` (new) | `lib/settings/SettingsPage.svelte` (new shell) | new |
+| Configure | `SourceChip`, `SaveBar`, `Disclosure` (new: *Advanced*), `PlanSummary` (new) | the design system's `SettingsLayout` (page-system §7.3) | new |
 | Empty | `EmptyState` (gains `secondary` and `footnote` slots) | `lib/product/ProductEmpty.svelte` | extended |
 | Detail | `DetailPane` | `ItemView` order by type (§5.6) | changed |
 | Command search | the palette | `lib/palette/` | extended |
@@ -1190,29 +1190,18 @@ workspace's — English*), so leaving it says what it means.
 
 ### 8.10 The settings shell and the products' settings, as built
 
-* **`SettingsPage`** (§5.4, `lib/settings/SettingsPage.svelte`): the screen's sections as links
-  into one page at the start - a row of its own that scrolls sideways on a phone - the one in view
-  marked, a press moving to the section and the keyboard with it; one section draws no list. A
-  screen whose writes wait for *Save* passes `save` and gets the save bar with its count (Mail,
-  Voice; the workspace screen keeps its own bar inside its form, where Enter submits). Every
-  screen on it passes `changes`, and the leave guard (`frame/leave.ts`, `LeaveDialog`) asks
-  *Leave without saving?* before a link, the column or the browser's back drops them; a reload or
-  a closed tab gets the browser's own question. Screens of instant acts (Retention, Backup) count
-  only what is typed and not yet sent - a justification, a hold's reason, a chosen schedule
-  target, a passphrase - and draw no bar. On the shell: Mail, Voice, Retention, Backup, Webhooks
-  and the workspace screen, and since then Sign-in (with its legal page), AI, Time's settings and
-  the configuration items', held by `lib/settings/shell.test.ts` over the route table and the
-  product settings' views. A screen whose sections are addresses of their own (`?tab=`) or too long
-  for one page passes `selected` and `onselect`: the shell then draws only the open section - "the
-  open one beside it" - marks it `aria-current="page"` and moves the keyboard to its heading;
-  Sign-in and AI keep their addresses that way, the configuration items keep theirs in the page,
-  and the guard counts every section's unsaved values, not only the open one's. Time's policy saves
-  through the shell's bar; Sign-in keeps its bar in its form, where Enter submits. Not yet on it:
-  the place settings. *Advanced* is not folded
-  on these five: none has a setting the direction names as advanced, and Mail's filing order and
+* **The settings shell** (§5.4) is the design system's `SettingsLayout` (page-system §7.3): the
+  section list at the start, one section at its own address with its save bar, the list alone and
+  a section with *‹ back* below `expanded`. Each screen holds the leave guard (`frame/leave.ts`,
+  `LeaveDialog`) over its unsaved values. The web app's first shell, `lib/settings/SettingsPage`,
+  is gone; Mail, Voice, Retention, Backup, the workspace, Sign-in, AI, the place settings and the
+  products' settings stand on the layout, held by `build/pagekinds.test.js`. *Advanced* is not
+  folded on Mail, Voice, Retention, Backup and the workspace: none has a setting the direction names as advanced, and Mail's filing order and
   handles are what a newcomer reads to send mail in.
 * **A product's settings at its home** (§8.2): the service desk's, the configuration items',
-  time's and the agents' screens left the administration column. Each is its home's last tab -
+  time's and the agents' screens left the administration column. Each is its home's last tab, a
+  settings page of its own whose section list replaces the home's tabs, without the home's create
+  act and with the product in the trail (page-system §9.6, PS-2), each section at `?section=` -
   `/desk/settings`, `/assets/settings` (the assets home now *Inventory · Settings*, offered to
   whoever reaches the administration, as its door before), `/time?tab=settings` (to a holder of
   `STRUCTURE`, `APPROVE_TIME`, `MANAGE_COSTS` or `MANAGE_MEMBERS`), `/agents?tab=settings` - and

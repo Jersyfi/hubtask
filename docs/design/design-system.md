@@ -457,8 +457,8 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   of `SettingRow`s on a page), `RecordHead`, `DangerZone` and `SummaryCard`.
 * **L4 page kinds** — `ListPage`, `RecordPage`, `SettingsLayout`, `EditorPage`, `OverviewPage`,
   `LogPage`, `CreatePage`, each with `data-page-kind` on its root and a *Pages/* story with full,
-  empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, because the
-  web app already has a `SettingsPage` (its settings shell); its `data-page-kind` is `settings`.
+  empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, a name kept
+  from when the web app had a settings shell of that name; its `data-page-kind` is `settings`.
   `WorkPage` (`data-page-kind="work"`) is the work surface's frame (page-system §7.8): the head
   or a head of the screen's own, the place's `PlaceTabs`, one toolbar whose segmented control
   chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11), as

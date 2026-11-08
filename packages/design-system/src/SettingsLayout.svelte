@@ -6,9 +6,8 @@
   // address with its `SaveBar`. Two panes from `expanded` up; below, the list is the page and a
   // section opens alone with *‹ back*, the head giving way to it.
   //
-  // The concept calls this kind `SettingsPage`; the web app already has a component of that name
-  // (its settings shell), so the design system's is `SettingsLayout` and says `settings` as its
-  // `data-page-kind`.
+  // The concept calls this kind `SettingsPage`; the name `SettingsLayout` is kept from when the web
+  // app had a settings shell of that name. Its `data-page-kind` is `settings`.
   import type { Snippet } from 'svelte';
 
   import type { SectionLink } from './SectionNav.svelte';
