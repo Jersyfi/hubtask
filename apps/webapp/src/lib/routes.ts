@@ -54,6 +54,9 @@ export const ROUTES: readonly Route[] = [
   // list them, and an administrator who could would learn which of somebody's automations to
   // attack (`security.md` §5).
   { name: 'tokens', pattern: '/profile/tokens', area: 'profile' },
+  // A new token is a create page and a token a record page (page-system §9.5); `new` before `:id`.
+  { name: 'token-new', pattern: '/profile/tokens/new', area: 'profile' },
+  { name: 'token', pattern: '/profile/tokens/:id', area: 'profile' },
   // The rest of Your settings, which is a section since ADR-0065 decision 3: one screen per
   // question, each with an address of its own, all of them the reader's own and therefore
   // `profile` - the area the mobile shell ships in full (ADR-0032).

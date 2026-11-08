@@ -105,7 +105,7 @@ for (const width of [375, 768, 1280]) {
     context.on('request', (request) => {
       if (request.method() === 'POST' && request.url().includes('/api/v1/')) sent.push(new URL(request.url()).pathname);
     });
-    await page.goto(`${served.origin}/profile/tokens`);
+    await page.goto(`${served.origin}/profile/tokens/new`);
     const create = page.getByRole('button', { name: 'Create the token' });
     await create.waitFor({ timeout: 15_000 });
     assert.equal(await create.getAttribute('aria-disabled'), null, 'Create is switched off before anything is filled');

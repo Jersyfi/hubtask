@@ -75,6 +75,8 @@
     FileStoresView: () => import('./views/FileStoresView.svelte'),
     SearchView: () => import('./views/SearchView.svelte'),
     MyTokensView: () => import('./views/MyTokensView.svelte'),
+    NewTokenView: () => import('./views/NewTokenView.svelte'),
+    TokenView: () => import('./views/TokenView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
@@ -406,7 +408,13 @@
   {:else if route.name === 'profile'}
     <LazyView load={views.ProfileView} />
   {:else if route.name === 'tokens'}
-    <LazyView load={views.MyTokensView} />
+    <LazyView load={views.MyTokensView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'token-new'}
+    <LazyView load={views.NewTokenView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'token'}
+    {#key route.params.id}
+      <LazyView load={views.TokenView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name === 'appearance'}
     <LazyView load={views.AppearanceView} />
   {:else if route.name === 'notifications'}

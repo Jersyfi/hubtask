@@ -99,7 +99,8 @@ test('chromium: an administrative token of one\'s own is created behind a fresh 
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  // *New token* is a create page of its own (page-system §9.5).
+  await page.goto(`${served.origin}/profile/tokens/new`);
   await page.getByRole('button', { name: 'Create the token' }).waitFor();
   await mintAdministrative(page, page.locator('main'));
 
@@ -131,12 +132,16 @@ test('chromium: an expiry typed as a day is that day where the person is (UC-ID-
   const { page, mints, close } = await open(browser, { timezoneId: 'Europe/Berlin' });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  await page.goto(`${served.origin}/profile/tokens/new`);
   await page.getByRole('button', { name: 'Create the token' }).waitFor();
   // A day well inside the year the server allows, the same distance ahead whenever this runs.
   const day = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
   await page.getByLabel(/^What it is for/).fill('Nightly export');
   await page.getByLabel(/^Expires/).fill(day);
+  // Read before creating: the made token replaces the form on its page.
+  const max = await page.getByLabel(/^Expires/).getAttribute('max');
+  // Each scope on its own, by its key, under *Details* (page-system PS-15).
+  await page.getByRole('button', { name: /^Details/ }).click();
   await page.getByLabel('account:read', { exact: true }).check();
   await page.getByRole('button', { name: 'Create the token' }).click();
   await page.getByText('Your new token').first().waitFor({ timeout: 15_000 });
@@ -149,7 +154,6 @@ test('chromium: an expiry typed as a day is that day where the person is (UC-ID-
   const onBerlinClock = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(sent));
   assert.equal(onBerlinClock, `${day}, 23:59:59`, `the expiry ${sent} is not the end of ${day} in Berlin`);
   // And the date control offers no day the server would refuse: the last is 364 days ahead.
-  const max = await page.getByLabel(/^Expires/).getAttribute('max');
   assert.ok(Date.parse(`${max}T23:59:59+01:00`) <= Date.now() + 365 * 86_400_000 + 3_600_000, `the control offers ${max}, past the year`);
 });
 
@@ -179,8 +183,9 @@ test('chromium: the operator scope is offered only to somebody the operator regi
   const { page, close } = await open(browser, { operator: false });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  await page.goto(`${served.origin}/profile/tokens/new`);
   const main = page.locator('main');
+  await main.getByRole('button', { name: /^Details/ }).click({ timeout: 10_000 });
   await main.getByLabel('account:read', { exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await main.getByLabel('admin:tenants', { exact: true }).count(), 0, 'the operator scope is offered outside the register');
   assert.equal(await main.getByLabel('admin:provisioning', { exact: true }).count(), 0, 'the platform\'s scope is offered outside the register');
@@ -202,7 +207,7 @@ test('chromium: the installation choice offers provisioning or full control, pre
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  await page.goto(`${served.origin}/profile/tokens/new`);
   const own = page.locator('main').getByRole('group', { name: INSTALLATION });
   await own.waitFor({ timeout: 10_000 });
   assert.deepEqual(await own.getByRole('radio').evaluateAll((radios) => radios.map((radio) => radio.labels[0].textContent.trim())),

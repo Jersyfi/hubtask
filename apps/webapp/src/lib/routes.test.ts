@@ -182,6 +182,8 @@ test('every route resolves to one of the four areas, and the profile ones are na
     'profile',
     'security',
     'sessions',
+    'token',
+    'token-new',
     'tokens',
   ]);
 });

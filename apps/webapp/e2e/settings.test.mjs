@@ -910,7 +910,7 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   // What it may do is said in words, never as the scope's key (user-experience.md §5.4).
   await token.getByText('Read your entries').waitFor({ timeout: 5_000 });
   assert.equal(await token.getByText('items:read', { exact: true }).count(), 0, 'the scope is shown as its key');
-  await ask(() => token.getByRole('button', { name: 'Withdraw' }).click(), 'Withdraw Nightly script?', 'Withdraw');
+  await ask(fromMenu(token, 'Withdraw…'), 'Withdraw Nightly script?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the token sent ${sent.join(', ')}`);
 });
 
