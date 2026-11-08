@@ -38,7 +38,7 @@ async function column(browser, { severalPeople, path }) {
   const page = await context.newPage();
   forgetUnstubbed();
   await page.goto(`${served.origin}${path}`);
-  const nav = page.getByRole('navigation', { name: 'Administration' });
+  const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
   await nav.getByRole('treeitem', { name: 'People' }).or(nav.getByRole('link', { name: 'People' })).first().waitFor({ timeout: 15_000 });
   return { page, nav, close: () => context.close() };
 }

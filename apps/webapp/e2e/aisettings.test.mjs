@@ -111,7 +111,7 @@ test('chromium: a withdrawn offered model is said in the head and counted in the
   t.after(close);
 
   await page.goto(`${served.origin}/administration/people`);
-  const column = page.getByRole('navigation', { name: 'Administration' });
+  const column = page.getByRole('navigation', { name: 'Administration', exact: true });
   await column.getByText('Nothing answers').waitFor({ timeout: 15_000 });
   assert.equal(await column.getByRole('treeitem', { name: /Nothing answers/ }).count(), 1, 'the figure is not heard with the row');
 

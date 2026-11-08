@@ -71,7 +71,10 @@ test('chromium: 1280 px — kudos on somebody else\'s finished entry are given a
   ));
   await toggle.click();
   await page.getByText('Kudos taken back.').first().waitFor({ timeout: 5_000 });
-  assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+  // The sentence is said before the button is drawn again, so its state is waited for, not read.
+  await assert.doesNotReject(() => page.waitForFunction(
+    () => document.querySelector('[data-kudos="give"] button')?.getAttribute('aria-pressed') === 'false', undefined, { timeout: 5_000 },
+  ));
   assert.ok(kudosReads.includes(`PUT /api/v1/items/${DONE_BY_OTHER.id}/kudos`), kudosReads.join(', '));
   assert.ok(kudosReads.includes(`DELETE /api/v1/items/${DONE_BY_OTHER.id}/kudos`), kudosReads.join(', '));
   assert.deepEqual(failures, []);
@@ -86,7 +89,8 @@ test('chromium: 1280 px — the person who finished reads who gave kudos, never 
     const { page, context, failures } = await open(browser, 1280, `/items/${DONE_BY_ME.id}`, DONE_BY_ME.title);
     await page.emulateMedia({ colorScheme });
     const received = page.locator('[data-kudos="received"]');
-    await received.waitFor({ timeout: 5_000 });
+    // The line is drawn before the people's names have arrived, and says "Somebody" until then.
+    await received.filter({ hasText: OTHER.display_name }).waitFor({ timeout: 5_000 });
     const text = (await received.textContent())?.trim() ?? '';
     assert.equal(text, `Kudos from ${OTHER.display_name}`);
     assert.doesNotMatch(text, /\d/);
