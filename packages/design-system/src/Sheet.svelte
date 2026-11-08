@@ -150,10 +150,10 @@
         onpointercancel={letGo}
         onkeydown={byKey}
       >
-        <span class="bar"></span>
+        <span class="grip"></span>
       </button>
     {:else}
-      <span class="grabber" aria-hidden="true"><span class="bar"></span></span>
+      <span class="grabber" aria-hidden="true"><span class="grip"></span></span>
     {/if}
     <header class="head">
       <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
@@ -252,7 +252,7 @@
     touch-action: none;
   }
 
-  .grabber .bar {
+  .grabber .grip {
     display: block;
     inline-size: var(--layout-sheet-grabber);
     block-size: var(--layout-sheet-grabberheight);
