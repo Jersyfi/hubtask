@@ -14,7 +14,8 @@
 # workspace with the same content: the Scrum, Kanban, classic project and ITIL templates; a Scrum
 # hub with stories, sprints and releases; a Kanban board; a construction project with a Gantt plan;
 # a service desk with portal requests, SLAs and an approved change; CIs; wiki pages; whiteboards;
-# time and timesheets; goals, portfolios and dashboards. What the other people say there is written
+# time and timesheets; goals, portfolios and dashboards; a household and seven more hubs, each from a
+# catalogue template, so the sidebar's hubs run past one screen. What the other people say there is written
 # as each of them; the CAB approves as itself; two agents are registered. Every object the showcase
 # makes is marked, so `hubctl workspace demo --workspace <slug> --remove` takes it away again.
 
