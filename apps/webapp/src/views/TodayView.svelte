@@ -1161,11 +1161,13 @@
     list-style: none;
   }
 
-  .tiles > li { display: flex; }
+  /* A long name ellipsizes inside its track rather than pushing the page sideways. */
+  .tiles > li { display: flex; min-inline-size: 0; }
 
   .tile {
     display: flex;
     flex: 1;
+    min-inline-size: 0;
     flex-direction: column;
     gap: var(--sp-100);
     padding: var(--sp-150);
