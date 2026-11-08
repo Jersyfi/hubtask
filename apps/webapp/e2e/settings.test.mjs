@@ -331,7 +331,7 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   await page.goto(`${served.origin}/profile/sessions`);
   const sessions = page.getByRole('table', { name: 'Where you are signed in' });
   await sessions.waitFor({ timeout: 15_000 });
-  const clients = await sessions.locator('tbody th').allTextContents();
+  const clients = await sessions.locator('tbody tr.row td:first-child').allTextContents();
   // This device first, then the newest of the rest: the row somebody looks for is the one that
   // appeared while they were not looking.
   assert.deepEqual(
@@ -341,13 +341,13 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   // A column per fact, so a reader scans down rather than reading every row to its end.
   assert.deepEqual(
     (await sessions.locator('thead th').allTextContents()).map((head) => head.trim()),
-    ['Client', 'Signed in', 'Signed in with', 'Last active', 'Network', 'End'],
+    ['Client', 'Signed in', 'Signed in with', 'Last active', 'Network', 'Actions'],
   );
 
   await page.goto(`${served.origin}/profile/devices`);
   const devices = page.getByRole('table', { name: 'Devices that synchronise' });
   await devices.waitFor({ timeout: 10_000 });
-  assert.equal(await devices.locator('tbody tr').count(), DEVICES.length);
+  assert.equal(await devices.locator('tbody tr.row').count(), DEVICES.length);
   // A forgotten device is blocked rather than erased, and the row says which it is.
   assert.equal(await devices.getByRole('row').filter({ hasText: 'Old phone' }).getByText('Forgotten').count(), 1);
 
@@ -732,7 +732,7 @@ test('chromium: every session is listed, this one marked, and an ended one says 
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor();
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor();
 
   const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
   for (const client of ['Firefox on Linux', 'Safari on iPhone', 'Chrome on macOS']) {
@@ -775,7 +775,7 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor();
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor();
 
   const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
   assert.match(await row('Firefox on Linux'), /Password and second factor/);
@@ -817,26 +817,32 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor();
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor();
 
   assert.match(await page.getByText(/You stay signed in here/).textContent() ?? '', /every other session/);
-  // A final act asks first (ux-inventory.md §E0); *Cancel* sends nothing.
-  await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  // A final act asks first (ux-inventory.md §E0); *Cancel* sends nothing. It is destructive, so it
+  // is the head's ⋯ (page-system PS-6).
+  const head = page.getByRole('button', { name: 'More for Where you are signed in' });
+  const everywhere = async () => {
+    await head.click();
+    await page.getByRole('menuitem', { name: 'Sign out everywhere else' }).click();
+  };
+  await everywhere();
   const asked = page.getByRole('dialog', { name: 'Sign out everywhere else?' });
   await asked.waitFor({ timeout: 5_000 });
   await asked.getByRole('button', { name: 'Cancel' }).last().click();
   await asked.waitFor({ state: 'detached' });
   assert.deepEqual(sent, [], 'cancelling ended something');
-  await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  await everywhere();
   await asked.getByRole('button', { name: 'Sign out everywhere else' }).click();
-  await page.getByText('Safari on iPhone').waitFor({ state: 'detached' });
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor({ state: 'detached' });
 
   assert.deepEqual(sent, ['/auth/sessions:revoke-others'], 'the screen ended this session too');
-  const rows = await page.getByRole('table', { name: 'Where you are signed in' }).locator('tbody tr').count();
+  const rows = await page.getByRole('table', { name: 'Where you are signed in' }).locator('tbody tr.row').count();
   assert.equal(rows, 1, 'more than this session is still listed');
   assert.equal(new URL(page.url()).pathname, '/profile/sessions', 'the reader was signed out');
   // Nothing else to end: the control is gone with the sessions it ended.
-  assert.equal(await page.getByRole('button', { name: 'Sign out everywhere else' }).count(), 0);
+  assert.equal(await head.count(), 0);
 });
 
 // Ending one session, withdrawing an app and withdrawing a token take access away for good - nothing
@@ -867,29 +873,34 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   });
   const page = await context.newPage();
 
-  const ask = async (opener, title, confirm) => {
-    await opener.click();
+  // Each is destructive, so it is the row's ⋯ (page-system PS-6).
+  const fromMenu = (row, item) => async () => {
+    await row.getByRole('button', { name: /^More for / }).click();
+    await page.getByRole('menuitem', { name: item }).click();
+  };
+  const ask = async (open, title, confirm) => {
+    await open();
     const dialog = page.getByRole('dialog', { name: title });
     await dialog.waitFor({ timeout: 5_000 });
     await dialog.getByRole('button', { name: 'Cancel' }).last().click();
     await dialog.waitFor({ state: 'detached' });
     assert.deepEqual(sent, [], `cancelling "${title}" sent ${sent.join(', ')}`);
-    await opener.click();
+    await open();
     await dialog.getByRole('button', { name: confirm, exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
   };
 
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor({ timeout: 15_000 });
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor({ timeout: 15_000 });
   const row = page.getByRole('row', { name: /Safari on iPhone/ });
-  await ask(row.getByRole('button', { name: 'End', exact: true }), 'End this session?', 'End');
+  await ask(fromMenu(row, 'End session…'), 'End this session?', 'End');
   assert.equal(sent.length, 1, `ending one session sent ${sent.join(', ')}`);
 
   sent.length = 0;
   await page.goto(`${served.origin}/profile/apps`);
-  const app = page.getByRole('listitem').filter({ hasText: 'Calendar bridge' });
+  const app = page.getByRole('row').filter({ hasText: 'Calendar bridge' });
   await app.waitFor({ timeout: 15_000 });
-  await ask(app.getByRole('button', { name: 'Withdraw' }), 'Withdraw what Calendar bridge may do?', 'Withdraw');
+  await ask(fromMenu(app, 'Withdraw…'), 'Withdraw what Calendar bridge may do?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the app sent ${sent.join(', ')}`);
 
   sent.length = 0;
@@ -899,7 +910,7 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   // What it may do is said in words, never as the scope's key (user-experience.md §5.4).
   await token.getByText('Read your entries').waitFor({ timeout: 5_000 });
   assert.equal(await token.getByText('items:read', { exact: true }).count(), 0, 'the scope is shown as its key');
-  await ask(token.getByRole('button', { name: 'Withdraw' }), 'Withdraw Nightly script?', 'Withdraw');
+  await ask(() => token.getByRole('button', { name: 'Withdraw' }).click(), 'Withdraw Nightly script?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the token sent ${sent.join(', ')}`);
 });
 

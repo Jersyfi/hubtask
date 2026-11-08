@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// On a phone a list of records is a column of cards of label and value, and nothing scrolls
-// sideways (user-experience.md §5.12): the sessions table at 375 px, against a stubbed API. At a
-// desktop width the same table is a table with its head drawn.
+// On a phone a list of records is a column of list rows, and nothing scrolls sideways
+// (user-experience.md §5.12, page-system §4.4): the sessions' DataTable at 375 px, against a
+// stubbed API. At a desktop width the same table is a table with its head drawn.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ const SESSIONS = [
 ];
 
 for (const [width, isPhone] of [[375, true], [1280, false]]) {
-  test(`chromium: ${width} px — the sessions table ${isPhone ? 'stacks into cards' : 'stays a table'}`, async (t) => {
+  test(`chromium: ${width} px — the sessions table ${isPhone ? 'becomes list rows' : 'stays a table'}`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width, height: 900 } });
@@ -52,17 +52,13 @@ for (const [width, isPhone] of [[375, true], [1280, false]]) {
         pageSideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         headDrawn: node.querySelector('thead').getBoundingClientRect().height > 2,
         rowDisplay: getComputedStyle(row).display,
-        labelled: [...row.cells].filter((cell) => cell.dataset.label).length,
-        role: node.getAttribute('role'),
       };
     });
-    assert.equal(shape.role, 'table', 'a stacked table keeps its role');
-    assert.ok(shape.labelled >= 3, `cells labelled from the columns: ${shape.labelled}`);
     assert.ok(shape.pageSideways <= 0, `the page scrolls sideways by ${shape.pageSideways}px`);
     if (isPhone) {
       assert.ok(shape.sideways <= 0, `the table scrolls sideways by ${shape.sideways}px`);
-      assert.equal(shape.headDrawn, false, 'the column head is drawn above the cards');
-      assert.equal(shape.rowDisplay, 'flex');
+      assert.equal(shape.headDrawn, false, 'the column head is drawn above the list rows');
+      assert.equal(shape.rowDisplay, 'grid');
     } else {
       assert.equal(shape.headDrawn, true);
       assert.equal(shape.rowDisplay, 'table-row');
