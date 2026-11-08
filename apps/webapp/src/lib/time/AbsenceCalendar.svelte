@@ -44,10 +44,11 @@
   const mine = $derived((absences ?? []).filter((each) => each.account_id === actor.account?.id));
 
   // A person's month is one strip of day marks in one column, not a column per day: the calendar
-  // stays one DataTable that never scrolls sideways (page-system §4.3, PS-4).
+  // stays one DataTable that never scrolls sideways (page-system §4.3, PS-4). Priority 2 makes the
+  // strip the row's line on a phone, where a column that is neither title nor line is not drawn.
   const columns = $derived<DataColumn[]>([
     { id: 'person', label: t('app.absences.col_person'), priority: 1 },
-    { id: 'month', label: t('app.absences.col_month'), priority: 1 },
+    { id: 'month', label: t('app.absences.col_month'), priority: 2 },
   ]);
   type Row = (typeof rows)[number];
   const mineColumns = $derived<DataColumn[]>([{ id: 'span', label: t('app.absences.mine'), priority: 1 }]);
@@ -105,10 +106,11 @@
       {:else}
         <ol class="month">
           {#each row.days as absence, i (i)}
-            <li class="day" class:away={absence !== undefined}
+            <li class="day" class:week={i % 7 === 0}
               aria-label={`${dayHeading(days[i] ?? '', messages.locale)}${absence ? `: ${t(`app.absences.kind_${absence.kind}`)}` : ''}`}
               title={absence ? t(`app.absences.kind_${absence.kind}`) : undefined}>
-              {#if absence}{t(`app.absences.short_${absence.kind}`)}{absence.half ? t('app.absences.half_mark') : ''}{/if}
+              <span class="number" aria-hidden="true">{i + 1}</span>
+              <span class="mark" class:away={absence !== undefined}>{#if absence}{t(`app.absences.short_${absence.kind}`)}{absence.half ? t('app.absences.half_mark') : ''}{/if}</span>
             </li>
           {/each}
         </ol>
@@ -155,8 +157,17 @@
 <style>
   .controls { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
-  .month { display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: var(--bw-hairline); margin: 0; padding: 0; list-style: none; }
-  .day { min-block-size: var(--sp-300); overflow: hidden; border-radius: var(--r-sm); background: var(--bg-surface-sunken); text-align: center; font-size: var(--fs-075); line-height: var(--sp-300); }
+  .month { display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: var(--bw-hairline); margin: 0; padding: 0; list-style: none; container-type: inline-size; }
+  .day { display: flex; flex-direction: column; min-inline-size: 0; text-align: center; font-size: var(--fs-075); }
+  .mark { min-block-size: var(--sp-300); overflow: hidden; border-radius: var(--r-sm); background: var(--bg-surface-sunken); line-height: var(--sp-300); }
+  /* The day's number above its mark: every day where a day is wide enough, every week's first on a
+     phone - spilling over the narrow days beside it, never widening the strip (PS-4). */
+  .number { visibility: hidden; color: var(--text-secondary); text-align: start; white-space: nowrap; }
+  .week .number { visibility: visible; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size >= 600px) {
+    .number { visibility: visible; text-align: center; }
+  }
   .away { background: var(--status-warning-surface); color: var(--status-warning-text); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }

@@ -34,7 +34,7 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running, kinds, rates } = {}) {
+function timeBackend({ running, kinds, rates, absences } = {}) {
   const id = ids('00000b');
   const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
@@ -64,7 +64,7 @@ function timeBackend({ running, kinds, rates } = {}) {
     if (path === '/timer' && method === 'GET') return { json: timer };
     if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
     if (path === '/cost-rates' && method === 'GET') return { json: { data: rates ?? [] } };
-    if (path === '/time-absences' && method === 'GET') return { json: { data: [] } };
+    if (path === '/time-absences' && method === 'GET') return { json: { data: absences ?? [] } };
     if (path === '/timer:start' && method === 'POST') {
       timer = { running: true, entry_id: body.entry_id ?? null, work_type: body.work_type ?? 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
       return { json: timer };
@@ -202,7 +202,10 @@ test('chromium: time - a timer left running past a day is recorded until a time 
 test('chromium: time - 375 px, an empty week says what to do and nothing scrolls sideways', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend(), width: 375, height: 812 });
+  // The reader away on the 3rd of this month, so the absence calendar draws a person's month.
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const away = { id: '01a0e2e0-0000-7000-8000-00000000ab01', account_id: ACCOUNT.id, from: `${thisMonth}-03`, to: `${thisMonth}-03`, kind: 'LEAVE', half: false, version: 1 };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ absences: [away] }), width: 375, height: 812 });
   t.after(walk.close);
   const { page } = walk;
 
@@ -236,6 +239,15 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   const month = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date());
   await page.getByText(month, { exact: true }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText(/^\d{4}-\d{2}$/).count(), 0);
+  // A person's month keeps its day numbers: each day says its date to a screen reader, and a phone
+  // shows every week's first day above its mark - without scrolling sideways.
+  const strip = page.locator('ol.month:visible').first();
+  await strip.waitFor({ timeout: 5_000 });
+  assert.match((await strip.getByRole('listitem').nth(2).getAttribute('aria-label')) ?? '', /3.*: Leave$/);
+  const shown = await strip.locator('.number').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).visibility === 'visible').map((node) => node.textContent));
+  assert.deepEqual(shown, ['1', '8', '15', '22', '29'].slice(0, Math.ceil((await strip.getByRole('listitem').count()) / 7)));
+  const wider = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wider <= 0, `the absence calendar scrolls ${wider} px sideways`);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
