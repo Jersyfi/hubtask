@@ -1,8 +1,44 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
+<script lang="ts" module>
+  import type { Snippet } from 'svelte';
+  import type { Rule } from '../data/rules.svelte.ts';
+
+  /**
+   * What the page around the editor draws in its head (page-system §7.2, §7.7): the routed view
+   * owns the page kind and its one heading, the editor the draft every act works on.
+   */
+  export interface RuleHead {
+    readonly status: 'reading' | 'missing' | 'ready';
+    /** The rule's name as shown: its own, or the generated one. */
+    readonly name: string;
+    readonly isAutomatic: boolean;
+    readonly stored?: Rule;
+    readonly isBroken: boolean;
+    readonly needsAttention: boolean;
+    readonly isDirty: boolean;
+    readonly isWorking: boolean;
+    /** Saving is offered: the reader may write here and the plan includes rules. */
+    readonly maySave: boolean;
+    /** Switching is offered, and why switching on is refused. */
+    readonly mayToggle: boolean;
+    readonly toggleRefusal?: string;
+    readonly mayStart: boolean;
+    readonly startRefusal?: string;
+    readonly mayDelete: boolean;
+    readonly save: () => void;
+    readonly toggle: () => void;
+    readonly start: () => void;
+    readonly rename: () => void;
+    readonly remove: () => void;
+  }
+</script>
+
 <script lang="ts">
-  import { platform } from '../lib/platform/index.ts';
-  // The rule editor: a rule drawn as a path (automation.md §1.5, design-system.md §4).
+  import { platform } from '../platform/index.ts';
+  // The rule editor: a rule drawn as a path (automation.md §1.5, design-system.md §4). The page
+  // kind around it is the routed view's (`RuleView`, `RuleNewView`); the editor hands it `RuleHead`
+  // and the body to draw.
   //
   // **The view holds one draft**, and everything else draws from it: the head with the name and
   // the sentence, the canvas, the inspector. An edit is a function over the draft; nothing edits
@@ -26,51 +62,51 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Badge, Banner, Breadcrumb, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
 
   import type { Suggestion } from '@hubtask/sync-engine';
 
-  import RuleCanvas from '../lib/automation/RuleCanvas.svelte';
-  import DescribeRule from '../lib/automation/DescribeRule.svelte';
-  import BlocksPanel from '../lib/automation/BlocksPanel.svelte';
-  import RuleInspector from '../lib/automation/RuleInspector.svelte';
-  import RuleProbe from '../lib/automation/RuleProbe.svelte';
-  import RuleRuns from '../lib/automation/RuleRuns.svelte';
-  import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
-  import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { OWN_TRIGGERS, addRung, asOwn, canPlace, emptyDraft, isOwnRule, endsRun, stepDraft, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
-  import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { REFERENCE, eventWords, generatedName, kindWord, offeredKinds, sentence, usageOf, type Names } from '../lib/automation/words.ts';
-  import { findingWords, marksOf } from '../lib/automation/findings.ts';
-  import { review, type Note } from '../lib/automation/review.ts';
-  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
-  import NotInPlan from '../lib/workspace/NotInPlan.svelte';
-  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { actor } from '../lib/data/account.svelte.ts';
-  import { suggestions } from '../lib/data/suggestions.svelte.ts';
-  import { buckets } from '../lib/data/buckets.svelte.ts';
-  import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { containers } from '../lib/data/containers.svelte.ts';
-  import { groups } from '../lib/data/groups.svelte.ts';
-  import { roles } from '../lib/data/roles.svelte.ts';
-  import { roleLabel, SHIPPED_ROLES } from '../lib/people/rolewords.ts';
-  import { labels } from '../lib/data/labels.svelte.ts';
-  import { people } from '../lib/data/people.svelte.ts';
-  import { rules, type InboundToken } from '../lib/data/rules.svelte.ts';
-  import { inboundAddressOf } from '../lib/data/rules.ts';
-  import { runs, type Run } from '../lib/data/runs.svelte.ts';
-  import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
-  import { templates } from '../lib/data/templates.svelte.ts';
-  import { workflows } from '../lib/data/workflows.svelte.ts';
-  import { workflowChoices } from '../lib/data/workflows.ts';
-  import { webhooks } from '../lib/data/webhooks.svelte.ts';
-  import { announcer } from '../lib/announce.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
-  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import RuleCanvas from './RuleCanvas.svelte';
+  import DescribeRule from './DescribeRule.svelte';
+  import BlocksPanel from './BlocksPanel.svelte';
+  import RuleInspector from './RuleInspector.svelte';
+  import RuleProbe from './RuleProbe.svelte';
+  import RuleRuns from './RuleRuns.svelte';
+  import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from './probe.ts';
+  import type { Choice } from './ActionForm.svelte';
+  import { OWN_TRIGGERS, addRung, asOwn, canPlace, emptyDraft, isOwnRule, endsRun, stepDraft, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from './model.ts';
+  import { DRAG_TYPE, dragHint, type Drag, type Selection } from './selection.ts';
+  import { REFERENCE, eventWords, generatedName, kindWord, offeredKinds, sentence, usageOf, type Names } from './words.ts';
+  import { findingWords, marksOf } from './findings.ts';
+  import { review, type Note } from './review.ts';
+  import { includedHere, mayHere } from '../data/capability.svelte.ts';
+  import NotInPlan from '../workspace/NotInPlan.svelte';
+  import WorkspaceRefusal from '../workspace/WorkspaceRefusal.svelte';
+  import { page } from '../frame/page.svelte.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
+  import { suggestions } from '../data/suggestions.svelte.ts';
+  import { buckets } from '../data/buckets.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
+  import { groups } from '../data/groups.svelte.ts';
+  import { roles } from '../data/roles.svelte.ts';
+  import { roleLabel, SHIPPED_ROLES } from '../people/rolewords.ts';
+  import { labels } from '../data/labels.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
+  import { rules, type InboundToken } from '../data/rules.svelte.ts';
+  import { inboundAddressOf } from '../data/rules.ts';
+  import { runs, type Run } from '../data/runs.svelte.ts';
+  import { serviceAccounts } from '../data/serviceaccounts.svelte.ts';
+  import { templates } from '../data/templates.svelte.ts';
+  import { workflows } from '../data/workflows.svelte.ts';
+  import { workflowChoices } from '../data/workflows.ts';
+  import { webhooks } from '../data/webhooks.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
+  import { formatDateTime } from '../i18n/datetime.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { renderProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
 
   interface Props {
     /** The rule's identifier, or `new`. */
@@ -81,9 +117,11 @@
     /** Opened from Your settings: a rule of the reader's own. */
     isOwn?: boolean;
     onnavigate: (path: string) => void;
+    /** The page kind: its head from `RuleHead`, the editor's body inside it. */
+    frame: Snippet<[RuleHead, Snippet]>;
   }
 
-  const { id, workflow: onWorkflow, step: onStepKey, isOwn = false, onnavigate }: Props = $props();
+  const { id, workflow: onWorkflow, step: onStepKey, isOwn = false, onnavigate, frame }: Props = $props();
   const me = $derived(actor.account?.id);
   const base = $derived(isOwn ? '/profile/rules' : '/administration/rules');
 
@@ -100,10 +138,7 @@
   // a slab of one colour on a page of another - a box on a page.
   $effect(() => page.fill());
 
-  // And the bar carries the rule's name on a phone (ADR-0061 decision 1's table). The canvas keeps
-  // its own heading, because here the heading *is* the control that renames the rule - reading it
-  // rather than drawing it would take the rename away. So this page is the one that hands the bar
-  // a title and draws one too, and the two say the same thing.
+  // And the bar carries the rule's name on a phone (ADR-0061 decision 1's table).
   $effect(() => page.entitle(shownName || t('app.flow.new_title')));
 
   $effect(() => untrack(() => rules.open()));
@@ -793,69 +828,49 @@
     tab = 'probe';
     if (narrow) sheetOpen = true;
   }
+
+  const head = $derived<RuleHead>({
+    status: !isNew && (reading.status === 'loading' || reading.status === 'idle') ? 'reading' : !isNew && !stored ? 'missing' : 'ready',
+    name: shownName || t('app.flow.new_title'),
+    isAutomatic: automatic,
+    stored,
+    isBroken,
+    needsAttention: findings.length > 0,
+    isDirty: dirty,
+    isWorking,
+    maySave: mayWrite && rulesIncluded,
+    mayToggle: stored !== undefined && mayWrite && (rulesIncluded || stored.enabled),
+    toggleRefusal: stored && !stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined,
+    mayStart: stored !== undefined && mayWrite && rulesIncluded,
+    startRefusal,
+    mayDelete: stored !== undefined && mayWrite,
+    save: () => void save(),
+    toggle: () => void toggle(),
+    start: () => void start(),
+    rename: () => select({ kind: 'rule' }),
+    remove: () => (isDeleting = true),
+  });
 </script>
 
+{#snippet body()}
 <div class="editor">
-  {#if !isNew && (reading.status === 'loading' || reading.status === 'idle')}
-    <div class="head">
-      <h1 class="plain">{t('app.flow.reading')}</h1>
-      <p class="waiting"><Spinner label={t('app.flow.reading')} /> <span>{t('app.flow.reading')}</span></p>
-    </div>
-  {:else if !isNew && !stored}
-    <div class="head">
-      <h1 class="plain">{t('app.flow.not_found')}</h1>
-      <Banner tone="danger" title={t('app.flow.not_found')} />
-    </div>
+  {#if head.status === 'reading'}
+    <p class="waiting"><Spinner label={t('app.flow.reading')} /> <span>{t('app.flow.reading')}</span></p>
+  {:else if head.status === 'missing'}
+    <Banner tone="danger" title={t('app.flow.not_found')} />
   {:else}
-    <header class="head">
-      <div class="row">
-        <!-- The trail is the way back: *Administration › Automation › this rule* (design-system.md §11.5). -->
-        <Breadcrumb
-          label={isOwn ? t('app.you.trail') : t('app.admin.trail')}
-          expandLabel={isOwn ? t('app.you.expand_trail') : t('app.admin.expand_trail')}
-          trail={[
-            isOwn
-              ? { id: 'settings', label: t('app.nav.profile'), href: '/profile' }
-              : { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-            { id: 'rules', label: isOwn ? t('app.rules.mine_title') : t('app.rules.title'), href: base },
-            { id: 'rule', label: isNew ? t('app.flow.new_title') : shownName || t('app.flow.new_title') },
-          ]}
-        />
-        <div class="spacer"></div>
-        {#if stored}
-          <Badge tone={stored.enabled ? 'success' : 'neutral'}>{stored.enabled ? t('app.flow.state_on') : t('app.flow.state_off')}</Badge>
-        {:else}
-          <Badge tone="neutral">{t('app.flow.state_new')}</Badge>
-        {/if}
-        {#if isBroken}<Badge tone="danger" icon="circle-alert">{t('app.flow.health_broken')}</Badge>{:else if findings.length > 0}<Badge tone="warning" icon="triangle-alert">{t('app.flow.health_attention')}</Badge>{/if}
-        {#if dirty}<Badge tone="warning">{t('app.flow.unsaved')}</Badge>{/if}
-        {#if mayWrite && rulesIncluded}
-        <Button tone="primary" size="sm" isBusy={isWorking} busyLabel={t('app.flow.saving')} onclick={save}>{t('app.flow.save')}</Button>
-        {/if}
-        {#if stored && mayWrite}
-          {#if rulesIncluded || stored.enabled}
-          <Button size="sm" tone={stored.enabled ? 'secondary' : 'primary'} isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={toggle} disabledReason={!stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined}>
-            {stored.enabled ? t('app.flow.disable') : t('app.flow.enable')}
-          </Button>
-          {/if}
-          {#if rulesIncluded}
-          <Button size="sm" tone="secondary" icon="play" isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={start} disabledReason={startRefusal}>{t('app.flow.manual_button')}</Button>
-          {/if}
-          <Button size="sm" tone="subtle" icon="trash" onclick={() => (isDeleting = true)}>{t('app.flow.delete')}</Button>
-        {/if}
-      </div>
+    <div class="head">
       {#if !ownMode}<WorkspaceRefusal permission="AUTOMATION" />{/if}
       {#if resting}
         <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rule_body')} />
       {/if}
 
-      <div class="row">
-        <button class="name" class:automatic type="button" onclick={() => select({ kind: 'rule' })} title={t('app.flow.name_own')}>
-          <h1>{shownName || t('app.flow.new_title')}</h1>
+      <div class="chips">
+        <!-- The name is the rule's own once typed (automation.md §1.5): pressing it opens the field. -->
+        <button class="chip" class:automatic type="button" onclick={() => select({ kind: 'rule' })} title={t('app.flow.name_own')}>
+          <Icon name="pencil" size="sm" /><span>{t('app.flow.name_chip')}</span><b>{shownName || t('app.flow.new_title')}</b>
           {#if automatic}<span class="auto" title={t('app.flow.name_automatic_hint')}>{t('app.flow.name_automatic')}</span>{/if}
-          <Icon name="pencil" size="sm" />
         </button>
-        <div class="chips">
           <button class="chip" type="button" onclick={() => select({ kind: 'scope' })}>
             <Icon name="hub" size="sm" /><span>{t('app.flow.applies_in')}</span><b>{names.scope(draft.scope)}</b>
           </button>
@@ -870,7 +885,6 @@
           <button class="chip" type="button" onclick={() => select({ kind: 'guardrails' })}>
             <Icon name="settings" size="sm" /><span>{t('app.flow.card_guardrails')}</span><b>{guardrailWords}</b>
           </button>
-        </div>
       </div>
 
       <div class="sentence-row">
@@ -917,7 +931,7 @@
           onDismiss={() => (minted = undefined)}
         />
       {/if}
-    </header>
+    </div>
 
     <!-- Where a lifted piece may go, and why a drop was refused (automation.md §1.5): a line that takes
          no room - it is zero height and its words overlay the canvas's top padding - so nothing
@@ -1093,45 +1107,38 @@
         {/if}
     {/snippet}
 
-    {#if isDeleting && stored}
-      <Dialog bind:isOpen={isDeleting} title={t('app.flow.delete_title')} dismissLabel={t('app.flow.cancel')}>
-        <p class="quiet">{t('app.flow.delete_body')}</p>
-        {#snippet actions()}
-          <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.flow.cancel')}</Button>
-          <Button tone="danger" isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={remove_rule}>{t('app.flow.delete_confirm')}</Button>
-        {/snippet}
-      </Dialog>
-    {/if}
   {/if}
 </div>
+{/snippet}
+
+{@render frame(head, body)}
+
+{#if isDeleting && stored}
+  <Dialog bind:isOpen={isDeleting} size="s" title={t('app.flow.delete_title')} dismissLabel={t('app.flow.cancel')}>
+    <p class="quiet">{t('app.flow.delete_body')}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.flow.cancel')}</Button>
+      <Button tone="danger" isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={remove_rule}>{t('app.flow.delete_confirm')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
 
 <style>
   /* The editor is the region it was given, and nothing of it hangs past the fold: the head at the
      top, the bench the rest, each of the two surfaces scrolling on its own (automation.md §1.5). The
-     frame answers `page.fill()` with a region of a definite height, which is what makes this
-     `100%` a real one. */
-  .editor { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
+     frame answers `page.fill()` with a region of a definite height, and the page kind around the
+     editor hands the rest of it down (`RuleView`, `RuleNewView`). */
+  .editor { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; }
 
   .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 
-  .plain { margin: 0; font-family: var(--font-display); font-size: var(--fs-400); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
-
   .head { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); background: var(--bg-surface); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
 
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); }
-
-  .spacer { flex: 1 1 auto; }
-
-
-  .name { display: flex; align-items: center; gap: var(--sp-100); flex: 1 1 24ch; min-width: 0; padding: 0; border: 0; background: none; color: var(--text-primary); text-align: start; cursor: text; }
-
-  .name h1 { margin: 0; font-family: var(--font-display); font-size: var(--fs-400); font-weight: var(--fw-semibold); line-height: var(--lh-tight); overflow-wrap: anywhere; }
-
-  .name.automatic h1 { color: var(--text-secondary); }
+  .chip.automatic b { color: var(--text-secondary); }
 
   .auto { flex: 0 0 auto; padding: 0 var(--sp-100); border-radius: var(--r-full); background: var(--label-slate-bg); color: var(--label-slate-fg); font-size: var(--fs-050); font-weight: var(--fw-medium); }
 
-  .name:focus-visible, .chip:focus-visible, .fold:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
+  .chip:focus-visible, .fold:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
 
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 

@@ -45,7 +45,8 @@
 
   // The rules' screens are the profile's too, which the Android build ships (`parts.ts`).
   const loadRules = ruleViews.RulesView;
-  const loadRuleEditor = ruleViews.RuleEditorView;
+  const loadRuleNew = ruleViews.RuleNewView;
+  const loadRule = ruleViews.RuleView;
 
   interface Props {
     route: Resolution;
@@ -93,10 +94,10 @@
 {:else if route.name === 'rules'}
   <LazyView load={loadRules} props={{ tab: route.query['tab'], onnavigate: (path: string) => onnavigate(path) }} />
 {:else if route.name === 'rule-new'}
-  <LazyView load={loadRuleEditor} props={{ id: 'new', workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => onnavigate(path) }} />
+  <LazyView load={loadRuleNew} props={{ workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => onnavigate(path) }} />
 {:else if route.name === 'rule'}
   {#key route.params.id}
-    <LazyView load={loadRuleEditor} props={{ id: route.params.id ?? '', onnavigate: (path: string) => onnavigate(path) }} />
+    <LazyView load={loadRule} props={{ id: route.params.id ?? '', onnavigate: (path: string) => onnavigate(path) }} />
   {/key}
 {:else if route.name === 'runs'}
   <RunsView />

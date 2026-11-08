@@ -100,7 +100,11 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   await page.goto(`${served.origin}/administration/rules/${RULES[2].id}`);
   await page.getByText('This rule rests and stays as it is, readable.', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('button', { name: 'Save the rule' }).count(), 0, 'saving is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 0, 'switching on is offered in the editor');
+  // The rule's other acts are its record page's ⋯ (page-system §7.2).
+  await page.getByRole('button', { name: /^More for / }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Switch it on' }).count(), 0, 'switching on is offered in the editor');
+  assert.equal(await page.getByRole('menuitem', { name: 'Delete the rule' }).count(), 1, 'deleting stays');
+  await page.keyboard.press('Escape');
 
   // The runs: readable, nothing to try, start or replay.
   await page.goto(`${served.origin}/administration/runs`);

@@ -903,8 +903,10 @@ test('chromium: the list checks the rules when it opens and says what the check 
   assert.match(await page.locator('[data-card="3"] .flag').textContent(), /needs body/);
   assert.match(await page.locator('.chip-flag').textContent(), /holds no role/, 'the sentence is there for a screen reader');
   assert.match(await page.locator('.chip.flagged').getAttribute('title'), /holds no role/, 'and on hover');
-  const enable = page.getByRole('button', { name: 'Switch it on' });
-  assert.equal(await enable.isDisabled(), true);
+  // Switching on is the record page's ⋯ (page-system §7.2), refused there with the reason.
+  await page.getByRole('button', { name: /^More for / }).click();
+  const enable = page.getByRole('menuitem', { name: /^Switch it on/ });
+  assert.equal(await enable.getAttribute('aria-disabled'), 'true');
 });
 
 test('chromium: a step naming a deleted label says it is gone, never its identifier', async (t) => {
@@ -986,8 +988,10 @@ test('chromium: every rule\'s editor has Start now, and only a rule somebody sta
   page.on('pageerror', (error) => failures.push(String(error)));
 
   // An event's rule: offered, unavailable, with the reason.
+  // *Start now* is the record page's ⋯ (page-system §7.2).
   await page.goto(`${served.origin}/administration/rules/${RULE.id}`);
-  const refused = page.getByRole('button', { name: 'Start now' });
+  await page.getByRole('button', { name: /^More for / }).click();
+  const refused = page.getByRole('menuitem', { name: /^Start now/ });
   await refused.waitFor({ timeout: 15_000 });
   assert.equal(await refused.getAttribute('aria-disabled'), 'true');
   const reason = await page.locator(`#${await refused.getAttribute('aria-describedby')}`).textContent();
@@ -997,7 +1001,8 @@ test('chromium: every rule\'s editor has Start now, and only a rule somebody sta
 
   // A rule somebody starts: pressed, it is started.
   await page.goto(`${served.origin}/administration/rules/${MANUAL.id}`);
-  const start = page.getByRole('button', { name: 'Start now' });
+  await page.getByRole('button', { name: /^More for / }).click();
+  const start = page.getByRole('menuitem', { name: /^Start now/ });
   await start.waitFor({ timeout: 15_000 });
   assert.equal(await start.getAttribute('aria-disabled'), null);
   await start.click();

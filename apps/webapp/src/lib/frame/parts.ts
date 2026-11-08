@@ -56,7 +56,8 @@ export const workViews = onceEach({
  */
 export const ruleViews = onceEach({
   RulesView: () => import('../../views/RulesView.svelte'),
-  RuleEditorView: () => import('../../views/RuleEditorView.svelte'),
+  RuleNewView: () => import('../../views/RuleNewView.svelte'),
+  RuleView: () => import('../../views/RuleView.svelte'),
 });
 
 /** Every part's loader, for the precache. */

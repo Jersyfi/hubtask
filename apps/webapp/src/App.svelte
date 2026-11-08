@@ -444,10 +444,10 @@
   {:else if route.name === 'own-rules'}
     <LazyView load={views.RulesView} props={{ isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'own-rule-new'}
-    <LazyView load={views.RuleEditorView} props={{ id: 'new', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
+    <LazyView load={views.RuleNewView} props={{ isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'own-rule'}
     {#key route.params.id}
-      <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.RuleView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'own-agents' && isAgentsSettings(route.query['tab'])}
     <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/profile/agents', onreplace: (path: string) => router.replace(path) }} />
