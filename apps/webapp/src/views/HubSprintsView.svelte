@@ -4,9 +4,8 @@
   // The tool *Plan*'s *Sprints* (the navigation concept §2.4): the sprints running in the hub's
   // collections, the soonest to end first, each opening its collection's *Sprint* view. A sprint
   // belongs to its collection; this page only gathers them, as the Plans home does across hubs.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
   import { untrack } from 'svelte';
-  import { EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Icon, ListRow, Skeleton, Stack } from '@hubtask/design-system/components';
   import type { SprintList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -14,12 +13,11 @@
   import { engine } from '../lib/data/engine.ts';
   import { sprintsPath } from '../lib/data/sprints.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { sprintsRunning } from '../lib/product/home.ts';
   import { sprintDaysLeft } from '../lib/today.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
     hubId: string;
@@ -57,21 +55,8 @@
   const today = $derived(todayIn(actor.zone));
 </script>
 
+<ToolHead {hubId} tool="plan" current="sprints" {onnavigate} />
 <Stack gap="300">
-  <PageHeader
-    title={t('app.nav.tool_plan')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={hub
-      ? {
-          trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'plan', label: t('app.nav.tool_plan') }],
-          mark: placeMark,
-          label: t('app.product_home.trail'),
-          expandLabel: t('app.admin.expand_trail'),
-          onnavigate: () => onnavigate(`/hubs/${hubId}`),
-        }
-      : undefined}
-  />
-  <PlaceViews placeId={hubId} tool="plan" current="sprints" {onnavigate} />
 
   {#if isReading && running.length === 0}
     <div aria-busy="true"><Skeleton lines={3} /></div>

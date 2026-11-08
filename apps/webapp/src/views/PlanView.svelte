@@ -24,13 +24,12 @@
   //
   // **A baseline is deleted behind *Undo*** (§5.9): it leaves the screen at once and the deletion
   // is sent when its message leaves; *Undo* sends nothing, and a closed tab keeps the baseline.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
+    Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Skeleton, Stack, Table, Timeline,
     type Column, type PageAction, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
@@ -50,7 +49,6 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -62,7 +60,7 @@
   import { SPREADSHEET_TYPE } from '../lib/data/xlsx.ts';
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
   import CollectionHead from '../lib/workspace/CollectionHead.svelte';
 
   interface Props {
@@ -463,27 +461,10 @@
 {#if place?.type === 'COLLECTION'}
   <!-- A collection's *Timeline* is one of its views: its head is the collection's (CollectionHead). -->
   <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+{:else if place}
+  <ToolHead hubId={planId} tool="plan" current="schedule" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
 {/if}
 <Stack gap="200">
-  {#if place?.type !== 'COLLECTION'}
-  <PageHeader
-    title={t('app.planning.title')}
-    isTitleInBar={viewport.isCompact}
-    figure={figureText ? headFigure : undefined}
-    breadcrumb={place
-      ? {
-          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
-          mark: placeMark,
-          label: t('app.planning.trail'),
-          expandLabel: t('app.planning.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
-    secondary={headSecondary}
-    menu={headMenu}
-  />
-  <PlaceViews placeId={planId} tool="plan" current="schedule" {onnavigate} />
-  {/if}
 
   {#if refusal}
     <FailureNote problem={refusal} />

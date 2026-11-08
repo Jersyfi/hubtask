@@ -7,10 +7,8 @@
   // sums and the reader does not approve time here, one row of the team's weeks, naming nobody.
   //
   // **The server counts**: capacity, holidays, absences, the remaining estimates and their spread.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
-
   import { untrack } from 'svelte';
-  import { Button, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Workload } from '@hubtask/sync-engine';
@@ -21,11 +19,11 @@
   import { engine } from '../lib/data/engine.ts';
   import { addDays, heatOf, heatmap, minutesText, weekStartOf, workloadPath } from '../lib/data/time.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
     /** The hub or collection whose workload this is. */
@@ -37,7 +35,6 @@
   const WEEKS = 8;
 
   const place = $derived(containers.find(planId));
-  const placePath = $derived(place?.type === 'HUB' ? `/hubs/${planId}` : `/collections/${planId}`);
   $effect(() => frame.entitle(place ? t('app.workload.title_of', { place: place.name }) : t('app.workload.title')));
 
   const thisWeek = $derived(weekStartOf(todayIn(actor.zone)) ?? todayIn(actor.zone));
@@ -63,21 +60,13 @@
   ]);
 </script>
 
+{#if place?.type === 'COLLECTION'}
+  <!-- A collection's workload belongs to its *Time* view: its head is the collection's. -->
+  <CollectionHead collectionId={planId} current="time" {onnavigate} secondary={[{ label: t('app.nav.view_actuals'), icon: 'clock', onclick: () => onnavigate(`/collections/${planId}/time`) }]} />
+{:else if place}
+  <ToolHead hubId={planId} tool="time" current="workload" {onnavigate} />
+{/if}
 <Stack gap="300">
-  <PageHeader
-    title={t('app.workload.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={place
-      ? {
-          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'workload', label: t('app.workload.title') }],
-          mark: placeMark,
-          label: t('app.workload.trail'),
-          expandLabel: t('app.workload.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
-  />
-  <PlaceViews placeId={planId} tool="time" current={place?.type === 'COLLECTION' ? 'time' : 'workload'} {onnavigate} />
 
   <div class="controls">
     <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => (shift -= 1)}>{t('app.workload.earlier')}</Button>

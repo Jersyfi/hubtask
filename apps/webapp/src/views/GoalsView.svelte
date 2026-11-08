@@ -14,7 +14,6 @@
   //
   // **The server computes every number**: progress is what it answers for this reader (P-05), and
   // a refusal is said where it happened, in its words.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
@@ -45,7 +44,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the goals where it names none or an unknown one. */
@@ -277,19 +276,18 @@
   });
 </script>
 
+{#snippet goalsFigure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
+{#if hub}
+  <ToolHead hubId={hub} tool="goals" {current} {onnavigate} {primary} figure={goalsFigure} />
+{/if}
 <Stack gap="300">
+  {#if !hub}
   <PageHeader
     title={heading}
-    subtitle={hub ? undefined : t('app.modules.hint_goals')}
+    subtitle={t('app.modules.hint_goals')}
     isTitleInBar={viewport.isCompact}
     {primary}
-    breadcrumb={hub ? (hubName ? {
-      trail: [{ id: hub, label: hubName, href: `/hubs/${hub}` }, { id: 'goals', label: t('app.nav.tool_goals') }],
-      mark: placeMark,
-      label: t('app.product_home.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-      onnavigate: () => onnavigate(`/hubs/${hub}`),
-    } : undefined) : {
+    breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },
         { id: 'product', label: t('app.nav.goals') },
@@ -297,14 +295,9 @@
       label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  >
-    {#snippet figure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
-  </PageHeader>
-
-  {#if hub}
-    <PlaceViews placeId={hub} tool="goals" {current} {onnavigate} />
-  {:else}
-    <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
+    figure={goalsFigure}
+  />
+  <ViewBar label={t('app.goals.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
   {/if}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}

@@ -9,13 +9,13 @@
   // the queue in place; once it does, whoever shapes the hub may keep it as a queue of its own
   // (*Save as queue*, a hub-scoped view marked as one, §5.1); a saved queue is starred and deleted
   // from the head.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
   import { untrack } from 'svelte';
   import type { HubQueueList, SavedView } from '@hubtask/sync-engine';
   import { engine } from '../lib/data/engine.ts';
   import { DESK_QUEUES, QUEUE_SHOWN, desksOf, queueQuery, type DeskQueue } from '../lib/servicedesk/queues.ts';
   import { queuePath } from '../lib/sidebar.ts';
-  import { Button, Dialog, Input, PageHeader, Skeleton, Stack, type PageAction } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, Skeleton, Stack, type PageAction } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -26,7 +26,6 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import DeskQueues from '../lib/servicedesk/DeskQueues.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
@@ -201,25 +200,15 @@
 
 {#snippet queueStar()}{#if chosen?.view_id}<StarToggle kind="VIEW" id={chosen.view_id} name={queueName} />{/if}{/snippet}
 {#snippet countFigure()}<span data-queue-count>{t('app.nav.queue_requests', { count: chosen?.count ?? 0 })}</span>{/snippet}
+<ToolHead {hubId} tool="queues" {onnavigate}
+  title={queueName}
+  figure={chosen && typeof chosen.count === 'number' ? countFigure : undefined}
+  titleEnd={chosen?.view_id ? queueStar : undefined}
+  {primary}
+  secondary={headActions}
+  menu={saved && mayShape ? { label: t('app.hub_desk.more'), items: [{ id: 'delete', label: t('app.hub_desk.delete_queue'), icon: 'trash' }], onselect: () => { failure = undefined; isDeleting = true; } } : undefined}
+/>
 <Stack gap="300">
-  <PageHeader
-    title={queueName}
-    figure={chosen && typeof chosen.count === 'number' ? countFigure : undefined}
-    titleEnd={chosen?.view_id ? queueStar : undefined}
-    isTitleInBar={viewport.isCompact}
-    {primary}
-    secondary={headActions}
-    menu={saved && mayShape ? { label: t('app.hub_desk.more'), items: [{ id: 'delete', label: t('app.hub_desk.delete_queue'), icon: 'trash' }], onselect: () => { failure = undefined; isDeleting = true; } } : undefined}
-    breadcrumb={hub
-      ? {
-          trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'desk', label: t('app.nav.tool_queues') }],
-          mark: placeMark,
-          label: t('app.hub_desk.trail'),
-          expandLabel: t('app.admin.expand_trail'),
-          onnavigate: () => onnavigate(`/hubs/${hubId}`),
-        }
-      : undefined}
-  />
 
   {#if isReading}
     <div aria-busy="true"><Skeleton lines={4} /></div>

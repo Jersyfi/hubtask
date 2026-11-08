@@ -11,10 +11,10 @@
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // is offered no write: the import is not offered to them at all, the other operator sections are
   // not shown, and the register and the software, which only list, stand in the first strip.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   import { untrack } from 'svelte';
-  import { Badge, Icon, Menu, PageHeader, Skeleton, Spinner, ViewBar } from '@hubtask/design-system/components';
+  import { Badge, Icon, Menu, Skeleton, Spinner, ViewBar } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CiAlert, CiAlertList, CiClassList, CiRelationTypeList, CmdbHealth, ConfigurationItem } from '@hubtask/sync-engine';
 
@@ -144,6 +144,50 @@
   $effect(() => frame.entitle(current?.name ?? t('app.assets.title')));
 </script>
 
+{#snippet inventoryFigure()}
+  {#if standing}
+    <p class="figure" data-assets-figure>
+      <span>{t('app.assets.figure_total', { count: standing.total })}</span>
+      {#if standing.wanting > 0}<span><span aria-hidden="true">·</span> <a href={sectionPath('health')} title={t('app.assets.attention_why')}>{t('app.assets.figure_wanting', { count: standing.wanting })}</a></span>{/if}
+      {#if standing.firing}<Badge size="sm" tone="danger" icon="bell">{t('app.assets.figure_firing', { count: standing.firing })}</Badge>{/if}
+    </p>
+  {/if}
+{/snippet}
+{#if !ciId && hubId}
+  <ToolHead {hubId} tool="inventory" {onnavigate} figure={inventoryFigure}
+    primary={mayWrite
+      ? {
+          label: t('app.assets.new'),
+          icon: 'plus',
+          onclick: () => ask('ci'),
+          menu: { label: t('app.assets.create_more'), items: creates, onselect: choose },
+        }
+      : undefined}
+  >
+    {#snippet bar()}
+      {#if !classesRefusal && classesRead.state.status === 'ready'}
+        <ViewBar
+        label={t('app.assets.sections')}
+        views={sections}
+        current={strips.selected}
+        isCompact={viewport.isCompact}
+        sheetTitle={t('app.nav.tool_inventory')}
+        closeLabel={t('app.sheet_close')}
+        onnavigate={go}
+        more={strips.manage.length > 0 ? manage : undefined}
+      />
+      {#snippet manage()}
+        <!-- *Manage ▾* among the parts, drawn as one of them (the mockup's inventory). -->
+        <Menu label={t('app.assets.manage_sections')} items={manageItems} onselect={go}>
+          {#snippet trigger(props)}
+            <button type="button" aria-current={strips.selected === 'manage' ? 'page' : undefined} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></button>
+          {/snippet}
+        </Menu>
+      {/snippet}
+      {/if}
+    {/snippet}
+  </ToolHead>
+{/if}
 <div class="assets">
   {#if ciId}
     {#if openRefusal || !current || classesRead.state.status !== 'ready'}
@@ -159,37 +203,6 @@
       {/key}
     {/if}
   {:else}
-    <PageHeader
-      title={t('app.nav.tool_inventory')}
-      isTitleInBar={viewport.isCompact}
-      breadcrumb={hub
-        ? {
-            trail: [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }, { id: 'assets', label: t('app.nav.tool_inventory') }],
-            mark: placeMark,
-            label: t('app.assets.trail'),
-            expandLabel: t('app.admin.expand_trail'),
-            onnavigate: () => onnavigate(`/hubs/${hubId}`),
-          }
-        : undefined}
-      primary={mayWrite
-        ? {
-            label: t('app.assets.new'),
-            icon: 'plus',
-            onclick: () => ask('ci'),
-            menu: { label: t('app.assets.create_more'), items: creates, onselect: choose },
-          }
-        : undefined}
-    >
-      {#snippet figure()}
-        {#if standing}
-          <p class="figure" data-assets-figure>
-            <span>{t('app.assets.figure_total', { count: standing.total })}</span>
-            {#if standing.wanting > 0}<span><span aria-hidden="true">·</span> <a href={sectionPath('health')} title={t('app.assets.attention_why')}>{t('app.assets.figure_wanting', { count: standing.wanting })}</a></span>{/if}
-            {#if standing.firing}<Badge size="sm" tone="danger" icon="bell">{t('app.assets.figure_firing', { count: standing.firing })}</Badge>{/if}
-          </p>
-        {/if}
-      {/snippet}
-    </PageHeader>
     {#if classesRefusal}
       <FailureNote problem={classesRefusal} />
     {:else if classesRead.state.status !== 'ready'}
@@ -219,24 +232,6 @@
         {:else if shown === 'software'}
           <Software {hubId} />
         {/if}
-      {/snippet}
-      <ViewBar
-        label={t('app.assets.sections')}
-        views={sections}
-        current={strips.selected}
-        isCompact={viewport.isCompact}
-        sheetTitle={t('app.nav.tool_inventory')}
-        closeLabel={t('app.sheet_close')}
-        onnavigate={go}
-        more={strips.manage.length > 0 ? manage : undefined}
-      />
-      {#snippet manage()}
-        <!-- *Manage ▾* among the parts, drawn as one of them (the mockup's inventory). -->
-        <Menu label={t('app.assets.manage_sections')} items={manageItems} onselect={go}>
-          {#snippet trigger(props)}
-            <button type="button" aria-current={strips.selected === 'manage' ? 'page' : undefined} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></button>
-          {/snippet}
-        </Menu>
       {/snippet}
       <div role="region" aria-label={label(shown)}>{@render body()}</div>
     {/if}

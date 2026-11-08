@@ -83,7 +83,7 @@ test('A collection\'s people and its â‹¯ stand in its head on every view, the â‹
   for (const [name, size] of [['desktop', desktop], ['tablet', tablet]]) {
     const { page, failures, close } = await go(browser, { path: `/collections/${MOBILE.id}`, ...size });
     t.after(close);
-    for (const view of VIEWS) {
+    for (const view of [...VIEWS, '/workload']) {
       await page.goto(new URL(`/collections/${MOBILE.id}${view}`, page.url()).href);
       const head = page.locator('main [data-head="collection"]');
       await head.getByRole('heading', { level: 1, name: MOBILE.name }).waitFor();
@@ -93,6 +93,37 @@ test('A collection\'s people and its â‹¯ stand in its head on every view, the â‹
       await menu.click();
       await page.getByRole('menuitem', { name: 'Settingsâ€¦' }).waitFor();
       await page.keyboard.press('Escape');
+    }
+    assert.deepEqual(failures, []);
+  }
+});
+
+test('A hub tool\'s tabs draw one head - the trail, the tool\'s name, one figure slot - and the bar at one place', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const TOOLS = [['plan', ['', '/releases', '/sprints']], ['time', ['', '/workload', '/budget']], ['goals', ['', '/dashboards']]];
+  for (const [name, size] of [['desktop', desktop], ['tablet', tablet], ['phone', phone]]) {
+    const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}/plan`, ...size });
+    t.after(close);
+    const seen = [];
+    for (const [tool, tabs] of TOOLS) {
+      for (const tab of tabs) {
+        await page.goto(new URL(`/hubs/${PD.id}/${tool}${tab}`, page.url()).href);
+        const head = page.locator('main [data-head="tool"]');
+        await head.locator('h1').waitFor({ state: 'attached' });
+        const bar = size === phone ? page.locator('main .views') : page.locator('main .views nav').first();
+        await bar.waitFor();
+        await page.waitForTimeout(300);
+        seen.push({ at: `${tool}${tab}`, bar: await box(bar), title: (await head.locator('h1').textContent()).trim(), heads: await page.locator('main h1').count() });
+      }
+    }
+    const first = seen[0];
+    for (const each of seen) {
+      assert.equal(each.bar.y, first.bar.y, `${name}: the bar of ${each.at} stands at ${each.bar.y}, Plan's at ${first.bar.y}`);
+      assert.equal(each.heads, 1, `${name}: ${each.at} draws one title`);
+    }
+    for (const [tool, title] of [['plan', 'Plan'], ['time', 'Time'], ['goals', 'Goals']]) {
+      assert.ok(seen.filter((each) => each.at.startsWith(tool)).every((each) => each.title === title), `${name}: every tab of ${tool} is titled ${title}`);
     }
     assert.deepEqual(failures, []);
   }

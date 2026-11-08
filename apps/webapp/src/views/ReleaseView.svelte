@@ -12,13 +12,12 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the hub the screen
   // shows the releases and their entries, not controls.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Button, Checkbox, Dialog, Inline, Input, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -32,12 +31,11 @@
   import { releaseCandidates, releaseGroups, releasePath, releases, releaseShown, releasesPath, releaseTargets } from '../lib/data/releases.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
     /** The hub the releases belong to. */
@@ -48,7 +46,6 @@
   const { hubId, onnavigate }: Props = $props();
 
   const place = $derived(containers.find(hubId));
-  const placePath = $derived(`/hubs/${hubId}`);
   const rolePath = $derived({ hubId });
   const collections = $derived(containers.collectionsOf(hubId));
 
@@ -218,20 +215,8 @@
 </script>
 
 {#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
-<Stack gap="200">
-  <PageHeader
-    title={t('app.releases.title')}
-    isTitleInBar={viewport.isCompact}
+<ToolHead {hubId} tool="plan" current="releases" {onnavigate}
     figure={figureText ? headFigure : undefined}
-    breadcrumb={place
-      ? {
-          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'releases', label: t('app.releases.title') }],
-          mark: placeMark,
-          label: t('app.releases.trail'),
-          expandLabel: t('app.releases.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
     primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
     secondary={mayChange && chosen
       ? [
@@ -242,8 +227,8 @@
     menu={mayChange
       ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
       : undefined}
-  />
-  <PlaceViews placeId={hubId} tool="plan" current="releases" {onnavigate} />
+/>
+<Stack gap="200">
 
   {#if refusal}
     <FailureNote problem={refusal} />

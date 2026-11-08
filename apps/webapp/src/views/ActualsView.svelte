@@ -8,10 +8,9 @@
   // **The server counts**: the rolling up, the remaining hours that never fall below zero, and
   // whether an aggregated workspace lets this reader see it at all (check 4). Above it, for whoever
   // manages costs, the plan's budget and its burn (UC-TIM-08 check 8) and its billing rates (check 9).
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
-  import { PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { EstimatesVsActuals } from '@hubtask/sync-engine';
@@ -21,12 +20,11 @@
   import { engine } from '../lib/data/engine.ts';
   import { actualsPath, actualsTree, hoursClockText, minutesText } from '../lib/data/time.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BillingRates from '../lib/time/BillingRates.svelte';
   import BudgetPanel from '../lib/time/BudgetPanel.svelte';
-  import PlaceViews from '../lib/workspace/PlaceViews.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
   import CollectionHead from '../lib/workspace/CollectionHead.svelte';
 
   interface Props {
@@ -40,9 +38,7 @@
   const { planId, part = 'actuals', onnavigate }: Props = $props();
 
   const place = $derived(containers.find(planId));
-  const placePath = $derived(place?.type === 'HUB' ? `/hubs/${planId}` : `/collections/${planId}`);
   const isHub = $derived(place?.type === 'HUB');
-  const title = $derived(isHub ? t('app.nav.tool_time') : t('app.actuals.title'));
   $effect(() => frame.entitle(place ? t('app.actuals.title_of', { place: place.name }) : t('app.actuals.title')));
 
   let answer = $state<EstimatesVsActuals | undefined>(undefined);
@@ -72,24 +68,10 @@
 {#if place && !isHub}
   <!-- A collection's *Time* is one of its views: its head is the collection's (CollectionHead). -->
   <CollectionHead collectionId={planId} current="time" {onnavigate} secondary={[{ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`/collections/${planId}/workload`) }]} />
+{:else if place}
+  <ToolHead hubId={planId} tool="time" current={part} {onnavigate} />
 {/if}
 <Stack gap="300">
-  {#if !place || isHub}
-  <PageHeader
-    {title}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={place
-      ? {
-          trail: [{ id: place.id, label: place.name, href: placePath }, { id: 'actuals', label: title }],
-          mark: placeMark,
-          label: t('app.actuals.trail'),
-          expandLabel: t('app.actuals.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
-  />
-  <PlaceViews placeId={planId} tool="time" current={part} {onnavigate} />
-  {/if}
 
   {#if mayCost && (!isHub || part === 'budget')}<BudgetPanel {planId} /><BillingRates {planId} />{/if}
 
