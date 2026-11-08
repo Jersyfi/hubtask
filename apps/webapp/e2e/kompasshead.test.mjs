@@ -204,3 +204,34 @@ test('Today\'s Lists: a long name stays in its tile, and the card in its column'
     assert.deepEqual(failures, []);
   }
 });
+
+test('The list\'s column heads stand over their columns where they fit, and are gone where they do not - never over each other', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const width of [1440, 1024, 905, 820, 600, 390]) {
+    const { page, failures, close } = await go(browser, { path: `/collections/${DESIGN.id}?layout=list`, width, height: 900, hasTouch: width < 905, ready: width < 600 ? phone.ready : undefined });
+    t.after(close);
+    const level = page.locator('main .level').first();
+    await level.locator('.task-row').first().waitFor();
+    await page.waitForTimeout(300);
+    const head = page.locator('main .fields-head').first();
+    const shown = (await head.count()) > 0 && (await head.isVisible()) && (await head.evaluate((node) => getComputedStyle(node).visibility === 'visible'));
+    if (width === 1440) assert.ok(shown, 'the widest window shows the column heads');
+    if (shown) {
+      const heads = [];
+      for (const each of await head.locator('.col-head').all()) heads.push({ text: (await each.innerText()).trim(), ...(await box(each)) });
+      for (let index = 1; index < heads.length; index += 1) {
+        const before = heads[index - 1];
+        assert.ok(heads[index].x >= before.x + before.width, `${width}: "${heads[index].text}" starts at ${heads[index].x}, "${before.text}" ends at ${before.x + before.width}`);
+      }
+      // Every row's fields stand in the row, under their heads.
+      for (const row of (await level.locator('.cells:visible').all()).slice(0, 4)) {
+        const cells = await box(row);
+        const edge = await box(level);
+        assert.ok(cells.x + cells.width <= edge.x + edge.width + 1, `${width}: a row's fields run to ${cells.x + cells.width}, the list ends at ${edge.x + edge.width}`);
+      }
+    }
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: the page scrolls sideways`);
+    assert.deepEqual(failures, []);
+  }
+});
