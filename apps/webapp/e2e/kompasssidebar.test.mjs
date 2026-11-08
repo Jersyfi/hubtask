@@ -18,6 +18,16 @@ test.after(() => served.close());
 const tree = (page, name) => side(page).getByRole('tree', { name });
 const rowsOf = (page, name) => texts(tree(page, name).locator('[role="treeitem"] .name'));
 const more = (page, section) => side(page).locator('section', { has: page.getByRole('heading', { name: section }) }).locator('[data-hidden-rows]');
+/** The rows once `done` holds of them, or as they stand after ten seconds: an announcement can
+ * come before the redraw. */
+async function settled(page, name, done) {
+  const until = Date.now() + 10_000;
+  for (;;) {
+    const rows = await rowsOf(page, name);
+    if (done(rows) || Date.now() > until) return rows;
+    await page.waitForTimeout(100);
+  }
+}
 /** The answer to the next preference write. */
 const preferencesAnswered = (page) => page.waitForResponse((answer) => answer.url().endsWith('/preferences') && answer.request().method() === 'PATCH');
 /** Opens a row's ⋯ and chooses an item. */
@@ -105,7 +115,7 @@ test('UC-WRK-38 check 7: a hub dragged while the hubs read A-Z turns them to the
   await answered;
   await page.waitForFunction(() => document.body.innerText.includes('The hubs are in the shared order now'));
   assert.deepEqual(written.preferences.at(-1), { nav_hubs_order: null });
-  assert.deepEqual((await rowsOf(page, 'Hubs')).slice(0, 3), HUBS.slice(0, 3).map((each) => each.name));
+  assert.deepEqual((await settled(page, 'Hubs', (rows) => rows[0] === HUBS[0].name)).slice(0, 3), HUBS.slice(0, 3).map((each) => each.name));
   // Back to A-Z, then drag Legal onto the line above IT operations, under Household: the shared
   // order, Legal right after Household.
   await side(page).getByRole('button', { name: 'Order hubs' }).click();
@@ -123,7 +133,7 @@ test('UC-WRK-38 check 7: a hub dragged while the hubs read A-Z turns them to the
   await page.mouse.up();
   await page.waitForFunction(() => document.body.innerText.includes('Position'));
   assert.deepEqual(written.preferences.at(-1), { nav_hubs_order: null });
-  const shared = await rowsOf(page, 'Hubs');
+  const shared = await settled(page, 'Hubs', (rows) => rows[rows.indexOf('Household') + 1] === 'Legal');
   assert.equal(shared[shared.indexOf('Household') + 1], 'Legal', JSON.stringify(shared));
   assert.deepEqual(failures, []);
 });
