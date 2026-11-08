@@ -74,5 +74,8 @@ func pageResponse(out usecase.Output) openapi.PageInfo {
 	if cursor, ok := state["next_cursor"].(string); ok && cursor != "" {
 		info.NextCursor = &cursor
 	}
+	if total, ok := state["total"].(int); ok {
+		info.Total = &total
+	}
 	return info
 }

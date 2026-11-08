@@ -23,6 +23,7 @@ class Problem(TypedDict, total=False):
 class PageInfo(TypedDict, total=False):
     next_cursor: Required[str | None]
     has_more: Required[bool]
+    total: int
 
 class ContainerPage(TypedDict, total=False):
     data: Required[list["Container"]]

@@ -410,3 +410,18 @@ func TestASingleReadRefusesCounts(t *testing.T) {
 		t.Errorf("the handler ran %q", registry.name)
 	}
 }
+
+// The page's total reaches the answer where the use case counted it, and is absent where it did not.
+func TestThePageTotalIsAnsweredOnlyWhereCounted(t *testing.T) {
+	counted := pageResponse(usecase.Output{"page": map[string]any{"has_more": true, "next_cursor": "c", "total": 1240}})
+	if counted.Total == nil || *counted.Total != 1240 {
+		t.Fatalf("total = %v, want 1240", counted.Total)
+	}
+	body, err := json.Marshal(pageResponse(usecase.Output{"page": map[string]any{"has_more": false}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "total") {
+		t.Fatalf("an uncounted page answered %s", body)
+	}
+}
