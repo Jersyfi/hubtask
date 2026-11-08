@@ -38,8 +38,11 @@
   import FailureNote from '../frame/FailureNote.svelte';
 
   interface Props {
-    /** The screen, drawn only while the session is raised. */
-    children: Snippet;
+    /**
+     * The screen's page kind, handed the door while the session is not raised: the page draws it
+     * as its refusal, in the content's place under its head (page-system §4.1).
+     */
+    children: Snippet<[Snippet | undefined]>;
     /** Where the reader goes when the hour ends. The router is the frame's, not this file's. */
     onleave: () => void;
   }
@@ -113,17 +116,21 @@
 </script>
 
 {#if isElevated}
-  <!-- The clock, above everything the area draws. `aria-live="polite"` and not `assertive`: it
+  <!-- The clock, above the page it is true of. `aria-live="polite"` and not `assertive`: it
        changes every minute, and a reader working through a list does not want to be interrupted by
        each one. -->
   <div class="clock" aria-live="polite">
     <span class="mark" aria-hidden="true"></span>
     <span>{t('app.instance.elevated', { clock })}</span>
   </div>
-  {@render children()}
+  {@render children(undefined)}
 {:else}
-  <!-- No heading of its own: the screen behind this door already has one, and a page with two
-       `<h1>`s is a page a screen reader announces twice. -->
+  {@render children(door)}
+{/if}
+
+{#snippet door()}
+  <!-- No heading of its own: the page's head stands above it, and a page with two `<h1>`s is a
+       page a screen reader announces twice. -->
   <div class="door">
     <p class="lead">{t('app.instance.locked_title')}</p>
     <!-- The whole area is closed until the proof: one notice saying why, with the one thing that
@@ -149,7 +156,7 @@
     {/if}
     <p class="prose quiet">{t('app.instance.locked_cost')}</p>
   </div>
-{/if}
+{/snippet}
 
 <style>
   /* A band rather than a banner: it is true of the whole area for as long as it is drawn, and a

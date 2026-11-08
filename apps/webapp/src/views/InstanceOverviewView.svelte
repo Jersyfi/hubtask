@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The installation at a glance (ADR-0070 §5).
+  // The installation at a glance (ADR-0070 §5), as an overview page of summary cards (page-system
+  // §7.5, §9.4): what is wrong first, then the counts, then each area with what it says today.
   //
   // **Counts, states and limits — never rows.** The tenant boundary is a database policy rather
   // than a role, and this screen does not go around it: what it reads is five integers and the
@@ -17,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, OverviewPage, SummaryCard, Spinner } from '@hubtask/design-system/components';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { health } from '../lib/data/health.svelte.ts';
@@ -30,7 +31,6 @@
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -114,321 +114,185 @@
   const backlogs = $derived(backlogTiles(report));
   const formatNumber = (value: number) => new Intl.NumberFormat(messages.locale, { maximumFractionDigits: 0 }).format(value);
   const fellBack = $derived(instance.ownDomains.filter((row) => row.fell_back_at));
+  /** The domain, then what happened to it and where its workspace answers now. */
+  const fellBackLine = (row: (typeof fellBack)[number]): string =>
+    `${row.domain} ${t('app.instance.fell_back', {
+      workspace: row.tenant_name,
+      day: formatLongDay(row.fell_back_at ?? '', messages.locale),
+      time: formatTime(row.fell_back_at ?? '', messages.locale),
+      host: row.address_host ?? '',
+    })}`;
 
   $effect(() => page.entitle(t('app.instance.overview')));
+
+  const HEALTH_TONE = { ok: 'success', degraded: 'warning', down: 'danger', disabled: 'neutral' } as const;
+  const go = (path: string) => () => onnavigate(path);
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.overview')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail()} />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="300">
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <OverviewPage head={{ title: t('app.instance.overview'), breadcrumb: installationTrail() }} refused={door ?? (unreadable ? failed : undefined)}>
       <!-- The health report, where the reader may read it, first: what is wrong outranks the
            counts. No bearer means no request and a refusal is silence rather than a message,
            which is the frame's rule and not this screen's to relax. -->
       {#if report}
-        <Stack gap="150">
-          <h2 class="section">{t('app.instance.health')}</h2>
-          <Banner tone={report.status === 'ok' ? 'success' : report.status === 'degraded' ? 'warning' : 'danger'}>
-            {t(`app.instance.health_${report.status}`)}
-          </Banner>
-          {#if report.degraded_features && report.degraded_features.length > 0}
-            <ul class="features" data-degraded>
-              {#each report.degraded_features as feature (feature.feature)}
-                {@const where = instancePageOfFeature(feature.feature)}
-                <li>
-                  <span class="feature">{featureNameCode(feature.feature) ? t(featureNameCode(feature.feature)!) : feature.feature}</span>
-                  <span>{messages.has(feature.reason_code) ? t(feature.reason_code) : feature.reason_code}</span>
-                  {#if feature.since}
-                    <span class="quiet small">{t('app.instance.health_since', { since: formatRelative(feature.since, messages.locale) })}</span>
-                  {/if}
-                  {#if where}
-                    <Button tone="subtle" size="sm" onclick={() => onnavigate(where)}>{t('app.instance.health_open')}</Button>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          {/if}
-          <!-- What the installation is missing without anything having failed - an empty register,
-               a statement nobody set - in the catalogue's words, which the operator acts on. -->
-          {#if report.warnings && report.warnings.length > 0}
-            <ul class="warnings" data-warnings>
-              {#each report.warnings as warning (warning.code + JSON.stringify(warning.params ?? {}))}
-                <li>{t(warning.code, (warning.params ?? {}) as Record<string, string>)}</li>
-              {/each}
-            </ul>
-          {/if}
-
-          <!-- The schema the instances agree on, from the report's `migration`. Whether instances
-               run different versions is not in the report, so it is not said here. -->
-          <dl class="digest">
-            <div class="entry" data-upgrade>
-              <dt>{t('app.instance.upgrade_title')}</dt>
-              <dd>
-                <span>{t('app.instance.upgrade_version', { version: report.version })}</span>
-                {#if schema}
-                  <Badge tone={schema === 'up_to_date' ? 'success' : schema === 'waiting' ? 'warning' : 'danger'}>
-                    {t(`app.instance.schema_${schema}`)}
-                  </Badge>
-                {/if}
-              </dd>
-            </div>
-          </dl>
-
-          {#if backlogs.length > 0}
-            <Stack gap="100">
-              <h3 class="subsection">{t('app.instance.backlogs_title')}</h3>
-              <dl class="counts" data-backlogs>
-                {#each backlogs as tile (tile.id)}
-                  <div class="count" data-tone={tile.isAbove ? 'warning' : undefined} data-backlog={tile.id}>
-                    <dt>{t(`app.instance.backlog.${tile.id}`)}</dt>
-                    <dd>
-                      <span class="figure">{formatNumber(tile.value)}</span>
-                      {#if tile.href}
-                        <Button tone="subtle" size="sm" onclick={() => onnavigate(tile.href!)}>{t('app.instance.backlog_open')}</Button>
-                      {/if}
-                    </dd>
-                  </div>
+        <div class="tile" data-card="health">
+          <SummaryCard title={t('app.instance.health')} state={{ label: t(`app.instance.health_state_${report.status}`), tone: HEALTH_TONE[report.status] }} line={t(`app.instance.health_${report.status}`)}>
+            {#if report.degraded_features && report.degraded_features.length > 0}
+              <ul class="lines" data-degraded>
+                {#each report.degraded_features as feature (feature.feature)}
+                  {@const where = instancePageOfFeature(feature.feature)}
+                  <li>
+                    <span class="feature">{featureNameCode(feature.feature) ? t(featureNameCode(feature.feature)!) : feature.feature}</span>
+                    <span>{messages.has(feature.reason_code) ? t(feature.reason_code) : feature.reason_code}</span>
+                    {#if feature.since}
+                      <span class="quiet small">{t('app.instance.health_since', { since: formatRelative(feature.since, messages.locale) })}</span>
+                    {/if}
+                    {#if where}
+                      <Button tone="subtle" size="sm" onclick={go(where)}>{t('app.instance.health_open')}</Button>
+                    {/if}
+                  </li>
                 {/each}
-              </dl>
-              {#if report.backlogs?.sampled_at}
-                <p class="quiet small">{t('app.instance.backlogs_counted', { at: formatRelative(report.backlogs.sampled_at, messages.locale) })}</p>
+              </ul>
+            {/if}
+            <!-- What the installation is missing without anything having failed - an empty register,
+                 a statement nobody set - in the catalogue's words, which the operator acts on. -->
+            {#if report.warnings && report.warnings.length > 0}
+              <ul class="lines" data-warnings>
+                {#each report.warnings as warning (warning.code + JSON.stringify(warning.params ?? {}))}
+                  <li>{t(warning.code, (warning.params ?? {}) as Record<string, string>)}</li>
+                {/each}
+              </ul>
+            {/if}
+            <!-- The schema the instances agree on, from the report's `migration`. Whether instances
+                 run different versions is not in the report, so it is not said here. -->
+            <p class="line" data-upgrade>
+              <span>{t('app.instance.upgrade_title')} · {t('app.instance.upgrade_version', { version: report.version })}</span>
+              {#if schema}
+                <Badge tone={schema === 'up_to_date' ? 'success' : schema === 'waiting' ? 'warning' : 'danger'}>{t(`app.instance.schema_${schema}`)}</Badge>
               {/if}
-            </Stack>
-          {/if}
-        </Stack>
+            </p>
+          </SummaryCard>
+        </div>
+        {#if backlogs.length > 0}
+          <div class="tile" data-card="backlogs">
+            <SummaryCard title={t('app.instance.backlogs_title')} line={report.backlogs?.sampled_at ? t('app.instance.backlogs_counted', { at: formatRelative(report.backlogs.sampled_at, messages.locale) }) : undefined}>
+              <ul class="lines">
+                {#each backlogs as tile (tile.id)}
+                  <li data-backlog={tile.id} data-tone={tile.isAbove ? 'warning' : undefined}>
+                    <span>{t(`app.instance.backlog.${tile.id}`)}</span>
+                    <Badge tone={tile.isAbove ? 'warning' : 'neutral'}>{formatNumber(tile.value)}</Badge>
+                    {#if tile.href}
+                      <Button tone="subtle" size="sm" onclick={go(tile.href)}>{t('app.instance.backlog_open')}</Button>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </SummaryCard>
+          </div>
+        {/if}
       {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else if census}
         {#each fellBack as row (row.domain)}
-          <div data-fell-back={row.domain}>
-            <Banner tone="warning" title={t('app.instance.fell_back_title')}>
-              <span class="mono">{row.domain}</span>
-              {t('app.instance.fell_back', {
-                workspace: row.tenant_name,
-                day: formatLongDay(row.fell_back_at ?? '', messages.locale),
-                time: formatTime(row.fell_back_at ?? '', messages.locale),
-                host: row.address_host ?? '',
-              })}
-              {#snippet action()}
-                <Button tone="secondary" size="sm" onclick={() => onnavigate('/instance/workspaces')}>{t('app.instance.own_domains')}</Button>
-              {/snippet}
-            </Banner>
+          <div class="tile" data-fell-back={row.domain}>
+            <SummaryCard
+              title={t('app.instance.fell_back_title')}
+              line={fellBackLine(row)}
+              link={{ label: t('app.instance.own_domains'), href: '/instance/workspaces', onnavigate: go('/instance/workspaces') }}
+            />
           </div>
         {/each}
-        <dl class="counts">
-          <div class="count">
-            <dt>{t('app.instance.workspaces_active')}</dt>
-            <dd>{census.workspaces_active}</dd>
-          </div>
-          {#if !manifest.isSingleTenant}
-            <!-- A single installation's one workspace is neither suspended nor deleted from here
-                 (the server refuses both), so it is shown no counter for either. -->
-            <div class="count">
-              <dt>{t('app.instance.workspaces_suspended')}</dt>
-              <dd>{census.workspaces_suspended}</dd>
-            </div>
-            <div class="count">
-              <dt>{t('app.instance.workspaces_pending_deletion')}</dt>
-              <dd>{census.workspaces_pending_deletion}</dd>
-            </div>
-          {/if}
-          <div class="count">
-            <dt>{t('app.instance.accounts_active')}</dt>
-            <dd>{census.accounts_active}</dd>
-          </div>
-          <div class="count">
-            <dt>{t('app.instance.accounts_total')}</dt>
-            <dd>{census.accounts_total}</dd>
-          </div>
-        </dl>
-        {#if census.workspaces_service_only > 0}
-          <!-- Not a customer, so not in the counts above; said here so the counts still add up with
-               the list of workspaces (UC-INS-12 check 5). -->
-          <p class="quiet">{t('app.instance.workspaces_service_only', { count: census.workspaces_service_only })}</p>
-        {/if}
+        <div class="tile" data-card="workspaces">
+          <SummaryCard
+            title={t('app.instance.workspaces_active')}
+            figure={formatNumber(census.workspaces_active)}
+            line={census.workspaces_service_only > 0 ? t('app.instance.workspaces_service_only', { count: census.workspaces_service_only }) : undefined}
+            link={{ label: t('app.instance.workspaces_open'), href: '/instance/workspaces', onnavigate: go('/instance/workspaces') }}
+          >
+            {#if !manifest.isSingleTenant}
+              <!-- A single installation's one workspace is neither suspended nor deleted from here
+                   (the server refuses both), so it is shown no counter for either. -->
+              <ul class="lines">
+                <li><span>{t('app.instance.workspaces_suspended')}</span><Badge tone={census.workspaces_suspended > 0 ? 'warning' : 'neutral'}>{formatNumber(census.workspaces_suspended)}</Badge></li>
+                <li><span>{t('app.instance.workspaces_pending_deletion')}</span><Badge tone="neutral">{formatNumber(census.workspaces_pending_deletion)}</Badge></li>
+              </ul>
+            {/if}
+          </SummaryCard>
+        </div>
+        <div class="tile" data-card="accounts">
+          <SummaryCard title={t('app.instance.accounts_active')} figure={formatNumber(census.accounts_active)} line={`${t('app.instance.accounts_total')}: ${formatNumber(census.accounts_total)}`} />
+        </div>
 
         <!-- Who A-18 counts: the alert names no workspace, so this says which one and at which
              wall, before somebody there meets the refusal. -->
         {#if instance.nearQuota.length > 0}
-          <Stack gap="100">
-            <h2 class="section">{t('app.instance.near_quota_title')}</h2>
-            <ul class="near" data-near-quota>
-              {#each instance.nearQuota as workspace (workspace.tenant_id)}
-                <li>
-                  <strong>{workspace.slug}</strong>
-                  <span>
-                    {workspace.quotas
-                      .map((standing) =>
-                        t('app.instance.near_quota_standing', {
-                          name: limitName(standing.quota),
-                          used: standing.used ?? 0,
-                          limit: standing.limit,
-                          percent: Math.round((standing.ratio ?? 0) * 100),
-                        }),
-                      )
-                      .join(' · ')}
-                  </span>
-                </li>
-              {/each}
-            </ul>
-            <div>
-              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/workspaces')}>
-                {t('app.instance.near_quota_open')}
-              </Button>
-            </div>
-          </Stack>
+          <div class="tile" data-card="near-quota">
+            <SummaryCard title={t('app.instance.near_quota_title')} state={{ label: String(instance.nearQuota.length), tone: 'warning' }} link={{ label: t('app.instance.near_quota_open'), href: '/instance/workspaces', onnavigate: go('/instance/workspaces') }}>
+              <ul class="lines" data-near-quota>
+                {#each instance.nearQuota as workspace (workspace.tenant_id)}
+                  <li>
+                    <strong>{workspace.slug}</strong>
+                    <span class="quiet small">
+                      {workspace.quotas
+                        .map((standing) =>
+                          t('app.instance.near_quota_standing', {
+                            name: limitName(standing.quota),
+                            used: standing.used ?? 0,
+                            limit: standing.limit,
+                            percent: Math.round((standing.ratio ?? 0) * 100),
+                          }),
+                        )
+                        .join(' · ')}
+                    </span>
+                  </li>
+                {/each}
+              </ul>
+            </SummaryCard>
+          </div>
         {/if}
 
-        <!-- The digest the concept's §5.5 draws: each area with what it currently says, and the
-             way to it. Not an index of the column beside it — the values are the point, and
-             "Minimum length 12 · second factor for admins 🔒" is a sentence somebody reads instead
-             of opening a screen. -->
-        <dl class="digest">
-          <div class="entry">
-            <dt>{t('app.instance.settings')}</dt>
-            <dd>
-              <span>{t('app.instance.digest_settings', { decided: decided.decided, total: decided.total, locked: decided.locked })}</span>
-              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/settings')}>
-                {t('app.instance.digest_change')}
-              </Button>
-            </dd>
-          </div>
-          <div class="entry">
-            <dt>{t('app.instance.digest_legal')}</dt>
-            <dd>
-              <span>{t('app.instance.digest_legal_state', { decided: legal.decided, total: legal.total, locked: legal.locked })}</span>
-              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/settings')}>
-                {t('app.instance.digest_change')}
-              </Button>
-            </dd>
-          </div>
-          <div class="entry">
-            <dt>{t('app.instance.providers')}</dt>
-            <dd>
-              <span>
-                {offered.length === 0
-                  ? t('app.instance.digest_providers_none')
-                  : t('app.instance.digest_providers', { names: offered.join(', ') })}
-              </span>
-              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/providers')}>
-                {t('app.instance.digest_manage')}
-              </Button>
-            </dd>
-          </div>
-          <div class="entry">
-            <dt>{t('app.instance.operators')}</dt>
-            <dd>
-              <span>{operatorsLine}</span>
-              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/operators')}>
-                {t('app.instance.digest_manage')}
-              </Button>
-            </dd>
-          </div>
-          <div class="entry">
-            <dt>{t('app.instance.journal')}</dt>
-            <dd>
-              <span>
-                {latest
-                  ? t('app.instance.digest_journal', {
-                      action: t(`app.instance.action.${latest.action.replaceAll('.', '_')}`),
-                      at: formatDateTime(latest.occurred_at, messages.locale),
-                    })
-                  : t('app.instance.journal_empty')}
-              </span>
-              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/journal')}>
-                {t('app.instance.digest_open')}
-              </Button>
-            </dd>
-          </div>
-        </dl>
-
+        <!-- Each area with what it currently says, and the way to it: the values are the point, and
+             "Minimum length 12 · second factor for admins" is a sentence somebody reads instead of
+             opening a screen. -->
+        <div class="tile" data-card="settings">
+          <SummaryCard title={t('app.instance.settings')} line={t('app.instance.digest_settings', { decided: decided.decided, total: decided.total, locked: decided.locked })} link={{ label: t('app.instance.digest_change'), href: '/instance/settings', onnavigate: go('/instance/settings') }} />
+        </div>
+        <div class="tile" data-card="legal">
+          <SummaryCard title={t('app.instance.digest_legal')} line={t('app.instance.digest_legal_state', { decided: legal.decided, total: legal.total, locked: legal.locked })} link={{ label: t('app.instance.digest_change'), href: '/instance/settings', onnavigate: go('/instance/settings') }} />
+        </div>
+        <div class="tile" data-card="providers">
+          <SummaryCard title={t('app.instance.providers')} line={offered.length === 0 ? t('app.instance.digest_providers_none') : t('app.instance.digest_providers', { names: offered.join(', ') })} link={{ label: t('app.instance.digest_manage'), href: '/instance/providers', onnavigate: go('/instance/providers') }} />
+        </div>
+        <div class="tile" data-card="operators">
+          <SummaryCard title={t('app.instance.operators')} line={operatorsLine || undefined} link={{ label: t('app.instance.digest_manage'), href: '/instance/operators', onnavigate: go('/instance/operators') }} />
+        </div>
+        <div class="tile" data-card="journal">
+          <SummaryCard
+            title={t('app.instance.journal')}
+            line={latest
+              ? t('app.instance.digest_journal', { action: t(`app.instance.action.${latest.action.replaceAll('.', '_')}`), at: formatDateTime(latest.occurred_at, messages.locale) })
+              : t('app.instance.journal_empty')}
+            link={{ label: t('app.instance.digest_open'), href: '/instance/journal', onnavigate: go('/instance/journal') }}
+          />
+        </div>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </OverviewPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <style>
-  .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
-
+  .tile { display: grid; min-inline-size: 0; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-
-  /* A row of numbers takes the region it is given: this is the list case of ADR-0065 decision 2,
-     not the prose one. */
-  .counts {
-    margin: 0;
-    display: grid;
-    gap: var(--sp-150);
-    grid-template-columns: repeat(auto-fit, minmax(14ch, 1fr));
-  }
-
-  .count {
-    display: grid;
-    gap: var(--sp-025);
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .count dt { color: var(--text-secondary); font-size: var(--fs-100); }
-  .count dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-500); font-weight: var(--fw-semibold); }
-
-  .subsection { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .small { font-size: var(--fs-100); }
-
-  .features { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
-  .features li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--sp-050) var(--sp-100);
-    padding-block-end: var(--sp-100);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-  }
   .feature { font-weight: var(--fw-semibold); }
-
-  /* Above its alert's line the tile takes the warning tone, which a reader sees before the number. */
-  .count[data-tone='warning'] { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
-  .count dd { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
-  .warnings { margin: 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-050); max-inline-size: 60ch; }
-
-  /* Five rows of "what this says, and the way to it". A list, so it takes the region rather than a
-     measure (ADR-0065 decision 2). */
-  .digest { margin: 0; display: grid; gap: var(--sp-100); }
-
-  .entry {
-    display: grid;
-    gap: var(--sp-025);
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .entry dt { color: var(--text-secondary); font-size: var(--fs-100); }
-
-  .entry dd {
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-100);
-  }
-
-  .near { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-  .near li { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: baseline; }
-  .near span { color: var(--text-secondary); font-size: var(--fs-100); }
-
+  .lines { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
+  .lines li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-050) var(--sp-100); }
+  .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 </style>

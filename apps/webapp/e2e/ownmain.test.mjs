@@ -237,7 +237,7 @@ test('chromium: the installation overview warns of a fallen-back domain, and the
   assert.ok(text.includes('The workspace answers at meier.tasks.example.net.'), text);
   assert.equal(await page.locator(`[data-fell-back="${OWN}"]`).count(), 0, 'a serving main domain warns');
 
-  await warning.getByRole('button', { name: 'Own domains' }).click();
+  await warning.getByRole('link', { name: 'Own domains' }).click();
   await page.getByRole('heading', { name: 'Own domains' }).waitFor();
   await chooseInRow(page.getByRole('row').filter({ hasText: OWN }), 'Block domain');
   const dialog = page.getByRole('dialog', { name: `Block ${OWN}` });
