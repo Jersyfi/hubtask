@@ -4756,6 +4756,8 @@
   "app.quotas.intro": "Was dieser Arbeitsbereich nutzen darf. Das setzt die Installation, nicht dieser Arbeitsbereich.",
   "app.quotas.intro_single": "Was dieser Arbeitsbereich nutzen darf.",
   "app.quotas.reading": "Die Grenzen werden gelesen",
+  "app.quotas.search": "Limits durchsuchen",
+  "app.quotas.none_found": "Kein Limit passt.",
   "app.quotas.limit_name": "Grenze",
   "app.quotas.ceiling": "Obergrenze",
   "app.quotas.used": "Genutzt",

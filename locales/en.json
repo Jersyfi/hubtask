@@ -5495,6 +5495,8 @@
   "app.quotas.intro": "What this workspace may use. These are the installation's to set, not this workspace's.",
   "app.quotas.intro_single": "What this workspace may use.",
   "app.quotas.reading": "Reading the limits",
+  "app.quotas.search": "Search limits",
+  "app.quotas.none_found": "No limit matches.",
   "app.quotas.limit_name": "Limit",
   "app.quotas.ceiling": "Ceiling",
   "app.quotas.used": "Used",
