@@ -88,7 +88,7 @@ async function openPanel(page, collection) {
   await page.getByRole('heading', { name: collection.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   await page.waitForTimeout(600);
   await openSettings(page, collection.name);
-  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Templates and presets', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: /^Templates and presets( |$)/u }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;

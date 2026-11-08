@@ -35,7 +35,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, MANIFEST, OTHER, OWNER_GRANTS, SERVICE_ACCOUNT, stub } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, HUB, MANIFEST, OTHER, OWNER_GRANTS, SERVICE_ACCOUNT, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -795,6 +795,47 @@ for (const size of [DESKTOP, PHONE]) {
     await page.locator('[data-mail-mailboxes]').waitFor({ timeout: 15_000 });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.equal(overflow, 0, 'the page scrolls sideways');
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: a hub's and a collection's settings are a settings page, a section at a time and none too tall (page-system §9.6, UC-WRK-36)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    const main = page.getByRole('main');
+    for (const place of [`/hubs/${HUB.id}`, `/collections/${COLLECTION.id}`]) {
+      await visit(page, `${place}/settings/general`);
+      const kinds = await page.locator('[data-page-kind]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-page-kind')));
+      assert.deepEqual(kinds, ['settings'], `${place}: ${kinds.join(', ')}`);
+      // The place's tabs gave way to the section list (PS-2); the place is in the trail.
+      assert.equal(await main.locator('[data-place-strip], [role="tablist"]').count(), 0, `${place}: tabs beside the section list`);
+      // *General*: one save for every value - no button of the prefix's or the handle's own.
+      await page.locator('[data-place-general]').waitFor({ timeout: 15_000 });
+      assert.equal(await main.getByRole('button', { name: /^Change the (prefix|handle)$/ }).count(), 0, `${place}: a save of its own`);
+
+      // Every section by its address: one section, at most two screens on a desk, four on a phone.
+      await visit(page, `${place}/settings`);
+      const hrefs = await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+      assert.ok(hrefs.length >= 8, `${place}: ${hrefs.length} sections`);
+      for (const href of hrefs) {
+        await visit(page, href);
+        await page.waitForLoadState('networkidle');
+        const screens = await page.evaluate(() => document.documentElement.scrollHeight / window.innerHeight);
+        assert.ok(screens <= (size === PHONE ? 4 : 2), `${href}: ${screens.toFixed(2)} screens`);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        assert.equal(overflow, 0, `${href} scrolls sideways`);
+      }
+    }
+
+    // *Products* holds the module switches and no template gallery; the hub's templates are its own section.
+    await visit(page, `/hubs/${HUB.id}/settings/modules`);
+    await page.locator('[data-module]').first().waitFor({ timeout: 15_000 });
+    assert.equal(await main.locator('[data-templates], [data-take]').count(), 0, 'templates under the switches');
+    // *Types & forms*: the types a table, the levels' names and what each carries folded under *Advanced*.
+    await visit(page, `/hubs/${HUB.id}/settings/types`);
+    await page.locator('[data-setting="entry_types"] table, [data-setting="entry_types"] [role="list"]').first().waitFor({ timeout: 15_000 });
+    assert.equal(await main.locator('[data-setting="entry_types"] input[type="checkbox"]').count() > 0, true, 'no tick per type');
     assert.deepEqual(failures, []);
   });
 }

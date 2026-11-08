@@ -85,8 +85,13 @@ async function menuRows(page, name) {
 const SECTION_OF = { levels: 'Types & forms', fields: 'Types & forms', views: 'Views', counts: 'Views', completion: 'Workflow', capture: 'Views', celebration: 'Views', automation: 'Rules' };
 
 async function toSection(page, section) {
-  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: section, exact: true }).click();
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: new RegExp(`^${section}( |$)`, 'u') }).click();
   await page.locator('[data-structure-panel]').waitFor({ timeout: 5_000 });
+  // *Types & forms* folds the levels' names and what each carries under *Advanced* (page-system §9.6).
+  if (section === 'Types & forms') {
+    const advanced = page.locator('[data-structure-panel]').getByRole('button', { name: /^Names of the levels and what each carries/u });
+    if ((await advanced.getAttribute('aria-expanded')) === 'false') await advanced.click();
+  }
 }
 
 async function openPanel(page, name, section = 'Templates and presets') {
@@ -105,12 +110,14 @@ for (const width of [390, 1280]) {
     t.after(() => context.close());
 
     await openCollection(page, SHAPES.list);
-    await openPanel(page, SHAPES.list.name);
+    // The settings' own address: on a phone the section list is the page (PS-9).
+    await openSettings(page, SHAPES.list.name);
     const panel = page.locator('[data-structure-tabs]');
     const tabs = panel.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
+    await tabs.filter({ hasText: 'People' }).waitFor({ timeout: 10_000 });
     assert.equal(await tabs.count(), 10);
-    // On a phone the sections are one row of tabs that scrolls sideways; on a desk a column. The
-    // page never widens for them, and each one is reachable - it comes into view when focused.
+    // On a phone the section list is the page; on a desk a column beside the section. The page
+    // never widens for them, and each one is reachable - it comes into view when focused.
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sections widened the page');
     for (let index = 0; index < 10; index += 1) {
       const box = await tabs.nth(index).evaluate((tab) => {
@@ -336,7 +343,7 @@ test('chromium: the owner - the hub\'s Edit changes its name, description and lo
   assert.ok(rows.includes('Settings…'), rows.join());
   for (const gone of ['Edit…', 'Rename', 'Colour and symbol…', 'Move to another hub…']) assert.ok(!rows.includes(gone), `${gone} in ${rows}`);
   await page.getByRole('menuitem', { name: 'Settings…' }).click();
-  const dialog = page.getByRole('region', { name: 'General' });
+  const dialog = page.locator('[data-place-general]');
   await dialog.getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByRole('textbox', { name: 'Hub name' }).inputValue(), SHAPE_HUB.name);
   // Nothing changed, nothing to save: the bar is not there until there is.
@@ -465,12 +472,12 @@ for (const place of [
     await page.getByRole('heading', { name: place.name(), level: 1 }).waitFor({ timeout: 15_000 });
     await page.waitForTimeout(600);
     await openSettings(page, place.name());
-    const shell = page.locator('[data-structure-tabs] [data-settings-page]');
+    const shell = page.locator('[data-structure-tabs] [data-page-kind="settings"]');
     await shell.waitFor({ timeout: 10_000 });
     const sections = shell.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
     assert.ok((await sections.count()) >= 2, 'the sections are listed');
 
-    const general = page.getByRole('region', { name: 'General' });
+    const general = page.locator('[data-place-general]');
     const name = general.getByRole('textbox').first();
     await name.waitFor({ timeout: 5_000 });
     await name.fill(`${place.name()} renamed`);

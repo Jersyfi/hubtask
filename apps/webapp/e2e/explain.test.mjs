@@ -229,7 +229,7 @@ async function openPart(page, tab, mayShape) {
   if (mayShape) {
     await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).first().click();
     await page.getByRole('menuitem', { name: 'Settings…' }).click();
-    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: tab === 'Templates' ? 'Entry templates' : tab, exact: true }).click();
+    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: new RegExp(`^${tab === 'Templates' ? 'Entry templates' : tab}( |$)`, 'u') }).click();
     const part = page.getByRole('region', { name: tab === 'Fields' ? 'Custom fields' : tab, exact: true });
     await part.waitFor({ timeout: 5_000 });
     return part;

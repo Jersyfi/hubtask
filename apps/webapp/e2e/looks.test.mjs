@@ -124,7 +124,7 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
   // The look is changed in the hub's settings, which its menu opens.
   await page.getByRole('button', { name: `Actions for ${LOOK_HUB.name}` }).click();
   await page.getByRole('menuitem', { name: 'Settings' }).click();
-  const dialog = page.getByRole('region', { name: 'General' });
+  const dialog = page.locator('[data-place-general]');
   await dialog.getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   // It opens on what the hub has now.
   assert.ok(await dialog.getByRole('radio', { name: 'Violet' }).isChecked());

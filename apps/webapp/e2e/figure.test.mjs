@@ -168,10 +168,10 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
     const { page, context } = await open(browser, 1280, collection);
     // What counts is one setting of the settings page's *Views* (UC-WRK-23).
     await openSettings(page, collection.name);
-    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Views', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: /^Views( |$)/u }).click();
     const dialog = page.locator('[data-setting="counts"]');
     await dialog.waitFor({ timeout: 5_000 });
-    const options = await dialog.getByRole('combobox', { name: 'Show' }).locator('option').allTextContents();
+    const options = await dialog.getByRole('combobox', { name: 'What counts' }).locator('option').allTextContents();
     return { page, context, dialog, options };
   };
 
@@ -181,7 +181,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   const written = new Promise((resolve) => list.page.on('request', (request) => {
     if (request.method() === 'PATCH' && request.url().endsWith('/structure')) resolve(request.postDataJSON());
   }));
-  await list.dialog.getByRole('combobox', { name: 'Show' }).selectOption('DUE');
+  await list.dialog.getByRole('combobox', { name: 'What counts' }).selectOption('DUE');
   await list.page.locator('[data-structure-panel]').getByRole('button', { name: 'Save', exact: true }).click();
   assert.deepEqual(await written, { settings: { counts: { figure: 'DUE' } } });
   await list.context.close();
@@ -194,7 +194,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   // A progress the hub set, shown as open entries: said so.
   const clipped = await choicesOf(FIGURES.open);
   assert.ok((await clipped.dialog.locator('[data-figure-clipped]').textContent()).includes('set by the hub'));
-  assert.equal(await clipped.dialog.getByRole('combobox', { name: 'Show' }).inputValue(), 'OPEN', 'the choice starts empty');
+  assert.equal(await clipped.dialog.getByRole('combobox', { name: 'What counts' }).inputValue(), 'OPEN', 'the choice starts empty');
   await clipped.context.close();
 });
 
