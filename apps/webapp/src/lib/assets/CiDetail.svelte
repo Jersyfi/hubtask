@@ -11,7 +11,7 @@
   // no relate and no remove.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, Checkbox, Input, PageHeader, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, DataTable, DetailPage, Input, PageHeader, Select, Spinner, Stack, Textarea, type DataColumn, type SelectOption } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiBacklinkList, CiClass, CiCompliance, CiImpact, CiRelationType, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
@@ -227,6 +227,12 @@
   const levelOptions = $derived<SelectOption[]>([{ value: '', label: t('app.assets.level.none') }, ...PROTECTION_LEVELS.map((each) => ({ value: each, label: t(`app.assets.level.${each}`) }))]);
   const protection = $derived(protectionRows(ci.protection, ci.effective_protection));
   const levelWord = (level: Level | null) => t(`app.assets.level.${level ?? 'none'}`);
+  const protectionColumns = $derived<DataColumn[]>([
+    { id: 'dimension', label: t('app.assets.protection_dimension'), isLabelHidden: true, priority: 1 },
+    { id: 'own', label: t('app.assets.protection_own'), priority: 1 },
+    { id: 'effective', label: t('app.assets.protection_effective'), priority: 1 },
+  ]);
+  type Protection = (typeof protection)[number];
 
   // The impact, read again when the direction changes or the CI does.
   let direction = $state<'DOWNSTREAM' | 'UPSTREAM'>('DOWNSTREAM');
@@ -265,7 +271,8 @@
   const services = $derived(new Set(impact?.services ?? []));
 </script>
 
-<Stack gap="200">
+<DetailPage>
+  {#snippet top()}
   <PageHeader
     title={ci.name}
     subtitle={classWord(ci.class, classes, words)}
@@ -293,6 +300,7 @@
       </span>
     {/snippet}
   </PageHeader>
+  {/snippet}
 
   {#if ci.merged_into}
     <Banner tone="info">
@@ -434,23 +442,17 @@
         <dt>{t('app.assets.quantity')}</dt><dd>{ci.quantity}</dd>
       </dl>
     {/if}
-    <table class="needs">
-      <caption>{t('app.assets.protection')}</caption>
-      <thead><tr><th scope="col"></th><th scope="col">{t('app.assets.protection_own')}</th><th scope="col">{t('app.assets.protection_effective')}</th></tr></thead>
-      <tbody>
-        {#each protection as row (row.dimension)}
-          <tr>
-            <th scope="row">{t(`app.assets.dimension.${row.dimension}`)}</th>
-            <td>{levelWord(row.own)}</td>
-            <td>
-              {levelWord(row.effective)}
-              {#if row.raised}<span class="meta">{t('app.assets.raised')}</span>{/if}
-              {#if row.fixed}<span class="meta">{t('app.assets.fixed', { reason: ci.protection.reason ?? '' })}</span>{/if}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+    <DataTable label={t('app.assets.protection')} columns={protectionColumns} rows={protection} key={(row: Protection) => row.dimension}>
+      {#snippet cell(row: Protection, column: DataColumn)}
+        {#if column.id === 'dimension'}{t(`app.assets.dimension.${row.dimension}`)}
+        {:else if column.id === 'own'}{levelWord(row.own)}
+        {:else}
+          {levelWord(row.effective)}
+          {#if row.raised}<span class="meta">{t('app.assets.raised')}</span>{/if}
+          {#if row.fixed}<span class="meta">{t('app.assets.fixed', { reason: ci.protection.reason ?? '' })}</span>{/if}
+        {/if}
+      {/snippet}
+    </DataTable>
   </section>
 
   <CiAssetPart {ci} {classes} {hubCis} {mayWrite} />
@@ -507,7 +509,7 @@
       </ul>
     {/if}
   </section>
-</Stack>
+</DetailPage>
 
 <style>
   .part { display: grid; gap: var(--sp-100); }
@@ -551,9 +553,5 @@
   .buttons { justify-content: flex-end; }
   .protection { display: grid; gap: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); margin: 0; }
   .dimension { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
-  .needs { border-collapse: collapse; inline-size: 100%; }
-  .needs caption { text-align: start; color: var(--text-secondary); font-size: var(--fs-075); padding-block-end: var(--sp-050); }
-  .needs th, .needs td { text-align: start; padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .needs td { display: table-cell; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>

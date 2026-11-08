@@ -7,7 +7,7 @@
   // and are kept under *Configuration items*, which an administrator reaches from here.
 
   import { untrack } from 'svelte';
-  import { Badge, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, DataTable, Input, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { SoftwareProductList } from '@hubtask/sync-engine';
 
@@ -38,6 +38,12 @@
   let term = $state('');
   const shown = $derived(products ? matchingProducts(products, term) : []);
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
+  const versionColumns = $derived<DataColumn[]>([
+    { id: 'version', label: t('app.software.version'), priority: 1 },
+    { id: 'cis', label: t('app.software.cis'), priority: 2 },
+    { id: 'hosts', label: t('app.software.hosts'), priority: 2 },
+  ]);
+  type Version = (typeof shown)[number]['versions'][number];
 </script>
 
 {#if refusal}
@@ -67,24 +73,14 @@
               <span class="meta">{t('app.software.installations', { count: product.installations })}</span>
             </div>
             {#if product.versions.length > 0}
-              <table class="versions">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('app.software.version')}</th>
-                    <th scope="col">{t('app.software.cis')}</th>
-                    <th scope="col">{t('app.software.hosts')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each product.versions as version (version.version)}
-                    <tr>
-                      <th scope="row">{version.version || t('app.software.no_version')}</th>
-                      <td>{version.cis}</td>
-                      <td>{version.installations}</td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
+              <DataTable label={t('app.software.versions_of', { product: product.product })} columns={versionColumns} rows={product.versions}
+                key={(version: Version) => version.version}>
+                {#snippet cell(version: Version, column: DataColumn)}
+                  {#if column.id === 'version'}{version.version || t('app.software.no_version')}
+                  {:else if column.id === 'cis'}{version.cis}
+                  {:else}{version.installations}{/if}
+                {/snippet}
+              </DataTable>
             {/if}
           </li>
         {/each}
@@ -100,8 +96,6 @@
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface);
   }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); }
-  .versions { border-collapse: collapse; inline-size: 100%; font-size: var(--fs-075); }
-  .versions th, .versions td { text-align: start; padding: var(--sp-025) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .meta a { color: var(--text-primary); }
 </style>

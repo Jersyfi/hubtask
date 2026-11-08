@@ -6,7 +6,7 @@
   // retired, never deleted - or records them as distinct. A person decides every merge.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, EmptyState, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, EmptyState, Spinner, Stack, VisuallyHidden, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CiDuplicate, CiDuplicateList, ConfigurationItem } from '@hubtask/sync-engine';
 
@@ -61,6 +61,12 @@
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     }
   }
+  // The attribute, then one column per CI: the CIs are compared side by side, not listed.
+  const sideColumns = (cis: readonly ConfigurationItem[]): DataColumn[] => [
+    { id: 'attribute', label: t('app.assets.attribute'), priority: 1 },
+    ...cis.map((ci) => ({ id: ci.id, label: ci.name, priority: 1 as const })),
+  ];
+  type Side = ReturnType<typeof sideBySide>[number];
 </script>
 
 {#if refusal}
@@ -81,34 +87,30 @@
         {#if cis.length < duplicate.ci_ids.length}
           <Spinner label={t('app.assets.loading')} />
         {:else}
-          <div class="scroll">
-            <table class="side">
-              <thead>
-                <tr>
-                  <th scope="col">{t('app.assets.attribute')}</th>
-                  {#each cis as ci (ci.id)}
-                    <th scope="col">
-                      <a href={`/cis/${ci.id}`}>{ci.name}</a>
-                      {#if mayWrite}<Button size="sm" tone="subtle" icon="check" onclick={() => void resolve(duplicate, ci)}>{t('app.assets.merge_into')}</Button>{/if}
-                    </th>
-                  {/each}
-                </tr>
-              </thead>
-              <tbody>
-                {#each sideBySide(cis) as row (row.key)}
-                  <tr>
-                    <th scope="row">
-                      {word(row.key)}
-                      {#if row.differ}<Badge size="sm" tone="warning">{t('app.assets.differs')}</Badge>{/if}
-                    </th>
-                    {#each row.values as value, index (index)}
-                      <td>{row.key === 'class' ? classWord(value, classes, words) : value || '—'}</td>
-                    {/each}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          <ul class="cis">
+            {#each cis as ci (ci.id)}
+              <li>
+                <a href={`/cis/${ci.id}`}>{ci.name}</a>
+                {#if mayWrite}
+                  <Button size="sm" tone="subtle" icon="check" onclick={() => void resolve(duplicate, ci)}>
+                    {t('app.assets.merge_into')}<VisuallyHidden>{` ${ci.name}`}</VisuallyHidden>
+                  </Button>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+          <DataTable label={t('app.assets.duplicate_rule', { rule: duplicate.rule.split('+').map(word).join(' + ') })} columns={sideColumns(cis)}
+            rows={sideBySide(cis)} key={(row: Side) => row.key}>
+            {#snippet cell(row: Side, column: DataColumn)}
+              {#if column.id === 'attribute'}
+                {word(row.key)}
+                {#if row.differ}<Badge size="sm" tone="warning">{t('app.assets.differs')}</Badge>{/if}
+              {:else}
+                {@const value = row.values[cis.findIndex((ci) => ci.id === column.id)]}
+                {row.key === 'class' ? classWord(value ?? '', classes, words) : value || '—'}
+              {/if}
+            {/snippet}
+          </DataTable>
         {/if}
       </section>
     {/each}
@@ -121,10 +123,8 @@
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface);
   }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
-  .scroll { overflow-x: auto; }
-  .side { border-collapse: collapse; inline-size: 100%; font-size: var(--fs-075); }
-  .side th, .side td { text-align: start; vertical-align: baseline; padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .side thead th { display: table-cell; }
-  .side a { color: var(--text-primary); font-weight: var(--fw-medium); margin-inline-end: var(--sp-050); }
+  .cis { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); margin: 0; padding: 0; list-style: none; }
+  .cis li { display: flex; align-items: center; gap: var(--sp-050); }
+  .cis a { color: var(--text-primary); font-weight: var(--fw-medium); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); }
 </style>
