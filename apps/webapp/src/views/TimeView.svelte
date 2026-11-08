@@ -51,7 +51,6 @@
   import { renderProblem } from '../lib/problem.ts';
   import AbsenceCalendar from '../lib/time/AbsenceCalendar.svelte';
   import CapacityEditor from '../lib/time/CapacityEditor.svelte';
-  import TimeSettingsView from './TimeSettingsView.svelte';
   import RunningTimer from '../lib/time/RunningTimer.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
 
@@ -365,7 +364,7 @@
     title={t('app.time.title')}
     subtitle={t('app.modules.hint_time')}
     isTitleInBar={viewport.isCompact}
-    primary={current === 'week' || current === 'settings' ? recordPrimary : undefined}
+    primary={current === 'week' ? recordPrimary : undefined}
     breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },
@@ -597,8 +596,6 @@
     <AbsenceCalendar />
   {:else if current === 'capacity'}
     <CapacityEditor />
-  {:else if current === 'settings'}
-    <TimeSettingsView isEmbedded />
   {/if}
 </Stack>
 

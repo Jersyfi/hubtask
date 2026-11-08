@@ -39,7 +39,6 @@
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { classesPath, classWord, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
-  import CmdbView from './CmdbView.svelte';
   import DeskHome from '../lib/servicedesk/DeskHome.svelte';
 
   interface Props {
@@ -264,8 +263,7 @@
       : placesByUse(writableHubs(hubsWith, mayWriteIn).map((hub) => ({ id: hub.id, label: hub.name })), objectCounts),
   );
   const primary = $derived.by(() => {
-    // The home's act stays on its Settings tab (§5.4): the head is the home's on every tab of it.
-    if (!createAct || isReading || (currentTab !== tabs[0]?.id && currentTab !== 'settings')) return undefined;
+    if (!createAct || isReading || currentTab !== tabs[0]?.id) return undefined;
     const first = createPlaces[0];
     if (!first) return undefined;
     // The place's own create dialog opens there (§5.2): the act creates, it does not list.
@@ -311,8 +309,6 @@
 
   {#if currentTab === 'notes'}
     <NotesView {onnavigate} isEmbedded />
-  {:else if currentTab === 'settings' && module === 'ASSETS'}
-    {#if reachesAdministrationArea() === true}<CmdbView isEmbedded />{/if}
   {:else}
     {#if isUnusedHere}
       <ProductEmpty product={module} place={{ type: 'TENANT' }}

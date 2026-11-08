@@ -284,13 +284,13 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
 
-  await page.goto(`${served.origin}/time?tab=settings`);
-  await page.getByRole('rowheader', { name: 'Development' }).waitFor({ timeout: 10_000 });
+  await page.goto(`${served.origin}/time?tab=settings&section=kinds`);
+  await page.getByRole('cell', { name: 'Development', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('columnheader', { name: 'Key' }).count(), 0, 'a key column is drawn');
-  // One settings anatomy (§5.4): the head keeps the home's create act, and adding a kind of work
-  // is its section's own act, not a lone primary above the shell.
-  assert.equal(await page.locator('header').getByRole('button', { name: 'Record time', exact: true }).count(), 1, 'the head lost Record time on Settings');
-  assert.equal(await page.locator('#time-part-kinds').getByRole('button', { name: 'Add a kind of work' }).count(), 1, 'adding a kind is not in its section');
+  // A settings page of its own (page-system §9.6): the home's *Record time* is not shown on it, and
+  // adding a kind of work is its section's own act.
+  assert.equal(await page.getByRole('button', { name: 'Record time', exact: true }).count(), 0, 'the home\'s act is shown on Settings');
+  assert.equal(await page.locator('[data-time-part="kinds"]').getByRole('button', { name: 'Add a kind of work' }).count(), 1, 'adding a kind is not in its section');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
@@ -323,7 +323,7 @@ test('chromium: time - the cost rates name their days in words', async (t) => {
   t.after(walk.close);
   const { page } = walk;
 
-  await page.goto(`${served.origin}/time?tab=settings`);
+  await page.goto(`${served.origin}/time?tab=settings&section=rates`);
   const rates = page.getByRole('table', { name: 'Cost rates' });
   await rates.getByText('Nov 5, 2025', { exact: true }).waitFor({ timeout: 10_000 });
   await rates.getByText('Mar 31, 2026', { exact: true }).waitFor({ timeout: 5_000 });

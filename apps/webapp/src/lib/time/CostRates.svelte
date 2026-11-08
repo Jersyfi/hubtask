@@ -1,14 +1,15 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's hourly cost rates under *How we work* > *Time* (UC-TIM-08 check 8): of a person
+  // The workspace's hourly cost rates, a section of the time's settings (UC-TIM-08 check 8): of a person
   // or of a role, an amount in a currency, from a day to a day or on. A person's rate comes before
   // their role's; the server refuses two rates of one subject on a day.
   //
   // **Drawn only for MANAGE_COSTS or MANAGE_MEMBERS** (P-05): what a person earns is nobody else's.
 
   import { untrack } from 'svelte';
-  import { Button, Dialog, Inline, Input, Radio, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, EmptyState, Inline, Input, Radio, Stack, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
+  import TableSection from '../page/TableSection.svelte';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CostRate, CostRateList } from '@hubtask/sync-engine';
 
@@ -39,13 +40,16 @@
   const subjectOf = (rate: CostRate) =>
     rate.account_id ? (accounts.nameOf(rate.account_id) ?? t('app.people.unnamed')) : t('app.rates.role_named', { role: rate.role ?? '' });
 
-  const columns = $derived<Column[]>([
-    { id: 'subject', label: t('app.rates.col_subject') },
-    { id: 'rate', label: t('app.rates.col_rate'), align: 'end' },
-    { id: 'from', label: t('app.rates.col_from') },
-    { id: 'to', label: t('app.rates.col_to') },
-    { id: 'actions', label: t('app.rates.col_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'subject', label: t('app.rates.col_subject'), priority: 1 },
+    { id: 'rate', label: t('app.rates.col_rate'), align: 'end', priority: 2 },
+    { id: 'from', label: t('app.rates.col_from'), priority: 2 },
+    { id: 'to', label: t('app.rates.col_to'), priority: 3 },
   ]);
+  const rateMenu = (rate: CostRate): DataRowMenu => ({
+    label: t('app.page.more_for', { name: subjectOf(rate) }),
+    items: [{ id: 'remove', label: t('app.rates.remove'), icon: 'trash', isDestructive: true }],
+  });
 
   let isEditing = $state(false);
   let editing = $state<CostRate | undefined>(undefined);
@@ -89,37 +93,39 @@
   }
 </script>
 
-<section id="time-part-rates" class="block" aria-labelledby="time-rates">
-  <Inline justify="between">
-    <h2 id="time-rates" class="heading">{t('app.rates.title')}</h2>
-    <Button size="sm" tone="subtle" icon="plus" onclick={() => open(undefined)}>{t('app.rates.add')}</Button>
-  </Inline>
-  <p class="quiet">{t('app.rates.hint')}</p>
-  {#if refusal}
-    <FailureNote problem={refusal} />
-  {:else if rates}
-    <Table label={t('app.rates.title')} isLabelHidden {columns}>
-      {#snippet empty()}{t('app.rates.empty')}{/snippet}
-      {#each rates as rate (rate.id)}
-        <tr>
-          <th scope="row">{subjectOf(rate)}</th>
-          <td class="number">{moneyText(rate.hour_minor, rate.currency, locale)}</td>
-          <td>{formatPlainDay(rate.from, locale)}</td>
-          <td>{rate.to ? formatPlainDay(rate.to, locale) : t('app.rates.open_ended')}</td>
-          <td>
-            <Inline gap="050">
-              <Button size="sm" tone="subtle" icon="pencil" onclick={() => open(rate)}>{t('app.rates.edit')}</Button>
-              <Button size="sm" tone="subtle" icon="trash" onclick={() => void remove(rate)}>{t('app.rates.remove')}</Button>
-            </Inline>
-          </td>
-        </tr>
-      {/each}
-    </Table>
-  {/if}
-</section>
+<div data-time-part="rates">
+  <TableSection title={t('app.rates.title')} description={t('app.rates.hint')}>
+    {#snippet acts()}<Button icon="plus" data-list-add onclick={() => open(undefined)}>{t('app.rates.add')}</Button>{/snippet}
+    {#if refusal}
+      <FailureNote problem={refusal} />
+    {:else if rates}
+      <DataTable
+        label={t('app.rates.title')}
+        {columns}
+        rows={rates}
+        key={(rate: CostRate) => rate.id}
+        rowLabel={subjectOf}
+        onopen={open}
+        menu={rateMenu}
+        onmenu={(rate: CostRate) => void remove(rate)}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+        actionsLabel={t('app.rates.col_actions')}
+      >
+        {#snippet cell(rate: CostRate, column: DataColumn)}
+          {#if column.id === 'subject'}{subjectOf(rate)}
+          {:else if column.id === 'rate'}<span class="number">{moneyText(rate.hour_minor, rate.currency, locale)}</span>
+          {:else if column.id === 'from'}{formatPlainDay(rate.from, locale)}
+          {:else}{rate.to ? formatPlainDay(rate.to, locale) : t('app.rates.open_ended')}{/if}
+        {/snippet}
+        {#snippet empty()}<EmptyState kind="unused" title={t('app.rates.empty')} />{/snippet}
+      </DataTable>
+    {/if}
+  </TableSection>
+</div>
 
 {#if isEditing}
-  <Dialog bind:isOpen={isEditing} title={editing ? t('app.rates.edit') : t('app.rates.add')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isEditing} title={editing ? t('app.rates.edit') : t('app.rates.add')} dismissLabel={t('app.links.cancel')} size="m">
     <Stack gap="150">
       {#if !editing}
         <Radio label={t('app.rates.subject')} name="rate-subject" bind:value={draft.subject} options={[
@@ -145,9 +151,6 @@
 {/if}
 
 <style>
-  .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
-  .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   p { margin: 0; }

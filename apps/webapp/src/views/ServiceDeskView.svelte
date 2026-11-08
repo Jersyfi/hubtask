@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Service desk* under *How we work*, where the service desk is on: the workspace's business
+  // The service desk's settings (page-system §9.6): a settings page of the workspace's business
   // calendars (UC-SVC-01), its SLA policies (UC-SVC-02 check 1), its canned replies (UC-SVC-06
   // check 1), the portal's organisations (UC-SVC-11 check 5) and how the goals of a period stood
-  // (UC-SVC-02 check 7), as the sections of the one settings shell (user-experience.md §5.4).
+  // (UC-SVC-02 check 7), each at `/desk/settings?section=<id>`. The section list takes the place of
+  // the desk's tabs (PS-2) and the home's *New request* is not shown here; the desk is in the trail.
   //
   // **What the reader may never do is not drawn** (P-05): defining and deleting need STRUCTURE at
   // the workspace, and so does the report; a member without it reads the calendars, policies and
@@ -12,7 +13,8 @@
 
   import { untrack } from 'svelte';
   import {
-    EmptyState, Badge, Button, Checkbox, CheckboxGroup, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Textarea,
+    EmptyState, Badge, Button, Checkbox, CheckboxGroup, Dialog, Disclosure, IconButton, Inline, Input, Select, SettingsLayout, Skeleton, Stack, Switch, Textarea,
+    type SectionLink,
   } from '@hubtask/design-system/components';
   import DurationInput from '../lib/forms/DurationInput.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
@@ -32,21 +34,26 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { addDays, deviceZone, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import TableSection from '../lib/page/TableSection.svelte';
   import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, minutesFor, policyDefinitionOf, reportRows, textOf, withMinutes, wordsOf } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
   import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
-  // On the desk's home its *Settings* tab (user-experience.md §7.4), under the home's own head.
-  const { isEmbedded = false, onnavigate }: { isEmbedded?: boolean; onnavigate?: (path: string) => void } = $props();
-  $effect(() => {
-    if (!isEmbedded) page.entitle(t('app.desk.title'));
-  });
+  interface Props {
+    /** The section the address names (`?section=`); none is the list of sections. */
+    section?: string;
+    onnavigate?: (path: string) => void;
+    /** Replaces the address: a move between sections. */
+    onreplace?: (path: string) => void;
+  }
+  const { section, onnavigate, onreplace }: Props = $props();
+  const BASE = '/desk/settings';
+  const title = $derived(t('app.desk.settings_title'));
+  $effect(() => page.entitle(title));
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   // An empty calendars, policies or replies section starts from the ITIL desk template (§7.4): its
   // workspace part's plan, in words, at the templates - the calendar and the P1-P4 policies with
@@ -55,7 +62,10 @@
   const startFromItil = () => onnavigate?.(`/administration/templates?template=${ITIL_TEMPLATE}`);
 
   const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
-  let current = $state<(typeof TABS)[number]>('calendars');
+  const offered = $derived(TABS.filter((tab) => tab !== 'report' || mayShape));
+  const named = $derived(offered.find((tab) => tab === section));
+  const current = $derived(named ?? 'calendars');
+  const view = $derived<'list' | 'detail'>(named ? 'detail' : 'list');
 
   const calendars = untrack(() => resource<BusinessCalendarList>(calendarsPath));
   const policies = untrack(() => resource<SlaPolicyList>(policiesPath));
@@ -266,28 +276,48 @@
   ]);
   const priorityValues = $derived(choiceFields.find((field) => field.key === policy.priority)?.options ?? []);
   const calendarOptions = $derived([{ value: '', label: t('app.desk.around_the_clock') }, ...(calendarRows ?? []).map((row) => ({ value: row.key, label: row.name }))]);
+
+  const countOf = (tab: string): number | undefined =>
+    ({ calendars: calendarRows, policies: policyRows, replies: replyRows, organisations: organisationRows } as Record<string, readonly unknown[] | undefined>)[tab]?.length;
+  const links = $derived<SectionLink[]>(offered.map((tab) => {
+    const count = countOf(tab);
+    return { id: tab, label: t(`app.desk.tab.${tab}`), href: `${BASE}?section=${tab}`, ...(count === undefined ? {} : { status: String(count) }) };
+  }));
 </script>
 
 {#snippet itilAct()}
   <Button tone="secondary" icon="layout-template" data-itil-defaults onclick={startFromItil}>{t('app.desk.itil_defaults')}</Button>
 {/snippet}
 
-<Stack gap="300">
-  {#if !isEmbedded}<PageHeader title={t('app.desk.title')} subtitle={t('app.desk.subtitle')} isTitleInBar={viewport.isCompact}
-    breadcrumb={{
+<SettingsLayout
+  head={{
+    title,
+    subtitle: t('app.desk.subtitle'),
+    breadcrumb: {
       trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'service-desk', label: t('app.desk.title') },
+        { id: 'products', label: t('app.nav.products') },
+        { id: 'desk', label: t('app.nav.desk'), href: '/desk' },
+        { id: 'settings', label: t('app.product_home.tab_settings') },
       ],
-      label: t('app.admin.trail'),
+      label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
-    }} />{/if}
-  <!-- Every change here is a dialog's own save or a row's act, so the shell holds nothing unsaved. -->
-  <SettingsPage label={t('app.settings_page.sections', { name: t('app.desk.title') })} selected={`desk-part-${current}`}
-    onselect={(id) => (current = id.slice('desk-part-'.length) as typeof current)}
-    sections={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: `desk-part-${tab}`, label: t(`app.desk.tab.${tab}`) }))}>
-    <section id={`desk-part-${current}`} class="part" aria-labelledby="desk-part-heading" data-desk-part={current}>
-    <h2 id="desk-part-heading" class="heading">{t(`app.desk.tab.${current}`)}</h2>
+    },
+  }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current, onselect: (next) => onreplace?.(`${BASE}?section=${next}`) }}
+  {view}
+  back={{ label: title, onback: () => onreplace?.(BASE) }}
+>
+  <!-- Every change here is a dialog's own save or a row's act, so nothing waits for a save bar. -->
+  <TableSection title={t(`app.desk.tab.${current}`)} description={current === 'organisations' ? t('app.desk.organisations_intro') : undefined}>
+    {#snippet acts()}
+      {#if mayShape}
+        {#if current === 'calendars'}<Button data-list-add icon="plus" onclick={addCalendar}>{t('app.desk.add_calendar')}</Button>
+        {:else if current === 'policies'}<Button data-list-add icon="plus" onclick={addPolicy}>{t('app.desk.add_policy')}</Button>
+        {:else if current === 'replies'}<Button data-list-add icon="plus" onclick={() => { reply = { key: '', name: '', body: '' }; editing = 'reply'; }}>{t('app.desk.add_reply')}</Button>
+        {:else if current === 'organisations'}<Button data-list-add icon="plus" onclick={() => { organisation = emptyOrganisation(); editing = 'organisation'; }}>{t('app.desk.add_organisation')}</Button>{/if}
+      {/if}
+    {/snippet}
+    <div class="part" data-desk-part={current}>
     {#if refusal && editing === undefined}<p class="refusal" role="alert">{refusal}</p>{/if}
 
     {#if current === 'calendars'}
@@ -311,8 +341,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button data-list-add tone="secondary" icon="plus" onclick={addCalendar}>{t('app.desk.add_calendar')}</Button></div>
-          <Dialog title={calendar.key ? calendar.name : t('app.desk.add_calendar')} isOpen={editing === 'calendar'} onClose={close} dismissLabel={t('app.desk.cancel')}>
+          <Dialog title={calendar.key ? calendar.name : t('app.desk.add_calendar')} isOpen={editing === 'calendar'} onClose={close} dismissLabel={t('app.desk.cancel')} size="m">
             <form onsubmit={(event) => void saveCalendar(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={calendar.name} required />
@@ -367,8 +396,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button data-list-add tone="secondary" icon="plus" onclick={addPolicy}>{t('app.desk.add_policy')}</Button></div>
-          <Dialog title={policy.key ? policy.name : t('app.desk.add_policy')} isOpen={editing === 'policy'} onClose={close} dismissLabel={t('app.desk.cancel')} isWide>
+          <Dialog title={policy.key ? policy.name : t('app.desk.add_policy')} isOpen={editing === 'policy'} onClose={close} dismissLabel={t('app.desk.cancel')} size="l">
             <form onsubmit={(event) => void savePolicy(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={policy.name} required />
@@ -462,8 +490,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button data-list-add tone="secondary" icon="plus" onclick={() => { reply = { key: '', name: '', body: '' }; editing = 'reply'; }}>{t('app.desk.add_reply')}</Button></div>
-          <Dialog title={reply.key ? reply.name : t('app.desk.add_reply')} isOpen={editing === 'reply'} onClose={close} dismissLabel={t('app.desk.cancel')}>
+          <Dialog title={reply.key ? reply.name : t('app.desk.add_reply')} isOpen={editing === 'reply'} onClose={close} dismissLabel={t('app.desk.cancel')} size="m">
             <form onsubmit={(event) => void saveReply(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={reply.name} required />
@@ -480,7 +507,6 @@
       </Stack>
     {:else if current === 'organisations'}
       <Stack gap="150">
-        <p class="quiet">{t('app.desk.organisations_intro')}</p>
         {#if !organisationRows}<Skeleton lines={3} />{:else if organisationRows.length === 0}<EmptyState kind="unused" title={t('app.desk.organisations_none')} />{/if}
         <ul class="rows">
           {#each organisationRows ?? [] as row (row.key)}
@@ -501,8 +527,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button data-list-add tone="secondary" icon="plus" onclick={() => { organisation = emptyOrganisation(); editing = 'organisation'; }}>{t('app.desk.add_organisation')}</Button></div>
-          <Dialog title={organisation.key ? organisation.name : t('app.desk.add_organisation')} isOpen={editing === 'organisation'} onClose={close} dismissLabel={t('app.desk.cancel')}>
+          <Dialog title={organisation.key ? organisation.name : t('app.desk.add_organisation')} isOpen={editing === 'organisation'} onClose={close} dismissLabel={t('app.desk.cancel')} size="m">
             <form onsubmit={(event) => void saveOrganisation(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={organisation.name} required />
@@ -542,17 +567,19 @@
         </ul>
       </Stack>
     {/if}
-    </section>
-  </SettingsPage>
-</Stack>
+    </div>
+  </TableSection>
+</SettingsLayout>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
   .part { display: grid; gap: var(--sp-150); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .refusal { margin: 0; color: var(--text-danger); }
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
-  .rows li { padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
+  /* One region of rows, a hairline between them (page-system §4.2 rule 1). */
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .rows:empty { display: none; }
+  .rows li { padding: var(--sp-150) var(--sp-200); }
+  .rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .body { margin: var(--sp-050) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); }
   form { margin: 0; max-inline-size: 64ch; }
   .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20ch), 1fr)); gap: var(--sp-100); align-items: end; }

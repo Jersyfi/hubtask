@@ -252,9 +252,10 @@ for (const width of [1280, 375]) {
   });
 }
 
-// One settings anatomy (user-experience.md §5.4): the assets' settings keep the home's create act in
-// the head, and the class tree shows its families with each deeper branch folded until opened.
-test('chromium: the assets settings keep the head\'s create act and fold the class tree', async (t) => {
+// A product's settings are a settings page of their own (page-system §9.6, PS-2): the section list
+// in place of the home's tabs, the home's create act not shown, *Assets* in the trail; the class
+// tree shows its families with each deeper branch folded until opened.
+test('chromium: the assets settings are a settings page without the home\'s act, and fold the class tree', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const shipped = (key, name, lineage) => ({ ...SERVER_CLASS, key, name, parent: lineage[1] ?? '', system: true, lineage });
@@ -274,6 +275,10 @@ test('chromium: the assets settings keep the head\'s create act and fold the cla
   await page.locator('[data-class-row="hardware"] [data-class-toggle]').click();
   assert.deepEqual(await rows(), ['ci', 'hardware', 'server', 'software']);
   assert.equal(await page.locator('[data-class-row="hardware"] [data-class-toggle]').getAttribute('aria-expanded'), 'true');
-  await page.locator('header').getByRole('button', { name: 'New configuration item' }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('[data-page-kind="settings"]').count(), 1, 'the assets settings are no settings page');
+  await page.getByRole('navigation', { name: 'Sections of Assets settings' }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('navigation', { name: 'Assets', exact: true }).count(), 0, 'the home\'s tabs stand beside the section list');
+  assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0, 'the home\'s create act is shown on its settings');
+  assert.equal(await page.locator('header').getByRole('link', { name: 'Assets', exact: true }).getAttribute('href'), '/assets');
   assert.deepEqual(failures, []);
 });

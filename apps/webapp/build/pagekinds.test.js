@@ -146,3 +146,39 @@ test('the list of views not yet migrated only shrinks', () => {
   const done = NOT_YET_MIGRATED.filter((view) => kindsOf(view).size === 1 && tablesOf(view).length === 0);
   assert.deepEqual(done, [], 'a view that draws one page kind and no bare table leaves the list');
 });
+
+// The settings screens stand on the settings kind (page-system §7.3): the administration's, read
+// from its area's route branches so a screen that moves to another view is still held to it, and
+// the products' settings, each a page of its own at the home's *Settings* address (§9.6) whose
+// section list replaces the home's tabs (PS-2) - no strip of tabs on it.
+const ON_SETTINGS = ['mail', 'voice', 'retention', 'backup', 'workspace-settings', 'sign-in-settings', 'legal', 'ai'];
+const PRODUCT_SETTINGS = {
+  'desk-settings': 'ServiceDeskView',
+  'assets-settings': 'CmdbView',
+  time: 'TimeSettingsView',
+};
+
+test('the administration\'s settings screens draw the settings kind', () => {
+  const area = fs.readFileSync(path.join(SRC, 'views/AdministrationArea.svelte'), 'utf8');
+  const wrong = ON_SETTINGS.flatMap((name) => {
+    const view = new RegExp(`route\\.name === '${name}'[^\\n]*\\n\\s*<(\\w+View)\\b`).exec(area)?.[1];
+    if (!view) return [`${name}: AdministrationArea.svelte draws no view`];
+    return kindsOf(view).has('settings') ? [] : [`${name}: ${view} is no settings page`];
+  });
+  assert.deepEqual(wrong, []);
+});
+
+test('a product\'s settings are a settings page of their own, routed at its address, with no strip of tabs', () => {
+  const app = fs.readFileSync(path.join(SRC, 'App.svelte'), 'utf8');
+  const wrong = Object.entries(PRODUCT_SETTINGS).flatMap(([route, view]) => {
+    const found = [];
+    // The route's branch, up to the next one: it draws the view.
+    const branch = new RegExp(`route\\.name === '${route}'[^}]*\\}([\\s\\S]*?)\\{:else`).exec(app)?.[1] ?? '';
+    if (!branch.includes(`views.${view}}`)) found.push(`${route}: App.svelte does not draw ${view}`);
+    if ([...kindsOf(view)].join() !== 'settings') found.push(`${view}: ${[...kindsOf(view)].join(', ') || 'no page kind'}`);
+    const { markup } = read(fileOf(view));
+    if (/<(Tabs|PlaceTabs)(?=[\s/>])/.test(markup)) found.push(`${view}: a strip of tabs`);
+    return found;
+  });
+  assert.deepEqual(wrong, []);
+});

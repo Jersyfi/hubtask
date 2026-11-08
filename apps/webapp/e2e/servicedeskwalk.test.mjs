@@ -118,10 +118,12 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
 
   // The desk is set up at its home's last tab, each form in a dialog opened by its *Add* (§7.4).
   await page.goto(`${served.origin}/desk/settings`);
-  // One settings anatomy (§5.4): the shell's sections at the start, not a second row of tabs, and
-  // the head keeps the home's create act.
-  await page.locator('[data-settings-page] [data-settings-sections]').waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('[data-settings-page] [role="tablist"]').count(), 0, 'the desk settings draw a second row of tabs');
+  // A settings page of its own (page-system §9.6, PS-2): its section list in place of the home's
+  // tabs, never both.
+  const sections = page.getByRole('navigation', { name: 'Sections of Service desk settings' });
+  await sections.waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('[data-page-kind="settings"] [role="tablist"]').count(), 0, 'the desk settings draw a second row of tabs');
+  assert.equal(await page.getByRole('navigation', { name: 'Service desk', exact: true }).count(), 0, 'the home\'s tabs stand beside the section list');
   await page.getByRole('button', { name: 'Add the calendar' }).click();
   const calendarForm = page.getByRole('dialog').locator('form');
   await calendarForm.getByLabel('Name').fill('Office hours');
@@ -130,7 +132,7 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await calendarForm.getByRole('button', { name: 'Add the calendar' }).click();
   await page.getByText('Office hours').first().waitFor({ timeout: 5_000 });
 
-  await page.locator('[data-settings-sections]').getByRole('link', { name: 'SLA policies' }).click();
+  await sections.getByRole('link', { name: 'SLA policies' }).click();
   await page.getByRole('button', { name: 'Add the policy' }).click();
   const policyForm = page.getByRole('dialog').locator('form');
   await policyForm.getByLabel('Name').fill('Standard');

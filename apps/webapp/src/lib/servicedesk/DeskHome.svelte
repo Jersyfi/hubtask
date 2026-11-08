@@ -5,8 +5,7 @@
   // (*12 open · 2 about to breach · 3 unassigned*), *New request* as the primary - capture opened on
   // the desk's collection - then *Queues · Desks · Settings*. The queues span every desk
   // collection of the hubs where the desk is on; the desks are listed with their hub; the settings
-  // are the workspace's calendars, policies, replies and organisations, read by every member and
-  // changed by whoever shapes the workspace (ServiceDeskView).
+  // are a settings page of their own (ServiceDeskView, page-system §9.6).
 
   import { untrack } from 'svelte';
   import { Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
@@ -19,7 +18,6 @@
   import { homeTabs } from '../product/home.ts';
   import ProductEmpty from '../product/ProductEmpty.svelte';
   import { markOf } from '../workspace/look.ts';
-  import ServiceDeskView from '../../views/ServiceDeskView.svelte';
   import DeskQueues from './DeskQueues.svelte';
   import { desksOf, type DeskQueue } from './queues.ts';
 
@@ -111,9 +109,7 @@
 
   <PlaceTabs label={name} {tabs} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
 
-  {#if current === 'settings'}
-    <ServiceDeskView isEmbedded {onnavigate} />
-  {:else if isReading || desksAt === undefined}
+  {#if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
       <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}
         description={t(createHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')} create={createHub} isInHead {templates} />

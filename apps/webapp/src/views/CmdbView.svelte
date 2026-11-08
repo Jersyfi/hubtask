@@ -1,27 +1,28 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Configuration items* under *How we work* (M6, UC-AST-02 check 6, UC-AST-06 check 5): the class
+  // The assets' settings (M6, page-system §9.6; UC-AST-02 check 6, UC-AST-06 check 5): the class
   // hierarchy Hubtask ships with the workspace's own classes beneath it, the relation catalogue with
   // which end suffers when the other fails, and the sources by precedence. An administrator adds
   // and changes the workspace's own; a shipped class or type is read, never changed. The software
   // aliases (UC-AST-13 check 3) say which reported product counts as which; one is added or removed.
+  // Each is a section at `/assets/settings?section=<id>`, the list in place of the home's tabs (PS-2).
   //
   // **What the reader may never do is not drawn** (P-05): without STRUCTURE at the workspace the
   // page lists the definitions and offers no control.
 
   import {
-    Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Textarea,
-    type SelectOption,
+    Button, Checkbox, CheckboxGroup, Dialog, EmptyState, IconButton, Input, Select, SettingsLayout, Spinner, Stack, Switch, Textarea,
+    type SectionLink, type SelectOption,
   } from '@hubtask/design-system/components';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import TableSection from '../lib/page/TableSection.svelte';
   import { classesBelow, shownClasses } from '../lib/assets/classTree.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type {
     CiAttribute, CiClass, CiClassList, CiRelationType, CiRelationTypeList, CiSource, CiSourceDefine, CiSourceList, SoftwareAlias, SoftwareAliasList,
   } from '@hubtask/sync-engine';
 
-  import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { holdsHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
   import {
     aliasDefine, classDefine, classDraft, classesPath, classWord, cmdb, keyIsWellFormed, relationTypesPath, relationWord, softwareAliasesPath, sourcesPath,
     type ClassDraft, type Words,
@@ -31,15 +32,19 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
-  /** Drawn as the assets home's *Settings* tab (user-experience.md §8.2), under the home's own head. */
-  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
-  $effect(() => {
-    if (!isEmbedded) page.entitle(t('app.cmdb_admin.title'));
-  });
+  interface Props {
+    /** The section the address names (`?section=`); none is the list of sections. */
+    section?: string;
+    /** Replaces the address: a move between sections. */
+    onreplace?: (path: string) => void;
+  }
+  const { section, onreplace }: Props = $props();
+  const BASE = '/assets/settings';
+  const title = $derived(t('app.cmdb_admin.settings_title'));
+  $effect(() => page.entitle(title));
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const words: Words = (code) => (messages.has(code) ? t(code) : undefined);
@@ -52,13 +57,11 @@
   const sources = $derived(sourcesRead.state.status === 'ready' ? [...sourcesRead.state.data.data].sort((a, b) => a.rank - b.rank) : []);
   const refusal = $derived(classesRead.state.status === 'failed' ? renderProblem(classesRead.state.error, messages).message : undefined);
 
-  let shown = $state('classes');
-  const tabs = $derived([
-    { id: 'classes', label: t('app.cmdb_admin.classes') },
-    { id: 'types', label: t('app.cmdb_admin.types') },
-    { id: 'sources', label: t('app.cmdb_admin.sources') },
-    { id: 'aliases', label: t('app.cmdb_admin.aliases') },
-  ]);
+  const SECTIONS = ['classes', 'types', 'sources', 'aliases'];
+  const named = $derived(SECTIONS.find((each) => each === section));
+  const shown = $derived(named ?? 'classes');
+  const view = $derived<'list' | 'detail'>(named ? 'detail' : 'list');
+  const links = $derived<SectionLink[]>(SECTIONS.map((id) => ({ id, label: t(`app.cmdb_admin.${id}`), href: `${BASE}?section=${id}` })));
 
   // The software aliases (UC-AST-13 check 3), read only once their tab is opened.
   let aliases = $state<readonly SoftwareAlias[] | undefined>(undefined);
@@ -256,31 +259,41 @@
   const classChecks = $derived(tree.filter((each) => each.key !== 'ci').map((each) => ({ value: each.key, label: nameOf(each.key) })));
 </script>
 
-<Stack gap="300">
-  {#if !isEmbedded}<PageHeader
-    title={t('app.cmdb_admin.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
+<SettingsLayout
+  head={{
+    title,
+    breadcrumb: {
       trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'cmdb', label: t('app.cmdb_admin.title') },
+        { id: 'products', label: t('app.nav.products') },
+        { id: 'assets', label: t('app.assets.title'), href: '/assets' },
+        { id: 'settings', label: t('app.product_home.tab_settings') },
       ],
-      label: t('app.admin.trail'),
+      label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
-    }}
-  />{/if}
-
+    },
+  }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}?section=${next}`) }}
+  {view}
+  back={{ label: title, onback: () => onreplace?.(BASE) }}
+  refused={reachesAdministrationArea() === false ? notYours : undefined}
+>
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if classesRead.state.status !== 'ready'}
     <Spinner label={t('app.assets.loading')} />
   {:else}
-    <!-- Every change here is a dialog's own save, so the shell holds nothing unsaved. -->
-    <SettingsPage label={t('app.settings_page.sections', { name: t('app.cmdb_admin.title') })} sections={tabs} selected={shown} onselect={(id) => (shown = id)}>
+    <!-- Every change here is a dialog's own save, so nothing waits for a save bar. -->
+    <TableSection title={t(`app.cmdb_admin.${shown}`)} description={t(`app.cmdb_admin.${shown}_hint`)}>
+      {#snippet acts()}
+        {#if mayShape}
+          {#if shown === 'classes'}<Button data-list-add icon="plus" onclick={() => openClass()}>{t('app.cmdb_admin.new_class')}</Button>
+          {:else if shown === 'types'}<Button data-list-add icon="plus" onclick={() => openType()}>{t('app.cmdb_admin.new_type')}</Button>
+          {:else if shown === 'aliases'}<Button data-list-add icon="plus" data-new-alias onclick={openAlias}>{t('app.cmdb_admin.new_alias')}</Button>
+          {:else}<Button data-list-add icon="plus" onclick={() => openSource()}>{t('app.cmdb_admin.new_source')}</Button>{/if}
+        {/if}
+      {/snippet}
       {#if shown === 'classes'}
         <Stack gap="100">
-          <p class="meta">{t('app.cmdb_admin.classes_hint')}</p>
-          {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openClass()}>{t('app.cmdb_admin.new_class')}</Button></div>{/if}
           <ul class="rows">
             {#each shownTree as each (each.key)}
               {@const holds = depthOf(each) > 0 ? (below.get(each.key) ?? 0) : 0}
@@ -313,8 +326,6 @@
         </Stack>
       {:else if shown === 'types'}
         <Stack gap="100">
-          <p class="meta">{t('app.cmdb_admin.types_hint')}</p>
-          {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openType()}>{t('app.cmdb_admin.new_type')}</Button></div>{/if}
           <ul class="rows">
             {#each types as each (each.key)}
               <li class="row">
@@ -336,8 +347,6 @@
         </Stack>
       {:else if shown === 'aliases'}
         <Stack gap="100">
-          <p class="meta">{t('app.cmdb_admin.aliases_hint')}</p>
-          {#if mayShape}<div><Button data-list-add icon="plus" data-new-alias onclick={openAlias}>{t('app.cmdb_admin.new_alias')}</Button></div>{/if}
           {#if !aliases}
             <Spinner label={t('app.assets.loading')} />
           {:else if aliases.length === 0}
@@ -366,8 +375,6 @@
         </Stack>
       {:else}
         <Stack gap="100">
-          <p class="meta">{t('app.cmdb_admin.sources_hint')}</p>
-          {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openSource()}>{t('app.cmdb_admin.new_source')}</Button></div>{/if}
           <ul class="rows">
             {#each sources as each (each.key)}
               <li class="row">
@@ -388,12 +395,15 @@
           </ul>
         </Stack>
       {/if}
-    </SettingsPage>
+    </TableSection>
   {/if}
-</Stack>
+</SettingsLayout>
+
+<!-- Offered to whoever reaches the administration, as the door before them was (P-05). -->
+{#snippet notYours()}<EmptyState kind="filtered" title={t('app.settings.not_yours')} />{/snippet}
 
 {#if isClassOpen && classDraftState}
-  <Dialog bind:isOpen={isClassOpen} title={classEditing ? t('app.cmdb_admin.edit_named', { name: nameOf(classEditing.key) }) : t('app.cmdb_admin.new_class')} dismissLabel={t('app.assets.cancel')} isWide>
+  <Dialog bind:isOpen={isClassOpen} title={classEditing ? t('app.cmdb_admin.edit_named', { name: nameOf(classEditing.key) }) : t('app.cmdb_admin.new_class')} dismissLabel={t('app.assets.cancel')} size="l">
     <Stack gap="150">
       {#if !classEditing}<Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={classDraftState.key} maxlength={63} />{/if}
       <Input label={t('app.assets.name_label')} bind:value={classDraftState.name} maxlength={120} />
@@ -437,7 +447,7 @@
 {/if}
 
 {#if isTypeOpen && typeDraft}
-  <Dialog bind:isOpen={isTypeOpen} title={typeEditing ? t('app.cmdb_admin.edit_named', { name: typeEditing.key }) : t('app.cmdb_admin.new_type')} dismissLabel={t('app.assets.cancel')}>
+  <Dialog bind:isOpen={isTypeOpen} title={typeEditing ? t('app.cmdb_admin.edit_named', { name: typeEditing.key }) : t('app.cmdb_admin.new_type')} dismissLabel={t('app.assets.cancel')} size="m">
     <Stack gap="150">
       {#if !typeEditing}<Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={typeDraft.key} maxlength={63} />{/if}
       <Input label={t('app.cmdb_admin.type_name')} bind:value={typeDraft.name} maxlength={120} />
@@ -465,7 +475,7 @@
 {/if}
 
 {#if isSourceOpen && sourceDraft}
-  <Dialog bind:isOpen={isSourceOpen} title={sourceEditing ? t('app.cmdb_admin.edit_named', { name: sourceEditing.key }) : t('app.cmdb_admin.new_source')} dismissLabel={t('app.assets.cancel')}>
+  <Dialog bind:isOpen={isSourceOpen} title={sourceEditing ? t('app.cmdb_admin.edit_named', { name: sourceEditing.key }) : t('app.cmdb_admin.new_source')} dismissLabel={t('app.assets.cancel')} size="m">
     <Stack gap="150">
       {#if !sourceEditing}<Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={sourceDraft.key} maxlength={63} />{/if}
       <Select label={t('app.cmdb_admin.source_kind_label')} options={sourceKinds} bind:value={sourceDraft.kind} />
@@ -482,7 +492,7 @@
 {/if}
 
 {#if isAliasOpen}
-  <Dialog bind:isOpen={isAliasOpen} title={t('app.cmdb_admin.new_alias')} dismissLabel={t('app.assets.cancel')}>
+  <Dialog bind:isOpen={isAliasOpen} title={t('app.cmdb_admin.new_alias')} dismissLabel={t('app.assets.cancel')} size="m">
     <Stack gap="150">
       <p class="meta">{t('app.cmdb_admin.alias_reported')}</p>
       <Input label={t('app.cmdb_admin.alias_match_product')} bind:value={aliasDraft.matchProduct} maxlength={200} isRequired />
@@ -504,12 +514,14 @@
 {/if}
 
 <style>
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-  .row {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100);
-    padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
-    background: var(--bg-surface);
+  /* One region of rows, a hairline between them (page-system §4.2 rule 1). */
+  .rows {
+    margin: 0; padding: 0; list-style: none; display: grid;
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
   }
+  .rows:empty { display: none; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); }
+  .row + .row { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .what { display: grid; gap: var(--sp-025); }
   .indent { padding-inline-start: calc(var(--depth, 0) * var(--sp-150)); }
   .named { display: inline-flex; align-items: center; gap: var(--sp-050); }
