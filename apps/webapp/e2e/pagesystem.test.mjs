@@ -91,6 +91,16 @@ const RUNS = [0, 1].map((index) => ({
   action_results: [{ index: 0, kind: 'ADD_COMMENT', status: index === 0 ? 'SUCCEEDED' : 'FAILED', error_code: index === 0 ? null : 'items.not_found' }],
 }));
 
+/** One connected mailbox and what arrived through it, and a message of another door. */
+const MAILBOX = {
+  id: '01a0e2e0-0000-7000-8000-000000002a01', protocol: 'IMAP', address: 'desk@example.org', host: 'imap.example.org', port: 993, username: 'desk@example.org',
+  folder: 'INBOX', done_folder: 'Hubtask', plus_addresses: true, enabled: true, failing: false, checked_at: '2026-11-05T06:00:00Z', created_at: '2026-10-01T06:00:00Z', auth: 'PASSWORD',
+};
+const RECEIPTS = [MAILBOX.address, 'inbound'].map((door, index) => ({
+  id: `01a0e2e0-0000-7000-8000-000000002b0${index}`, received_at: `2026-11-0${index + 5}T06:00:00Z`, sender: 'ana@example.com',
+  subject: index === 0 ? 'Printer on floor 2' : 'Through the operator', outcome: 'JUMBLE', reason: null, door,
+}));
+
 /** One agent of the agents' module, live and acting for the owner. */
 const AGENT = {
   id: '01a0e2e0-0000-7000-8000-000000000a01', account_id: null, name: 'Request sorter', purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE',
@@ -121,6 +131,8 @@ function howWeWork(route, request, path) {
   if (path === '/entry-types') return route.fulfill({ json: { data: TYPES } });
   if (path === '/workflows') return route.fulfill({ json: { data: WORKFLOWS, scheme: [] } });
   if (path === '/automation/rules') return route.fulfill({ json: { data: RULES, page: { next_cursor: null, has_more: false } } });
+  if (path === '/mail/mailboxes') return route.fulfill({ json: { mailboxes: [MAILBOX], presets: [] } });
+  if (path === '/mail/receipts') return route.fulfill({ json: { receipts: RECEIPTS } });
   if (path === '/automation/runs') return route.fulfill({ json: { data: RUNS, page: { next_cursor: null, has_more: false } } });
   const run = RUNS.find((each) => path === `/automation/runs/${each.id}`);
   if (run) return route.fulfill({ json: run });
@@ -192,10 +204,13 @@ const SCREENS = [
   ['/administration/workflows/incident', 'editor'],
   ['/administration/link-types', 'list'],
   ['/administration/rules', 'list'],
+  ['/administration/rules/new', 'create'],
+  [`/administration/rules/${RULES[0].id}`, 'record'],
   ['/administration/runs', 'log'],
   // Connections and data (page-system §9.3).
   ['/administration/mail', 'settings'],
   ['/administration/mail/senders', 'settings'],
+  [`/administration/mail/mailboxes/${MAILBOX.id}`, 'record'],
   ['/administration/webhooks', 'list'],
   ['/administration/voice', 'settings'],
   ['/administration/backup', 'settings'],
@@ -731,6 +746,55 @@ for (const size of [DESKTOP, PHONE]) {
       await page.locator('[data-page-kind="settings"]').waitFor({ timeout: 15_000 });
       await page.getByRole('main').getByRole('heading', { name: heading, exact: true }).first().waitFor({ timeout: 15_000 });
     }
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${at}: a rule is a create page or its record page, a mailbox its record page from its row (page-system §9.1, §9.3)`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await open(browser, size);
+    t.after(() => context.close());
+    const main = page.getByRole('main');
+    const headings = () => main.getByRole('heading', { level: 1 }).allTextContents();
+
+    // *Write a rule*: a create page, its one heading the page's, *Save the rule* its primary.
+    await visit(page, '/administration/rules/new');
+    await page.locator('[data-canvas]').waitFor({ timeout: 15_000 });
+    assert.deepEqual((await headings()).map((each) => each.trim()), ['New rule']);
+    await main.getByRole('button', { name: 'Save the rule' }).filter({ visible: true }).first().waitFor();
+
+    // A rule: its record page, the name the one heading, deleting in ⋯ asked in a Dialog S.
+    await visit(page, '/administration/rules');
+    await main.getByRole('link', { name: RULES[0].name }).first().click({ timeout: 15_000 });
+    await page.waitForFunction((id) => location.pathname === `/administration/rules/${id}`, RULES[0].id, { timeout: 10_000 });
+    await page.locator('[data-page-kind="record"] [data-canvas]').waitFor({ timeout: 15_000 });
+    assert.deepEqual((await headings()).map((each) => each.trim()), [RULES[0].name]);
+    await main.getByRole('button', { name: 'Save the rule' }).waitFor();
+    await main.getByRole('button', { name: `More for ${RULES[0].name}` }).click();
+    await page.getByRole('menuitem', { name: 'Delete the rule' }).click();
+    await assertLadder(page, size, 's');
+    await page.keyboard.press('Escape');
+
+    // A mailbox: its row is a link to its record page - its settings, what arrived through it as
+    // a table, disconnecting in the danger zone asked in a Dialog S.
+    await visit(page, '/administration/mail/mailboxes');
+    await main.getByRole('link', { name: MAILBOX.address }).first().click({ timeout: 15_000 });
+    await page.waitForFunction((id) => location.pathname === `/administration/mail/mailboxes/${id}`, MAILBOX.id, { timeout: 10_000 });
+    await page.locator('[data-page-kind="record"]').waitFor();
+    assert.deepEqual((await headings()).map((each) => each.trim()), [MAILBOX.address]);
+    const arrived = page.locator('[data-mailbox-arrived]');
+    await arrived.getByText('Printer on floor 2').first().waitFor({ timeout: 15_000 });
+    assert.equal(await arrived.getByText('Through the operator').count(), 0, 'mail of another door is listed');
+    await main.getByText('Hubtask', { exact: true }).waitFor();
+    await main.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await assertLadder(page, size, 's');
+    await page.keyboard.press('Escape');
+
+    // The old address of the mailboxes lands on their section.
+    await visit(page, '/administration/mail/mailboxes');
+    await page.locator('[data-mail-mailboxes]').waitFor({ timeout: 15_000 });
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.equal(overflow, 0, 'the page scrolls sideways');
     assert.deepEqual(failures, []);
   });
 }
