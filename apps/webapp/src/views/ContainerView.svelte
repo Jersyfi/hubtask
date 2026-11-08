@@ -25,7 +25,7 @@
     PageHeader,
     ReadOnlyNotice,
     Skeleton,
-    Stack,
+    WorkPage,
     type MenuItem,
     type PageAction,
   } from '@hubtask/design-system/components';
@@ -1177,7 +1177,8 @@
     {/if}
   {/snippet}
   {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
-  <Stack gap="300">
+  <WorkPage>
+    {#snippet top()}
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
          for - a collection - with import beside it; the collection's is an entry, with the filter
@@ -1246,7 +1247,8 @@
         <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
       {/snippet}
     </PageHeader>
-    <PlaceStrip placeId={container.id} current={container.type === 'HUB' ? 'overview' : 'entries'} {onnavigate} />
+    {/snippet}
+    {#snippet tabs()}<PlaceStrip placeId={container.id} current={container.type === 'HUB' ? 'overview' : 'entries'} {onnavigate} />{/snippet}
 
     {#if container.type === 'COLLECTION'}
       <!-- The toolbar (design-system.md §11.1): about the entries, where the head is about the
@@ -1424,7 +1426,7 @@
         {/if}
       </div>
     {/if}
-  </Stack>
+  </WorkPage>
 {/if}
 
 {#if container?.type === 'HUB'}
@@ -1503,6 +1505,7 @@
        saying before it happens rather than afterwards. The primary action is the caller's to name
        and to place last — and it is named for what it does, not "OK". -->
   <Dialog
+    size="s"
     bind:isOpen={isTrashing}
     title={t('app.workspace.trash_confirm_title', { name: container.name })}
     dismissLabel={t('app.workspace.cancel')}
@@ -1527,6 +1530,7 @@
   <!-- Making a hub private takes it away from people who read it today, so the confirmation names
        them; sharing it again takes nothing from anybody and says who gets it back. -->
   <Dialog
+    size="s"
     bind:isOpen={isChangingPrivacy}
     title={container.private
       ? t('app.workspace.shared_confirm_title', { name: container.name })

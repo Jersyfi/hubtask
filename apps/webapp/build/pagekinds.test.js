@@ -37,10 +37,10 @@ const KINDS = {
 const NOT_YET_MIGRATED = [
   'ActualsView',
   'AssetsView',
-  'ConfirmAddressView', 'ConsentView', 'ContainerView', 'DashboardView',
+  'ConfirmAddressView', 'ConsentView', 'DashboardView',
   'GoalView', 'GoalsView',
-  'HubDeskView', 'InstallationView', 'ItemView',
-  'OidcCallbackView', 'PagesView', 'PortalArticleView',
+  'HubDeskView', 'InstallationView',
+  'OidcCallbackView', 'PortalArticleView',
   'PortalRequestView', 'PortalView', 'PortfolioView',
   'ProductHomeView', 'PublicFormView', 'PublicRoadmapView',
   'RateView', 'RedeemView', 'ReleaseView', 'ResetView',
@@ -67,10 +67,27 @@ function routedViews() {
 
 const fileOf = (view) => path.join(SRC, 'views', `${view}.svelte`);
 
+/**
+ * Every file a view draws, except through another routed view: one drawn inside it - the entry in
+ * the collection's side panel - is a part of this page there, and its kind is counted where it is
+ * routed (PS-1).
+ */
+function ownFiles(view) {
+  const others = new Set(routedViews().filter((each) => each !== view).map(fileOf));
+  const seen = new Set();
+  const walk = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    for (const use of uses(file)) if (fs.existsSync(use.file) && !others.has(use.file)) walk(use.file);
+  };
+  walk(fileOf(view));
+  return seen;
+}
+
 /** The kinds a view draws, through everything it draws. */
 function kindsOf(view) {
   const kinds = new Set();
-  for (const file of reachable(fileOf(view))) {
+  for (const file of ownFiles(view)) {
     const { markup } = read(file);
     for (const [component, kind] of Object.entries(KINDS)) {
       if (new RegExp(`<${component}(?=[\\s/>])`).test(markup)) kinds.add(kind);
