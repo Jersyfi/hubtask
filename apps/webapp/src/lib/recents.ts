@@ -11,8 +11,11 @@
  * `recents.svelte.ts`'s note at the top; this is the half with no state.
  */
 
-/** How many are kept. A glance, not a history: what fell off the end is what the tree is for. */
-export const MAX = 5;
+/** How many are kept: the sidebar's *Recent* flyout shows them all (the navigation concept, §2.3). */
+export const MAX = 20;
+
+/** How many the palette offers before anything is typed: a glance, not the flyout's history. */
+export const GLANCE = 5;
 
 /** Where one account's list is kept. The id is in the key, so two people sharing a browser never read each other's. */
 export const PREFIX = 'hubtask.recent.';

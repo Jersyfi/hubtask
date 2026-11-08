@@ -43,7 +43,8 @@
   import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
   // On the desk's home its *Settings* tab (user-experience.md §7.4), under the home's own head.
-  const { isEmbedded = false, onnavigate }: { isEmbedded?: boolean; onnavigate?: (path: string) => void } = $props();
+  // `parts` narrows the screen to what its home draws as a tab: *Reports* the report, *Settings* the rest.
+  const { isEmbedded = false, onnavigate, parts }: { isEmbedded?: boolean; onnavigate?: (path: string) => void; parts?: readonly string[] } = $props();
   $effect(() => {
     if (!isEmbedded) page.entitle(t('app.desk.title'));
   });
@@ -55,7 +56,7 @@
   const startFromItil = () => onnavigate?.(`/administration/presets?template=${ITIL_TEMPLATE}`);
 
   const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
-  let current = $state<(typeof TABS)[number]>('calendars');
+  let current = $state<(typeof TABS)[number]>(untrack(() => (TABS.find((each) => parts?.[0] === each) ?? 'calendars')));
 
   const calendars = untrack(() => resource<BusinessCalendarList>(calendarsPath));
   const policies = untrack(() => resource<SlaPolicyList>(policiesPath));
@@ -285,7 +286,7 @@
   <!-- Every change here is a dialog's own save or a row's act, so the shell holds nothing unsaved. -->
   <SettingsPage label={t('app.settings_page.sections', { name: t('app.desk.title') })} selected={`desk-part-${current}`}
     onselect={(id) => (current = id.slice('desk-part-'.length) as typeof current)}
-    sections={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: `desk-part-${tab}`, label: t(`app.desk.tab.${tab}`) }))}>
+    sections={TABS.filter((tab) => (tab !== 'report' || mayShape) && (!parts || parts.includes(tab))).map((tab) => ({ id: `desk-part-${tab}`, label: t(`app.desk.tab.${tab}`) }))}>
     <section id={`desk-part-${current}`} class="part" aria-labelledby="desk-part-heading" data-desk-part={current}>
     <h2 id="desk-part-heading" class="heading">{t(`app.desk.tab.${current}`)}</h2>
     {#if refusal && editing === undefined}<p class="refusal" role="alert">{refusal}</p>{/if}

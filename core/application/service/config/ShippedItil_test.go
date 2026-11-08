@@ -41,7 +41,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 15 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 16 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (configuration.md §6): the hub's switches and which of the template's workflows
@@ -67,11 +67,15 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	// part, and its macros (UC-SVC-06) the hub's manual rules, switched on.
 	tenant, id, now := shared.ID("01936f2a-7c1e-7000-8000-000000000001"), shared.ID("01936f2a-7c1e-7000-8000-000000000002"), time.Now()
 	hubPlaces := places{key: map[string]string{}, id: map[string]string{}, hub: lintHub.String()}
-	for _, key := range []string{"mine", "unassigned", "about_to_breach", "unhappy"} {
+	for place, key := range []string{"mine", "unassigned", "about_to_breach", "unhappy"} {
 		block := template.Hub[sectionViews][key]
 		if block == nil {
 			t.Errorf("the queue %s is missing", key)
 			continue
+		}
+		// Marked as the hub's queues, in the desk's order (UC-SVC-03 check 10).
+		if block["queue"] != true || block["queue_position"] != float64(place+1) {
+			t.Errorf("the view %s is not the hub's queue %d: %v, %v", key, place+1, block["queue"], block["queue_position"])
 		}
 		query, _ := mapQuery(block["query"], hubPlaces.in).(map[string]any)
 		if query["scope_container_id"] != lintHub.String() {

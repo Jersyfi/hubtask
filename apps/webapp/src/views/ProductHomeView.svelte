@@ -3,11 +3,11 @@
 <script lang="ts">
   // A product's workspace-wide home (user-experience.md §2.2, §5.1): the one door the products band
   // opens. One anatomy for every product - the trail *Products › <product>*, the title with what
-  // the product does, the views as `PlaceTabs` where it has several, then the hubs the reader may
+  // the product does, the views as one `ViewBar` where it has several, then the hubs the reader may
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Badge, EmptyState, Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -33,7 +33,9 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, PortfolioList, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
+  import BoardTemplates, { type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
@@ -54,14 +56,24 @@
   const name = $derived(row ? t(row.code) : '');
   $effect(() => page.entitle(name));
 
-  // The assets' settings are the administration's screen at their home: offered to whoever
-  // reaches the administration, as the door before them was (P-05).
-  const tabs = $derived<PlaceTab[]>(
+  // The assets' classes, sources and settings are the administration's screen at their home:
+  // offered to whoever reaches the administration, as the door before them was (P-05). The plans'
+  // roadmaps are the portfolios', which are the goals' product.
+  const ADMINISTERED = ['classes', 'sources', 'settings'];
+  const tabs = $derived<ViewLink[]>(
     homeTabs(module)
-      .filter((each) => !(module === 'ASSETS' && each.id === 'settings') || reachesAdministrationArea() === true)
+      .filter((each) => !(module === 'ASSETS' && ADMINISTERED.includes(each.id)) || reachesAdministrationArea() === true)
+      .filter((each) => each.id !== 'roadmaps' || (manifest.value?.modules_on ?? []).includes('GOALS'))
       .map((each) => ({ id: each.id, label: t(each.code), href: each.path })),
   );
-  const currentTab = $derived(tab ?? tabs[0]?.id);
+  const currentTab = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : tabs[0]?.id);
+  /**
+   * Where the home lists its hubs: the pages' *Spaces* (a hub is a space), the boards' *All*, else
+   * the first tab; a home without a hub says so on any tab.
+   */
+  const showsHubs = $derived(module === 'KNOWLEDGE' ? currentTab === 'spaces' : module === 'WHITEBOARD' ? currentTab === 'all' : currentTab === tabs[0]?.id);
+  /** A tab that lists one kind whole, where *For you* shows its first few. */
+  const isWhole = $derived(currentTab === 'sprints' || currentTab === 'releases' || currentTab === 'all');
 
   /** The hubs the tree draws, and for each the modules on there, once it has answered. */
   const hubs = $derived(containers.hubs.filter((hub) => !live.hasLost(hub.id)));
@@ -123,7 +135,7 @@
   const RELEASES_SHOWN = 8;
   let releasesAt = $state<Record<string, ReleaseList['data']>>({});
   eachHub<ReleaseList>('PLANNING', releasesPath, (hubId, data) => (releasesAt = { ...releasesAt, [hubId]: data.data }));
-  const upcoming = $derived(module === 'PLANNING' ? releasesDue(releasesAt, hubsWith.map((hub) => hub.id), RELEASES_SHOWN) : []);
+  const upcoming = $derived(module === 'PLANNING' ? releasesDue(releasesAt, hubsWith.map((hub) => hub.id), isWhole ? Infinity : RELEASES_SHOWN) : []);
 
   /** The plans' home lists the sprints running in the hubs' collections (§2.2), the soonest to end first. */
   const SPRINTS_SHOWN = 8;
@@ -142,7 +154,7 @@
       return () => stops.forEach((stop) => stop());
     });
   });
-  const running = $derived(sprintsRunning(sprintsAt, sprintCollections, SPRINTS_SHOWN));
+  const running = $derived(sprintsRunning(sprintsAt, sprintCollections, isWhole ? Infinity : SPRINTS_SHOWN));
   const today = $derived(todayIn(actor.zone));
   const sprintLeft = (endOn: string) => t('app.sprints.days_left', { count: String(sprintDaysLeft(endOn, today)) });
 
@@ -189,7 +201,25 @@
     return undefined;
   }
 
-  const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
+  const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), isWhole ? Infinity : BOARDS_SHOWN) : []);
+
+  /** The plans' *Roadmaps*: every portfolio's roadmap, read once its tab is open. */
+  let portfolios = $state<PortfolioList['data'] | undefined>(undefined);
+  $effect(() => {
+    if (currentTab !== 'roadmaps') return;
+    return untrack(() => engine.subscribe<PortfolioList>({ path: PORTFOLIOS }, (next) => {
+      if (next.status === 'ready') portfolios = next.data.data;
+      else if (next.status === 'failed') portfolios = [];
+    }));
+  });
+
+  /** The boards' *Templates*: a card starts a board in the hub holding most of them, its gallery open. */
+  let boardStart = $state<BoardStart>('BLANK');
+  let boardFormat = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
+  function startBoard(choice: BoardStart): void {
+    const hub = createPlaces[0];
+    if (hub) onnavigate(`/hubs/${encodeURIComponent(hub.id)}/contents?kind=whiteboards&new=1&start=${choice}`);
+  }
   const hubName = (id: string) => containers.find(id)?.name ?? '';
 
   const creation = $derived(hubCreationHere());
@@ -264,8 +294,8 @@
       : placesByUse(writableHubs(hubsWith, mayWriteIn).map((hub) => ({ id: hub.id, label: hub.name })), objectCounts),
   );
   const primary = $derived.by(() => {
-    // The home's act stays on its Settings tab (§5.4): the head is the home's on every tab of it.
-    if (!createAct || isReading || (currentTab !== tabs[0]?.id && currentTab !== 'settings')) return undefined;
+    // The home's act stays on its setup tabs (§5.4): the head is the home's on every tab of it.
+    if (!createAct || isReading || (currentTab !== tabs[0]?.id && !ADMINISTERED.includes(currentTab ?? ''))) return undefined;
     const first = createPlaces[0];
     if (!first) return undefined;
     // The place's own create dialog opens there (§5.2): the act creates, it does not list.
@@ -306,15 +336,44 @@
   />
 
   {#if tabs.length > 1}
-    <PlaceTabs label={name} {tabs} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
+    <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
   {/if}
 
   {#if currentTab === 'notes'}
     <NotesView {onnavigate} isEmbedded />
-  {:else if currentTab === 'settings' && module === 'ASSETS'}
-    {#if reachesAdministrationArea() === true}<CmdbView isEmbedded />{/if}
+  {:else if module === 'ASSETS' && currentTab !== 'inventory'}
+    {#if reachesAdministrationArea() === true}<CmdbView isEmbedded parts={currentTab === 'settings' ? ['types', 'aliases'] : [currentTab ?? 'classes']} />{/if}
+  {:else if currentTab === 'roadmaps'}
+    <section aria-labelledby="product-roadmaps" aria-busy={portfolios === undefined}>
+      <Stack gap="100">
+        <h2 class="heading" id="product-roadmaps">{t('app.product_home.tab_roadmaps')}</h2>
+        {#if portfolios === undefined}
+          <Skeleton lines={3} />
+        {:else if portfolios.length === 0}
+          <EmptyState kind="unused" icon="calendar" title={t('app.product_home.roadmaps_none_title')} description={t('app.product_home.roadmaps_none')} />
+        {:else}
+          <ul class="hubs">
+            {#each portfolios as each (each.id)}
+              {@const at = `/portfolios/${each.id}/roadmap`}
+              <li>
+                <ListRow href={at} onactivate={() => onnavigate(at)} label={each.name}>
+                  {#snippet leading()}<Icon name="calendar" size="sm" />{/snippet}
+                  <span class="name" title={each.name}>{each.name}</span>
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </Stack>
+    </section>
+  {:else if currentTab === 'templates'}
+    {#if createPlaces.length > 0}
+      <BoardTemplates bind:chosen={boardStart} bind:format={boardFormat} onpick={startBoard} />
+    {:else if !isReading}
+      <EmptyState kind="unused" icon="layout-template" title={t('app.product_home.templates_none_title')} description={t('app.product_home.templates_none')} />
+    {/if}
   {:else}
-    {#if isUnusedHere}
+    {#if isUnusedHere && currentTab === tabs[0]?.id}
       <ProductEmpty product={module} place={{ type: 'TENANT' }}
         kind="unused"
         icon={row?.icon ?? 'hub'}
@@ -356,7 +415,7 @@
         </section>
       {/if}
     {/if}
-    {#if running.length > 0}
+    {#if running.length > 0 && (currentTab === 'foryou' || currentTab === 'sprints')}
       <section aria-labelledby="product-sprints">
         <Stack gap="100">
           <h2 class="heading" id="product-sprints">{t('app.product_home.sprints_running')}</h2>
@@ -375,7 +434,7 @@
         </Stack>
       </section>
     {/if}
-    {#if upcoming.length > 0}
+    {#if upcoming.length > 0 && (currentTab === 'foryou' || currentTab === 'releases')}
       <section aria-labelledby="product-releases">
         <Stack gap="100">
           <h2 class="heading" id="product-releases">{t('app.product_home.releases_due')}</h2>
@@ -393,7 +452,7 @@
         </Stack>
       </section>
     {/if}
-    {#if toReview.length > 0}
+    {#if toReview.length > 0 && currentTab === 'foryou'}
       <section aria-labelledby="product-review">
         <Stack gap="100">
           <h2 class="heading" id="product-review">{t('app.product_home.pages_review')}</h2>
@@ -412,7 +471,7 @@
         </Stack>
       </section>
     {/if}
-    {#if recent.length > 0}
+    {#if recent.length > 0 && currentTab === 'foryou'}
       <section aria-labelledby="product-pages">
         <Stack gap="100">
           <h2 class="heading" id="product-pages">{t('app.product_home.pages_recent')}</h2>
@@ -430,7 +489,7 @@
         </Stack>
       </section>
     {/if}
-    {#if boards.length > 0}
+    {#if boards.length > 0 && (currentTab === 'foryou' || currentTab === 'all')}
       <section aria-labelledby="product-boards">
         <Stack gap="100">
           <h2 class="heading" id="product-boards">{t('app.product_home.boards_recent')}</h2>
@@ -444,7 +503,7 @@
         </Stack>
       </section>
     {/if}
-    {#if hubScreenOf(module, '') !== undefined}
+    {#if hubScreenOf(module, '') !== undefined && (showsHubs || (!isReading && hubsWith.length === 0))}
       <section aria-labelledby="product-hubs">
         <Stack gap="100">
           <h2 class="heading" id="product-hubs">{t('app.product_home.hubs')}</h2>

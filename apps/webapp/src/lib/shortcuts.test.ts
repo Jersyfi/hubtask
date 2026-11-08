@@ -44,6 +44,7 @@ const TABLE: readonly [string, Press, Where, ReturnType<typeof intentOf>][] = [
   ['? with the palette open', press('?', { shiftKey: true }), { ...PAGE, isPaletteOpen: true }, null],
   ['Q on the page means capture', press('q'), PAGE, 'capture'],
   ['Q on a Russian layout', press('й', { code: 'KeyQ' }), PAGE, 'capture'],
+  ['S on the page stars the place', press('s'), PAGE, 'star'],
   ['Q in a text field types itself', press('q'), FIELD, null],
   ['a key already handled is not ours', press('k', { metaKey: true, defaultPrevented: true }), PAGE, null],
   ['a key while composing text is not ours', press('k', { metaKey: true, isComposing: true }), PAGE, null],

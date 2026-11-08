@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { BUCKETS, FIGURES, ITEMS, showFigures, signedIn, stub, openSettings } from './fixture.mjs';
+import { BUCKETS, FIGURES, ITEMS, showFigures, signedIn, stub, openSettings, viewLink } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -71,7 +71,7 @@ test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the 
   t.after(() => context.close());
   // No layout was chosen: the board is the collection's default.
   await page.locator('[data-column-zone]').first().waitFor({ timeout: 10_000 });
-  assert.equal(await page.getByRole('radio', { name: 'Board' }).isChecked(), true);
+  assert.equal(await viewLink(page, 'Board').getAttribute('aria-current'), 'page');
   for (const column of COLUMNS) {
     assert.equal(await page.locator(`[data-column-zone="${column.id}"]`).count(), 1, column.name);
   }
@@ -154,7 +154,7 @@ for (const width of [390, 700, 1280]) {
       const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(sideways <= 0, `${colorScheme}: the page scrolls sideways by ${sideways} px`);
       if (width >= 1280) {
-        const row = page.locator(`[data-node="${FLOW.id}"] .meta`);
+        const row = page.locator(`[data-id="${FLOW.id}"] .figure`);
         await row.waitFor({ timeout: 5_000 });
         assert.equal((await row.textContent())?.trim(), '1 full');
       }

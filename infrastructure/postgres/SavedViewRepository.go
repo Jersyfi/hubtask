@@ -102,6 +102,32 @@ func (r SavedViewRepository) ListReachable(
 	return savedViewsFrom(rows)
 }
 
+// ListHubQueues answers the hub's queues the owner sees: their own and those shared at the hub,
+// by their place.
+func (r SavedViewRepository) ListHubQueues(
+	ctx context.Context, ownerID, hubID shared.ID,
+) ([]view.SavedView, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	owner, err := uuidOf(ownerID)
+	if err != nil {
+		return nil, err
+	}
+	hub, err := uuidOf(hubID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHubQueueViews(ctx, sqlc.ListHubQueueViewsParams{HubID: hub, OwnerID: owner})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the queues of the hub %s: %w", hubID, err))
+	}
+	return savedViewsFrom(rows)
+}
+
 // Insert writes a new view.
 func (r SavedViewRepository) Insert(ctx context.Context, saved view.SavedView) error {
 	queries, err := queriesFrom(ctx)
@@ -134,6 +160,7 @@ func (r SavedViewRepository) Insert(ctx context.Context, saved view.SavedView) e
 		Name: saved.Name, Layout: string(saved.Layout), Query: query, Grouping: grouping,
 		VisibleFields: saved.VisibleFields, Sharing: string(saved.Sharing),
 		CreatedAt: timestampOf(saved.CreatedAt), Key: key,
+		Queue: saved.Queue, QueuePosition: queuePositionOf(saved),
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -166,6 +193,7 @@ func (r SavedViewRepository) SetAttributes(
 	affected, err := queries.SetSavedViewAttributes(ctx, sqlc.SetSavedViewAttributesParams{
 		Name: saved.Name, Layout: string(saved.Layout), Query: query, Grouping: grouping,
 		VisibleFields: saved.VisibleFields, ID: id,
+		Queue: saved.Queue, QueuePosition: queuePositionOf(saved),
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
 		ExpectedVersion: int32(expectedVersion),
 	})
@@ -322,9 +350,27 @@ func savedViewFrom(row sqlc.SavedView) (view.SavedView, error) {
 		Grouping:      grouping,
 		VisibleFields: fields,
 		Sharing:       view.Sharing(row.Sharing),
+		Queue:         row.QueuePosition != nil,
+		QueuePosition: queuePositionFrom(row.QueuePosition),
 		CreatedAt:     timeFrom(row.CreatedAt),
 		Version:       int(row.Version),
 	}, nil
+}
+
+// queuePositionOf is the place a queue names, nil where the store places it or it is none.
+func queuePositionOf(saved view.SavedView) *int32 {
+	if !saved.Queue || saved.QueuePosition <= 0 || saved.QueuePosition > view.MaxQueuePosition {
+		return nil
+	}
+	position := int32(saved.QueuePosition)
+	return &position
+}
+
+func queuePositionFrom(position *int32) int {
+	if position == nil {
+		return 0
+	}
+	return int(*position)
 }
 
 // fieldConflict is a unique key refused where the writer named it: the field and its code, so a

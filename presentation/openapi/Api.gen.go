@@ -172,6 +172,54 @@ func (e AccountKind) Valid() bool {
 	}
 }
 
+// Defines values for AccountNavContentsMode.
+const (
+	AccountNavContentsModeLessThannil AccountNavContentsMode = "<nil>"
+	AccountNavContentsModeNAME        AccountNavContentsMode = "NAME"
+	AccountNavContentsModeRECENT      AccountNavContentsMode = "RECENT"
+	AccountNavContentsModeTREE        AccountNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the AccountNavContentsMode enum.
+func (e AccountNavContentsMode) Valid() bool {
+	switch e {
+	case AccountNavContentsModeLessThannil:
+		return true
+	case AccountNavContentsModeNAME:
+		return true
+	case AccountNavContentsModeRECENT:
+		return true
+	case AccountNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountNavHubsOrder.
+const (
+	AccountNavHubsOrderLessThannil AccountNavHubsOrder = "<nil>"
+	AccountNavHubsOrderMANUAL      AccountNavHubsOrder = "MANUAL"
+	AccountNavHubsOrderNAME        AccountNavHubsOrder = "NAME"
+	AccountNavHubsOrderRECENT      AccountNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the AccountNavHubsOrder enum.
+func (e AccountNavHubsOrder) Valid() bool {
+	switch e {
+	case AccountNavHubsOrderLessThannil:
+		return true
+	case AccountNavHubsOrderMANUAL:
+		return true
+	case AccountNavHubsOrderNAME:
+		return true
+	case AccountNavHubsOrderRECENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountStatus.
 const (
 	AccountStatusACTIVE     AccountStatus = "ACTIVE"
@@ -217,6 +265,54 @@ func (e AccountWeekStart) Valid() bool {
 	case AccountWeekStartSATURDAY:
 		return true
 	case AccountWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesNavContentsMode.
+const (
+	AccountPreferencesNavContentsModeLessThannil AccountPreferencesNavContentsMode = "<nil>"
+	AccountPreferencesNavContentsModeNAME        AccountPreferencesNavContentsMode = "NAME"
+	AccountPreferencesNavContentsModeRECENT      AccountPreferencesNavContentsMode = "RECENT"
+	AccountPreferencesNavContentsModeTREE        AccountPreferencesNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesNavContentsMode enum.
+func (e AccountPreferencesNavContentsMode) Valid() bool {
+	switch e {
+	case AccountPreferencesNavContentsModeLessThannil:
+		return true
+	case AccountPreferencesNavContentsModeNAME:
+		return true
+	case AccountPreferencesNavContentsModeRECENT:
+		return true
+	case AccountPreferencesNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesNavHubsOrder.
+const (
+	AccountPreferencesNavHubsOrderLessThannil AccountPreferencesNavHubsOrder = "<nil>"
+	AccountPreferencesNavHubsOrderMANUAL      AccountPreferencesNavHubsOrder = "MANUAL"
+	AccountPreferencesNavHubsOrderNAME        AccountPreferencesNavHubsOrder = "NAME"
+	AccountPreferencesNavHubsOrderRECENT      AccountPreferencesNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesNavHubsOrder enum.
+func (e AccountPreferencesNavHubsOrder) Valid() bool {
+	switch e {
+	case AccountPreferencesNavHubsOrderLessThannil:
+		return true
+	case AccountPreferencesNavHubsOrderMANUAL:
+		return true
+	case AccountPreferencesNavHubsOrderNAME:
+		return true
+	case AccountPreferencesNavHubsOrderRECENT:
 		return true
 	default:
 		return false
@@ -5839,6 +5935,54 @@ func (e InvitedAccountKind) Valid() bool {
 	}
 }
 
+// Defines values for InvitedAccountNavContentsMode.
+const (
+	InvitedAccountNavContentsModeLessThannil InvitedAccountNavContentsMode = "<nil>"
+	InvitedAccountNavContentsModeNAME        InvitedAccountNavContentsMode = "NAME"
+	InvitedAccountNavContentsModeRECENT      InvitedAccountNavContentsMode = "RECENT"
+	InvitedAccountNavContentsModeTREE        InvitedAccountNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountNavContentsMode enum.
+func (e InvitedAccountNavContentsMode) Valid() bool {
+	switch e {
+	case InvitedAccountNavContentsModeLessThannil:
+		return true
+	case InvitedAccountNavContentsModeNAME:
+		return true
+	case InvitedAccountNavContentsModeRECENT:
+		return true
+	case InvitedAccountNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountNavHubsOrder.
+const (
+	InvitedAccountNavHubsOrderLessThannil InvitedAccountNavHubsOrder = "<nil>"
+	InvitedAccountNavHubsOrderMANUAL      InvitedAccountNavHubsOrder = "MANUAL"
+	InvitedAccountNavHubsOrderNAME        InvitedAccountNavHubsOrder = "NAME"
+	InvitedAccountNavHubsOrderRECENT      InvitedAccountNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountNavHubsOrder enum.
+func (e InvitedAccountNavHubsOrder) Valid() bool {
+	switch e {
+	case InvitedAccountNavHubsOrderLessThannil:
+		return true
+	case InvitedAccountNavHubsOrderMANUAL:
+		return true
+	case InvitedAccountNavHubsOrderNAME:
+		return true
+	case InvitedAccountNavHubsOrderRECENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountStatus.
 const (
 	InvitedAccountStatusACTIVE     InvitedAccountStatus = "ACTIVE"
@@ -9355,6 +9499,39 @@ func (e SprintEntryOutcome) Valid() bool {
 	}
 }
 
+// Defines values for StarKind.
+const (
+	StarKindCOLLECTION StarKind = "COLLECTION"
+	StarKindDASHBOARD  StarKind = "DASHBOARD"
+	StarKindHUB        StarKind = "HUB"
+	StarKindPAGE       StarKind = "PAGE"
+	StarKindPORTFOLIO  StarKind = "PORTFOLIO"
+	StarKindVIEW       StarKind = "VIEW"
+	StarKindWHITEBOARD StarKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the StarKind enum.
+func (e StarKind) Valid() bool {
+	switch e {
+	case StarKindCOLLECTION:
+		return true
+	case StarKindDASHBOARD:
+		return true
+	case StarKindHUB:
+		return true
+	case StarKindPAGE:
+		return true
+	case StarKindPORTFOLIO:
+		return true
+	case StarKindVIEW:
+		return true
+	case StarKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StarterCollectionPreset.
 const (
 	StarterCollectionPresetFLOW        StarterCollectionPreset = "FLOW"
@@ -11389,6 +11566,24 @@ func (e ListReleasesParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListWhiteboardsParamsOrder.
+const (
+	ListWhiteboardsParamsOrderCHANGED ListWhiteboardsParamsOrder = "CHANGED"
+	ListWhiteboardsParamsOrderTREE    ListWhiteboardsParamsOrder = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the ListWhiteboardsParamsOrder enum.
+func (e ListWhiteboardsParamsOrder) Valid() bool {
+	switch e {
+	case ListWhiteboardsParamsOrderCHANGED:
+		return true
+	case ListWhiteboardsParamsOrderTREE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
 	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
@@ -12022,6 +12217,21 @@ type Account struct {
 	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
 	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+	NavContentsMode *AccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+	NavHubsOrder *AccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products the person moved behind *More* in the sidebar. Absent or empty: none.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -12057,6 +12267,12 @@ type Account struct {
 // AccountKind defines model for Account.Kind.
 type AccountKind string
 
+// AccountNavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+type AccountNavContentsMode string
+
+// AccountNavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+type AccountNavHubsOrder string
+
 // AccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.
 // `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -12082,6 +12298,21 @@ type AccountPreferences struct {
 	Celebrations *bool   `json:"celebrations,omitempty"`
 	Locale       *string `json:"locale,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
+	NavContentsMode *AccountPreferencesNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty list clears it, which shows every hub again.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+	NavHubsOrder *AccountPreferencesNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The order of the products in the sidebar, written by the client as the whole list. `null` or an empty list clears it, which gives back the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products shown behind *More* in the sidebar, the whole list. `null` or an empty list clears it, which shows every product again.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the tour ended or was skipped, written by the client. `null` clears it, which is how the tour is asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -12090,6 +12321,12 @@ type AccountPreferences struct {
 	TimeZone     *string                      `json:"time_zone,omitempty"`
 	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
+
+// AccountPreferencesNavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
+type AccountPreferencesNavContentsMode string
+
+// AccountPreferencesNavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+type AccountPreferencesNavHubsOrder string
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
 type AccountPreferencesWeekStart string
@@ -15864,6 +16101,18 @@ type ContainerMilestone struct {
 	ReachedAt time.Time `json:"reached_at"`
 }
 
+// ContainerMovePreview defines model for ContainerMovePreview.
+type ContainerMovePreview struct {
+	// Consequences What changes with the move without stopping it.
+	Consequences []MoveFinding `json:"consequences"`
+
+	// Movable True while no obstacle remains; the move then succeeds unless something changes first.
+	Movable bool `json:"movable"`
+
+	// Obstacles What would refuse the move, each with the code the refusal carries.
+	Obstacles []MoveFinding `json:"obstacles"`
+}
+
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
 	Data []Container `json:"data"`
@@ -17848,6 +18097,29 @@ type HubPrivacy struct {
 	Private bool `json:"private"`
 }
 
+// HubQueue defines model for HubQueue.
+type HubQueue struct {
+	// AtRisk How many of them are `AT_RISK` or `BREACHED`; null when `count` is.
+	AtRisk *int `json:"at_risk"`
+
+	// Count How many entries the queue holds; null when it could not be counted in time or read.
+	Count *int `json:"count"`
+
+	// Key The view's key, or the standard queue's - `mine`, `unassigned`, `breaching`, `open` - which the client names.
+	Key string `json:"key"`
+
+	// Name The view's name; null for a standard queue.
+	Name *string `json:"name"`
+
+	// ViewId The saved view; null for a standard queue, which is saved before it is starred or moved.
+	ViewId *openapi_types.UUID `json:"view_id"`
+}
+
+// HubQueueList defines model for HubQueueList.
+type HubQueueList struct {
+	Data []HubQueue `json:"data"`
+}
+
 // HubTemplatePage defines model for HubTemplatePage.
 type HubTemplatePage struct {
 	Icon   *string            `json:"icon,omitempty"`
@@ -18467,6 +18739,21 @@ type InvitedAccount struct {
 	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
 	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+	NavContentsMode *InvitedAccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsHidden The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.
+	NavHubsHidden *[]openapi_types.UUID `json:"nav_hubs_hidden,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+	NavHubsOrder *InvitedAccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products the person moved behind *More* in the sidebar. Absent or empty: none.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -18501,6 +18788,12 @@ type InvitedAccount struct {
 
 // InvitedAccountKind defines model for InvitedAccount.Kind.
 type InvitedAccountKind string
+
+// InvitedAccountNavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+type InvitedAccountNavContentsMode string
+
+// InvitedAccountNavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+type InvitedAccountNavHubsOrder string
 
 // InvitedAccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.
@@ -19948,6 +20241,15 @@ type ModulesOn struct {
 	ModulesOn []Module `json:"modules_on"`
 }
 
+// MoveFinding defines model for MoveFinding.
+type MoveFinding struct {
+	// Code A message code the client words.
+	Code string `json:"code"`
+
+	// Params The code's parameters; `account_ids` is a comma-separated list the client names through `GET /accounts`.
+	Params map[string]string `json:"params"`
+}
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -20742,10 +21044,10 @@ type PageMediaAttachment struct {
 
 // PageMove defines model for PageMove.
 type PageMove struct {
-	// AfterId The sibling it follows; absent to place it first.
+	// AfterId The sibling page or whiteboard it follows; absent to place it first.
 	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
 
-	// ParentId The page it moves under; absent for the top of the space.
+	// ParentId The page it moves under; absent for the top of the space. A whiteboard is refused `whiteboards.no_children`.
 	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
 }
 
@@ -23317,6 +23619,12 @@ type SavedView struct {
 	// A summary view also stores `aggregate`, as `POST /items:aggregate` takes it, and may then name `scope_workspace: true` instead of an anchor; `POST /views/{viewId}:aggregate` runs it.
 	Query map[string]interface{} `json:"query"`
 
+	// Queue Whether the view is one of its hub's queues (`GET /hubs/{hubId}/queues`).
+	Queue bool `json:"queue"`
+
+	// QueuePosition Where the queue stands among its hub's queues, lowest first; null when it is none.
+	QueuePosition *int `json:"queue_position"`
+
 	// ScopeId The container the scope names, the owner's account for ACCOUNT, and null for TENANT.
 	ScopeId *openapi_types.UUID `json:"scope_id,omitempty"`
 
@@ -23344,6 +23652,12 @@ type SavedViewCreate struct {
 
 	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
 	Query map[string]interface{} `json:"query"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true places it after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int `json:"queue_position,omitempty"`
 
 	// ScopeId The container for HUB and COLLECTION. Omitted for TENANT, and for ACCOUNT - an account-scoped view is always the caller's own.
 	ScopeId   *openapi_types.UUID      `json:"scope_id,omitempty"`
@@ -23375,8 +23689,14 @@ type SavedViewUpdate struct {
 	Name     *string                 `json:"name,omitempty"`
 
 	// Query The whole query, replaced. Anchored and in the use case's input shape, as at creation - see `SavedView.query`.
-	Query         *map[string]interface{} `json:"query,omitempty"`
-	VisibleFields *[]string               `json:"visible_fields,omitempty"`
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. False takes it out of the queues.
+	Queue *bool `json:"queue,omitempty"`
+
+	// QueuePosition Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true keeps its place, or places a view that was none after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.
+	QueuePosition *int      `json:"queue_position,omitempty"`
+	VisibleFields *[]string `json:"visible_fields,omitempty"`
 }
 
 // ScimErrorBody A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
@@ -24113,6 +24433,26 @@ type SprintList struct {
 
 	// RunsSprints Whether the collection runs sprints: a sprint was planned here, in any state and whatever the state filter, or the collection or its hub took a template that works in sprints (Scrum team). A client shows its sprints only where this holds.
 	RunsSprints bool `json:"runs_sprints"`
+}
+
+// Star defines model for Star.
+type Star struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// Kind What the star points at; a VIEW is a saved view, a queue among them.
+	Kind StarKind `json:"kind"`
+}
+
+// StarKind What the star points at; a VIEW is a saved view, a queue among them.
+type StarKind string
+
+// StarList defines model for StarList.
+type StarList struct {
+	// Stars The stars in the person's order.
+	Stars []Star `json:"stars"`
+
+	// Version The list's version, 0 before the first write; `If-Match` names it.
+	Version *int `json:"version,omitempty"`
 }
 
 // StartPasswordIssued defines model for StartPasswordIssued.
@@ -25702,12 +26042,18 @@ type Whiteboard struct {
 	Elements     *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -25790,11 +26136,16 @@ type WhiteboardCommentList struct {
 
 // WhiteboardCreate defines model for WhiteboardCreate.
 type WhiteboardCreate struct {
+	// AfterId The sibling page or board it follows; absent or null for after the last.
+	AfterId  *openapi_types.UUID  `json:"after_id,omitempty"`
 	Elements *[]WhiteboardElement `json:"elements,omitempty"`
 
 	// Id An identifier the client minted.
-	Id    *openapi_types.UUID `json:"id,omitempty"`
-	Title string              `json:"title"`
+	Id *openapi_types.UUID `json:"id,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under; absent or null for the top of the space. Another hub's page is refused `whiteboards.parent_other_space`, a board `whiteboards.no_children`.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
 }
 
 // WhiteboardElement One object of a board. A connector's ends are the objects it is attached to (`from`, `to`) and follow them; an end attached to nothing is a point - the start at (x, y), the end at (x + width, y + height), so a connector's width and height may be negative. Members another kind does not draw are dropped.
@@ -25908,6 +26259,15 @@ type WhiteboardMediaPlacement struct {
 	MediaId openapi_types.UUID `json:"media_id"`
 }
 
+// WhiteboardMove defines model for WhiteboardMove.
+type WhiteboardMove struct {
+	// AfterId The sibling page or board it follows; absent or null places it first.
+	AfterId *openapi_types.UUID `json:"after_id,omitempty"`
+
+	// ParentPageId The page of the same hub it moves under; absent or null for the top of the space.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+}
+
 // WhiteboardRead A board with its objects and whether the reader may draw on it.
 type WhiteboardRead struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -25918,12 +26278,18 @@ type WhiteboardRead struct {
 	Elements     []WhiteboardElement `json:"elements"`
 
 	// HubId The hub the board belongs to.
-	HubId     openapi_types.UUID `json:"hub_id"`
-	Id        openapi_types.UUID `json:"id"`
-	Title     string             `json:"title"`
-	TrashedAt *time.Time         `json:"trashed_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
-	UpdatedBy openapi_types.UUID `json:"updated_by"`
+	HubId openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID `json:"id"`
+
+	// OrderKey The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.
+	OrderKey *string `json:"order_key,omitempty"`
+
+	// ParentPageId The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.
+	ParentPageId *openapi_types.UUID `json:"parent_page_id,omitempty"`
+	Title        string              `json:"title"`
+	TrashedAt    *time.Time          `json:"trashed_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	UpdatedBy    openapi_types.UUID  `json:"updated_by"`
 
 	// Version The optimistic lock.
 	Version int `json:"version"`
@@ -26899,6 +27265,12 @@ type StartPasskeyRegistrationParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ReplaceStarsParams defines parameters for ReplaceStars.
+type ReplaceStarsParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -27805,6 +28177,15 @@ type MoveContainerParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// PreviewContainerMoveJSONBody defines parameters for PreviewContainerMove.
+type PreviewContainerMoveJSONBody struct {
+	// BeforeContainerId The sibling it would be placed before; null or omitted appends.
+	BeforeContainerId *openapi_types.UUID `json:"before_container_id,omitempty"`
+
+	// TargetParentId The hub the collection would move into.
+	TargetParentId openapi_types.UUID `json:"target_parent_id"`
+}
+
 // ReorderContainerJSONBody defines parameters for ReorderContainer.
 type ReorderContainerJSONBody struct {
 	// BeforeContainerId The sibling to place this container before, at its own level. Null or omitted appends to the end of the level. A sibling that is not at this level is refused rather than treated as an append.
@@ -28183,7 +28564,13 @@ type ListWhiteboardsParams struct {
 	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
 	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Order `CHANGED` (the default) lists the last changed first. `TREE` lists the boards outside the trash in the content tree's order - by `parent_page_id`, the top first, then by `order_key` - whole, in one page.
+	Order *ListWhiteboardsParamsOrder `form:"order,omitempty" json:"order,omitempty"`
 }
+
+// ListWhiteboardsParamsOrder defines parameters for ListWhiteboards.
+type ListWhiteboardsParamsOrder string
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
 type ConfigureFirstIdentityProviderParams struct {
@@ -29788,6 +30175,12 @@ type ListWhiteboardVersionsParams struct {
 	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// MoveWhiteboardParams defines parameters for MoveWhiteboard.
+type MoveWhiteboardParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -29829,6 +30222,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
+
+// ReplaceStarsJSONRequestBody defines body for ReplaceStars for application/json ContentType.
+type ReplaceStarsJSONRequestBody = StarList
 
 // RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
 type RequestAddressJSONRequestBody = AddressRequest
@@ -30270,6 +30666,9 @@ type MakeEntriesJSONRequestBody = EntriesText
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
+
+// PreviewContainerMoveJSONRequestBody defines body for PreviewContainerMove for application/json ContentType.
+type PreviewContainerMoveJSONRequestBody PreviewContainerMoveJSONBody
 
 // ReorderContainerJSONRequestBody defines body for ReorderContainer for application/json ContentType.
 type ReorderContainerJSONRequestBody ReorderContainerJSONBody
@@ -30979,6 +31378,9 @@ type NameWhiteboardVersionApplicationMergePatchPlusJSONRequestBody = PageVersion
 // ExportWhiteboardJSONRequestBody defines body for ExportWhiteboard for application/json ContentType.
 type ExportWhiteboardJSONRequestBody = WhiteboardExportRequest
 
+// MoveWhiteboardJSONRequestBody defines body for MoveWhiteboard for application/json ContentType.
+type MoveWhiteboardJSONRequestBody = WhiteboardMove
+
 // SetWorkflowSchemeJSONRequestBody defines body for SetWorkflowScheme for application/json ContentType.
 type SetWorkflowSchemeJSONRequestBody = WorkflowSchemeChange
 
@@ -31470,6 +31872,12 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ListStars Read a person's stars
+	// (GET /accounts/{accountId}/stars)
+	ListStars(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// ReplaceStars Replace a person's stars
+	// (PUT /accounts/{accountId}/stars)
+	ReplaceStars(w http.ResponseWriter, r *http.Request, accountId AccountId, params ReplaceStarsParams)
 	// RequestAddress Give a managed account a mail address
 	// (POST /accounts/{accountId}:add-address)
 	RequestAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -32361,6 +32769,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:move)
 	MoveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MoveContainerParams)
+	// PreviewContainerMove Preview a collection's move to another hub
+	// (POST /containers/{containerId}:move-preview)
+	PreviewContainerMove(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (POST /containers/{containerId}:reorder)
 	ReorderContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ReorderContainerParams)
@@ -32613,6 +33024,9 @@ type ServerInterface interface {
 	// CreatePage Write a new page
 	// (POST /hubs/{hubId}/pages)
 	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListHubQueues A hub's queues with their counts
+	// (GET /hubs/{hubId}/queues)
+	ListHubQueues(w http.ResponseWriter, r *http.Request, hubId HubId)
 	// ListReleases A hub's releases
 	// (GET /hubs/{hubId}/releases)
 	ListReleases(w http.ResponseWriter, r *http.Request, hubId HubId, params ListReleasesParams)
@@ -33935,6 +34349,9 @@ type ServerInterface interface {
 	// ExportWhiteboard Export a whiteboard
 	// (POST /whiteboards/{whiteboardId}:export)
 	ExportWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+	// MoveWhiteboard Move a whiteboard in the content tree
+	// (POST /whiteboards/{whiteboardId}:move)
+	MoveWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId, params MoveWhiteboardParams)
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	// (POST /whiteboards/{whiteboardId}:restore)
 	RestoreWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
@@ -34517,6 +34934,82 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListStars operation middleware
+func (siw *ServerInterfaceWrapper) ListStars(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListStars(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceStars operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceStars(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReplaceStarsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceStars(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -44078,6 +44571,32 @@ func (siw *ServerInterfaceWrapper) MoveContainer(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// PreviewContainerMove operation middleware
+func (siw *ServerInterfaceWrapper) PreviewContainerMove(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewContainerMove(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReorderContainer operation middleware
 func (siw *ServerInterfaceWrapper) ReorderContainer(w http.ResponseWriter, r *http.Request) {
 
@@ -47178,6 +47697,32 @@ func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListHubQueues operation middleware
+func (siw *ServerInterfaceWrapper) ListHubQueues(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubQueues(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListReleases operation middleware
 func (siw *ServerInterfaceWrapper) ListReleases(w http.ResponseWriter, r *http.Request) {
 
@@ -47523,6 +48068,19 @@ func (siw *ServerInterfaceWrapper) ListWhiteboards(w http.ResponseWriter, r *htt
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "order", r.URL.Query(), &params.Order, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "order"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "order", Err: err})
 		}
 		return
 	}
@@ -61919,6 +62477,56 @@ func (siw *ServerInterfaceWrapper) ExportWhiteboard(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// MoveWhiteboard operation middleware
+func (siw *ServerInterfaceWrapper) MoveWhiteboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "whiteboardId" -------------
+	var whiteboardId WhiteboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "whiteboardId", r.PathValue("whiteboardId"), &whiteboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "whiteboardId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveWhiteboardParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveWhiteboard(w, r, whiteboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RestoreWhiteboard operation middleware
 func (siw *ServerInterfaceWrapper) RestoreWhiteboard(w http.ResponseWriter, r *http.Request) {
 
@@ -62478,6 +63086,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/business-calendars", wrapper.ListBusinessCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DeleteBusinessCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/business-calendars/{calendarKey}", wrapper.DefineBusinessCalendar)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/queues", wrapper.ListHubQueues)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/business-calendars", wrapper.ListHubCalendars)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/hubs/{hubId}/business-calendars/{calendarKey}", wrapper.DeleteHubCalendar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/business-calendars/{calendarKey}", wrapper.DefineHubCalendar)
@@ -62721,6 +63330,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:reset-second-factor", wrapper.ResetSecondFactor)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/stars", wrapper.ListStars)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/stars", wrapper.ReplaceStars)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions", wrapper.RevokeAllSessions)
@@ -63024,6 +63635,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/structure:preview", wrapper.PreviewContainerStructure)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move-preview", wrapper.PreviewContainerMove)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:restore", wrapper.RestoreContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:archive", wrapper.ArchiveContainer)
@@ -63177,6 +63789,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.TrashWhiteboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.ReadWhiteboard)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/whiteboards/{whiteboardId}", wrapper.UpdateWhiteboard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:move", wrapper.MoveWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:restore", wrapper.RestoreWhiteboard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/whiteboards/{whiteboardId}:export", wrapper.ExportWhiteboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/whiteboards/{whiteboardId}/backlinks", wrapper.ListWhiteboardBacklinks)

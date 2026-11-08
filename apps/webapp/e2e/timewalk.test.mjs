@@ -122,7 +122,7 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   await page.getByRole('button', { name: 'Take back' }).waitFor({ timeout: 5_000 });
 
   await page.getByText(/^0:25 this week · Handed in$/).waitFor({ timeout: 5_000 });
-  await page.getByRole('link', { name: 'Weeks to decide' }).click();
+  await page.getByRole('link', { name: 'To decide' }).click();
   await page.getByRole('button', { name: 'Approve' }).first().click();
   await page.waitForTimeout(400);
 
@@ -146,7 +146,7 @@ test('chromium: time - a colleague\'s week is opened from the queue and sent bac
   const { page } = walk;
 
   await page.goto(`${served.origin}/time`);
-  await page.getByRole('link', { name: 'Weeks to decide' }).click();
+  await page.getByRole('link', { name: 'To decide' }).click();
   const queue = page.getByRole('table', { name: 'Weeks waiting for your decision' });
   const row = queue.getByRole('row').filter({ hasText: OTHER.display_name });
   await row.waitFor({ timeout: 5_000 });

@@ -91,6 +91,31 @@ func (pending) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+// PreviewContainerMove is overridden by RestController, for the reason given at CreateContainer.
+func (pending) PreviewContainerMove(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
+// MoveWhiteboard is overridden by RestController, for the reason given at CreateContainer.
+func (pending) MoveWhiteboard(w http.ResponseWriter, r *http.Request, _ openapi.WhiteboardId, _ openapi.MoveWhiteboardParams) {
+	notAvailable(w, r)
+}
+
+// ListHubQueues is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListHubQueues(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+// ListStars and ReplaceStars are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ListStars(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReplaceStars(w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.ReplaceStarsParams) {
+	notAvailable(w, r)
+}
+
 // ListNotificationPreferences and SetNotificationPreference are overridden by RestController, for
 // the reason given at CreateContainer.
 func (pending) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {

@@ -139,24 +139,19 @@ test('a full space opens on its home page, with one head row and comments beside
 // One anatomy (UX-2): the hub's Pages tab carries the head every hub tab carries - the trail to the
 // hub and the tab's title above the tab strip, with the new page as its primary - on the space and
 // on an open page, and the screen keeps one h1.
-test('the pages tab draws the hub tab head above the tab strip, on the space and on a page', async () => {
+// The navigation concept §2.4: a page draws no tree of its own - the sidebar's *Contents* is the
+// tree - and its trail names the hub; the screen keeps one h1.
+test('a page and an empty space name the hub in their trail and draw no tree of their own', async () => {
   const browser = await chromium.launch();
   try {
     for (const rows of [[], FULL]) {
       const { page, failures, close } = await opened(browser, rows);
       await page.goto(`${served.origin}/hubs/${HUB.id}/pages`);
       if (rows.length > 0) await page.waitForURL(`**/pages/${HOME.id}`, { timeout: 15_000 });
-      const head = page.locator('header.head').filter({ has: page.locator('h1') });
-      await head.waitFor({ timeout: 15_000 });
-      assert.equal(await head.getByRole('link', { name: HUB.name }).count(), 1, 'the head has no trail to the hub');
-      assert.equal(await head.getByRole('heading', { level: 1, name: 'Pages' }).count(), 1, 'the head has no title');
-      assert.equal(await head.getByRole('button', { name: 'New page' }).count(), 1, 'the head has no primary');
-      const above = await head.evaluate((element) => {
-        const tabs = document.querySelector('nav.strip[aria-label="House"]') ?? document.querySelector('.space');
-        return Boolean(tabs && element.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING);
-      });
-      assert.ok(above, 'the head is not above the tab strip and the space');
-      if (rows.length > 0) await page.locator('[data-page-head]').getByLabel('Title').waitFor({ timeout: 10_000 });
+      await (rows.length ? page.locator('[data-page-head]') : page.locator('[data-space-start]')).waitFor({ timeout: 15_000 });
+      const main = page.getByRole('main');
+      await main.getByRole('link', { name: HUB.name }).first().waitFor({ timeout: 10_000 });
+      assert.equal(await main.getByRole('tree').count(), 0, 'the page draws a tree of its own');
       assert.equal(await page.locator('h1').count(), 1, 'the screen has more or less than one h1');
       assert.deepEqual(failures, []);
       await close();
@@ -197,12 +192,8 @@ test('the space fits a phone without scrolling sideways', async () => {
       await (rows.length ? page.locator('[data-page-head]') : page.locator('[data-space-start]')).waitFor({ timeout: 15_000 });
       const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(wide <= 0, `the page scrolls ${wide}px sideways with ${rows.length} pages`);
-      if (rows.length) {
-        // An open page comes first; the tree waits folded above it.
-        assert.equal(await page.getByRole('tree').count(), 0);
-        await page.locator('[data-tree-toggle]').click();
-        await page.getByRole('tree').waitFor();
-      }
+      // The tree is the sidebar's, in its drawer on a phone; the page draws none of its own.
+      if (rows.length) assert.equal(await page.getByRole('main').getByRole('tree').count(), 0);
       assert.deepEqual(failures, []);
       await close();
     }

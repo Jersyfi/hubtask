@@ -21,7 +21,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
+import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub, chooseView, newInHead } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { reveal, unfoldFields } from './reveal.mjs';
 
@@ -190,14 +190,21 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     // The trash takes a subtree with it: the owner's alone.
     assert.equal(rows.includes('Move to the trash'), role === 'OWNER');
 
-    await page.getByRole('radio', { name: 'Board' }).click();
+    await chooseView(page, 'Board');
     await page.getByText(ITEMS[2].title).first().waitFor();
     assert.equal(await page.getByRole('button', { name: 'Create column' }).count() > 0, shapes, 'Create column');
 
     await page.goto(`${served.origin}/hubs/${HUB.id}`);
     await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor();
     await page.waitForTimeout(600);
-    assert.equal(await page.getByRole('main').getByRole('button', { name: /Create collection/ }).count() > 0, shapes, 'Create collection');
+    // A collection is made from the head's *New ▾*, offered only to whoever shapes the hub (P-05).
+    let offersCollection = false;
+    if (await newInHead(page).count() > 0) {
+      await newInHead(page).first().click();
+      offersCollection = await page.getByRole('menuitem', { name: 'Collection', exact: true }).count() > 0;
+      await page.keyboard.press('Escape');
+    }
+    assert.equal(offersCollection, shapes, 'Create collection');
     // Importing into the hub is its menu's, as on a collection.
     assert.equal((await pageMenu(page, HUB.name)).includes('Import…'), shapes, 'Import');
     assert.deepEqual(failures, []);

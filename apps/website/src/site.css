@@ -838,7 +838,7 @@ main {
   border-block: var(--bw-hairline) solid var(--border-subtle);
 }
 
-.figure dt {
+.site-figure dt {
   font-family: var(--font-display);
   font-size: var(--fs-600);
   font-weight: var(--fw-bold);
@@ -847,7 +847,7 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
-.figure dd {
+.site-figure dd {
   margin: var(--sp-050) 0 0;
   color: var(--text-subtle);
   font-size: var(--fs-100);

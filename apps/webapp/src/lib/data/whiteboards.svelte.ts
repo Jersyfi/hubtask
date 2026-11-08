@@ -12,7 +12,7 @@
 
 import type {
   Whiteboard, WhiteboardChange, WhiteboardCreate, WhiteboardExport, WhiteboardRead, WhiteboardVersionList, WhiteboardVersionRead,
-  WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentCreate,
+  WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentCreate, WhiteboardMove,
 } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
@@ -50,6 +50,11 @@ class Whiteboards {
     return engine.mutate<WhiteboardRead>('PATCH', boardPath(board.id), { elements }, {
       invalidates: [boardsPath(board.hub_id)],
     });
+  }
+
+  /** Places the board in the content tree: under a page of its hub or at the top (UC-CNV-10 check 2). */
+  move(board: Pick<Whiteboard, 'id' | 'hub_id'>, to: WhiteboardMove): Promise<Whiteboard> {
+    return engine.mutate<Whiteboard>('POST', `${boardPath(board.id)}:move`, to, { invalidates: touched(board.hub_id, board.id) });
   }
 
   trash(board: Whiteboard): Promise<Whiteboard> {

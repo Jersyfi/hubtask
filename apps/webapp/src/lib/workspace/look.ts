@@ -63,6 +63,9 @@ export function chosenSymbol(look: Pick<Look, 'icon'>): PlaceSymbol | undefined 
   return icon && (SYMBOLS as readonly string[]).includes(icon) ? (icon as PlaceSymbol) : undefined;
 }
 
+/** The tile a place without a chosen colour stands on: the mockup draws every place on one. */
+export const DEFAULT_TILE: LabelToken = 'blue';
+
 /** The chosen colour, where it is one of the ten label tokens. */
 export function chosenColour(look: Pick<Look, 'color_token'>): LabelToken | undefined {
   const token = look.color_token?.trim();

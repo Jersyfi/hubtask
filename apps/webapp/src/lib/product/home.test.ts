@@ -14,7 +14,6 @@ import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentR
 // workspace-wide screen it already has - and every address resolves to a route.
 test('every product home has a way in, and every address it offers is a route', () => {
   for (const row of PRODUCTS) {
-    if (row.module === 'TIME' || row.module === 'GOALS') continue; // their own pages are the home
     const hub = hubScreenOf(row.module, '01a0e2e0-0000-7000-8000-000000000002');
     assert.ok(hub !== undefined || homeTabs(row.module).length > 0, `${row.module}'s home leads nowhere`);
     for (const path of [...(hub ? [hub] : []), ...homeTabs(row.module).map((tab) => tab.path)]) {
@@ -26,26 +25,29 @@ test('every product home has a way in, and every address it offers is a route', 
   }
 });
 
-test('the pages home holds My notes as its second tab, at its own address', () => {
-  assert.deepEqual(homeTabs('KNOWLEDGE').map((tab) => tab.path), ['/pages', '/notes']);
-  assert.deepEqual(homeTabs('WHITEBOARD'), []);
+// user-experience.md §2.2, §5.1 (the navigation concept's §4): one vocabulary for every home, For
+// you first where the product holds the reader's own work, Settings last.
+test('every product home draws the shared vocabulary of tabs, For you first and Settings last', () => {
+  const ids = (module: string) => homeTabs(module).map((tab) => tab.id);
+  assert.deepEqual(ids('PLANNING'), ['foryou', 'sprints', 'releases', 'roadmaps']);
+  assert.deepEqual(ids('KNOWLEDGE'), ['foryou', 'spaces', 'notes']);
+  assert.deepEqual(ids('WHITEBOARD'), ['foryou', 'all', 'templates']);
+  assert.deepEqual(ids('SERVICE_DESK'), ['foryou', 'desks', 'reports', 'settings']);
+  assert.deepEqual(ids('ASSETS'), ['inventory', 'classes', 'sources', 'settings']);
+  assert.deepEqual(ids('TIME'), ['week', 'approvals', 'report', 'absences', 'capacity', 'settings']);
+  assert.deepEqual(ids('GOALS'), ['goals', 'portfolios', 'dashboards']);
+  assert.deepEqual(ids('AGENTS'), ['agents', 'requests', 'runs', 'settings']);
+  assert.deepEqual(ids('WORKFLOWS'), []);
+  for (const row of PRODUCTS) {
+    const tabs = homeTabs(row.module);
+    assert.equal(tabs[0]?.path, row.path, `${row.module}'s first tab is not its home`);
+    if (tabs.some((tab) => tab.id === 'settings')) assert.equal(tabs.at(-1)?.id, 'settings', `${row.module}'s Settings is not last`);
+  }
 });
 
-// user-experience.md §5.1, §7.4: the desk's home is Queues · Desks · Settings, Settings last.
-test('the desk home holds its queues, its desks and its settings, settings last', () => {
-  assert.deepEqual(homeTabs('SERVICE_DESK').map((tab) => tab.id), ['queues', 'desks', 'settings']);
-});
-
-// user-experience.md §5.1, §7.8: the agents' screen is Agents · Waiting · Runs · Settings, Settings last.
-test('the agents home holds the agents, their held acts, their runs and their settings, settings last', () => {
-  assert.deepEqual(homeTabs('AGENTS').map((tab) => tab.id), ['agents', 'requests', 'runs', 'settings']);
-});
-
-// user-experience.md §5.1, §8.2: the assets' settings are their home's last tab, not a door to the
-// administration.
-test('the assets home holds the inventory and its settings, settings last', () => {
-  assert.deepEqual(homeTabs('ASSETS').map((tab) => tab.id), ['inventory', 'settings']);
-  assert.deepEqual(homeTabs('ASSETS').map((tab) => tab.path), ['/assets', '/assets/settings']);
+test('My notes keeps its own address, and the assets their settings at the home', () => {
+  assert.equal(homeTabs('KNOWLEDGE').find((tab) => tab.id === 'notes')?.path, '/notes');
+  assert.deepEqual(homeTabs('ASSETS').map((tab) => tab.path), ['/assets', '/assets/classes', '/assets/sources', '/assets/settings']);
 });
 
 // user-experience.md §3.3: the switched-off products are offered to whoever may switch one on, and

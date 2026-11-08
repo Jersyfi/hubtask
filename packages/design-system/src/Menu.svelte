@@ -214,6 +214,8 @@
     padding: var(--sp-050);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
+    /* Drawn where its trigger is, so it would inherit a current row's weight: items are regular. */
+    font-weight: var(--fw-regular);
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
@@ -228,6 +230,13 @@
     margin-block-end: var(--sp-050);
   }
 
+  /* A label rather than a person: the words alone, as a section head is set, with no line. */
+  .head:has(> :global([data-menu-label])) {
+    padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100) var(--sp-025);
+    border-block-end: 0;
+    margin-block-end: 0;
+  }
+
   .menu:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
@@ -238,13 +247,15 @@
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: var(--density-row-gap);
-    padding: var(--density-row-block) var(--sp-150);
+    /* Set as the sidebar's rows are (design-system.md §11.3), a step under a field's text: a menu
+       opened from a row reads as that row's, not as a form. */
+    padding: calc(var(--density-row-block) - var(--sp-025)) var(--sp-100);
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     background: transparent;
     color: var(--text-primary);
     font: inherit;
-    font-size: var(--fs-100);
+    font-size: var(--fs-090);
     text-align: start;
     cursor: pointer;
   }

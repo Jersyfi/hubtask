@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -94,6 +95,9 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 			return shared.ErrConflict.WithDetail("pages.space_full").WithParams(map[string]string{"maximum": "5000"})
 		}
 		level := 1
+		if err := h.Space.refuseBoardParent(ctx, cmd.ParentID); err != nil {
+			return err
+		}
 		if !cmd.ParentID.IsZero() {
 			parent, err := h.Space.find(ctx, cmd.ParentID, false)
 			if err != nil {
@@ -147,6 +151,10 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		}
 		last, err := h.Space.Pages.LastOrderKey(ctx, cmd.HubID, cmd.ParentID)
 		if err != nil {
+			return err
+		}
+		// After the boards there too: they share the key space (UC-CNV-10).
+		if last, err = h.Space.lastKey(ctx, cmd.HubID, cmd.ParentID, last); err != nil {
 			return err
 		}
 		key, err := service.OrderKeyAfter(last)
@@ -716,6 +724,9 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 			return shared.ErrVersionConflict.WithDetail("pages.version_conflict")
 		}
 		level := 1
+		if err := h.Space.refuseBoardParent(ctx, cmd.ParentID); err != nil {
+			return err
+		}
 		if !cmd.ParentID.IsZero() {
 			parent, err := h.Space.find(ctx, cmd.ParentID, false)
 			if err != nil {
@@ -740,7 +751,12 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		if err := domain.CheckSubtreeDepth(level, domain.SubtreeHeight(siblings, current.ID)); err != nil {
 			return err
 		}
-		key, err := placeAfter(siblings, current.ID, cmd.ParentID, cmd.AfterID)
+		// The boards under the parent share the siblings' key space, and after_id may name one.
+		boards, err := h.Space.boardSiblings(ctx, current.HubID, cmd.ParentID)
+		if err != nil {
+			return err
+		}
+		key, err := placeAfter(mergedByKey(siblings, boards), current.ID, cmd.ParentID, cmd.AfterID)
 		if err != nil {
 			return err
 		}
@@ -761,6 +777,16 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		}, now)
 	})
 	return page, err
+}
+
+// mergedByKey merges a parent's boards into the pages' list in key order, for placeAfter.
+func mergedByKey(pages, boards []domain.Page) []domain.Page {
+	if len(boards) == 0 {
+		return pages
+	}
+	all := append(append([]domain.Page(nil), pages...), boards...)
+	sort.SliceStable(all, func(i, j int) bool { return all[i].OrderKey < all[j].OrderKey })
+	return all
 }
 
 // placeAfter answers the order key between the sibling named and the one after it, under a parent.
@@ -843,6 +869,15 @@ func (h TrashPage) Execute(ctx context.Context, actor appshared.ActorContext, id
 	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		now := h.Space.Clock.Now()
 		var err error
+		if h.Space.Boards != nil {
+			page, err := h.Space.find(ctx, id, true)
+			if err != nil {
+				return err
+			}
+			if err := h.Space.liftBoards(ctx, actor, page); err != nil {
+				return err
+			}
+		}
 		if count, err = h.Space.Pages.Trash(ctx, id, actor.AccountID, actor.Kind, now); err != nil {
 			return err
 		}

@@ -16,39 +16,76 @@ export interface HomeTab {
   readonly path: string;
 }
 
-/** A home's views where it has several; one view draws no strip. */
+/**
+ * A home's views, the shared vocabulary of the products' homes (user-experience.md §2.2, §5.1):
+ * *For you* first where the product holds the reader's own work, *Settings* last. A tab a reader
+ * may not open is left out by the screen that draws it (P-05), not here.
+ */
 export function homeTabs(module: string): readonly HomeTab[] {
-  if (module === 'SERVICE_DESK') {
-    // Settings last (§5.1): the desk is set up at its home (§7.4).
-    return [
-      { id: 'queues', code: 'app.desk_queues.label', path: '/desk' },
-      { id: 'desks', code: 'app.desk_queues.desks', path: '/desk/desks' },
-      { id: 'settings', code: 'app.product_home.tab_settings', path: '/desk/settings' },
-    ];
+  const forYou = (path: string): HomeTab => ({ id: 'foryou', code: 'app.product_home.tab_for_you', path });
+  switch (module) {
+    case 'PLANNING':
+      return [
+        forYou('/plans'),
+        { id: 'sprints', code: 'app.product_home.tab_sprints', path: '/plans?tab=sprints' },
+        { id: 'releases', code: 'app.product_home.tab_releases', path: '/plans?tab=releases' },
+        { id: 'roadmaps', code: 'app.product_home.tab_roadmaps', path: '/plans?tab=roadmaps' },
+      ];
+    case 'KNOWLEDGE':
+      return [
+        forYou('/pages'),
+        { id: 'spaces', code: 'app.product_home.tab_spaces', path: '/pages?tab=spaces' },
+        { id: 'notes', code: 'app.nav.notes', path: '/notes' },
+      ];
+    case 'WHITEBOARD':
+      return [
+        forYou('/whiteboards'),
+        { id: 'all', code: 'app.product_home.tab_all', path: '/whiteboards?tab=all' },
+        { id: 'templates', code: 'app.whiteboards.templates', path: '/whiteboards?tab=templates' },
+      ];
+    case 'SERVICE_DESK':
+      // For you is the reader's queues across every desk; the settings are the workspace's (§7.4).
+      return [
+        forYou('/desk'),
+        { id: 'desks', code: 'app.desk_queues.desks', path: '/desk/desks' },
+        { id: 'reports', code: 'app.product_home.tab_reports', path: '/desk/reports' },
+        { id: 'settings', code: 'app.product_home.tab_settings', path: '/desk/settings' },
+      ];
+    case 'ASSETS':
+      // The classes and the sources are the workspace's (§8.2), the rest of their setup last.
+      return [
+        { id: 'inventory', code: 'app.product_home.tab_inventory', path: '/assets' },
+        { id: 'classes', code: 'app.cmdb_admin.classes', path: '/assets/classes' },
+        { id: 'sources', code: 'app.cmdb_admin.sources', path: '/assets/sources' },
+        { id: 'settings', code: 'app.product_home.tab_settings', path: '/assets/settings' },
+      ];
+    case 'TIME':
+      // *My capacity* stays beside the absences: it is the reader's own and has no other place.
+      return [
+        { id: 'week', code: 'app.time.tab_week', path: '/time' },
+        { id: 'approvals', code: 'app.time.tab_approvals', path: '/time?tab=approvals' },
+        { id: 'report', code: 'app.time.tab_report', path: '/time?tab=report' },
+        { id: 'absences', code: 'app.time.tab_absences', path: '/time?tab=absences' },
+        { id: 'capacity', code: 'app.time.tab_capacity', path: '/time?tab=capacity' },
+        { id: 'settings', code: 'app.time.tab_settings', path: '/time?tab=settings' },
+      ];
+    case 'GOALS':
+      return [
+        { id: 'goals', code: 'app.goals.tab_goals', path: '/goals' },
+        { id: 'portfolios', code: 'app.goals.tab_portfolios', path: '/goals?tab=portfolios' },
+        { id: 'dashboards', code: 'app.goals.tab_dashboards', path: '/goals?tab=dashboards' },
+      ];
+    case 'AGENTS':
+      // The agents' one screen (§7.8): the cards, their held acts, their runs, then their settings.
+      return [
+        { id: 'agents', code: 'app.agents.tab_agents', path: '/agents' },
+        { id: 'requests', code: 'app.agents.tab_requests', path: '/agents?tab=requests' },
+        { id: 'runs', code: 'app.agents.tab_runs', path: '/agents?tab=runs' },
+        { id: 'settings', code: 'app.product_home.tab_settings', path: '/agents?tab=settings' },
+      ];
+    default:
+      return [];
   }
-  if (module === 'AGENTS') {
-    // The agents' one screen (§7.8): the cards, their held acts, their runs, then their settings.
-    return [
-      { id: 'agents', code: 'app.agents.tab_agents', path: '/agents' },
-      { id: 'requests', code: 'app.agents.tab_requests', path: '/agents?tab=requests' },
-      { id: 'runs', code: 'app.agents.tab_runs', path: '/agents?tab=runs' },
-      { id: 'settings', code: 'app.product_home.tab_settings', path: '/agents?tab=settings' },
-    ];
-  }
-  if (module === 'ASSETS') {
-    // Settings last (§5.1, §8.2): the classes, relations and sources are set up at the home.
-    return [
-      { id: 'inventory', code: 'app.product_home.tab_inventory', path: '/assets' },
-      { id: 'settings', code: 'app.product_home.tab_settings', path: '/assets/settings' },
-    ];
-  }
-  if (module === 'KNOWLEDGE') {
-    return [
-      { id: 'spaces', code: 'app.product_home.tab_spaces', path: '/pages' },
-      { id: 'notes', code: 'app.nav.notes', path: '/notes' },
-    ];
-  }
-  return [];
 }
 
 /**

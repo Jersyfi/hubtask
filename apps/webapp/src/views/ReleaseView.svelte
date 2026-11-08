@@ -17,7 +17,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Button, Checkbox, Dialog, Inline, Input, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -31,12 +31,11 @@
   import { releaseCandidates, releaseGroups, releasePath, releases, releaseShown, releasesPath, releaseTargets } from '../lib/data/releases.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
     /** The hub the releases belong to. */
@@ -47,7 +46,6 @@
   const { hubId, onnavigate }: Props = $props();
 
   const place = $derived(containers.find(hubId));
-  const placePath = $derived(`/hubs/${hubId}`);
   const rolePath = $derived({ hubId });
   const collections = $derived(containers.collectionsOf(hubId));
 
@@ -186,7 +184,7 @@
 
   // The head's figure (§5.1): what is coming, the next one and its day, what went out.
   const groups = $derived(list ? releaseGroups(list, today) : undefined);
-  const figure = $derived.by(() => {
+  const figureText = $derived.by(() => {
     if (!groups || (groups.planned.length === 0 && groups.released.length === 0)) return undefined;
     const next = groups.planned[0];
     return [
@@ -216,19 +214,9 @@
   ]);
 </script>
 
-<Stack gap="200">
-  <PageHeader
-    title={t('app.releases.title')}
-    isTitleInBar={viewport.isCompact}
-    subtitle={figure}
-    breadcrumb={place
-      ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'releases', label: t('app.releases.title') }],
-          label: t('app.releases.trail'),
-          expandLabel: t('app.releases.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
+{#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
+<ToolHead {hubId} tool="plan" current="releases" {onnavigate}
+    figure={figureText ? headFigure : undefined}
     primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
     secondary={mayChange && chosen
       ? [
@@ -239,8 +227,8 @@
     menu={mayChange
       ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
       : undefined}
-  />
-  <PlaceStrip placeId={hubId} current="plan" view="releases" {onnavigate} />
+/>
+<Stack gap="200">
 
   {#if refusal}
     <FailureNote problem={refusal} />

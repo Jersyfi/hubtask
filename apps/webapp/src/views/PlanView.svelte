@@ -29,8 +29,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
-    type Column, type TimelineCarry, type TimelineDependency, type TimelineLink,
+    Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Skeleton, Stack, Table, Timeline,
+    type Column, type PageAction, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
@@ -49,7 +49,6 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -61,7 +60,8 @@
   import { SPREADSHEET_TYPE } from '../lib/data/xlsx.ts';
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
-  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import ToolHead from '../lib/workspace/ToolHead.svelte';
+  import CollectionHead from '../lib/workspace/CollectionHead.svelte';
 
   interface Props {
     /** The hub or collection the plan is. */
@@ -429,7 +429,7 @@
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
   // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
   // dates; the standing against the tolerance where it is kept and not exceeded.
-  const figure = $derived.by(() => {
+  const figureText = $derived.by(() => {
     if (!schedule || (rows.length === 0 && undated.length === 0)) return undefined;
     const parts = [
       schedule.finish ? t('app.planning.figure_ends', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates'),
@@ -440,36 +440,31 @@
     return parts.filter((part) => part !== undefined).join(' · ');
   });
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
+  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
+    mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
+  );
+  const headMenu = $derived({
+    label: t('app.planning.more'),
+    items: [
+      { id: 'settings', label: t('app.planning.settings'), icon: 'settings' as const },
+      { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: true },
+      { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' as const },
+      { id: 'png', label: t('app.planning.export_png'), icon: 'image' as const },
+      { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' as const },
+      ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
+    ],
+    onselect: (id: string) => void exportAs(id),
+  });
 </script>
 
+{#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
+{#if place?.type === 'COLLECTION'}
+  <!-- A collection's *Timeline* is one of its views: its head is the collection's (CollectionHead). -->
+  <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+{:else if place}
+  <ToolHead hubId={planId} tool="plan" current="schedule" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+{/if}
 <Stack gap="200">
-  <PageHeader
-    title={t('app.planning.title')}
-    isTitleInBar={viewport.isCompact}
-    subtitle={figure}
-    breadcrumb={place
-      ? {
-          trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
-          label: t('app.planning.trail'),
-          expandLabel: t('app.planning.expand_trail'),
-          onnavigate: () => onnavigate(placePath),
-        }
-      : undefined}
-    secondary={mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : []}
-    menu={{
-      label: t('app.planning.more'),
-      items: [
-        { id: 'settings', label: t('app.planning.settings'), icon: 'settings' },
-        { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text', hasSeparatorBefore: true },
-        { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' },
-        { id: 'png', label: t('app.planning.export_png'), icon: 'image' },
-        { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' },
-        ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
-      ],
-      onselect: (id: string) => void exportAs(id),
-    }}
-  />
-  <PlaceStrip placeId={planId} current="plan" view="plan" {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

@@ -130,6 +130,9 @@ function stubFor({ modulesOn, asked, decided, twoHubs = false }) {
   };
 }
 
+/** The sidebar's *Waiting for your yes*, whose figure counts what waits (the navigation concept, §2.2). */
+const waitingRowOf = (page) => page.locator('aside.sidenav ul.foryou li').filter({ hasText: 'Waiting for your yes' });
+
 const served = await serve(DIST);
 test.after(() => served.close());
 
@@ -172,16 +175,17 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
 
-    // The Today row carries the band's count at desk width; the phone's bar draws marks only.
-    const todayRow = page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).first();
-    if (width >= 1280) await todayRow.filter({ hasText: /1 waiting/u }).waitFor({ timeout: 10_000 });
+    // *Waiting for your yes* in the sidebar carries the band's count at desk width (the navigation
+    // concept, §2.2); the phone's bar draws marks only.
+    const waitingRow = waitingRowOf(page);
+    if (width >= 1280) await waitingRow.filter({ has: page.locator('.figure', { hasText: /^1$/u }) }).waitFor({ timeout: 10_000 });
 
     // Accepted at the row: one decision sent, and the band goes once nothing waits.
     await yes.getByRole('button', { name: 'Approve' }).click();
     for (let tries = 0; tries < 50 && decided.length === 0; tries++) await page.waitForTimeout(100);
     assert.deepEqual(decided.map((each) => each.verdict), ['APPROVE']);
     await yes.waitFor({ state: 'detached', timeout: 10_000 });
-    if (width >= 1280) assert.doesNotMatch((await todayRow.textContent()) ?? '', /waiting/u, 'the count stays once nothing waits');
+    if (width >= 1280) await waitingRow.locator('.figure').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => assert.fail('the count stays once nothing waits'));
     assert.deepEqual(failures, []);
   });
 }
@@ -215,7 +219,6 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     assert.equal(await reversible.getByRole('link', { name: 'Request sorter asks before acting' }).getAttribute('href'), `/agents?tab=requests&agent=${ACTS[0].agent_id}`);
     assert.equal(await reversible.getByRole('button', { name: 'Approve and do it' }).count(), 1);
     assert.equal(await irreversible.getByRole('button', { name: 'Approve and do it' }).count(), 0, 'an act that cannot be undone is approved from the row');
-    if (width >= 1280) await page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).filter({ hasText: /2 waiting/u }).first().waitFor({ timeout: 10_000 });
     const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
     await irreversible.getByRole('button', { name: 'Decline' }).click();
@@ -244,8 +247,8 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     const yes = page.getByRole('region', { name: 'Waiting for your yes' });
     await yes.waitFor({ timeout: 10_000 });
     assert.equal(await yes.getByRole('link', { name: `Review ${REVIEW.title}` }).getAttribute('href'), `/pages/${REVIEW.id}`);
-    // The Today row counts the review with the approval, as the band does: two.
-    if (width >= 1280) await page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).filter({ hasText: /2 waiting/u }).first().waitFor({ timeout: 10_000 });
+    // *Waiting for your yes* counts the review with the approval, as the band does: two.
+    if (width >= 1280) await waitingRowOf(page).filter({ has: page.locator('.figure', { hasText: /^2$/u }) }).waitFor({ timeout: 10_000 });
 
     const sprint = page.getByRole('region', { name: 'Sprint' });
     await sprint.waitFor({ timeout: 10_000 });

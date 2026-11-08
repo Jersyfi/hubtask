@@ -1957,3 +1957,17 @@ FROM (
   WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::bigint)
   ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportAccountStars :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT a.account_id::text AS record_id,
+         a.updated_at AS changed_at,
+         (to_jsonb(a) - 'tenant_id')::jsonb AS payload,
+         a.account_id AS key_1
+  FROM account_star a
+) s
+  WHERE (sqlc.narg('since')::timestamptz IS NULL OR s.changed_at > sqlc.narg('since')::timestamptz)
+    AND (s.changed_at, s.key_1) > (sqlc.arg('after_at')::timestamptz, sqlc.arg('after_id')::uuid)
+  ORDER BY s.changed_at, s.key_1
+  LIMIT sqlc.arg('batch')::int;

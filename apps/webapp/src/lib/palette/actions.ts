@@ -42,8 +42,10 @@ export interface HeadLists {
 export function actionsOfHead(source: string, head: HeadLists): readonly Act[] {
   const acts: Act[] = [];
   const { primary, secondary = [], menu } = head;
-  if (primary && !primary.disabledReason) {
-    acts.push({ id: `${source}:primary`, label: primary.label, icon: primary.icon, run: primary.onclick });
+  // A primary that only opens its list (*New ▾*) is offered as its items.
+  const press = primary?.onclick;
+  if (primary && press && !primary.disabledReason) {
+    acts.push({ id: `${source}:primary`, label: primary.label, icon: primary.icon, run: press });
   }
   const primaryMenu = primary?.menu;
   if (primaryMenu) {
@@ -54,7 +56,8 @@ export function actionsOfHead(source: string, head: HeadLists): readonly Act[] {
   }
   secondary.forEach((action, index) => {
     if (action.disabledReason) return;
-    acts.push({ id: `${source}:secondary-${index}`, label: action.label, icon: action.icon, run: action.onclick });
+    const run = action.onclick;
+    if (run) acts.push({ id: `${source}:secondary-${index}`, label: action.label, icon: action.icon, run });
   });
   if (menu) {
     for (const item of menu.items) {

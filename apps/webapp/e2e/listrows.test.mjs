@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { GROCERIES, GROCERY_ITEMS, resetGroceries, signedIn } from './fixture.mjs';
+import { GROCERIES, GROCERY_ITEMS, resetGroceries, signedIn, viewBar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -58,7 +58,7 @@ for (const width of [390, 1280]) {
 
   test(`${width} px: the toolbar stands on the heading's edge`, async () => {
     const { page, context, failures } = await list(width);
-    const tools = await page.getByRole('toolbar', { name: 'What is shown of the entries' }).boundingBox();
+    const tools = await viewBar(page).first().boundingBox();
     const edge = await page.locator('main header').first().boundingBox();
     assert.ok(Math.abs(tools.x - edge.x) <= 1, `the toolbar at ${tools.x}, the head at ${edge.x}`);
     assert.deepEqual(failures, []);

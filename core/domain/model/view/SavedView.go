@@ -49,6 +49,11 @@ type SavedView struct {
 	// spellings this version cannot enumerate.
 	VisibleFields []string
 	Sharing       Sharing
+	// Queue marks a HUB-scoped view as one of its hub's queues (UC-SVC-03 check 10).
+	// QueuePosition is its place among them, lowest first; 0 on a queue asks the store to place
+	// it after the hub's last, and 0 is all a view that is none holds.
+	Queue         bool
+	QueuePosition int
 	CreatedAt     time.Time
 	Version       int
 }
@@ -139,6 +144,8 @@ const (
 	MaxViewNameLength    = 200
 	MaxVisibleFields     = 50
 	MaxVisibleFieldChars = 100
+	// MaxQueuePosition bounds a queue's place, as the store's check does (migration 0391).
+	MaxQueuePosition = 1000
 )
 
 // NewSavedViewInput is what a view is made of. The scope has already been resolved by the use
@@ -159,6 +166,9 @@ type NewSavedViewInput struct {
 	Grouping      map[string]any
 	VisibleFields []string
 	Sharing       Sharing
+	// Queue and QueuePosition are SavedView's; a position without Queue is refused.
+	Queue         bool
+	QueuePosition int
 
 	Now time.Time
 
@@ -224,6 +234,9 @@ func NewSavedView(in NewSavedViewInput) (SavedView, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() || in.OwnerID.IsZero() {
 		return SavedView{}, shared.ErrInternal.WithDetail("views.identity_incomplete")
 	}
+	if err := viewQueue(in.ScopeType, in.Queue, in.QueuePosition); err != nil {
+		return SavedView{}, err
+	}
 
 	return SavedView{
 		ID:            in.ID,
@@ -238,6 +251,8 @@ func NewSavedView(in NewSavedViewInput) (SavedView, error) {
 		Grouping:      grouping,
 		VisibleFields: fields,
 		Sharing:       in.Sharing,
+		Queue:         in.Queue,
+		QueuePosition: in.QueuePosition,
 		CreatedAt:     in.Now,
 		Version:       1,
 	}, nil
@@ -258,12 +273,16 @@ type ViewAttributes struct {
 	// VisibleFields replaces the stored list whole. Nil leaves it alone; an empty list is a
 	// choice - "show the defaults" - and reaches here as one.
 	VisibleFields []string
+	// Queue makes the view one of its hub's queues or takes it out of them; QueuePosition moves
+	// it among them. Nil leaves each alone; a queue keeps its place unless one is named.
+	Queue         *bool
+	QueuePosition *int
 }
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a ViewAttributes) IsEmpty() bool {
 	return a.Name == nil && a.Layout == nil && a.Query == nil && a.Grouping == nil &&
-		a.VisibleFields == nil
+		a.VisibleFields == nil && a.Queue == nil && a.QueuePosition == nil
 }
 
 // Updated applies an update and reports whether anything moved. The caller writes nothing, spends
@@ -315,8 +334,47 @@ func (v SavedView) Updated(attributes ViewAttributes, form text.Normalizer) (Sav
 		}
 		v.VisibleFields, changed = fields, true
 	}
+	if attributes.Queue != nil || attributes.QueuePosition != nil {
+		queue, position := v.Queue, v.QueuePosition
+		if attributes.Queue != nil {
+			queue = *attributes.Queue
+			if !queue {
+				position = 0
+			}
+		}
+		if attributes.QueuePosition != nil {
+			position = *attributes.QueuePosition
+		}
+		if err := viewQueue(v.ScopeType, queue, position); err != nil {
+			return SavedView{}, false, err
+		}
+		if queue != v.Queue || position != v.QueuePosition {
+			v.Queue, v.QueuePosition, changed = queue, position, true
+		}
+	}
 
 	return v, changed, nil
+}
+
+// viewQueue holds a view's queue to its rules: a queue is listed per hub, so only a HUB-scoped
+// view is one, and a place is named only for a queue.
+func viewQueue(scope ViewScope, queue bool, position int) error {
+	switch {
+	case position < 0 || position > MaxQueuePosition:
+		return shared.ErrValidation.
+			WithDetail("views.queue_position_out_of_range").
+			WithParams(map[string]string{"maximum": "1000"}).
+			WithFields(shared.FieldError{Path: "/queue_position", Code: "views.queue_position_out_of_range"})
+	case position > 0 && !queue:
+		return shared.ErrValidation.
+			WithDetail("views.queue_position_without_queue").
+			WithFields(shared.FieldError{Path: "/queue_position", Code: "views.queue_position_without_queue"})
+	case queue && scope != ViewScopeHub:
+		return shared.ErrValidation.
+			WithDetail("views.queue_hub_only").
+			WithFields(shared.FieldError{Path: "/queue", Code: "views.queue_hub_only"})
+	}
+	return nil
 }
 
 // Shared returns the view with its sharing decided, and reports whether it moved.

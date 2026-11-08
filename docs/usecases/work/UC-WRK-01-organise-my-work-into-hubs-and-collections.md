@@ -57,7 +57,9 @@ member or a child works *inside* the collections they are given.
   lifecycle use cases, not here.
 * No nesting deeper than hub › collection: a collection holds entries, not collections
   ([domain model §3.3](../../architecture/domain-model.md)).
-* No drag and drop in the navigation tree is required; *Move up*/*Move down* is the reorder.
+* Ordering hubs and collections by drag, keyboard and touch in the sidebar is
+  [UC-WRK-38](./UC-WRK-38-order-and-move-places-and-contents-and-take-it-back.md); *Move up*/*Move
+  down* stays.
 
 ## Today
 

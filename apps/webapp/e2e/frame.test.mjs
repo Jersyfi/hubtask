@@ -22,7 +22,7 @@ test.after(() => served.close());
 
 async function home(page) {
   await page.goto(`${served.origin}/`);
-  await page.getByRole('navigation', { name: 'Workspace' }).first().waitFor({ timeout: 10_000 });
+  await page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' }).waitFor({ timeout: 10_000 });
 }
 
 const columnWidth = (page) => page.evaluate(() => Math.round(document.querySelector('aside.sidenav').getBoundingClientRect().width));
@@ -45,7 +45,7 @@ test('chromium: 1280 px — the navigation is as wide as the person drags it, wi
 
   // Kept by the device: a reload draws the column as it was left.
   await page.reload();
-  await page.getByRole('navigation', { name: 'Workspace' }).first().waitFor({ timeout: 10_000 });
+  await page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' }).waitFor({ timeout: 10_000 });
   assert.equal(await columnWidth(page), start + 32, 'the width did not survive a reload');
 
   // The bounds are the tokens', and a double-click puts the default back.
@@ -75,7 +75,7 @@ test('chromium: 1280 px — a hub is managed from its own row: the menu holds th
   t.after(() => context.close());
   await home(page);
 
-  const tree = page.getByRole('navigation', { name: 'Workspace' }).first();
+  const tree = page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' });
   const row = tree.getByRole('treeitem', { name: /^House/ });
   await row.hover();
   await tree.getByRole('button', { name: 'Manage House' }).click();
@@ -154,11 +154,11 @@ test('chromium: 1280 px — a hub row has room for a two-word name until its men
   t.after(() => context.close());
   await home(page);
 
-  const tree = page.getByRole('navigation', { name: 'Workspace' }).first();
+  const tree = page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' });
   const row = tree.getByRole('treeitem', { name: /^House/ });
   await row.waitFor();
   await page.mouse.move(900, 600);
-  const room = () => row.locator('.label').first().evaluate((label) => {
+  const room = () => row.locator('.name').first().evaluate((label) => {
     const probe = label.cloneNode();
     probe.textContent = 'Neubau Logistikzentrum';
     probe.style.cssText = 'position: absolute; visibility: hidden; flex: none; overflow: visible';

@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, ITEMS, signedIn, stub } from './fixture.mjs';
+import { BUCKETS, COLLECTION, ITEMS, signedIn, stub, chooseView } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -30,7 +30,7 @@ async function board(browser, { hasTouch = false } = {}) {
     return stub(route);
   });
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-  await page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
   return { page, context, failures, written, close: () => context.close(), unstubbed };
 }

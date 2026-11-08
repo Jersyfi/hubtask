@@ -27,7 +27,7 @@ class Page {
   #title = $state<string | undefined>(undefined);
   #menu = $state<PageMenu | undefined>(undefined);
   #fills = $state(false);
-  #place = $state<string | undefined>(undefined);
+  #place = $state<string | null | undefined>(undefined);
 
   get title(): string | undefined {
     return this.#title;
@@ -43,17 +43,33 @@ class Page {
 
   /**
    * The container the page belongs to where the route does not say it: an entry's page lives in
-   * its collection, and the tree marks that row rather than the workspace's.
+   * its collection, and the tree marks that row rather than the workspace's. `null` is the
+   * workspace itself (a goal of no hub); `undefined` is not known yet, while the screen reads.
    */
-  get place(): string | undefined {
+  get place(): string | null | undefined {
     return this.#place;
   }
 
   /** Sets the place for as long as the caller's effect lives; the cleanup clears it. */
-  locate(containerId: string | undefined): () => void {
+  locate(containerId: string | null | undefined): () => void {
     this.#place = containerId;
     return () => {
       if (this.#place === containerId) this.#place = undefined;
+    };
+  }
+
+  #ascent = $state<{ readonly label: string; readonly path: string } | undefined>(undefined);
+
+  /** The phone bar's *‹ the level above*, where the screen knows it better than its route does. */
+  get ascent(): { readonly label: string; readonly path: string } | undefined {
+    return this.#ascent;
+  }
+
+  /** Sets the way up for as long as the caller's effect lives; the cleanup clears it. */
+  ascend(ascent: { readonly label: string; readonly path: string } | undefined): () => void {
+    this.#ascent = ascent;
+    return () => {
+      if (this.#ascent === ascent) this.#ascent = undefined;
     };
   }
 
@@ -92,6 +108,24 @@ class Page {
    */
   get fills(): boolean {
     return this.#fills;
+  }
+
+  #writes = $state(0);
+
+  /** Whether somebody writes in a page's body now: the phone's bottom bar then steps aside (§9). */
+  get isWriting(): boolean {
+    return this.#writes > 0;
+  }
+
+  /** Marks writing until the returned release runs. */
+  write(): () => void {
+    this.#writes++;
+    let isReleased = false;
+    return () => {
+      if (isReleased) return;
+      isReleased = true;
+      this.#writes--;
+    };
   }
 
   /** Takes the content region for as long as the caller's effect lives. */

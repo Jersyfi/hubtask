@@ -47,6 +47,8 @@ type QueryItems struct {
 	Clock      clock.Clock
 	// Gate marks what each entry's collection hides of it.
 	Gate EntryGate
+	// Counter answers CountWithin; nil where nothing asks it.
+	Counter repository.ItemCounter
 }
 
 // Execute answers the query.
@@ -60,14 +62,63 @@ type QueryItems struct {
 func (h QueryItems) Execute(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
 ) (repository.ItemQueryResult, error) {
-	resolved, err := h.resolvePlaceholders(actor, spec)
+	resolved, anchor, lens, err := h.admitted(ctx, actor, spec)
 	if err != nil {
 		return repository.ItemQueryResult{}, err
 	}
 
-	anchor, container, err := h.anchor(ctx, actor, resolved.Scope)
+	var result repository.ItemQueryResult
+	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		search, err := h.search(ctx, actor, resolved, anchor)
+		if err != nil {
+			return err
+		}
+		result, err = h.Items.Query(ctx, search)
+		return err
+	})
 	if err != nil {
 		return repository.ItemQueryResult{}, err
+	}
+	return h.narrowed(ctx, lens, result)
+}
+
+// CountWithin counts what the query keeps, asked exactly as Execute asks it, and how many of
+// those within keeps too, without reading a row (UC-SVC-03 check 10). It needs Counter.
+func (h QueryItems) CountWithin(
+	ctx context.Context, actor appshared.ActorContext, spec view.Spec, within view.Node,
+) (repository.ItemCount, error) {
+	if h.Counter == nil {
+		return repository.ItemCount{}, shared.ErrInternal.WithDetail("query.counter_unwired")
+	}
+	resolved, anchor, _, err := h.admitted(ctx, actor, spec)
+	if err != nil {
+		return repository.ItemCount{}, err
+	}
+	var count repository.ItemCount
+	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		search, err := h.search(ctx, actor, resolved, anchor)
+		if err != nil {
+			return err
+		}
+		count, err = h.Counter.CountWithin(ctx, search, within)
+		return err
+	})
+	return count, err
+}
+
+// admitted resolves the placeholders, reads the anchor and asks READ about it, and starts the
+// field lens - everything a query asks before a statement runs.
+func (h QueryItems) admitted(
+	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
+) (view.Spec, repository.Anchor, *FieldLens, error) {
+	resolved, err := h.resolvePlaceholders(actor, spec)
+	if err != nil {
+		return view.Spec{}, repository.Anchor{}, nil, err
+	}
+
+	anchor, container, err := h.anchor(ctx, actor, resolved.Scope)
+	if err != nil {
+		return view.Spec{}, repository.Anchor{}, nil, err
 	}
 
 	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
@@ -78,36 +129,35 @@ func (h QueryItems) Execute(
 		TargetType: containerTarget,
 		TargetID:   container.ID,
 	}); err != nil {
-		return repository.ItemQueryResult{}, err
+		return view.Spec{}, repository.Anchor{}, nil, err
 	}
 	lens, err := h.lens(ctx, actor, container, resolved)
 	if err != nil {
-		return repository.ItemQueryResult{}, err
+		return view.Spec{}, repository.Anchor{}, nil, err
 	}
+	return resolved, anchor, lens, nil
+}
 
-	var result repository.ItemQueryResult
-	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		scope := anchor.CollectionID
-		if anchor.Kind == repository.AnchorHub {
-			scope = anchor.HubID
-		}
-		shaped, err := shapeCustomFields(ctx, h.Fields, resolved, scope)
-		if err != nil {
-			return err
-		}
-		result, err = h.Items.Query(ctx, repository.ItemSearch{
-			Anchor: anchor, Spec: shaped,
-			// The searcher's language, for MATCHES to read the words under. The entry's own is
-			// what its document was built under, and the two are deliberately different questions
-			// (ADR-0034, ItemSearch.Language).
-			Language: actor.Locale,
-		})
-		return err
-	})
-	if err != nil {
-		return repository.ItemQueryResult{}, err
+// search is the statement's input, the custom fields shaped by their definitions; it runs inside
+// the read transaction.
+func (h QueryItems) search(
+	ctx context.Context, actor appshared.ActorContext, resolved view.Spec, anchor repository.Anchor,
+) (repository.ItemSearch, error) {
+	scope := anchor.CollectionID
+	if anchor.Kind == repository.AnchorHub {
+		scope = anchor.HubID
 	}
-	return h.narrowed(ctx, lens, result)
+	shaped, err := shapeCustomFields(ctx, h.Fields, resolved, scope)
+	if err != nil {
+		return repository.ItemSearch{}, err
+	}
+	return repository.ItemSearch{
+		Anchor: anchor, Spec: shaped,
+		// The searcher's language, for MATCHES to read the words under. The entry's own is what
+		// its document was built under, and the two are deliberately different questions
+		// (ADR-0034, ItemSearch.Language).
+		Language: actor.Locale,
+	}, nil
 }
 
 // lens starts the narrowing of the answer, and refuses a query that ranges, sorts or groups over
@@ -548,6 +598,12 @@ func specOf(in usecase.Input) (view.Spec, error) {
 		return view.Spec{}, err
 	}
 	return spec, nil
+}
+
+// SpecOfView reads a saved view's stored query as the query it asks - the reading :export gives
+// it - for a use case of another package that runs a view.
+func SpecOfView(saved view.SavedView) (view.Spec, error) {
+	return specOf(usecase.Input(saved.Query))
 }
 
 // everyItem is the whole result as one slice: what the label expansion is asked about, whichever

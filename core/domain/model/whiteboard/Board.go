@@ -34,12 +34,17 @@ const DocumentKind = "whiteboard"
 
 // Board is one whiteboard of a hub.
 type Board struct {
-	ID        shared.ID
-	TenantID  shared.ID
-	HubID     shared.ID
-	Title     string
-	Scene     Scene
-	DeletedAt *time.Time
+	ID       shared.ID
+	TenantID shared.ID
+	HubID    shared.ID
+	Title    string
+	Scene    Scene
+	// ParentPageID is the page the board stands under in its hub's content tree, zero for the top
+	// of the space; OrderKey its place among its siblings, pages and boards in one key space
+	// (UC-CNV-10). A board has no children of its own.
+	ParentPageID shared.ID
+	OrderKey     string
+	DeletedAt    *time.Time
 	// DeletedByKind is what trashes the board, read by the write that trashes it; that write's
 	// UpdatedBy is who. It is not read back.
 	DeletedByKind shared.ActorKind
@@ -87,10 +92,34 @@ func NewBoard(in NewBoardInput) (Board, error) {
 	}, nil
 }
 
+// ParentCandidate is what a board's parent is checked against: what the identifier names, and
+// where.
+type ParentCandidate struct {
+	// IsBoard says the identifier names a whiteboard, which has no children.
+	IsBoard bool
+	// HubID is the page's hub.
+	HubID shared.ID
+}
+
+// CheckParent judges a parent for a board of hubID (UC-CNV-10 check 3): another board is refused
+// whiteboards.no_children, a page of another hub whiteboards.parent_other_space.
+func CheckParent(hubID shared.ID, parent ParentCandidate) error {
+	if parent.IsBoard {
+		return shared.ErrValidation.WithDetail("whiteboards.no_children").
+			WithFields(shared.FieldError{Path: "/parent_page_id", Code: "whiteboards.no_children"})
+	}
+	if parent.HubID != hubID {
+		return shared.ErrValidation.WithDetail("whiteboards.parent_other_space").
+			WithFields(shared.FieldError{Path: "/parent_page_id", Code: "whiteboards.parent_other_space"})
+	}
+	return nil
+}
+
 // The fields a change names, as the trail records them.
 const (
 	FieldTitle = "title"
 	FieldScene = "scene"
+	FieldPlace = "parent_page_id"
 )
 
 // Change is what a write changes; a nil member is left alone.

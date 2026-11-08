@@ -376,3 +376,95 @@ func TestAViewKeyIsHeldToTheDocumentsShape(t *testing.T) {
 		t.Fatalf("a malformed key: %v", err)
 	}
 }
+
+// A hub's queues are its HUB-scoped views marked as queues (UC-SVC-03 check 10): marked at
+// creation or by an update, with a place among them, and refused on any other scope.
+func TestAQueueIsAHubViewWithItsPlace(t *testing.T) {
+	hubView := func() NewSavedViewInput {
+		in := viewInput()
+		in.ScopeType = ViewScopeHub
+		return in
+	}
+	for name, test := range map[string]struct {
+		in       func() NewSavedViewInput
+		wantCode string
+		wantPath string
+	}{
+		"a hub view as a queue, placed by the store": {
+			in: func() NewSavedViewInput { in := hubView(); in.Queue = true; return in },
+		},
+		"a hub view as a queue with its place": {
+			in: func() NewSavedViewInput { in := hubView(); in.Queue, in.QueuePosition = true, 3; return in },
+		},
+		"a collection view as a queue": {
+			in:       func() NewSavedViewInput { in := viewInput(); in.Queue = true; return in },
+			wantCode: "views.queue_hub_only", wantPath: "/queue",
+		},
+		"a place without a queue": {
+			in:       func() NewSavedViewInput { in := hubView(); in.QueuePosition = 2; return in },
+			wantCode: "views.queue_position_without_queue", wantPath: "/queue_position",
+		},
+		"a place over the bound": {
+			in: func() NewSavedViewInput {
+				in := hubView()
+				in.Queue, in.QueuePosition = true, MaxQueuePosition+1
+				return in
+			},
+			wantCode: "views.queue_position_out_of_range", wantPath: "/queue_position",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			in := test.in()
+			built, err := NewSavedView(in)
+			if test.wantCode == "" {
+				if err != nil || built.Queue != in.Queue || built.QueuePosition != in.QueuePosition {
+					t.Fatalf("answered %+v, %v", built, err)
+				}
+				return
+			}
+			refusal := shared.AsError(err)
+			if refusal == nil || refusal.DetailCode != test.wantCode {
+				t.Fatalf("answered %v, want %s", err, test.wantCode)
+			}
+			if len(refusal.Fields) != 1 || refusal.Fields[0].Path != test.wantPath {
+				t.Errorf("the refusal does not point at %s: %v", test.wantPath, refusal.Fields)
+			}
+		})
+	}
+}
+
+func TestAnUpdateMarksMovesAndUnmarksAQueue(t *testing.T) {
+	in := viewInput()
+	in.ScopeType = ViewScopeHub
+	plain, err := NewSavedView(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	yes, no, second := true, false, 2
+
+	queued, changed, err := plain.Updated(ViewAttributes{Queue: &yes}, text.Composing{})
+	if err != nil || !changed || !queued.Queue || queued.QueuePosition != 0 {
+		t.Fatalf("marking answered %+v, %v, %v", queued, changed, err)
+	}
+	queued.QueuePosition = 1
+	moved, changed, err := queued.Updated(ViewAttributes{QueuePosition: &second}, text.Composing{})
+	if err != nil || !changed || moved.QueuePosition != 2 {
+		t.Fatalf("moving answered %+v, %v, %v", moved, changed, err)
+	}
+	if _, changed, err := moved.Updated(ViewAttributes{Queue: &yes}, text.Composing{}); err != nil || changed {
+		t.Errorf("marking a queue again moved it: %v, %v", changed, err)
+	}
+	unmarked, changed, err := moved.Updated(ViewAttributes{Queue: &no}, text.Composing{})
+	if err != nil || !changed || unmarked.Queue || unmarked.QueuePosition != 0 {
+		t.Fatalf("unmarking answered %+v, %v, %v", unmarked, changed, err)
+	}
+	if _, _, err := plain.Updated(ViewAttributes{QueuePosition: &second}, text.Composing{}); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "views.queue_position_without_queue" {
+		t.Errorf("a place for a view that is no queue answered %v", err)
+	}
+	collection, _ := NewSavedView(viewInput())
+	if _, _, err := collection.Updated(ViewAttributes{Queue: &yes}, text.Composing{}); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "views.queue_hub_only" {
+		t.Errorf("a collection view as a queue answered %v", err)
+	}
+}

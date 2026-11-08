@@ -3,7 +3,7 @@
 
 // The hub tree ranks by drag and by key (ux-inventory.md §E1): a hub among the hubs, a collection
 // among its hub's collections, with the same writes the page menu's *Move up/down* sends and the
-// same sentence after them. A reader whose role may not shape the workspace gets no grip and no
+// sentence the navigation concept's drop says (§5.4), with Undo. A reader whose role may not shape the workspace gets no grip and no
 // key. Chromium only, as the shell walk.
 
 import { test } from 'node:test';
@@ -68,7 +68,7 @@ async function workspace(page, { role = 'OWNER' } = {}) {
   });
 
   await page.goto(`${served.origin}/`);
-  const tree = page.getByRole('navigation', { name: 'Workspace' }).first().getByRole('tree');
+  const tree = page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' });
   await tree.getByRole('treeitem', { name: 'Travel' }).waitFor({ timeout: 15_000 });
   return {
     tree,
@@ -76,7 +76,7 @@ async function workspace(page, { role = 'OWNER' } = {}) {
     order: async (names) => {
       await page.waitForFunction(
         (wanted) => {
-          const drawn = [...document.querySelectorAll('[role="tree"] [role="treeitem"]')].map((row) => row.textContent.trim());
+          const drawn = [...document.querySelectorAll('aside.sidenav [role="tree"] [role="treeitem"] .name')].map((name) => name.textContent.trim());
           return wanted.every((name, index) => index === 0 || drawn.indexOf(name) > drawn.indexOf(wanted[index - 1]));
         },
         names,
@@ -96,26 +96,22 @@ test('chromium: Alt+arrows rank a hub, the focus stays with it, and the move is 
   const { tree, writes, order } = await workspace(page);
 
   const studio = tree.getByRole('treeitem', { name: 'Studio' });
-  assert.equal(await studio.getAttribute('aria-keyshortcuts'), 'Alt+ArrowUp Alt+ArrowDown');
+  // The keys are offered once the reader's role is read, which the rows do not wait for.
+  await tree.locator('[role="treeitem"][aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"]', { hasText: 'Studio' }).waitFor({ timeout: 5_000 });
   await studio.focus();
   await page.keyboard.press('Alt+ArrowUp');
   await order(['Studio', 'Garden', 'Travel']);
   assert.deepEqual(writes, [{ moving: id('02'), verb: 'reorder', before_container_id: id('01') }]);
-  await said(page).filter({ hasText: 'Studio is now number 1 of 3.' }).waitFor({ timeout: 5_000 });
-  await page.waitForFunction((wanted) => document.activeElement?.getAttribute('data-node') === wanted, id('02'), { timeout: 5_000 })
+  await said(page).filter({ hasText: 'Moved. Position 1 of 3.' }).waitFor({ timeout: 5_000 });
+  await page.waitForFunction((wanted) => document.activeElement?.getAttribute('data-id') === wanted, id('02'), { timeout: 5_000 })
     .catch(() => assert.fail('the focus did not stay with the hub it ranked'));
 
   // Already first: nothing is sent, and the focus does not wander off to the row above.
   await page.keyboard.press('Alt+ArrowUp');
   await page.waitForTimeout(300);
   assert.equal(writes.length, 1);
-  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-node')), id('02'));
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-id')), id('02'));
 
-  // Shift goes to the end of the level.
-  await page.keyboard.press('Alt+Shift+ArrowDown');
-  await order(['Garden', 'Travel', 'Studio']);
-  assert.deepEqual(writes[1], { moving: id('02'), verb: 'reorder', before_container_id: null });
-  await said(page).filter({ hasText: 'Studio is now number 3 of 3.' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
@@ -130,25 +126,25 @@ test('chromium: a hub dragged by its row lands where it is let go, and letting g
   // The row is the handle: no grip beside it to aim for.
   assert.equal(await garden.locator('[data-grip]').count(), 0);
 
-  const from = await garden.locator('.label').boundingBox();
+  const from = await garden.locator('.name').boundingBox();
   const travel = await tree.getByRole('treeitem', { name: 'Travel' }).boundingBox();
   const path = page.url();
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 10, { steps: 3 });
-  await page.mouse.move(from.x + from.width / 2, travel.y + travel.height + 4, { steps: 8 });
-  // Carried, and the slot it would take outlined.
-  assert.equal(await garden.getAttribute('data-dragging'), '');
-  assert.equal(await tree.getByRole('treeitem', { name: 'Travel' }).getAttribute('data-drop'), '');
+  await page.mouse.move(from.x + from.width / 2, travel.y + travel.height * 0.85, { steps: 8 });
+  // Carried, the tree saying so.
+  assert.equal(await garden.getAttribute('data-drop'), 'lifted');
+  assert.equal(await tree.getAttribute('data-dragging'), '');
   await page.mouse.up();
 
   await order(['Studio', 'Travel', 'Garden']);
   assert.deepEqual(writes, [{ moving: id('01'), verb: 'reorder', before_container_id: null }]);
-  await said(page).filter({ hasText: 'Garden is now number 3 of 3.' }).waitFor({ timeout: 5_000 });
+  await said(page).filter({ hasText: 'Moved. Position 3 of 3.' }).waitFor({ timeout: 5_000 });
   assert.equal(page.url(), path, 'letting go of the drag opened the hub');
 
   // A press on the row that does not travel is the row's own click, and writes nothing.
-  await tree.getByRole('treeitem', { name: 'Studio' }).locator('.label').click();
+  await tree.getByRole('treeitem', { name: 'Studio' }).locator('.name').click();
   await page.waitForURL(`**/hubs/${id('02')}`, { timeout: 5_000 });
   assert.equal(writes.length, 1);
   assert.deepEqual(failures, []);
@@ -161,21 +157,21 @@ test('chromium: a collection ranks among its hub’s collections by the same mov
   t.after(() => context.close());
   const { tree, writes, order } = await workspace(page);
 
-  const twist = tree.getByRole('button', { name: 'Show what is in Garden' });
-  await twist.waitFor({ timeout: 5_000 });
-  await twist.click();
-  const beds = tree.getByRole('treeitem', { name: 'Beds' });
+  // A hub's collections stand on its level (the navigation concept, §2.4).
+  await tree.getByRole('treeitem', { name: 'Garden' }).click();
+  const collections = page.locator('aside.sidenav').getByRole('tree', { name: 'Collections of Garden' });
+  const beds = collections.getByRole('treeitem', { name: 'Beds' });
   await beds.waitFor({ timeout: 5_000 });
   await beds.focus();
   await page.keyboard.press('Alt+ArrowDown');
   await order(['Tools', 'Beds', 'Seeds']);
   assert.deepEqual(writes, [{ moving: id('11'), verb: 'move', target_parent_id: id('01'), before_container_id: id('13') }]);
-  await said(page).filter({ hasText: 'Beds is now number 2 of 3.' }).waitFor({ timeout: 5_000 });
+  await said(page).filter({ hasText: 'Moved. Position 2 of 3.' }).waitFor({ timeout: 5_000 });
 
-  // The level is the hub's: dragging a collection far past the last hub still lands it last among
-  // the collections, and never among the hubs.
-  const seeds = tree.getByRole('treeitem', { name: 'Seeds' });
-  const from = await seeds.locator('.label').boundingBox();
+  // The level is the hub's: dragging a collection far past the first still lands it first among
+  // the collections, and never among the tools above them.
+  const seeds = collections.getByRole('treeitem', { name: 'Seeds' });
+  const from = await seeds.locator('.name').boundingBox();
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, from.y - 60, { steps: 10 });

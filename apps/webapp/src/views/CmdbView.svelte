@@ -36,7 +36,9 @@
   import { renderProblem } from '../lib/problem.ts';
 
   /** Drawn as the assets home's *Settings* tab (user-experience.md §8.2), under the home's own head. */
-  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
+  // `parts` narrows the screen to the sections its home draws as a tab (the assets' *Classes*,
+  // *Sources*, *Settings*); one part draws no list of sections.
+  const { isEmbedded = false, parts }: { isEmbedded?: boolean; parts?: readonly string[] } = $props();
   $effect(() => {
     if (!isEmbedded) page.entitle(t('app.cmdb_admin.title'));
   });
@@ -52,13 +54,13 @@
   const sources = $derived(sourcesRead.state.status === 'ready' ? [...sourcesRead.state.data.data].sort((a, b) => a.rank - b.rank) : []);
   const refusal = $derived(classesRead.state.status === 'failed' ? renderProblem(classesRead.state.error, messages).message : undefined);
 
-  let shown = $state('classes');
+  let shown = $state(untrack(() => parts?.[0] ?? 'classes'));
   const tabs = $derived([
     { id: 'classes', label: t('app.cmdb_admin.classes') },
     { id: 'types', label: t('app.cmdb_admin.types') },
     { id: 'sources', label: t('app.cmdb_admin.sources') },
     { id: 'aliases', label: t('app.cmdb_admin.aliases') },
-  ]);
+  ].filter((each) => !parts || parts.includes(each.id)));
 
   // The software aliases (UC-AST-13 check 3), read only once their tab is opened.
   let aliases = $state<readonly SoftwareAlias[] | undefined>(undefined);

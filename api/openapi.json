@@ -139,6 +139,7 @@
     }
   ],
   "x-hubtask-cli-groups": {
+    "star": "a person's stars: the places they keep close, in their order",
     "workflow": "the workspace's workflows and which collection runs which",
     "link-type": "the kinds of link between entries: blocks, relates to, duplicates",
     "link": "an entry's links to other entries, and references resolved",
@@ -6394,6 +6395,38 @@
         "responses": {
           "204": {
             "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/hubs/{hubId}/queues": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/HubId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "listHubQueues",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "queue ls",
+        "summary": "A hub's queues with their counts",
+        "description": "The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.\n",
+        "responses": {
+          "200": {
+            "description": "The queues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubQueueList"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -16882,7 +16915,10 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-null": "empty",
         "x-hubtask-rest-null-as": {
-          "products_seen": []
+          "products_seen": [],
+          "nav_products": [],
+          "nav_products_hidden": [],
+          "nav_hubs_hidden": []
         },
         "x-hubtask-rest-words": [
           "celebrations"
@@ -16910,6 +16946,92 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}/stars": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "listStars",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "star list",
+        "summary": "Read a person's stars",
+        "description": "The hubs, collections, views, pages, whiteboards, dashboards and portfolios a person keeps close, in their order - only those the caller may read now; a star of something no longer readable is not answered and the next write drops it. The caller's own need no permission; anybody else's need the member management permission.\n",
+        "responses": {
+          "200": {
+            "description": "The stars",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StarList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "replaceStars",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "star replace",
+        "summary": "Replace a person's stars",
+        "description": "Writes the whole ordered list at once, at most 100 stars. A stale `If-Match` is refused as `version_conflict`; more than 100 with `stars.too_many`, an unknown kind with `stars.kind_invalid`. A star of something the caller may not read is dropped, the same place twice is kept once. The trail records the count, never which places.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StarList"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The stars as stored",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StarList"
                 }
               }
             }
@@ -28803,6 +28925,66 @@
         }
       }
     },
+    "/containers/{containerId}:move-preview": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "previewContainerMove",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "container move preview",
+        "summary": "Preview a collection's move to another hub",
+        "description": "Takes the body `:move` takes and writes nothing. Answers whether the move can be made, its obstacles - the codes `:move` refuses with (`containers.name_taken`, `entry_types.hub_bound`, `workflows.hub_bound`, `containers.hub_not_movable`), and `access.not_permitted` for a destination where the caller lacks STRUCTURE - and its consequences: `containers.move_loses_access` (the accounts who would no longer read it), `containers.move_takes_structure` (the destination's fields, views and rules apply), `containers.move_keeps_releases` (entries that stay in releases of the hub it leaves) and `containers.move_keeps_sla_policies` (running clocks that keep measuring by that hub's SLA policies). Needs STRUCTURE at the collection's hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "target_parent_id"
+                ],
+                "properties": {
+                  "target_parent_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The hub the collection would move into."
+                  },
+                  "before_container_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "description": "The sibling it would be placed before; null or omitted appends."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the move would meet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContainerMovePreview"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}:reorder": {
       "parameters": [
         {
@@ -33256,7 +33438,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "page rm",
         "summary": "Put a page in the trash",
-        "description": "Puts the page and every page under it in the space's trash; `:restore` brings them back together. Needs WRITE_ITEMS on the hub.\n",
+        "description": "Puts the page and every page under it in the space's trash; `:restore` brings them back together. The whiteboards standing under them are lifted to the page's parent at its place and stay there when the page is restored. Needs WRITE_ITEMS on the hub.\n",
         "responses": {
           "200": {
             "description": "Trashed",
@@ -35042,6 +35224,18 @@
               "minimum": 1,
               "maximum": 1000
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`CHANGED` (the default) lists the last changed first. `TREE` lists the boards outside the trash in the content tree's order - by `parent_page_id`, the top first, then by `order_key` - whole, in one page.\n",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CHANGED",
+                "TREE"
+              ]
+            }
           }
         ],
         "responses": {
@@ -35180,6 +35374,53 @@
         "responses": {
           "200": {
             "description": "Trashed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Whiteboard"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/whiteboards/{whiteboardId}:move": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WhiteboardId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "whiteboards"
+        ],
+        "operationId": "moveWhiteboard",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "whiteboard move",
+        "summary": "Move a whiteboard in the content tree",
+        "description": "Places the board under a page of its hub or at the top of the space, after a sibling page or board or first. A page of another hub is refused `whiteboards.parent_other_space`, a board as the parent `whiteboards.no_children`, an `after_id` that is no sibling there `whiteboards.after_not_sibling`. The board's access stays its hub's. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhiteboardMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Moved",
             "content": {
               "application/json": {
                 "schema": {
@@ -36555,6 +36796,54 @@
               "$ref": "#/components/schemas/Module"
             }
           },
+          "nav_products": {
+            "type": "array",
+            "description": "The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_products_hidden": {
+            "type": "array",
+            "description": "The products the person moved behind *More* in the sidebar. Absent or empty: none.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_hubs_hidden": {
+            "type": "array",
+            "description": "The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none. An id of a hub the person no longer sees is kept and shows nothing.\n",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "nav_hubs_order": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "MANUAL",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.\n"
+          },
+          "nav_contents_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "TREE",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.\n"
+          },
           "avatar_media_id": {
             "type": [
               "string",
@@ -36960,6 +37249,164 @@
             "items": {
               "$ref": "#/components/schemas/Module"
             }
+          },
+          "nav_products": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 9,
+            "uniqueItems": true,
+            "description": "The order of the products in the sidebar, written by the client as the whole list. `null` or an empty list clears it, which gives back the product's own order.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_products_hidden": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 9,
+            "uniqueItems": true,
+            "description": "The products shown behind *More* in the sidebar, the whole list. `null` or an empty list clears it, which shows every product again.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_hubs_hidden": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 1000,
+            "uniqueItems": true,
+            "description": "The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty list clears it, which shows every hub again.\n",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "nav_hubs_order": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "MANUAL",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar orders the hubs. `null` clears it; the default is MANUAL."
+          },
+          "nav_contents_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "TREE",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar shows a hub's contents. `null` clears it; the default is TREE."
+          }
+        }
+      },
+      "ContainerMovePreview": {
+        "type": "object",
+        "required": [
+          "movable",
+          "obstacles",
+          "consequences"
+        ],
+        "properties": {
+          "movable": {
+            "type": "boolean",
+            "description": "True while no obstacle remains; the move then succeeds unless something changes first."
+          },
+          "obstacles": {
+            "type": "array",
+            "description": "What would refuse the move, each with the code the refusal carries.",
+            "items": {
+              "$ref": "#/components/schemas/MoveFinding"
+            }
+          },
+          "consequences": {
+            "type": "array",
+            "description": "What changes with the move without stopping it.",
+            "items": {
+              "$ref": "#/components/schemas/MoveFinding"
+            }
+          }
+        }
+      },
+      "MoveFinding": {
+        "type": "object",
+        "required": [
+          "code",
+          "params"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "A message code the client words."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The code's parameters; `account_ids` is a comma-separated list the client names through `GET /accounts`.\n"
+          }
+        }
+      },
+      "Star": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HUB",
+              "COLLECTION",
+              "VIEW",
+              "PAGE",
+              "WHITEBOARD",
+              "DASHBOARD",
+              "PORTFOLIO"
+            ],
+            "description": "What the star points at; a VIEW is a saved view, a queue among them."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "StarList": {
+        "type": "object",
+        "required": [
+          "stars"
+        ],
+        "properties": {
+          "stars": {
+            "type": "array",
+            "maxItems": 100,
+            "description": "The stars in the person's order.",
+            "items": {
+              "$ref": "#/components/schemas/Star"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "The list's version, 0 before the first write; `If-Match` names it."
           }
         }
       },
@@ -57100,6 +57547,8 @@
           "grouping",
           "visible_fields",
           "sharing",
+          "queue",
+          "queue_position",
           "version"
         ],
         "properties": {
@@ -57179,6 +57628,18 @@
               "SCOPE",
               "PUBLIC_LINK"
             ]
+          },
+          "queue": {
+            "type": "boolean",
+            "description": "Whether the view is one of its hub's queues (`GET /hubs/{hubId}/queues`)."
+          },
+          "queue_position": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Where the queue stands among its hub's queues, lowest first; null when it is none."
           },
           "created_at": {
             "type": "string",
@@ -57260,6 +57721,16 @@
             ],
             "default": "PRIVATE",
             "description": "SCOPE at creation asks the same permission :share does. PUBLIC_LINK is refused by name.\n"
+          },
+          "queue": {
+            "type": "boolean",
+            "description": "Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.\n"
+          },
+          "queue_position": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true places it after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.\n"
           }
         }
       },
@@ -57289,6 +57760,75 @@
             "items": {
               "type": "string"
             }
+          },
+          "queue": {
+            "type": "boolean",
+            "description": "Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. False takes it out of the queues.\n"
+          },
+          "queue_position": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "description": "Where the queue stands among the hub's queues, lowest first. Omitted with `queue` true keeps its place, or places a view that was none after the last; sent without `queue` true it is refused as `views.queue_position_without_queue`.\n"
+          }
+        }
+      },
+      "HubQueueList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubQueue"
+            }
+          }
+        }
+      },
+      "HubQueue": {
+        "type": "object",
+        "required": [
+          "view_id",
+          "key",
+          "name",
+          "count",
+          "at_risk"
+        ],
+        "properties": {
+          "view_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The saved view; null for a standard queue, which is saved before it is starred or moved."
+          },
+          "key": {
+            "type": "string",
+            "description": "The view's key, or the standard queue's - `mine`, `unassigned`, `breaching`, `open` - which the client names."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The view's name; null for a standard queue."
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many entries the queue holds; null when it could not be counted in time or read."
+          },
+          "at_risk": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many of them are `AT_RISK` or `BREACHED`; null when `count` is."
           }
         }
       },
@@ -67620,12 +68160,12 @@
           "parent_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The page it moves under; absent for the top of the space."
+            "description": "The page it moves under; absent for the top of the space. A whiteboard is refused `whiteboards.no_children`."
           },
           "after_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The sibling it follows; absent to place it first."
+            "description": "The sibling page or whiteboard it follows; absent to place it first."
           }
         }
       },
@@ -69087,6 +69627,22 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock."
+          },
+          "parent_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page of the same hub the board stands under in the content tree; null for the top of the space. A board has no children of its own, and its access stays its hub's.\n"
+          },
+          "order_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "readOnly": true,
+            "description": "The board's place among its siblings - pages and boards in one order, the key space of a page's `order_key`. Null only for a board written by an older server, which stands after the keyed ones, by title, until it is moved.\n"
           }
         }
       },
@@ -73151,6 +73707,43 @@
             "type": "string",
             "format": "uuid",
             "description": "An identifier the client minted."
+          },
+          "parent_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page of the same hub the board stands under; absent or null for the top of the space. Another hub's page is refused `whiteboards.parent_other_space`, a board `whiteboards.no_children`.\n"
+          },
+          "after_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The sibling page or board it follows; absent or null for after the last."
+          }
+        }
+      },
+      "WhiteboardMove": {
+        "type": "object",
+        "properties": {
+          "parent_page_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The page of the same hub it moves under; absent or null for the top of the space."
+          },
+          "after_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The sibling page or board it follows; absent or null places it first."
           }
         }
       },

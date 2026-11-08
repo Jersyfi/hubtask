@@ -60,6 +60,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.second_factor_reset` | ResetSecondFactor | `account` | WARNING | Every time |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
+| `account.stars_changed` | ReplaceStars | `account` | INFO | Every time |
+| `account.stars_read` | ListStars | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
 | `account.view_as_ended` | EndViewAs | `account` | INFO | Every time |
 | `account.view_as_read` | GetViewAs | `session` | INFO | When refused |
@@ -441,9 +443,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.emergency_accesses_read` | ListPrivateHubAccesses | `container` | INFO | When refused |
 | `container.emergency_notices_read` | ListEmergencyNotices | `account` | INFO | When refused |
 | `container.moved` | MoveContainer | `container` | INFO | Every time |
+| `container.moved` | PreviewContainerMove | `container` |  | When refused |
 | `container.moved` | ReorderContainer | `container` | INFO | Every time |
 | `container.policies_updated` | UpdateContainerPolicies | `container` | INFO | Every time |
 | `container.privacy_changed` | SetHubPrivacy | `container` | NOTICE | Every time |
+| `container.queues_read` | ListHubQueues | `container` | INFO | When refused |
 | `container.read` | GetContainer | `container` | INFO | When refused |
 | `container.read` | ListContainers | `container` | INFO | When refused |
 | `container.read` | ListJumbleDestinations | `container` | INFO | When refused |
@@ -1294,6 +1298,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `whiteboard.created` | CreateWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.exported` | ExportWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.media_placed` | AttachWhiteboardMedia | `whiteboard` | INFO | Every time |
+| `whiteboard.moved` | MoveWhiteboard | `whiteboard` | INFO | Every time |
 | `whiteboard.read` | ListWhiteboardBacklinks | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboardComments | `whiteboard` | INFO | When refused |
 | `whiteboard.read` | ListWhiteboardVersions | `whiteboard` | INFO | When refused |

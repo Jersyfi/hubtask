@@ -24,6 +24,9 @@ func (double) ListOwned(context.Context, shared.ID) ([]view.SavedView, error) { 
 func (double) ListReachable(context.Context, shared.ID, []shared.ID) ([]view.SavedView, error) {
 	return nil, nil
 }
+func (double) ListHubQueues(context.Context, shared.ID, shared.ID) ([]view.SavedView, error) {
+	return nil, nil
+}
 func (double) Insert(context.Context, view.SavedView) error             { return nil }
 func (double) SetAttributes(context.Context, view.SavedView, int) error { return nil }
 func (double) SetSharing(context.Context, view.SavedView, int) error    { return nil }

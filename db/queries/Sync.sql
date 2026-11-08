@@ -617,7 +617,8 @@ LIMIT sqlc.arg('batch');
 -- name: SnapshotWhiteboards :many
 -- The workspace's boards outside the trash with their scenes (migration 0240), for reading offline;
 -- each is filed under its hub, which decides who is told of it.
-SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
+SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+       parent_page_id, order_key
 FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND deleted_at IS NULL
 ORDER BY id

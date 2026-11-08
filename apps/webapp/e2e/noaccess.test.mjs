@@ -76,7 +76,7 @@ test('chromium: a person holding access below the workspace sees no notice, and 
   t.after(close);
 
   await page.goto(`${served.origin}/`);
-  await page.getByRole('button', { name: 'New', exact: true }).first().waitFor();
+  await page.locator('aside.sidenav').getByRole('button', { name: 'Create private hub' }).first().waitFor();
   assert.deepEqual(await newRows(page), ['Create private hub'], 'a shared hub offered to somebody holding nothing on the workspace');
   await page.keyboard.press('Escape');
   assert.equal(await page.getByText(NOTICE).count(), 0, 'the notice was drawn for a person with access');

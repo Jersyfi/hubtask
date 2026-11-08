@@ -362,6 +362,11 @@ type Account struct {
 	AvatarMediaID         pgtype.UUID
 	ExternalID            *string
 	ProductsSeen          []string
+	NavProducts           []string
+	NavProductsHidden     []string
+	NavHubsOrder          *string
+	NavContentsMode       *string
+	NavHubsHidden         []pgtype.UUID
 }
 
 type AccountGroup struct {
@@ -418,6 +423,14 @@ type AccountRecoveryCode struct {
 	CodeHash  []byte
 	UsedAt    pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
+}
+
+type AccountStar struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	Stars     []byte
+	Version   int32
+	UpdatedAt pgtype.Timestamptz
 }
 
 type ActivityEntry struct {
@@ -3022,6 +3035,7 @@ type SavedView struct {
 	CreatedAt     pgtype.Timestamptz
 	Version       int32
 	Key           *string
+	QueuePosition *int32
 }
 
 type Session struct {
@@ -3472,6 +3486,8 @@ type Whiteboard struct {
 	Version       int32
 	DeletedByType *string
 	DeletedByID   pgtype.UUID
+	ParentPageID  pgtype.UUID
+	OrderKey      *string
 }
 
 type WhiteboardComment struct {

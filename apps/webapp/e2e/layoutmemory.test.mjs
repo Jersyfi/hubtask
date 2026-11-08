@@ -13,13 +13,14 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ARCHIVED, COLLECTION, signedIn } from './fixture.mjs';
+import { ARCHIVED, COLLECTION, signedIn, viewLink, chooseView } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const chosen = (page) => page.locator('[role="radiogroup"] [role="radio"][aria-checked="true"]').first().textContent();
+// The view the collection's bar marks as the screen's (the navigation concept §3).
+const chosen = (page) => page.locator('[data-tour="layouts"] [aria-current="page"]').first().textContent();
 
 test('chromium: 1280 px — a chosen layout survives a reload, per collection, on this device only', async (t) => {
   const browser = await chromium.launch();
@@ -28,15 +29,16 @@ test('chromium: 1280 px — a chosen layout survives a reload, per collection, o
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-  await page.getByRole('radio', { name: 'Board' }).click();
+  await chooseView(page, 'Board');
   await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
 
-  await page.reload();
+  // The collection's own address, not the board's (`?layout=board`): what it opens on is what was kept.
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
   assert.equal((await chosen(page)).trim(), 'Board', 'the board was not kept across a reload');
 
   await page.goto(`${served.origin}/collections/${ARCHIVED.id}`);
-  await page.getByRole('radio', { name: 'Board' }).waitFor({ timeout: 15_000 });
+  await viewLink(page, 'Board').waitFor({ timeout: 15_000 });
   assert.notEqual((await chosen(page)).trim(), 'Board', 'another collection took this one\'s layout');
   assert.deepEqual(failures, []);
 
@@ -44,6 +46,6 @@ test('chromium: 1280 px — a chosen layout survives a reload, per collection, o
   const elsewhere = await signedIn(browser, 1280, 900);
   t.after(() => elsewhere.context.close());
   await elsewhere.page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-  await elsewhere.page.getByRole('radio', { name: 'Board' }).waitFor({ timeout: 15_000 });
+  await viewLink(elsewhere.page, 'Board').waitFor({ timeout: 15_000 });
   assert.notEqual((await chosen(elsewhere.page)).trim(), 'Board', 'the choice travelled to another device');
 });

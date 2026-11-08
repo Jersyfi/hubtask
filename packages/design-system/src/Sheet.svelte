@@ -1,0 +1,165 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+     Copyright (c) 2026 Jérôme Bastian Winkel -->
+<script lang="ts">
+  // A bottom sheet on compact (design-system.md §4, wave 5; the navigation concept's §9): the
+  // view bar's views, the context sheet of a long press, *New*, the account. A modal dialog
+  // rising from the bottom, with a grabber, a heading and *Close* - every sheet has both - over a
+  // scrim; `Escape` and a press on the scrim close it, and the focus goes back where it was.
+  import type { Snippet } from 'svelte';
+
+  import Icon from './Icon.svelte';
+  import IconButton from './IconButton.svelte';
+  import type { IconName } from './icons/index.ts';
+  import { escapeHandler, focusReturn } from './focus.ts';
+  import { layers } from './layers.ts';
+
+  interface Props {
+    /** The heading and the dialog's name: "Views", "Create under Team". */
+    title: string;
+    closeLabel: string;
+    /** The mark of the thing the sheet is about, before its heading: a long press's row. */
+    icon?: IconName;
+    isOpen?: boolean;
+    onClose?: () => void;
+    children: Snippet;
+  }
+
+  let { title, closeLabel, icon, isOpen = $bindable(false), onClose, children }: Props = $props();
+
+  const instanceId = $props.id();
+  const titleId = `sheet-${instanceId}`;
+  let node = $state<HTMLDialogElement | null>(null);
+  let opener: Element | null = null;
+
+  function close() {
+    isOpen = false;
+  }
+
+  $effect(() => {
+    const sheet = node;
+    if (!sheet) return;
+    if (!isOpen) {
+      if (sheet.open) sheet.close();
+      return;
+    }
+    opener = document.activeElement;
+    if (!sheet.open) sheet.showModal();
+    const handle = layers.open('overlay', close);
+    const onKeydown = escapeHandler();
+    document.addEventListener('keydown', onKeydown);
+    return () => {
+      document.removeEventListener('keydown', onKeydown);
+      handle.release();
+      if (sheet.open) sheet.close();
+      focusReturn(opener);
+      onClose?.();
+    };
+  });
+</script>
+
+<dialog
+  class="sheet"
+  bind:this={node}
+  aria-labelledby={titleId}
+  oncancel={(event) => event.preventDefault()}
+  onclose={(event) => {
+    if (!event.currentTarget.open) close();
+  }}
+  onclick={(event) => {
+    if (event.target === node) close();
+  }}
+>
+  <div class="panel">
+    <span class="grabber" aria-hidden="true"></span>
+    <header class="head">
+      <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
+      <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
+      <IconButton icon="x" label={closeLabel} tone="subtle" onclick={() => close()} />
+    </header>
+    <div class="body">{@render children()}</div>
+  </div>
+</dialog>
+
+<style>
+  /* In the top layer as a modal dialog: no z-index, the overlay rank decides what Escape reaches. */
+  .sheet {
+    inline-size: 100%;
+    max-inline-size: 100%;
+    max-block-size: 85%;
+    margin: auto 0 0;
+    padding: 0;
+    border: 0;
+    border-start-start-radius: var(--layout-sheet-radius);
+    border-start-end-radius: var(--layout-sheet-radius);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+    color: var(--text-primary);
+    overflow: auto;
+    animation: rise var(--motion-entrance-duration) var(--motion-entrance-easing) both;
+  }
+
+  @keyframes rise {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+
+  .sheet::backdrop { background: var(--bg-scrim); }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    padding: var(--sp-100) var(--sp-150) calc(var(--sp-250) + env(safe-area-inset-bottom, 0));
+  }
+
+  .grabber {
+    display: block;
+    inline-size: var(--layout-sheet-grabber);
+    block-size: var(--layout-sheet-grabberheight);
+    margin: 0 auto calc(var(--sp-100) + var(--sp-025));
+    border-radius: var(--r-full);
+    background: var(--border-strong);
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-100);
+    margin: 0 var(--sp-050) var(--sp-100);
+  }
+
+  .title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--fs-200);
+    font-weight: var(--fw-semibold);
+  }
+
+  .body :global(ul) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* The sheet is the surface: its rows stand plain, without a card or a hairline between them,
+     and a second list is set off by one hairline (the navigation concept's phone screens). */
+  .body :global(.row[data-size='touch']) {
+    border-block-end: 0;
+    border-radius: var(--layout-nav-radius);
+  }
+
+  .body :global(ul:has(> .row) + ul:has(> .row)) {
+    margin-block-start: var(--sp-050);
+    padding-block-start: var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet { animation: none; }
+  }
+
+  :global([data-motion='reduced']) .sheet { animation: none; }
+</style>

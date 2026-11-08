@@ -39,6 +39,10 @@ type CreateWhiteboardCommand struct {
 	Title string
 	// Scene is the board's first objects - a template's, or an exported board's read back.
 	Scene *domain.Scene
+	// ParentPageID is the page it stands under, zero for the top of the space; AfterID the sibling
+	// page or board it follows, zero for after the last (UC-CNV-10 check 2).
+	ParentPageID shared.ID
+	AfterID      shared.ID
 }
 
 // CreateWhiteboard makes a new board in a hub (UC-CNV-01), empty, or from a native document
@@ -74,6 +78,14 @@ func (h CreateWhiteboard) Execute(ctx context.Context, actor appshared.ActorCont
 		if err != nil {
 			return err
 		}
+		if err := h.Studio.checkParent(ctx, cmd.HubID, cmd.ParentPageID); err != nil {
+			return err
+		}
+		key, err := h.Studio.keyAt(ctx, cmd.HubID, cmd.ParentPageID, board.ID, cmd.AfterID, true)
+		if err != nil {
+			return err
+		}
+		board.ParentPageID, board.OrderKey = cmd.ParentPageID, key
 		if err := h.Studio.Boards.Insert(ctx, board); err != nil {
 			return err
 		}
@@ -102,6 +114,8 @@ func (h CreateWhiteboard) Descriptor() usecase.Descriptor {
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub the board belongs to."},
 			{Name: "title", Kind: usecase.KindString, Required: true, Description: "The board's title, one line."},
 			elementsField,
+			{Name: "parent_page_id", Kind: usecase.KindID, Description: "The page of the hub it stands under; empty for the top of the space."},
+			{Name: "after_id", Kind: usecase.KindID, Description: "The sibling page or board it follows; empty for after the last."},
 			{Name: "id", Kind: usecase.KindID, CallerOnly: true, Description: "An identifier the client minted."},
 		},
 		Audit: usecase.AuditDeclaration{Action: BoardCreatedAction, TargetType: boardTarget, Severity: audit.SeverityInfo, Required: true},
@@ -120,7 +134,17 @@ func (h CreateWhiteboard) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			board, err := h.Execute(ctx, actor, CreateWhiteboardCommand{ID: id, HubID: hub, Title: in.String("title"), Scene: scene})
+			parent, err := in.ID("parent_page_id")
+			if err != nil {
+				return nil, err
+			}
+			after, err := in.ID("after_id")
+			if err != nil {
+				return nil, err
+			}
+			board, err := h.Execute(ctx, actor, CreateWhiteboardCommand{
+				ID: id, HubID: hub, Title: in.String("title"), Scene: scene, ParentPageID: parent, AfterID: after,
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -190,7 +214,10 @@ type ListWhiteboards struct{ Studio Studio }
 // Execute reads a page of the list after the board after names, at most limit (the hub's
 // ceiling when not given), and the board the next page continues after - zero on the last page.
 // A hub holds at most its ceiling outside the trash; its trash holds more, read page by page.
-func (h ListWhiteboards) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, trashed bool, after shared.ID, limit int) ([]usecase.Output, shared.ID, error) {
+//
+// tree answers the boards outside the trash in the content tree's order instead, whole and
+// unpaged (UC-CNV-10 check 1).
+func (h ListWhiteboards) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, trashed bool, after shared.ID, limit int, tree bool) ([]usecase.Output, shared.ID, error) {
 	if err := actor.RequireScope(boardsRead); err != nil {
 		return nil, "", err
 	}
@@ -204,6 +231,13 @@ func (h ListWhiteboards) Execute(ctx context.Context, actor appshared.ActorConte
 	var next shared.ID
 	err := h.Studio.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Studio.hub(ctx, hubID); err != nil {
+			return err
+		}
+		if tree && !trashed {
+			boards, err := h.Studio.Boards.Tree(ctx, hubID, domain.MaxBoardsPerHub)
+			for _, summary := range boards {
+				out = append(out, BoardOutput(summary.Board, summary.Elements, false))
+			}
 			return err
 		}
 		boards, err := h.Studio.Boards.List(ctx, hubID, trashed, after, limit+1)
@@ -234,6 +268,10 @@ func (h ListWhiteboards) Descriptor() usecase.Descriptor {
 			{Name: "trashed", Kind: usecase.KindBool, Description: "List the boards in the trash instead."},
 			{Name: "cursor", Kind: usecase.KindID, Description: "The page's next_cursor of the previous page."},
 			{Name: "limit", Kind: usecase.KindInt, Description: "How many, at most 1000; 1000 when not given."},
+			{
+				Name: "order", Kind: usecase.KindString, Enum: []string{"CHANGED", "TREE"},
+				Description: "CHANGED, the default, lists the last changed first; TREE the boards outside the trash in the content tree's order, by parent page then place, whole.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{Action: BoardReadAction, TargetType: boardTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -245,7 +283,7 @@ func (h ListWhiteboards) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			boards, next, err := h.Execute(ctx, actor, hub, in.Bool("trashed"), after, in.Int("limit"))
+			boards, next, err := h.Execute(ctx, actor, hub, in.Bool("trashed"), after, in.Int("limit"), in.String("order") == "TREE")
 			if err != nil {
 				return nil, err
 			}

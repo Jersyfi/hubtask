@@ -46,8 +46,8 @@ test('chromium: 1280 px — a screen that throws while drawing leaves the frame 
   assert.equal(await page.getByRole('button', { name: 'Reload' }).count(), 1);
 
   // The frame is still there, and it still leads somewhere: the next screen draws in its place.
-  const keeping = page.getByRole('navigation', { name: 'What is kept' });
-  await keeping.getByRole('treeitem', { name: 'Trash' }).click();
+  const keeping = page.getByRole('list', { name: 'What is kept' });
+  await keeping.getByRole('link', { name: 'Trash' }).click();
   await page.waitForFunction(() => location.pathname === '/trash', undefined, { timeout: 5_000 });
   await page.getByRole('heading', { level: 1, name: 'Trash' }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('main').getByText('This screen stopped working').count(), 0);
@@ -74,7 +74,7 @@ test('chromium: 1280 px — the start screen throwing while drawing leaves the f
   await alert.waitFor({ timeout: 15_000 });
   assert.match(await alert.innerText(), /This screen stopped working/);
 
-  await page.getByRole('navigation', { name: 'What is kept' }).getByRole('treeitem', { name: 'Archive' }).click();
+  await page.getByRole('list', { name: 'What is kept' }).getByRole('link', { name: 'Archive' }).click();
   await page.getByRole('heading', { level: 1, name: 'Archive' }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('main').getByText('This screen stopped working').count(), 0);
 });

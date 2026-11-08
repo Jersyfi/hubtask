@@ -8088,6 +8088,20 @@ ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
 ALTER TABLE account ADD COLUMN products_seen text[] NOT NULL DEFAULT '{}',
   ADD CONSTRAINT account_products_seen_bound CHECK (cardinality(products_seen) <= 9);
 
+-- Migrations 0387, 0388: the sidebar's personal preferences.
+ALTER TABLE account ADD COLUMN nav_products text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN nav_products_hidden text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN nav_hubs_order text,
+  ADD COLUMN nav_contents_mode text,
+  ADD CONSTRAINT account_nav_bound CHECK (
+    cardinality(nav_products) <= 9 AND cardinality(nav_products_hidden) <= 9
+    AND (nav_hubs_order IS NULL OR nav_hubs_order IN ('MANUAL', 'RECENT', 'NAME'))
+    AND (nav_contents_mode IS NULL OR nav_contents_mode IN ('TREE', 'RECENT', 'NAME')));
+
+-- Migrations 0393, 0394: the hubs behind *More* in the sidebar.
+ALTER TABLE account ADD COLUMN nav_hubs_hidden uuid[] NOT NULL DEFAULT '{}',
+  ADD CONSTRAINT account_nav_hubs_hidden_bound CHECK (cardinality(nav_hubs_hidden) <= 1000);
+
 -- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
 CREATE TABLE sample_object (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -8103,5 +8117,36 @@ ALTER TABLE sample_object FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON sample_object
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON sample_object TO hubtask_app;
+
+
+-- Migration 0389: a person's stars, one ordered list per account (navigation concept §6.2).
+CREATE TABLE account_star (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  stars      jsonb NOT NULL DEFAULT '[]'
+             CHECK (jsonb_typeof(stars) = 'array' AND jsonb_array_length(stars) <= 100),
+  version    integer NOT NULL CHECK (version >= 1),
+  updated_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE account_star ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_star FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON account_star
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON account_star TO hubtask_app;
+
+
+-- Migration 0390: a whiteboard's place in its hub's content tree (UC-CNV-10).
+ALTER TABLE whiteboard ADD COLUMN parent_page_id uuid,
+  ADD COLUMN order_key text;
+
+-- Migrations 0391-0392: a hub's queues are its saved views with a place among them
+-- (navigation concept §7.4).
+ALTER TABLE saved_view ADD COLUMN queue_position integer,
+  ADD CONSTRAINT saved_view_queue_check CHECK (
+    queue_position IS NULL OR (queue_position BETWEEN 1 AND 1000 AND scope_type = 'HUB'));
+CREATE INDEX saved_view_queue_idx ON saved_view (tenant_id, scope_id, queue_position)
+  WHERE queue_position IS NOT NULL;
 
 COMMIT;

@@ -50,18 +50,19 @@ test('the tour starts on the overview only, so an address opened by link keeps i
   for (const path of ['/profile/security', '/profile/sessions', '/collections/c', '/search', '/sign-in']) assert.equal(startsAt(path), false, path);
 });
 
-test('where a product is on, the second step points at the products band\'s first row', () => {
-  const steps = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages' });
+test('where a product is on, the second step points at the Products section\'s first row', () => {
+  const steps = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'KNOWLEDGE' });
   assert.deepEqual(steps.slice(0, 3).map((s) => s.id), ['hubs', 'products', 'capture']);
-  assert.equal(steps[1]?.selector, '[data-tour="hubs"] [data-node="pages"]');
+  assert.equal(steps[1]?.selector, '[data-tour="hubs"] [role="treeitem"][data-id="KNOWLEDGE"]');
   assert.ok(!stepsFor({ hasJumble: false }).some((s) => s.id === 'products'), 'a workspace with nothing on is shown no band');
 });
 
-test('a width that draws no column or no palette field counts no step for them, and the tree is the menu button\'s', () => {
-  const phone = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'phone' });
+test('a width that draws no column or no palette field counts no step for them, and the tree is Browse\'s on a phone', () => {
+  const phone = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'KNOWLEDGE', frame: 'phone' });
   assert.deepEqual(phone.map((s) => s.id), ['hubs', 'capture', 'layouts', 'levels', 'search', 'profile', 'make']);
-  assert.equal(phone[0]?.words, 'hubs_drawer', 'the first step on a phone says the tree is behind the menu button');
-  const drawer = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'drawer' });
+  assert.equal(phone[0]?.words, 'hubs_browse', 'the first step on a phone says the hubs are behind Browse');
+  assert.equal(phone[0]?.selector, 'nav a[href="/browse"]');
+  const drawer = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'KNOWLEDGE', frame: 'drawer' });
   assert.deepEqual(drawer.slice(0, 3).map((s) => s.id), ['hubs', 'capture', 'palette'], 'the drawer draws the palette\'s way in, but no column for the products');
   assert.equal(stepsFor({ collectionId: 'c', hasJumble: false }).at(0)?.words, undefined);
 });

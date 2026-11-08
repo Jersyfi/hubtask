@@ -9,6 +9,7 @@ import { mount } from 'svelte';
 import '../dist/fonts.css';
 import '../dist/fonts-scripts.css';
 import '../dist/tokens.css';
+import '../src/scrollbar.css';
 import './chrome/chrome.css';
 
 import Workbench from './Workbench.svelte';

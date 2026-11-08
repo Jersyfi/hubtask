@@ -280,6 +280,9 @@ type Account struct {
 	// ProductsSeen are the products whose first-visit mark the person has seen (user-experience.md
 	// §3.4), module keys in the order they were seen; the account's for the tour's reason.
 	ProductsSeen []string
+	// Nav holds the sidebar's personal preferences (user-experience.md §2.3); the account's so they
+	// follow the person to another device, while the width and the rail stay the device's.
+	Nav NavPreferences
 	// AvatarMediaID is the picture the person shows beside their name, zero for the initials. Every
 	// member may read it, as they may read the name (data-protection.md §9).
 	AvatarMediaID shared.ID

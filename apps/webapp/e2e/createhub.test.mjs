@@ -55,7 +55,7 @@ async function as(browser, { permissions, offered, allowed = true }) {
   return { page, failures, context, sent };
 }
 
-/** The navigation's *＋ New*, once the tree is drawn: what its menu offers. */
+/** What the sidebar's *Hubs* section offers to create, once the tree is drawn. */
 async function offered(page) {
   await page.getByRole('tree').first().waitFor({ timeout: 10_000 });
   await page.waitForTimeout(600);
@@ -71,7 +71,7 @@ test('chromium: a member is offered a private hub of their own and no shared hub
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
-  // In the navigation's *＋ New*, alone: *Today* carries no head action of its own (§E9), and a
+  // The ＋ on the sidebar's *Hubs*, alone: *Today* carries no head action of its own (§E9), and a
   // member is offered no shared hub the server refuses.
   assert.deepEqual(await offered(page), ['Create private hub']);
 
@@ -123,29 +123,27 @@ test('chromium: whoever shapes the workspace where private hubs are switched off
   assert.deepEqual(failures, []);
 });
 
-test('chromium: inside a hub, *New* makes a hub or a collection in that hub, with its preset (ux-inventory.md §E1)', async (t) => {
+// The navigation concept's grammar (§5): ＋ on a section head creates at its top level - on the hub
+// level's *Collections*, a collection in that hub.
+test('chromium: inside a hub, ＋ on Collections makes a collection in that hub, with its preset (ux-inventory.md §E1)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
-  const column = page.locator('aside.sidenav');
-  const make = column.getByRole('button', { name: 'New', exact: true });
+  const level = page.locator('aside.sidenav').getByRole('region', { name: HUB.name });
+  const make = level.getByRole('button', { name: 'New collection', exact: true });
   await make.waitFor({ timeout: 10_000 });
   await make.click();
-  const menu = page.getByRole('menu');
-  await menu.waitFor({ timeout: 10_000 });
-  const rows = (await menu.getByRole('menuitem').allTextContents()).map((row) => row.trim());
-  assert.deepEqual(rows, ['Create hub', `Collection in ${HUB.name}`], 'the menu does not offer the hub and a collection here');
-  await menu.getByRole('menuitem', { name: `Collection in ${HUB.name}` }).click();
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
-  assert.equal(await dialog.getByRole('heading', { name: 'Create collection' }).count(), 1, 'the dialog does not make a collection');
-  await dialog.getByRole('radio').first().waitFor({ timeout: 10_000 });
-  assert.ok((await dialog.getByRole('radio').count()) > 0, 'the dialog offers no preset');
+  assert.equal(await dialog.getByRole('heading', { name: `New collection in ${HUB.name}` }).count(), 1, 'the dialog does not make a collection');
+  // The kinds as cards (the navigation concept's *New collection*).
+  await dialog.locator('[data-collection-kind]').first().waitFor({ timeout: 10_000 });
+  assert.ok((await dialog.locator('[data-collection-kind]').count()) > 0, 'the dialog offers no preset');
   await dialog.getByRole('textbox').first().fill('Groceries');
-  await dialog.getByRole('button', { name: 'Create collection' }).click();
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].type, 'COLLECTION', `the body was ${JSON.stringify(sent[0])}`);

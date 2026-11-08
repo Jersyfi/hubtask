@@ -46,6 +46,48 @@ func (d *demo) run(ctx context.Context) {
 	d.whiteboards(ctx, scrum, kanban)
 	d.timeTracking(ctx, scrum, classic, desk, mine)
 	d.goals(ctx, scrum, kanban, classic, desk)
+	d.constellations(ctx)
+}
+
+// The navigation concept's constellations beyond the four hubs above (docs/backlog/navigation §10):
+// a household, and enough hubs that the sidebar's *Hubs* runs past the screen - each one a hub of
+// its own that took a catalogue template, with a few entries in the collection that template made.
+var demoConstellations = []struct {
+	key, template, name, description, icon, color string
+	entries                                       []string
+}{
+	{"household", "household", "Zuhause", "Was im Haushalt ansteht, für alle im Haus.", "home", "green",
+		[]string{"Stromrechnung bezahlen", "Schornsteinfeger anrufen", "Neuen Wasserkocher kaufen", "Fahrräder winterfest machen"}},
+	{"wiki", "team_wiki", "Team-Wiki", "Wie wir arbeiten: Abläufe, Entscheidungen, Ansprechpartner.", "book-open", "teal",
+		[]string{"Glossar ergänzen", "Onboarding-Seite aktualisieren"}},
+	{"client", "client_project", "Kundenprojekt Stadtwerke", "Portal-Relaunch für die Stadtwerke Lüneburg.", "briefcase", "orange",
+		[]string{"Kick-off vorbereiten", "Anforderungen abstimmen", "Angebot Phase 2"}},
+	{"bugs", "bug_tracking", "Fehlerverfolgung", "Fehler aus Support und Tests, nach Schwere sortiert.", "bug", "red",
+		[]string{"Export bricht bei Umlauten ab", "Kalender zeigt Termin doppelt"}},
+	{"onboarding", "onboarding", "Onboarding", "Neue Kolleginnen und Kollegen gut ankommen lassen.", "user-plus", "blue",
+		[]string{"Laptop für Hannah bestellen", "Patenschaft festlegen"}},
+	{"event", "event_planning", "Sommerfest 2027", "Planung, Catering und Programm.", "calendar", "magenta",
+		[]string{"Location anfragen", "Catering-Angebote einholen"}},
+	{"procurement", "procurement", "Einkauf", "Bestellungen und Freigaben.", "shopping-cart", "lime",
+		[]string{"Bürostühle nachbestellen"}},
+	{"hr", "hr_requests", "Personal", "Anfragen an die Personalabteilung.", "users", "violet",
+		[]string{"Bescheinigung für Elternzeit"}},
+}
+
+func (d *demo) constellations(ctx context.Context) {
+	for _, c := range demoConstellations {
+		h, fresh := d.hub(ctx, c.key, c.name, c.description, c.icon, c.color)
+		if h == "" {
+			continue
+		}
+		if fresh {
+			d.take(ctx, c.template, h, false)
+		}
+		list := d.collection(ctx, c.key+".list", h, "Aufgaben", "")
+		for i, title := range c.entries {
+			d.entry(ctx, fmt.Sprintf("%s.entry%d", c.key, i), list, title, entryOptions{due: d.day(i*2+1, 9)})
+		}
+	}
 }
 
 // take plans a template and applies exactly that plan, as the gallery takes it.

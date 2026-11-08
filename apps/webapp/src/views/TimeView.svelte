@@ -21,12 +21,13 @@
   // **The server decides every rule**: who sees whose week, what is locked, what may change. A
   // refusal is said where it happened, in the server's words.
 
+  import { homeTabs } from '../lib/product/home.ts';
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
-    type Column, type PlaceTab,
+    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, ViewBar, Select, Skeleton, Stack, Switch, Table, Textarea,
+    type Column, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -65,22 +66,15 @@
 
   const { tab, week, onnavigate }: Props = $props();
 
-  const TABS = [
-    { id: 'week', code: 'app.time.tab_week' },
-    { id: 'approvals', code: 'app.time.tab_approvals' },
-    { id: 'report', code: 'app.time.tab_report' },
-    { id: 'absences', code: 'app.time.tab_absences' },
-    { id: 'capacity', code: 'app.time.tab_capacity' },
-    // Last (user-experience.md §5.1, §8.2): the kinds of work, the lock and the rates, for whoever
-    // may change one of them.
-    { id: 'settings', code: 'app.time.tab_settings' },
-  ] as const;
+  // The time's tabs are the home's (the shared vocabulary, `homeTabs`): Settings last, for whoever
+  // may change one of the kinds of work, the lock and the rates (user-experience.md §5.1, §8.2).
+  const TABS = homeTabs('TIME');
   const maySetUp = $derived(
     holdsHere('STRUCTURE') === true || holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true,
   );
   const offered = $derived(TABS.filter((each) => each.id !== 'settings' || maySetUp));
   const current = $derived(offered.some((each) => each.id === tab) ? (tab as string) : 'week');
-  const tabs = $derived<PlaceTab[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
+  const tabs = $derived<ViewLink[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
   function select(next: string) {
     onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
   }
@@ -382,7 +376,7 @@
        among it - stands under the header, where it wraps (user-experience.md §5.12). -->
   {#if viewport.isCompact}<div class="timer-line"><RunningTimer {onnavigate} /></div>{/if}
 
-  <PlaceTabs label={t('app.time.title')} {tabs} {current} onnavigate={select} />
+  <ViewBar label={t('app.time.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={select} />
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

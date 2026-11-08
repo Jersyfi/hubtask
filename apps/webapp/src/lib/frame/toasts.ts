@@ -58,6 +58,22 @@ export interface ToastEntry extends ToastSpec {
 export const isOffering = (entry: ToastSpec): boolean => entry.undo !== undefined || entry.action !== undefined;
 
 /**
+ * Whether a key press is `Cmd/Ctrl+Z` meant for the newest *Undo* a message offers (the
+ * navigation concept's §5.4): not with Shift (redo), not in a text field, whose own undo it is,
+ * and not where a surface already took it (a whiteboard's canvas prevents the default).
+ */
+export function isUndoPress(
+  press: { readonly key: string; readonly metaKey: boolean; readonly ctrlKey: boolean; readonly altKey: boolean; readonly shiftKey: boolean; readonly defaultPrevented?: boolean },
+  isTextField: boolean,
+): boolean {
+  if (press.defaultPrevented || isTextField || press.altKey || press.shiftKey) return false;
+  return press.metaKey !== press.ctrlKey && (press.key === 'z' || press.key === 'Z');
+}
+
+/** The newest message that offers *Undo*, the one `Cmd/Ctrl+Z` takes. */
+export const latestUndo = (entries: readonly ToastEntry[]): ToastEntry | undefined => [...entries].reverse().find((entry) => entry.undo !== undefined);
+
+/**
  * Why *Undo* is shown but cannot be used now, as a message code, or nothing where it can: it is a
  * write, and a device without a network cannot send one. Shown with its reason rather than hidden
  * (design-system.md §4, case 2), so the way back is still seen to exist.

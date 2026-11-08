@@ -144,21 +144,11 @@ func (r ItemRepository) counted(
 		return repository.ItemQueryResult{}, err
 	}
 
-	// A savepoint holds the count's own statement timeout and is always rolled back: the count only
-	// reads, and rolling back is what returns the transaction's timeout to what it was, whether the
-	// count finished or was cancelled. The budget never raises a shorter timeout already in force.
-	bounded, err := tx.Begin(ctx)
+	bounded, err := r.boundedCount(ctx, tx)
 	if err != nil {
-		return repository.ItemQueryResult{}, queryFailed("bounding the count", err)
+		return repository.ItemQueryResult{}, err
 	}
 	defer func() { _ = bounded.Rollback(ctx) }()
-	if _, err := bounded.Exec(ctx, `SELECT set_config('statement_timeout',
-		CASE WHEN current_setting('statement_timeout')::interval = interval '0'
-		       OR current_setting('statement_timeout')::interval > $1::bigint * interval '1 millisecond'
-		     THEN $1::text ELSE current_setting('statement_timeout') END, true)`,
-		strconv.FormatInt(r.countBudget.Milliseconds(), 10)); err != nil {
-		return repository.ItemQueryResult{}, queryFailed("bounding the count", err)
-	}
 
 	counted, err := r.count(ctx, bounded, statement, search, result)
 	if err != nil && ctx.Err() == nil && outlastedItsBudget(err) {
@@ -166,6 +156,57 @@ func (r ItemRepository) counted(
 		return result, nil
 	}
 	return counted, err
+}
+
+// CountWithin counts what the query keeps and how many of those within keeps too, under the
+// budget an exact count has, reading no row.
+func (r ItemRepository) CountWithin(
+	ctx context.Context, search repository.ItemSearch, within view.Node,
+) (repository.ItemCount, error) {
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return repository.ItemCount{}, err
+	}
+	statement, err := query.CountWithin(search, within)
+	if err != nil {
+		return repository.ItemCount{}, err
+	}
+
+	bounded, err := r.boundedCount(ctx, tx)
+	if err != nil {
+		return repository.ItemCount{}, err
+	}
+	defer func() { _ = bounded.Rollback(ctx) }()
+
+	var total, inside int64
+	err = bounded.QueryRow(ctx, statement.SQL, statement.Args...).Scan(&total, &inside)
+	if err != nil {
+		if ctx.Err() == nil && outlastedItsBudget(err) {
+			return repository.ItemCount{Uncounted: true}, nil
+		}
+		return repository.ItemCount{}, queryFailed("counting the query's rows", err)
+	}
+	return repository.ItemCount{Total: int(total), Within: int(inside)}, nil
+}
+
+// boundedCount opens the savepoint a count runs in, under the count's own statement timeout. The
+// caller always rolls it back: the count only reads, and rolling back is what returns the
+// transaction's timeout to what it was, whether the count finished or was cancelled. The budget
+// never raises a shorter timeout already in force.
+func (r ItemRepository) boundedCount(ctx context.Context, tx pgx.Tx) (pgx.Tx, error) {
+	bounded, err := tx.Begin(ctx)
+	if err != nil {
+		return nil, queryFailed("bounding the count", err)
+	}
+	if _, err := bounded.Exec(ctx, `SELECT set_config('statement_timeout',
+		CASE WHEN current_setting('statement_timeout')::interval = interval '0'
+		       OR current_setting('statement_timeout')::interval > $1::bigint * interval '1 millisecond'
+		     THEN $1::text ELSE current_setting('statement_timeout') END, true)`,
+		strconv.FormatInt(r.countBudget.Milliseconds(), 10)); err != nil {
+		_ = bounded.Rollback(ctx)
+		return nil, queryFailed("bounding the count", err)
+	}
+	return bounded, nil
 }
 
 // outlastedItsBudget is a statement cancelled by its own timeout, as opposed to the caller leaving.

@@ -679,6 +679,10 @@ class Client:
         """Delete an unused business calendar"""
         return self._call("DELETE", "/business-calendars/{calendarKey}", {"calendarKey": calendar_key}, None, {}, None, "none", None, "void")
 
+    def list_hub_queues(self, hub_id: str) -> "HubQueueList":
+        """A hub's queues with their counts"""
+        return self._call("GET", "/hubs/{hubId}/queues", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def list_hub_calendars(self, hub_id: str) -> "BusinessCalendarList":
         """A hub's own business calendars"""
         return self._call("GET", "/hubs/{hubId}/business-calendars", {"hubId": hub_id}, None, {}, None, "none", None, "json")
@@ -1650,6 +1654,14 @@ class Client:
     def update_account_preferences(self, account_id: str, body: "AccountPreferences") -> "Account":
         """Set how the product speaks to an account"""
         return self._call("PATCH", "/accounts/{accountId}/preferences", {"accountId": account_id}, None, {}, body, "json", "application/merge-patch+json", "json")
+
+    def list_stars(self, account_id: str) -> "StarList":
+        """Read a person's stars"""
+        return self._call("GET", "/accounts/{accountId}/stars", {"accountId": account_id}, None, {}, None, "none", None, "json")
+
+    def replace_stars(self, account_id: str, body: "StarList", *, if_match: str | None = None) -> "StarList":
+        """Replace a person's stars"""
+        return self._call("PUT", "/accounts/{accountId}/stars", {"accountId": account_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_notification_preferences(self, account_id: str) -> "NotificationPreferenceList":
         """What an account wants to be told about"""
@@ -2863,6 +2875,10 @@ class Client:
         """POST /containers/{containerId}:move"""
         return self._call("POST", "/containers/{containerId}:move", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def preview_container_move(self, container_id: str, body: dict[str, Any]) -> "ContainerMovePreview":
+        """Preview a collection's move to another hub"""
+        return self._call("POST", "/containers/{containerId}:move-preview", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
     def reorder_container(self, container_id: str, body: dict[str, Any], *, idempotency_key: str | None = None, if_match: str | None = None) -> "Container":
         """POST /containers/{containerId}:reorder"""
         return self._call("POST", "/containers/{containerId}:reorder", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key, "If-Match": if_match}, body, "json", "application/json", "json")
@@ -3474,6 +3490,10 @@ class Client:
     def trash_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
         """Put a whiteboard in the trash"""
         return self._call("DELETE", "/whiteboards/{whiteboardId}", {"whiteboardId": whiteboard_id}, None, {}, None, "none", None, "json")
+
+    def move_whiteboard(self, whiteboard_id: str, body: "WhiteboardMove", *, if_match: str | None = None) -> "Whiteboard":
+        """Move a whiteboard in the content tree"""
+        return self._call("POST", "/whiteboards/{whiteboardId}:move", {"whiteboardId": whiteboard_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def restore_whiteboard(self, whiteboard_id: str) -> "Whiteboard":
         """Bring a whiteboard back from the trash"""

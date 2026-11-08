@@ -183,9 +183,9 @@ export function sprintDaysLeft(endOn: string, today: string): number {
 }
 
 /**
- * The count the *Today* row carries (user-experience.md §3.3): the approvals, the agents' held
- * acts and the pages waiting for the reader's yes. Nothing while unknown or none, so the row
- * never says "0".
+ * The count *Waiting for your yes* carries in the sidebar (user-experience.md §2.1): the approvals,
+ * the agents' held acts and the pages waiting for the reader's yes. Nothing while unknown or none,
+ * so the row never says "0".
  */
 export function todayRowCountOf(
   approvals: readonly { readonly state: string }[] | undefined,

@@ -1,15 +1,16 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A hub's overview says one line per product on here (user-experience.md §7.9): the plan's
-  // running sprint or next release, the pages and boards changed this week, the desks' open and
-  // breaching requests, the inventory, the reader's own time this week and the goals pursued. Each
+  // A hub's overview says one line per tool on here (user-experience.md §7.9, the navigation
+  // concept §2.4): the plan's running sprint or next release, the desks' open and breaching
+  // requests, the inventory, the reader's own time this week, the goals pursued, and the pages and
+  // boards changed this week, each with the way to its tool's page or *All contents*. Each
   // line is what the product's own read answered; a line not answered yet is not drawn, rather
   // than a guess (P-11). The boards' list is drawn only where it came whole.
 
   import { untrack } from 'svelte';
 
-  import { Icon, type IconName } from '@hubtask/design-system/components';
+  import { Icon, ProductTile, type IconName } from '@hubtask/design-system/components';
 
   import { engine } from '../data/engine.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -28,7 +29,7 @@
   import { weekOf } from '../data/due.ts';
   import { firstWeekdayOf } from '../i18n/week.ts';
   import { dateIn, todayIn } from '../i18n/zone.ts';
-  import { formatPlainDay } from '../i18n/datetime.ts';
+  import { formatShortDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { sprintDaysLeft } from '../today.ts';
   import { boardsChangedSince, goalsStanding, nextReleaseOf, pagesChangedSince, sprintsRunning } from '../product/home.ts';
@@ -110,7 +111,7 @@
   let goals = $state<GoalList['data'] | undefined>(undefined);
   follow<GoalList>(() => (aiming ? goalsPath(undefined, hubId) : undefined), (data) => (goals = data.data));
 
-  interface Line { readonly id: string; readonly icon: IconName; readonly product: string; readonly text: string; readonly href: string }
+  interface Line { readonly id: string; readonly icon: IconName; readonly color: string; readonly product: string; readonly text: string; readonly href: string }
 
   const lines = $derived.by<Line[]>(() => {
     const said: Line[] = [];
@@ -119,25 +120,17 @@
       const next = nextReleaseOf({ [hubId]: releases ?? [] }, hubId);
       const parts = [
         ...(sprint ? [t('app.product_home.sprint_line', { name: sprint.name, remaining: t('app.sprints.days_left', { count: String(sprintDaysLeft(sprint.end_on, today)) }) })] : []),
-        ...(next ? [t('app.product_home.next_release', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) })] : []),
+        ...(next ? [t('app.hub_overview.release_on', { name: next.name, day: formatShortDay(next.release_on, messages.locale) })] : []),
       ];
       said.push({
-        id: 'plan', icon: 'calendar', product: t('app.planning.title'),
+        id: 'plan', icon: 'calendar', color: 'orange', product: t('app.nav.tool_plan'),
         text: parts.length > 0 ? parts.join(' · ') : t('app.hub_overview.plan_quiet'),
-        href: sprint ? `/collections/${sprint.collection_id}/sprints` : `/hubs/${hubId}/plan`,
+        href: `/hubs/${hubId}/plan`,
       });
-    }
-    if (knowledge && pages !== undefined) {
-      const count = pagesChangedSince(pages, weekFrom, (iso) => dateIn(iso, actor.zone));
-      said.push({ id: 'pages', icon: 'book-open', product: t('app.pages.title'), text: t('app.hub_overview.pages_this_week', { count }), href: `/hubs/${hubId}/pages` });
-    }
-    if (boarding && boards !== undefined) {
-      const count = boardsChangedSince(boards, weekFrom, (iso) => dateIn(iso, actor.zone));
-      said.push({ id: 'whiteboards', icon: 'layout-template', product: t('app.whiteboards.title'), text: t('app.hub_overview.boards_this_week', { count }), href: `/hubs/${hubId}/whiteboards` });
     }
     if (deskIds.length > 0 && deskOpen !== undefined && deskBreaching !== undefined) {
       said.push({
-        id: 'desk', icon: 'inbox', product: t('app.place_tabs.desk'),
+        id: 'desk', icon: 'inbox', color: 'magenta', product: t('app.nav.tool_queues'),
         text: [
           t('app.desk_home.open', { count: String(deskOpen) }),
           ...(deskBreaching > 0 ? [t('app.desk_home.breaching', { count: String(deskBreaching) })] : []),
@@ -147,26 +140,38 @@
     }
     if (assets && health !== undefined) {
       said.push({
-        id: 'assets', icon: 'shield', product: t('app.assets.title'),
+        id: 'assets', icon: 'shield', color: 'slate', product: t('app.nav.tool_inventory'),
         text: [
           t('app.assets.figure_total', { count: health.total }),
           ...(health.problems.length > 0 ? [t('app.assets.figure_wanting', { count: health.problems.length })] : []),
         ].join(' · '),
-        href: `/hubs/${hubId}/assets`,
+        href: `/hubs/${hubId}/inventory`,
       });
     }
     if (timing && minutes !== undefined) {
-      said.push({ id: 'time', icon: 'clock', product: t('app.time.title'), text: t('app.hub_overview.time_this_week', { minutes: minutesText(minutes) }), href: `/hubs/${hubId}/actuals` });
+      said.push({ id: 'time', icon: 'clock', color: 'lime', product: t('app.nav.tool_time'), text: t('app.hub_overview.time_this_week', { minutes: minutesText(minutes) }), href: `/hubs/${hubId}/time` });
     }
     if (aiming && goals !== undefined) {
       const standing = goalsStanding(goals);
       said.push({
-        id: 'goals', icon: 'flag', product: t('app.goals.title'),
+        id: 'goals', icon: 'flag', color: 'green', product: t('app.nav.tool_goals'),
         text: [
           t('app.hub_overview.goals_open', { count: standing.open }),
           ...(standing.atRisk > 0 ? [t('app.hub_overview.goals_at_risk', { count: String(standing.atRisk) })] : []),
         ].join(' · '),
-        href: `/goals?hub=${hubId}`,
+        href: `/hubs/${hubId}/goals`,
+      });
+    }
+    // Pages and boards are one tree, so one line: what changed in it this week, and *All contents*.
+    const pagesRead = !knowledge || pages !== undefined;
+    const boardsRead = !boarding || boards !== undefined;
+    if ((knowledge || boarding) && pagesRead && boardsRead) {
+      const changedPages = knowledge && pages ? pagesChangedSince(pages, weekFrom, (iso) => dateIn(iso, actor.zone)) : 0;
+      const changedBoards = boarding && boards ? boardsChangedSince(boards, weekFrom, (iso) => dateIn(iso, actor.zone)) : 0;
+      said.push({
+        id: 'contents', icon: 'book-open', color: 'teal', product: t('app.nav.all_contents'),
+        text: t('app.hub_overview.contents_this_week', { pages: changedPages, boards: changedBoards }),
+        href: `/hubs/${hubId}/contents`,
       });
     }
     return said;
@@ -178,9 +183,9 @@
     {#each lines as line (line.id)}
       <li data-product-line={line.id}>
         <a href={line.href}>
-          <Icon name={line.icon} size="sm" />
-          <span class="product">{line.product}</span>
+          <ProductTile icon={line.icon} color={line.color} size="sm" />
           <span class="text">{line.text}</span>
+          <span class="product">{line.product} <Icon name="chevron-right" size="sm" /></span>
         </a>
       </li>
     {/each}
@@ -191,29 +196,32 @@
   .lines {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-050);
+    gap: var(--sp-100);
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
+  /* A boxed row per tool, as the mockup's overview draws it: the tile, what it says, and the tool
+     it leads to at the end. */
   a {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--sp-050) var(--sp-100);
-    padding-block: var(--sp-050);
-    color: var(--text-secondary);
+    align-items: center;
+    gap: var(--sp-100);
+    padding: var(--sp-100) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    color: var(--text-primary);
     text-decoration: none;
-    font-size: var(--fs-075);
+    font-size: var(--fs-090);
   }
 
-  a:hover .text { color: var(--text-primary); }
-  a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
+  a:hover { border-color: var(--border-default); }
+  a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
-  a :global(svg) { align-self: center; color: var(--text-subtle); }
+  .text { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
 
-  .product { color: var(--text-primary); font-weight: var(--fw-medium); }
-
-  .text { min-inline-size: 0; overflow-wrap: anywhere; }
+  .product { display: inline-flex; align-items: center; flex: none; color: var(--text-secondary); }
+  a:hover .product { color: var(--text-primary); }
 </style>

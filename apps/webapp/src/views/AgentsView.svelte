@@ -16,8 +16,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, CheckboxGroup, Dialog, Disclosure, Icon, IconButton, Input, ListRow, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
-    type PlaceTab, type SelectOption,
+    Badge, Banner, Button, CheckboxGroup, Dialog, Disclosure, Icon, IconButton, Input, ListRow, PageHeader, ViewBar, Select, Skeleton, Stack, Switch, Table, Textarea,
+    type ViewLink, type SelectOption,
   } from '@hubtask/design-system/components';
   import type {
     Agent, AgentHalt, AgentJobList, WorkspaceAgentPolicy, AgentList, AgentMeteringList, AgentModel, AgentModelList, AgentRequest, AgentRequestList, AgentWrite, AiSource,
@@ -244,7 +244,7 @@
   const held = $derived(heldCounts(pending));
   const shown = $derived(heldOf ? requests.filter((each) => each.agent_id === heldOf) : requests);
 
-  const tabs = $derived<PlaceTab[]>(
+  const tabs = $derived<ViewLink[]>(
     homeTabs('AGENTS').filter((each) => administers || each.id !== 'settings').map((each) => ({
       id: each.id,
       label: t(each.code),
@@ -400,7 +400,7 @@
     </Banner>
   {/if}
 
-  <PlaceTabs label={t('app.agents.title')} {tabs} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
+  <ViewBar label={t('app.agents.title')} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
 
   {#if refusal}
     <FailureNote problem={refusal} />

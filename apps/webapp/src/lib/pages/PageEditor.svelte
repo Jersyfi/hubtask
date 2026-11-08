@@ -35,6 +35,7 @@
   import { unsentDocuments } from '../data/unsentdocs.ts';
   import { liveKeeper } from '../data/unsentkeeper.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { page as frame } from '../frame/page.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { isLiveUnreachable } from '../data/liveunreachable.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
@@ -238,6 +239,29 @@
     });
   });
 
+  // Writing in the body hides the phone's bottom bar (the navigation concept's §9): the keyboard
+  // and the editor's own toolbar take the room.
+  $effect(() => {
+    const element = host;
+    if (!element || !page.writable) return;
+    let release: (() => void) | undefined;
+    const enter = () => {
+      release ??= frame.write();
+    };
+    const leave = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
+      release?.();
+      release = undefined;
+    };
+    element.addEventListener('focusin', enter);
+    element.addEventListener('focusout', leave);
+    return () => {
+      element.removeEventListener('focusin', enter);
+      element.removeEventListener('focusout', leave);
+      release?.();
+    };
+  });
+
   // --- The editor and its live document ------------------------------------------------------------
 
   $effect(() => {
@@ -285,8 +309,10 @@
           });
           editor = current;
           isLive = true;
-          // A page with a body and no live document yet: the first writer seeds it.
-          if (seedFromMarkdown(current, body)) changed(markdownOf(current));
+          // A page with a body and no live document yet: the first writer seeds it. The seed is the
+          // body itself, only written out again: nothing to save, or opening a page gave it a
+          // version nobody wrote.
+          if (seedFromMarkdown(current, body)) lastSaved = markdownOf(current);
         },
       });
       const present = () => onpresent?.(writersHere(connection.awareness.getStates(), doc.clientID));

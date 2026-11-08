@@ -39,6 +39,8 @@
 
 import { HOLD_MS, boundariesOf, dropIndex, hasLeftTheHandle } from '@hubtask/design-system/components';
 
+import { carried, entryTarget, targetAt } from '../frame/entryDrop.svelte.ts';
+
 /** The list a dragged element could land in: what it is, and the elements drawn in it. */
 export interface DragLevel {
   /** What the level is, for a surface that has more than one — a board's column. */
@@ -178,6 +180,9 @@ export function createDrag(options: DragOptions): Drag {
       }
       travelled = move.clientY - from.y;
       travelledInline = move.clientX - from.x;
+      // Over the sidebar the entry is carried to a collection, not placed in this list.
+      carried.id = target.id;
+      carried.over = targetAt(move.clientX, move.clientY);
 
       const level = options.levelAt?.({ x: move.clientX, y: move.clientY }) ?? target.level;
       landed = {
@@ -197,6 +202,14 @@ export function createDrag(options: DragOptions): Drag {
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
 
+      const onto = hasBegun ? carried.over : undefined;
+      carried.id = null;
+      carried.over = undefined;
+      if (onto && entryTarget.drop(onto, target.id)) {
+        hasJustDragged = true;
+        forget();
+        return;
+      }
       const moved = hasBegun && (landed.key !== target.level.key || landed.to !== target.index);
       const isHold = isHeldStill && !hasBegun && options.onhold !== undefined;
       // The click the lift sends belongs to the drag or to the hold, never to the card under it.

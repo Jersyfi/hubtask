@@ -66,7 +66,8 @@ test('chromium: standing on a folded row finds its More open', async (t) => {
   t.after(() => browser.close());
   const { nav, close } = await column(browser, { severalPeople: false, path: '/administration/voice' });
   t.after(close);
-  await nav.getByText('Voice assistants', { exact: true }).waitFor({ timeout: 10_000 });
+  // The row's own name, not the trail's last crumb, which names the same page.
+  await nav.getByTitle('Voice assistants', { exact: true }).waitFor({ timeout: 10_000 });
 });
 
 test('chromium: a workspace of several folds nothing', async (t) => {

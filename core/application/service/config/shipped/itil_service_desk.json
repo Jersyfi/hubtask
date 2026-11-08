@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 15,
+  "version": 16,
   "questions": [
     {
       "key": "first_group",
@@ -754,6 +754,8 @@
     "views": {
       "mine": {
         "name": "Mine",
+        "queue": true,
+        "queue_position": 1,
         "layout": "LIST_EXPANDED",
         "query": {
           "scope_container_id": "@hub",
@@ -782,6 +784,8 @@
       },
       "unassigned": {
         "name": "Unassigned",
+        "queue": true,
+        "queue_position": 2,
         "layout": "LIST_EXPANDED",
         "query": {
           "scope_container_id": "@hub",
@@ -809,6 +813,8 @@
       },
       "about_to_breach": {
         "name": "About to breach",
+        "queue": true,
+        "queue_position": 3,
         "layout": "LIST_EXPANDED",
         "query": {
           "scope_container_id": "@hub",
@@ -840,6 +846,8 @@
       },
       "unhappy": {
         "name": "Unhappy",
+        "queue": true,
+        "queue_position": 4,
         "layout": "LIST_EXPANDED",
         "query": {
           "scope_container_id": "@hub",

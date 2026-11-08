@@ -209,6 +209,23 @@ func accountResponse(out usecase.Output) openapi.Account {
 		}
 		account.ProductsSeen = &modules
 	}
+	account.NavProducts = modulesOf(out["nav_products"])
+	account.NavProductsHidden = modulesOf(out["nav_products_hidden"])
+	if hubs, ok := out["nav_hubs_hidden"].([]string); ok && len(hubs) > 0 {
+		ids := make([]openapi_types.UUID, 0, len(hubs))
+		for _, hub := range hubs {
+			ids = append(ids, uuidValue(hub))
+		}
+		account.NavHubsHidden = &ids
+	}
+	if order := out.String("nav_hubs_order"); order != "" {
+		word := openapi.AccountNavHubsOrder(order)
+		account.NavHubsOrder = &word
+	}
+	if mode := out.String("nav_contents_mode"); mode != "" {
+		word := openapi.AccountNavContentsMode(mode)
+		account.NavContentsMode = &word
+	}
 	account.MailUndeliverableSince = timePointer(out["mail_undeliverable_since"])
 	account.AvatarMediaId = optionalUUID(out.String("avatar_media_id"))
 	if armed, held := out["has_second_factor"].(bool); held {
@@ -253,6 +270,19 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.RecoveryCodesRemaining = &remaining
 	}
 	return account
+}
+
+// modulesOf answers a projected list of module keys, or nil where it is empty.
+func modulesOf(value any) *[]openapi.Module {
+	keys, ok := value.([]string)
+	if !ok || len(keys) == 0 {
+		return nil
+	}
+	modules := make([]openapi.Module, 0, len(keys))
+	for _, key := range keys {
+		modules = append(modules, openapi.Module(key))
+	}
+	return &modules
 }
 
 func membershipResponse(out usecase.Output) openapi.Membership {

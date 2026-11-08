@@ -536,7 +536,8 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 const findAccount = `-- name: FindAccount :one
 
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at, avatar_media_id, products_seen
+  celebrations, onboarding_completed_at, avatar_media_id, products_seen,
+  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -556,6 +557,11 @@ type FindAccountRow struct {
 	OnboardingCompletedAt pgtype.Timestamptz
 	AvatarMediaID         pgtype.UUID
 	ProductsSeen          []string
+	NavProducts           []string
+	NavProductsHidden     []string
+	NavHubsOrder          *string
+	NavContentsMode       *string
+	NavHubsHidden         []pgtype.UUID
 }
 
 // ============================== Accounts ==============================
@@ -580,6 +586,11 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.OnboardingCompletedAt,
 		&i.AvatarMediaID,
 		&i.ProductsSeen,
+		&i.NavProducts,
+		&i.NavProductsHidden,
+		&i.NavHubsOrder,
+		&i.NavContentsMode,
+		&i.NavHubsHidden,
 	)
 	return i, err
 }
@@ -1982,8 +1993,13 @@ UPDATE account SET
   celebrations = $4,
   onboarding_completed_at = $5,
   products_seen = $6::text[],
-  updated_at = $7
-WHERE id = $8 AND deleted_at IS NULL
+  nav_products = $7::text[],
+  nav_products_hidden = $8::text[],
+  nav_hubs_order = $9,
+  nav_contents_mode = $10,
+  nav_hubs_hidden = $11::uuid[],
+  updated_at = $12
+WHERE id = $13 AND deleted_at IS NULL
 `
 
 type UpdateAccountPreferencesParams struct {
@@ -1993,6 +2009,11 @@ type UpdateAccountPreferencesParams struct {
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
 	ProductsSeen          []string
+	NavProducts           []string
+	NavProductsHidden     []string
+	NavHubsOrder          *string
+	NavContentsMode       *string
+	NavHubsHidden         []pgtype.UUID
 	UpdatedAt             pgtype.Timestamptz
 	ID                    pgtype.UUID
 }
@@ -2007,6 +2028,11 @@ func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccoun
 		arg.Celebrations,
 		arg.OnboardingCompletedAt,
 		arg.ProductsSeen,
+		arg.NavProducts,
+		arg.NavProductsHidden,
+		arg.NavHubsOrder,
+		arg.NavContentsMode,
+		arg.NavHubsHidden,
 		arg.UpdatedAt,
 		arg.ID,
 	)

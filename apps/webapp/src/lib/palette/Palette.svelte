@@ -41,6 +41,7 @@
   import { capture } from '../capture/capture.svelte.ts';
   import { mayCaptureHere } from '../capture/places.svelte.ts';
   import { recents } from '../recents.svelte.ts';
+  import { GLANCE } from '../recents.ts';
   import { ariaKeysOf, drawnKeysOf } from '../shortcuts.ts';
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -312,7 +313,7 @@
     ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
     ...pageHits.map((hit) => ({ kind: 'place' as const, id: `page:${hit.id}`, label: hit.title, target: { kind: 'route' as const, path: `/pages/${hit.id}` } })),
     ...objectRows.map((row) => ({ kind: 'place' as const, id: `${row.kind}:${row.id}`, label: row.title, context: t(`app.search.kind.${row.kind}`), target: { kind: 'route' as const, path: row.href } })),
-    ...recentOffers(recents.rows),
+    ...recentOffers(recents.rows.slice(0, GLANCE)),
   ]);
 
   const byKey = $derived(new Map(offers.map((offer) => [`${offer.kind}:${offer.id}`, offer])));
@@ -749,7 +750,7 @@
     type={creating.type}
     parentId={creating.parentId}
     isPrivateOnly={creating.isPrivateOnly}
-    oncreated={(id) => onnavigate(creating?.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`)}
+    oncreated={(id, landing) => onnavigate(creating?.type === 'HUB' ? `/hubs/${id}` : (landing ?? `/collections/${id}`))}
   />
 {/if}
 
