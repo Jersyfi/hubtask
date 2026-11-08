@@ -389,6 +389,11 @@
     min-width: 0;
   }
 
+  /* Without a figure on it the line never wraps: a long title breaks between its words and its
+     star stays beside it, rather than standing alone on a line under it. */
+  .title-line:not(:has(> .head-figure)) { flex-wrap: nowrap; }
+  .title-line:not(:has(> .head-figure)) > .title { min-width: 0; }
+
   .title-mark,
   .title-end { display: inline-flex; flex: none; }
 

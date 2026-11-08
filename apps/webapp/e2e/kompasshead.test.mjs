@@ -316,3 +316,29 @@ test('A long one-word hub name ends in an ellipsis in the hub\'s head, never bro
   assert.equal(drawn.title, long, 'the full name is the title');
   assert.deepEqual(failures, []);
 });
+
+test('A title that wraps keeps its ☆ beside it, never on a line of its own', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const long = 'Mobile App for customers on iOS and Android';
+  const renamed = COLLECTIONS.map((each) => (each.id === MOBILE.id ? { ...each, name: long } : each));
+  const extra = async (route, request, url) => {
+    if (url.pathname.endsWith(`/api/v1/containers/${MOBILE.id}`) && request.method() === 'GET') {
+      await route.fulfill({ json: renamed.find((each) => each.id === MOBILE.id) });
+      return true;
+    }
+    if (!url.pathname.endsWith('/api/v1/containers') || url.searchParams.get('type') === 'HUB') return false;
+    await route.fulfill({ json: { data: renamed.filter((each) => each.parent_id === url.searchParams.get('parent_id')), page: { next_cursor: null, has_more: false } } });
+    return true;
+  };
+  const { page, failures, close } = await go(browser, { path: `/collections/${MOBILE.id}/sprint`, extra, width: 905, height: 900, storage: { 'hubtask.nav.width': '400' } });
+  t.after(close);
+  const head = page.locator('main [data-head="collection"]');
+  const title = head.getByRole('heading', { level: 1, name: long });
+  await title.waitFor();
+  const [h, s] = [await box(title), await box(head.getByRole('button', { name: `Star ${long}` }))];
+  assert.ok(h.height > 50, 'the title wraps at this width');
+  assert.ok(s.x >= h.x + h.width - 1, `the star stands at x ${s.x}, the title ends at ${h.x + h.width}`);
+  assert.ok(s.y >= h.y && s.y + s.height <= h.y + h.height + 1, `the star stands at y ${s.y}, the title runs ${h.y}-${h.y + h.height}`);
+  assert.deepEqual(failures, []);
+});
