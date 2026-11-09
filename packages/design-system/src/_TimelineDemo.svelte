@@ -13,7 +13,8 @@
   const {
     mode = 'mixed',
     scale = 'day',
-  }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions' | 'dependencies' | 'gantt'; scale?: 'day' | 'week' | 'month' | 'quarter' | 'year' } = $props();
+    isTrayFolded = false,
+  }: { isTrayFolded?: boolean; mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions' | 'dependencies' | 'gantt'; scale?: 'day' | 'week' | 'month' | 'quarter' | 'year' } = $props();
 
   // The entry open beside the timeline, and what a row's menu or a long press last asked for.
   let current = $state<string | undefined>('r2');
@@ -108,7 +109,8 @@
   gridlines={mode === 'empty' ? [] : gridlines}
   today="2026-09-11"
   todayLabel="Today is Friday 11 September"
-  undatedLabel="Not on the axis yet"
+  undatedLabel={isTrayFolded ? '2 without dates' : 'Not on the axis yet'}
+  {isTrayFolded}
   emptyLabel="Nothing to place here. Give an entry a due date and it appears."
   startHandleLabel="Move the start"
   dueHandleLabel="Move the due date"

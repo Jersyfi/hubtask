@@ -130,6 +130,11 @@
     todayLabel?: string;
     /** What the tray of entries that cannot be placed is called. */
     undatedLabel: string;
+    /**
+     * Whether the tray opens folded, under the axis as one line that names its count: where the
+     * plan is mostly dated, the tray is a remainder, not the page.
+     */
+    isTrayFolded?: boolean;
     /** What a timeline with nothing on it says. */
     emptyLabel: string;
     /** What a reader is told a bar's ends are for. */
@@ -175,6 +180,7 @@
     today,
     todayLabel,
     undatedLabel,
+    isTrayFolded = false,
     emptyLabel,
     startHandleLabel,
     dueHandleLabel,
@@ -758,7 +764,7 @@
     </div>
 
     {#if undated.length > 0}
-      <details class="undated" open>
+      <details class="undated" open={!isTrayFolded} data-folded={isTrayFolded ? '' : undefined}>
         <summary class="name">{undatedLabel}</summary>
         <ul class="plain">
           {#each undated as row (row.id)}
