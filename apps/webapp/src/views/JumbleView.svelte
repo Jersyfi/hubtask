@@ -288,7 +288,7 @@
 <WorkPage>
   {#snippet top()}
     <!-- `data-tour`: where the tour points for "where things arrive before they are work". -->
-    <div data-tour="jumble">
+    <div data-tour="jumble" data-head="jumble">
       <PageHeader
         title={t('app.jumble.title')}
         isTitleInBar={viewport.isCompact}

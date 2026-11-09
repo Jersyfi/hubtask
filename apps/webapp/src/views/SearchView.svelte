@@ -542,7 +542,7 @@
   {#snippet top()}<PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />{/snippet}
 
   <!-- `data-tour`: where the tour points for the query language. -->
-  <Stack gap="150" data-tour="search">
+  <Stack gap="150" data-tour="search" data-head="search">
     {#if advanced}
       <!-- The whole question as text. Everything the chips can say, and the four things they
            cannot: `title:`, `note:`, `sort:` and a negation. -->

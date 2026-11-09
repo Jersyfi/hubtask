@@ -47,26 +47,22 @@
 </div>
 
 <style>
+  /* One rhythm for every kind and width, the navigation concept's mockup: the head stands
+     closer to what follows it than the parts below it do to each other. Margins, not `gap`, so
+     that a head which spaces its own parts (`PlaceHead`) is not spaced twice. */
   .page {
-    --page-head-title-size: var(--fs-600);
     display: flex;
     flex-direction: column;
-    gap: var(--sp-250);
     min-width: 0;
   }
 
-  .page[data-page-kind='record'],
-  .page[data-page-kind='detail'] { gap: var(--sp-300); }
+  .page > :global(* + *) { margin-block-start: var(--sp-200); }
+  .page > :global(:is(header, [data-head]):first-child + *) { margin-block-start: var(--sp-150); }
 
   .refused {
     padding: var(--sp-400) var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
-  }
-
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) {
-    .page { --page-head-title-size: var(--fs-500); gap: var(--sp-200); }
   }
 </style>

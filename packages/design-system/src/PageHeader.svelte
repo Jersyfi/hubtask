@@ -386,8 +386,7 @@
   .title {
     margin: 0;
     font-family: var(--font-display);
-    /* A page kind sets the step for its title (`--page-head-title-size`); alone, the head's own. */
-    font-size: var(--page-head-title-size, var(--fs-450));
+    font-size: var(--fs-450);
     font-weight: var(--fw-bold);
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;

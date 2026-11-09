@@ -105,17 +105,13 @@
   .title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: var(--fs-600);
-    font-weight: var(--fw-semibold);
+    /* The size and weight of every page's title (`PageHeader`). */
+    font-size: var(--fs-450);
+    font-weight: var(--fw-bold);
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
   }
 
   .facts { margin: var(--sp-050) 0 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .acts { display: flex; align-items: center; gap: var(--sp-100); }
-
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) {
-    .title { font-size: var(--fs-500); }
-  }
 </style>

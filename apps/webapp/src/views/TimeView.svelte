@@ -545,7 +545,7 @@
 {/snippet}
 
 {#snippet top()}
-  <div class="top">
+  <div class="top" data-head="time">
     <PageHeader
       title={t('app.time.title')}
       subtitle={t('app.modules.hint_time')}

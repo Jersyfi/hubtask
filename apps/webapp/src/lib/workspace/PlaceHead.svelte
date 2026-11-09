@@ -74,15 +74,12 @@
 {#if notices}<div class="notices">{@render notices()}</div>{/if}
 
 <style>
-  /* The head's own rhythm, whatever the screen's body below uses. */
-  .head { margin-block-end: var(--sp-150); }
-
+  /* No margins of its own: the page kind spaces the head, the bar and the notices (one rhythm). */
   /* The bar stays under the app bar while the view scrolls. */
   .views {
     position: sticky;
     inset-block-start: var(--layout-appbar-height);
     z-index: var(--z-raised);
-    margin-block-end: var(--sp-200);
     background: var(--bg-canvas);
   }
 
@@ -97,6 +94,6 @@
 
   .compact-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
-  .notices { display: flex; flex-direction: column; gap: var(--sp-100); margin-block-end: var(--sp-200); }
+  .notices { display: flex; flex-direction: column; gap: var(--sp-100); }
   .notices:not(:has(*)) { display: none; }
 </style>

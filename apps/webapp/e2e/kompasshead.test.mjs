@@ -187,7 +187,7 @@ test('R-13: narrower than the marks and the views, the tools move behind one ⋯
 test('R-15: a new screen starts at its top, back returns to where the reader was', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 600 }]]) {
+  for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 500 }]]) {
     const { page, failures, close } = await go(browser, { path: '/', ...size });
     t.after(close);
     const tile = page.locator('section[aria-labelledby="today-lists"] a', { hasText: WEB.name });
