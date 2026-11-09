@@ -344,11 +344,11 @@ test('chromium: by keyboard alone, a setting opens its screen with focus on its 
   t.after(() => browser.close());
 
   const walks = [
-    { locale: 'en', words: 'language', row: 'Language', setting: 'language', path: /\/profile$/ },
-    { locale: 'de', words: 'Sprache', row: 'Sprache', setting: 'language', path: /\/profile$/ },
+    { locale: 'en', words: 'language', row: 'Language', setting: 'language', path: /\/profile\/you\/language$/ },
+    { locale: 'de', words: 'Sprache', row: 'Sprache', setting: 'language', path: /\/profile\/you\/language$/ },
     // Found by a word the row does not say: "Design" means *Hell oder dunkel*.
     { locale: 'de', words: 'Design', row: 'Hell oder dunkel', setting: 'theme', path: /\/profile\/appearance$/ },
-    { locale: 'en', words: 'password', row: 'Password', setting: 'password', path: /\/profile\/security$/ },
+    { locale: 'en', words: 'password', row: 'Password', setting: 'password', path: /\/profile\/security\/password$/ },
   ];
   for (const walk of walks) {
     const { context, page, failures } = await as(browser, 'MEMBER', { locale: walk.locale });

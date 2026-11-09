@@ -285,6 +285,39 @@ func (q *Queries) CountDirectoryGroups(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countGroups = `-- name: CountGroups :one
+SELECT count(*)::integer FROM account_group
+`
+
+// How many groups the page walk of ListGroups passes over, for the page's total (api-guidelines.md
+// §5). The tenant boundary is the transaction's, as for the walk.
+func (q *Queries) CountGroups(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countGroups)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countMembershipsAt = `-- name: CountMembershipsAt :one
+SELECT count(*)::integer
+FROM membership
+WHERE scope_type = $1
+  AND scope_id IS NOT DISTINCT FROM $2::uuid
+`
+
+type CountMembershipsAtParams struct {
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+}
+
+// How many memberships ListMembershipsAtScope walks over at one scope, for the page's total.
+func (q *Queries) CountMembershipsAt(ctx context.Context, arg CountMembershipsAtParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countMembershipsAt, arg.ScopeType, arg.ScopeID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countPeople = `-- name: CountPeople :one
 SELECT count(*) FROM account
 WHERE kind = 'USER' AND status <> 'ANONYMIZED' AND deleted_at IS NULL

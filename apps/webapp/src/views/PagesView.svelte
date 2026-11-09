@@ -19,7 +19,7 @@
   import { untrack } from 'svelte';
   import {
     AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, Select, Spinner, Stack, Switch,
-    TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
+    TemplateCard, TemplateGallery, Textarea, VisuallyHidden, WorkPage,
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
@@ -464,6 +464,9 @@
 
 </script>
 
+<!-- The open page is one work surface, at the hub's address and at a page's (page-system §7.8). -->
+<WorkPage>
+{#snippet top()}
 {#if pageId && !current}
   <!-- The screen's one h1 while the page is read; once it is, the page's own title is it. -->
   <VisuallyHidden as="h1">{t('app.pages.title')}</VisuallyHidden>
@@ -489,6 +492,7 @@
       : undefined}
   />
 {/if}
+{/snippet}
 <div class="space">
   <section class="page" aria-label={current?.title ?? t('app.pages.title')}>
     {#if refusal}
@@ -799,6 +803,7 @@
     {/if}
   </section>
 </div>
+</WorkPage>
 
 {#if isCreating}
   <CreateDialog
@@ -834,7 +839,7 @@
 {/if}
 
 {#if isMoving && current}
-  <Dialog bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}>
+  <Dialog size="s" bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}>
     <Select label={t('app.pages.move_under')} options={moveOptions} bind:value={moveParent} />
     {#snippet actions()}
       <Button tone="subtle" onclick={() => (isMoving = false)}>{t('app.pages.cancel')}</Button>
@@ -844,7 +849,7 @@
 {/if}
 
 {#if namingSeq !== undefined}
-  <Dialog isOpen title={t('app.pages.version_name')} dismissLabel={t('app.pages.cancel')} onClose={() => (namingSeq = undefined)}>
+  <Dialog size="s" isOpen title={t('app.pages.version_name')} dismissLabel={t('app.pages.cancel')} onClose={() => (namingSeq = undefined)}>
     <Input label={t('app.pages.version_name')} bind:value={nameDraft} />
     {#snippet actions()}
       <Button tone="subtle" onclick={() => (namingSeq = undefined)}>{t('app.pages.cancel')}</Button>

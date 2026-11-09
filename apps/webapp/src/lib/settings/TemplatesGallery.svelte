@@ -3,32 +3,29 @@
 <script lang="ts">
   // The *Templates* gallery (configuration.md §6, ui.md §4): every template the reader may
   // take, by its four origins, with its version, the version the workspace took and *Update
-  // available*. Taking or updating is a plan first - the dialog shows what it changes, and an
-  // update lists each change the template made, a change the workspace made itself unticked until
-  // the person ticks it - and the apply is exactly that plan, recording `template@version`. In a
+  // available*; taking or updating opens its `TemplateDialog`, the plan first. In a
   // hub's settings, the templates with a hub part: the hub takes that part for itself, once the
   // workspace took the template (configuration.md §6). In a collection's settings, the templates
   // with a collection part, which the collection takes under its own handle.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, ViewSwitcher } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, Spinner, ViewSwitcher } from '@hubtask/design-system/components';
+  import type { DataColumn } from '@hubtask/design-system/components';
+  import TableSection from '../page/TableSection.svelte';
+  import { Continued } from '../page/continued.svelte.ts';
   import FailureNote from '../frame/FailureNote.svelte';
-  import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
+  import type { ConfigTemplate, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
 
+  import TemplateDialog from './TemplateDialog.svelte';
   import TemplatePreview from './TemplatePreview.svelte';
-  import { config, needsAcknowledge } from '../data/config.svelte.ts';
+  import { config } from '../data/config.svelte.ts';
   import { holds, holdsHere } from '../data/capability.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { people } from '../data/people.svelte.ts';
-  import { answersOf, asksWorkspaceFirst, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, startsWithWorkspace, takenFirst } from '../data/configtemplates.ts';
-  import { modules } from '../data/modules.svelte.ts';
-  import { groups as workspaceGroups } from '../data/groups.svelte.ts';
-  import { toast } from '../frame/toasts.svelte.ts';
+  import { byOrigin, galleryScope, offerOf } from '../data/configtemplates.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
-  import PlanReach from './PlanReach.svelte';
-  import { afterTaking } from '../product/templates.ts';
-  import { familiesOf, familyOf, markOf, switchedOn } from '../workspace/hubGallery.ts';
+  import { familiesOf, familyOf, switchedOn } from '../workspace/hubGallery.ts';
 
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
@@ -81,6 +78,14 @@
     list?.status !== 'ready' ? [] : family === 'all' ? list.data.data : list.data.data.filter((each) => familyOf(each) === family),
   );
   const groups = $derived(byOrigin(shown));
+  // A long catalogue continues at its foot (PS-8), at the device's rows per page; on a place's
+  // settings, under the preset picker, a shorter first page keeps the section within two screens.
+  // svelte-ignore state_referenced_locally
+  const continued = new Continued(() => groups.flatMap((group) => group.templates), { first: hubId || collectionId ? 10 : undefined });
+  $effect(() => {
+    void family;
+    untrack(() => continued.restart());
+  });
   const refusal = $derived(list?.status === 'failed' ? renderProblem(list.error, messages) : undefined);
 
   /** Hubtask's templates are named by their key, in the reader's language. */
@@ -92,80 +97,16 @@
   const productsOf = (template: ConfigTemplate): string[] =>
     switchedOn(template).map((module) => t(`app.modules.name_${module.toLowerCase()}`));
 
-  let chosen = $state<ConfigTemplate>();
-  /** The answers to the chosen template's questions, by key. */
-  let answers = $state<Record<string, string>>({});
-  /** Whether the hub takes the template's sample entries too, offered on its first take only. */
-  let withSamples = $state(false);
-  const samplesOffered = $derived(offersSamples(chosen, hubId));
-  const asksGroup = $derived(chosen?.questions?.some((question) => question.kind === 'GROUP') ?? false);
-  $effect(() => {
-    if (!asksGroup) return;
-    return untrack(() => workspaceGroups.open());
-  });
-  // A GROUP question offers to make the group in place (§3.2): where it is created it is the answer.
-  const mayCreateGroup = $derived(holdsHere('MANAGE_MEMBERS') === true);
-  let groupDraft = $state<Record<string, string>>({});
-  async function createGroup(key: string) {
-    const name = (groupDraft[key] ?? '').trim();
-    if (name === '') return;
-    busy = `group:${key}`;
-    dialogFailure = undefined;
-    try {
-      const group = await workspaceGroups.create(name);
-      groupDraft = { ...groupDraft, [key]: '' };
-      await answer(key, group.id);
-    } catch (error) {
-      dialogFailure = renderProblem(error as never, messages).message;
-    } finally {
-      busy = undefined;
-    }
-  }
-  let plan = $state<ConfigTemplatePlan>();
-  /** The plan shown is the workspace's part, which this place's waits on; its own follows it. */
-  let isWorkspaceFirst = $state(false);
-  let take = $state<string[]>([]);
-  let isOpen = $state(false);
-  let acknowledged = $state(false);
-  let busy = $state<string>();
-  // Everything after the plan is asked happens with the dialog open; a refusal is said inside it,
-  // which keeps the answers given (user-experience.md §5.10).
-  let dialogFailure = $state<string>();
-
-  async function open(template: ConfigTemplate) {
-    busy = template.key;
-    chosen = template;
-    answers = {};
-    withSamples = false;
-    acknowledged = false;
-    dialogFailure = undefined;
-    // A hub or a collection takes its part once the workspace took the template's own. Whoever
-    // may change the workspace is shown that part's plan first, in the same dialog, rather than
-    // a refusal (user-experience.md §5.2); anybody else reads why.
-    const mayChangeWorkspace = holdsHere('STRUCTURE') === true;
-    isWorkspaceFirst = startsWithWorkspace(template, hubId ?? collectionId, mayChangeWorkspace);
-    try {
-      plan = await config.planTemplate(template.key, undefined, isWorkspaceFirst ? undefined : hubId, answersOf(template.questions, answers), false, isWorkspaceFirst ? undefined : collectionId);
-      take = takenFirst(plan.upgrade);
-      isOpen = true;
-    } catch (error) {
-      // The list was read before the workspace's part moved: the refusal says so instead.
-      if (!isWorkspaceFirst && (hubId || collectionId) && asksWorkspaceFirst(error as TransportError) && mayChangeWorkspace) {
-        try {
-          plan = await config.planTemplate(template.key, undefined, undefined, answersOf(template.questions, answers), false);
-          take = takenFirst(plan.upgrade);
-          isWorkspaceFirst = true;
-          isOpen = true;
-        } catch (inner) {
-          toast.show({ text: renderProblem(inner as never, messages).message, tone: 'danger' });
-        }
-      } else {
-        toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
-      }
-    } finally {
-      busy = undefined;
-    }
-  }
+  /** The template opened in its dialog, and the one whose plan is being asked. */
+  let opened = $state<ConfigTemplate>();
+  /** The template whose content is shown, from the row's menu. */
+  let previewed = $state<ConfigTemplate>();
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.settings.type_name'), priority: 1 },
+    { id: 'products', label: t('app.templates.products'), priority: 3 },
+    { id: 'state', label: t('app.templates.state'), priority: 2, isStatus: true },
+  ]);
+  let pending = $state<string>();
 
   // A template chosen on a product's empty home before its hub existed: its plan opens once the
   // list holds it, once. Unknown or no longer offered, the gallery is drawn as always.
@@ -176,112 +117,16 @@
     if (!key || preselected === key || list?.status !== 'ready') return;
     const template = list.data.data.find((each) => each.key === key);
     preselected = key;
-    if (template) untrack(() => void open(template));
+    if (template) untrack(() => (opened = template));
   });
-
-  async function choose(path: string, isTaken: boolean) {
-    if (!chosen) return;
-    take = isTaken ? [...take, path] : take.filter((each) => each !== path);
-    dialogFailure = undefined;
-    try {
-      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
-    } catch (error) {
-      dialogFailure = renderProblem(error as never, messages).message;
-    }
-  }
-
-  /** An answer changes what the template brings, so the plan is asked again. */
-  async function answer(key: string, value: string) {
-    if (!chosen) return;
-    answers = { ...answers, [key]: value };
-    dialogFailure = undefined;
-    try {
-      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
-    } catch (error) {
-      dialogFailure = renderProblem(error as never, messages).message;
-    }
-  }
-
-  /** Taking the samples or not changes the plan, so it is asked again. */
-  async function sampled(on: boolean) {
-    if (!chosen) return;
-    withSamples = on;
-    dialogFailure = undefined;
-    try {
-      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
-    } catch (error) {
-      dialogFailure = renderProblem(error as never, messages).message;
-    }
-  }
-
-  async function apply() {
-    if (!plan?.plan_hash || !chosen) return;
-    busy = 'apply';
-    dialogFailure = undefined;
-    try {
-      await config.applyTemplate(plan, acknowledged);
-      if (isWorkspaceFirst) {
-        // The workspace's part is in force: the place's own is planned now, the answers kept.
-        isWorkspaceFirst = false;
-        acknowledged = false;
-        plan = await config.planTemplate(chosen.key, undefined, hubId, answersOf(chosen.questions, answers), false, collectionId);
-        take = takenFirst(plan.upgrade);
-        return;
-      }
-      toast.show({ text: t('app.templates.taken', { name: nameOf(chosen) }), tone: 'success' });
-      isOpen = false;
-      // A collection's own part leaves the reader where they are; a hub's or the workspace's
-      // opens the product the template is for.
-      const next = collectionId ? undefined : afterTaking(chosen, hubId);
-      if (next) onnavigate?.(next);
-    } catch (error) {
-      dialogFailure = renderProblem(error as never, messages).message;
-    } finally {
-      busy = undefined;
-    }
-  }
-
-  /**
-   * A template refused only because modules are off is one switch away: named in words, and offered
-   * to switch on where the reader may change the workspace's shape - never a code or a path.
-   */
-  const needed = $derived(plan ? modulesToSwitchOn(plan.refusals) : []);
-  const neededNames = $derived(new Intl.ListFormat(messages.locale, { type: 'conjunction' })
-    .format(needed.map((key) => t(`app.modules.name_${key.toLowerCase()}`))));
-  const maySwitch = $derived(holdsHere('STRUCTURE') === true);
-
-  async function switchOnAndUse() {
-    if (!chosen) return;
-    busy = 'modules';
-    dialogFailure = undefined;
-    try {
-      for (const key of needed) await modules.switch(key as Parameters<typeof modules.switch>[0], 'ON');
-      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
-    } catch (error) {
-      dialogFailure = renderProblem(error as never, messages).message;
-    } finally {
-      busy = undefined;
-    }
-  }
-
-  function refusalText(refused: ConfigTemplatePlan['refusals'][number]): string {
-    const words = refusalWords(refused);
-    const reason = words.module ? t(words.code, { module: t(words.module) }) : t(words.code, refused.params ?? {});
-    return t('app.templates.refused_item', { section: t(words.section), reason });
-  }
-
-  function changeText(change: ConfigTemplatePlan['changes'][number]): string {
-    const words = changeWords(change);
-    return t(words.code, { section: t(words.section), key: words.module ? t(words.module) : words.key });
-  }
-
-  const counts = (each: { added: number; changed: number; removed: number }) =>
-    t('app.changes.counts', { added: each.added, changed: each.changed, removed: each.removed });
 </script>
 
-<section class="block" aria-labelledby="templates-gallery" data-templates>
-  <h2 id="templates-gallery">{t(scope === 'collection' ? 'app.templates.collection_gallery' : scope === 'hub' ? 'app.templates.hub_gallery' : 'app.templates.gallery')}</h2>
-  <p class="quiet">{t(scope === 'collection' ? 'app.templates.collection_about' : scope === 'hub' ? 'app.templates.hub_about' : 'app.templates.about')}</p>
+<!-- A place's templates as one table (page-system §9.6, PS-4): the take or the update the row's
+     verb, what it creates behind its ⋯. -->
+<TableSection
+  title={t(scope === 'collection' ? 'app.templates.collection_gallery' : scope === 'hub' ? 'app.templates.hub_gallery' : 'app.templates.gallery')}
+  description={t(scope === 'collection' ? 'app.templates.collection_about' : scope === 'hub' ? 'app.templates.hub_about' : 'app.templates.about')}
+>
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if list?.status !== 'ready'}
@@ -294,155 +139,67 @@
     {#if families.length > 1}
       <ViewSwitcher label={t('app.templates.families')} views={filterViews} selected={family} onselect={(id) => (family = id)} />
     {/if}
-    {#each groups as group (group.origin)}
-      <div data-origin={group.origin}>
-        <TemplateGallery label={t(`app.templates.origin.${group.origin}`)}>
-          {#each group.templates as template (template.key)}
-            {@const offer = offerOf(template)}
-            {@const isAsked = isAskedOf(template)}
-            <TemplateCard
-              name={nameOf(template)}
-              mark={markOf(template)}
-              summary={summaryOf(template)}
-              products={productsOf(template)}
-              data-template={template.key}
-              note={isAsked
+    <div data-templates>
+      <DataTable
+        label={t('app.templates.gallery')}
+        {columns}
+        rows={continued.shown}
+        shownLabel={continued.shownLabel}
+        more={continued.more}
+        perPage={continued.perPage}
+        key={(template) => template.key}
+        rowLabel={nameOf}
+        group={(template) => t(`app.templates.origin.${template.origin}`)}
+        menu={(template) => ({ label: t('app.page.more_for', { name: nameOf(template) }), items: [{ id: 'preview', label: t('app.templates.preview') }] })}
+        onmenu={(template) => (previewed = template)}
+        actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+      >
+        {#snippet cell(template, column)}
+          {@const offer = offerOf(template)}
+          {@const isAsked = isAskedOf(template)}
+          {#if column.id === 'name'}
+            <span class="name" data-template={template.key} data-origin={template.origin} data-ask-admin={isAsked ? '' : undefined}>{nameOf(template)}</span>
+          {:else if column.id === 'products'}
+            <span class="quiet">{productsOf(template).join(', ')}</span>
+          {:else if column.id === 'state'}
+            <span class={offer === 'UPDATE' ? 'news' : 'quiet'}>
+              {isAsked
                 ? administratorNames ? t('app.templates.ask_admin_named', { names: administratorNames }) : t('app.templates.ask_admin')
                 : offer === 'UPDATE'
-                ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
-                : offer === 'IN_USE'
-                  ? t('app.templates.in_use', { version: template.version })
-                  : undefined}
-              isNoteNews={offer === 'UPDATE'}
-              {details}
-              data-ask-admin={isAsked ? '' : undefined}
-              action={offer === 'IN_USE' || isAsked ? undefined : takeAct}
-            />
-            {#snippet details()}<TemplatePreview {template} />{/snippet}
-            {#snippet takeAct()}
-              <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={busy === template.key}
-                data-take={template.key} data-update-available={offer === 'UPDATE' ? '' : undefined} onclick={() => open(template)}>
-                {t(offer === 'UPDATE' ? 'app.templates.update' : 'app.templates.take')}
-              </Button>
-            {/snippet}
-          {/each}
-        </TemplateGallery>
-      </div>
-    {/each}
+                  ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
+                  : offer === 'IN_USE'
+                    ? t('app.templates.in_use', { version: template.version })
+                    : ''}
+            </span>
+          {/if}
+        {/snippet}
+        {#snippet verb(template)}
+          {@const offer = offerOf(template)}
+          {#if offer !== 'IN_USE' && !isAskedOf(template)}
+            <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={pending === template.key}
+              data-take={template.key} data-update-available={offer === 'UPDATE' ? '' : undefined} onclick={() => (opened = template)}>
+              {t(offer === 'UPDATE' ? 'app.templates.update' : 'app.templates.take')}
+            </Button>
+          {/if}
+        {/snippet}
+      </DataTable>
+    </div>
   {/if}
-</section>
+</TableSection>
 
-{#if plan && chosen}
-  <Dialog bind:isOpen title={nameOf(chosen)} dismissLabel={t('app.changes.cancel')}>
-    <Stack gap="150">
-      {#if isWorkspaceFirst}
-        <Banner tone="info" title={t('app.templates.workspace_first_title')}>
-          <p class="quiet" data-template-workspace-first>{t(collectionId ? 'app.templates.workspace_first_collection' : 'app.templates.workspace_first_hub')}</p>
-        </Banner>
-      {/if}
-      {#if chosen.questions && chosen.questions.length > 0}
-        <div class="questions" data-template-questions>
-          <p class="quiet">{t('app.templates.questions_about')}</p>
-          {#each chosen.questions as question (question.key)}
-            {@const label = t(`app.templates.question.${question.key}`)}
-            {#if question.kind === 'TEXT'}
-              <Input {label} value={answers[question.key] ?? question.default ?? ''} data-question={question.key}
-                onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLInputElement).value)} />
-            {:else}
-              <Select {label} value={answers[question.key] ?? question.default ?? ''} data-question={question.key}
-                hint={question.required ? undefined : t('app.templates.question_optional')}
-                options={[
-                  { value: '', label: t('app.templates.question_open') },
-                  ...(question.kind === 'GROUP'
-                    ? workspaceGroups.all.map((group) => ({ value: group.id, label: group.name }))
-                    : question.options.map((option) => ({ value: option, label: option }))),
-                ]}
-                onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLSelectElement).value)} />
-              {#if question.kind === 'GROUP' && mayCreateGroup}
-                <div class="create-group" data-create-group={question.key}>
-                  <Input label={t('app.templates.create_group_name')} value={groupDraft[question.key] ?? ''}
-                    oninput={(event: Event) => (groupDraft = { ...groupDraft, [question.key]: (event.currentTarget as HTMLInputElement).value })} />
-                  <Button tone="secondary" size="sm" isBusy={busy === `group:${question.key}`}
-                    disabledReason={(groupDraft[question.key] ?? '').trim() === '' ? t('app.templates.create_group_name_first') : undefined}
-                    onclick={() => createGroup(question.key)}>{t('app.templates.create_group')}</Button>
-                </div>
-              {/if}
-            {/if}
-          {/each}
-        </div>
-      {/if}
-      {#if samplesOffered && !isWorkspaceFirst}
-        <Checkbox label={t('app.templates.samples')} hint={t('app.templates.samples_hint')} checked={withSamples}
-          data-template-samples
-          onchange={(event: Event) => sampled((event.currentTarget as HTMLInputElement).checked)} />
-      {/if}
-      {#if plan.from_version}
-        <p class="quiet">{t('app.templates.upgrade_about', { from: plan.from_version, to: chosen.version })}</p>
-        {#if plan.upgrade.length === 0}
-          <p class="quiet">{t('app.templates.upgrade_none')}</p>
-        {:else}
-          <ul class="changes" data-upgrade>
-            {#each plan.upgrade as change (change.path)}
-              <li data-upgrade-change={change.path}>
-                <Checkbox
-                  label={change.path}
-                  hint={change.state === 'CONFLICT' ? t('app.templates.conflict') : t('app.templates.template_changed')}
-                  checked={take.includes(change.path)}
-                  onchange={(event: Event) => choose(change.path, (event.currentTarget as HTMLInputElement).checked)}
-                />
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      {/if}
-      {#if needed.length > 0}
-        <Banner tone="info" title={t('app.templates.needs_modules_title')}>
-          <p class="quiet" data-template-needs-modules>{t('app.templates.needs_module', { module: neededNames })}
-            {maySwitch ? t('app.templates.needs_modules_body') : t('app.templates.needs_modules_ask')}</p>
-        </Banner>
-      {:else if plan.refusals.length > 0}
-        <FailureNote problem={t('app.templates.refused')}>
-          <ul class="changes">
-            {#each plan.refusals as refused (refused.path + refused.code)}
-              <li>{refusalText(refused)}</li>
-            {/each}
-          </ul>
-        </FailureNote>
-      {:else}
-        <p class="quiet">{counts(plan.counts)}</p>
-        <ul class="changes" data-plan-changes>
-          {#each plan.changes as change (change.path)}
-            <li>{changeText(change)}</li>
-          {/each}
-        </ul>
-        <PlanReach reach={plan.reach} />
-        {#if needsAcknowledge(plan.flags)}
-          <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged}
-            onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />
-        {/if}
-      {/if}
-      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-    </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.changes.cancel')}</Button>
-      {#if needed.length > 0 && maySwitch}
-        <Button tone="primary" data-switch-modules isBusy={busy === 'modules'} onclick={switchOnAndUse}>
-          {t('app.templates.switch_on_and_use', { modules: neededNames })}</Button>
-      {/if}
-      {#if plan?.plan_hash}
-        <Button tone="primary" data-apply-template isBusy={busy === 'apply'}
-          disabledReason={plan && needsAcknowledge(plan.flags) && !acknowledged ? t('app.changes.acknowledge_first') : undefined}
-          onclick={apply}>{t('app.changes.apply')}</Button>
-      {/if}
-    {/snippet}
+<TemplateDialog template={opened} {hubId} {collectionId} {onnavigate} bind:pending onClose={() => (opened = undefined)} />
+
+{#if previewed}
+  <Dialog size="m" isOpen title={nameOf(previewed)} dismissLabel={t('app.page.close')} onClose={() => (previewed = undefined)}>
+    {#if summaryOf(previewed)}<p class="quiet">{summaryOf(previewed)}</p>{/if}
+    <TemplatePreview template={previewed} />
   </Dialog>
 {/if}
 
 <style>
-  .block { display: flex; flex-direction: column; gap: var(--sp-150); }
-  .block h2 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .name { font-weight: var(--fw-medium); }
+  .news { color: var(--text-brand); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
-  .questions { display: grid; gap: var(--sp-100); }
-  .create-group { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-  .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
 </style>

@@ -159,7 +159,7 @@ func (r CommentRepository) List(
 	kept, info := pageOf(comments, page.Size, r.cursors, func(comment work.Comment) security.Position {
 		return security.At(comment.CreatedAt.UTC().Format(time.RFC3339Nano), comment.ID)
 	})
-	return repository.CommentPage{Comments: kept, Info: repository.PageInfo(info)}, nil
+	return repository.CommentPage{Comments: kept, Info: repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore}}, nil
 }
 
 // SetBody writes the rewritten text under the optimistic lock. A tombstone is never matched (see

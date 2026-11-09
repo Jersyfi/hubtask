@@ -15,11 +15,14 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import { Button, DataTable, EmptyState, FilterBar, ListPage, Skeleton, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { Continued } from '../lib/page/continued.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
 
   import { sorting } from '../lib/sorting.svelte.ts';
 
@@ -48,19 +51,16 @@
 
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
-  const columns = $derived([
-    { id: 'client', label: t('app.sessions.client'), isSortable: true },
-    { id: 'created', label: t('app.sessions.created'), isSortable: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'client', label: t('app.sessions.client'), isSortable: true, priority: 1 },
+    { id: 'created', label: t('app.sessions.created'), isSortable: true, priority: 3 },
     // How it was opened (UC-ID-06 check 2): the way in a person recognises a session by.
-    { id: 'method', label: t('app.sessions.method'), isSortable: true },
-    { id: 'used', label: t('app.sessions.last_used'), isSortable: true },
-    { id: 'network', label: t('app.sessions.network'), isSortable: true },
-    // The action column is **start**-aligned, like every other one in these settings. Ending it
-    // at the row's edge lines the buttons up on their right, which is the edge nobody reads down:
-    // `End this session` and `End` then begin at two different places and the column has no line
-    // running through it.
-    { id: 'end', label: t('app.sessions.end'), isLabelHidden: true },
+    { id: 'method', label: t('app.sessions.method'), isSortable: true, priority: 3 },
+    { id: 'used', label: t('app.sessions.last_used'), isSortable: true, priority: 2 },
+    { id: 'network', label: t('app.sessions.network'), isSortable: true, priority: 3 },
   ]);
+
+  let search = $state('');
 
   /**
    * The newest first, and this device first of all.
@@ -82,8 +82,9 @@
   // one response and holds no cursor. A year of phones, laptops and browsers is thirty rows, and
   // what makes thirty rows readable is the column somebody can sort by - not a page under them,
   // which this product does not have and will not grow one of.
+  const found = $derived(ordered.filter((row) => matchesSearch(search, [row.user_agent ?? undefined, row.ip_class ?? undefined, methodOf(row)])));
   const order = sorting({
-    rows: () => ordered,
+    rows: () => found,
     read: (row, columnId) => {
       if (columnId === 'created') return row.created_at;
       if (columnId === 'used') return row.last_used_at;
@@ -93,7 +94,14 @@
     },
   });
 
-  const shown = $derived(order.rows);
+  const continued = new Continued(() => order.rows);
+  $effect(() => {
+    void search;
+    untrack(() => continued.restart());
+  });
+
+  const title = $derived(profileTitle('sessions'));
+  $effect(() => page.entitle(title));
 
   /**
    * How a session was opened, in words: the provider by its name where one opened it, and nothing
@@ -136,80 +144,91 @@
   }
 
   /** Whether there is anything else to end: one session is this one, and nothing is elsewhere. */
-  const elsewhere = $derived(shown.some((row) => !row.current));
+  const elsewhere = $derived(sessions.all.some((row) => !row.current));
+
+  const clientOf = (row: { user_agent?: string | null }) => row.user_agent || t('app.sessions.unknown_client');
+
+  // Ending is destructive, so it is a row's ⋯ and the head's ⋯, each confirmed by a Dialog S (PS-6).
+  function rowMenu(row: (typeof sessions.all)[number]): DataRowMenu {
+    return {
+      label: t('app.page.more_for', { name: clientOf(row) }),
+      items: [{ id: 'end', label: row.current ? t('app.sessions.end_this') : t('app.sessions.end_menu'), isDestructive: true }],
+    };
+  }
 </script>
 
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="sessions" />
+  <ListPage
+    head={profileHead('sessions', {
+      menu: elsewhere ? { label: t('app.page.more_for', { name: title }), items: [{ id: 'others', label: t('app.sign_out.everywhere_else'), isDestructive: true }], onselect: () => (asking = 'others') } : undefined,
+    })}
+  >
+    {#snippet intro()}<p class="quiet">{t('app.sessions.intro')}{#if elsewhere}{' '}{t('app.sign_out.everywhere_else_note')}{/if}</p>{/snippet}
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.sessions.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        countLabel={held?.status === 'ready' ? t('app.page.found', { shown: String(found.length), count: String(sessions.all.length) }) : undefined}
+      />
+    {/snippet}
 
-    <Stack gap="150">
-      <p class="quiet">{t('app.sessions.intro')}</p>
+    {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-
-      {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
-        <div aria-busy="true"><Skeleton lines={2} /></div>
-      {:else if held.status === 'failed'}
-        <FailureState problem={renderProblem(held.error, messages)} onRetry={() => sessions.open()} />
-      {:else if shown.length === 0}
-        <EmptyState kind="unused" title={t('app.sessions.none')} />
-      {:else}
-        <Table isStacked
-          label={t('app.sessions.title')}
-          isLabelHidden
-          {columns}
-          sort={order.sort}
-          onSort={(next) => order.by(next)}
-        >
-          {#each shown as row (row.id)}
-            <tr>
-              <th scope="row">
-                <!-- The whole string in `title`, because it is the only place the rest of it
-                     exists: a user agent is 150 characters of version numbers and the cell shows
-                     the two lines that identify the browser. -->
-                <span class="client" title={row.user_agent || undefined}
-                  >{row.user_agent || t('app.sessions.unknown_client')}</span
-                >
-                {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
-              </th>
-              <td>{when(row.created_at)}</td>
-              <td>{methodOf(row)}</td>
-              <td>{when(row.last_used_at)}</td>
-              <td>{row.ip_class ?? '—'}</td>
-              <td>
-                <!-- `danger`, because that is what it is. The tone is a bordered button with the
-                     danger text colour rather than a filled red block (rule 3: the colour never
-                     stands alone, and the label says what it destroys) - which is exactly the
-                     signal a control that ends a session owes the reader. Making it quiet to calm
-                     the column down took the warning off it. -->
-                <Button
-                  tone="danger"
-                  size="sm"
-                  onclick={() => (asking = { id: row.id, isCurrent: row.current, client: row.user_agent || t('app.sessions.unknown_client') })}
-                >
-                  {row.current ? t('app.sessions.end_this') : t('app.sessions.end')}
-                </Button>
-              </td>
-            </tr>
-          {/each}
-        </Table>
-
-
-        {#if elsewhere}
-          <div class="everywhere">
-            <!-- Said before it is pressed: which sessions end, and that this one does not. -->
-            <p class="quiet">{t('app.sign_out.everywhere_else_note')}</p>
-            <div>
-              <Button tone="danger" onclick={() => (asking = 'others')}>{t('app.sign_out.everywhere_else')}</Button>
-            </div>
-          </div>
-        {/if}
-      {/if}
-    </Stack>
-  </Stack>
+    {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
+      <div aria-busy="true"><Skeleton lines={2} /></div>
+    {:else if held.status === 'failed'}
+      <FailureState problem={renderProblem(held.error, messages)} onRetry={() => sessions.open()} />
+    {:else}
+      <DataTable
+        label={title}
+        {columns}
+        rows={continued.shown}
+        key={(row) => row.id}
+        rowLabel={clientOf}
+        menu={rowMenu}
+        onmenu={(row) => (asking = { id: row.id, isCurrent: row.current, client: clientOf(row) })}
+        actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+        sort={order.sort}
+        onSort={(next) => order.by(next)}
+        shownLabel={sessions.all.length === 0 ? undefined : continued.shownLabel}
+        more={continued.more}
+        perPage={continued.perPage}
+      >
+        {#snippet cell(row, column: DataColumn)}
+          {#if column.id === 'client'}
+            <!-- The whole string in `title`: a user agent is 150 characters of version numbers and
+                 the cell shows the two lines that identify the browser. -->
+            <span class="who">
+              <span class="client" title={row.user_agent || undefined}>{clientOf(row)}</span>
+              {#if row.current}<span class="here">{t('app.sessions.this_device')}</span>{/if}
+            </span>
+          {:else if column.id === 'created'}
+            {when(row.created_at)}
+          {:else if column.id === 'method'}
+            {methodOf(row)}
+          {:else if column.id === 'used'}
+            {when(row.last_used_at)}
+          {:else}
+            {row.ip_class ?? '—'}
+          {/if}
+        {/snippet}
+        {#snippet empty()}
+          {#if sessions.all.length === 0}
+            <EmptyState kind="unused" title={t('app.sessions.none')} />
+          {:else}
+            <EmptyState kind="filtered" title={t('app.sessions.filtered')}>
+              {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+            </EmptyState>
+          {/if}
+        {/snippet}
+      </DataTable>
+    {/if}
+  </ListPage>
 
   <FinalActDialog
     isOpen={asking !== undefined}
@@ -239,15 +258,14 @@
 {/if}
 
 <style>
-  /* Two lines and then an ellipsis, with the whole string in `title`. A user agent is the longest
-     value on this screen by an order of magnitude, and left alone it took nine tenths of the
-     table's width and pushed the four columns that answer "when" and "where" off the edge.
+  /* One line and then an ellipsis, with the whole string in `title`: a user agent is the longest
+     value here by an order of magnitude, and a second line doubled every row of a long list.
      The measure is in `ch` because what is being limited is a run of text, not a box. */
   .client {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
     overflow: hidden;
     max-inline-size: 44ch; /* design-system-lint-ignore: a text measure in the font's own units; no token can express it. */
     overflow-wrap: anywhere;
@@ -255,10 +273,11 @@
 
   /* Which row is this device, beside its name rather than as a column of its own: it is true of
      exactly one row, and a column would be empty in every other. */
+  /* The badge beside the name where the row has room, so this device's row is as tall as the rest. */
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
+
   .here {
     display: inline-block;
-    margin-block-start: var(--sp-050);
-    margin-inline-start: 0;
     padding: var(--sp-025) var(--sp-100);
     border-radius: var(--r-full);
     background: var(--bg-surface-pressed);
@@ -266,9 +285,6 @@
     font-size: var(--fs-075);
     font-weight: var(--fw-regular);
   }
-
-
-  .everywhere { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

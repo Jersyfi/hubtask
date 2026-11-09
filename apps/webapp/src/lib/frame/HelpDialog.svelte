@@ -96,7 +96,7 @@
   }
 </script>
 
-<Dialog title={t('app.help.label')} dismissLabel={t('app.palette.close')} bind:isOpen isWide>
+<Dialog size="l" title={t('app.help.label')} dismissLabel={t('app.palette.close')} bind:isOpen>
   <Stack gap="300">
     <section aria-labelledby="help-support">
       <h3 class="group" id="help-support">{t('app.help.support_title')}</h3>

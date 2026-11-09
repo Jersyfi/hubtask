@@ -65,7 +65,7 @@ const ASSET = {
   assigned_to: null, request_id: null, state: 'IN_STOCK', disposal: null, updated_at: '2026-10-01T08:00:00Z', version: 1,
 };
 
-async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light', classes = [SERVER_CLASS], modulesOn }) {
+async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light', classes = [SERVER_CLASS], types = [], modulesOn }) {
   const { page, context, failures } = await signedIn(browser, width, height);
   await page.emulateMedia({ colorScheme: scheme });
   await context.unroute('**/api/v1/**');
@@ -84,6 +84,7 @@ async function open(browser, { width = 1280, height = 900, path, full = true, ro
     if (modulesOn && at === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: modulesOn } });
     if (modulesOn && /^\/containers\/[^/]+\/modules$/.test(at)) return route.fulfill({ json: { modules_on: modulesOn } });
     if (at === '/cmdb/classes') return route.fulfill({ json: { data: classes } });
+    if (at === '/cmdb/relation-types') return route.fulfill({ json: { data: types } });
     if (at === '/cmdb/sources') return route.fulfill({ json: { data: [{ key: 'netbox', kind: 'CONNECTOR', priority: 50 }] } });
     if (at === `/hubs/${HUB.id}/cis`) return route.fulfill({ json: { data: full ? MANY : [], next: null } });
     if (at === `/hubs/${HUB.id}/cmdb-health`) return route.fulfill({ json: full ? health(MANY.length, 6) : health(0, 0) });
@@ -265,9 +266,10 @@ for (const width of [1280, 375]) {
   });
 }
 
-// One settings anatomy (user-experience.md §5.4): the assets' settings keep the home's create act in
-// the head, and the class tree shows its families with each deeper branch folded until opened.
-test('chromium: the assets settings keep the head\'s create act and fold the class tree', async (t) => {
+// A product's settings are a settings page of their own (page-system §9.6, PS-2): the section list
+// in place of the home's tabs, the home's create act not shown, *Assets* in the trail; the class
+// tree shows its families with each deeper branch folded until opened.
+test('chromium: the assets settings are a settings page without the home\'s act, and fold the class tree', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const shipped = (key, name, lineage) => ({ ...SERVER_CLASS, key, name, parent: lineage[1] ?? '', system: true, lineage });
@@ -284,9 +286,81 @@ test('chromium: the assets settings keep the head\'s create act and fold the cla
   await page.locator('[data-class-row="hardware"]').waitFor({ timeout: 20_000 });
   const rows = async () => page.locator('[data-class-row]').evaluateAll((all) => all.map((row) => row.getAttribute('data-class-row')));
   assert.deepEqual(await rows(), ['ci', 'hardware', 'software'], 'the deeper classes are not folded');
-  await page.locator('[data-class-row="hardware"] [data-class-toggle]').click();
+  await page.locator('tr:has([data-class-row="hardware"]) [data-class-toggle]').click();
   assert.deepEqual(await rows(), ['ci', 'hardware', 'server', 'software']);
-  assert.equal(await page.locator('[data-class-row="hardware"] [data-class-toggle]').getAttribute('aria-expanded'), 'true');
-  await page.locator('header').getByRole('button', { name: 'New configuration item' }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('tr:has([data-class-row="hardware"]) [data-class-toggle]').getAttribute('aria-expanded'), 'true');
+  // *Classes* is a tab of the home again (the navigation concept §4): a list page under its view bar.
+  assert.equal(await page.locator('[data-page-kind="list"]').count(), 1, 'the classes are no list page');
+  const bar = page.getByRole('navigation', { name: 'Assets', exact: true });
+  assert.equal(await bar.getByRole('link', { name: 'Classes' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its classes');
+  assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0, 'the home\'s create act is shown on its settings');
+  // The way back to the home is the bar's first tab, as on every tab of the home.
+  assert.equal(await bar.getByRole('link', { name: 'Inventory' }).getAttribute('href'), '/assets');
+  assert.deepEqual(failures, []);
+});
+
+// A class opens its record page (page-system §7.2): its attributes, the classes beneath it and the
+// relation types that join it, from the two lists the classes' screen reads; *Change* a Dialog L
+// from the head, archiving in the danger zone behind a Dialog S.
+test('chromium: a class opens its record page, changed from its head and archived in its danger zone', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const attribute = (key, kind) => ({ key, kind, need: 'OPTIONAL', identifier: false });
+  const classes = [
+    { ...SERVER_CLASS, key: 'ci', name: 'Configuration item', parent: '', system: true, lineage: ['ci'], all_attributes: [attribute('owner', 'ACCOUNT')] },
+    { ...SERVER_CLASS, key: 'hardware', name: 'Hardware', parent: 'ci', lineage: ['hardware', 'ci'], attributes: [attribute('serial', 'TEXT')], all_attributes: [attribute('owner', 'ACCOUNT'), attribute('serial', 'TEXT')] },
+    { ...SERVER_CLASS, key: 'rack', name: 'Rack server', parent: 'hardware', lineage: ['rack', 'hardware', 'ci'], all_attributes: [attribute('owner', 'ACCOUNT'), attribute('serial', 'TEXT')] },
+  ];
+  const types = [
+    { key: 'hosts', name: 'hosts', reverse_name: 'is hosted by', impact: 'TARGET', pairs: [{ from: 'hardware', to: 'ci' }], system: false, version: 1 },
+    { key: 'feeds', name: 'feeds', reverse_name: 'is fed by', impact: 'NONE', pairs: [{ from: 'rack', to: 'rack' }], system: false, version: 1 },
+  ];
+  const { page, context, failures } = await open(browser, { path: '/assets/classes', classes, types, modulesOn: ['ASSETS'] });
+  t.after(() => context.close());
+  const written = [];
+  await context.route('**/api/v1/cmdb/classes/*', (route) => {
+    if (route.request().method() !== 'PUT') return route.fallback();
+    written.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ...classes[1], archived: true, version: 2 } });
+  });
+
+  await page.locator('[data-class-row="hardware"]').click();
+  await page.waitForURL('**/assets/classes/hardware', { timeout: 5_000 });
+  await page.locator('[data-page-kind="record"]').waitFor({ timeout: 10_000 });
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Hardware');
+  // Its attributes, own and inherited; the class beneath it, which opens its own page; the type
+  // that joins it - not the one joining only the class beneath.
+  await page.locator('[data-class-attribute="serial"]').waitFor();
+  assert.equal(await page.locator('[data-class-attribute]').count(), 2);
+  assert.deepEqual(await page.locator('[data-class-used]').evaluateAll((all) => all.map((each) => each.getAttribute('data-class-used'))), ['hosts']);
+  assert.equal(await page.locator('[data-class-below]').count(), 1);
+
+  // *Change* from the head: the class's Dialog L, its own attribute in it.
+  await page.locator('[data-opener="edit-class"]').click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getAttribute('data-size'), 'l');
+  assert.equal(await dialog.getByLabel('Name').first().inputValue(), 'Hardware');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+
+  // Archiving: the danger zone's act asks once, then writes the class archived.
+  await page.locator('.danger-zone').getByRole('button', { name: 'Archive class…' }).click();
+  const ask = page.locator('dialog[open]');
+  await ask.waitFor({ timeout: 5_000 });
+  assert.equal(await ask.getAttribute('data-size'), 's');
+  await ask.getByRole('button', { name: 'Archive', exact: true }).click();
+  await ask.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(written.length, 1);
+  assert.equal(written[0].archived, true);
+  assert.equal(written[0].name, 'Hardware');
+
+  // The class beneath opens its own page; a shipped class offers no change.
+  await page.locator('[data-class-below="rack"]').click();
+  await page.waitForURL('**/assets/classes/rack', { timeout: 5_000 });
+  await page.goto(`${served.origin}/assets/classes/ci`);
+  await page.locator('[data-class-attribute="owner"]').waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('[data-opener="edit-class"]').count(), 0, 'a shipped class offers a change');
+  assert.equal(await page.locator('.danger-zone').count(), 0, 'a shipped class can be archived');
   assert.deepEqual(failures, []);
 });

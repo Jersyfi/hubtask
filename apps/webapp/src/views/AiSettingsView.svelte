@@ -28,15 +28,25 @@
   //
   // **The head says what answers** (user-experience.md §7.10), as a badge in words: an offered
   // model, the own one, or why nothing does - a withdrawn offered model being the one that broke.
+  //
+  // **One section per address, one save model each** (page-system §7.3, PS-9, PS-10): *Source*
+  // (which AI answers - switches and the narrowing, each acting at once), *Our own model* (the
+  // form and its consent, one save bar), *Consent and people* (switches) and *Budget* (one save
+  // bar), each at `/administration/ai/<section>`; the `?tab=` addresses replace themselves with
+  // their section's. Removing the provider is destructive: the head's ⋯, then a Dialog S.
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Input, SaveBar, Select, SettingsLayout, SettingsSection, Spinner, Stack, Switch, type SectionLink } from '@hubtask/design-system/components';
   import { AI_ANSWERING_TONE, aiAnsweringOf } from '../lib/data/aianswering.ts';
   import { TransportError } from '@hubtask/sync-engine';
   import type { AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
   import ModelFields from '../lib/ai/ModelFields.svelte';
+  import RemoveProviderDialog from '../lib/ai/RemoveProviderDialog.svelte';
+  import { adminTrail } from '../lib/administration/trail.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { emptyModel, modelBody, modelOf } from '../lib/ai/model.ts';
   import { aiProvider } from '../lib/data/aiprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -53,20 +63,24 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
-    /** The tab the address names (`?tab=`); the source where it names none or one not drawn. */
+    /** The section the address names (`/administration/ai/:section`); none is the list. */
+    section?: string;
+    /** The tab an older address names (`?tab=`), replaced by its section's address. */
     tab?: string;
-    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
-    onnavigate?: (path: string) => void;
+    /** Replaces the address: a move between sections, so the unsaved values of another stay. */
+    onreplace?: (path: string) => void;
   }
 
-  let { tab, onnavigate }: Props = $props();
+  let { section, tab, onreplace }: Props = $props();
+
+  const BASE = '/administration/ai';
+  let isFileOpen = $state(false);
 
   let draft = $state(emptyModel('', ''));
   let processingAllowed = $state(false);
@@ -76,6 +90,7 @@
   /** What a press of the own model's save found missing, marked at its fields. */
   let missing = $state<Missing>({});
   let ownForm = $state<HTMLFormElement | undefined>(undefined);
+  let budgetForm = $state<HTMLFormElement | undefined>(undefined);
   /** Whether the fields have been filled from the last read. Once only, so typing is not overwritten. */
   let filled = false;
 
@@ -115,7 +130,8 @@
     const typed = ownBudgetDraft.trim();
     try {
       await aiProvider.setOwnBudget({ own_tokens_per_day: typed === '' ? null : Number(typed) });
-      ownBudgetTouched = false;
+      // What was typed while the save ran stays a change of its own.
+      if (ownBudgetDraft.trim() === typed) ownBudgetTouched = false;
       toast.show({ text: t('app.ai.budget_own_saved'), tone: 'success' });
     } catch (cause) {
       failure = problemOf(cause);
@@ -261,6 +277,7 @@
     try {
       await aiProvider.remove();
       confirmingRemoval = false;
+      onreplace?.(BASE);
       filled = false;
       draft = emptyModel('', '');
       processingAllowed = false;
@@ -280,80 +297,127 @@
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.ai.title')));
 
-  // **Three tabs** (ux-inventory §E8): which AI answers - the offered models, the own model with
-  // its consent, the narrowing, removing it -; what the people here are asked and what happens to
-  // what they bring in; and the budget. The own model's consent stays in its form, because the
-  // form saves the two together and a consent saved apart from what it consents to is not one.
+  // The own model's consent stays in its form, because the form saves the two together and a
+  // consent saved apart from what it consents to is not one.
   /** Whether each person here is asked for their position, as `PersonOptOutSection` decides it. */
   const peopleAsked = $derived(
     source !== undefined && (workspace.workspace?.several_people === true || source.person_opt_out === 'NOT_OFFERED'),
   );
   const arrivalOffered = $derived(source !== undefined && hasAi && !allowsNone);
-  /** The consent and people tab is drawn where it would hold something, and absent otherwise. */
-  const tabs = $derived([
-    { id: 'source', label: t('app.ai.tab_source'), href: '/administration/ai' },
-    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', label: t('app.ai.tab_consent'), href: '/administration/ai?tab=consent' }] : []),
-    { id: 'budget', label: t('app.ai.tab_budget'), href: '/administration/ai?tab=budget' },
+  /** *Source* holds a choice only where something beyond the own model is offered or decided above. */
+  const hasSource = $derived(source !== undefined && (offered.length > 0 || source.sources !== 'OWN' || Boolean(source.search_rebuilding)));
+  /** Each section is drawn where it would hold something, and absent otherwise. */
+  const SECTIONS = $derived([
+    ...(hasSource ? [{ id: 'source', code: 'app.ai.tab_source' }] : []),
+    ...(allowsOwn ? [{ id: 'own', code: 'app.ai.own_title' }] : []),
+    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', code: 'app.ai.tab_consent' }] : []),
+    { id: 'budget', code: 'app.ai.tab_budget' },
   ]);
+  const isKnown = (id: string | undefined): boolean => id !== undefined && SECTIONS.some((each) => each.id === id);
+  const shown = $derived(isKnown(section) ? (section as string) : (SECTIONS[0]?.id ?? 'budget'));
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
 
-  /**
-   * What is typed and not yet saved, for the leave guard (user-experience.md §5.4): the own model's
-   * form against what is stored - a typed key is always one - and the own budget once typed in.
-   */
-  const changes = $derived.by(() => {
+  // An older address (`?tab=budget`) lands on its section's own, replacing itself so the back button
+  // does not return to it. *Source* held the own model's form too: it lands on the first section.
+  $effect(() => {
+    if (section !== undefined || !tab) return;
+    untrack(() => onreplace?.(tab === 'consent' || tab === 'budget' ? `${BASE}/${tab}` : BASE));
+  });
+
+  /** What the own model's form holds unsaved against what is stored - a typed key is always one. */
+  const ownChanged = $derived.by(() => {
     const stored = provider ? modelOf(provider) : emptyModel('', '');
     const fields = (Object.keys(stored) as (keyof typeof stored)[]).filter((key) => draft[key] !== stored[key]).length;
     const consent = provider ? Number(processingAllowed !== provider.processing_allowed) : Number(processingAllowed);
-    return fields + consent + Number(ownBudgetTouched);
+    return fields + consent;
   });
-  const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'source');
+  /** Every section's unsaved values, for the leave guard (user-experience.md §5.4). */
+  $effect(() => leaveGuard.hold(() => ownChanged + Number(ownBudgetTouched)));
 
-  function select(next: string): void {
-    onnavigate?.(next === 'source' ? '/administration/ai' : `/administration/ai?tab=${next}`);
+  function statusOf(id: string): Pick<SectionLink, 'status' | 'statusTone'> {
+    if (!isAnsweringKnown || !source) return {};
+    if (id === 'source') return answering === 'offered' || answering === 'own' ? { status: t('app.ai.status_answering'), statusTone: 'set' } : { status: t('app.ai.status_nothing') };
+    if (id === 'own') return provider ? { status: t('app.ai.status_configured'), statusTone: 'set' } : { status: t('app.ai.status_not_configured') };
+    if (id === 'consent' && peopleAsked) return { status: t('app.ai.status_asked') };
+    return {};
   }
+
+  const title = $derived(t('app.ai.title'));
+  const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: `${BASE}/${each.id}`, ...statusOf(each.id) })));
+  const fileAction = $derived(viewAsFileAction(() => (isFileOpen = true)));
+  const mayRemove = $derived(Boolean(provider) && allowsOwn && holdsHere('STRUCTURE') === true);
+  const head = $derived({
+    title,
+    subtitle: t('app.ai.intro'),
+    breadcrumb: adminTrail({ id: 'ai', label: title }),
+    figure: isAnsweringKnown && source ? answeringFigure : undefined,
+    secondary: fileAction ? [fileAction] as const : [] as const,
+    menu: mayRemove
+      ? { label: t('app.page.more_for', { name: title }), items: [{ id: 'remove', label: t('app.ai.remove_menu'), isDestructive: true }], onselect: () => (confirmingRemoval = true) }
+      : undefined,
+  });
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.ai.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'ai', label: t('app.ai.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  >
-    {#snippet figure()}
-      {#if isAnsweringKnown && source}
-        <span data-ai-answering={answering}><Badge tone={AI_ANSWERING_TONE[answering]}>{t(`app.ai.answering_${answering}`)}</Badge></span>
-      {/if}
-    {/snippet}
-  </PageHeader>
-  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/ai')} /></div>
+{#snippet answeringFigure()}
+  <span data-ai-answering={answering}><Badge tone={AI_ANSWERING_TONE[answering]}>{t(`app.ai.answering_${answering}`)}</Badge></span>
+{/snippet}
 
-    <Stack gap="300">
-    <p class="quiet">{t('app.ai.intro')}</p>
+{#snippet ownBar()}
+  <WriteOnly>
+    <SaveBar
+      label={t('app.save_bar.label')}
+      changesLabel={ownChanged > 0 ? t('app.save_bar.changes', { count: String(ownChanged) }) : undefined}
+      discardLabel={t('app.save_bar.discard')}
+      saveLabel={t('app.ai.save')}
+      isSaving={isWorking}
+      savingLabel={t('app.ai.saving')}
+      onDiscard={() => {
+        draft = provider ? modelOf(provider) : emptyModel('', '');
+        processingAllowed = provider?.processing_allowed ?? false;
+        missing = {};
+      }}
+      onSave={() => ownForm?.requestSubmit()}
+    />
+  </WriteOnly>
+{/snippet}
 
-    {#if !unconfigured && (reading.status === 'loading' || reading.status === 'idle')}
-      <p class="quiet">
-        <Spinner label={t('app.ai.reading')} />
-        <span>{t('app.ai.reading')}</span>
-      </p>
-    {:else if unreadable}
-      <FailureNote problem={unreadable} />
-    {:else}
-      {#if failure}
-        <FailureNote problem={failure} />
-      {/if}
+{#snippet budgetBar()}
+  <WriteOnly>
+    <SaveBar
+      label={t('app.save_bar.label')}
+      changesLabel={ownBudgetTouched ? t('app.save_bar.changes', { count: '1' }) : undefined}
+      discardLabel={t('app.save_bar.discard')}
+      saveLabel={t('app.ai.budget_own_save')}
+      isSaving={ownBudgetWorking}
+      savingLabel={t('app.ai.saving')}
+      onDiscard={() => (ownBudgetTouched = false)}
+      onSave={() => budgetForm?.requestSubmit()}
+    />
+  </WriteOnly>
+{/snippet}
 
-      <!-- The tabs outside the gate: a reader who may not change anything still reads every tab. -->
-      <SettingsPage label={t('app.settings_page.sections', { name: t('app.ai.title') })} sections={tabs} selected={current} onselect={select} {changes}>
-        <WorkspaceGate permission="STRUCTURE">
-        {#if current === 'consent'}
-          <Stack gap="300">
+<SettingsLayout
+  {head}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
+  {view}
+  back={{ label: title, onback: () => onreplace?.(BASE) }}
+>
+  {#if !unconfigured && (reading.status === 'loading' || reading.status === 'idle')}
+    <p class="quiet">
+      <Spinner label={t('app.ai.reading')} />
+      <span>{t('app.ai.reading')}</span>
+    </p>
+  {:else if unreadable}
+    <FailureNote problem={unreadable} />
+  {:else}
+    {#if failure}
+      <FailureNote problem={failure} />
+    {/if}
+    <!-- The sections outside the gate: a reader who may not change anything still reads each. -->
+    <WorkspaceGate permission="STRUCTURE">
+      {#if shown === 'consent'}
+        <SettingsSection title={t('app.ai.tab_consent')}>
+          <div class="rows">
             {#if source}
               <!-- Whether each person may keep their own content out of AI, or AI is part of
                    everybody's work on a basis named here (data-protection.md §4.1). -->
@@ -369,10 +433,11 @@
                 data-arrival-proposals
               />
             {/if}
-          </Stack>
-        {:else if current === 'budget'}
-          <Stack gap="100">
-            <h2 class="section">{t('app.ai.budget_title')}</h2>
+          </div>
+        </SettingsSection>
+      {:else if shown === 'budget'}
+        <SettingsSection title={t('app.ai.budget_title')} description={t('app.ai.budget_day')} save={allowsOwn ? budgetBar : undefined}>
+          <div class="rows">
             {#if offeredBudget && allowsOffered}
               <p data-budget="offered">
                 {offeredBudget.limit === 0
@@ -389,39 +454,59 @@
                 <LimitSource standing={ownBudget} />
               </p>
             {/if}
-            <p class="quiet">{t('app.ai.budget_day')}</p>
             {#if allowsOwn}
-              <form class="budget" onsubmit={saveOwnBudget}>
-                <Stack gap="100">
-                  <Input
-                    label={t('app.ai.budget_own_label')}
-                    hint={t('app.ai.budget_own_hint')}
-                    type="number"
-                    inputmode="numeric"
-                    min="1"
-                    value={ownBudgetDraft}
-                    oninput={(event) => {
-                      ownBudgetTouched = true;
-                      ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
-                    }}
-                  />
-                  <WriteOnly>
-                    <div>
-                      <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
-                        {t('app.ai.budget_own_save')}
-                      </Button>
-                    </div>
-                  </WriteOnly>
-                </Stack>
+              <form class="budget" bind:this={budgetForm} onsubmit={saveOwnBudget}>
+                <Input
+                  label={t('app.ai.budget_own_label')}
+                  hint={t('app.ai.budget_own_hint')}
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  value={ownBudgetDraft}
+                  oninput={(event) => {
+                    ownBudgetTouched = true;
+                    ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
+                  }}
+                />
               </form>
             {/if}
             {#if allowsOffered}
               <!-- Linked, not drawn twice: the offered model's budget is the installation's quota row. -->
               <p class="quiet">{t('app.ai.budget_hint')} <a href="/administration/quotas">{t('app.ai.budget_link')}</a></p>
             {/if}
-          </Stack>
-        {:else}
-          <Stack gap="300">
+          </div>
+        </SettingsSection>
+      {:else if shown === 'own'}
+        <SettingsSection title={t('app.ai.own_title')} save={ownBar}>
+          <form bind:this={ownForm} onsubmit={save}>
+            {#if unconfigured && !allowsOffered}
+              <div class="rows"><Banner tone="info">{t('app.ai.none')}</Banner></div>
+            {/if}
+            <ModelFields
+              isRows
+              bind:draft
+              kinds={KINDS}
+              minimum={source?.min_jurisdiction ?? 'ANY'}
+              stored={provider?.jurisdiction}
+              hasKey={provider?.has_api_key === true}
+              {missing}
+            >
+              {#snippet more()}
+                {#if source && source.min_jurisdiction !== 'ANY'}
+                  <p class="quiet">
+                    {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
+                    <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
+                  </p>
+                {/if}
+                <!-- The consent, as its own switch, naming who receives the content and where. -->
+                <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
+              {/snippet}
+            </ModelFields>
+          </form>
+        </SettingsSection>
+      {:else}
+        <SettingsSection title={t('app.ai.tab_source')}>
+          <div class="rows">
             {#if source?.search_rebuilding}
               <Banner tone="info">{t('app.ai.rebuilding')}</Banner>
             {/if}
@@ -431,27 +516,25 @@
             {/if}
 
             {#if allowsOffered}
-              <!-- One card per offered model, one switch each: the switch is the consent, and the card
+              <!-- One row per offered model, one switch each: the switch is the consent, and the row
                    says who receives the content and where before anybody flips it (UC-AI-05). -->
               <Stack gap="150">
-                <h2 class="section">{t('app.ai.offered_title')}</h2>
+                <h3 class="group">{t('app.ai.offered_title')}</h3>
                 {#each offered as model (model.id)}
                   {@const isChosen = source?.source === 'OFFERED' && source.offered_model_id === model.id}
-                  <div class="panel">
-                    <Stack gap="100">
-                      <p class="name">{t('app.ai.offered_name', { name: model.display_name })}</p>
-                      <p class="quiet">{t('app.ai.offered_sent_to', { processor: model.processor, where: model.jurisdiction })}</p>
-                      <Switch
-                        label={t('app.ai.offered_use', { name: model.display_name })}
-                        checked={isChosen}
-                        isBusy={choosingWorking === model.id}
-                        busyLabel={t('app.ai.saving')}
-                        onchange={(event) =>
-                          void choose(model.id, (event.currentTarget as HTMLInputElement).checked
-                            ? { source: 'OFFERED', offered_model_id: model.id }
-                            : { source: 'NONE' })}
-                      />
-                    </Stack>
+                  <div class="model">
+                    <p class="name">{t('app.ai.offered_name', { name: model.display_name })}</p>
+                    <p class="quiet">{t('app.ai.offered_sent_to', { processor: model.processor, where: model.jurisdiction })}</p>
+                    <Switch
+                      label={t('app.ai.offered_use', { name: model.display_name })}
+                      checked={isChosen}
+                      isBusy={choosingWorking === model.id}
+                      busyLabel={t('app.ai.saving')}
+                      onchange={(event) =>
+                        void choose(model.id, (event.currentTarget as HTMLInputElement).checked
+                          ? { source: 'OFFERED', offered_model_id: model.id }
+                          : { source: 'NONE' })}
+                    />
                   </div>
                 {/each}
               </Stack>
@@ -472,118 +555,49 @@
               <p class="quiet">{t('app.ai.own_not_allowed', { by: setBy(source?.sources_origin) })}</p>
             {/if}
 
-            {#if allowsOwn && unconfigured && !allowsOffered}
-              <Banner tone="info">{t('app.ai.none')}</Banner>
-            {/if}
-
-            {#if allowsOwn}
-            {#if choosing}<h2 class="section">{t('app.ai.own_title')}</h2>{/if}
-            <form class="panel" bind:this={ownForm} onsubmit={save}>
-              <Stack gap="200">
-                <ModelFields
-                  bind:draft
-                  kinds={KINDS}
-                  minimum={source?.min_jurisdiction ?? 'ANY'}
-                  stored={provider?.jurisdiction}
-                  hasKey={provider?.has_api_key === true}
-                  {missing}
-                >
-                  {#snippet more()}
-                    {#if source && source.min_jurisdiction !== 'ANY'}
-                      <p class="quiet">
-                        {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
-                        <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
-                      </p>
-                    {/if}
-                    <!-- The consent, as its own switch, naming who receives the content and where. -->
-                    <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
-                  {/snippet}
-                </ModelFields>
-                <WriteOnly>
-                  <div>
-                    <Button
-                      type="submit"
-                      tone="primary"
-                      isBusy={isWorking}
-                      busyLabel={t('app.ai.saving')}
-                    >
-                      {t('app.ai.save')}
-                    </Button>
-                  </div>
-                </WriteOnly>
-              </Stack>
-            </form>
-
-            {/if}
-
             {#if narrowable}
-              <Select
-                label={t('app.ai.narrow_label')}
-                hint={t('app.ai.narrow_hint')}
-                value={source?.narrowing ?? 'INHERIT'}
-                options={narrowings}
-                onchange={(event) => narrow((event.currentTarget as HTMLSelectElement).value)}
-              />
+              <div class="field">
+                <Select
+                  label={t('app.ai.narrow_label')}
+                  hint={t('app.ai.narrow_hint')}
+                  value={source?.narrowing ?? 'INHERIT'}
+                  options={narrowings}
+                  onchange={(event) => narrow((event.currentTarget as HTMLSelectElement).value)}
+                />
+              </div>
             {:else if source?.sources_lock && offered.length > 0}
               <p class="quiet">
                 {t('app.ai.sources_locked', { by: setBy(source.sources_lock) })}
                 <ValueSource source={source.sources_origin} lock={source.sources_lock} value={t(`app.ai.narrow_${source.sources.toLowerCase()}`)} />
               </p>
             {/if}
+          </div>
+        </SettingsSection>
+      {/if}
+    </WorkspaceGate>
+  {/if}
+</SettingsLayout>
 
-            <WriteOnly>
-            {#if provider && allowsOwn}
-              <Stack gap="150">
-                <h2 class="section">{t('app.ai.remove_title')}</h2>
-                <p class="quiet">{t('app.ai.remove_cost')}</p>
-                {#if confirmingRemoval}
-                  <Banner tone="warning">{t('app.ai.remove_confirm')}</Banner>
-                  <div class="row">
-                    <Button tone="danger" isBusy={isWorking} busyLabel={t('app.ai.removing')} onclick={() => void remove()}>
-                      {t('app.ai.remove_now')}
-                    </Button>
-                    <Button tone="subtle" onclick={() => (confirmingRemoval = false)}>{t('app.ai.keep')}</Button>
-                  </div>
-                {:else}
-                  <div>
-                    <Button tone="secondary" onclick={() => (confirmingRemoval = true)}>{t('app.ai.remove')}</Button>
-                  </div>
-                {/if}
-              </Stack>
-            {/if}
-            </WriteOnly>
-          </Stack>
-        {/if}
-        </WorkspaceGate>
-      </SettingsPage>
-    {/if}
-    </Stack>
-</Stack>
+<ViewSectionsAsFile {...pagePart(BASE)} bind:isOpen={isFileOpen} isTriggerHidden />
+<RemoveProviderDialog bind:isOpen={confirmingRemoval} {isWorking} {failure} onremove={() => void remove()} />
 
 <style>
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
-     input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables beside them take the width. */
-  form { margin: 0; max-inline-size: 52ch; }
+     input as wide as the region is a target nobody aims at, so the fields carry their measure. */
+  form { margin: 0; }
 
-  /* The surface a form stands on, as the other screens of the section draw one: a standalone
-     element in the sense of design-system.md rule 1, on the frame's canvas. */
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  /* A section's own content where it is not setting rows: the region's padding, rows apart. */
+  .rows { display: grid; gap: var(--sp-200); margin: 0; padding: var(--sp-200); max-inline-size: calc(var(--sp-1000) * 7); }
 
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+  .rows p { margin: 0; }
+
+  .group { margin: 0; font-size: var(--fs-075); font-weight: var(--fw-semibold); text-transform: uppercase; color: var(--text-subtle); }
+
+  /* An offered model is a row of the region, separated by a hairline - never a card in it (PS-16). */
+  .model { display: grid; gap: var(--sp-100); padding-block-start: var(--sp-150); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .name { margin: 0; font-weight: var(--fw-semibold); }
   .budget { margin: 0; max-inline-size: 52ch; }
-  .file { display: flex; justify-content: flex-end; }
+  .field { max-inline-size: 52ch; }
 </style>

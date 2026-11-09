@@ -200,7 +200,7 @@ test('chromium: the first start on a template - its family, its plan in words, t
   await makeGroup.locator('input').fill('First line');
   await makeGroup.locator('button').click();
   await page.waitForFunction(() => document.querySelector('[data-create-group="first_group"] input')?.value === '', undefined, { timeout: 10_000 });
-  await page.locator('[data-starter-start]').click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Set up', exact: true }).last().click();
   await page.waitForURL(new RegExp(STARTED_HUB), { timeout: 10_000 });
 
   assert.deepEqual(sent.find((write) => write.path === '/groups')?.body, { name: 'First line' });

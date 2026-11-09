@@ -7,7 +7,7 @@
   // prefilled at the usual end of work - with *Discard* the second choice.
 
   import { untrack } from 'svelte';
-  import { Button, Dialog, Icon, IconButton, Inline, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Icon, IconButton, Input, Stack } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CapacityList, TimeTimer, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -144,16 +144,16 @@
 {/if}
 
 {#if isRecordingUntil}
-  <Dialog bind:isOpen={isRecordingUntil} title={t('app.time.record_until_title')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isRecordingUntil} title={t('app.time.record_until_title')} dismissLabel={t('app.links.cancel')} size="s"
+    primary={{ label: t('app.time.record'), isBusy, busyLabel: t('app.time.record'), onclick: () => void recordUntil() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.time.record_until_hint', { day: formatPlainDay(startDay ?? '', messages.locale), start: startClock ?? '' })}</p>
       <Input label={t('app.time.until')} type="time" bind:value={until} error={untilError} />
       {#if failure}<FailureNote problem={failure} />{/if}
-      <Inline justify="end" gap="100">
-        <Button tone="subtle" {isBusy} busyLabel={t('app.time.discard')} onclick={() => void discard()}>{t('app.time.discard')}</Button>
-        <Button {isBusy} busyLabel={t('app.time.record')} onclick={() => void recordUntil()}>{t('app.time.record')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="subtle" {isBusy} busyLabel={t('app.time.discard')} onclick={() => void discard()}>{t('app.time.discard')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

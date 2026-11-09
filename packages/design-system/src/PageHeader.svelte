@@ -10,6 +10,9 @@
   // twelve buttons of one tone and one size, with the action performed daily a form at the end of
   // the list, and every one of them was a reasonable decision on its own.
   //
+  // The secondary actions stand before the primary, which sits at the inline end beside the menu
+  // (page-system mockups): the eye ends a row of actions on the one that matters.
+  //
   // Below `medium` the head folds: the primary action becomes a round button pinned at the end of
   // the screen above the bottom bar, where a thumb is, and the secondary actions join the menu.
   // The title stays an `h1` here on every width - a screen holds exactly one, and it belongs to
@@ -41,6 +44,8 @@
      */
     readonly onclick?: () => void;
     readonly disabledReason?: string;
+    /** Whether a secondary act is drawn quiet, without a frame: *View as file*, which reads rather than does. */
+    readonly isQuiet?: boolean;
     /** For the tour and for tests: the attribute the caller finds the control by. */
     readonly tour?: string;
     /**
@@ -220,7 +225,7 @@
       {#if aside}<span class="aside">{@render aside()}</span>{/if}
       {#each secondary as action, index (index)}
         <span class="secondary">
-          <Button size="sm" tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
+          <Button size="sm" tone={action.isQuiet ? 'subtle' : 'secondary'} icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
             {action.label}
           </Button>
         </span>

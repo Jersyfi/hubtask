@@ -38,3 +38,10 @@ export const wiki: Story = {
     'The current page’s branch is open and its row carries the bar.',
   args: { mode: 'wiki' },
 };
+
+export const area: Story = {
+  name: 'An area as a level',
+  about:
+    'The administration, Your settings and the installation drawn with the hub level’s parts: the way back alone in the head, its groups folding as Collections does, the same rows with a figure where a screen has a state to act on.',
+  args: { mode: 'area' },
+};

@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Time* under *How we work*, where the time module is on: the workspace's time policy - the last
+  // The time's settings (page-system §9.6), where the time module is on: the workspace's time policy - the last
   // locked day and whether other people's time is seen in full or only as sums (UC-TIM-03 checks 4
   // and 5) - and its kinds of work, each with whether its time starts billable, in their order,
   // archived rather than deleted because records keep them (UC-TIM-01 check 2).
@@ -9,12 +9,16 @@
   // **What the reader may never do is not drawn** (P-05): the policy is set with APPROVE_TIME or
   // MANAGE_MEMBERS at the workspace, a kind of work written with STRUCTURE; without, the page
   // shows the values. The cost rates (UC-TIM-08) are drawn only for MANAGE_COSTS or MANAGE_MEMBERS.
+  //
+  // Each part is a section at `/time/settings/<id>`: the time's last tab, under the
+  // home's head and `ViewBar` (the navigation concept §4); *Record time* is not offered on it.
 
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Dialog, IconButton, Inline, Input, PageHeader, Skeleton, Stack, Switch, Table, type Column,
+    Button, DataTable, Dialog, EmptyState, Inline, Input, SaveBar, SettingsLayout, SettingsSection, Skeleton, Stack, Switch,
+    type DataColumn, type DataRowMenu, type SectionLink,
   } from '@hubtask/design-system/components';
   import type { SettingDefinition, TimePolicy, WorkType, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -24,7 +28,7 @@
   import { POLICY, WORK_TYPES, time } from '../lib/data/time.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import CostRates from '../lib/time/CostRates.svelte';
@@ -33,13 +37,22 @@
   import SettingControl from '../lib/settings/SettingControl.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import TableSection from '../lib/page/TableSection.svelte';
+  import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
+  import ProductTabs from '../lib/product/ProductTabs.svelte';
+  import { productHead } from '../lib/product/frame.svelte.ts';
 
-  /** Drawn as the time home's *Settings* tab (user-experience.md §8.2), under the home's own head. */
-  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
-  $effect(() => {
-    if (!isEmbedded) page.entitle(t('app.time_settings.title'));
-  });
+  interface Props {
+    /** The section the address names (`/time/settings/<id>`); none is the list of sections. */
+    section?: string;
+    /** Replaces the address: a move between sections. */
+    onreplace?: (path: string) => void;
+    onnavigate?: (path: string) => void;
+  }
+  const { section, onreplace, onnavigate }: Props = $props();
+  const BASE = '/time/settings';
+  const title = $derived(t('app.time_settings.page_title'));
+  $effect(() => page.entitle(title));
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const mayLock = $derived(holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_MEMBERS') === true);
@@ -104,21 +117,47 @@
     draft.lockedThrough = read.locked_through ?? '';
     draft.visibility = read.visibility;
   }
-  const sections = $derived([
-    { id: 'time-part-policy', label: t('app.time_settings.policy') },
-    { id: 'time-part-kinds', label: t('app.time_settings.kinds') },
-    ...(mayCost ? [{ id: 'time-part-rates', label: t('app.rates.title') }] : []),
-  ]);
+  $effect(() => leaveGuard.hold(() => changes));
+
+  const offered = $derived(['policy', 'kinds', ...(mayCost ? ['rates'] : [])]);
+  const named = $derived(offered.find((each) => each === section));
+  const shown = $derived(named ?? 'policy');
+  const view = $derived<'list' | 'detail'>(named ? 'detail' : 'list');
+  const sectionLabel = (id: string) => t(id === 'policy' ? 'app.time_settings.policy' : id === 'kinds' ? 'app.time_settings.kinds' : 'app.rates.title');
+  const links = $derived<SectionLink[]>(offered.map((id) => ({
+    id, label: sectionLabel(id), href: `${BASE}/${id}`,
+    ...(id === 'kinds' && kinds ? { status: String(kinds.length) } : {}),
+    ...(id === 'policy' && changes > 0 ? { status: t('app.save_bar.changes', { count: String(changes) }), statusTone: 'set' as const } : {}),
+  })));
+  let isFileOpen = $state(false);
+  const fileAction = $derived(viewAsFileAction(() => (isFileOpen = true)));
 
   // --- The kinds of work --------------------------------------------------------------------------
 
   const ordered = $derived([...(kinds ?? [])].sort((a, b) => a.position - b.position));
-  const columns = $derived<Column[]>([
-    { id: 'name', label: t('app.time_settings.col_name') },
-    { id: 'billable', label: t('app.time_settings.col_billable') },
-    { id: 'state', label: t('app.time_settings.col_state') },
-    { id: 'actions', label: t('app.time_settings.col_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.time_settings.col_name'), priority: 1 },
+    { id: 'billable', label: t('app.time_settings.col_billable'), priority: 2 },
+    { id: 'state', label: t('app.time_settings.col_state'), priority: 2, isStatus: true },
   ]);
+  /** A kind's ⋯: its order and whether it is offered (PS-6). */
+  function kindMenu(kind: WorkType): DataRowMenu | undefined {
+    if (!mayShape) return undefined;
+    const at = ordered.findIndex((each) => each.key === kind.key);
+    return {
+      label: t('app.page.more_for', { name: kind.name }),
+      items: [
+        ...(at > 0 ? [{ id: 'up', label: t('app.time_settings.move_up', { name: kind.name }), icon: 'chevron-up' as const }] : []),
+        ...(at < ordered.length - 1 ? [{ id: 'down', label: t('app.time_settings.move_down', { name: kind.name }), icon: 'chevron-down' as const }] : []),
+        { id: 'archive', label: kind.archived ? t('app.time_settings.restore') : t('app.time_settings.archive'), icon: 'archive' as const, hasSeparatorBefore: at > 0 || at < ordered.length - 1 },
+      ],
+    };
+  }
+  function onKindMenu(kind: WorkType, id: string) {
+    if (id === 'up') move(kind, -1);
+    else if (id === 'down') move(kind, 1);
+    else archive(kind, !kind.archived);
+  }
 
   let isEditing = $state(false);
   let editing = $state<WorkType | undefined>(undefined);
@@ -162,87 +201,89 @@
   }
 </script>
 
-<Stack gap="300">
-  <!-- On the time home the head keeps the home's own create act; adding a kind is its section's. -->
-  {#if !isEmbedded}<PageHeader
-    title={t('app.time_settings.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'time', label: t('app.time_settings.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-    primary={mayShape ? { label: t('app.time_settings.add_kind'), icon: 'plus', onclick: () => openKind(undefined) } : undefined}
-  />{/if}
-  <div class="file"><ViewSectionsAsFile {...pagePart('/time?tab=settings')} /></div>
+{#snippet tabs()}<ProductTabs module="TIME" current="settings" {onnavigate} />{/snippet}
 
+<SettingsLayout
+  head={{ ...productHead('TIME'), secondary: fileAction ? ([fileAction] as const) : ([] as const) }}
+  {tabs}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
+  {view}
+  back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(BASE) }}
+>
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if !policy || !kinds}
     <div aria-busy="true"><Skeleton lines={6} /></div>
+  {:else if shown === 'policy'}
+    <div data-time-part="policy">
+      <SettingsSection title={t('app.time_settings.policy')} save={mayLock ? saveBar : undefined}>
+        {#if mayLock}
+          {#if definitions['time.locked_through']}
+            <SettingControl definition={definitions['time.locked_through']} cell={{ ...partOf(policy, 'time.locked_through'), value: policy.locked_through ?? null }}
+              value={draft.lockedThrough || null} holds={() => mayLock} onchange={(next) => (draft.lockedThrough = typeof next === 'string' ? next : '')} />
+          {/if}
+          {#if definitions['time.visibility']}
+            <SettingControl definition={definitions['time.visibility']} cell={{ ...partOf(policy, 'time.visibility'), value: policy.visibility }}
+              value={draft.visibility} holds={() => mayLock} onchange={(next) => (draft.visibility = String(next))} />
+          {/if}
+        {:else}
+          <p class="value">{policy.locked_through ? t('app.time_settings.locked_until', { day: policy.locked_through }) : t('app.time_settings.nothing_locked')}</p>
+          <p class="value">{t(`app.time_settings.visibility_${policy.visibility}`)}</p>
+        {/if}
+      </SettingsSection>
+    </div>
+  {:else if shown === 'kinds'}
+    <div data-time-part="kinds">
+      <TableSection title={t('app.time_settings.kinds')} note={String(ordered.length)}>
+        {#snippet acts()}
+          {#if mayShape}<Button icon="plus" data-list-add onclick={() => openKind(undefined)}>{t('app.time_settings.add_kind')}</Button>{/if}
+        {/snippet}
+        <DataTable
+          label={t('app.time_settings.kinds')}
+          {columns}
+          rows={ordered}
+          key={(kind: WorkType) => kind.key}
+          rowLabel={(kind: WorkType) => kind.name}
+          onopen={mayShape ? (kind: WorkType) => openKind(kind) : undefined}
+          menu={kindMenu}
+          onmenu={onKindMenu}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          actionsLabel={t('app.time_settings.col_actions')}
+        >
+          {#snippet cell(kind: WorkType, column: DataColumn)}
+            {#if column.id === 'name'}{kind.name}
+            {:else if column.id === 'billable'}{kind.billable ? t('app.time.billable_yes') : t('app.time.billable_no')}
+            {:else}{kind.archived ? t('app.time_settings.archived') : t('app.time_settings.offered')}{/if}
+          {/snippet}
+          {#snippet empty()}<EmptyState kind="unused" title={t('app.time_settings.no_kinds')} />{/snippet}
+        </DataTable>
+      </TableSection>
+    </div>
   {:else}
-    <SettingsPage
-      label={t('app.settings_page.sections', { name: t('app.time_settings.title') })}
-      {sections}
-      {changes}
-      save={mayLock ? { label: t('app.time_settings.save'), savingLabel: t('app.time_settings.saving'), isSaving, onSave: () => void savePolicy(), onDiscard: discardPolicy } : undefined}
-    >
-    <section id="time-part-policy" class="block" aria-labelledby="time-policy">
-      <h2 id="time-policy" class="heading">{t('app.time_settings.policy')}</h2>
-      {#if mayLock}
-        {#if definitions['time.locked_through']}
-          <SettingControl definition={definitions['time.locked_through']} cell={{ ...partOf(policy, 'time.locked_through'), value: policy.locked_through ?? null }}
-            value={draft.lockedThrough || null} holds={() => mayLock} onchange={(next) => (draft.lockedThrough = typeof next === 'string' ? next : '')} />
-        {/if}
-        {#if definitions['time.visibility']}
-          <SettingControl definition={definitions['time.visibility']} cell={{ ...partOf(policy, 'time.visibility'), value: policy.visibility }}
-            value={draft.visibility} holds={() => mayLock} onchange={(next) => (draft.visibility = String(next))} />
-        {/if}
-      {:else}
-        <p>{policy.locked_through ? t('app.time_settings.locked_until', { day: policy.locked_through }) : t('app.time_settings.nothing_locked')}</p>
-        <p>{t(`app.time_settings.visibility_${policy.visibility}`)}</p>
-      {/if}
-    </section>
-
-    <section id="time-part-kinds" class="block" aria-labelledby="time-kinds">
-      <h2 id="time-kinds" class="heading">{t('app.time_settings.kinds')}</h2>
-      {#if isEmbedded && mayShape}
-        <div><Button tone="secondary" icon="plus" data-list-add onclick={() => openKind(undefined)}>{t('app.time_settings.add_kind')}</Button></div>
-      {/if}
-      <Table label={t('app.time_settings.kinds')} isLabelHidden {columns}>
-        {#snippet empty()}{t('app.time_settings.no_kinds')}{/snippet}
-        {#each ordered as kind, i (kind.key)}
-          <tr>
-            <th scope="row">{kind.name}</th>
-            <td>{kind.billable ? t('app.time.billable_yes') : t('app.time.billable_no')}</td>
-            <td>{kind.archived ? t('app.time_settings.archived') : t('app.time_settings.offered')}</td>
-            <td>
-              {#if mayShape}
-                <Inline gap="050">
-                  <IconButton icon="chevron-up" size="sm" label={t('app.time_settings.move_up', { name: kind.name })} disabledReason={i === 0 ? t('app.time_settings.first') : undefined} onclick={() => move(kind, -1)} />
-                  <IconButton icon="chevron-down" size="sm" label={t('app.time_settings.move_down', { name: kind.name })} disabledReason={i === ordered.length - 1 ? t('app.time_settings.last') : undefined} onclick={() => move(kind, 1)} />
-                  <Button size="sm" tone="subtle" icon="pencil" onclick={() => openKind(kind)}>{t('app.time_settings.edit')}</Button>
-                  <Button size="sm" tone="subtle" icon="archive" onclick={() => archive(kind, !kind.archived)}>{kind.archived ? t('app.time_settings.restore') : t('app.time_settings.archive')}</Button>
-                </Inline>
-              {/if}
-            </td>
-          </tr>
-        {/each}
-      </Table>
-    </section>
-
-    {#if mayCost}<CostRates />{/if}
-    </SettingsPage>
+    <CostRates />
   {/if}
-</Stack>
+</SettingsLayout>
+
+<ViewSectionsAsFile {...pagePart(BASE)} bind:isOpen={isFileOpen} isTriggerHidden />
+
+{#snippet saveBar()}
+  <SaveBar
+    label={t('app.save_bar.label')}
+    changesLabel={changes > 0 ? t('app.save_bar.changes', { count: String(changes) }) : undefined}
+    discardLabel={t('app.save_bar.discard')}
+    saveLabel={t('app.time_settings.save')}
+    isSaving={isSaving}
+    savingLabel={t('app.time_settings.saving')}
+    onDiscard={discardPolicy}
+    onSave={() => void savePolicy()}
+  />
+{/snippet}
 
 {#if isEditing}
-  <Dialog bind:isOpen={isEditing} title={editing ? t('app.time_settings.edit') : t('app.time_settings.add_kind')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isEditing} title={editing ? t('app.time_settings.edit') : t('app.time_settings.add_kind')} dismissLabel={t('app.links.cancel')} size="m">
     <Stack gap="150">
       <Input label={t('app.time_settings.col_name')} value={kindDraft.name} maxlength={80} oninput={(event: Event) => rename((event.currentTarget as HTMLInputElement).value)} />
       <!-- The key is made from the name; asked only where a name yields none (a script without Latin letters). -->
@@ -257,9 +298,6 @@
 {/if}
 
 <style>
-  .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-  p { margin: 0; }
-  .file { display: flex; justify-content: flex-end; }
+  .value { margin: 0; padding: var(--sp-150) var(--sp-200); }
 </style>

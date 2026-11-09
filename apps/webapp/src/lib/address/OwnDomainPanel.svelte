@@ -176,23 +176,13 @@
 </section>
 
 <style>
+  /* A part of the address's one region, below its rows: no box of its own (page-system §4.2). */
   .panel {
     container-type: inline-size;
-    max-inline-size: 72ch;
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
+    padding: var(--sp-200) var(--sp-250);
   }
 
-  h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
+  h2 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
 
   /* The panel carries the measure, so the prose runs its width as the approved screen draws it. */
   .prose { margin: 0; max-inline-size: none; }
@@ -219,9 +209,8 @@
     grid-template-columns: 9ch minmax(0, 1fr);
     gap: var(--sp-050) var(--sp-150);
     padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
-    background: var(--bg-surface-hover);
+    background: var(--bg-surface-sunken);
   }
 
   .type {
@@ -229,7 +218,7 @@
     align-self: start;
     padding: var(--sp-025) var(--sp-100);
     border-radius: var(--r-sm);
-    background: var(--bg-surface-sunken);
+    background: var(--bg-surface);
     font-family: var(--font-mono);
     font-weight: var(--fw-medium);
     text-align: center;

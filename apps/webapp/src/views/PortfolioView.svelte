@@ -14,8 +14,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
-    type Column,
+    Badge, Banner, Button, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu,
   } from '@hubtask/design-system/components';
   import type { Portfolio, PortfolioList, PortfolioUpdateList, PortfolioWrite } from '@hubtask/sync-engine';
 
@@ -84,22 +84,29 @@
 
   // The budgets are MANAGE_COSTS's (UC-GOL-03): the server sends them only to whoever manages costs.
   const hasBudgets = $derived(portfolio?.items.some((item) => item.budget) === true);
-  const columns = $derived<Column[]>([
-    { id: 'project', label: t('app.portfolios.col_project') },
-    { id: 'start', label: t('app.portfolios.col_start') },
-    { id: 'end', label: t('app.portfolios.col_end') },
-    { id: 'health', label: t('app.portfolios.col_health') },
-    { id: 'entries', label: t('app.portfolios.col_entries'), align: 'end' },
-    { id: 'done', label: t('app.portfolios.col_done'), align: 'end' },
-    { id: 'progress', label: t('app.goals.col_progress') },
-    ...(hasBudgets ? [{ id: 'budget', label: t('app.portfolios.col_budget'), align: 'end' as const }] : []),
-    ...(mayWrite ? [{ id: 'actions', label: t('app.goals.actions'), isLabelHidden: true }] : []),
+  const columns = $derived<DataColumn[]>([
+    { id: 'project', label: t('app.portfolios.col_project'), priority: 1 },
+    { id: 'when', label: t('app.portfolios.col_when'), priority: 2 },
+    { id: 'health', label: t('app.portfolios.col_health'), priority: 1, isStatus: true },
+    { id: 'entries', label: t('app.portfolios.col_entries'), align: 'end', priority: 3 },
+    { id: 'done', label: t('app.portfolios.col_done'), align: 'end', priority: 3 },
+    { id: 'progress', label: t('app.goals.col_progress'), priority: 2 },
+    ...(hasBudgets ? [{ id: 'budget', label: t('app.portfolios.col_budget'), align: 'end' as const, priority: 3 as const }] : []),
   ]);
-  const updateColumns = $derived<Column[]>([
-    { id: 'when', label: t('app.goals.checkin_when') },
-    { id: 'who', label: t('app.goals.checkin_who') },
-    { id: 'health', label: t('app.portfolios.col_health') },
-    { id: 'summary', label: t('app.portfolios.summary') },
+  type Project = NonNullable<typeof portfolio>['items'][number];
+  type Update = (typeof updates)[number];
+  const projectMenu = (item: Project): DataRowMenu | undefined =>
+    mayWrite
+      ? { label: t('app.page.more_for', { name: item.name }), items: [
+          { id: 'change', label: t('app.portfolios.change_project', { name: item.name }) },
+          { id: 'out', label: t('app.portfolios.take_out', { name: item.name }), isDestructive: true, hasSeparatorBefore: true },
+        ] }
+      : undefined;
+  const updateColumns = $derived<DataColumn[]>([
+    { id: 'who', label: t('app.goals.checkin_who'), priority: 1 },
+    { id: 'summary', label: t('app.portfolios.summary'), priority: 2 },
+    { id: 'when', label: t('app.goals.checkin_when'), priority: 3 },
+    { id: 'health', label: t('app.portfolios.col_health'), priority: 1, isStatus: true },
   ]);
   type Burn = { budget_minutes: number; minutes: number; budget_amount_minor: number | null; amount_minor: number | null; currency: string };
   function burnText(burn: Burn): string {
@@ -197,7 +204,8 @@
   const HEALTH = ['NONE', 'ON_TRACK', 'AT_RISK', 'OFF_TRACK'] as const;
 </script>
 
-<Stack gap="300">
+<DetailPage>
+  {#snippet top()}
   <PageHeader
     title={portfolio?.name ?? t('app.portfolios.portfolio')}
     isTitleInBar={viewport.isCompact}
@@ -230,6 +238,7 @@
       },
     }}
   />
+  {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -265,28 +274,26 @@
         <ProductEmpty product="GOALS" kind="unused" icon="briefcase" title={t('app.portfolios.no_projects')} description={t('app.portfolios.no_projects_body')}
           create={mayWrite ? { label: t('app.portfolios.add_project'), onclick: () => openProject() } : undefined} whoCan={t('app.portfolios.who_can')} />
       {:else}
-        <Table isStacked label={t('app.portfolios.projects', { count: String(portfolio.items.length) })} isLabelHidden {columns}>
-          {#each portfolio.items as item (item.container_id)}
-            <tr>
-              <th scope="row"><a href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}</th>
-              <td class="day">{item.start_on ? formatPlainDay(item.start_on, locale) : ''}</td>
-              <td class="day">{item.end_on ? formatPlainDay(item.end_on, locale) : ''}</td>
-              <td>{#if item.status !== 'NONE'}<Badge size="sm" tone={goalTone(item.status)}>{t(`app.goals.status_${item.status}`)}</Badge>{/if}</td>
-              <td class="number">{item.entries ?? ''}</td>
-              <td class="number">{item.done ?? ''}</td>
-              <td class="progress">{#if item.progress !== null}<ProgressBar size="sm" label={t('app.goals.progress_of', { title: item.name })} value={percentOf(item.progress)} valueLabel={t('app.goals.percent', { percent: percentText(item.progress) })} />{/if}</td>
-              {#if hasBudgets}<td class="number" class:over={item.budget?.over_time || item.budget?.over_money}>{item.budget ? burnText(item.budget) : ''}</td>{/if}
-              {#if mayWrite}
-                <td>
-                  <Inline gap="050">
-                    <IconButton icon="pencil" size="sm" label={t('app.portfolios.change_project', { name: item.name })} onclick={() => openProject(item)} />
-                    <IconButton icon="x" size="sm" label={t('app.portfolios.take_out', { name: item.name })} onclick={() => void takeOut(item.container_id, item.name)} />
-                  </Inline>
-                </td>
-              {/if}
-            </tr>
-          {/each}
-        </Table>
+        <DataTable label={t('app.portfolios.projects', { count: String(portfolio.items.length) })} {columns} rows={portfolio.items} key={(item: Project) => item.container_id}
+          menu={projectMenu} onmenu={(item: Project, id: string) => { if (id === 'change') openProject(item); else void takeOut(item.container_id, item.name); }}
+          rowLabel={(item: Project) => item.name} actionsLabel={t('app.goals.actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+          {#snippet cell(item: Project, column: DataColumn)}
+            {#if column.id === 'project'}<a href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}
+            {:else if column.id === 'when'}
+              {#if item.start_on || item.end_on}<span class="day">{item.start_on ? formatPlainDay(item.start_on, locale) : ''}</span> – <span class="day">{item.end_on ? formatPlainDay(item.end_on, locale) : ''}</span>{/if}
+            {:else if column.id === 'health'}
+              {#if item.status !== 'NONE'}<Badge size="sm" tone={goalTone(item.status)}>{t(`app.goals.status_${item.status}`)}</Badge>{/if}
+              <!-- A phone's row keeps its title, dates and state only: the progress joins the state there (§4.4). -->
+              {#if item.progress !== null}<span class="phone-only">{t('app.goals.percent', { percent: percentText(item.progress) })}</span>{/if}
+            {:else if column.id === 'entries'}<span class="number">{item.entries ?? ''}</span>
+            {:else if column.id === 'done'}<span class="number">{item.done ?? ''}</span>
+            {:else if column.id === 'progress'}<span class="progress">{#if item.progress !== null}<ProgressBar size="sm" label={t('app.goals.progress_of', { title: item.name })} value={percentOf(item.progress)} valueLabel={t('app.goals.percent', { percent: percentText(item.progress) })} />{/if}</span>
+            {:else}<span class="number" class:over={item.budget?.over_time || item.budget?.over_money}>{item.budget ? burnText(item.budget) : ''}</span>{/if}
+          {/snippet}
+          {#snippet verb(item: Project)}
+            {#if mayWrite}<Button size="sm" tone="subtle" icon="pencil" onclick={() => openProject(item)}>{t('app.portfolios.change')}</Button>{/if}
+          {/snippet}
+        </DataTable>
       {/if}
     </section>
 
@@ -302,23 +309,21 @@
       {#if updates.length === 0}
         <p class="quiet">{t('app.portfolios.no_updates')}</p>
       {:else}
-        <Table isStacked label={t('app.portfolios.updates')} isLabelHidden columns={updateColumns}>
-          {#each updates as each (each.id)}
-            <tr>
-              <td>{formatDateTime(each.created_at, locale)}</td>
-              <th scope="row">{personName(each.author_id)}</th>
-              <td><Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge></td>
-              <td class="clip">{each.summary}</td>
-            </tr>
-          {/each}
-        </Table>
+        <DataTable label={t('app.portfolios.updates')} columns={updateColumns} rows={updates} key={(each: Update) => each.id}>
+          {#snippet cell(each: Update, column: DataColumn)}
+            {#if column.id === 'when'}{formatDateTime(each.created_at, locale)}
+            {:else if column.id === 'who'}{personName(each.author_id)}
+            {:else if column.id === 'health'}<Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge>
+            {:else}<span class="clip">{each.summary}</span>{/if}
+          {/snippet}
+        </DataTable>
       {/if}
     </section>
   {/if}
-</Stack>
+</DetailPage>
 
 {#if isChanging}
-  <Dialog bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.portfolios.col_name')} bind:value={draft.name} maxlength={200} />
       <Textarea label={t('app.portfolios.description')} bind:value={draft.description} maxlength={10000} />
@@ -330,7 +335,7 @@
 {/if}
 
 {#if isAdding}
-  <Dialog bind:isOpen={isAdding} title={project.editing ? t('app.portfolios.change_project_title') : t('app.portfolios.add_project')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isAdding} title={project.editing ? t('app.portfolios.change_project_title') : t('app.portfolios.add_project')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       {#if !project.editing}
         <Select label={t('app.portfolios.col_project')} bind:value={project.id} placeholder={t('app.portfolios.pick_project')} options={projectChoices} />
@@ -344,7 +349,7 @@
 {/if}
 
 {#if isReporting}
-  <Dialog bind:isOpen={isReporting} title={t('app.portfolios.report')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isReporting} title={t('app.portfolios.report')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Select label={t('app.portfolios.col_health')} bind:value={report.status} options={HEALTH.filter((each) => each !== 'NONE').map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
       <Textarea label={t('app.portfolios.summary')} hint={t('app.portfolios.summary_hint')} bind:value={report.summary} maxlength={10000} />
@@ -354,7 +359,7 @@
 {/if}
 
 {#if isDeleting && portfolio}
-  <Dialog bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.portfolios.delete_hint')}</p>
       <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.portfolios.delete')}</Button></Inline>
@@ -364,6 +369,11 @@
 
 <style>
   .day { white-space: nowrap; }
+  .phone-only { display: none; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), where DataTable becomes list rows; a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .phone-only { display: block; font-size: var(--fs-075); color: var(--text-secondary); text-align: end; }
+  }
   .summary, .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
   .facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
@@ -373,7 +383,7 @@
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .over { color: var(--text-danger); }
-  .progress { min-width: var(--layout-board-column); }
-  .clip { max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
+  .progress { display: block; min-width: var(--layout-board-column); }
+  .clip { display: block; max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
 </style>

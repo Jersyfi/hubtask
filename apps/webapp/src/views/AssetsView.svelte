@@ -6,7 +6,7 @@
   // service map; the operator's sections - runs, duplicates, connectors, campaigns, register,
   // software, a file's import - behind *Manage ▾*, a menu at the view bar's end, never a second
   // strip (the navigation concept §3). The hub's tool *Inventory*: each section has its own address
-  // under `/hubs/:id/inventory`; one configuration item is at `/cis/:id`.
+  // under `/hubs/:id/inventory`. A work page (page-system §7.8); one configuration item is `CiView`.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // is offered no write: the import is not offered to them at all, the other operator sections are
@@ -14,16 +14,15 @@
   import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   import { untrack } from 'svelte';
-  import { Badge, Icon, Menu, Skeleton, Spinner, ViewBar } from '@hubtask/design-system/components';
+  import { Badge, Icon, Menu, Skeleton, ViewBar, WorkPage } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import type { CiAlert, CiAlertList, CiClassList, CiRelationTypeList, CmdbHealth, ConfigurationItem } from '@hubtask/sync-engine';
+  import type { CiAlert, CiAlertList, CiClassList, CmdbHealth } from '@hubtask/sync-engine';
 
   import Alerts from '../lib/assets/Alerts.svelte';
   import Campaigns from '../lib/assets/Campaigns.svelte';
   import Groups from '../lib/assets/Groups.svelte';
   import Register from '../lib/assets/Register.svelte';
   import Software from '../lib/assets/Software.svelte';
-  import CiDetail from '../lib/assets/CiDetail.svelte';
   import Connectors from '../lib/assets/Connectors.svelte';
   import Duplicates from '../lib/assets/Duplicates.svelte';
   import Health from '../lib/assets/Health.svelte';
@@ -33,9 +32,8 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, holdsHere, roleOrder } from '../lib/data/capability.svelte.ts';
   import {
-    alertsPath, assetStrips, assetsFigure, ciPath, classesPath, healthPath, relationTypesPath, sectionOf, type AssetSection, type Words,
+    alertsPath, assetStrips, assetsFigure, classesPath, healthPath, sectionOf, type AssetSection, type Words,
   } from '../lib/data/cmdb.svelte.ts';
-  import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
@@ -45,29 +43,18 @@
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
-    /** The hub whose assets are shown; absent when the address names one CI. */
-    hubId?: string;
+    /** The hub whose assets are shown. */
+    hubId: string;
     section?: string;
-    ciId?: string;
     onnavigate: (path: string) => void;
     /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
     isCreateAsked?: boolean;
   }
 
-  const { hubId: hubFromRoute, section, ciId, onnavigate, isCreateAsked = false }: Props = $props();
-
-  const opened = untrack(() => (ciId ? resource<ConfigurationItem>(ciPath(ciId)) : undefined));
-  const current = $derived(opened?.state.status === 'ready' ? opened.state.data : undefined);
-  const openRefusal = $derived(opened?.state.status === 'failed' ? renderProblem(opened.state.error, messages).message : undefined);
-  const hubId = $derived(hubFromRoute ?? current?.hub_id ?? '');
-  // The sidebar shows this hub's level; the route names only the page, board or item (`levelOf`).
-  $effect(() => (hubFromRoute ? undefined : frame.locate(hubId || undefined)));
-  const hub = $derived(hubId ? containers.find(hubId) : undefined);
+  const { hubId, section, onnavigate, isCreateAsked = false }: Props = $props();
 
   const classesRead = resource<CiClassList>(classesPath);
-  const typesRead = resource<CiRelationTypeList>(relationTypesPath);
   const classes = $derived(classesRead.state.status === 'ready' ? classesRead.state.data.data : []);
-  const types = $derived(typesRead.state.status === 'ready' ? typesRead.state.data.data : []);
   const classesRefusal = $derived(classesRead.state.status === 'failed' ? renderProblem(classesRead.state.error, messages).message : undefined);
 
   const words: Words = (code) => (messages.has(code) ? t(code) : undefined);
@@ -95,7 +82,7 @@
   let health = $state<CmdbHealth | undefined>(undefined);
   let alerts = $state<readonly CiAlert[] | undefined>(undefined);
   $effect(() => {
-    const at = hubFromRoute;
+    const at = hubId;
     if (!at) return;
     return untrack(() => {
       const stops = [
@@ -141,7 +128,7 @@
     else ask(id as Ask);
   }
 
-  $effect(() => frame.entitle(current?.name ?? t('app.assets.title')));
+  $effect(() => frame.entitle(t('app.assets.title')));
 </script>
 
 {#snippet inventoryFigure()}
@@ -153,56 +140,44 @@
     </p>
   {/if}
 {/snippet}
-{#if !ciId && hubId}
-  <ToolHead {hubId} tool="inventory" {onnavigate} figure={inventoryFigure}
-    primary={mayWrite
-      ? {
-          label: t('app.assets.new'),
-          icon: 'plus',
-          onclick: () => ask('ci'),
-          menu: { label: t('app.assets.create_more'), items: creates, onselect: choose },
-        }
-      : undefined}
-  >
-    {#snippet bar()}
-      {#if !classesRefusal && classesRead.state.status === 'ready'}
-        <ViewBar
-        label={t('app.assets.sections')}
-        views={sections}
-        current={strips.selected}
-        isCompact={viewport.isCompact}
-        sheetTitle={t('app.nav.tool_inventory')}
-        closeLabel={t('app.sheet_close')}
-        onnavigate={go}
-        more={strips.manage.length > 0 ? manage : undefined}
-      />
-      {#snippet manage()}
-        <!-- *Manage ▾* among the parts, drawn as one of them (the mockup's inventory). -->
-        <Menu label={t('app.assets.manage_sections')} items={manageItems} onselect={go}>
-          {#snippet trigger(props)}
-            <button type="button" aria-current={strips.selected === 'manage' ? 'page' : undefined} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></button>
-          {/snippet}
-        </Menu>
+<WorkPage>
+  {#snippet top()}
+  {#if hubId}
+    <ToolHead {hubId} tool="inventory" {onnavigate} figure={inventoryFigure}
+      primary={mayWrite
+        ? {
+            label: t('app.assets.new'),
+            icon: 'plus',
+            onclick: () => ask('ci'),
+            menu: { label: t('app.assets.create_more'), items: creates, onselect: choose },
+          }
+        : undefined}
+    >
+      {#snippet bar()}
+        {#if !classesRefusal && classesRead.state.status === 'ready'}
+          <ViewBar
+          label={t('app.assets.sections')}
+          views={sections}
+          current={strips.selected}
+          isCompact={viewport.isCompact}
+          sheetTitle={t('app.nav.tool_inventory')}
+          closeLabel={t('app.sheet_close')}
+          onnavigate={go}
+          more={strips.manage.length > 0 ? manage : undefined}
+        />
+        {#snippet manage()}
+          <!-- *Manage ▾* among the parts, drawn as one of them (the mockup's inventory). -->
+          <Menu label={t('app.assets.manage_sections')} items={manageItems} onselect={go}>
+            {#snippet trigger(props)}
+              <button type="button" aria-current={strips.selected === 'manage' ? 'page' : undefined} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></button>
+            {/snippet}
+          </Menu>
+        {/snippet}
+        {/if}
       {/snippet}
-      {/if}
-    {/snippet}
-  </ToolHead>
-{/if}
-<div class="assets">
-  {#if ciId}
-    {#if openRefusal || !current || classesRead.state.status !== 'ready'}
-      <h1 class="title">{t('app.assets.title')}</h1>
-    {/if}
-    {#if openRefusal}
-      <FailureNote problem={openRefusal} />
-    {:else if !current || classesRead.state.status !== 'ready'}
-      <Spinner label={t('app.assets.loading')} />
-    {:else}
-      {#key current.id}
-        <CiDetail ci={current} {classes} {types} {words} {mayWrite} {onnavigate} hub={hub ? { id: hub.id, name: hub.name } : undefined} />
-      {/key}
-    {/if}
-  {:else}
+    </ToolHead>
+  {/if}
+  {/snippet}
     {#if classesRefusal}
       <FailureNote problem={classesRefusal} />
     {:else if classesRead.state.status !== 'ready'}
@@ -235,13 +210,10 @@
       {/snippet}
       <div role="region" aria-label={label(shown)}>{@render body()}</div>
     {/if}
-  {/if}
-</div>
+</WorkPage>
 
 <style>
-  .assets { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); min-block-size: 0; }
   .figure { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .figure a { color: inherit; text-decoration-line: underline; text-decoration-style: dotted; text-underline-offset: var(--sp-025); }
   .figure a:hover { color: var(--text-primary); }
-  .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
 </style>

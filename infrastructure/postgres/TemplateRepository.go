@@ -106,7 +106,16 @@ func (r TemplateRepository) ListInScopes(
 	kept, info := pageOf(templates, page.Size, r.cursors, func(template work.Template) security.Position {
 		return security.At(template.CreatedAt.UTC().Format(time.RFC3339Nano), template.ID)
 	})
-	return repository.TemplatePage{Templates: kept, Info: repository.PageInfo(info)}, nil
+	counted, err := queries.CountTemplatesInScopes(ctx, scopes)
+	if err != nil {
+		return repository.TemplatePage{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the templates: %w", err))
+	}
+	total := int(counted)
+	return repository.TemplatePage{Templates: kept, Info: repository.PageInfo{
+		NextCursor: info.NextCursor, HasMore: info.HasMore, Total: &total,
+	}}, nil
 }
 
 // Insert writes a new template.

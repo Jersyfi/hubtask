@@ -26,7 +26,7 @@
     PageHeader,
     ReadOnlyNotice,
     Skeleton,
-    Stack,
+    WorkPage,
     type MenuItem,
     type PageAction,
   } from '@hubtask/design-system/components';
@@ -40,7 +40,6 @@
   import { showsMilestone } from '../lib/data/kudos.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
   import BulkBar from '../lib/entries/BulkBar.svelte';
-  import LazyView from '../lib/frame/LazyView.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
@@ -49,7 +48,6 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
-  import MembersDialog from '../lib/people/MembersDialog.svelte';
   import PlacePeople from '../lib/workspace/PlacePeople.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -97,7 +95,6 @@
   import { collectionViews } from '../lib/workspace/placeViews.ts';
   import CollectionHead from '../lib/workspace/CollectionHead.svelte';
   import { isOwnPage, layoutOfView, viewOfLayout } from '../lib/workspace/placeViews.ts';
-  import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import HubProductLines from '../lib/workspace/HubProductLines.svelte';
   import HubActivity from '../lib/workspace/HubActivity.svelte';
@@ -131,7 +128,6 @@
 
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
-  import { settingsParts } from '../lib/frame/parts.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -144,13 +140,6 @@
      * navigations, so the address, a reload and the back button agree.
      */
     openItemId?: string;
-    /**
-     * The settings section open, on `/…/:id/settings/:section` (design-system.md §11.8): this
-     * screen then draws the place's settings instead of what it holds. Absent on the place itself.
-     */
-    section?: string;
-    /** A template whose plan opens on the hub's *Products* section (`?template=`, §4). */
-    template?: string;
     /** The view of the collection's bar the address names (`?layout=list|board|timeline`). */
     layoutAsked?: string;
     /** A saved view the address opens (`?view=`), a view of the bar too. */
@@ -158,7 +147,7 @@
     onnavigate: (path: string) => void;
   }
 
-  const { id: idAsked, openItemId, section, template, layoutAsked, viewAsked, onnavigate }: Props = $props();
+  const { id: idAsked, openItemId, layoutAsked, viewAsked, onnavigate }: Props = $props();
   // The id as a derived value: `LazyView` spreads a new props object on every change of address,
   // and an effect reading the prop itself would re-run on a `?layout=` or `?item=` - its cleanup
   // emptying the selection the screen keeps across its views (design-system.md §11.9).
@@ -367,7 +356,6 @@
   const myRole = $derived(container ? people.roleOf(containerPath, actor.account?.id, roleOrder()) : undefined);
   const structureRole = $derived(myRole ?? undefined);
   /** The workspace's shape is the reader's to change: *Save as preset* then offers the workspace. */
-  const mayShapeWorkspace = $derived(holds(people.roleOf({}, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
   /** Whether the reader may create entries in this collection, and why a row is not theirs to change. */
   const mayCreateHere = $derived(mayDo(myRole, 'create', false) === true);
   function changeRefusalOf(row: WorkItem): string | undefined {
@@ -879,15 +867,6 @@
    */
   const splitsLines = $derived(captureRulesOf(container?.structure, '', []).splitsLines);
 
-  /** Where the people dialog and the *People* tab grant and read roles: the container's own scope and path. */
-  const memberScope = $derived(
-    container?.type === 'HUB'
-      ? { scopeType: 'HUB' as const, scopeId: container.id }
-      : { scopeType: 'COLLECTION' as const, scopeId: container?.id ?? '' },
-  );
-  const memberPath = $derived(
-    container?.type === 'HUB' ? { hubId: container.id } : { hubId: container?.parent_id ?? undefined, collectionId: container?.id },
-  );
 
   /**
    * The page menu, in the three groups of design-system.md §11.8: act on the object, set it up,
@@ -1004,7 +983,7 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'settings') openStructure('general');
+    if (id === 'settings') openStructure();
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
@@ -1018,11 +997,10 @@
 
   /** Where this place's settings live: a page with a section each, as the administration's areas are. */
   const settingsPath = $derived(`/${container?.type === 'HUB' ? 'hubs' : 'collections'}/${id}/settings`);
-  const isSettings = $derived(section !== undefined);
 
-  /** The settings page, open on one of its sections. */
-  function openStructure(tab: string) {
-    onnavigate(`${settingsPath}/${tab}`);
+  /** The settings page at its own address: on a phone the section list first, on a desk the first section beside it (PS-9). */
+  function openStructure() {
+    onnavigate(settingsPath);
   }
 
   /**
@@ -1095,7 +1073,7 @@
   const toolActs = $derived<readonly Act[]>([
     ...(container?.type === 'COLLECTION' ? [{ id: 'page:filter', label: filterLabel, icon: 'funnel' as const, run: () => (isFilterOpen = !isFilterOpen) }] : []),
     ...(maySelect ? [{ id: 'page:menu-select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, run: () => selection.start() }] : []),
-    ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure('general') }] : []),
+    ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure() }] : []),
   ]);
   const headMenu = $derived({
     label: t('app.workspace.actions', { name: container?.name ?? '' }),
@@ -1228,143 +1206,6 @@
       <Button size="sm" tone="secondary" icon="square-check" data-opener="select" onclick={() => { isFilterOpen = false; selection.start(); }}>{t('app.bulk.select_mode')}</Button>
     {/if}
   {/snippet}
-  {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
-  {#if isSettings}
-    <Stack gap="300">
-      <!-- The place's settings (design-system.md §11.8): the trail back to the place, one title,
-           and the sections beside each other - for whom the shape belongs, and nobody else. -->
-      <PageHeader
-        title={t('app.settings.title')}
-        isTitleInBar={viewport.isCompact}
-        breadcrumb={{
-          trail: [
-            ...trail.slice(0, -1),
-            { id: container.id, label: container.name, href: container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}` },
-            { id: 'settings', label: t('app.settings.title') },
-          ],
-          label: t('app.workspace.trail'),
-          expandLabel: t('app.workspace.expand_trail'),
-          onnavigate: (crumbId) => {
-            const crumb = containers.find(crumbId);
-            if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
-          },
-        }}
-        mark={ownMark}
-      />
-      {#if structure.status !== 'undetermined' && !mayShape}
-        <!-- Reached by its address only: the ⋯ and the ⚙ offer it to nobody else (P-05). -->
-        <EmptyState kind="filtered" title={t('app.settings.not_yours')} />
-      {:else if !showsSettings || !container.structure}
-        <!-- The role or the structure is still being read: neither is a refusal. -->
-        <div aria-busy="true"><Skeleton lines={6} /></div>
-      {:else if readOnlyReason}
-        <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId} />
-      {:else}
-        {#snippet generalTab()}
-          <LazyView load={settingsParts.ContainerEditDialog} props={{ isEmbedded: true, isOpen: true, container }} />
-          {#if container.type === 'HUB'}
-            <!-- Whether the hub's pages wait in drafts (user-experience.md §7.1: off the tree). -->
-            <LazyView load={settingsParts.PageDraftsSwitch} props={{ hubId: container.id }} />
-          {/if}
-          {#if container.type === 'COLLECTION'}
-            <!-- The word its entries' keys start with (user-experience.md §5.6). -->
-            <section class="mail-settings" aria-labelledby="key-settings-head" data-key-settings>
-              <h2 class="mail-head" id="key-settings-head">{t('app.keys.section')}</h2>
-              <p class="mail-hint">{t('app.keys.section_hint')}</p>
-              <LazyView load={settingsParts.KeyPrefixField} props={{ container, mayShape }} />
-            </section>
-          {/if}
-          <!-- The collection's mail handle: the subject word, the address and its ticket keys (ADR-0094). -->
-          {#if container.type === 'COLLECTION'}
-            <section class="mail-settings" aria-labelledby="mail-settings-head" data-mail-settings>
-              <h2 class="mail-head" id="mail-settings-head">{t('app.mail.section')}</h2>
-              <p class="mail-hint">{t('app.mail.section_hint')}</p>
-              <LazyView load={settingsParts.HandleField} props={{ container, mayShape }} />
-            </section>
-          {/if}
-        {/snippet}
-        {#snippet labelsTab()}
-          <LazyView load={settingsParts.LabelsDialog} props={{ isEmbedded: true, isOpen: true, collectionId: container.id }} />
-        {/snippet}
-        {#snippet fieldsTab()}
-          <LazyView
-            load={settingsParts.CustomFieldsDialog}
-            props={{ isEmbedded: true, isOpen: true, collectionId: container.id, role: structureRole }}
-          />
-        {/snippet}
-        {#snippet templatesTab()}
-          <TemplatesDialog
-            isEmbedded
-            isOpen
-            collectionId={container.id}
-            path={containerPath}
-            role={structureRole}
-            onopened={(itemId) => onnavigate(`/items/${itemId}`)}
-          />
-          <!-- Beside the entry templates, the configuration templates this collection takes for
-               itself (configuration.md §6, a collection part). -->
-          <LazyView load={settingsParts.TemplatesGallery} props={{ collectionId: container.id }} />
-        {/snippet}
-        {#snippet automationTab()}
-          <LazyView
-            load={settingsParts.PoliciesDialog}
-            props={{ isEmbedded: true, isOpen: true, container, path: containerPath, role: structureRole }}
-          />
-        {/snippet}
-        {#snippet modulesTab()}
-          <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id, onnavigate }} />
-          <LazyView load={settingsParts.SampleEntries} props={{ hubId: container.id }} />
-          <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id, preselect: template, onnavigate }} />
-        {/snippet}
-        {#snippet calendarsTab()}
-          <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />
-          <LazyView load={settingsParts.HubSlaPolicies} props={{ hubId: container.id, mayShape }} />
-        {/snippet}
-        {#snippet codeTab()}
-          <LazyView load={settingsParts.CodeHooks} props={{ hubId: container.id }} />
-        {/snippet}
-        {#snippet chatTab()}
-          <LazyView load={settingsParts.ChatBots} props={{ hubId: container.id, collections }} />
-        {/snippet}
-        {#snippet peopleTab()}
-          <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
-        {/snippet}
-        <LazyView
-          load={settingsParts.StructurePanel}
-          props={{
-            isOpen: true,
-            tab: section || 'general',
-            container,
-            mayShapeWorkspace,
-            mayShapeHere: mayShape,
-            hrefOf: (each: string) => `${settingsPath}/${each}`,
-            onsection: (each: string) => onnavigate(`${settingsPath}/${each}`),
-            before: [{ id: 'general', label: t('app.settings.section_general'), body: generalTab }],
-            tabs: container.type === 'COLLECTION'
-              ? [
-                  { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
-                  { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
-                  { id: 'templates', label: t('app.settings.section_entry_templates'), body: templatesTab },
-                  { id: 'rules', label: t('app.settings.section_rules'), body: automationTab },
-                  { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
-                ]
-              : [
-                  { id: 'modules', label: t('app.settings.section_products'), body: modulesTab },
-                  // A hub's own working hours, where the service desk is on (UC-SVC-01 check 5).
-                  ...(modulesOn.includes('SERVICE_DESK')
-                    ? [{ id: 'calendars', label: t('app.desk.hub_section'), body: calendarsTab }]
-                    : []),
-                  // The forges that post its code (UC-INT-13 check 1).
-                  { id: 'code', label: t('app.code.section'), body: codeTab },
-                  // The Matrix bots in its rooms (UC-INT-18 check 1).
-                  { id: 'chat', label: t('app.chatbots.section'), body: chatTab },
-                  { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
-                ],
-          }}
-        />
-      {/if}
-    </Stack>
-  {:else}
   {#snippet headNotices()}
     <!-- The two archive states say different things and offer different controls, which is the
          whole reason `archivalOf` distinguishes them. -->
@@ -1386,7 +1227,6 @@
     {/if}
   {/snippet}
   {#snippet people()}<PlacePeople placeId={container.id} />{/snippet}
-  {#if container.type === 'COLLECTION'}
     <!-- The collection's one head, the same on each of its views (CollectionHead): the list, the
          board, the timeline layout and the saved views are this screen; ＋ saves a view; the
          filter and the entries' tools at the bar's end. On a phone the filter is one button
@@ -1413,6 +1253,9 @@
       {@render insideToggle()}
       <Button size="sm" isRound tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
     {/snippet}
+  <WorkPage>
+    {#snippet top()}
+    {#if container.type === 'COLLECTION'}
     <CollectionHead
       collectionId={container.id}
       current={barCurrent}
@@ -1425,9 +1268,7 @@
       {compactTools}
       notices={headNotices}
     />
-  {/if}
-  <Stack gap="150">
-    {#if container.type !== 'COLLECTION'}
+    {:else}
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
          for - a collection - with import beside it. The title is read rather than drawn where the
@@ -1460,6 +1301,7 @@
       {/snippet}
     </PageHeader>
     {/if}
+    {/snippet}
 
     {#if container.type === 'HUB' && container.private}
       <!-- Who opened this hub through the emergency access, and the opener's own hour (ADR-0073 §4). -->
@@ -1622,8 +1464,7 @@
         {/if}
       </div>
     {/if}
-  </Stack>
-  {/if}
+  </WorkPage>
 {/if}
 
 {#if container?.type === 'HUB'}
@@ -1701,6 +1542,7 @@
        saying before it happens rather than afterwards. The primary action is the caller's to name
        and to place last — and it is named for what it does, not "OK". -->
   <Dialog
+    size="s"
     bind:isOpen={isTrashing}
     title={t('app.workspace.trash_confirm_title', { name: container.name })}
     dismissLabel={t('app.workspace.cancel')}
@@ -1725,6 +1567,7 @@
   <!-- Making a hub private takes it away from people who read it today, so the confirmation names
        them; sharing it again takes nothing from anybody and says who gets it back. -->
   <Dialog
+    size="s"
     bind:isOpen={isChangingPrivacy}
     title={container.private
       ? t('app.workspace.shared_confirm_title', { name: container.name })
@@ -1787,16 +1630,5 @@
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 
 
-  .mail-settings {
-    display: grid;
-    gap: var(--sp-100);
-    margin-block-start: var(--sp-400);
-    padding-block-start: var(--sp-300);
-    border-block-start: var(--bw-hairline) solid var(--border-subtle);
-  }
-
-  .mail-head { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); }
-
-  .mail-hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .workflow-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

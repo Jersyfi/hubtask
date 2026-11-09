@@ -29,12 +29,15 @@
     settings?: readonly string[];
     /** On a collection's page, its handle: only its blocks of the hub's collection sections. */
     handle?: string;
+    /** Whether it is open: bound by a page whose head carries the button instead of this. */
+    isOpen?: boolean;
+    /** The page's head draws the button (page-system §7.3); this draws only the dialog. */
+    isTriggerHidden?: boolean;
   }
 
-  const { sections, hubId, settings, handle }: Props = $props();
+  let { sections, hubId, settings, handle, isOpen = $bindable(false), isTriggerHidden = false }: Props = $props();
 
   const mayRead = $derived(hubId !== undefined || holdsHere('STRUCTURE') === true || holdsHere('READ_CONFIGURATION') === true);
-  let isOpen = $state(false);
   let current = $state<ResourceState<ConfigExport>>();
   $effect(() => {
     if (!isOpen) return;
@@ -49,9 +52,11 @@
 </script>
 
 {#if mayRead}
-  <Button tone="subtle" size="sm" data-view-as-file onclick={() => (isOpen = true)}>{t('app.settings.view_as_file')}</Button>
+  {#if !isTriggerHidden}
+    <Button tone="subtle" size="sm" data-view-as-file onclick={() => (isOpen = true)}>{t('app.settings.view_as_file')}</Button>
+  {/if}
 
-  <Dialog bind:isOpen title={t('app.settings.file_title')} dismissLabel={t('app.settings.file_close')}>
+  <Dialog size="l" bind:isOpen title={t('app.settings.file_title')} dismissLabel={t('app.settings.file_close')}>
     <p class="quiet">{t('app.settings.sections_file_explain')}</p>
     {#if current?.status === 'ready'}
       <CodeBlock code={file} label={t('app.settings.file_title')} language="json" />

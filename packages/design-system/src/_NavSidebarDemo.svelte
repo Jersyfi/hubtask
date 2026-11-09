@@ -12,7 +12,7 @@
   import Toast from './Toast.svelte';
   import { applyPlacement, positionOf, type Placement } from './navtree.ts';
 
-  type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty' | 'narrow';
+  type Mode = 'workspace' | 'hub' | 'queue' | 'wiki' | 'drag' | 'rail' | 'empty' | 'narrow' | 'area';
   const { mode = 'hub' }: { mode?: Mode } = $props();
   let isMoreOpen = $state(true);
   const hide = (name: string) => ({ label: `Manage ${name}`, items: [{ id: 'hide', label: 'Hide from the sidebar', icon: 'eye-off' as const }], onselect: () => {} });
@@ -110,6 +110,23 @@
         <NavItem label="IT operations" icon="hub" color="teal" href="#it" isRail />
       </ul>
       <div class="grow"></div>
+    {:else if mode === 'area'}
+      <NavLevel levelKey="administration" label="Administration" back={{ label: 'The workspace', href: '#workspace' }}>
+        {#snippet tools()}<NavItem label="Overview" icon="gauge" href="#overview" />{/snippet}
+        <NavGroup label="How we work" collapseLabel="Fold How we work">
+          <NavItem label="Workspace" icon="settings" href="#workspace-settings" />
+          <NavItem label="Workflows" icon="git-branch" href="#workflows" />
+          <NavItem label="Rule runs" icon="play" href="#runs" figure="2 failed" isFigureUrgent />
+        </NavGroup>
+        <NavGroup label="People & access" collapseLabel="Fold People & access">
+          <NavItem label="People" icon="user" href="#people" isCurrent />
+          <NavItem label="Sign-in" icon="shield" href="#sign-in" figure="1 locked" isFigureUrgent />
+        </NavGroup>
+        <NavGroup label="Data" collapseLabel="Fold Data">
+          <NavItem label="Backup" icon="cloud-upload" href="#backup" figure="no target" isFigureUrgent />
+          <NavItem label="Audit" icon="file-text" href="#audit" />
+        </NavGroup>
+      </NavLevel>
     {:else if mode === 'workspace'}
       <NavLevel levelKey={levelKey} label="Workspace">
         <ul class="plain">

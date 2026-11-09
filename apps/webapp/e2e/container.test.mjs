@@ -136,22 +136,23 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   t.after(close);
 
   await openSettings(page, COLLECTION.name);
-  await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}/settings/general$`, 'u'), { timeout: 5_000 });
+  await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}/settings$`, 'u'), { timeout: 5_000 });
   await page.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: 5_000 });
   // No drawer over the collection: the settings are the page.
   assert.equal(await page.locator('dialog[open]').count(), 0);
   const sections = page.getByRole('navigation', { name: 'Parts of the structure' });
   // The sections arrive with the place's modules: read them once the last one stands.
-  await sections.getByRole('link', { name: 'People' }).waitFor({ timeout: 5_000 });
-  assert.deepEqual((await sections.getByRole('link').allTextContents()).map((each) => each.trim()), ['General', 'Templates and presets', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'People']);
-  assert.equal(await sections.getByRole('link', { name: 'General' }).getAttribute('aria-current'), 'page');
+  await sections.getByRole('link', { name: /^People( |$)/u }).waitFor({ timeout: 5_000 });
+  assert.deepEqual((await sections.locator('a .label').allTextContents()).map((each) => each.trim()), ['General', 'Templates and presets', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'Completion and assignment', 'People']);
+  assert.equal(await sections.getByRole('link', { name: /^General( |$)/u }).getAttribute('aria-current'), 'page');
   // *General* is the edit dialog's fields, in place.
-  await page.getByRole('region', { name: 'General' }).getByRole('textbox', { name: 'Collection name' }).waitFor({ timeout: 5_000 });
+  await page.locator('[data-place-general]').getByRole('textbox', { name: 'Collection name' }).waitFor({ timeout: 5_000 });
 
-  for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Entry templates', 'Templates'], ['Rules', 'Policies'], ['People', 'People']]) {
-    await sections.getByRole('link', { name: section }).click();
-    await page.getByRole('region', { name: part, exact: true }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
-    assert.equal(await sections.getByRole('link', { name: section }).getAttribute('aria-current'), 'page');
+  for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Entry templates', 'Templates'], ['Rules', 'Rules'], ['Completion and assignment', 'Completion and assignment'], ['People', 'People']]) {
+    await sections.getByRole('link', { name: new RegExp(`^${section}( |$)`, 'u') }).click();
+    // A table section is a named region; a section of setting rows is known by its heading.
+    await page.getByRole('region', { name: part, exact: true }).or(page.getByRole('heading', { name: part, exact: true, level: 2 })).first().waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
+    assert.equal(await sections.getByRole('link', { name: new RegExp(`^${section}( |$)`, 'u') }).getAttribute('aria-current'), 'page');
   }
   assert.match(page.url(), /\/settings\/people$/u);
   // The section is an address: a reload comes back to it, and the trail leads back to the place.
@@ -270,11 +271,11 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.keyboard.press('Escape');
   // A hub's settings are a page as a collection's are: one section list (user-experience.md §5.7).
   await openSettings(page, HUB.name);
-  await page.waitForURL(new RegExp(`/hubs/${HUB.id}/settings/general$`, 'u'), { timeout: 5_000 });
+  await page.waitForURL(new RegExp(`/hubs/${HUB.id}/settings$`, 'u'), { timeout: 5_000 });
   // The page is drawn once its structure is read, a moment after the address lands.
   await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(
-    (await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').allTextContents()).map((each) => each.trim()),
+    (await page.getByRole('navigation', { name: 'Parts of the structure' }).locator('a .label').allTextContents()).map((each) => each.trim()),
     ['General', 'Products', 'Templates and presets', 'Types & forms', 'Workflow', 'Views', 'Rules', 'Code', 'Chat', 'People'],
   );
   await page.goBack();

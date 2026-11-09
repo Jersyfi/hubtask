@@ -37,5 +37,8 @@ func pageOutput(data []usecase.Output, info repository.PageInfo) usecase.Output 
 	if info.NextCursor != "" {
 		page["next_cursor"] = info.NextCursor
 	}
+	if info.Total != nil {
+		page["total"] = *info.Total
+	}
 	return usecase.Output{"data": data, "page": page}
 }

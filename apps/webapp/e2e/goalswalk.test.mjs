@@ -297,7 +297,8 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
   assert.equal(await page.getByText('2027-01-04').count(), 0, 'no ISO day reaches the reader');
   // UC-GOL-03 check 8: each project's dates, health and progress, and the portfolio's updates.
   await page.getByText('Mar 26, 2027', { exact: true }).waitFor({ timeout: 5_000 });
-  const kitchen = page.getByRole('progressbar', { name: /Kitchen/ });
+  // On a phone the row's progress is the words beside its state; its bar stays in the row for wider screens.
+  const kitchen = page.locator('progress[aria-label*="Kitchen"]');
   assert.equal(await kitchen.evaluate((each) => each.value), 42, 'the project\'s progress');
   await page.getByText('42 %', { exact: true }).first().waitFor({ timeout: 5_000 });
   const updates = page.getByRole('table', { name: 'Status updates' });

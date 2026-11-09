@@ -6,24 +6,36 @@
   // (ADR-0032, `platform/target.ts`); loaded on its first visit, like the views beside it.
   import AdministrationOverviewView from './AdministrationOverviewView.svelte';
   import AiSettingsView from './AiSettingsView.svelte';
+  import AppView from './AppView.svelte';
   import AuditView from './AuditView.svelte';
+  import BackupTargetView from './BackupTargetView.svelte';
   import BackupView from './BackupView.svelte';
+  import ChangeView from './ChangeView.svelte';
   import ChangesView from './ChangesView.svelte';
+  import EntryTypeView from './EntryTypeView.svelte';
   import EntryTypesView from './EntryTypesView.svelte';
+  import IdentityProviderView from './IdentityProviderView.svelte';
   import LinkTypesView from './LinkTypesView.svelte';
   import MachinesView from './MachinesView.svelte';
   import MailView from './MailView.svelte';
+  import MailboxView from './MailboxView.svelte';
   import ModulesView from './ModulesView.svelte';
+  import GroupView from './GroupView.svelte';
   import PeopleView from './PeopleView.svelte';
-  import PresetsView from './PresetsView.svelte';
+  import PersonView from './PersonView.svelte';
+  import PrivacyCaseView from './PrivacyCaseView.svelte';
   import PrivacyView from './PrivacyView.svelte';
   import PrivateHubsView from './PrivateHubsView.svelte';
   import QuotasView from './QuotasView.svelte';
   import RestoreView from './RestoreView.svelte';
+  import RoleView from './RoleView.svelte';
   import RetentionView from './RetentionView.svelte';
   import RunsView from './RunsView.svelte';
+  import ServiceAccountView from './ServiceAccountView.svelte';
+  import TemplatesView from './TemplatesView.svelte';
   import SignInSettingsView from './SignInSettingsView.svelte';
   import VoiceView from './VoiceView.svelte';
+  import WebhookView from './WebhookView.svelte';
   import WebhooksView from './WebhooksView.svelte';
   import WorkflowsView from './WorkflowsView.svelte';
   import WorkspaceAddressView from './WorkspaceAddressView.svelte';
@@ -34,7 +46,8 @@
 
   // The rules' screens are the profile's too, which the Android build ships (`parts.ts`).
   const loadRules = ruleViews.RulesView;
-  const loadRuleEditor = ruleViews.RuleEditorView;
+  const loadRuleNew = ruleViews.RuleNewView;
+  const loadRule = ruleViews.RuleView;
 
   interface Props {
     route: Resolution;
@@ -47,60 +60,122 @@
 
 {#if route.name === 'administration'}
   <AdministrationOverviewView onnavigate={(path) => onnavigate(path)} />
-{:else if route.name === 'workspace-settings'}
-  <WorkspaceSettingsView />
+{:else if route.name === 'workspace-settings' || route.name === 'workspace-section'}
+  <WorkspaceSettingsView section={route.params.section} onreplace={(path) => onreplace(path)} />
+  <!-- One branch for the list and its sections: a move between sections keeps the screen and
+       what another section holds unsaved. -->
 {:else if route.name === 'workspace-address'}
-  <WorkspaceAddressView />
-{:else if route.name === 'presets'}
-  <PresetsView template={route.query['template']} onnavigate={(path) => onnavigate(path)} />
+  <WorkspaceAddressView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'templates'}
+  <TemplatesView tab={route.query['tab']} template={route.query['template']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'people'}
-  <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => onreplace(path)} />
+  <PeopleView tab={route.query['tab']} person={route.query['person']} onnavigate={(path) => onreplace(path)} onopen={(path) => onnavigate(path)} />
+{:else if route.name === 'person'}
+  {#key route.params.id}
+    <PersonView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'group'}
+  {#key route.params.id}
+    <GroupView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'role'}
+  {#key route.params.id}
+    <RoleView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'machines'}
   <MachinesView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+{:else if route.name === 'service-account'}
+  {#key route.params.id}
+    <ServiceAccountView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'app'}
+  {#key route.params.id}
+    <AppView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'rules'}
   <LazyView load={loadRules} props={{ tab: route.query['tab'], onnavigate: (path: string) => onnavigate(path) }} />
 {:else if route.name === 'rule-new'}
-  <LazyView load={loadRuleEditor} props={{ id: 'new', workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => onnavigate(path) }} />
+  <LazyView load={loadRuleNew} props={{ workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => onnavigate(path) }} />
 {:else if route.name === 'rule'}
   {#key route.params.id}
-    <LazyView load={loadRuleEditor} props={{ id: route.params.id ?? '', onnavigate: (path: string) => onnavigate(path) }} />
+    <LazyView load={loadRule} props={{ id: route.params.id ?? '', onnavigate: (path: string) => onnavigate(path) }} />
   {/key}
 {:else if route.name === 'runs'}
   <RunsView />
 {:else if route.name === 'webhooks'}
-  <WebhooksView />
+  <WebhooksView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'webhook'}
+  {#key route.params.id}
+    <WebhookView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'quotas'}
   <QuotasView />
 {:else if route.name === 'modules'}
   <ModulesView onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'entry-types'}
-  <EntryTypesView />
+  <EntryTypesView onopen={(path) => onnavigate(path)} />
+{:else if route.name === 'entry-type'}
+  {#key route.params.key}
+    <EntryTypeView typeKey={route.params.key ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'link-types'}
   <LinkTypesView />
 {:else if route.name === 'changes'}
   <ChangesView />
-{:else if route.name === 'workflows'}
-  <WorkflowsView onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'change'}
+  {#key route.params.version}
+    <ChangeView version={route.params.version ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'workflows' || route.name === 'workflow'}
+  <!-- One branch for the list and a workflow: a move between workflows keeps the screen. -->
+  <WorkflowsView workflow={route.params.key} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'private-hubs'}
   <PrivateHubsView onnavigate={(path) => onnavigate(path)} />
-{:else if route.name === 'backup'}
-  <BackupView />
-{:else if route.name === 'retention'}
-  <RetentionView />
+{:else if route.name === 'backup' || route.name === 'backup-section'}
+  <BackupView section={route.params.section} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
+  <!-- One branch for the list and its sections: a move between sections keeps the screen. -->
+{:else if route.name === 'backup-target'}
+  {#key route.params.id}
+    <BackupTargetView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'retention' || route.name === 'retention-section'}
+  <RetentionView section={route.params.section} onreplace={(path) => onreplace(path)} />
 {:else if route.name === 'restore'}
   <RestoreView />
 {:else if route.name === 'audit'}
   <AuditView />
 {:else if route.name === 'privacy'}
-  <PrivacyView />
-{:else if route.name === 'sign-in-settings'}
-  <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
-{:else if route.name === 'voice'}
-  <VoiceView />
-{:else if route.name === 'mail' || route.name === 'mail-oauth'}
-  <MailView providerAnswer={route.name === 'mail-oauth' ? route.query : undefined} onanswered={() => onreplace('/administration/mail')} />
+  <PrivacyView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+{:else if route.name === 'privacy-case'}
+  {#key route.params.id}
+    <PrivacyCaseView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'sign-in-settings' || route.name === 'sign-in-section'}
+  <SignInSettingsView section={route.params.section} tab={route.query['tab']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
+  <!-- One branch for the list and its sections: a move between sections keeps the screen and
+       what another section holds unsaved. -->
+{:else if route.name === 'sign-in-provider'}
+  {#key route.params.id}
+    <IdentityProviderView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'voice' || route.name === 'voice-section'}
+  <VoiceView section={route.params.section} onreplace={(path) => onreplace(path)} />
+{:else if route.name === 'mail' || route.name === 'mail-oauth' || route.name === 'mail-section'}
+  <MailView
+    section={route.name === 'mail-section' ? route.params.section : undefined}
+    providerAnswer={route.name === 'mail-oauth' ? route.query : undefined}
+    onanswered={() => onreplace('/administration/mail/mailboxes')}
+    onreplace={(path) => onreplace(path)}
+    onnavigate={(path) => onnavigate(path)}
+  />
+  <!-- One branch for the list, its sections and the provider's answer: a move between sections
+       keeps the screen and what another section holds unsaved. -->
+{:else if route.name === 'mailbox'}
+  {#key route.params.id}
+    <MailboxView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'legal'}
-  <SignInSettingsView part="legal" />
-{:else if route.name === 'ai'}
-  <AiSettingsView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+  <SignInSettingsView part="legal" onnavigate={(path) => onnavigate(path)} />
+{:else if route.name === 'ai' || route.name === 'ai-section'}
+  <AiSettingsView section={route.params.section} tab={route.query['tab']} onreplace={(path) => onreplace(path)} />
 {/if}

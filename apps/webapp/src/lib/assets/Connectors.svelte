@@ -316,7 +316,7 @@
 </Stack>
 
 {#if isDefineOpen && draft}
-  <Dialog bind:isOpen={isDefineOpen} title={editing ? t('app.cmdb_admin.edit_named', { name: editing.key }) : t('app.assets.connector_new')} dismissLabel={t('app.assets.cancel')}>
+  <Dialog size="l" bind:isOpen={isDefineOpen} title={editing ? t('app.cmdb_admin.edit_named', { name: editing.key }) : t('app.assets.connector_new')} dismissLabel={t('app.assets.cancel')} primary={{ label: t('app.assets.save'), disabledReason: defineReason, onclick: () => void save() }}>
     <Stack gap="150">
       {#if !editing}
         <Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={draft.key} maxlength={50} />
@@ -350,13 +350,12 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDefineOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button tone="primary" disabledReason={defineReason} onclick={() => void save()}>{t('app.assets.save')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isCredentialOpen && credentialFor}
-  <Dialog bind:isOpen={isCredentialOpen} title={t('app.assets.connector_credential_title', { key: credentialFor.key })} dismissLabel={t('app.assets.cancel')}>
+  <Dialog size="s" bind:isOpen={isCredentialOpen} title={t('app.assets.connector_credential_title', { key: credentialFor.key })} dismissLabel={t('app.assets.cancel')}>
     <Stack gap="150">
       <Input
         label={t('app.assets.connector_credential_label')}

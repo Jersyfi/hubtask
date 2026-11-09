@@ -21,7 +21,7 @@ export interface SwitchedOn {
 /** The settings each module needs before it is of use, where it has a page of them. */
 const SETUP: Readonly<Record<string, { code: string; href: string }>> = {
   SERVICE_DESK: { code: 'app.modules.on_setup_desk', href: '/desk/settings' },
-  TIME: { code: 'app.modules.on_setup_time', href: '/time?tab=settings' },
+  TIME: { code: 'app.modules.on_setup_time', href: '/time/settings' },
   WORKFLOWS: { code: 'app.modules.on_setup_workflows', href: '/administration/workflows' },
 };
 
@@ -42,9 +42,9 @@ export function settingsOf(module: string, holds: (permission: string) => boolea
   if (module === 'SERVICE_DESK') return '/desk/settings';
   if (module === 'ASSETS') return '/assets/settings';
   if (module === 'TIME') {
-    return ['STRUCTURE', 'APPROVE_TIME', 'MANAGE_COSTS', 'MANAGE_MEMBERS'].some(holds) ? '/time?tab=settings' : undefined;
+    return ['STRUCTURE', 'APPROVE_TIME', 'MANAGE_COSTS', 'MANAGE_MEMBERS'].some(holds) ? '/time/settings' : undefined;
   }
-  if (module === 'AGENTS') return holds('MANAGE_MEMBERS') ? '/agents?tab=settings' : undefined;
+  if (module === 'AGENTS') return holds('MANAGE_MEMBERS') ? '/agents/settings' : undefined;
   return undefined;
 }
 
@@ -60,6 +60,6 @@ export function startsOf<T extends Parameters<typeof productTemplates>[0][number
 ): { template: T; href?: string }[] {
   return productTemplates(catalogue, module).map((template) => ({
     template,
-    ...(hubId ? { href: `/hubs/${encodeURIComponent(hubId)}/settings/modules?template=${encodeURIComponent(template.key)}` } : {}),
+    ...(hubId ? { href: `/hubs/${encodeURIComponent(hubId)}/settings/template?template=${encodeURIComponent(template.key)}` } : {}),
   }));
 }

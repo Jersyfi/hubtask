@@ -71,6 +71,13 @@ async function open(browser, { timezoneId, operator = true, serviceRole = undefi
   return { page, mints, proofs, context, close: () => context.close() };
 }
 
+/** A service account's *New token* dialog, on its record page (page-system §7.2). */
+async function serviceTokenDialog(page) {
+  await page.goto(`${served.origin}/administration/machines/${SERVICE.id}`);
+  await page.getByRole('button', { name: 'New token' }).click();
+  return page.getByRole('dialog', { name: 'New token' });
+}
+
 const INSTALLATION = 'What may this token do on the installation?';
 
 async function mintAdministrative(page, within, choice = 'Full control') {
@@ -78,7 +85,8 @@ async function mintAdministrative(page, within, choice = 'Full control') {
   await within.getByLabel(/^Expires/).fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
   if (choice) await within.getByRole('group', { name: INSTALLATION }).getByLabel(choice, { exact: true }).check();
   await within.getByRole('button', { name: 'Create the token' }).click();
-  const dialog = page.getByRole('dialog');
+  // The step-up prompt, over a service account's *New token* dialog where the form is one.
+  const dialog = page.getByRole('dialog').filter({ has: page.getByLabel('Your password') });
   await dialog.waitFor();
   await dialog.getByLabel('Your password').fill('the person creating it');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
@@ -91,7 +99,8 @@ test('chromium: an administrative token of one\'s own is created behind a fresh 
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  // *New token* is a create page of its own (page-system §9.5).
+  await page.goto(`${served.origin}/profile/tokens/new`);
   await page.getByRole('button', { name: 'Create the token' }).waitFor();
   await mintAdministrative(page, page.locator('main'));
 
@@ -107,9 +116,7 @@ test('chromium: a service account\'s administrative token is created behind the 
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/machines`);
-  const section = page.locator('section', { hasText: SERVICE.display_name });
-  await section.getByRole('button', { name: 'Its tokens' }).click();
+  const section = await serviceTokenDialog(page);
   await section.getByRole('button', { name: 'Create the token' }).waitFor();
   await mintAdministrative(page, section);
 
@@ -125,12 +132,16 @@ test('chromium: an expiry typed as a day is that day where the person is (UC-ID-
   const { page, mints, close } = await open(browser, { timezoneId: 'Europe/Berlin' });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  await page.goto(`${served.origin}/profile/tokens/new`);
   await page.getByRole('button', { name: 'Create the token' }).waitFor();
   // A day well inside the year the server allows, the same distance ahead whenever this runs.
   const day = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
   await page.getByLabel(/^What it is for/).fill('Nightly export');
   await page.getByLabel(/^Expires/).fill(day);
+  // Read before creating: the made token replaces the form on its page.
+  const max = await page.getByLabel(/^Expires/).getAttribute('max');
+  // Each scope on its own, by its key, under *Details* (page-system PS-15).
+  await page.getByRole('button', { name: /^Details/ }).click();
   await page.getByLabel('account:read', { exact: true }).check();
   await page.getByRole('button', { name: 'Create the token' }).click();
   await page.getByText('Your new token').first().waitFor({ timeout: 15_000 });
@@ -143,7 +154,6 @@ test('chromium: an expiry typed as a day is that day where the person is (UC-ID-
   const onBerlinClock = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(sent));
   assert.equal(onBerlinClock, `${day}, 23:59:59`, `the expiry ${sent} is not the end of ${day} in Berlin`);
   // And the date control offers no day the server would refuse: the last is 364 days ahead.
-  const max = await page.getByLabel(/^Expires/).getAttribute('max');
   assert.ok(Date.parse(`${max}T23:59:59+01:00`) <= Date.now() + 365 * 86_400_000 + 3_600_000, `the control offers ${max}, past the year`);
 });
 
@@ -153,15 +163,15 @@ test('chromium: a service account\'s token panel speaks about the service accoun
   const { page, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/machines`);
-  const section = page.locator('section', { hasText: SERVICE.display_name });
-  await section.getByRole('button', { name: 'Its tokens' }).click();
+  const section = await serviceTokenDialog(page);
   await section.getByRole('button', { name: 'Create the token' }).waitFor();
   // The form is drawn before the list's answer arrives, so the list's sentence is waited for
   // rather than counted at once - counted at once, the test read whichever came first.
-  await section.getByText('This service account has no tokens.').waitFor({ timeout: 5_000 }).catch(() => {});
-  assert.equal(await section.getByText('This service account has no tokens.').count(), 1);
-  assert.equal(await section.getByText('You have no tokens.').count(), 0, 'the panel told the administrator they have no tokens');
+  // The list the dialog adds to is the record page's, and it speaks about the service account.
+  const main = page.locator('main');
+  await main.getByText('This service account has no tokens.').waitFor({ timeout: 5_000 }).catch(() => {});
+  assert.equal(await main.getByText('This service account has no tokens.').count(), 1);
+  assert.equal(await page.getByText('You have no tokens.').count(), 0, 'the panel told the administrator they have no tokens');
 });
 
 // #1331: minting `admin:tenants` or `admin:provisioning` asks the operator register as well as a fresh proof, so somebody the
@@ -173,16 +183,15 @@ test('chromium: the operator scope is offered only to somebody the operator regi
   const { page, close } = await open(browser, { operator: false });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  await page.goto(`${served.origin}/profile/tokens/new`);
   const main = page.locator('main');
+  await main.getByRole('button', { name: /^Details/ }).click({ timeout: 10_000 });
   await main.getByLabel('account:read', { exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await main.getByLabel('admin:tenants', { exact: true }).count(), 0, 'the operator scope is offered outside the register');
   assert.equal(await main.getByLabel('admin:provisioning', { exact: true }).count(), 0, 'the platform\'s scope is offered outside the register');
   assert.equal(await main.getByRole('group', { name: INSTALLATION }).count(), 0, 'the installation choice is drawn outside the register');
 
-  await page.goto(`${served.origin}/administration/machines`);
-  const section = page.locator('section', { hasText: SERVICE.display_name });
-  await section.getByRole('button', { name: 'Its tokens' }).click();
+  const section = await serviceTokenDialog(page);
   await section.getByLabel('account:read', { exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await section.getByLabel('admin:tenants', { exact: true }).count(), 0, 'the operator scope is offered on a service account\'s panel outside the register');
   assert.equal(await section.getByLabel('admin:provisioning', { exact: true }).count(), 0, 'the platform\'s scope is offered on a service account\'s panel outside the register');
@@ -198,7 +207,7 @@ test('chromium: the installation choice offers provisioning or full control, pre
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile/tokens`);
+  await page.goto(`${served.origin}/profile/tokens/new`);
   const own = page.locator('main').getByRole('group', { name: INSTALLATION });
   await own.waitFor({ timeout: 10_000 });
   assert.deepEqual(await own.getByRole('radio').evaluateAll((radios) => radios.map((radio) => radio.labels[0].textContent.trim())),
@@ -208,9 +217,7 @@ test('chromium: the installation choice offers provisioning or full control, pre
   // EVIDENCE=<dir> keeps what the person sees, for the owner's look (docs/evidence/).
   if (process.env.EVIDENCE) await page.locator('main form').screenshot({ path: join(process.env.EVIDENCE, 'own.png') });
 
-  await page.goto(`${served.origin}/administration/machines`);
-  const section = page.locator('section', { hasText: SERVICE.display_name });
-  await section.getByRole('button', { name: 'Its tokens' }).click();
+  const section = await serviceTokenDialog(page);
   const choice = section.getByRole('group', { name: INSTALLATION });
   await choice.waitFor();
   assert.equal(await choice.getByLabel('Provisioning only', { exact: true }).isChecked(), true,
@@ -232,12 +239,12 @@ test('chromium: an administrator is offered no token for a service account that 
   for (const [serviceRole, offered] of [['OWNER', false], ['MEMBER', true]]) {
     const { page, close } = await open(browser, { serviceRole });
     t.after(close);
-    await page.goto(`${served.origin}/administration/machines`);
-    const section = page.locator('section', { hasText: SERVICE.display_name });
-    await section.getByText(serviceRole === 'OWNER' ? 'Owner' : 'Member', { exact: true }).waitFor({ timeout: 15_000 });
-    await section.getByRole('button', { name: 'Its tokens' }).click();
+    // On the account's record page the tokens list carries *New token* where a token may be made.
+    await page.goto(`${served.origin}/administration/machines/${SERVICE.id}`);
+    const section = page.locator('main');
+    await section.getByText(serviceRole === 'OWNER' ? 'Owner' : 'Member', { exact: true }).first().waitFor({ timeout: 15_000 });
     await section.getByText('This service account has no tokens.').waitFor();
-    assert.equal(await section.getByRole('button', { name: 'Create the token' }).count(), offered ? 1 : 0, serviceRole);
+    assert.equal(await section.getByRole('button', { name: 'New token' }).count(), offered ? 1 : 0, serviceRole);
     assert.equal(await section.getByText('This service account holds a role above yours').count(), offered ? 0 : 1, serviceRole);
     if (process.env.EVIDENCE) {
       await section.screenshot({ path: join(process.env.EVIDENCE, `service-account-${serviceRole.toLowerCase()}.png`) });

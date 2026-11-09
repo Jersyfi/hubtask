@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, EmptyState, Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -41,7 +41,6 @@
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { classesPath, classWord, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
-  import CmdbView from './CmdbView.svelte';
   import DeskHome from '../lib/servicedesk/DeskHome.svelte';
 
   interface Props {
@@ -60,18 +59,18 @@
   // offered to whoever reaches the administration, as the door before them was (P-05). The plans'
   // roadmaps are the portfolios', which are the goals' product.
   const ADMINISTERED = ['classes', 'sources', 'settings'];
-  const tabs = $derived<ViewLink[]>(
+  const homeViews = $derived<ViewLink[]>(
     homeTabs(module)
       .filter((each) => !(module === 'ASSETS' && ADMINISTERED.includes(each.id)) || reachesAdministrationArea() === true)
       .filter((each) => each.id !== 'roadmaps' || (manifest.value?.modules_on ?? []).includes('GOALS'))
       .map((each) => ({ id: each.id, label: t(each.code), href: each.path })),
   );
-  const currentTab = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : tabs[0]?.id);
+  const currentTab = $derived(homeViews.some((each) => each.id === tab) ? (tab as string) : homeViews[0]?.id);
   /**
    * Where the home lists its hubs: the pages' *Spaces* (a hub is a space), the boards' *All*, else
    * the first tab; a home without a hub says so on any tab.
    */
-  const showsHubs = $derived(module === 'KNOWLEDGE' ? currentTab === 'spaces' : module === 'WHITEBOARD' ? currentTab === 'all' : currentTab === tabs[0]?.id);
+  const showsHubs = $derived(module === 'KNOWLEDGE' ? currentTab === 'spaces' : module === 'WHITEBOARD' ? currentTab === 'all' : currentTab === homeViews[0]?.id);
   /** A tab that lists one kind whole, where *For you* shows its first few. */
   const isWhole = $derived(currentTab === 'sprints' || currentTab === 'releases' || currentTab === 'all');
 
@@ -295,7 +294,7 @@
   );
   const primary = $derived.by(() => {
     // The home's act stays on its setup tabs (§5.4): the head is the home's on every tab of it.
-    if (!createAct || isReading || (currentTab !== tabs[0]?.id && !ADMINISTERED.includes(currentTab ?? ''))) return undefined;
+    if (!createAct || isReading || (currentTab !== homeViews[0]?.id && !ADMINISTERED.includes(currentTab ?? ''))) return undefined;
     const first = createPlaces[0];
     if (!first) return undefined;
     // The place's own create dialog opens there (§5.2): the act creates, it does not list.
@@ -319,7 +318,8 @@
 {#if module === 'SERVICE_DESK'}
   <DeskHome hubs={hubsWith} {isReading} {tab} {onnavigate} {createHub} templates={starts} />
 {:else}
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={name}
     subtitle={t(`app.modules.hint_${module.toLowerCase()}`)}
@@ -335,14 +335,15 @@
     }}
   />
 
-  {#if tabs.length > 1}
-    <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} current={currentTab} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/')} />
-  {/if}
+  {/snippet}
+  {#snippet tabs()}
+    {#if homeViews.length > 1}
+      <ViewBar label={name} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} current={currentTab} onnavigate={(id) => onnavigate(homeViews.find((each) => each.id === id)?.href ?? '/')} />
+    {/if}
+  {/snippet}
 
   {#if currentTab === 'notes'}
     <NotesView {onnavigate} isEmbedded />
-  {:else if module === 'ASSETS' && currentTab !== 'inventory'}
-    {#if reachesAdministrationArea() === true}<CmdbView isEmbedded parts={currentTab === 'settings' ? ['types', 'aliases'] : [currentTab ?? 'classes']} />{/if}
   {:else if currentTab === 'roadmaps'}
     <section aria-labelledby="product-roadmaps" aria-busy={portfolios === undefined}>
       <Stack gap="100">
@@ -373,7 +374,7 @@
       <EmptyState kind="unused" icon="layout-template" title={t('app.product_home.templates_none_title')} description={t('app.product_home.templates_none')} />
     {/if}
   {:else}
-    {#if isUnusedHere && currentTab === tabs[0]?.id}
+    {#if isUnusedHere && currentTab === homeViews[0]?.id}
       <ProductEmpty product={module} place={{ type: 'TENANT' }}
         kind="unused"
         icon={row?.icon ?? 'hub'}
@@ -540,7 +541,7 @@
       </section>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 {/if}
 
 {#if isCreatingHub && mayCreateHub}

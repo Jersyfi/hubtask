@@ -491,7 +491,7 @@ func (r MediaRepository) ListForItem(
 	kept, info := pageOf(objects, page.Size, r.cursors, func(object media.Object) security.Position {
 		return security.At(object.CreatedAt.UTC().Format(time.RFC3339Nano), object.ID)
 	})
-	return mediarepo.ObjectPage{Objects: kept, Info: repository.PageInfo(info)}, nil
+	return mediarepo.ObjectPage{Objects: kept, Info: repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore}}, nil
 }
 
 // Add links the object to the item and records the addition's tag.

@@ -267,7 +267,7 @@
     {#if failure && !failure.fields.get('/rrule')}<p class="failure" role="alert">{failure.message}</p>{/if}
   </Stack>
 
-<Dialog
+<Dialog size="s"
   bind:isOpen={isRemoving}
   title={t('app.recurrence.remove_title')}
   dismissLabel={t('app.workspace.cancel')}

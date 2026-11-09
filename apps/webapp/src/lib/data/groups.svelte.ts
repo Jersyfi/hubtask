@@ -23,6 +23,7 @@
 import type { Group, GroupDetail, GroupPage, ResourceState } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
+import { reachOf } from './paging.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/groups';
@@ -40,6 +41,20 @@ class Groups {
   /** The groups, or nothing while they are unread. */
   get all(): readonly Group[] {
     return this.#page.status === 'ready' ? (this.#page.data.data ?? []) : [];
+  }
+
+  /** How many groups the workspace holds, where the answer counted them; more than `all` while pages are unread. */
+  get total(): number | undefined {
+    return this.#page.status === 'ready' ? reachOf(this.#page.data).total : undefined;
+  }
+
+  get hasMore(): boolean {
+    return this.#page.status === 'ready' && reachOf(this.#page.data).hasMore;
+  }
+
+  /** Reads the next page onto the ones held; the subscription delivers it. */
+  async readMore(): Promise<void> {
+    await engine.loadMore<GroupPage>({ path: PATH });
   }
 
   /** One group's name, for a membership row that names a group rather than a person. */

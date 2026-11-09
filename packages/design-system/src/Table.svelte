@@ -88,6 +88,11 @@
      * nothing - see the note above.
      */
     readonly isSortable?: boolean;
+    /**
+     * How soon the column gives way as the window narrows (page-system §4.4): 1 stays, 2 goes on a
+     * phone, 3 already below `expanded`. Drawn as `data-priority`; `DataTable` acts on it.
+     */
+    readonly priority?: 1 | 2 | 3;
   }
 
   interface Props {
@@ -111,6 +116,14 @@
      * on a phone (user-experience.md §5.12). The cells are labelled from `columns`.
      */
     isStacked?: boolean;
+    /**
+     * The page scrolls, not the table: the head sticks under the app bar while the rows pass
+     * under it, and what is wider than the frame is clipped rather than scrolled (page-system
+     * §4.3). For a table that gives columns way by `priority` instead of growing sideways.
+     */
+    isHeadPinned?: boolean;
+    /** Inside the frame, under the rows: the count and what continues the list. */
+    foot?: Snippet;
   }
 
   const {
@@ -123,6 +136,8 @@
     empty,
     children,
     isStacked = false,
+    isHeadPinned = false,
+    foot,
   }: Props = $props();
 
   /**
@@ -182,7 +197,7 @@
      box and reads as its first row. -->
 {#if !isLabelHidden}<p class="title" id={titleId}>{label}</p>{/if}
 
-<div class="frame" class:is-stacked={isStacked}>
+<div class="frame" class:is-stacked={isStacked} data-head-pinned={isHeadPinned ? '' : undefined}>
   <!-- `tabindex="0"` on the scroll container, and the first `svelte-ignore` in this package.
 
        The rule it suspends is a good one — a `div` nobody can interact with should not be in the
@@ -215,7 +230,7 @@
         <thead role={isStacked ? 'rowgroup' : undefined}>
           <tr role={isStacked ? 'row' : undefined}>
             {#each columns as column (column.id)}
-              <th scope="col" role={isStacked ? 'columnheader' : undefined} data-align={column.align ?? 'start'} aria-sort={ariaSort(column)}>
+              <th scope="col" role={isStacked ? 'columnheader' : undefined} data-align={column.align ?? 'start'} data-priority={column.priority} aria-sort={ariaSort(column)}>
                 {#if column.isSortable && onSort}
                   <!-- The control fills the cell rather than sitting in it: a heading whose target
                        is the word alone is a target the width of the word, and `Fällig` is six
@@ -256,6 +271,7 @@
       <span class="fade fade-end" aria-hidden="true"></span>
     </div>
   </div>
+  {#if foot}<div class="foot">{@render foot()}</div>{/if}
 </div>
 
 <style>
@@ -277,6 +293,26 @@
     background: var(--bg-surface);
     overflow: hidden;
     max-inline-size: 100%;
+  }
+
+  /* The page is the scroller: `clip` cuts at the radius without making the frame a scroll
+     container, so the head can stick to the page under the app bar. */
+  .frame[data-head-pinned] { overflow: clip; }
+  .frame[data-head-pinned] .scroll { overflow: visible; }
+  /* What stands above the content while the page scrolls: the app bar, unless the frame says
+     otherwise (`--page-sticky-top`; the workbench's pane has no bar). */
+  .frame[data-head-pinned] .table :global(thead th) { inset-block-start: var(--page-sticky-top, var(--layout-appbar-height)); }
+  .frame[data-head-pinned] .fade { display: none; }
+
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-200);
+    padding: var(--sp-150) var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    color: var(--text-subtle);
+    font-size: var(--fs-100);
   }
 
   /* A stacked table measures the room it has, not the window: a table in a side pane is narrow on

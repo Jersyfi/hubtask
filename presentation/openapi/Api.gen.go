@@ -20987,6 +20987,9 @@ type PageInfo struct {
 
 	// NextCursor The cursor for the next page, null on the last one. Opaque and signed: it is produced by the server and is neither to be constructed nor parsed by a client.
 	NextCursor *string `json:"next_cursor"`
+
+	// Total How many items match the request's filter across every page, as of this read. Answered only by the lists where counting is cheap; absent elsewhere, so a client shows it where it is present and does without it where it is not.
+	Total *int `json:"total,omitempty"`
 }
 
 // PageLabelCounts defines model for PageLabelCounts.

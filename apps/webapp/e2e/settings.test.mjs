@@ -94,7 +94,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
 
   // The section's own list replaces the workspace's tree rather than joining it.
   assert.equal(await page.getByRole('navigation', { name: 'Workspace' }).count(), 0, 'the workspace tree is drawn inside the section');
-  const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  const rows = (await section.getByRole('link').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
   // The way out and twelve screens, the calendars pushed to, the file stores and the reader's own
   // rules and agents among them (the agents' row only while that module is on, as it is here).
@@ -114,7 +114,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
     // One `h1` per screen, whether drawn or read: two headings is two answers to what a page is.
     if ((await page.locator('main h1').count()) !== 1) unheaded.push(route);
     // And the column says where the reader is, on every one of them.
-    if ((await section.getByRole('treeitem', { selected: true }).count()) !== 1) unmarked.push(route);
+    if ((await section.locator('[aria-current="page"]').count()) !== 1) unmarked.push(route);
   }
 
   assert.deepEqual(untrailed, [], `these screens do not say where they are: ${untrailed.join(', ')}`);
@@ -122,7 +122,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
   assert.deepEqual(unmarked, [], `the column marks no row on these: ${unmarked.join(', ')}`);
 
   // The way out, which is what a section somebody cannot leave would be missing.
-  await section.getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await section.getByRole('link', { name: 'The workspace', exact: true }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
 
   assert.deepEqual(failures, []);
@@ -158,7 +158,7 @@ for (const width of [375, 1280]) {
     const page = await context.newPage();
     const failures = [];
     page.on('pageerror', (error) => failures.push(String(error)));
-    await page.goto(`${served.origin}/profile`);
+    await page.goto(`${served.origin}/profile/you/name`);
 
     const name = page.getByRole('textbox', { name: /^Your name/ });
     await name.waitFor({ timeout: 15_000 });
@@ -284,7 +284,7 @@ test('chromium: 1280 px — the moments are switched on You, and On this device 
   await page.getByText('Light or dark').first().waitFor({ timeout: 15_000 });
   assert.equal(await page.getByLabel('Mark the moments').count(), 0, 'the moments are still on the device screen');
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/moments`);
   const moments = page.getByLabel('Mark the moments');
   await moments.waitFor({ timeout: 15_000 });
   await moments.click();
@@ -293,20 +293,22 @@ test('chromium: 1280 px — the moments are switched on You, and On this device 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — what you are told about is a grid, and every row’s switches line up', async (t) => {
+test('chromium: 1280 px — what you are told about is a row per category, and every row’s switches line up', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser);
   t.after(close);
 
   await page.goto(`${served.origin}/profile/notifications`);
-  const table = page.getByRole('table', { name: 'What you are told about' });
-  await table.waitFor({ timeout: 15_000 });
-  assert.equal(await table.getByRole('row').count(), CATEGORIES.length + 1, 'a row per category and one for the headings');
+  // A setting is one row (page-system PS-11): the category's name, its boxes at the control's place.
+  const table = page.locator('main');
+  const rows = page.locator('[data-setting^="notify-"]');
+  await rows.first().waitFor({ timeout: 15_000 });
+  assert.equal(await rows.count(), CATEGORIES.length, 'a row per category');
 
   // The finding, measured: every "Tell me" sits at one x, and so does every "Name the entry".
-  const columns = await table.locator('tbody tr').evaluateAll((rows) =>
-    rows.map((row) => [...row.querySelectorAll('input[type="checkbox"]')].map((box) => Math.round(box.getBoundingClientRect().x))),
+  const columns = await rows.evaluateAll((all) =>
+    all.map((row) => [...row.querySelectorAll('input[type="checkbox"]')].map((box) => Math.round(box.getBoundingClientRect().x))),
   );
   assert.equal(columns.length, CATEGORIES.length);
   const first = columns[0];
@@ -315,7 +317,7 @@ test('chromium: 1280 px — what you are told about is a grid, and every row’s
   }
 
   // The one category nobody can switch off says why, rather than being absent or silently on.
-  const invitation = table.getByRole('row').filter({ hasText: 'I am invited to the workspace' });
+  const invitation = table.locator('[data-setting^="notify-"]').filter({ hasText: 'I am invited to the workspace' });
   // Unavailable rather than natively disabled: focusable, and it says why (design-system.md §4).
   assert.equal(await invitation.locator('input[type="checkbox"][aria-disabled="true"]').count(), 1, 'the always-on row is switchable');
 
@@ -331,7 +333,7 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   await page.goto(`${served.origin}/profile/sessions`);
   const sessions = page.getByRole('table', { name: 'Where you are signed in' });
   await sessions.waitFor({ timeout: 15_000 });
-  const clients = await sessions.locator('tbody th').allTextContents();
+  const clients = await sessions.locator('tbody tr.row td:first-child').allTextContents();
   // This device first, then the newest of the rest: the row somebody looks for is the one that
   // appeared while they were not looking.
   assert.deepEqual(
@@ -341,13 +343,13 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
   // A column per fact, so a reader scans down rather than reading every row to its end.
   assert.deepEqual(
     (await sessions.locator('thead th').allTextContents()).map((head) => head.trim()),
-    ['Client', 'Signed in', 'Signed in with', 'Last active', 'Network', 'End'],
+    ['Client', 'Signed in', 'Signed in with', 'Last active', 'Network', 'Actions'],
   );
 
   await page.goto(`${served.origin}/profile/devices`);
   const devices = page.getByRole('table', { name: 'Devices that synchronise' });
   await devices.waitFor({ timeout: 10_000 });
-  assert.equal(await devices.locator('tbody tr').count(), DEVICES.length);
+  assert.equal(await devices.locator('tbody tr.row').count(), DEVICES.length);
   // A forgotten device is blocked rather than erased, and the row says which it is.
   assert.equal(await devices.getByRole('row').filter({ hasText: 'Old phone' }).getByText('Forgotten').count(), 1);
 
@@ -373,7 +375,7 @@ test('chromium: 1280 px — the profile does not offer to turn off a factor the 
       sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
     });
     const page = await context.newPage();
-    await page.goto(`${served.origin}/profile/security`);
+    await page.goto(`${served.origin}/profile/security/second-factor`);
     await page.getByText('Left: 8 of 10.').waitFor();
     const offered = await page.getByText('Turn the second factor off').count();
     const said = await page.getByText('Your workspace requires a second factor', { exact: false }).count();
@@ -449,7 +451,7 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
 
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor/new`);
   await walkSetup(page, sent, {
     // design-system.md's narrowest width: the secret and the code field fit it, and nothing - the
     // bottom bar included - is pushed past it.
@@ -494,12 +496,16 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   await page.getByText('Left: 4 of 10.').waitFor();
 
-  assert.equal(await page.getByRole('button', { name: 'Change the password' }).count(), 0, 'a password change is offered to an account without one');
+  // The *Password* section says why there is nothing to change, and offers no change.
+  await page.goto(`${served.origin}/profile/security/password`);
+  await page.getByText('signs in through a provider', { exact: false }).first().waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Change password…' }).count(), 0, 'a password change is offered to an account without one');
   assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0, 'a password is asked for on the profile');
-  assert.ok(await page.getByText('signs in through a provider', { exact: false }).first().isVisible(), 'the profile does not say why');
+  await page.goto(`${served.origin}/profile/security/second-factor`);
+  await page.getByText('Left: 4 of 10.').waitFor();
 
   await page.getByRole('button', { name: 'Make new codes' }).click();
   const dialog = page.getByRole('dialog');
@@ -547,7 +553,7 @@ test('chromium: 1280 px — a provider-only member turns the factor off with a c
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   await page.getByText('Left: 6 of 10.').waitFor();
 
   await page.getByText('Turn the second factor off').click();
@@ -615,7 +621,9 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  // The change is a Dialog M from the *Password* section (page-system §9.5).
+  await page.goto(`${served.origin}/profile/security/password`);
+  await page.getByRole('button', { name: 'Change password…' }).click();
   const field = page.getByLabel(/^New password/);
   await field.waitFor();
 
@@ -634,7 +642,7 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
   });
 
   await page.getByRole('button', { name: 'Change the password' }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog').filter({ has: page.getByLabel('Your password') });
   await dialog.waitFor();
   await dialog.getByLabel('Your password').fill('the old one');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
@@ -686,7 +694,7 @@ test('chromium: 1280 px — under a requiring rule the authenticator is replaced
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   await page.getByText('Left: 7 of 10.').waitFor();
 
   assert.equal(await page.getByText('Turn the second factor off').count(), 0, 'turning off is offered under a requiring rule');
@@ -732,7 +740,7 @@ test('chromium: every session is listed, this one marked, and an ended one says 
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor();
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor();
 
   const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
   for (const client of ['Firefox on Linux', 'Safari on iPhone', 'Chrome on macOS']) {
@@ -775,7 +783,7 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor();
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor();
 
   const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
   assert.match(await row('Firefox on Linux'), /Password and second factor/);
@@ -817,26 +825,32 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor();
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor();
 
   assert.match(await page.getByText(/You stay signed in here/).textContent() ?? '', /every other session/);
-  // A final act asks first (ux-inventory.md §E0); *Cancel* sends nothing.
-  await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  // A final act asks first (ux-inventory.md §E0); *Cancel* sends nothing. It is destructive, so it
+  // is the head's ⋯ (page-system PS-6).
+  const head = page.getByRole('button', { name: 'More for Where you are signed in' });
+  const everywhere = async () => {
+    await head.click();
+    await page.getByRole('menuitem', { name: 'Sign out everywhere else' }).click();
+  };
+  await everywhere();
   const asked = page.getByRole('dialog', { name: 'Sign out everywhere else?' });
   await asked.waitFor({ timeout: 5_000 });
   await asked.getByRole('button', { name: 'Cancel' }).last().click();
   await asked.waitFor({ state: 'detached' });
   assert.deepEqual(sent, [], 'cancelling ended something');
-  await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  await everywhere();
   await asked.getByRole('button', { name: 'Sign out everywhere else' }).click();
-  await page.getByText('Safari on iPhone').waitFor({ state: 'detached' });
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor({ state: 'detached' });
 
   assert.deepEqual(sent, ['/auth/sessions:revoke-others'], 'the screen ended this session too');
-  const rows = await page.getByRole('table', { name: 'Where you are signed in' }).locator('tbody tr').count();
+  const rows = await page.getByRole('table', { name: 'Where you are signed in' }).locator('tbody tr.row').count();
   assert.equal(rows, 1, 'more than this session is still listed');
   assert.equal(new URL(page.url()).pathname, '/profile/sessions', 'the reader was signed out');
   // Nothing else to end: the control is gone with the sessions it ended.
-  assert.equal(await page.getByRole('button', { name: 'Sign out everywhere else' }).count(), 0);
+  assert.equal(await head.count(), 0);
 });
 
 // Ending one session, withdrawing an app and withdrawing a token take access away for good - nothing
@@ -867,29 +881,34 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   });
   const page = await context.newPage();
 
-  const ask = async (opener, title, confirm) => {
-    await opener.click();
+  // Each is destructive, so it is the row's ⋯ (page-system PS-6).
+  const fromMenu = (row, item) => async () => {
+    await row.getByRole('button', { name: /^More for / }).click();
+    await page.getByRole('menuitem', { name: item }).click();
+  };
+  const ask = async (open, title, confirm) => {
+    await open();
     const dialog = page.getByRole('dialog', { name: title });
     await dialog.waitFor({ timeout: 5_000 });
     await dialog.getByRole('button', { name: 'Cancel' }).last().click();
     await dialog.waitFor({ state: 'detached' });
     assert.deepEqual(sent, [], `cancelling "${title}" sent ${sent.join(', ')}`);
-    await opener.click();
+    await open();
     await dialog.getByRole('button', { name: confirm, exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
   };
 
   await page.goto(`${served.origin}/profile/sessions`);
-  await page.getByText('Safari on iPhone').waitFor({ timeout: 15_000 });
+  await page.getByText('Safari on iPhone', { exact: true }).waitFor({ timeout: 15_000 });
   const row = page.getByRole('row', { name: /Safari on iPhone/ });
-  await ask(row.getByRole('button', { name: 'End', exact: true }), 'End this session?', 'End');
+  await ask(fromMenu(row, 'End session…'), 'End this session?', 'End');
   assert.equal(sent.length, 1, `ending one session sent ${sent.join(', ')}`);
 
   sent.length = 0;
   await page.goto(`${served.origin}/profile/apps`);
-  const app = page.getByRole('listitem').filter({ hasText: 'Calendar bridge' });
+  const app = page.getByRole('row').filter({ hasText: 'Calendar bridge' });
   await app.waitFor({ timeout: 15_000 });
-  await ask(app.getByRole('button', { name: 'Withdraw' }), 'Withdraw what Calendar bridge may do?', 'Withdraw');
+  await ask(fromMenu(app, 'Withdraw…'), 'Withdraw what Calendar bridge may do?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the app sent ${sent.join(', ')}`);
 
   sent.length = 0;
@@ -899,7 +918,7 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   // What it may do is said in words, never as the scope's key (user-experience.md §5.4).
   await token.getByText('Read your entries').waitFor({ timeout: 5_000 });
   assert.equal(await token.getByText('items:read', { exact: true }).count(), 0, 'the scope is shown as its key');
-  await ask(token.getByRole('button', { name: 'Withdraw' }), 'Withdraw Nightly script?', 'Withdraw');
+  await ask(fromMenu(token, 'Withdraw…'), 'Withdraw Nightly script?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the token sent ${sent.join(', ')}`);
 });
 
@@ -931,7 +950,7 @@ test('chromium: 1280 px — the workspace screen names the installation\'s defau
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/administration/workspace`);
+  await page.goto(`${served.origin}/administration/workspace/language`);
   const weekStart = page.getByLabel('A week starts on', { exact: true });
   await weekStart.waitFor({ timeout: 15_000 });
 
@@ -974,9 +993,9 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile`);
   await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
-  const back = page.getByRole('treeitem', { name: 'Der Arbeitsbereich', exact: true });
+  const back = page.getByRole('link', { name: 'Der Arbeitsbereich', exact: true });
   await back.waitFor({ timeout: 15_000 });
-  const rows = (await page.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  const rows = (await page.getByRole('link').allTextContents()).map((row) => row.trim());
   for (const english of ['The workspace', 'Name and language', 'Notifications', 'Signed in', 'Devices']) {
     assert.equal(rows.includes(english), false, `"${english}" is English in a German session: ${rows.join(', ')}`);
   }
@@ -988,11 +1007,11 @@ test('chromium: 1280 px — You: leaving a choice to the workspace names the wor
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser);
   t.after(close);
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/language`);
   // The fixture's workspace speaks English on UTC and decided no week start.
   const zone = page.locator('[data-setting="zone"]');
   await zone.waitFor({ timeout: 15_000 });
-  const optionsOf = (setting) => page.locator(`select[data-setting="${setting}"] option`).allTextContents();
+  const optionsOf = (setting) => page.locator(`[data-setting="${setting}"] select option`).allTextContents();
   await page.waitForFunction(() => [...document.querySelectorAll('option')].some((option) => option.textContent?.includes("Use the workspace's: UTC")));
   assert.ok((await optionsOf('language')).includes("Use the workspace's: English"), (await optionsOf('language')).join(' | '));
   assert.ok((await optionsOf('week-start')).includes("Use the workspace's"), 'a week start the workspace never decided was named');
@@ -1019,7 +1038,7 @@ test('chromium: 1280 px — the security page says in words that no recovery cod
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/profile/security`);
+  await page.goto(`${served.origin}/profile/security/second-factor`);
   const none = page.getByText('None left. Make new ones before your authenticator is out of reach.');
   await none.waitFor();
   assert.equal(await page.getByText(/^Left: \d+ of 10\.$/).count(), 0, 'zero is not drawn as a count');

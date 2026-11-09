@@ -196,7 +196,7 @@ test('chromium: the plan editor draws the installation\'s levels, and a save nam
   // The installation locks the request rate: its value with the chip that says whose it is
   // (UC-WRK-32 check 5), no control - and the plan's own, overtaken.
   const locked = page.locator('[data-value="quotas.api_requests_per_minute"]');
-  assert.match(await locked.innerText(), /600\s+Set by the installation, locked/);
+  assert.match(await locked.innerText(), /600\s+Locked by the installation/);
   assert.equal(await locked.locator('[data-source]').getAttribute('data-source'), 'INSTANCE-locked');
   assert.match(await locked.innerText(), /1200, is not in force/);
   await locked.getByRole('button', { name: 'Remove the plan\'s value' }).click();
@@ -219,7 +219,7 @@ test('chromium: the plan editor draws the installation\'s levels, and a save nam
   assert.equal(put.ifMatch, '"1"');
   assert.deepEqual(put.body.left_out, ['AUTOMATION_RULES', 'WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS']);
   assert.deepEqual(Object.keys(put.body.quotas), ['accounts'], 'the overtaken value was sent again');
-  assert.equal(await page.getByRole('button', { name: 'Remove the plan', exact: true }).count(), 0, 'a plan in use offers its removal');
+  assert.equal(await page.getByRole('button', { name: 'Remove the plan…', exact: true }).count(), 0, 'a plan in use offers its removal');
 });
 
 test('chromium: a save after somebody else saved says so and overwrites nothing', async (t) => {
@@ -257,7 +257,7 @@ test('chromium: a plan nobody is on can be removed, and its short name is said t
   t.after(close);
 
   await page.goto(`${served.origin}/instance/plans/business`);
-  await page.getByRole('button', { name: 'Remove the plan', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove the plan…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Remove Business?' });
   assert.match(await dialog.innerText(), /Its short name business stays taken and is never used again\./);
   await dialog.getByRole('button', { name: 'Remove it' }).click();
@@ -274,7 +274,7 @@ test('chromium: where a file enforces the level, a plan shows its values and the
   await page.goto(`${served.origin}/instance/plans/family`);
   await page.getByText('/etc/hubtask/instance.json').waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'Save the plan' }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Remove the plan', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Remove the plan…', exact: true }).count(), 0);
   await page.goto(`${served.origin}/instance/plans`);
   await page.getByText('/etc/hubtask/instance.json').waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'New plan' }).count(), 0);
@@ -382,7 +382,7 @@ test('chromium: a new workspace starts without a plan among several, and on the 
 
   await page.goto(`${served.origin}/instance/workspaces`);
   await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  const dialog = page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') });
   const plan = dialog.getByRole('combobox', { name: 'Plan' });
   assert.equal(await plan.inputValue(), '', 'among three plans, one was chosen for the operator');
   assert.deepEqual(await plan.locator('option').allInnerTexts(), ['Without a plan', 'Private', 'Family', 'Business']);
@@ -391,7 +391,7 @@ test('chromium: a new workspace starts without a plan among several, and on the 
   await dialog.getByRole('textbox', { name: 'The owner\'s email address' }).fill('weber@example.org');
   await plan.selectOption('family');
   await dialog.getByRole('button', { name: 'Create it' }).click();
-  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  await dialog.getByRole('button', { name: 'Open the workspace' }).first().waitFor({ timeout: 5_000 });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].plan, 'family');
 });
@@ -408,7 +408,7 @@ test('chromium: where the installation has one plan, a new workspace starts on i
   await page.goto(`${served.origin}/instance/workspaces`);
   await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
   await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
-  assert.equal(await page.getByRole('dialog', { name: 'New workspace' }).getByRole('combobox', { name: 'Plan' }).inputValue(), 'family');
+  assert.equal(await page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') }).getByRole('combobox', { name: 'Plan' }).inputValue(), 'family');
 });
 
 test('chromium: under a plan, an empty exception shows the plan\'s value where the installation does not lock it', async (t) => {
@@ -603,7 +603,7 @@ test('chromium: the editor says each refusal where it belongs', async (t) => {
 
   // Removing a plan somebody put a workspace on meanwhile: the server's refusal, said.
   await page.goto(`${served.origin}/instance/plans/business`);
-  await page.getByRole('button', { name: 'Remove the plan', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove the plan…', exact: true }).click();
   await page.getByRole('dialog', { name: 'Remove Business?' }).getByRole('button', { name: 'Remove it' }).click();
   await page.getByText('Workspaces are on this plan. Move them to another plan before removing it.').first().waitFor({ timeout: 5_000 });
 
@@ -647,7 +647,7 @@ test('chromium: an unknown plan is said at the plan field when provisioning, and
   await page.goto(`${served.origin}/instance/workspaces`);
   await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
   await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  const dialog = page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') });
   await dialog.getByRole('textbox', { name: 'Address', exact: true }).fill('familie-weber');
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Familie Weber');
   await dialog.getByRole('textbox', { name: 'The owner\'s email address' }).fill('weber@example.org');
@@ -737,5 +737,5 @@ test('chromium: a single installation shows no plan on Workspaces; an enforced o
   await enforced.page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
   assert.equal(await pageOffers(enforced.page, 'Change plan'), 2);
   await enforced.page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
-  assert.equal(await enforced.page.getByRole('dialog', { name: 'New workspace' }).getByRole('combobox', { name: 'Plan' }).count(), 1);
+  await enforced.page.locator('[data-page-kind="create"]').getByRole('combobox', { name: 'Plan' }).waitFor({ timeout: 5_000 });
 });

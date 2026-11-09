@@ -12,7 +12,7 @@
 
   import type { Snippet } from 'svelte';
 
-  import { ProgressBar, Table, VisuallyHidden, type Column } from '@hubtask/design-system/components';
+  import { DataTable, ProgressBar, type DataColumn } from '@hubtask/design-system/components';
 
   import {
     barLayout, lineDots, linePoints, matrixOf, percentOf, pieSlices, scaleTop, seriesBars, seriesLines, seriesOf, totalOf, type FigureRow, type SeriesTable,
@@ -42,10 +42,24 @@
   const matrix = $derived(chart === 'MATRIX' ? matrixOf(rows) : undefined);
   const total = $derived(totalOf(rows));
   const sliceOf = (key: string) => slices.find((slice) => slice.key === key);
-  const columns = $derived<Column[]>([
-    { id: 'label', label: t('app.dashboards.col_group') },
-    { id: 'value', label: t('app.dashboards.col_value'), align: 'end' },
+  const columns = $derived<DataColumn[]>([
+    { id: 'label', label: t('app.dashboards.col_group'), priority: 1 },
+    { id: 'value', label: t('app.dashboards.col_value'), align: 'end', priority: 1, isStatus: true },
   ]);
+  // The series' and the matrix' tables are DataTables too (PS-4): a row is a period or a row name,
+  // a column a series or a matrix column, the first of them kept on a phone as the row's state.
+  const seriesColumns = $derived<DataColumn[]>(table ? [
+    { id: 'period', label: t('app.dashboards.col_period'), priority: 1 },
+    ...table.series.map((each, s) => ({ id: `s${s}`, label: each.name, align: 'end' as const, priority: (s === 0 ? 1 : 2) as 1 | 2, isStatus: s === 0 })),
+  ] : []);
+  const seriesRows = $derived(table ? table.labels.map((label, i) => ({ label, i })) : []);
+  const matrixColumns = $derived<DataColumn[]>(matrix ? [
+    { id: 'row', label: '', priority: 1, isLabelHidden: true },
+    ...matrix.columns.map((column, c) => ({ id: `c${c}`, label: column || t('app.dashboards.no_value'), align: 'end' as const, priority: (c === 0 ? 1 : 2) as 1 | 2, isStatus: c === 0 })),
+  ] : []);
+  const matrixRows = $derived(matrix ? matrix.rows.map((row, r) => ({ row, r })) : []);
+  type SeriesRow = { label: string; i: number };
+  type MatrixRow = { row: string; r: number };
   const summary = $derived(t('app.dashboards.chart_summary', { title, count: String(rows.length) }));
   const labelText = (row: FigureRow) => row.label === '' ? t('app.dashboards.no_value') : row.label;
 
@@ -95,20 +109,12 @@
         {@render plot(multiLineDrawing)}
       {/if}
       <div class="scroll table" class:only={chart === 'TABLE'}>
-        <table class="matrix">
-          <caption><VisuallyHidden>{title}</VisuallyHidden></caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('app.dashboards.col_period')}</th>
-              {#each table.series as each, s (s)}<th scope="col" class="value"><span class="swatch" data-series={seriesOf(s)} aria-hidden="true"></span>{each.name}</th>{/each}
-            </tr>
-          </thead>
-          <tbody>
-            {#each table.labels as label, i (label)}
-              <tr><th scope="row">{label || t('app.dashboards.no_value')}</th>{#each table.series as each, s (s)}<td class="cell">{each.texts[i]}</td>{/each}</tr>
-            {/each}
-          </tbody>
-        </table>
+        <DataTable label={title} columns={seriesColumns} rows={seriesRows} key={(row: SeriesRow) => String(row.i)}>
+          {#snippet cell(row: SeriesRow, column: DataColumn)}
+            {#if column.id === 'period'}{row.label || t('app.dashboards.no_value')}
+            {:else}{@const s = Number(column.id.slice(1))}<span class="cell"><span class="swatch" data-series={seriesOf(s)} aria-hidden="true"></span>{table?.series[s]?.texts[row.i] ?? ''}</span>{/if}
+          {/snippet}
+        </DataTable>
       </div>
     </div>
   {/if}
@@ -149,30 +155,25 @@
 
     {#if chart === 'MATRIX' && matrix}
       <div class="scroll">
-        <table class="matrix">
-          <caption><VisuallyHidden>{title}</VisuallyHidden></caption>
-          <thead><tr><td></td>{#each matrix.columns as column (column)}<th scope="col">{column || t('app.dashboards.no_value')}</th>{/each}</tr></thead>
-          <tbody>
-            {#each matrix.rows as row, r (row)}
-              <tr><th scope="row">{row || t('app.dashboards.no_value')}</th>{#each matrix.cells[r] ?? [] as cell, c (c)}<td class="cell">{cell}</td>{/each}</tr>
-            {/each}
-          </tbody>
-        </table>
+        <DataTable label={title} columns={matrixColumns} rows={matrixRows} key={(row: MatrixRow) => String(row.r)}>
+          {#snippet cell(row: MatrixRow, column: DataColumn)}
+            {#if column.id === 'row'}{row.row || t('app.dashboards.no_value')}
+            {:else}<span class="cell">{matrix?.cells[row.r]?.[Number(column.id.slice(1))] ?? ''}</span>{/if}
+          {/snippet}
+        </DataTable>
       </div>
     {:else if chart !== 'PROGRESS'}
       <!-- The table beside the chart: the same rows, read rather than seen (P-13). -->
       <div class="scroll table" class:only={chart === 'TABLE' || chart === 'NUMBER'}>
-        <Table label={title} isLabelHidden {columns}>
-          {#each rows as row, i (row.key)}
-            <tr>
-              <th scope="row">
-                {#if chart === 'BAR' || chart === 'PIE'}<span class="swatch" data-series={chart === 'PIE' ? (sliceOf(row.key)?.series ?? 'slate') : seriesOf(i)} aria-hidden="true"></span>{/if}
-                {#if row.goalId}<a href={`/goals/${row.goalId}`}>{labelText(row)}</a>{:else}{labelText(row)}{/if}{#if row.column}<span class="note">{row.column}</span>{/if}
-              </th>
-              <td class="value">{row.text}</td>
-            </tr>
-          {/each}
-        </Table>
+        <DataTable label={title} {columns} {rows} key={(row: FigureRow) => row.key}>
+          {#snippet cell(row: FigureRow, column: DataColumn)}
+            {#if column.id === 'label'}
+              {@const i = rows.indexOf(row)}
+              {#if chart === 'BAR' || chart === 'PIE'}<span class="swatch" data-series={chart === 'PIE' ? (sliceOf(row.key)?.series ?? 'slate') : seriesOf(i)} aria-hidden="true"></span>{/if}
+              {#if row.goalId}<a href={`/goals/${row.goalId}`}>{labelText(row)}</a>{:else}{labelText(row)}{/if}{#if row.column}<span class="note">{row.column}</span>{/if}
+            {:else}<span class="value">{row.text}</span>{/if}
+          {/snippet}
+        </DataTable>
       </div>
     {/if}
   </div>
@@ -202,8 +203,6 @@
   .number-big { margin: 0; font-size: var(--fs-700); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
   .bars { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; width: 100%; }
   .swatch { display: inline-block; inline-size: var(--sp-100); block-size: var(--sp-100); margin-inline-end: var(--sp-050); border-radius: var(--r-xs); background: var(--series); }
-  .matrix { border-collapse: collapse; font-size: var(--fs-075); }
-  .matrix th, .matrix td { padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
 
   [data-series='blue'] { --series: var(--label-blue-fg); }
   [data-series='teal'] { --series: var(--label-teal-fg); }

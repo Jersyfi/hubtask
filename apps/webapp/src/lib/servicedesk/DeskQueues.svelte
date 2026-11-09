@@ -10,7 +10,7 @@
   // merge two orders by a moment it is not sent. The SLA is one read per row shown (at most
   // `QUEUE_SHOWN` a hub): the query answers no goal.
   import { untrack } from 'svelte';
-  import { Avatar, EmptyState, LabelChip, Skeleton, Stack, Table, ViewSwitcher } from '@hubtask/design-system/components';
+  import { Avatar, DataTable, EmptyState, FilterBar, LabelChip, Radio, Skeleton, Stack, type DataColumn, type Filter } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { ItemQueryResult, SlaPolicyList, WorkItem } from '@hubtask/sync-engine';
 
@@ -23,6 +23,7 @@
   import EntryKey from '../entries/EntryKey.svelte';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { matchesSearch } from '../page/list.ts';
   import EntryPlace from '../workspace/EntryPlace.svelte';
   import { DESK_QUEUES, QUEUE_SHOWN, priorityOf, queueQuery, queueTotal, type DeskQueue } from './queues.ts';
   import SlaRemaining from './SlaRemaining.svelte';
@@ -88,7 +89,12 @@
   });
   const shown = $derived(hubIds.map((hubId) => ({ hubId, answer: answers[at(selected, hubId)] })));
   const isReading = $derived(shown.some((each) => each.answer === undefined));
-  const rows = $derived(shown.flatMap((each) => each.answer?.data ?? []));
+  let search = $state('');
+  const all = $derived(shown.flatMap((each) => each.answer?.data ?? []));
+  const rows = $derived(all.filter((item) => matchesSearch(search, [item.title, String(item.number)])));
+  // The queue is the filter bar's first chip, its counts in the popover (a sheet on a phone):
+  // never a second strip under the home's view bar (the navigation concept §4, PS-2).
+  const chips = $derived<Filter[]>([{ id: 'queue', label: t('app.desk_queues.chip', { queue: tabs.find((each) => each.id === selected)?.label ?? '' }), isActive: true, isPinned: true }]);
 
   $effect(() => untrack(() => workflows.open()));
   // Which field names a priority is the policies' word; a member may read them (UC-SVC-02).
@@ -108,14 +114,16 @@
     const shape = workflowFor(workflows.list, item.collection_id, collection?.parent_id ?? undefined, item.entry_type ?? 'task')?.published;
     return shape?.statuses.find((status) => status.key === item.status);
   }
-  const columns = $derived([
-    { id: 'key', label: t('app.desk_queues.col_key') },
-    { id: 'request', label: t('app.desk_queues.col_request') },
-    { id: 'requester', label: t('app.desk_queues.col_requester') },
-    { id: 'status', label: t('app.desk_queues.col_status') },
-    { id: 'priority', label: t('app.desk_queues.col_priority') },
-    { id: 'sla', label: t('app.desk_queues.col_sla') },
-    { id: 'assignee', label: t('app.desk_queues.col_assignee') },
+  // On a phone a request is its title with its SLA under it and its status at the end; below a
+  // desktop's width the key, the requester, the priority and the assignee give way (§4.4).
+  const columns = $derived<DataColumn[]>([
+    { id: 'key', label: t('app.desk_queues.col_key'), priority: 3 },
+    { id: 'request', label: t('app.desk_queues.col_request'), priority: 1 },
+    { id: 'requester', label: t('app.desk_queues.col_requester'), priority: 3 },
+    { id: 'status', label: t('app.desk_queues.col_status'), priority: 1, isStatus: true },
+    { id: 'priority', label: t('app.desk_queues.col_priority'), priority: 3 },
+    { id: 'sla', label: t('app.desk_queues.col_sla'), priority: 2 },
+    { id: 'assignee', label: t('app.desk_queues.col_assignee'), priority: 3 },
   ]);
   const open = (event: MouseEvent, item: WorkItem) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -125,7 +133,17 @@
 </script>
 
 <Stack gap="200">
-  {#if !only}<div class="queues"><ViewSwitcher label={t('app.desk_queues.label')} views={tabs} {selected} onselect={(id) => (chosen = id as DeskQueue)} /></div>{/if}
+  {#if !only}
+    <FilterBar searchLabel={t('app.desk_queues.search')} clearSearchLabel={t('app.page.clear_search')} bind:search filters={chips}
+      moreLabel={t('app.page.more_filters')} filtersLabel={t('app.page.filters', { count: '1' })} sheetTitle={t('app.desk_queues.label')}
+      sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')} showLabel={t('app.page.show_results', { count: String(rows.length) })}
+      countLabel={isReading ? undefined : t('app.page.found', { shown: String(rows.length), count: String(all.length) })}>
+      {#snippet picker()}
+        <div data-desk-queues><Radio label={t('app.desk_queues.label')} bind:value={() => selected, (next) => (chosen = next as DeskQueue)}
+          options={tabs.map((each) => ({ value: each.id, label: each.label }))} /></div>
+      {/snippet}
+    </FilterBar>
+  {/if}
   <div role="region" aria-label={only?.name ?? t(`app.desk_queues.${selected}`)}>
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -135,30 +153,24 @@
     <EmptyState kind="settled" title={t('app.desk_queues.empty')} description={t('app.desk_queues.empty_body')} />
   {:else}
     <Stack gap="100">
-      <Table label={t('app.desk_queues.table', { queue: only?.name ?? t(`app.desk_queues.${selected}`) })} isLabelHidden isStacked {columns}>
-        {#each rows as item (item.id)}
-          {@const collection = containers.find(item.collection_id)}
-          {@const status = statusOf(item)}
-          {@const priority = priorityOf(item, priorityFields)}
-          <tr data-queue-row>
-            <td><EntryKey {collection} number={item.number} /></td>
-            <td>
-              <div class="request">
-                <a class="title" href={`/items/${item.id}`} title={item.title} onclick={(event) => open(event, item)}>{item.title}</a>
-                <EntryPlace collectionId={item.collection_id} {withHub} />
-              </div>
-            </td>
-            <td class="who">{accounts.nameOf(item.created_by) ?? ''}</td>
-            <td>{#if status}<LabelChip name={statusLabel(status, t)} colorToken={status.color_token} />{:else if item.status}{item.status}{/if}</td>
-            <td>{priority ?? ''}</td>
-            <td>{#key item.id}<SlaRemaining itemId={item.id} {now} />{/key}</td>
-            <td>
-              {#if item.assignee_id}<Avatar name={accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')} size="sm" />
-              {:else}<span class="quiet">{t('app.desk_queues.nobody')}</span>{/if}
-            </td>
-          </tr>
-        {/each}
-      </Table>
+      <DataTable label={t('app.desk_queues.table', { queue: only?.name ?? t(`app.desk_queues.${selected}`) })} {columns} {rows} key={(item: WorkItem) => item.id}>
+        {#snippet cell(item: WorkItem, column: DataColumn)}
+          {#if column.id === 'key'}<EntryKey collection={containers.find(item.collection_id)} number={item.number} />
+          {:else if column.id === 'request'}
+            <div class="request">
+              <a class="title" href={`/items/${item.id}`} title={item.title} onclick={(event) => open(event, item)}>{item.title}</a>
+              <EntryPlace collectionId={item.collection_id} {withHub} />
+            </div>
+          {:else if column.id === 'requester'}<span class="who">{accounts.nameOf(item.created_by) ?? ''}</span>
+          {:else if column.id === 'status'}
+            {@const status = statusOf(item)}
+            {#if status}<LabelChip name={statusLabel(status, t)} colorToken={status.color_token} />{:else if item.status}{item.status}{/if}
+          {:else if column.id === 'priority'}{priorityOf(item, priorityFields) ?? ''}
+          {:else if column.id === 'sla'}{#key item.id}<SlaRemaining itemId={item.id} {now} />{/key}
+          {:else if item.assignee_id}<Avatar name={accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')} size="sm" />
+          {:else}<span class="quiet">{t('app.desk_queues.nobody')}</span>{/if}
+        {/snippet}
+      </DataTable>
       {#each shown as each (each.hubId)}
         {#if each.answer && typeof each.answer.total === 'number' && each.answer.total > each.answer.data.length}
           <p class="hint">{t('app.desk_queues.partial', { shown: String(Math.min(QUEUE_SHOWN, each.answer.data.length)), total: String(each.answer.total), hub: containers.find(each.hubId)?.name ?? '' })}</p>
@@ -170,17 +182,14 @@
 </Stack>
 
 <style>
-  /* Four queues with their counts are wider than a phone: the choice scrolls, the page does not. */
-  .queues { overflow-x: auto; }
   .request { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
-  /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5). At
-     most a third of the table (the stacked table is its container), so the six columns beside it
-     fit at a desktop's width rather than behind the edge fade. */
-  .title { display: block; max-inline-size: min(48ch, 30cqi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
+  /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5), short
+     enough that the six columns beside it fit at a desktop's width rather than behind the edge fade. */
+  .title { display: block; max-inline-size: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
   .title:hover { text-decoration: underline; }
-  /* A phone's stacked card has the title's whole line to itself: it wraps there, uncut. */
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), the stacked table's own query; a container query cannot read a custom property. */
-  @container (inline-size < 600px) {
+  /* A phone's list row has the title's whole line to itself: it wraps there, uncut. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), where DataTable becomes list rows; a media query cannot read a custom property. */
+  @media (width < 600px) {
     .title { max-inline-size: none; white-space: normal; }
   }
   .quiet { color: var(--text-secondary); }

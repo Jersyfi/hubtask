@@ -33,10 +33,10 @@ test('a module with settings at its home names them, to whoever that tab is offe
   const none = (): boolean => false;
   assert.equal(settingsOf('SERVICE_DESK', none), '/desk/settings');
   assert.equal(settingsOf('ASSETS', none), '/assets/settings');
-  assert.equal(settingsOf('TIME', all), '/time?tab=settings');
+  assert.equal(settingsOf('TIME', all), '/time/settings');
   assert.equal(settingsOf('TIME', none), undefined);
-  assert.equal(settingsOf('TIME', (permission) => permission === 'APPROVE_TIME'), '/time?tab=settings');
-  assert.equal(settingsOf('AGENTS', all), '/agents?tab=settings');
+  assert.equal(settingsOf('TIME', (permission) => permission === 'APPROVE_TIME'), '/time/settings');
+  assert.equal(settingsOf('AGENTS', all), '/agents/settings');
   assert.equal(settingsOf('AGENTS', (permission) => permission === 'STRUCTURE'), undefined);
   for (const module of ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'GOALS']) assert.equal(settingsOf(module, all), undefined, module);
 });
@@ -48,6 +48,6 @@ test('the card starts with the templates that need the module, linked to the hub
   const desk = { key: 'itil_service_desk', origin: 'HUBTASK', hub_document: {}, document: { modules: { service_desk: { switch: 'ON' } } } };
   const plain = { key: 'kanban_team', origin: 'HUBTASK', hub_document: {}, document: { modules: { workflows: { switch: 'ON' } } } };
   assert.deepEqual(startsOf('SERVICE_DESK', [plain, desk]).map(({ template, href }) => [template.key, href]), [['itil_service_desk', undefined]]);
-  assert.deepEqual(startsOf('SERVICE_DESK', [desk], 'h 1').map(({ href }) => href), ['/hubs/h%201/settings/modules?template=itil_service_desk']);
+  assert.deepEqual(startsOf('SERVICE_DESK', [desk], 'h 1').map(({ href }) => href), ['/hubs/h%201/settings/template?template=itil_service_desk']);
   assert.deepEqual(startsOf('WHITEBOARD', [plain, desk]), []);
 });

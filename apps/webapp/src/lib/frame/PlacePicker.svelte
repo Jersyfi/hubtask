@@ -62,7 +62,7 @@
 {#if viewport.isCompact}
   <Sheet {title} closeLabel={t('app.sheet_close')} bind:isOpen>{@render list()}</Sheet>
 {:else}
-  <Dialog {title} bind:isOpen dismissLabel={t('app.workspace.cancel')}>{@render list()}</Dialog>
+  <Dialog size="m" {title} bind:isOpen dismissLabel={t('app.workspace.cancel')}>{@render list()}</Dialog>
 {/if}
 
 <style>

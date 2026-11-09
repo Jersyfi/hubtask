@@ -311,6 +311,15 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
   `count` null) and the rows are answered, so a collection too large to count in time degrades its
   numbers instead of failing its read. `count: "estimated"` is refused as `query.count_not_supported` rather than answered with a null
   total.
+* A list whose filter is counted cheaply - one `COUNT` over the same tenant-scoped, filtered
+  statement the walk reads, through sqlc, with no row the application drops afterwards - answers
+  `page.total` on every page: how many items match across all pages, as of that read. It is
+  optional and never replaces the cursor; a client shows *Showing 50 of 1 240* with it and
+  *Showing 50* without it, and continues by the cursor either way (page-system decision D-1).
+  Today `GET /groups`, `GET /memberships` and `GET /templates` answer it. A list that filters rows
+  by the reader's rights after the read (`GET /automation/rules`), reads across workspaces through
+  a narrow function (`/admin/tenants:query`), or grows without bound (the audit trail and the
+  journals) leaves it out.
 
 ---
 

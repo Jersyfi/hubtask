@@ -15,19 +15,21 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, EmptyState, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, EmptyState, FilterBar, ListPage, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CalendarPush, CalendarPushList } from '@hubtask/sync-engine';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { calendarPushesPath, providerAnswerOf, pushFigure } from '../lib/data/calendarpush.ts';
   import { calendarPushes } from '../lib/data/calendarpush.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -82,69 +84,101 @@
   });
 
   const providerName = (push: CalendarPush) => t(push.provider === 'GOOGLE' ? 'app.pushes.google' : 'app.pushes.microsoft');
+  let search = $state('');
+  const shown = $derived(pushes.filter((push) => matchesSearch(search, [providerName(push), push.address ?? undefined])));
+
+  const title = $derived(profileTitle('calendars'));
+  $effect(() => page.entitle(title));
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'calendar', label: t('app.pushes.calendar_column'), priority: 1 },
+    { id: 'state', label: t('app.pushes.state_column'), priority: 1 },
+    { id: 'written', label: t('app.pushes.written_column'), priority: 2 },
+  ]);
+
+  // Disconnecting is destructive: the row's ⋯ and a Dialog S (PS-6); *Connect again* is the row's
+  // one quiet verb, where the push stopped and the provider is still offered.
+  const rowMenu = (push: CalendarPush): DataRowMenu => ({
+    label: t('app.page.more_for', { name: providerName(push) }),
+    items: [{ id: 'disconnect', label: t('app.pushes.disconnect_menu'), isDestructive: true }],
+  });
 </script>
 
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="calendars">
-      {#snippet figure()}{#if figureText}<span class="figure" data-pushes-figure>{figureText}</span>{/if}{/snippet}
-    </SettingsHead>
+  <ListPage head={profileHead('calendars', { figure: figureText ? pushesFigure : undefined })}>
+    {#snippet intro()}<p class="quiet">{t('app.pushes.intro')} {t('app.pushes.how')}</p>{/snippet}
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.pushes.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        countLabel={read.state.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(pushes.length) }) : undefined}
+      />
+    {/snippet}
 
-    <Stack gap="200">
-      <p class="quiet">{t('app.pushes.intro')}</p>
-      {#if connected}<p class="done" role="status">{t('app.pushes.connected', { calendar: providerName(connected) })}</p>{/if}
-      {#if failure}<FailureNote problem={failure} />{/if}
+    {#if connected}<p class="done" role="status">{t('app.pushes.connected', { calendar: providerName(connected) })}</p>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
 
-      {#each pushes as push (push.id)}
-        <section class="panel" data-push={push.provider} aria-label={providerName(push)}>
-          <Stack gap="100">
-            <div class="row">
-              <span class="what">{providerName(push)}</span>
-              {#if push.state === 'ACTIVE'}
-                <Badge tone="success">{t('app.pushes.state_active')}</Badge>
-              {:else}
-                <Badge tone="danger">{t('app.pushes.state_failed')}</Badge>
-              {/if}
-            </div>
-            {#if push.address}<p class="quiet small mono">{push.address}</p>{/if}
-            <p class="quiet small">
+    {#if read.state.status === 'ready'}
+      <DataTable
+        label={title}
+        {columns}
+        rows={shown}
+        key={(push: CalendarPush) => push.id}
+        rowLabel={providerName}
+        menu={rowMenu}
+        onmenu={(push: CalendarPush) => (asking = push)}
+        actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+        shownLabel={shown.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+      >
+        {#snippet cell(push: CalendarPush, column: DataColumn)}
+          {#if column.id === 'calendar'}
+            <span class="what" data-push={push.provider}>{providerName(push)}</span>
+            {#if push.address}<span class="quiet small mono">{push.address}</span>{/if}
+          {:else if column.id === 'state'}
+            {#if push.state === 'ACTIVE'}
+              <Badge tone="success">{t('app.pushes.state_active')}</Badge>
+            {:else}
+              <Badge tone="danger">{t('app.pushes.state_failed')}</Badge>
+            {/if}
+            <!-- Why it stopped, or why a run did not go through while it still writes: beside the
+                 act that fixes it, so whoever presses it knows why. -->
+            {#if push.state === 'FAILED'}
+              <span class="small failed" data-push-failure>{push.failure ? t(push.failure) : t('app.pushes.failed_note')}</span>
+            {:else if push.failure}
+              <span class="small warned" data-push-failure>{t(push.failure)}</span>
+            {/if}
+          {:else}
+            <span class="quiet">
               {push.pushed_at
                 ? t('app.pushes.written_at', { when: formatDateTime(push.pushed_at, messages.locale) })
                 : t('app.pushes.not_yet_written')}
-            </p>
-            {#if push.state === 'FAILED'}
-              <!-- The failure beside the act that fixes it: whoever presses it should know why. -->
-              <Banner tone="danger">
-                <Stack gap="100">
-                  <span data-push-failure>{push.failure ? t(push.failure) : t('app.pushes.failed_note')}</span>
-                  {#if offered.includes(push.provider)}
-                    <div>
-                      <Button size="sm" tone="primary" isBusy={leaving === push.id} busyLabel={t('app.pushes.going')} onclick={() => void connectAgain(push)}>
-                        {t('app.pushes.connect_again')}
-                      </Button>
-                    </div>
-                  {/if}
-                </Stack>
-              </Banner>
-            {:else if push.failure}
-              <!-- A run that did not go through while the push still writes: the next one tries again. -->
-              <Banner tone="warning"><span data-push-failure>{t(push.failure)}</span></Banner>
-            {/if}
-            <div class="row">
-              <Button size="sm" tone="danger" onclick={() => (asking = push)}>{t('app.pushes.disconnect')}</Button>
-            </div>
-          </Stack>
-        </section>
-      {:else}
-        {#if read.state.status === 'ready'}
-          <EmptyState kind="unused" icon="calendar" title={t('app.pushes.none')} description={t('app.pushes.empty_body')} />
-        {/if}
-      {/each}
-      <p class="quiet small">{t('app.pushes.how')}</p>
-    </Stack>
-  </Stack>
+            </span>
+          {/if}
+        {/snippet}
+        {#snippet verb(push: CalendarPush)}
+          {#if push.state === 'FAILED' && offered.includes(push.provider)}
+            <Button size="sm" tone="secondary" isBusy={leaving === push.id} busyLabel={t('app.pushes.going')} onclick={() => void connectAgain(push)}>
+              {t('app.pushes.connect_again')}
+            </Button>
+          {/if}
+        {/snippet}
+        {#snippet empty()}
+          {#if pushes.length === 0}
+            <EmptyState kind="unused" icon="calendar" title={t('app.pushes.none')} description={t('app.pushes.empty_body')} />
+          {:else}
+            <EmptyState kind="filtered" title={t('app.pushes.filtered_title')}>
+              {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear_search')}</Button>{/snippet}
+            </EmptyState>
+          {/if}
+        {/snippet}
+      </DataTable>
+    {/if}
+  </ListPage>
 
   <FinalActDialog
     isOpen={asking !== undefined}
@@ -164,25 +198,22 @@
   />
 {/if}
 
+{#snippet pushesFigure()}<span class="figure" data-pushes-figure>{figureText}</span>{/snippet}
+
 <style>
-  .what { font-weight: var(--fw-medium); }
+  .what { display: block; font-weight: var(--fw-medium); }
 
   .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .mono { display: block; font-family: var(--font-mono); overflow-wrap: anywhere; }
 
-  .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
-
-  .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+  .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }
+
+  .failed, .warned { display: block; margin-block-start: var(--sp-050); }
+  .failed { color: var(--text-danger); }
+  .warned { color: var(--text-warning); }
 
   .done { margin: 0; color: var(--text-success); }
 </style>

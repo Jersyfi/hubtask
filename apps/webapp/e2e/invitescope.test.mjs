@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, HUB, ITEMS, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { addPeople } from './addpeople.mjs';
+import { addPeople, wayDialog } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -91,7 +91,7 @@ test('chromium: People invites somebody with a role on one hub, not on the works
 
   await page.goto(`${served.origin}/administration/people`);
   await addPeople(page);
-  const form = page.locator('form').filter({ has: page.getByLabel('Email address') });
+  const form = wayDialog(page);
   await form.getByLabel('Email address').fill('anna@example.invalid');
   await form.getByLabel('Where').selectOption(HUB.id);
   await form.getByLabel('Role').selectOption('GUEST');
@@ -148,7 +148,7 @@ test('chromium: People invites a requester with the workspace\'s own role at one
 
   await page.goto(`${served.origin}/administration/people`);
   await addPeople(page);
-  const form = page.locator('form').filter({ has: page.getByLabel('Email address') });
+  const form = wayDialog(page);
   await form.getByLabel('Email address').fill('anna@example.invalid');
   await form.getByLabel('Where').selectOption({ label: `${HUB.name} › ${DESK.name}` });
   await form.getByLabel('Role').selectOption({ label: 'Requester' });

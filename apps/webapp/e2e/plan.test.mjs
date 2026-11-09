@@ -203,19 +203,31 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
-  // A dependency's lag, typed and saved.
+  // A collection's *Timeline* is one view of its bar (the navigation concept §3): no second strip
+  // under it, its table and its dependencies stand under the chart.
+  assert.equal(await page.locator('[data-page-kind="work"]').count(), 1, 'the plan is no work page');
+  assert.equal(await page.getByRole('radiogroup', { name: 'Views of the plan' }).count(), 0, 'a second strip under the view bar');
+  await page.getByRole('table', { name: 'The plan as a table' }).waitFor({ timeout: 5_000 });
+
+  // A dependency's lag, typed and saved in its popover (§5.1), not in a field per row.
+  const opening = page.getByRole('button', { name: `Change the timing of the dependency of ${SECOND.title}` });
+  await opening.click();
   const lag = page.getByLabel(`Lag of the dependency of ${SECOND.title}`);
   await lag.fill('-2');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(300);
   const timing = written.find((each) => each.method === 'PUT' && each.path === `/links/${LINK}/timing`);
   assert.deepEqual(timing?.body, { dependency_kind: 'FS', lag_days: -2 });
+  assert.equal(await lag.count(), 0, 'the popover stays open after its save');
 
-  // A lag past the bound is refused here, before anything is sent.
+  // A lag past the bound is refused here, before anything is sent, and the popover stays.
+  await opening.click();
   await lag.fill('1000');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(200);
   assert.equal(written.filter((each) => each.path === `/links/${LINK}/timing`).length, 1);
+  assert.equal(await lag.count(), 1, 'the refused lag closed its popover');
+  await page.keyboard.press('Escape');
 
   // An entry made manual: choosing writes nothing - a closed select changes on every arrow key
   // (SC 3.2.2) - and the apply beside it writes the mode.
@@ -243,7 +255,9 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
-  // The knob the chart draws has no key bindings; the table beside it is the keyboard's way.
+  // The knob the chart draws has no key bindings; the dependencies' small dialog is the keyboard's way.
+  await page.locator('[data-add-dependency-open]').focus();
+  await page.keyboard.press('Enter');
   const adding = page.locator('[data-add-dependency]');
   await adding.getByLabel('Waiting entry').selectOption(THIRD.id);
   await adding.getByLabel('Waits for').selectOption(FIRST.id);
@@ -258,9 +272,10 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   const timing = written.find((each) => each.method === 'PUT' && each.path === `/links/${DRAWN}/timing`);
   assert.deepEqual(timing?.body, { dependency_kind: 'SS', lag_days: 2 });
 
-  // Each dependency the table lists can be taken back from it.
-  await page.getByRole('button', { name: `Remove the dependency of ${SECOND.title} on ${FIRST.title}` }).focus();
+  // Each dependency the table lists can be taken back from its ⋯ (PS-6).
+  await page.getByRole('button', { name: `More for the dependency of ${SECOND.title} on ${FIRST.title}` }).first().focus();
   await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: `Remove the dependency of ${SECOND.title} on ${FIRST.title}` }).click();
   await page.waitForTimeout(300);
   assert.ok(written.some((each) => each.method === 'DELETE' && each.path === `/links/${LINK}`), 'the dependency was not removed');
   await page.getByRole('status').filter({ hasText: `${SECOND.title} no longer waits for ${FIRST.title}.` }).first().waitFor({ timeout: 5_000 });
@@ -290,6 +305,9 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
     return { step: Number(node.dataset.title), scrolls: scroller.scrollWidth > scroller.clientWidth + 1 };
   });
   assert.ok(room.step >= 2 && !room.scrolls, `the title column stays narrow beside an empty chart: ${JSON.stringify(room)}`);
+  // What has no dates is a fold under the axis that names its count, folded until it is opened.
+  assert.equal(await page.getByRole('button', { name: 'Give Write the brief dates' }).count(), 0, 'the tray opened unfolded');
+  await page.locator('.timeline details.undated summary').filter({ hasText: '1 without dates' }).click();
   await page.getByRole('button', { name: 'Give Write the brief dates' }).click();
   await page.waitForURL(`**/items/${UNDATED}`, { timeout: 5_000 });
   await page.goBack();

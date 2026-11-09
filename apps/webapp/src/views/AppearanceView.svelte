@@ -9,20 +9,26 @@
   // to resolve to. A radio group rather than a select: three words, all visible, one press.
   //
   // "Mark the moments" is the account's, so it stands on *You* (`lib/profile/CelebrationsSwitch`),
-  // not here: a screen called *On this device* holds only what this device keeps.
+  // not here: a screen called *On this device* holds only what this device keeps. A settings page of
+  // one section (page-system §9.5), each choice a row; a choice applies at once, so no save bar.
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Radio, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Radio, SettingRow, SettingsLayout, SettingsSection } from '@hubtask/design-system/components';
 
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
 
+  const { onnavigate }: { onnavigate?: (path: string) => void } = $props();
+
   const account = $derived(actor.account);
+  const title = $derived(profileTitle('appearance'));
+  $effect(() => page.entitle(title));
 
   const THEMES = ['system', 'light', 'dark'] as const;
   const MOTIONS = ['system', 'reduced'] as const;
@@ -58,54 +64,37 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="appearance" />
-
-    <div class="panel">
-      <Stack gap="200">
-        <p class="quiet">{t('app.profile.device_hint')}</p>
-        <!-- Wrapped: a `Radio` group takes no attribute of its own, and the palette lands on the row. -->
-        <div data-setting="theme">
-          <Radio
-            label={t('app.profile.theme')}
-            bind:value={themeChoice}
-            options={THEMES.map((each) => ({ value: each, label: t(`app.profile.theme_${each}`) }))}
-          />
-        </div>
-        <div data-setting="motion">
-          <Radio
-            label={t('app.profile.motion')}
-            hint={t('app.profile.motion_hint')}
-            bind:value={motionChoice}
-            options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
-          />
-        </div>
-        <!-- How an entry opens from a list (design-system.md §11.8): beside it, or whole. The same
-             switch is in the panel's head, where the person notices they want it. -->
-        <div data-setting="open">
-          <Radio
-            label={t('app.profile.open')}
-            hint={t('app.profile.open_hint')}
-            bind:value={openChoice}
-            options={OPENINGS.map((each) => ({ value: each, label: t(`app.profile.open_${each}`) }))}
-          />
-        </div>
-      </Stack>
-    </div>
-  </Stack>
+  <SettingsLayout
+    head={profileHead('appearance')}
+    nav={{ label: t('app.settings_page.sections', { name: title }), sections: [{ id: 'appearance', label: title, href: '/profile/appearance' }], current: 'appearance' }}
+    view="detail"
+    back={{ label: t('app.nav.profile'), onback: () => onnavigate?.('/profile') }}
+  >
+    <SettingsSection title={t('app.profile.device_title')} description={t('app.profile.device_hint')}>
+      <!-- Wrapped: a `Radio` group takes no attribute of its own, and the palette lands on the row. -->
+      <div data-setting="theme">
+        <SettingRow label={t('app.profile.theme')} fieldWidth="lg">
+          {#snippet control()}
+            <Radio label={t('app.profile.theme')} bind:value={themeChoice} options={THEMES.map((each) => ({ value: each, label: t(`app.profile.theme_${each}`) }))} />
+          {/snippet}
+        </SettingRow>
+      </div>
+      <div data-setting="motion">
+        <SettingRow label={t('app.profile.motion')} help={t('app.profile.motion_hint')} fieldWidth="lg">
+          {#snippet control()}
+            <Radio label={t('app.profile.motion')} bind:value={motionChoice} options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))} />
+          {/snippet}
+        </SettingRow>
+      </div>
+      <!-- How an entry opens from a list (design-system.md §11.8): beside it, or whole. The same
+           switch is in the panel's head, where the person notices they want it. -->
+      <div data-setting="open">
+        <SettingRow label={t('app.profile.open')} help={t('app.profile.open_hint')} fieldWidth="lg">
+          {#snippet control()}
+            <Radio label={t('app.profile.open')} bind:value={openChoice} options={OPENINGS.map((each) => ({ value: each, label: t(`app.profile.open_${each}`) }))} />
+          {/snippet}
+        </SettingRow>
+      </div>
+    </SettingsSection>
+  </SettingsLayout>
 {/if}
-
-<style>
-  /* The choices stand on a surface and keep a measure of their own: a radio group as wide as the
-     region is a row of words with a mile between the mark and the label (ADR-0065 decision 2). */
-  .panel {
-    max-inline-size: 60ch;
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .quiet { margin: 0; color: var(--text-secondary); }
-</style>

@@ -22,7 +22,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack,
+    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, WorkPage,
   } from '@hubtask/design-system/components';
   import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
 
@@ -317,7 +317,9 @@
   }
 </script>
 
-<Stack gap="300">
+<!-- A work page, not an overview: the person lays its widgets out on their own grid (page-system §7.8). -->
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={dashboard?.name ?? t('app.dashboards.dashboard')}
     subtitle={dashboard ? t(`app.dashboards.subtitle_${dashboard.sharing}`, { place: placeName }) : undefined}
@@ -354,6 +356,7 @@
       },
     } : undefined}
   />
+  {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -413,16 +416,16 @@
       </div>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 
 {#if isWidgetOpen}
-  <Dialog bind:isOpen={isWidgetOpen} title={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="l" bind:isOpen={isWidgetOpen} title={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} dismissLabel={t('app.links.cancel')}>
     <WidgetEditor widget={editingIndex < 0 ? undefined : layout[editingIndex]} {summaryViews} goals={goalChoices} onsave={saveWidget} />
   </Dialog>
 {/if}
 
 {#if isDigestOpen}
-  <Dialog bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.dashboards.digest_hint')}</p>
       <Select label={t('app.dashboards.digest_cadence')} bind:value={digestDraft.cadence}
@@ -443,7 +446,7 @@
 {/if}
 
 {#if isRenaming}
-  <Dialog bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.dashboards.col_name')} bind:value={draft.name} maxlength={200} />
       <SharingPicker bind:sharing={draft.sharing} bind:groupIds={draft.groupIds} />
@@ -453,7 +456,7 @@
 {/if}
 
 {#if isDeleting && dashboard}
-  <Dialog bind:isOpen={isDeleting} title={t('app.dashboards.delete_title', { name: dashboard.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.dashboards.delete_title', { name: dashboard.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.dashboards.delete_hint')}</p>
       <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.dashboards.delete')}</Button></Inline>

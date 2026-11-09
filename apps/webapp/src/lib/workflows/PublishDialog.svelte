@@ -81,10 +81,16 @@
 
 <Dialog
   bind:isOpen
-  isWide
+  size="m"
   title={t('app.workflow_designer.publish_title', { name: workflow.name ?? t('workflows.default_name') })}
   dismissLabel={t('app.workflow_designer.cancel')}
   onClose={onclose}
+  primary={{
+    label: t('app.workflow_designer.publish'),
+    isBusy: isPublishing,
+    disabledReason: !preview ? t('app.workflow_designer.previewing') : !isMapped ? t('app.workflow_designer.map_first') : undefined,
+    onclick: () => void publish(),
+  }}
 >
   <Stack gap="200">
     {#if !preview && isAsking}
@@ -123,12 +129,7 @@
     {#if refusal}<FailureNote problem={refusal} />{/if}
   </Stack>
   {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workflow_designer.cancel')}</Button>
-    <Button
-      tone="primary" data-confirm-publish isBusy={isPublishing}
-      disabledReason={!preview ? t('app.workflow_designer.previewing') : !isMapped ? t('app.workflow_designer.map_first') : undefined}
-      onclick={publish}
-    >{t('app.workflow_designer.publish')}</Button>
+    <Button tone="subtle" onclick={() => (isOpen = false)}>{t('app.workflow_designer.cancel')}</Button>
   {/snippet}
 </Dialog>
 

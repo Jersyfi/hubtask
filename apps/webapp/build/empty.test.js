@@ -35,7 +35,6 @@ const INLINE = new Set([
   'InstanceSettingsView.svelte app.instance.settings_history_none',
   'CmdbView.svelte app.cmdb_admin.aliases_none',
   'PortalRequestView.svelte app.portal.replies_none',
-  'PrivacyView.svelte app.privacy.preview_none',
   'PlanView.svelte app.planning.tolerance_none',
   'PlanView.svelte app.planning.baselines_none',
 ]);

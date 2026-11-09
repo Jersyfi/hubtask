@@ -16,7 +16,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import type { AiJurisdiction, AiProviderKind, OfferedAiModel } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -29,7 +29,7 @@
   import { isOfferedAiReachable } from '../lib/instance/values.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -64,12 +64,14 @@
   const isReachable = $derived(isOfferedAiReachable(instance.settings.status === 'ready' ? instance.settings.data : undefined));
   const unreadable = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
-  const columns = $derived([
-    { id: 'model', label: t('app.instance.ai_column_model') },
-    { id: 'where', label: t('app.instance.ai_column_where') },
-    { id: 'models', label: t('app.instance.ai_column_models') },
-    { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'model', label: t('app.instance.ai_column_model'), priority: 1 },
+    { id: 'where', label: t('app.instance.ai_column_where'), priority: 2 },
+    { id: 'models', label: t('app.instance.ai_column_models'), priority: 3 },
   ]);
+
+  let search = $state('');
+  const shown = $derived(models.filter((model) => matchesSearch(search, [model.display_name, model.processor])));
 
   /** A model that calls nothing is no model to offer. */
   const KINDS: readonly AiProviderKind[] = ['OPENAI_COMPATIBLE', 'OLLAMA'];
@@ -117,69 +119,95 @@
   $effect(() => page.entitle(t('app.instance.ai')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.ai')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.ai') })} />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.ai_intro')}</p>
-
-      {#if failure && !acting}
-        <FailureNote problem={failure} />
-      {/if}
-
-      {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
-      {:else}
-        <div>
-          <Button tone="primary" onclick={() => open('add')}>{t('app.instance.ai_add')}</Button>
-        </div>
-
-        {#if models.length === 0}
-          <Banner tone="info">{t('app.instance.ai_none')}</Banner>
-        {:else}
-          {#if isReachable === false}
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage
+      head={{
+        title: t('app.instance.ai'),
+        breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.ai') }),
+        primary: { label: t('app.instance.ai_add'), icon: 'plus', onclick: () => open('add') },
+      }}
+      refused={door ?? (unreadable ? failed : undefined)}
+    >
+      {#snippet intro()}
+        <Stack gap="100">
+          <p class="quiet">{t('app.instance.ai_intro')}</p>
+          {#if models.length > 0 && isReachable === false}
             <Banner tone="warning" title={t('app.instance.ai_unreachable_title')}>
               {t('app.instance.ai_unreachable_body', { setting: t('app.instance.setting.ai.sources') })}
               {#snippet action()}
-                <Button size="sm" tone="secondary" onclick={() => onnavigate('/instance/settings?tab=ai')}>{t('app.instance.ai_unreachable_action')}</Button>
+                <Button size="sm" tone="secondary" onclick={() => onnavigate('/instance/settings/ai')}>{t('app.instance.ai_unreachable_action')}</Button>
               {/snippet}
             </Banner>
           {/if}
-          <Table label={t('app.instance.ai')} isLabelHidden columns={columns}>
-            {#each models as model (model.id)}
-              <tr>
-                <td>
-                  <span class="name">{model.display_name}</span>
-                  <span class="slug">{model.processor}</span>
-                </td>
-                <td>{where(model.jurisdiction)}</td>
-                <td>
-                  {#if model.completion_model}<span class="slug">{t('app.instance.ai_completion', { model: model.completion_model })}</span>{/if}
-                  {#if model.embedding_model}<span class="slug">{t('app.instance.ai_embedding', { model: model.embedding_model })}</span>{/if}
-                  <span class="slug">{model.has_api_key ? t('app.instance.ai_key_stored') : t('app.instance.ai_key_none')}</span>
-                </td>
-                <td>
-                  <div class="row">
-                    <Button tone="subtle" onclick={() => open('change', model)}>{t('app.instance.ai_change')}</Button>
-                    <Button tone="danger" onclick={() => open('remove', model)}>{t('app.instance.ai_remove')}</Button>
-                  </div>
-                </td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
+        </Stack>
+      {/snippet}
+      {#snippet filters()}
+        <FilterBar
+          searchLabel={t('app.instance.ai_search')}
+          clearSearchLabel={t('app.page.clear_search')}
+          bind:search
+          countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(models.length) }) : undefined}
+        />
+      {/snippet}
+
+      {#if failure && !acting}<FailureNote problem={failure} />{/if}
+      {#if reading.status === 'loading' || reading.status === 'idle'}
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
+      {:else}
+        <DataTable
+          label={t('app.instance.ai')}
+          {columns}
+          rows={shown}
+          key={(model: OfferedAiModel) => model.id}
+          onopen={(model: OfferedAiModel) => open('change', model)}
+          rowLabel={(model: OfferedAiModel) => model.display_name}
+          menu={(model: OfferedAiModel) => ({
+            label: t('app.page.more_for', { name: model.display_name }),
+            items: [
+              { id: 'change', label: `${t('app.instance.ai_change')}…` },
+              { id: 'remove', label: `${t('app.instance.ai_remove')}…`, isDestructive: true, hasSeparatorBefore: true },
+            ],
+          })}
+          onmenu={(model: OfferedAiModel, id: string) => open(id as 'change' | 'remove', model)}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={models.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+        >
+          {#snippet cell(model: OfferedAiModel, column: DataColumn)}
+            {#if column.id === 'model'}
+              <span class="name">{model.display_name}</span>
+              <span class="slug">{model.processor}</span>
+            {:else if column.id === 'where'}
+              {where(model.jurisdiction)}
+            {:else}
+              {#if model.completion_model}<span class="slug">{t('app.instance.ai_completion', { model: model.completion_model })}</span>{/if}
+              {#if model.embedding_model}<span class="slug">{t('app.instance.ai_embedding', { model: model.embedding_model })}</span>{/if}
+              <span class="slug">{model.has_api_key ? t('app.instance.ai_key_stored') : t('app.instance.ai_key_none')}</span>
+            {/if}
+          {/snippet}
+          {#snippet empty()}
+            {#if models.length === 0}
+              <EmptyState kind="unused" title={t('app.instance.ai_none')} />
+            {:else}
+              <EmptyState kind="filtered" title={t('app.instance.ai_none_found')}>
+                {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {/if}
+          {/snippet}
+        </DataTable>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </ListPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <Dialog
+  size="l"
   title={acting?.kind === 'change' ? t('app.instance.ai_change_title') : t('app.instance.ai_add_title')}
   isOpen={acting?.kind === 'add' || acting?.kind === 'change'}
   dismissLabel={t('app.instance.cancel')}
@@ -220,6 +248,7 @@
 </Dialog>
 
 <Dialog
+  size="s"
   title={t('app.instance.ai_remove_title')}
   isOpen={acting?.kind === 'remove'}
   dismissLabel={t('app.instance.cancel')}
@@ -236,7 +265,10 @@
       {t('app.instance.ai_remove')}
     </Button>
   {/snippet}
-  <Banner tone="warning">{t('app.instance.ai_remove_cost', { name: acting?.model?.display_name ?? '' })}</Banner>
+  <Stack gap="150">
+    {#if failure}<FailureNote problem={failure} />{/if}
+    <Banner tone="warning">{t('app.instance.ai_remove_cost', { name: acting?.model?.display_name ?? '' })}</Banner>
+  </Stack>
 </Dialog>
 
 <style>
@@ -245,5 +277,4 @@
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
 </style>

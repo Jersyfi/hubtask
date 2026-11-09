@@ -33,6 +33,7 @@
     Badge,
     Button,
     Checkbox,
+    DetailPage,
     EmptyState,
     Icon,
     IconButton,
@@ -1111,7 +1112,8 @@
 {:else if !item}
   <EmptyState kind="filtered" title={t('app.item.not_found')} />
 {:else}
-  <Stack gap="300">
+  <DetailPage {isInPane} details={holdsDetails ? detailsColumn : undefined}>
+  {#snippet top()}
     <ReplicaMark state={entry.state} />
     <ConflictStrip itemId={item.id} />
 
@@ -1276,46 +1278,7 @@
       {/if}
     </div>
 
-    <div class="columns" data-pane={isInPane ? '' : undefined}>
-      <!-- The details before the text in the document: after the head they are what the entry
-           is, so the reading order and the tab order meet them there on every width; from
-           `expanded` they are drawn beside the text, at the end of the line. Absent where they
-           would hold no row (`holdsDetails`). -->
-      {#if holdsDetails}
-        <aside class="details" aria-label={t('app.item.details')}>
-          <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
-          <details class="details-fold" bind:open={isDetailsOpen}>
-            <summary class="details-summary">{t('app.item.details')}</summary>
-            <div class="rows" data-folded={isFieldsOpen || hasDetailProposal ? undefined : ''} bind:this={detailRowsElement}>
-              {#if isTypeKnown && isTypeOffered}
-                {@render detailRows()}
-              {:else if isTypeKnown}
-                <!-- The manifest answered and does not declare this type. Its own sentence, once,
-                     rather than fourteen refusals drawn as an empty column. -->
-                <p class="unread" role="status">{offer.refusal({ code: 'items.type_unsupported', params: { item_type: item.type } })}</p>
-              {:else if typeFailure}
-                <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
-                     on. The rows are missing because the installation could not be read, and that
-                     is what it says — with the sentence the server gave, and where to ask again. -->
-                <p class="unread" role="status">{t('app.item.type_unread')}</p>
-                <FailureNote problem={typeFailure} />
-              {:else}
-                <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
-              {/if}
-            </div>
-            <!-- The fields with nothing set wait behind one press: a short entry stays short, a
-                 long one stays ordered (concept round 2, §4). -->
-            {#if isTypeKnown && isTypeOffered && emptyFieldCount > 0 && !hasDetailProposal}
-              <button type="button" class="more-fields" aria-expanded={isFieldsOpen} onclick={() => (isFieldsOpen = !isFieldsOpen)}>
-                <Icon name={isFieldsOpen ? 'chevron-down' : 'chevron-right'} size="sm" />
-                {isFieldsOpen ? t('app.item.fields_fewer') : setFieldCount === 0 ? t('app.item.fields_add') : t('app.item.fields_more', { count: String(emptyFieldCount) })}
-              </button>
-            {/if}
-          </details>
-        </aside>
-      {/if}
-
-      <div class="main-column">
+  {/snippet}
         <!-- A desk entry's promised times first, directly under the head and above the notes
              (user-experience.md §5.6; UC-SVC-02 check 6): the handler reads what breaks first. -->
         {#if isDeskEntry}
@@ -1472,10 +1435,44 @@
             </Stack>
           {/if}
         </Tabs>
-      </div>
+  </DetailPage>
 
-    </div>
-  </Stack>
+  <!-- The details before the text in the document (DetailPage): after the head they are what the
+       entry is, so the reading order and the tab order meet them there on every width. Absent where
+       they would hold no row (`holdsDetails`). -->
+  {#snippet detailsColumn()}
+        <aside class="details" aria-label={t('app.item.details')} data-pane={isInPane ? '' : undefined}>
+        <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
+        <details class="details-fold" bind:open={isDetailsOpen}>
+          <summary class="details-summary">{t('app.item.details')}</summary>
+          <div class="rows" data-folded={isFieldsOpen || hasDetailProposal ? undefined : ''} bind:this={detailRowsElement}>
+            {#if isTypeKnown && isTypeOffered}
+              {@render detailRows()}
+            {:else if isTypeKnown}
+              <!-- The manifest answered and does not declare this type. Its own sentence, once,
+                   rather than fourteen refusals drawn as an empty column. -->
+              <p class="unread" role="status">{offer.refusal({ code: 'items.type_unsupported', params: { item_type: item.type } })}</p>
+            {:else if typeFailure}
+              <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
+                   on. The rows are missing because the installation could not be read, and that
+                   is what it says — with the sentence the server gave, and where to ask again. -->
+              <p class="unread" role="status">{t('app.item.type_unread')}</p>
+              <FailureNote problem={typeFailure} />
+            {:else}
+              <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
+            {/if}
+          </div>
+          <!-- The fields with nothing set wait behind one press: a short entry stays short, a
+               long one stays ordered (concept round 2, §4). -->
+          {#if isTypeKnown && isTypeOffered && emptyFieldCount > 0 && !hasDetailProposal}
+            <button type="button" class="more-fields" aria-expanded={isFieldsOpen} onclick={() => (isFieldsOpen = !isFieldsOpen)}>
+              <Icon name={isFieldsOpen ? 'chevron-down' : 'chevron-right'} size="sm" />
+              {isFieldsOpen ? t('app.item.fields_fewer') : setFieldCount === 0 ? t('app.item.fields_add') : t('app.item.fields_more', { count: String(emptyFieldCount) })}
+            </button>
+          {/if}
+        </details>
+      </aside>
+  {/snippet}
 {/if}
 
 {#snippet dueAsk()}
@@ -1745,13 +1742,8 @@
   .cover-stripe[data-token='magenta'] { background: var(--label-magenta-bg); }
   .cover-stripe[data-token='violet'] { background: var(--label-violet-bg); }
 
-  /* Two columns from `expanded`: the text and the tree, and the details beside them at the
-     pane's width. One column below, with the details folded under the head. */
-  .columns { display: flex; flex-direction: column; gap: var(--sp-300); }
-
-  .main-column { display: flex; flex-direction: column; gap: var(--sp-300); min-width: 0; flex: 1; }
-
-  .details { min-width: 0; }
+  /* The columns are DetailPage's: the details beside the main column from `expanded`, folded
+     under the head below it. */
 
   /* A table inside the page or the panel, not a card on it: the border and no shadow of its own,
      so nothing is a layer over the layer it sits in. */
@@ -1796,23 +1788,19 @@
   .more-fields:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   /* In the panel the details are a grid of two at the top, as the concept draws it. */
-  .columns[data-pane] .rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sp-200); }
+  .details[data-pane] .rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sp-200); }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
-    .columns:not([data-pane]) { flex-direction: row-reverse; align-items: flex-start; }
-
-    .columns:not([data-pane]) .details { flex: none; inline-size: var(--layout-pane-width); position: sticky; inset-block-start: calc(var(--layout-appbar-height) + var(--sp-200)); }
-
     /* From `expanded` the details never fold: the disclosure is the phone's, and the summary is
        a heading in all but name. Inside the pane the column is one and the fold stays a fold. */
     .details-summary { pointer-events: none; list-style: none; }
 
     .details-summary::-webkit-details-marker { display: none; }
 
-    .columns[data-pane] .details-summary { pointer-events: auto; list-style: disclosure-closed inside; }
+    .details[data-pane] .details-summary { pointer-events: auto; list-style: disclosure-closed inside; }
 
-    .columns[data-pane] details[open] > .details-summary { list-style: disclosure-open inside; }
+    .details[data-pane] details[open] > .details-summary { list-style: disclosure-open inside; }
   }
 
 

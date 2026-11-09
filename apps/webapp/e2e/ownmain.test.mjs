@@ -191,7 +191,7 @@ test('chromium: after a break the workspace administration warns until the domai
     const text = (await warning.textContent()) ?? '';
     assert.ok(text.includes(`${OWN} is no longer the main address`), text);
     for (const said of says) assert.ok(text.includes(said), `${cause}: "${said}" is not said in ${text}`);
-    await warning.getByRole('button', { name: 'Address' }).click();
+    await warning.getByRole('link', { name: 'Address' }).click();
     await page.waitForURL((url) => url.pathname === '/administration/address');
     await context.close();
   }
@@ -237,7 +237,7 @@ test('chromium: the installation overview warns of a fallen-back domain, and the
   assert.ok(text.includes('The workspace answers at meier.tasks.example.net.'), text);
   assert.equal(await page.locator(`[data-fell-back="${OWN}"]`).count(), 0, 'a serving main domain warns');
 
-  await warning.getByRole('button', { name: 'Own domains' }).click();
+  await warning.getByRole('link', { name: 'Own domains' }).click();
   await page.getByRole('heading', { name: 'Own domains' }).waitFor();
   await chooseInRow(page.getByRole('row').filter({ hasText: OWN }), 'Block domain');
   const dialog = page.getByRole('dialog', { name: `Block ${OWN}` });

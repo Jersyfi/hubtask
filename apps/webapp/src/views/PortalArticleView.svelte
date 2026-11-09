@@ -6,7 +6,7 @@
   // it helped - one answer per reader, which the publisher counts and never names. The Markdown is shown as written, never as markup a page could inject.
 
   import { untrack } from 'svelte';
-  import { Button, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Button, PageHeader, DetailPage, Skeleton, Stack } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { Article } from '@hubtask/sync-engine';
 
@@ -39,8 +39,10 @@
   }
 </script>
 
-<Stack gap="300">
+<DetailPage>
+  {#snippet top()}
   <PageHeader title={read ? `${read.icon ? `${read.icon} ` : ''}${read.title}` : t('app.portal.article')} isTitleInBar={viewport.isCompact} />
+  {/snippet}
   {#if failure}
     <FailureState problem={failure} onRetry={() => void article.refresh()} />
   {:else if !read}
@@ -65,7 +67,7 @@
       </Stack>
     </section>
   {/if}
-</Stack>
+</DetailPage>
 
 <style>
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }

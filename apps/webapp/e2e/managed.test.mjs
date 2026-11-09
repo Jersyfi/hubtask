@@ -15,7 +15,7 @@ import { chromium } from 'playwright';
 
 import { HUB, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, waysOffered } from './addpeople.mjs';
+import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, wayDialog, waysOffered } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -85,7 +85,7 @@ test('People offers an account without an address where the rule allows it, and 
     await page.goto(`${served.origin}/administration/people`);
     // One of the three ways behind the page's one primary action (ux-inventory §E8).
     await addPeople(page, WITHOUT_ADDRESS);
-    const form = page.locator('form').filter({ has: page.getByLabel('Sign-in name') });
+    const form = wayDialog(page, WITHOUT_ADDRESS);
     await form.getByLabel('Sign-in name').fill('Lena');
     await form.getByRole('textbox', { name: /^Name/ }).fill('Lena');
     // The place first: the roles offered are the ones the reader may give there.
@@ -124,7 +124,8 @@ test('Sign-in settings draws the switch, and says why it cannot be switched on u
   const browser = await chromium.launch();
   const { page, close } = await open(browser, rule(false, false, { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' }), {});
   try {
-    await page.goto(`${served.origin}/administration/sign-in`);
+    // The switch is its own section, *Accounts without mail*, at its own address.
+    await page.goto(`${served.origin}/administration/sign-in/accounts-without-mail`);
     const control = page.getByRole('switch', { name: 'Accounts without a mail address allowed' });
     await control.waitFor();
     assert.equal(await control.isDisabled(), true, 'a switch the installation locked can be changed here');

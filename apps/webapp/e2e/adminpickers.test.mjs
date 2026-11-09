@@ -59,7 +59,7 @@ async function as(browser, permissions) {
 
 /** Opens a picker by its label and chooses somebody by name. */
 async function pick(page, label, name) {
-  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText(label, { exact: true }) });
+  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText(label, { exact: true }) }).filter({ visible: true });
   await picker.getByRole('button').first().click();
   const panel = page.getByRole('dialog', { name: label });
   await panel.getByText(name, { exact: true }).click();
@@ -77,14 +77,15 @@ test('chromium: the trail\'s actor is picked from the workspace\'s people and th
   await page.getByText('Pickers Former Member').first().waitFor();
   assert.equal(await page.getByRole('textbox', { name: /Who did it/ }).count(), 0, 'the actor is still typed as an identifier');
 
+  // Who is a chip of the filter bar; the picker opens from it (page-system §7.6).
+  await page.getByRole('button', { name: 'Who: any' }).click();
   const picker = await pick(page, 'Who did it', OTHER.display_name);
   assert.match(await picker.textContent() ?? '', new RegExp(OTHER.display_name));
-  await page.getByRole('button', { name: 'Look', exact: true }).click();
-  await page.waitForFunction(() => true);
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => setTimeout(resolve, 800));
   assert.ok(sent.some((each) => each.path === '/audit' && new URLSearchParams(each.search).get('actor_id') === OTHER.id), 'the query did not carry the chosen actor');
 
   // Somebody only the trail names is offered too: the trail's own read answered them.
+  if (await page.locator('[data-person-picker]').count() === 0) await page.getByRole('button', { name: new RegExp(`^Who: `) }).click();
   await pick(page, 'Who did it', FORMER.display_name);
   assert.deepEqual(owner.failures, []);
 });
@@ -97,12 +98,19 @@ test('chromium: a request\'s subject is picked by name and sent as the account',
   const { page, sent } = owner;
 
   await page.goto(`${served.origin}/administration/privacy`);
-  await page.getByText('Their account', { exact: true }).first().waitFor();
-  for (const label of ['Their account', 'Whose account', 'Whose consent']) {
+  // Recording is the head's Dialog M; restricting and withdrawing its ⋯'s (page-system §9.3).
+  const dialogs = [['Record a request', null, 'Their account'], ['More for Privacy requests', 'Restrict processing…', 'Whose account'], ['More for Privacy requests', 'Withdraw a consent…', 'Whose consent']];
+  for (const [button, item, label] of dialogs) {
+    await page.getByRole('button', { name: button }).first().click({ timeout: 15_000 });
+    if (item) await page.getByRole('menuitem', { name: item }).click();
+    await page.locator('dialog[open]').getByText(label, { exact: true }).first().waitFor();
     assert.equal(await page.getByRole('textbox', { name: new RegExp(`^${label}`) }).count(), 0, `"${label}" is still typed as an identifier`);
+    await page.keyboard.press('Escape');
+    await page.locator('dialog[open]').waitFor({ state: 'detached' });
   }
+  await page.getByRole('button', { name: 'Record a request' }).first().click();
   await pick(page, 'Their account', OTHER.display_name);
-  await page.getByRole('button', { name: 'Record it' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Record it' }).last().click();
   await page.waitForFunction(() => true);
   await new Promise((resolve) => setTimeout(resolve, 300));
   const recorded = sent.find((each) => each.method === 'POST' && each.path === '/privacy/requests');
@@ -119,7 +127,8 @@ test('chromium: an auditor\'s trail picker offers only whom the trail named, and
 
   await page.goto(`${served.origin}/administration/audit`);
   await page.getByText('Pickers Former Member').first().waitFor();
-  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText('Who did it', { exact: true }) });
+  await page.getByRole('button', { name: 'Who: any' }).click();
+  const picker = page.locator('[data-person-picker]').filter({ has: page.getByText('Who did it', { exact: true }) }).filter({ visible: true });
   await picker.getByRole('button').first().click();
   const panel = page.getByRole('dialog', { name: 'Who did it' });
   await panel.getByText(FORMER.display_name, { exact: true }).waitFor();

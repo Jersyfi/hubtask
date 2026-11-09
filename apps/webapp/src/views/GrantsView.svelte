@@ -7,17 +7,20 @@
   // how do I stop it. Withdrawing takes effect on the app's next request, which the confirmation
   // says rather than implying that what is running now stops mid-sentence.
   //
-  // **Rows, not a table** (UC-SYN-07/3, ADR-0096): a mark, the name, when it was allowed and
-  // last used, and the one action. The installed apps carry the app's icon, their system and device
-  // and *Sign out*, because signing the app out is what withdrawing their grant does (ADR-0096).
+  // A list page (page-system §9.5): a row is a mark, the name, when it was allowed and last used
+  // (UC-SYN-07/3); withdrawing is the row's ⋯ and a Dialog S. The installed apps carry the app's
+  // icon, their system and device and *Sign out*, because signing the app out is what withdrawing
+  // their grant does (ADR-0096).
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, Logo, Stack } from '@hubtask/design-system/components';
+  import { Button, DataTable, EmptyState, FilterBar, ListPage, Logo, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { consent, type Grant } from '../lib/data/consent.svelte.ts';
@@ -33,6 +36,23 @@
   let failure = $state<RenderedProblem | undefined>(undefined);
 
   const rows = $derived(grantOrder(consent.grants));
+  let search = $state('');
+  const found = $derived(rows.filter((grant) => matchesSearch(search, [nameOf(grant)])));
+
+  const title = $derived(profileTitle('grants'));
+  $effect(() => page.entitle(title));
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'app', label: t('app.grants.app_column'), priority: 1 },
+    { id: 'use', label: t('app.grants.use_column'), priority: 2 },
+  ]);
+
+  function rowMenu(grant: Grant): DataRowMenu {
+    return {
+      label: t('app.page.more_for', { name: nameOf(grant) }),
+      items: [{ id: 'withdraw', label: t(grant.app_platform ? 'app.grants.sign_out_menu' : 'app.grants.withdraw_menu'), isDestructive: true }],
+    };
+  }
 
   /** An installed app's grant is named by its system and device (ADR-0096). */
   function nameOf(grant: Grant): string {
@@ -73,40 +93,58 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="grants" />
+  <ListPage head={profileHead('grants')}>
+    {#snippet intro()}<p class="quiet">{t('app.grants.intro')}</p>{/snippet}
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.grants.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        countLabel={t('app.page.found', { shown: String(found.length), count: String(rows.length) })}
+      />
+    {/snippet}
 
-    <Stack gap="200">
-      <p class="prose">{t('app.grants.intro')}</p>
+    {#if failure}<FailureNote problem={failure} />{/if}
 
-      {#if failure}<FailureNote problem={failure} />{/if}
-
-      {#if rows.length === 0}
-        <EmptyState kind="unused" title={t('app.grants.none')} />
-      {:else}
-        <ul class="list" aria-label={t('app.grants.title')}>
-          {#each rows as grant (grant.id)}
-            {@const name = nameOf(grant)}
-            <li>
-              {#if grant.app_platform}
-                <!-- The installed app's own icon: the mark on the brand tile, as the launcher shows it. -->
-                <span class="icon" aria-hidden="true"><Logo size="md" /></span>
-              {:else}
-                <span class="mark" aria-hidden="true">{initialsOf(grant.client_name)}</span>
-              {/if}
-              <div class="grow">
-                <span class="name">{name}</span>
-                <span class="note">{noteOf(grant)}</span>
-              </div>
-              <Button size="sm" tone="secondary" onclick={() => (asking = { id: grant.id, name, isApp: !!grant.app_platform })}>
-                {grant.app_platform ? t('app.grants.sign_out') : t('app.grants.withdraw')}
-              </Button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </Stack>
-  </Stack>
+    <DataTable
+      label={title}
+      {columns}
+      rows={found}
+      key={(grant: Grant) => grant.id}
+      rowLabel={nameOf}
+      menu={rowMenu}
+      onmenu={(grant: Grant) => (asking = { id: grant.id, name: nameOf(grant), isApp: !!grant.app_platform })}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={rows.length === 0 ? undefined : t('app.page.showing', { count: String(found.length) })}
+    >
+      {#snippet cell(grant: Grant, column: DataColumn)}
+        {#if column.id === 'app'}
+          <span class="app">
+            {#if grant.app_platform}
+              <!-- The installed app's own icon: the mark on the brand tile, as the launcher shows it. -->
+              <span class="icon" aria-hidden="true"><Logo size="md" /></span>
+            {:else}
+              <span class="mark" aria-hidden="true">{initialsOf(grant.client_name)}</span>
+            {/if}
+            <span class="name">{nameOf(grant)}</span>
+          </span>
+        {:else}
+          <span class="quiet">{noteOf(grant)}</span>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if rows.length === 0}
+          <EmptyState kind="unused" title={t('app.grants.none')} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.grants.filtered')}>
+            {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
+  </ListPage>
 
   <FinalActDialog
     isOpen={asking !== undefined}
@@ -122,34 +160,9 @@
 {/if}
 
 <style>
-  .prose { margin: 0; max-inline-size: 72ch; color: var(--text-secondary); }
+  .quiet { margin: 0; color: var(--text-secondary); }
 
-
-  .list {
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    overflow: hidden;
-  }
-
-  /* On a phone the action wraps under the name rather than crushing it. */
-  li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--sp-150);
-    padding: var(--sp-150);
-    background: var(--bg-surface);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-  }
-
-  li:last-child { border-block-end: 0; }
-
-  .grow { flex: 1 1 0; min-inline-size: min(100%, 16ch); }
+  .app { display: inline-flex; align-items: center; gap: var(--sp-150); }
 
   .mark {
     display: inline-grid;
@@ -176,13 +189,5 @@
     --brand-outline: var(--brand-tile-outline);
   }
 
-  .name { display: block; font-weight: var(--fw-medium); overflow-wrap: anywhere; }
-
-  .note {
-    display: block;
-    margin-block-start: var(--sp-050);
-    font-size: var(--fs-075);
-    color: var(--text-subtle);
-  }
-
+  .name { font-weight: var(--fw-medium); overflow-wrap: anywhere; }
 </style>

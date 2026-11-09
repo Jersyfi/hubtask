@@ -1303,6 +1303,8 @@ export function fallback(route, request, path) {
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
+  // A backup target's archives, read by its record page: a bare array too, under the target's id.
+  if (/^\/backup-targets\/[^/]+\/backups$/.test(read)) return route.fulfill({ json: [] });
   // The mail intake as a workspace starts: off, members only, no receiving domain (ADR-0094).
   if (read === '/mail/settings' && request.method() === 'GET') {
     return route.fulfill({ json: { enabled: false, senders: { level: 'MEMBERS', allowed: [], blocked: [] }, sender_routes: [] } });
@@ -1348,6 +1350,8 @@ export function fallback(route, request, path) {
   if (read === '/settings/catalogue' && request.method() === 'GET') return route.fulfill({ json: SETTINGS_CATALOGUE });
   if (read === '/roles' && request.method() === 'GET') return route.fulfill({ json: ROLE_CATALOGUE });
   if (read === '/time-work-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
+  // The rules' latest runs, read by the administration's column for its *n failed* figure.
+  if (read === '/automation/runs' && request.method() === 'GET') return route.fulfill({ json: { data: [], page: { has_more: false } } });
   // A plan's time and the reader's file stores, empty, in the contract's shapes rather than a list's:
   // the hub's and a collection's *Time*, the report and *Profile -> Files* read fields a page lacks.
   const plan = /^\/plans\/([^/]+)\/(actuals|budget|billing-rates)$/.exec(read);

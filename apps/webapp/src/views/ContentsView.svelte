@@ -1,15 +1,16 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *All contents* of a hub (the navigation concept §2.4 part 4): its pages and whiteboards as one
-  // table, narrowed to a kind and sorted by name or by the last change, with the space's search -
-  // its words, labels, the reader's own pages and how recently a page changed (UC-DOC-01 check 9).
+  // *All contents* of a hub (the navigation concept §2.4 part 4), a list page (page-system §7.1):
+  // its pages and whiteboards as one table, the filter bar above it - the space's search, the kind,
+  // the order, a label, how recently a page changed and the reader's own pages as chips, and the
+  // count (UC-DOC-01 check 9).
   // The tree itself is the sidebar's *Contents*. A whiteboard is made here under a page or at the
   // top (UC-CNV-10 check 6), as ＋ in *Contents* asks; a page is made on the pages' own screen.
-  import { placeMark } from '../lib/workspace/PlaceMark.svelte';
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Disclosure, EmptyState, Inline, PageHeader, SearchField, Select, Skeleton, Stack, Switch, Table, UploadField, ViewSwitcher,
+    Banner, Button, DataTable, Disclosure, EmptyState, FilterBar, ListPage, Radio, Skeleton, Switch, UploadField,
+    type DataColumn, type Filter, type PageHead,
   } from '@hubtask/design-system/components';
   import type { PageHitList, PageLabelCounts, PageList, WhiteboardList } from '@hubtask/sync-engine';
 
@@ -23,7 +24,6 @@
   import { boardsPath, placeCarried, readNative, whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -87,26 +87,29 @@
       : all.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   });
   const isReading = $derived(pageList === undefined || boardList === undefined);
-  const columns = $derived([
-    { id: 'title', label: t('app.whiteboards.board_title') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'title', label: t('app.whiteboards.board_title'), priority: 1 },
     { id: 'kind', label: t('app.nav.kind_label') },
     { id: 'changed', label: t('app.pages.changed') },
   ]);
   const kinds = $derived([
-    { id: 'all', label: t('app.nav.kind_all') },
-    { id: 'pages', label: t('app.nav.kind_pages') },
-    { id: 'whiteboards', label: t('app.nav.kind_whiteboards') },
+    { value: 'all', label: t('app.nav.kind_all') },
+    { value: 'pages', label: t('app.nav.kind_pages') },
+    { value: 'whiteboards', label: t('app.nav.kind_whiteboards') },
   ]);
+  const orders = $derived([{ value: 'name', label: t('app.nav.mode_name') }, { value: 'changed', label: t('app.nav.mode_recent') }]);
 
   // --- The space's search (UC-DOC-01 check 9) ---------------------------------------------------
   let words = $state('');
   let hits = $state<PageHitList['data'] | undefined>(undefined);
+  const countLabel = $derived(
+    hits !== undefined ? t('app.page.showing', { count: String(hits.length) }) : isReading ? undefined : t('app.page.found', { shown: String(rows.length), count: String((pageList ?? []).filter((each) => !each.template).length + (boardList ?? []).length) }),
+  );
   let generation = 0;
   let chosenLabel = $state(untrack(() => contentsAsk.label));
   contentsAsk.label = '';
   let ownOnly = $state(false);
   let changedWithin = $state<ChangedWithin>('any');
-  let isFilterOpen = $state(untrack(() => chosenLabel !== ''));
   let facet = $state<PageLabelCounts['data']>([]);
   $effect(() => {
     const at = hubId;
@@ -114,8 +117,27 @@
       if (next.status === 'ready') facet = next.data.data;
     }));
   });
-  const filters = $derived((chosenLabel ? 1 : 0) + (ownOnly ? 1 : 0) + (changedWithin === 'any' ? 0 : 1));
+  const activeCount = $derived((shownKind === 'all' ? 0 : 1) + (chosenLabel ? 1 : 0) + (ownOnly ? 1 : 0) + (changedWithin === 'any' ? 0 : 1));
   const changedOptions = $derived((Object.keys(CHANGED_WITHIN) as ChangedWithin[]).map((value) => ({ value, label: t(`app.pages.changed_${value}`) })));
+  // The chips (PS-7): each names its choice; the space's facets only where it has labels.
+  const chips = $derived<Filter[]>([
+    { id: 'kind', label: t('app.nav.contents_chip_kind', { kind: kinds.find((each) => each.value === shownKind)?.label ?? '' }), isActive: shownKind !== 'all' },
+    { id: 'order', label: t('app.nav.contents_chip_order', { order: orders.find((each) => each.value === order)?.label ?? '' }) },
+    ...(facet.length > 0 ? [{ id: 'label', label: t('app.nav.contents_chip_label', { label: chosenLabel || t('app.page.any') }), isActive: chosenLabel !== '' }] : []),
+    { id: 'changed', label: t('app.nav.contents_chip_changed', { when: t(`app.pages.changed_${changedWithin}`) }), isActive: changedWithin !== 'any' },
+    { id: 'own', label: t('app.pages.own_only'), isActive: ownOnly },
+  ]);
+  function clearFilters() {
+    shownKind = 'all';
+    chosenLabel = '';
+    changedWithin = 'any';
+    ownOnly = false;
+  }
+  const hitColumns = $derived<DataColumn[]>([
+    { id: 'title', label: t('app.whiteboards.board_title'), priority: 1 },
+    { id: 'excerpt', label: t('app.nav.contents_excerpt'), priority: 2 },
+  ]);
+  type Hit = NonNullable<typeof hits>[number];
   $effect(() => {
     const asked = words.trim();
     const at = hubId;
@@ -187,6 +209,19 @@
     if (native) titleDraft = native.title || titleDraft;
   }
 
+  const contentsHead = $derived<PageHead>({
+    title: t('app.nav.all_contents'),
+    primary: mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => startMaking() } : undefined,
+    breadcrumb: hub
+      ? {
+          trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],
+          label: t('app.pages.trail'),
+          expandLabel: t('app.admin.expand_trail'),
+          onnavigate: () => onnavigate(`/hubs/${hubId}`),
+        }
+      : undefined,
+  });
+
   async function make() {
     const title = titleDraft.trim();
     if (!title) return;
@@ -215,85 +250,73 @@
   }
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.nav.all_contents')}
-    isTitleInBar={viewport.isCompact}
-    primary={mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => startMaking() } : undefined}
-    breadcrumb={hub
-      ? {
-          trail: [{ id: hubId, label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],
-          mark: placeMark,
-          label: t('app.pages.trail'),
-          expandLabel: t('app.admin.expand_trail'),
-          onnavigate: () => onnavigate(`/hubs/${hubId}`),
-        }
-      : undefined}
-  />
-
-  <Inline gap="100" align="end" isWrapping>
-    <div class="search"><SearchField label={t('app.pages.search')} clearLabel={t('app.pages.search_clear')} bind:value={words} size="sm" /></div>
-    <Button size="sm" tone={filters > 0 ? 'secondary' : 'subtle'} icon="funnel" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>
-      {filters > 0 ? t('app.pages.filter_count', { count: String(filters) }) : t('app.pages.filter')}
-    </Button>
-  </Inline>
-  {#if isFilterOpen}
-    <div class="narrow" data-page-search-narrow>
-      {#if facet.length > 0}
-        <Inline gap="050" isWrapping>
-          {#each facet.slice(0, 12) as each (each.label)}
-            <Button size="sm" tone={chosenLabel === each.label ? 'secondary' : 'subtle'} aria-pressed={chosenLabel === each.label} onclick={() => (chosenLabel = chosenLabel === each.label ? '' : each.label)}>
-              {t('app.pages.label_facet', { label: each.label, count: String(each.pages) })}
-            </Button>
-          {/each}
-        </Inline>
-      {/if}
-      <Select label={t('app.pages.changed')} size="sm" bind:value={changedWithin} options={changedOptions} />
-      <Switch label={t('app.pages.own_only')} checked={ownOnly} onchange={(event: Event) => (ownOnly = (event.currentTarget as HTMLInputElement).checked)} />
+{#snippet picker(filter: Filter)}
+  {#if filter.id === 'kind'}
+    <Radio label={t('app.nav.kind_label')} bind:value={() => shownKind, (next) => (shownKind = next as Kind)} options={kinds} />
+  {:else if filter.id === 'order'}
+    <Radio label={t('app.nav.order_contents')} bind:value={() => order, (next) => (order = next as 'name' | 'changed')} options={orders} />
+  {:else if filter.id === 'label'}
+    <div data-page-search-narrow>
+      <Radio label={t('app.nav.contents_label')} bind:value={chosenLabel}
+        options={[{ value: '', label: t('app.page.any') }, ...facet.slice(0, 12).map((each) => ({ value: each.label, label: t('app.pages.label_facet', { label: each.label, count: String(each.pages) }) }))]} />
     </div>
+  {:else if filter.id === 'changed'}
+    <Radio label={t('app.pages.changed')} bind:value={() => changedWithin, (next) => (changedWithin = next as ChangedWithin)} options={changedOptions} />
+  {:else}
+    <Switch label={t('app.pages.own_only')} checked={ownOnly} onchange={(event: Event) => (ownOnly = (event.currentTarget as HTMLInputElement).checked)} />
   {/if}
+{/snippet}
+
+<ListPage head={contentsHead}>
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.pages.search')}
+      clearSearchLabel={t('app.pages.search_clear')}
+      bind:search={words}
+      filters={chips}
+      {picker}
+      moreLabel={t('app.page.more_filters')}
+      filtersLabel={t('app.page.filters', { count: String(activeCount) })}
+      sheetTitle={t('app.page.filters', { count: '0' })}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      showLabel={t('app.page.show_results', { count: String(hits?.length ?? rows.length) })}
+      clearLabel={t('app.page.clear')}
+      onclear={clearFilters}
+      {countLabel}
+    />
+  {/snippet}
 
   {#if hits !== undefined}
-    <ul class="hits" aria-label={t('app.pages.search_results')}>
-      {#each hits as hit (hit.id)}
-        <li>
-          <a href={`/pages/${hit.id}`}>{hit.title}</a>
-          <span class="excerpt">{hit.excerpt.replace(/[«»]/gu, '')}</span>
-        </li>
-      {:else}
-        <li class="quiet">{t('app.pages.search_none')}</li>
-      {/each}
-    </ul>
+    <DataTable label={t('app.pages.search_results')} columns={hitColumns} rows={hits} key={(hit: Hit) => hit.id} href={(hit: Hit) => `/pages/${hit.id}`} rowLabel={(hit: Hit) => hit.title}>
+      {#snippet cell(hit: Hit, column: DataColumn)}
+        {#if column.id === 'title'}<a href={`/pages/${hit.id}`}>{hit.title}</a>
+        {:else}<span class="excerpt">{hit.excerpt.replace(/[«»]/gu, '')}</span>{/if}
+      {/snippet}
+      {#snippet empty()}<EmptyState kind="filtered" title={t('app.pages.search_none')} />{/snippet}
+    </DataTable>
+  {:else if refusal}
+    <p class="refusal">{refusal}</p>
+  {:else if isReading}
+    <div aria-busy="true"><Skeleton lines={5} /></div>
+  {:else if rows.length === 0 && shownKind === 'whiteboards' && mayWrite}
+    <!-- No board yet: one starts from a template in one press (user-experience.md §4, §5.5). -->
+    <div class="start" data-boards-start>
+      <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_hint')} icon="layout-template" />
+      <BoardTemplates chosen={'BLANK'} {format} onpick={(choice) => startMaking(choice)} />
+    </div>
+  {:else if rows.length === 0}
+    <EmptyState kind="unused" title={t('app.nav.contents_empty')} />
   {:else}
-    <Inline gap="100" align="end" justify="between" isWrapping>
-      <ViewSwitcher label={t('app.nav.kind_label')} views={kinds} selected={shownKind} onselect={(id) => (shownKind = id as Kind)} />
-      <Select label={t('app.nav.order_contents')} size="sm" bind:value={order} options={[{ value: 'name', label: t('app.nav.mode_name') }, { value: 'changed', label: t('app.nav.mode_recent') }]} />
-    </Inline>
-    {#if refusal}
-      <p class="refusal">{refusal}</p>
-    {:else if isReading}
-      <div aria-busy="true"><Skeleton lines={5} /></div>
-    {:else if rows.length === 0 && shownKind === 'whiteboards' && mayWrite}
-      <!-- No board yet: one starts from a template in one press (user-experience.md §4, §5.5). -->
-      <div class="start" data-boards-start>
-        <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_hint')} icon="layout-template" />
-        <BoardTemplates chosen={'BLANK'} {format} onpick={(choice) => startMaking(choice)} />
-      </div>
-    {:else if rows.length === 0}
-      <EmptyState kind="unused" title={t('app.nav.contents_empty')} />
-    {:else}
-      <Table label={t('app.nav.all_contents')} isLabelHidden {columns}>
-        {#each rows as row (row.id)}
-          <tr data-content-row={row.kind}>
-            <th scope="row"><a href={row.kind === 'page' ? `/pages/${row.id}` : `/whiteboards/${row.id}`}>{row.title}</a></th>
-            <td>{t(row.kind === 'page' ? 'app.nav.kind_page' : 'app.nav.kind_whiteboard')}</td>
-            <td class="quiet">{row.at ? formatPlainDay(row.at.slice(0, 10), messages.locale) : ''}</td>
-          </tr>
-        {/each}
-      </Table>
-    {/if}
+    <DataTable label={t('app.nav.all_contents')} {columns} {rows} key={(row) => row.id} rowLabel={(row) => row.title} href={(row) => (row.kind === 'page' ? `/pages/${row.id}` : `/whiteboards/${row.id}`)}>
+      {#snippet cell(row, column: DataColumn)}
+        {#if column.id === 'title'}<a data-content-row={row.kind} href={row.kind === 'page' ? `/pages/${row.id}` : `/whiteboards/${row.id}`}>{row.title}</a>
+        {:else if column.id === 'kind'}{t(row.kind === 'page' ? 'app.nav.kind_page' : 'app.nav.kind_whiteboard')}
+        {:else}<span class="quiet">{row.at ? formatPlainDay(row.at.slice(0, 10), messages.locale) : ''}</span>{/if}
+      {/snippet}
+    </DataTable>
   {/if}
-</Stack>
+</ListPage>
 
 {#if isMaking}
   <CreateDialog
@@ -330,12 +353,6 @@
 {/if}
 
 <style>
-  .search { flex: 1 1 24ch; min-inline-size: 0; }
-  .narrow { display: grid; gap: var(--sp-050); }
-  .hits { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
-  .hits li { display: grid; gap: var(--sp-025); padding-block: var(--sp-050); }
-  .hits a, th a { color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
-  .hits a:hover, th a:hover { text-decoration: underline; }
   .excerpt { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }

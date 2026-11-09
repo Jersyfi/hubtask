@@ -86,17 +86,21 @@ test('chromium: the journal is narrowed by what happened and by workspace, and r
   await page.getByText('2 more entries arrived.').waitFor();
   assert.equal(await rows.count(), 4);
 
-  await page.getByRole('combobox', { name: 'What happened' }).selectOption({ label: 'To workspaces' });
-  await page.getByRole('textbox', { name: 'Workspace address' }).fill('lumen');
-  await page.getByRole('textbox', { name: 'Workspace address' }).press('Enter');
-  await page.getByText('Workspace provisioned').waitFor();
+  // What happened is a chip whose popover holds the kinds; the address is the search.
+  await page.getByRole('button', { name: 'Everything' }).click();
+  await page.getByRole('radio', { name: 'To workspaces' }).check();
+  await page.keyboard.press('Escape');
+  await page.getByRole('searchbox', { name: 'Search by workspace address' }).fill('lumen');
+  await page.waitForFunction(() => {
+    const table = document.querySelector('main table')?.textContent ?? '';
+    return table.includes('Workspace provisioned') && !table.includes('quarry');
+  }, null, { timeout: 10_000 });
   const narrowed = await page.getByRole('table').innerText();
   assert.match(narrowed, /Workspace suspended[\s\S]*Workspace provisioned/, narrowed);
   assert.doesNotMatch(narrowed, /quarry|Instance values changed|Plan created/, narrowed);
   assert.ok(asked.includes('?action=tenant.&workspace=lumen'), `the narrowing was not asked of the server: ${asked.join(' ')}`);
   assert.equal(await page.getByRole('button', { name: 'Show older entries' }).count(), 0, 'a narrowing held whole offers more');
 
-  await page.getByRole('textbox', { name: 'Workspace address' }).fill('gone');
-  await page.getByRole('textbox', { name: 'Workspace address' }).press('Enter');
+  await page.getByRole('searchbox', { name: 'Search by workspace address' }).fill('gone');
   await page.getByText('Nothing in the journal matches.').waitFor();
 });

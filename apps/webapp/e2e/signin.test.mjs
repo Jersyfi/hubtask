@@ -404,7 +404,7 @@ test('a recovery code leaves a note that survives a reload and leads to the repl
     await note.waitFor({ timeout: 15_000 });
 
     await page.getByRole('link', { name: 'Replace your authenticator' }).click();
-    await page.waitForURL('**/profile/security');
+    await page.waitForURL('**/profile/security/second-factor');
     // A section, not a disclosure (ux-inventory.md §E7): what the note asks for is in sight.
     await page.getByRole('heading', { name: 'Replace your authenticator', level: 3 }).waitFor({ timeout: 15_000 });
     assert.equal(await page.locator('main details').count(), 0, 'the password screen still hides a part behind a disclosure');

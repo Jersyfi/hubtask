@@ -76,7 +76,7 @@ test('a managed person adds an address on the profile, and a link goes to it', a
   const { page, sent, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/address`);
   await page.getByRole('heading', { name: 'A mail address' }).waitFor({ timeout: 15_000 });
   await page.getByText('You sign in with your sign-in name, lena,').waitFor();
   await page.getByLabel('Email address').fill('lena@example.org');
@@ -91,7 +91,7 @@ test('where the password is not a way in, the profile says why instead of offeri
   const { page, close } = await open(browser, { methods: ['OIDC'] });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/address`);
   await page.getByRole('heading', { name: 'A mail address' }).waitFor({ timeout: 15_000 });
   await page.getByText('An address cannot be added in this workspace').waitFor();
   assert.equal(await page.getByRole('button', { name: 'Send the link' }).count(), 0, 'the form is offered');
@@ -103,7 +103,7 @@ test('where only the password is a way in, the profile offers the address', asyn
   const { page, close } = await open(browser, { methods: ['PASSWORD'] });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/address`);
   await page.getByRole('button', { name: 'Send the link' }).waitFor({ timeout: 15_000 });
 });
 
@@ -113,10 +113,11 @@ test('a person with an address is offered none', async (t) => {
   const { page, close } = await open(browser, { me: ACCOUNT });
   t.after(close);
 
-  await page.goto(`${served.origin}/profile`);
+  await page.goto(`${served.origin}/profile/you/language`);
   // The profile's form is drawn: its first field (its save appears only with a change).
   await page.getByLabel('Language', { exact: true }).waitFor({ timeout: 15_000 });
   assert.equal(await page.getByRole('heading', { name: 'A mail address' }).count(), 0);
+  assert.equal(await page.getByRole('link', { name: 'A mail address' }).count(), 0, 'the section is offered');
 });
 
 test('the mailed link confirms on a press, with the token out of the address first', async (t) => {

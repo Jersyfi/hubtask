@@ -36,9 +36,12 @@ export function productTourSteps(module: string): readonly ProductStep[] {
   ];
 }
 
-/** The module whose home `routeName` is, where it is one. */
-export function homeModuleOf(routeName: string | null | undefined, homes: readonly { readonly module: string; readonly routes: readonly string[] }[]): string | undefined {
-  return routeName ? homes.find((row) => row.routes[0] === routeName)?.module : undefined;
+/**
+ * The module whose home `routeName` is, where it is one. A tab the address names (`?tab=`) is not
+ * the home's first: the tour's first step would take the reader away from it to the home.
+ */
+export function homeModuleOf(routeName: string | null | undefined, homes: readonly { readonly module: string; readonly routes: readonly string[] }[], tab?: string): string | undefined {
+  return routeName && !tab ? homes.find((row) => row.routes[0] === routeName)?.module : undefined;
 }
 
 /**

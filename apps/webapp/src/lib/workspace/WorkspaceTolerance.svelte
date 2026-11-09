@@ -7,7 +7,7 @@
   // the person who set it.
 
   import { untrack } from 'svelte';
-  import { Button, Checkbox, Inline, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Inline, Input, SettingRow } from '@hubtask/design-system/components';
   import type { WorkspaceTolerance } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -50,30 +50,35 @@
 </script>
 
 {#if read}
-  <section class="tolerance" aria-labelledby="workspace-tolerance">
-    <Stack gap="100">
-      <h2 id="workspace-tolerance" class="heading">{t('app.planning.workspace_tolerance')}</h2>
-      <p class="quiet">{t('app.planning.workspace_tolerance_hint')}</p>
-      <p class="quiet">
-        {read.value === null ? t('app.planning.tolerance_none') : t('app.planning.tolerance_days', { days: String(read.value) })}
-        {#if read.value !== null} · {t('app.planning.tolerance_from', { level: t(`app.planning.tolerance_level_${read.source}`) })}{/if}
-        {#if read.locked_by} · {t('app.planning.tolerance_locked', { level: t(`app.planning.tolerance_level_${read.locked_by}`) })}{/if}
-      </p>
-      {#if mayShape && !lockedAbove}
-        <Inline gap="100" align="end">
-          <Input label={t('app.planning.tolerance')} size="sm" type="number" min="0" max="365" bind:value={draft} />
-          <Checkbox label={t('app.planning.tolerance_lock_workspace')} bind:checked={lock} />
-          <Button size="sm" onclick={() => void save(false)}>{t('app.planning.tolerance_set')}</Button>
-          <Button size="sm" tone="subtle" onclick={() => void save(true)}>{t('app.planning.tolerance_inherit')}</Button>
-        </Inline>
-      {/if}
-      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-    </Stack>
-  </section>
+  {@const held = read}
+  <!-- A row of the modules' section beside Planning, acting at once like the switches above it
+       (page-system PS-10): *Set* and *Follow the level above* are its one-act buttons. -->
+  <div class="tolerance" data-setting={KEY}>
+    <SettingRow label={t('app.planning.workspace_tolerance')} help={t('app.planning.workspace_tolerance_hint')} fieldWidth="lg">
+      {#snippet source()}
+        <span class="state">
+          {held.value === null ? t('app.planning.tolerance_none') : t('app.planning.tolerance_days', { days: String(held.value) })}
+          {#if held.value !== null} · {t('app.planning.tolerance_from', { level: t(`app.planning.tolerance_level_${held.source}`) })}{/if}
+          {#if held.locked_by} · {t('app.planning.tolerance_locked', { level: t(`app.planning.tolerance_level_${held.locked_by}`) })}{/if}
+        </span>
+      {/snippet}
+      {#snippet control(nameId)}
+        {#if mayShape && !lockedAbove}
+          <Inline gap="100" align="end" isWrapping>
+            <Input label={t('app.planning.tolerance')} aria-describedby={nameId} size="sm" type="number" min="0" max="365" bind:value={draft} />
+            <Checkbox label={t('app.planning.tolerance_lock_workspace')} bind:checked={lock} />
+            <Button size="sm" onclick={() => void save(false)}>{t('app.planning.tolerance_set')}</Button>
+            <Button size="sm" tone="subtle" onclick={() => void save(true)}>{t('app.planning.tolerance_inherit')}</Button>
+          </Inline>
+        {/if}
+        {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+      {/snippet}
+    </SettingRow>
+  </div>
 {/if}
 
 <style>
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
-  .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .tolerance { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .state { color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

@@ -117,7 +117,9 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   await openSettings(page, COLLECTION.name);
   await page.getByRole('link', { name: 'Labels' }).click();
   await undoAfterEightSeconds(page, async () => {
-    await page.getByRole('button', { name: `Delete ${label.name}` }).click();
+    // A label's delete is behind its row's ⋯ (page-system §9.6).
+    await page.getByRole('button', { name: `More for ${label.name}` }).click();
+    await page.getByRole('menuitem', { name: `Delete ${label.name}` }).click();
   }, `${label.name} is deleted.`);
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/labels/${label.id}`)), 'the label was not deleted at once');

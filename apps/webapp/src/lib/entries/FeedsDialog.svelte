@@ -140,7 +140,7 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.feeds.title')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="l" bind:isOpen title={t('app.feeds.title')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="200">
     {#if secret}
       <Stack gap="150">
@@ -234,7 +234,7 @@
 </Dialog>
 
 {#if revoking}
-  <Dialog
+  <Dialog size="s"
     isOpen={true}
     title={t('app.feeds.revoke_title')}
     dismissLabel={t('app.workspace.cancel')}

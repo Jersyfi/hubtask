@@ -181,7 +181,7 @@
 </section>
 
 {#if isOpen}
-  <Dialog bind:isOpen title={asset ? t('app.register.change') : t('app.register.register')} dismissLabel={t('app.assets.cancel')} isWide>
+  <Dialog size="l" bind:isOpen title={asset ? t('app.register.change') : t('app.register.register')} dismissLabel={t('app.assets.cancel')} primary={{ label: t('app.assets.save'), isBusy: isSaving, disabledReason: missing[0] ? t(missing[0]) : undefined, onclick: () => void save() }}>
     <Stack gap="150">
       {#if !asset}
         <Select label={t('app.register.state_label')} options={(['REQUESTED', 'ORDERED', 'IN_STOCK'] as const).map((each) => ({ value: each, label: stateWord(each) }))} bind:value={draft.state} />
@@ -213,29 +213,19 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button tone="primary" isBusy={isSaving} disabledReason={missing[0] ? t(missing[0]) : undefined} onclick={() => void save()}>{t('app.assets.save')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isDisposeOpen}
-  <Dialog bind:isOpen={isDisposeOpen} title={t('app.register.dispose')} dismissLabel={t('app.assets.cancel')}>
+  <Dialog size="m" bind:isOpen={isDisposeOpen} title={t('app.register.dispose')} dismissLabel={t('app.assets.cancel')}
+    primary={{ label: t('app.register.dispose'), tone: 'danger', isBusy: isMoving, disabledReason: certificate.trim() ? undefined : t('cmdb.disposal_certificate_required'), onclick: () => void move('DISPOSED', { method, certificate: certificate.trim() }) }}>
     <Stack gap="150">
       <p class="meta">{t('app.register.dispose_hint')}</p>
       <Select label={t('app.register.method_label')} options={DISPOSAL_METHODS.map((each) => ({ value: each, label: t(`app.register.method.${each}`) }))} bind:value={method} />
       <Input label={t('app.register.certificate')} hint={t('app.register.certificate_hint')} bind:value={certificate} maxlength={200} isRequired />
       {#if moveFailure}<FailureNote problem={moveFailure} />{/if}
     </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isDisposeOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button
-        tone="danger"
-        data-confirm-disposal
-        isBusy={isMoving}
-        disabledReason={certificate.trim() ? undefined : t('cmdb.disposal_certificate_required')}
-        onclick={() => void move('DISPOSED', { method, certificate: certificate.trim() })}
-      >{t('app.register.dispose')}</Button>
-    {/snippet}
   </Dialog>
 {/if}
 

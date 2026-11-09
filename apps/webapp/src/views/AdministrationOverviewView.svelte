@@ -13,14 +13,15 @@
   // **Nothing here writes.** Every card is a reading and a link, so an auditor sees the same
   // overview an administrator does, read-only by construction.
   //
-  // Above the cards, the warning after the main own domain was lost (UC-INS-15 check 9): it broke
+  // An `OverviewPage` (page-system §7.5): *Getting started* is its one raised focal card, every
+  // other card a `SummaryCard` region. First among them, the warning after the main own domain was lost (UC-INS-15 check 9): it broke
   // and the subdomain became the main address by itself, or the operator blocked it. It stays until
   // the owner makes the domain main again or removes it, so it is not dismissed here.
 
   import { featureNameCode } from '../lib/instance/health.ts';
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, OverviewPage, Spinner, SummaryCard } from '@hubtask/design-system/components';
 
   import { fallBackOf } from '../lib/address/owndomain.ts';
 
@@ -46,7 +47,6 @@
   import { formatDateTime, formatLongDay, formatTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   // Each read where the server answers this reader - the condition the read itself asks.
   const mayReadConfiguration = $derived(holdsHere('READ_CONFIGURATION') === true);
@@ -251,51 +251,48 @@
   $effect(() => page.entitle(t('app.admin_overview.title')));
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.admin_overview.title')}
-    isTitleInBar={viewport.isCompact}
-    menu={isStepsOwed && isHidden
-      ? { label: t('app.admin_overview.menu'), items: [{ id: 'show-first-steps', label: t('app.first_steps.show') }], onselect: () => hide(false) }
-      : undefined}
-    breadcrumb={{
+<!-- The overview's one name for tests and readers: the page, its focal card and its tiles. -->
+<div class="overview" data-testid="admin-overview">
+<OverviewPage
+  head={{
+    title: t('app.admin_overview.title'),
+    breadcrumb: {
       trail: [{ id: 'administration', label: t('app.admin.title') }],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
-  {#if isStepsOwed && !isHidden}
-    <FirstStepsCard {steps} onhide={() => hide(true)} />
-  {/if}
-
+    },
+    menu: isStepsOwed && isHidden
+      ? { label: t('app.admin_overview.menu'), items: [{ id: 'show-first-steps', label: t('app.first_steps.show') }], onselect: () => hide(false) }
+      : undefined,
+    figure: workspace.workspace ? figure : undefined,
+  }}
+  focal={isStepsOwed && !isHidden ? focal : undefined}
+>
   {#if fallBack && address?.own_domain}
-    <div data-fell-back={fallBack.cause}>
-      <Banner tone="danger" title={t('app.admin_overview.fell_back_title', { domain: address.own_domain.domain })}>
-        {fallBack.cause === 'blocked'
+    <!-- The lost main domain first, as the tile that needs somebody most (UC-INS-15 check 9). -->
+    <div class="tile" data-fell-back={fallBack.cause} data-needs>
+      <SummaryCard
+        title={t('app.admin_overview.fell_back_title', { domain: address.own_domain.domain })}
+        state={{ label: t(fallBack.cause === 'blocked' ? 'app.address.own.state_blocked' : 'app.address.own.state_broken'), tone: 'danger' }}
+        line={fallBack.cause === 'blocked'
           ? t('app.admin_overview.fell_back_blocked', { day: formatLongDay(fallBack.at, messages.locale), host: address.host })
           : t('app.admin_overview.fell_back_broken', {
               day: formatLongDay(fallBack.at, messages.locale),
               time: formatTime(fallBack.at, messages.locale),
               host: address.host,
             })}
-        {#snippet action()}
-          <Button tone="secondary" size="sm" onclick={() => onnavigate?.('/administration/address')}>{t('app.address.title')}</Button>
-        {/snippet}
-      </Banner>
+        link={{ label: t('app.address.title'), href: '/administration/address', onnavigate: () => onnavigate?.('/administration/address') }}
+      />
     </div>
   {/if}
 
-  <div class="cards" data-testid="admin-overview">
-    {#each cards as card (card.id)}
-      <section class="card" data-card={card.id} data-needs={card.needs ? '' : undefined} aria-labelledby={`card-${card.id}`}>
-        {#if card.id === 'limits'}
-          <h2 id="card-limits">{t('app.admin_overview.limits')}</h2>
+  {#each cards as card (card.id)}
+    <div class="tile" data-card={card.id} data-needs={card.needs ? '' : undefined}>
+      {#if card.id === 'limits'}
+        <SummaryCard title={t('app.admin_overview.limits')} line={reading(quotas.state.status) ? undefined : limits.length === 0 ? t('app.admin_overview.limits_none') : undefined} link={{ label: t('app.admin_overview.open_limits'), href: '/administration/quotas' }}>
           {#if reading(quotas.state.status)}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if limits.length === 0}
-            <p class="quiet">{t('app.admin_overview.limits_none')}</p>
-          {:else}
+            {@render waitingFor()}
+          {:else if limits.length > 0}
             <ul class="lines">
               {#each limits as line (line.quota)}
                 <li>
@@ -305,14 +302,12 @@
               {/each}
             </ul>
           {/if}
-          <a class="go" href="/administration/quotas">{t('app.admin_overview.open_limits')}</a>
-        {:else if card.id === 'rules'}
-          <h2 id="card-rules">{t('app.admin_overview.rules')}</h2>
+        </SummaryCard>
+      {:else if card.id === 'rules'}
+        <SummaryCard title={t('app.admin_overview.rules')} line={!reading(rules.state.status) && failing.length === 0 ? t('app.admin_overview.rules_none') : undefined} link={{ label: t('app.admin_overview.open_rules'), href: '/administration/rules' }}>
           {#if reading(rules.state.status)}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if failing.length === 0}
-            <p class="quiet">{t('app.admin_overview.rules_none')}</p>
-          {:else}
+            {@render waitingFor()}
+          {:else if failing.length > 0}
             <ul class="lines">
               {#each failing.slice(0, 5) as line (line.id)}
                 <li>
@@ -326,16 +321,16 @@
               {/each}
             </ul>
           {/if}
-          <a class="go" href="/administration/rules">{t('app.admin_overview.open_rules')}</a>
-        {:else if card.id === 'mail'}
-          <h2 id="card-mail">{t('app.admin_overview.mail')}</h2>
+        </SummaryCard>
+      {:else if card.id === 'mail'}
+        <SummaryCard
+          title={t('app.admin_overview.mail')}
+          line={reading(mail.status) ? undefined : mail.status === 'failed' ? t('app.admin_overview.mail_unread') : mailFailing.length === 0 ? t('app.admin_overview.mail_none') : undefined}
+          link={{ label: t('app.admin_overview.open_mail'), href: '/administration/mail' }}
+        >
           {#if reading(mail.status)}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if mail.status === 'failed'}
-            <p class="quiet">{t('app.admin_overview.mail_unread')}</p>
-          {:else if mailFailing.length === 0}
-            <p class="quiet">{t('app.admin_overview.mail_none')}</p>
-          {:else}
+            {@render waitingFor()}
+          {:else if mail.status !== 'failed' && mailFailing.length > 0}
             <ul class="lines">
               {#each mailFailing.slice(0, 5) as box (box.id)}
                 <li>
@@ -345,29 +340,29 @@
               {/each}
             </ul>
           {/if}
-          <a class="go" href="/administration/mail">{t('app.admin_overview.open_mail')}</a>
-        {:else if card.id === 'backup'}
-          <h2 id="card-backup">{t('app.admin_overview.backup')}</h2>
-          {#if reading(backup.targets.status) || !archivesSettled}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if targets.length === 0}
-            <p class="quiet">{t('app.admin_overview.backup_no_target')}</p>
-          {:else if !lastBackup}
-            <p>{t('app.admin_overview.backup_none')}</p>
-          {:else}
+        </SummaryCard>
+      {:else if card.id === 'backup'}
+        {@const isReading = reading(backup.targets.status) || !archivesSettled}
+        <SummaryCard
+          title={t('app.admin_overview.backup')}
+          state={!isReading && targets.length === 0 ? { label: t('app.admin_overview.backup_no_target_state'), tone: 'danger' } : undefined}
+          line={isReading ? undefined : targets.length === 0 ? t('app.admin_overview.backup_no_target') : !lastBackup ? t('app.admin_overview.backup_none') : undefined}
+          link={{ label: t('app.admin_overview.open_backup'), href: '/administration/backup' }}
+        >
+          {#if isReading}
+            {@render waitingFor()}
+          {:else if targets.length > 0 && lastBackup}
             <p class="line">
               <span>{t('app.admin_overview.backup_last', { at: at(lastBackup.archive.created_at) })}</span>
               <Badge tone={BACKUP_TONE[lastBackup.state]}>{t(`app.admin_overview.backup_${lastBackup.state}`)}</Badge>
             </p>
           {/if}
-          <a class="go" href="/administration/backup">{t('app.admin_overview.open_backup')}</a>
-        {:else if card.id === 'requests'}
-          <h2 id="card-requests">{t('app.admin_overview.requests')}</h2>
+        </SummaryCard>
+      {:else if card.id === 'requests'}
+        <SummaryCard title={t('app.admin_overview.requests')} line={!reading(privacy.stateOf(false).status) && owed.length === 0 ? t('app.admin_overview.requests_none') : undefined} link={{ label: t('app.admin_overview.open_requests'), href: '/administration/privacy' }}>
           {#if reading(privacy.stateOf(false).status)}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if owed.length === 0}
-            <p class="quiet">{t('app.admin_overview.requests_none')}</p>
-          {:else}
+            {@render waitingFor()}
+          {:else if owed.length > 0}
             <ul class="lines">
               {#each owed.slice(0, 5) as request (request.id)}
                 {@const phrase = deadlinePhrase(request, at)}
@@ -380,14 +375,12 @@
               {/each}
             </ul>
           {/if}
-          <a class="go" href="/administration/privacy">{t('app.admin_overview.open_requests')}</a>
-        {:else if card.id === 'check'}
-          <h2 id="card-check">{t('app.admin.check_title')}</h2>
+        </SummaryCard>
+      {:else if card.id === 'check'}
+        <SummaryCard title={t('app.admin.check_title')} line={!reading(check.status) && findings.length === 0 ? t('app.admin.check_none') : undefined}>
           {#if reading(check.status)}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if findings.length === 0}
-            <p class="quiet">{t('app.admin.check_none')}</p>
-          {:else}
+            {@render waitingFor()}
+          {:else if findings.length > 0}
             <ul class="lines" data-testid="config-findings">
               {#each findings.slice(0, 8) as finding, index (index)}
                 {@const where = pageOfFinding(finding.path)}
@@ -404,28 +397,26 @@
               {/each}
             </ul>
           {/if}
-        {:else if card.id === 'waiting'}
-          <h2 id="card-waiting">{t('app.admin_overview.waiting')}</h2>
-          {#if reading(proposals?.status ?? 'idle') || reading(offered?.status ?? 'idle')}
-            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
-          {:else if !waiting.needs}
-            <p class="quiet">{t('app.admin_overview.waiting_none')}</p>
-          {:else}
+        </SummaryCard>
+      {:else if card.id === 'waiting'}
+        {@const isReading = reading(proposals?.status ?? 'idle') || reading(offered?.status ?? 'idle')}
+        <SummaryCard title={t('app.admin_overview.waiting')} line={!isReading && !waiting.needs ? t('app.admin_overview.waiting_none') : undefined} link={{ label: t('app.admin_overview.open_changes'), href: '/administration/changes' }}>
+          {#if isReading}
+            {@render waitingFor()}
+          {:else if waiting.needs}
             <ul class="lines" data-testid="admin-waiting">
               {#if waiting.proposals > 0}
                 <li><a href="/administration/changes">{t('app.admin_overview.waiting_proposals', { count: waiting.proposals })}</a></li>
               {/if}
               {#each waiting.updates.slice(0, 5) as update (update.key)}
-                <li><a href="/administration/presets">{t('app.admin_overview.waiting_update', { name: update.name })}</a></li>
+                <li><a href="/administration/templates?tab=in-use">{t('app.admin_overview.waiting_update', { name: update.name })}</a></li>
               {/each}
             </ul>
           {/if}
-          <a class="go" href="/administration/changes">{t('app.admin_overview.open_changes')}</a>
-        {:else if card.id === 'health'}
-          <h2 id="card-health">{t('app.admin_overview.health')}</h2>
-          {#if degraded.length === 0 && gaps.length === 0}
-            <p class="quiet">{t('app.admin_overview.health_fine')}</p>
-          {:else}
+        </SummaryCard>
+      {:else if card.id === 'health'}
+        <SummaryCard title={t('app.admin_overview.health')} line={degraded.length === 0 && gaps.length === 0 ? t('app.admin_overview.health_fine') : undefined}>
+          {#if degraded.length > 0 || gaps.length > 0}
             <ul class="lines" data-testid="admin-health">
               {#each gaps as gap (gap.feature)}
                 <li>
@@ -442,35 +433,22 @@
               {/each}
             </ul>
           {/if}
-        {/if}
-      </section>
-    {/each}
-  </div>
-</Stack>
+        </SummaryCard>
+      {/if}
+    </div>
+  {/each}
+</OverviewPage>
+</div>
+
+{#snippet figure()}<span>{workspace.workspace?.display_name}</span>{/snippet}
+
+{#snippet focal()}<FirstStepsCard {steps} onhide={() => hide(true)} />{/snippet}
+
+{#snippet waitingFor()}<p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>{/snippet}
 
 <style>
-  /* Cards side by side where there is room, one above the other on a phone. A list of cards takes
-     the region rather than a measure (ADR-0065 decision 2). */
-  .cards {
-    display: grid;
-    gap: var(--sp-200);
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 32ch), 1fr));
-  }
-
-  .card {
-    display: grid;
-    align-content: start;
-    gap: var(--sp-100);
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .card[data-needs] { border-color: var(--border-default); }
-
-  h2 { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+  /* A tile fills its cell, so the tiles of one row end on one line. */
+  .tile { display: grid; min-width: 0; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
@@ -489,6 +467,4 @@
   }
 
   a { color: var(--text-brand); }
-
-  .go { justify-self: start; font-size: var(--fs-100); }
 </style>

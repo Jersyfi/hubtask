@@ -67,7 +67,7 @@ export function homeTabs(module: string): readonly HomeTab[] {
         { id: 'report', code: 'app.time.tab_report', path: '/time?tab=report' },
         { id: 'absences', code: 'app.time.tab_absences', path: '/time?tab=absences' },
         { id: 'capacity', code: 'app.time.tab_capacity', path: '/time?tab=capacity' },
-        { id: 'settings', code: 'app.time.tab_settings', path: '/time?tab=settings' },
+        { id: 'settings', code: 'app.time.tab_settings', path: '/time/settings' },
       ];
     case 'GOALS':
       return [
@@ -81,7 +81,7 @@ export function homeTabs(module: string): readonly HomeTab[] {
         { id: 'agents', code: 'app.agents.tab_agents', path: '/agents' },
         { id: 'requests', code: 'app.agents.tab_requests', path: '/agents?tab=requests' },
         { id: 'runs', code: 'app.agents.tab_runs', path: '/agents?tab=runs' },
-        { id: 'settings', code: 'app.product_home.tab_settings', path: '/agents?tab=settings' },
+        { id: 'settings', code: 'app.product_home.tab_settings', path: '/agents/settings' },
       ];
     default:
       return [];

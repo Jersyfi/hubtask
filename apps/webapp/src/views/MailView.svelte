@@ -13,6 +13,12 @@
   //
   // **Who may write is one choice with two lists.** Members by default; members and allowed
   // addresses and domains; or anyone. The block list applies before every level.
+  //
+  // **One section per address, one save model each** (page-system §7.3, §9.3, PS-9, PS-10):
+  // *Mailboxes*, *Intake*, *Who may write*, *Sender rules*, *Handles* and *Recently arrived*, each
+  // at `/administration/mail/<section>`. The settings are one record written whole: *Intake* and
+  // *Who may write* each have a save bar that sends its own values over what is saved, a sender
+  // rule is written by its Dialog M; a mailbox opens its own record page; the rest is read.
 
   import { untrack } from 'svelte';
 
@@ -20,17 +26,24 @@
 
   import {
     Button,
+    DataTable,
+    EmptyState,
     IconButton,
     Input,
-    PageHeader,
     Radio,
+    SaveBar,
     Select,
+    SettingRow,
+    SettingsLayout,
+    SettingsSection,
     Spinner,
-    Stack,
     Switch,
     Textarea,
+    type DataColumn,
+    type SectionLink,
   } from '@hubtask/design-system/components';
 
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -42,34 +55,41 @@
     readMailSettings,
     saveMailSettings,
     suggestedName,
-    type Mailbox,
     type MailReceipt,
     type MailSettings,
     type SenderLevel,
   } from '../lib/data/mailintake.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { leaveGuard } from '../lib/frame/leave.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import ConnectMailboxDialog from '../lib/mail/ConnectMailboxDialog.svelte';
   import MailboxSection from '../lib/mail/MailboxSection.svelte';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import { MailboxList, type SenderRule } from '../lib/mail/mailboxes.svelte.ts';
+  import ReceiptTable from '../lib/mail/ReceiptTable.svelte';
+  import RemoveMailboxDialog from '../lib/mail/RemoveMailboxDialog.svelte';
+  import SenderRuleDialog from '../lib/mail/SenderRuleDialog.svelte';
+  import TableSection from '../lib/page/TableSection.svelte';
 
   interface Props {
+    /** The section the address names (`/administration/mail/:section`); none is the list. */
+    section?: string;
+    /** Replaces the address: a move between sections, so the unsaved values of another stay. */
+    onreplace?: (path: string) => void;
+    /** Opens another page: a mailbox's own (page-system §9.3). */
+    onnavigate?: (path: string) => void;
     /** What a mail provider sent back after connecting a mailbox (`/administration/mail/oauth`). */
     providerAnswer?: Readonly<Record<string, string>>;
     /** Told once the answer is handed on, so the address drops the code and the state. */
     onanswered?: () => void;
   }
 
-  let { providerAnswer, onanswered }: Props = $props();
+  let { section, onreplace, onnavigate, providerAnswer, onanswered }: Props = $props();
 
-  interface DraftRoute {
-    key: string;
-    match: string;
-    collection: string;
-  }
+  const BASE = '/administration/mail';
+  type Scope = 'intake' | 'senders' | 'rules';
 
   let loaded = $state<MailSettings | undefined>(undefined);
   let readFailure = $state<string | undefined>(undefined);
@@ -79,25 +99,28 @@
   let level = $state<SenderLevel>('MEMBERS');
   let allowed = $state('');
   let blocked = $state('');
-  let routes = $state<DraftRoute[]>([]);
   let isSaving = $state(false);
   let saveFailure = $state<string | undefined>(undefined);
   let receipts = $state<readonly MailReceipt[]>([]);
-  /** The connected mailboxes, for the addresses a collection is reached at through one. */
-  let mailboxes = $state<readonly Mailbox[]>([]);
-  let isAddingMailbox = $state(false);
+  /** The connected mailboxes: their section, the head's figure, the addresses through one. */
+  const boxes = new MailboxList();
+  const mailboxes = $derived(boxes.mailboxes);
 
   const mayShape = $derived(holdsHere('AUTOMATION') === true);
 
-  function take(settings: MailSettings) {
+  /** What is saved becomes the draft of the scopes named: all on a read, one on a section's save. */
+  function take(settings: MailSettings, scopes: readonly Scope[] = ['intake', 'senders']) {
     loaded = settings;
-    enabled = settings.enabled;
-    name = settings.name ?? '';
-    defaultPlace = settings.default_collection_id ?? '';
-    level = settings.senders.level;
-    allowed = settings.senders.allowed.join('\n');
-    blocked = settings.senders.blocked.join('\n');
-    routes = settings.sender_routes.map((route) => ({ key: crypto.randomUUID(), match: route.match, collection: route.collection_id }));
+    if (scopes.includes('intake')) {
+      enabled = settings.enabled;
+      name = settings.name ?? '';
+      defaultPlace = settings.default_collection_id ?? '';
+    }
+    if (scopes.includes('senders')) {
+      level = settings.senders.level;
+      allowed = settings.senders.allowed.join('\n');
+      blocked = settings.senders.blocked.join('\n');
+    }
   }
 
   $effect(() => {
@@ -107,7 +130,16 @@
         .then((settings) => settings && take(settings))
         .catch((error) => (readFailure = renderProblem(error as never, messages).message));
       void readMailReceipts().then((rows) => (receipts = rows), () => undefined);
+      void boxes.read();
     });
+  });
+
+  // Back from the provider: its answer is handed on once, then the address drops the code and the
+  // state - on whatever section, and on a phone's list of sections too.
+  $effect(() => {
+    const answer = providerAnswer;
+    if (!answer?.['state']) return;
+    untrack(() => void boxes.complete(answer, () => onanswered?.()));
   });
 
   // A name on the receiving domain is suggested from the workspace's own, until somebody types one.
@@ -120,35 +152,40 @@
   });
 
   /**
-   * How many of the intake's settings differ from what is saved: the save bar's count and the
-   * leave guard's. A suggested name is not a change of the reader's; it is written with the first
-   * save that has one.
+   * How many of each section's values differ from what is saved: its save bar's count. A suggested
+   * name is not a change of the reader's; it is written with the first save that has one.
    */
-  const changes = $derived.by(() => {
+  const changed = $derived.by((): Record<'intake' | 'senders', number> => {
     const held = loaded;
-    if (!held) return 0;
-    const routesOf = (rows: readonly { match: string; collection: string }[]) =>
-      rows.filter((row) => row.match.trim() !== '').map((row) => `${row.match.trim()}\u0000${row.collection}`).join('\n');
-    return [
-      enabled !== held.enabled,
-      name.trim() !== (held.name ?? suggested),
-      defaultPlace !== (held.default_collection_id ?? ''),
-      level !== held.senders.level,
-      linesOf(allowed).join('\n') !== held.senders.allowed.join('\n'),
-      linesOf(blocked).join('\n') !== held.senders.blocked.join('\n'),
-      routesOf(routes) !== routesOf(held.sender_routes.map((route) => ({ match: route.match, collection: route.collection_id }))),
-    ].filter(Boolean).length;
+    if (!held) return { intake: 0, senders: 0 };
+    const count = (flags: boolean[]) => flags.filter(Boolean).length;
+    return {
+      intake: count([
+        enabled !== held.enabled,
+        name.trim() !== (held.name ?? suggested),
+        defaultPlace !== (held.default_collection_id ?? ''),
+      ]),
+      senders: count([
+        level !== held.senders.level,
+        linesOf(allowed).join('\n') !== held.senders.allowed.join('\n'),
+        linesOf(blocked).join('\n') !== held.senders.blocked.join('\n'),
+      ]),
+    };
   });
+  /** Every section's unsaved values: what the leave guard holds, as a move between sections keeps them. */
+  $effect(() => leaveGuard.hold(() => changed.intake + changed.senders));
 
-  const sections = $derived([
-    { id: 'mail-part-mailboxes', label: t('app.mail.section_mailboxes') },
-    { id: 'mail-part-on', label: t('app.mail.section_on') },
-    { id: 'mail-part-senders', label: t('app.mail.section_senders') },
-    { id: 'mail-part-routes', label: t('app.mail.section_routes') },
-    { id: 'mail-part-order', label: t('app.mail.section_order') },
-    { id: 'mail-part-handles', label: t('app.mail.section_handles') },
-    { id: 'mail-part-log', label: t('app.mail.section_log') },
-  ]);
+  const SECTIONS = [
+    { id: 'mailboxes', code: 'app.mail.section_mailboxes' },
+    { id: 'intake', code: 'app.mail.section_on' },
+    { id: 'senders', code: 'app.mail.section_senders' },
+    { id: 'rules', code: 'app.mail.section_routes' },
+    { id: 'handles', code: 'app.mail.section_handles' },
+    { id: 'arrived', code: 'app.mail.section_log' },
+  ] as const;
+  const isKnown = (id: string | undefined): boolean => id !== undefined && SECTIONS.some((each) => each.id === id);
+  const shown = $derived(isKnown(section) ? (section as string) : 'mailboxes');
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
 
   $effect(() => untrack(() => containers.start()));
   $effect(() => {
@@ -184,36 +221,98 @@
   });
 
   const address = $derived(loaded?.domain && name ? `${name}@${loaded.domain}` : undefined);
+  const handled = $derived(collections.filter((collection) => collection.handle));
 
-  function addRoute() {
-    routes = [...routes, { key: crypto.randomUUID(), match: '', collection: defaultPlace || (collections[0]?.value ?? '') }];
+  function statusOf(id: string): Pick<SectionLink, 'status' | 'statusTone'> {
+    const held = loaded;
+    if (!held) return {};
+    const count = (n: number): Pick<SectionLink, 'status' | 'statusTone'> => (n > 0 ? { status: t('app.mail.status_count', { count: String(n) }), statusTone: 'set' } : { status: t('app.mail.status_none') });
+    switch (id) {
+      case 'mailboxes':
+        return mailboxFigure(mailboxes).failing > 0 ? { status: figureText, statusTone: 'danger' } : count(mailboxes.length);
+      case 'intake':
+        return held.enabled ? { status: t('app.mail.status_on'), statusTone: 'set' } : { status: t('app.mail.status_off') };
+      case 'senders':
+        return { status: levels.find((each) => each.value === held.senders.level)?.label ?? '' };
+      case 'rules':
+        return count(held.sender_routes.length);
+      case 'handles':
+        return count(handled.length);
+      default:
+        return count(receipts.length);
+    }
   }
 
-  function removeRoute(key: string) {
-    routes = routes.filter((route) => route.key !== key);
-  }
+  const title = $derived(t('app.mail.title'));
+  const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: `${BASE}/${each.id}`, ...statusOf(each.id) })));
+  const head = $derived({
+    title,
+    subtitle: t('app.mail.intro'),
+    breadcrumb: adminTrail({ id: 'mail', label: title }),
+    primary: mayShape && loaded ? { label: t('app.mail.mailbox_add'), icon: 'plus' as const, onclick: () => (boxes.isAdding = true) } : undefined,
+    figure: figureText ? figure : undefined,
+  });
+  $effect(() => page.entitle(title));
 
-  async function save() {
+  const ruleColumns: readonly DataColumn[] = $derived([
+    { id: 'match', label: t('app.mail.route_match'), priority: 1 },
+    { id: 'place', label: t('app.mail.route_place'), priority: 2 },
+  ]);
+  const handleColumns: readonly DataColumn[] = $derived([
+    { id: 'collection', label: t('app.mail.route_place'), priority: 1 },
+    { id: 'handle', label: t('app.mail.handle_column'), priority: 2 },
+    ...(mailboxes[0]?.plus_addresses ? [{ id: 'through', label: t('app.mail.handle_through'), priority: 3 as const }] : []),
+  ]);
+  const placeOf = (id: string) => collections.find((collection) => collection.value === id)?.label ?? id;
+
+  const rules = $derived<SenderRule[]>((loaded?.sender_routes ?? []).map((route) => ({ match: route.match, collection: route.collection_id })));
+
+  /**
+   * Writes one section's values over what is saved, the sender rules as given; the other
+   * sections' drafts stay as they are.
+   */
+  async function save(scope: Scope, nextRules: readonly SenderRule[] = rules): Promise<boolean> {
+    const held = loaded;
+    if (!held) return false;
     saveFailure = undefined;
     isSaving = true;
     try {
       take(
         await saveMailSettings({
-          enabled,
-          name: name.trim() || null,
-          default_collection_id: defaultPlace || null,
-          senders: { level, allowed: linesOf(allowed), blocked: linesOf(blocked) },
-          sender_routes: routes
-            .filter((route) => route.match.trim() !== '')
-            .map((route) => ({ match: route.match.trim(), collection_id: route.collection })),
+          enabled: scope === 'intake' ? enabled : held.enabled,
+          name: (scope === 'intake' ? name.trim() : held.name ?? (suggested || '')) || null,
+          default_collection_id: (scope === 'intake' ? defaultPlace : held.default_collection_id ?? '') || null,
+          senders: scope === 'senders'
+            ? { level, allowed: linesOf(allowed), blocked: linesOf(blocked) }
+            : { level: held.senders.level, allowed: [...held.senders.allowed], blocked: [...held.senders.blocked] },
+          sender_routes: nextRules.map((rule) => ({ match: rule.match, collection_id: rule.collection })),
         }),
+        scope === 'rules' ? [] : [scope],
       );
       announcer.say(t('app.mail.saved'));
+      return true;
     } catch (error) {
       saveFailure = renderProblem(error as never, messages).message;
+      return false;
     } finally {
       isSaving = false;
     }
+  }
+
+  /** The rule a dialog shows: `null` a new one, an index one pressed, `undefined` none. */
+  let editing = $state<number | null | undefined>(undefined);
+  const editedRule = $derived(editing === null ? null : editing === undefined ? undefined : rules[editing]);
+
+  async function saveRule(next: SenderRule): Promise<void> {
+    const at = editing;
+    const nextRules = at === null || at === undefined ? [...rules, next] : rules.map((rule, index) => (index === at ? next : rule));
+    if (await save('rules', nextRules)) editing = undefined;
+  }
+
+  async function removeRule(index: number): Promise<void> {
+    const gone = rules[index];
+    if (!gone) return;
+    if (await save('rules', rules.filter((_, each) => each !== index))) announcer.say(t('app.mail.route_removed', { match: gone.match }));
   }
 
   async function copy(text: string) {
@@ -224,37 +323,44 @@
       announcer.say(t('app.mail.copy_failed', { address: text }));
     }
   }
-
-  function outcomeOf(receipt: MailReceipt): string {
-    const became = t(`app.mail.outcome.${receipt.outcome}`);
-    return receipt.reason ? `${became} · ${t(`app.mail.reason.${receipt.reason}`)}` : became;
-  }
-
-  function hrefOf(receipt: MailReceipt): string | undefined {
-    if (receipt.item_id) return `/items/${receipt.item_id}`;
-    if (receipt.entry_id) return '/jumble';
-    return undefined;
-  }
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.mail.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'mail', label: t('app.mail.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-    primary={mayShape && loaded ? { label: t('app.mail.mailbox_add'), icon: 'plus', onclick: () => (isAddingMailbox = true) } : undefined}
-  >
-    {#snippet figure()}{#if figureText}<span class="figure" data-mail-figure>{figureText}</span>{/if}{/snippet}
-  </PageHeader>
-  <p class="quiet">{t('app.mail.intro')}</p>
+{#snippet figure()}<span class="figure" data-mail-figure>{figureText}</span>{/snippet}
 
+{#snippet saveBar(scope: 'intake' | 'senders')}
+  <SaveBar
+    label={t('app.save_bar.label')}
+    changesLabel={changed[scope] > 0 ? t('app.save_bar.changes', { count: String(changed[scope]) }) : undefined}
+    discardLabel={t('app.save_bar.discard')}
+    saveLabel={t('app.mail.save')}
+    {isSaving}
+    savingLabel={t('app.mail.saving')}
+    onDiscard={() => {
+      saveFailure = undefined;
+      if (loaded) take(loaded, [scope]);
+    }}
+    onSave={() => void save(scope)}
+  />
+{/snippet}
+{#snippet intakeBar()}{@render saveBar('intake')}{/snippet}
+{#snippet sendersBar()}{@render saveBar('senders')}{/snippet}
+
+{#snippet orderRows()}
+  <ol class="order" data-mail-order>
+    <li>{t('app.mail.order_key')}</li>
+    <li>{t('app.mail.order_handle')}</li>
+    <li>{t('app.mail.order_sender')}</li>
+    <li>{t('app.mail.order_default')}</li>
+    <li>{t('app.mail.order_jumble')}</li>
+  </ol>
+{/snippet}
+
+<SettingsLayout
+  {head}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
+  {view}
+  back={{ label: title, onback: () => onreplace?.(BASE) }}
+>
   <WorkspaceGate permission="AUTOMATION">
     {#snippet actions()}
       {#if readFailure}
@@ -262,168 +368,171 @@
       {:else if !loaded}
         <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
       {:else}
-        <SettingsPage
-          label={t('app.settings_page.sections', { name: t('app.mail.title') })}
-          {sections}
-          {changes}
-          save={{
-            label: t('app.mail.save'),
-            savingLabel: t('app.mail.saving'),
-            isSaving,
-            onSave: () => void save(),
-            onDiscard: () => {
-              saveFailure = undefined;
-              if (loaded) take(loaded);
-            },
-          }}
-        >
-          {#if saveFailure}<FailureNote problem={saveFailure} />{/if}
-          <section id="mail-part-mailboxes" aria-labelledby="mail-mailboxes" data-mail-mailboxes>
-            <Stack gap="150">
-              <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>
-              <MailboxSection {providerAnswer} {onanswered} bind:isAdding={isAddingMailbox} onchange={(next) => (mailboxes = next)} />
-            </Stack>
-          </section>
-
-          <section id="mail-part-on" class="panel" aria-labelledby="mail-on" data-mail-on>
-            <Stack gap="150">
-              <h2 class="section" id="mail-on">{t('app.mail.section_on')}</h2>
-              <Switch label={t('app.mail.enabled')} hint={t('app.mail.enabled_hint')} bind:checked={enabled} />
+        {#if saveFailure && editing === undefined}<FailureNote problem={saveFailure} />{/if}
+        {#if shown === 'mailboxes'}
+          <MailboxSection list={boxes} {onnavigate} />
+        {:else if shown === 'intake'}
+          <div data-mail-on>
+            <SettingsSection title={t('app.mail.section_on')} save={intakeBar} advanced={{ label: t('app.mail.section_order'), rows: orderRows }}>
+              <SettingRow label={t('app.mail.enabled')} help={t('app.mail.enabled_hint')} fieldWidth="xs" isChanged={enabled !== loaded.enabled}>
+                {#snippet control()}<Switch label={t('app.mail.enabled')} isLabelHidden bind:checked={enabled} />{/snippet}
+              </SettingRow>
               {#if loaded.domain}
-                <div class="fields">
-                  <Input label={t('app.mail.name')} hint={t('app.mail.name_hint', { domain: loaded.domain })} bind:value={name} />
-                </div>
-                {#if address}
-                  <div class="value" data-mail-address>
-                    <span class="value-label">{t('app.mail.address')}</span>
-                    <code>{address}</code>
-                    <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: address })} onclick={() => void copy(address)} />
-                  </div>
-                {/if}
+                <SettingRow label={t('app.mail.name')} help={t('app.mail.name_hint', { domain: loaded.domain })} fieldWidth="md" isChanged={name.trim() !== (loaded.name ?? suggested)}>
+                  {#snippet control(nameId)}
+                    <Input label={t('app.mail.name')} isLabelHidden aria-labelledby={nameId} bind:value={name} />
+                    {#if address}
+                      <span class="value" data-mail-address>
+                        <code>{address}</code>
+                        <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: address })} onclick={() => void copy(address)} />
+                      </span>
+                    {/if}
+                  {/snippet}
+                </SettingRow>
               {:else}
-                <p class="quiet small" data-mail-no-domain>{t('app.mail.no_domain')}</p>
+                <SettingRow label={t('app.mail.address')} help={t('app.mail.no_domain')} fieldWidth="md">
+                  {#snippet control()}<span class="quiet small" data-mail-no-domain>—</span>{/snippet}
+                </SettingRow>
               {/if}
-              <div class="fields">
-                <Select label={t('app.mail.default_place')} hint={t('app.mail.default_place_hint')} placeholder={t('app.mail.to_jumble')} options={collections} bind:value={defaultPlace} />
+              <SettingRow label={t('app.mail.default_place')} help={t('app.mail.default_place_hint')} fieldWidth="md" isChanged={defaultPlace !== (loaded.default_collection_id ?? '')}>
+                {#snippet control(nameId)}
+                  <Select label={t('app.mail.default_place')} isLabelHidden aria-labelledby={nameId} placeholder={t('app.mail.to_jumble')} options={collections} bind:value={defaultPlace} />
+                {/snippet}
+              </SettingRow>
+            </SettingsSection>
+          </div>
+        {:else if shown === 'senders'}
+          <div data-mail-senders>
+            <SettingsSection title={t('app.mail.section_senders')} save={sendersBar}>
+              <!-- One choice of three, each with its sentence: wider than a row's control column. -->
+              <div class="pad">
+                <Radio label={t('app.mail.level')} options={levels} bind:value={() => level, (next) => (level = next as SenderLevel)} />
               </div>
-            </Stack>
-          </section>
-
-          <section id="mail-part-senders" class="panel" aria-labelledby="mail-senders" data-mail-senders>
-            <Stack gap="150">
-              <h2 class="section" id="mail-senders">{t('app.mail.section_senders')}</h2>
-              <Radio label={t('app.mail.level')} options={levels} bind:value={() => level, (next) => (level = next as SenderLevel)} />
               {#if level === 'MEMBERS_AND_ALLOWED'}
-                <Textarea label={t('app.mail.allowed')} hint={t('app.mail.list_hint')} rows={3} bind:value={allowed} />
+                <SettingRow label={t('app.mail.allowed')} help={t('app.mail.list_hint')} fieldWidth="lg" isChanged={linesOf(allowed).join('\n') !== loaded.senders.allowed.join('\n')}>
+                  {#snippet control(nameId)}<Textarea label={t('app.mail.allowed')} isLabelHidden aria-labelledby={nameId} rows={3} bind:value={allowed} />{/snippet}
+                </SettingRow>
               {/if}
-              <Textarea label={t('app.mail.blocked')} hint={t('app.mail.blocked_hint')} rows={2} bind:value={blocked} />
-            </Stack>
-          </section>
-
-          <section id="mail-part-routes" class="panel" aria-labelledby="mail-routes" data-mail-routes>
-            <Stack gap="150">
-              <h2 class="section" id="mail-routes">{t('app.mail.section_routes')}</h2>
-              <p class="quiet small">{t('app.mail.routes_hint')}</p>
-              {#each routes as route (route.key)}
-                <div class="row" data-mail-route>
-                  <Input label={t('app.mail.route_match')} bind:value={route.match} />
-                  <Select label={t('app.mail.route_place')} options={collections} bind:value={route.collection} />
-                  <IconButton icon="trash" label={t('app.mail.route_remove', { match: route.match || '…' })} onclick={() => removeRoute(route.key)} />
-                </div>
-              {/each}
-              <div><Button tone="secondary" size="sm" icon="plus" onclick={addRoute}>{t('app.mail.route_add')}</Button></div>
-            </Stack>
-          </section>
-
-          <section id="mail-part-order" class="panel" aria-labelledby="mail-order" data-mail-order>
-            <Stack gap="150">
-              <h2 class="section" id="mail-order">{t('app.mail.section_order')}</h2>
-              <ol class="order">
-                <li>{t('app.mail.order_key')}</li>
-                <li>{t('app.mail.order_handle')}</li>
-                <li>{t('app.mail.order_sender')}</li>
-                <li>{t('app.mail.order_default')}</li>
-                <li>{t('app.mail.order_jumble')}</li>
-              </ol>
-            </Stack>
-          </section>
-
-          <section id="mail-part-handles" class="panel" aria-labelledby="mail-handles" data-mail-handles>
-            <Stack gap="150">
-              <h2 class="section" id="mail-handles">{t('app.mail.section_handles')}</h2>
-              <p class="quiet small">{t('app.mail.handles_hint')}</p>
-              <ul class="handles">
-                {#each collections.filter((collection) => collection.handle) as collection (collection.value)}
-                  <li class="value" data-handle={collection.handle}>
-                    <span class="value-label">{collection.label}</span>
-                    <code>#{collection.handle}</code>
-                    <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: `#${collection.handle}` })} onclick={() => void copy(`#${collection.handle}`)} />
-                    {#if mailboxes[0]?.plus_addresses}
-                      {@const through = mailboxRouteTo(collection.handle, mailboxes[0])}
+              <SettingRow label={t('app.mail.blocked')} help={t('app.mail.blocked_hint')} fieldWidth="lg" isChanged={linesOf(blocked).join('\n') !== loaded.senders.blocked.join('\n')}>
+                {#snippet control(nameId)}<Textarea label={t('app.mail.blocked')} isLabelHidden aria-labelledby={nameId} rows={2} bind:value={blocked} />{/snippet}
+              </SettingRow>
+            </SettingsSection>
+          </div>
+        {:else if shown === 'rules'}
+          <div data-mail-routes>
+            <TableSection title={t('app.mail.section_routes')} note={String(rules.length)} description={t('app.mail.routes_hint')}>
+              {#snippet acts()}
+                <Button icon="plus" data-list-add onclick={() => (editing = null)}>{t('app.mail.route_add')}</Button>
+              {/snippet}
+              <DataTable
+                label={t('app.mail.section_routes')}
+                columns={ruleColumns}
+                rows={rules}
+                key={(rule: SenderRule) => rule.match}
+                onopen={(rule: SenderRule) => (editing = rules.indexOf(rule))}
+                rowLabel={(rule: SenderRule) => rule.match}
+                menu={(rule: SenderRule) => ({
+                  label: t('app.page.more_for', { name: rule.match }),
+                  items: [
+                    { id: 'edit', label: t('app.page.edit') },
+                    { id: 'remove', label: t('app.mail.route_remove_menu'), isDestructive: true, hasSeparatorBefore: true },
+                  ],
+                })}
+                onmenu={(rule: SenderRule, id: string) => (id === 'remove' ? void removeRule(rules.indexOf(rule)) : (editing = rules.indexOf(rule)))}
+                actionsLabel={t('app.page.row_actions')}
+                sheetDismissLabel={t('app.page.sheet_close')}
+                sheetGrabLabel={t('app.page.sheet_grab')}
+              >
+                {#snippet cell(rule: SenderRule, column: DataColumn)}
+                  {#if column.id === 'match'}<span class="name" data-mail-rule={rule.match}>{rule.match}</span>{:else}<span class="quiet">{placeOf(rule.collection)}</span>{/if}
+                {/snippet}
+                {#snippet empty()}<EmptyState kind="unused" title={t('app.mail.routes_empty')} />{/snippet}
+              </DataTable>
+            </TableSection>
+          </div>
+        {:else if shown === 'handles'}
+          <div data-mail-handles>
+            <TableSection title={t('app.mail.section_handles')} note={String(handled.length)} description={t('app.mail.handles_hint')}>
+              <DataTable
+                label={t('app.mail.section_handles')}
+                columns={handleColumns}
+                rows={handled}
+                key={(collection: { value: string }) => collection.value}
+                rowLabel={(collection: { label: string }) => collection.label}
+              >
+                {#snippet cell(collection: { value: string; label: string; handle: string }, column: DataColumn)}
+                  {#if column.id === 'collection'}
+                    <span class="name">{collection.label}</span>
+                  {:else if column.id === 'handle'}
+                    <span class="value" data-handle={collection.handle}>
+                      <code>#{collection.handle}</code>
+                      <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: `#${collection.handle}` })} onclick={() => void copy(`#${collection.handle}`)} />
+                    </span>
+                  {:else if mailboxes[0]}
+                    {@const through = mailboxRouteTo(collection.handle, mailboxes[0])}
+                    <span class="value" data-handle-through={collection.handle}>
                       <code data-plus-address>{through}</code>
                       <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: through })} onclick={() => void copy(through)} />
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            </Stack>
-          </section>
+                    </span>
+                  {/if}
+                {/snippet}
+                {#snippet empty()}<EmptyState kind="unused" title={t('app.mail.handles_empty')} />{/snippet}
+              </DataTable>
+            </TableSection>
+          </div>
+        {:else if shown === 'arrived'}
+          <div data-mail-log>
+            <TableSection title={t('app.mail.section_log')} note={String(receipts.length)}>
+              <ReceiptTable label={t('app.mail.section_log')} {receipts} />
+            </TableSection>
+          </div>
+        {/if}
 
-          <section id="mail-part-log" class="panel" aria-labelledby="mail-log" data-mail-log>
-            <Stack gap="150">
-              <h2 class="section" id="mail-log">{t('app.mail.section_log')}</h2>
-              {#if receipts.length === 0}
-                <p class="quiet small">{t('app.mail.log_empty')}</p>
-              {:else}
-                <ul class="log" class:compact={viewport.isCompact}>
-                  {#each receipts as receipt (receipt.id)}
-                    {@const href = hrefOf(receipt)}
-                    <li data-receipt={receipt.outcome}>
-                      <span class="when">{formatDateTime(receipt.received_at, messages.locale)}</span>
-                      <span class="who">{receipt.sender}</span>
-                      <span class="what">{receipt.subject || '—'}</span>
-                      {#if href}<a {href}>{outcomeOf(receipt)}</a>{:else}<span>{outcomeOf(receipt)}</span>{/if}
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-            </Stack>
-          </section>
-        </SettingsPage>
+        <SenderRuleDialog
+          rule={editedRule}
+          {collections}
+          {defaultPlace}
+          isWorking={isSaving}
+          failure={editing === undefined ? undefined : saveFailure}
+          onClose={() => { editing = undefined; saveFailure = undefined; }}
+          onsave={(next) => void saveRule(next)}
+        />
       {/if}
     {/snippet}
   </WorkspaceGate>
-</Stack>
+</SettingsLayout>
+
+<!-- Outside the layout: the head's act opens it while a phone shows only the list of sections. -->
+<ConnectMailboxDialog
+  bind:isOpen={boxes.isAdding}
+  presets={boxes.presets}
+  oauthProviders={boxes.oauthProviders}
+  redirectUrl={boxes.redirectUrl}
+  oauthFailure={boxes.oauthFailure}
+  onconnected={(box) => boxes.add(box)}
+/>
+<RemoveMailboxDialog
+  box={boxes.removing}
+  isWorking={boxes.working !== undefined && boxes.working === boxes.removing?.id}
+  failure={boxes.rowFailure}
+  onClose={() => (boxes.removing = undefined)}
+  onremove={(box) => void boxes.remove(box)}
+/>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .pad { padding: var(--sp-200) var(--sp-250); }
 
   .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
   .small { font-size: var(--fs-075); }
 
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+  .name { color: var(--text-primary); font-weight: var(--fw-medium); overflow-wrap: anywhere; }
 
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
+  .order { display: grid; gap: var(--sp-050); margin: 0; padding-block: var(--sp-100); padding-inline: var(--sp-500) var(--sp-250); }
 
-  .fields { max-inline-size: calc(var(--sp-1000) * 6); }
-
-  .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-
-  .row > :global(*:not(:last-child)) { flex: 1 1 calc(var(--sp-1000) * 2.5); min-inline-size: 0; }
-
-  .order { display: grid; gap: var(--sp-050); margin: 0; padding-inline-start: var(--sp-300); }
-
-  .handles, .log { display: grid; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
-
-  .value { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
-
-  .value-label { flex: 0 0 calc(var(--sp-1000) * 2); color: var(--text-secondary); font-size: var(--fs-075); }
+  .value { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
 
   .value code {
     font-family: var(--font-mono);
@@ -433,18 +542,4 @@
     background: var(--bg-recess);
     overflow-wrap: anywhere;
   }
-
-  .log li {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(0, 2fr) auto;
-    gap: var(--sp-150);
-    align-items: baseline;
-    font-size: var(--fs-075);
-  }
-
-  .when, .who { color: var(--text-secondary); }
-
-  .who, .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .log.compact li { grid-template-columns: minmax(0, 1fr); gap: var(--sp-025); }
 </style>

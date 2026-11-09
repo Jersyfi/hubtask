@@ -57,14 +57,16 @@ async function open(browser, role, holds = []) {
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
   await page.goto(`${served.origin}/administration/restore`);
-  await page.getByLabel('How').waitFor();
+  // How it is put back is the second of the create page's steps (page-system §9.3).
+  await page.getByRole('radio', { name: '2 Plan' }).click({ timeout: 15_000 });
+  await page.getByLabel('How', { exact: true }).waitFor();
   return { page, failures, close: () => context.close() };
 }
 
 async function offeredModes(page) {
   // The membership arrives after the first paint; the offer follows it.
   await page.waitForTimeout(300);
-  return page.getByLabel('How').locator('option').allTextContents();
+  return page.getByLabel('How', { exact: true }).locator('option').allTextContents();
 }
 
 test('chromium: the owner is offered replacing the workspace', async () => {
@@ -79,8 +81,8 @@ test('chromium: the owner is offered replacing the workspace', async () => {
   }
 });
 
-// UC-WRK-32 check 3: the rehearsal is never switched off for what is missing; pressed, the target
-// is marked and focused, and nothing is sent.
+// UC-WRK-32 check 3: the rehearsal is never switched off for what is missing; pressed - from a
+// later step -, the step that misses it opens, the target is marked and focused, and nothing is sent.
 test('chromium: rehearsing with nothing chosen marks the target and sends nothing', async () => {
   const browser = await chromium.launch();
   try {
@@ -119,7 +121,7 @@ test('chromium: under a legal hold the screen says a replace will not run', asyn
     const { page, failures, close } = await open(browser, 'OWNER', [HOLD]);
     assert.ok((await offeredModes(page)).includes('Replace this workspace'));
     assert.equal(await page.getByText('A legal hold is in force', { exact: true }).count(), 0);
-    await page.getByLabel('How').selectOption('REPLACE_TENANT');
+    await page.getByLabel('How', { exact: true }).selectOption('REPLACE_TENANT');
     await page.getByText('A legal hold is in force', { exact: true }).waitFor();
     assert.match(await page.locator('main').textContent() ?? '', /cannot be reset to a backup/);
     assert.deepEqual(failures, []);

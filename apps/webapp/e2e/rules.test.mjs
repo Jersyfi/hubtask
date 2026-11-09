@@ -167,6 +167,8 @@ function stubFor(written, tested = TEST_HELD, listed = [RULE, STALE]) {
       return route.fulfill({ json: tested });
     }
     if (path.endsWith('/api/v1/automation/runs')) {
+      // The column's unnarrowed read for its *n failed* figure is the frame's, not the editor's.
+      if (url.searchParams.size === 0) return route.fulfill({ json: { ...PAGE, data: [] } });
       written.push({ runs: Object.fromEntries(url.searchParams) });
       return route.fulfill({ json: { ...PAGE, data: RUNS } });
     }
@@ -333,9 +335,11 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   // Seventeen: the frame's own reads grew by the person's AI notice, their emergency notices and
   // their address notices, each read once per frame (PH-03, PH-05, UC-INS-19), and the
   // administration's by the private hubs, the webhooks and the mailboxes its column counts
-  // (user-experience.md §7.10) - what this bounds is the editor's.
+  // (user-experience.md §7.10), and its backup targets and schedules, latest runs and open privacy
+  // requests for the figures of their rows (the navigation concept §2.6) - what this bounds is the
+  // editor's.
   assert.equal(gets.filter((line) => line.includes('/accounts/me/address-notices')).length, 1, 'the address notices are read once, by the frame');
-  assert.ok(gets.length <= 17, `${gets.length} reads on open: ${gets.join(', ')}`);
+  assert.ok(gets.length <= 21, `${gets.length} reads on open: ${gets.join(', ')}`);
 
   // And the canvas meets the content region rather than standing in its padding: standing in it
   // draws a slab of one colour on a page of another, which reads as a border no other screen has.
@@ -857,7 +861,8 @@ test('chromium: a sample the gate refuses stops at the gate, and a recorded run 
   await page.getByText('Fails sometimes').waitFor();
   await page.getByText('1 of 3 runs failed').waitFor();
   assert.equal(written.filter((body) => body.runs).length, readBefore + 1, 'the tab read the runs again');
-  await page.locator('.rows .row').nth(1).click();
+  // The runs' own list: the sidebar's levels have rows of the same class.
+  await page.getByRole('main').locator('.rows .row').nth(1).click();
   await page.locator('[data-card="0"] .verdict').waitFor();
   assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'failed');
   await page.getByText('Failed', { exact: true }).first().waitFor();
@@ -882,8 +887,8 @@ test('chromium: the list checks the rules when it opens and says what the check 
   await page.getByText('The account it runs as: The account the rule runs as holds no role at the rule\'s scope; every step on an entry would find nothing.').waitFor();
   await page.getByText('Works', { exact: true }).waitFor();
   // The last run under the word: the rule that ran says when and how, the other says never.
-  assert.match(await page.locator('article', { hasText: RULE.name }).textContent(), /Last run.*Succeeded/);
-  assert.match(await page.locator('article', { hasText: STALE.name }).textContent(), /Last run\s*never/);
+  assert.match(await page.locator('tbody tr', { hasText: RULE.name }).textContent(), /Succeeded/);
+  assert.match(await page.locator('tbody tr', { hasText: STALE.name }).textContent(), /never/);
 
   // On the shell: one heading, from the PageHeader; the check's banner among its
   // notices; *Write a rule* the primary action, which opens the editor at its address.
@@ -903,8 +908,10 @@ test('chromium: the list checks the rules when it opens and says what the check 
   assert.match(await page.locator('[data-card="3"] .flag').textContent(), /needs body/);
   assert.match(await page.locator('.chip-flag').textContent(), /holds no role/, 'the sentence is there for a screen reader');
   assert.match(await page.locator('.chip.flagged').getAttribute('title'), /holds no role/, 'and on hover');
-  const enable = page.getByRole('button', { name: 'Switch it on' });
-  assert.equal(await enable.isDisabled(), true);
+  // Switching on is the record page's ⋯ (page-system §7.2), refused there with the reason.
+  await page.getByRole('button', { name: /^More for / }).click();
+  const enable = page.getByRole('menuitem', { name: /^Switch it on/ });
+  assert.equal(await enable.getAttribute('aria-disabled'), 'true');
 });
 
 test('chromium: a step naming a deleted label says it is gone, never its identifier', async (t) => {
@@ -953,8 +960,10 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.equal(await page.getByRole('heading', { name: 'Try a rule' }).count(), 0);
   assert.equal(await page.getByRole('combobox', { name: 'Which rule' }).count(), 0);
 
-  await page.getByLabel('From').fill('2026-09-20T00:00');
-  await page.getByLabel('To').fill('2026-09-21T00:00');
+  // The window is the time range chip's, the first of the filter bar (page-system §7.6).
+  await page.getByRole('button', { name: 'Any time' }).click();
+  await page.getByRole('textbox', { name: 'From' }).fill('2026-09-20T00:00');
+  await page.getByRole('textbox', { name: 'To', exact: true }).fill('2026-09-21T00:00');
   await page.waitForFunction(() => performance.now() > 0);
   await page.waitForTimeout(500);
   const windowed = written.find((body) => body.runs?.from && body.runs?.to);
@@ -984,8 +993,10 @@ test('chromium: every rule\'s editor has Start now, and only a rule somebody sta
   page.on('pageerror', (error) => failures.push(String(error)));
 
   // An event's rule: offered, unavailable, with the reason.
+  // *Start now* is the record page's ⋯ (page-system §7.2).
   await page.goto(`${served.origin}/administration/rules/${RULE.id}`);
-  const refused = page.getByRole('button', { name: 'Start now' });
+  await page.getByRole('button', { name: /^More for / }).click();
+  const refused = page.getByRole('menuitem', { name: /^Start now/ });
   await refused.waitFor({ timeout: 15_000 });
   assert.equal(await refused.getAttribute('aria-disabled'), 'true');
   const reason = await page.locator(`#${await refused.getAttribute('aria-describedby')}`).textContent();
@@ -995,7 +1006,8 @@ test('chromium: every rule\'s editor has Start now, and only a rule somebody sta
 
   // A rule somebody starts: pressed, it is started.
   await page.goto(`${served.origin}/administration/rules/${MANUAL.id}`);
-  const start = page.getByRole('button', { name: 'Start now' });
+  await page.getByRole('button', { name: /^More for / }).click();
+  const start = page.getByRole('menuitem', { name: /^Start now/ });
   await start.waitFor({ timeout: 15_000 });
   assert.equal(await start.getAttribute('aria-disabled'), null);
   await start.click();

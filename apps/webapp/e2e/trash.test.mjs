@@ -56,7 +56,7 @@ test('chromium: the trash counts down to the day the automatic removal may take 
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/trash`);
-  await page.getByText(entry.title).waitFor({ timeout: 15_000 });
+  await page.getByText(entry.title).first().waitFor({ timeout: 15_000 });
   await page.getByText('Days left before it goes for good: 80.').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('Days left before it goes for good: 20.').count(), 0, 'the trash counted from the period alone');
 });
@@ -87,7 +87,7 @@ test('chromium: a deletion a legal hold keeps says so, and counts no days', asyn
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/trash`);
-  await page.getByText(kept.title).waitFor({ timeout: 15_000 });
+  await page.getByText(kept.title).first().waitFor({ timeout: 15_000 });
 
   // One line each: the held deletion says it is kept, the other counts its fifty days.
   await page.getByText('Kept by a legal hold.').first().waitFor({ timeout: 5_000 });
@@ -124,7 +124,7 @@ test('chromium: a deletion a restriction keeps says so, and counts no days', asy
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/trash`);
-  await page.getByText(restricted.title).waitFor({ timeout: 15_000 });
+  await page.getByText(restricted.title).first().waitFor({ timeout: 15_000 });
 
   const sentence = "Kept because the person's data is restricted.";
   await page.getByText(sentence).first().waitFor({ timeout: 5_000 });
@@ -163,11 +163,14 @@ test('chromium: /trash?kind=PAGE asks for pages only and the filter says so', as
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/trash?kind=PAGE`);
-  await page.getByText(trashed.title).waitFor({ timeout: 15_000 });
-  assert.equal(await page.getByLabel('Show', { exact: true }).inputValue(), 'PAGE');
+  await page.getByText(trashed.title).first().waitFor({ timeout: 15_000 });
+  // The kind is a chip of the filter bar (page-system PS-7): it names the address's kind.
+  const chip = page.getByRole('button', { name: /^Show: Pages/ });
+  await chip.waitFor({ timeout: 5_000 });
   assert.deepEqual([...new Set(asked)], ['PAGE']);
 
-  await page.getByLabel('Show', { exact: true }).selectOption('');
+  await chip.click();
+  await page.getByRole('radio', { name: 'Everything', exact: true }).check();
   await page.waitForURL((address) => address.pathname === '/trash' && !address.searchParams.has('kind'), { timeout: 5_000 });
   await page.waitForFunction(() => !document.body.innerText.includes('Old onboarding notes'), undefined, { timeout: 5_000 });
 });

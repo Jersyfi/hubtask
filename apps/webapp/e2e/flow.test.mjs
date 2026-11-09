@@ -118,7 +118,7 @@ test('chromium: UC-WRK-31 check 2 — the Rules section says the flow keeps its 
   const { page, failures, context, written } = await flow(browser, 1280);
   t.after(() => context.close());
   await openSettings(page, FLOW.name);
-  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Rules', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: /^Rules( |$)/u }).click();
   const section = page.locator('[data-setting="automation"]');
   await section.waitFor({ timeout: 5_000 });
   const gate = section.getByRole('checkbox', { name: 'Required fields are filled in before an entry leaves the first column' });

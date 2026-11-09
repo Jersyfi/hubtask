@@ -151,14 +151,15 @@ test('chromium: the administration lists the private hubs - whose and how big, n
 
   await page.goto(`${served.origin}/administration/workspace`);
   const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
-  await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).click();
+  await nav.getByRole('link', { name: 'Private hubs', exact: true }).click();
   const table = page.getByRole('table', { name: 'Private hubs' });
   await table.waitFor({ timeout: 10_000 });
   const rows = table.getByRole('row');
   // The head and the two hubs of the fixture: one of Mara's, one nobody is left in.
   assert.equal(await rows.count(), 3);
-  await table.getByRole('rowheader', { name: OTHER.display_name }).waitFor({ timeout: 5_000 });
-  await table.getByRole('rowheader', { name: 'Nobody — its last member left' }).waitFor();
+  // A row's title is its first cell (page-system §7.1: a DataTable), the owners.
+  await table.getByRole('cell', { name: OTHER.display_name, exact: true }).waitFor({ timeout: 5_000 });
+  await table.getByRole('cell', { name: 'Nobody — its last member left', exact: true }).waitFor();
   assert.ok((await table.textContent()).includes('In the trash, removed for good on'));
   assert.equal(await page.getByRole('link', { name: /House|Diary/ }).count(), 0, 'no hub is named or linked');
   assert.deepEqual(failures, []);
@@ -174,9 +175,9 @@ test('chromium: no private hub in a workspace of one, or no right to the list, a
     await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: { ...WORKSPACE, several_people: false, private_hubs_offered: false } }));
     await page.goto(`${served.origin}/administration/workspace`);
     const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
-    await nav.getByRole('treeitem', { name: 'Limits', exact: true }).waitFor({ timeout: 10_000 });
+    await nav.getByRole('link', { name: 'Limits', exact: true }).waitFor({ timeout: 10_000 });
     await page.waitForTimeout(300);
-    assert.equal(await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).count(), 0, `answered ${answer.status ?? 200}`);
+    assert.equal(await nav.getByRole('link', { name: 'Private hubs', exact: true }).count(), 0, `answered ${answer.status ?? 200}`);
     assert.deepEqual(failures, []);
     await context.close();
   }
@@ -202,13 +203,14 @@ test('chromium: with several people and no private hub the page stays, with *Pri
 
   await page.goto(`${served.origin}/administration/workspace`);
   const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
-  await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).click();
+  await nav.getByRole('link', { name: 'Private hubs', exact: true }).click();
   const toggle = page.getByRole('switch', { name: 'People here may make private hubs' });
   await toggle.waitFor({ timeout: 10_000 });
   assert.equal(await toggle.isChecked(), true);
   // The chip beside the switch says whose value it is (UC-WRK-32 check 5), and that it is this
-  // workspace's own once it was switched here; the save confirms as a passing message.
-  await page.getByRole('button', { name: "Hubtask's default" }).waitFor();
+  // workspace's own once it was switched here; the save confirms as a passing message. The chip's
+  // words are the quiet *Default* (lib/data/source.ts).
+  await page.locator('[data-private-hubs-allowed]').getByRole('button', { name: 'Default', exact: true }).waitFor({ timeout: 10_000 });
   await toggle.uncheck();
   await page.getByRole('button', { name: 'Set here' }).waitFor({ timeout: 10_000 });
   await page.getByText('Saved: who may make private hubs.').first().waitFor();

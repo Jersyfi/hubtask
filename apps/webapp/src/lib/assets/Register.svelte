@@ -6,7 +6,7 @@
   // own screen, which each row opens.
 
   import { untrack } from 'svelte';
-  import { Badge, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, DataTable, Select, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiAsset, CiAssetList, CiClass } from '@hubtask/sync-engine';
 
@@ -42,6 +42,15 @@
     { value: '', label: t('app.register.every_state') },
     ...ASSET_STATES.map((each) => ({ value: each, label: t(`app.register.state.${each}`) })),
   ]);
+  const columns = $derived<DataColumn[]>([
+    { id: 'item', label: t('app.register.item'), priority: 1 },
+    { id: 'tag', label: t('app.register.tag'), priority: 2 },
+    { id: 'state', label: t('app.register.state_label'), priority: 1, isStatus: true },
+    { id: 'warranty', label: t('app.register.warranty'), priority: 2 },
+    { id: 'holder', label: t('app.register.holder'), priority: 3 },
+    { id: 'cost', label: t('app.register.cost'), priority: 3 },
+  ]);
+  type Row = NonNullable<typeof assets>[number];
 </script>
 
 {#if refusal}
@@ -55,47 +64,30 @@
     {:else if assets.length === 0}
       <p class="meta">{t('app.register.none')}</p>
     {:else}
-      <div class="scroll">
-        <table class="register" data-register>
-          <thead>
-            <tr>
-              <th scope="col">{t('app.register.item')}</th>
-              <th scope="col">{t('app.register.tag')}</th>
-              <th scope="col">{t('app.register.state_label')}</th>
-              <th scope="col">{t('app.register.warranty')}</th>
-              <th scope="col">{t('app.register.holder')}</th>
-              <th scope="col">{t('app.register.cost')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each assets as asset (asset.ci_id)}
-              <tr data-asset={asset.ci_id}>
-                <th scope="row">
-                  <a href={`/cis/${asset.ci_id}`}>{asset.name ?? t('app.assets.unknown_ci')}</a>
-                  {#if asset.class}<span class="meta">{classWord(asset.class, classes, words)}</span>{/if}
-                </th>
-                <td>{asset.asset_tag || '—'}</td>
-                <td><Badge size="sm" tone={assetTone(asset)}>{t(`app.register.state.${asset.state}`)}</Badge></td>
-                <td>
-                  {asset.warranty_until ?? '—'}
-                  {#if asset.warranty_ended}<Badge size="sm" tone="warning">{t('app.register.warranty_ended')}</Badge>{/if}
-                </td>
-                <td>{asset.assigned_to ? (accounts.nameOf(asset.assigned_to) ?? '—') : '—'}</td>
-                <td>{costText(asset.cost_minor, asset.currency, messages.locale)}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+      <div data-register>
+        <DataTable label={t('app.assets.section.register')} {columns} rows={assets} key={(asset: Row) => asset.ci_id}>
+          {#snippet cell(asset: Row, column: DataColumn)}
+            {#if column.id === 'item'}
+              <span class="item" data-asset={asset.ci_id}>
+                <a href={`/cis/${asset.ci_id}`}>{asset.name ?? t('app.assets.unknown_ci')}</a>
+                {#if asset.class}<span class="meta">{classWord(asset.class, classes, words)}</span>{/if}
+              </span>
+            {:else if column.id === 'tag'}{asset.asset_tag || '—'}
+            {:else if column.id === 'state'}<Badge size="sm" tone={assetTone(asset)}>{t(`app.register.state.${asset.state}`)}</Badge>
+            {:else if column.id === 'warranty'}
+              {asset.warranty_until ?? '—'}
+              {#if asset.warranty_ended}<Badge size="sm" tone="warning">{t('app.register.warranty_ended')}</Badge>{/if}
+            {:else if column.id === 'holder'}{asset.assigned_to ? (accounts.nameOf(asset.assigned_to) ?? '—') : '—'}
+            {:else}{costText(asset.cost_minor, asset.currency, messages.locale)}{/if}
+          {/snippet}
+        </DataTable>
       </div>
     {/if}
   </Stack>
 {/if}
 
 <style>
-  .scroll { overflow-x: auto; }
-  .register { border-collapse: collapse; inline-size: 100%; font-size: var(--fs-075); }
-  .register th, .register td { text-align: start; padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); vertical-align: baseline; }
-  .register th[scope='row'] { display: grid; gap: var(--sp-025); font-weight: var(--fw-medium); }
-  .register a { color: var(--text-primary); }
+  .item { display: grid; gap: var(--sp-025); font-weight: var(--fw-medium); }
+  .item a { color: var(--text-primary); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; font-weight: var(--fw-regular); }
 </style>

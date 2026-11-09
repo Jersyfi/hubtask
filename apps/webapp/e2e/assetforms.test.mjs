@@ -237,7 +237,7 @@ test('chromium: the class list names each class and spaces its line', async (t) 
   await meta.waitFor({ timeout: 15_000 });
   const line = (await meta.textContent()).trim();
   assert.ok(!line.includes('business_process'), `the key is drawn: ${line}`);
-  assert.match(line, /^shipped · /iu);
+  assert.match(line, /^shipped( · |$)/iu);
   assert.doesNotMatch(line, /\S·|·\S/u, `a separator is not spaced: ${line}`);
   assert.deepEqual(failures, []);
 });

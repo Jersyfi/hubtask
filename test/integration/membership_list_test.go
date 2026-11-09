@@ -144,3 +144,28 @@ func TestTheMembershipsOfAnotherTenantAreNotListed(t *testing.T) {
 		t.Error("tenant B listed tenant A's grant at its own workspace scope")
 	}
 }
+
+// The page's total is every grant at the scope, on each page, and none of another tenant's: tenant
+// B asking at tenant A's hub counts nothing (gate SG-3).
+func TestTheMembershipsTotalCountsTheScopeInItsOwnWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub := hubFor(ctx, t, tenantA, authorA)
+	scope := identity.HubScope(hub)
+	for range 3 {
+		grantedAt(ctx, t, tenantA, scope)
+	}
+
+	all := membershipsAt(ctx, t, tenantA, scope, repository.Page{Size: 200})
+	first := membershipsAt(ctx, t, tenantA, scope, repository.Page{Size: 2})
+	if all.Info.Total == nil || first.Info.Total == nil {
+		t.Fatal("a page of the memberships carries no total")
+	}
+	if *all.Info.Total != len(all.Grants) || *first.Info.Total != len(all.Grants) || len(all.Grants) < 3 {
+		t.Errorf("totals %d and %d, the scope holds %d", *all.Info.Total, *first.Info.Total, len(all.Grants))
+	}
+
+	foreign := membershipsAt(ctx, t, tenantB, scope, repository.Page{Size: 50})
+	if foreign.Info.Total == nil || *foreign.Info.Total != 0 {
+		t.Errorf("tenant B counted %v grants at tenant A's hub", foreign.Info.Total)
+	}
+}

@@ -162,7 +162,7 @@ func (r ActivityRepository) List(
 	kept, info := pageOf(entries, page.Size, r.cursors, func(entry domain.Entry) security.Position {
 		return security.At(entry.OccurredAt.UTC().Format(time.RFC3339Nano), entry.ID)
 	})
-	return repository.EntryPage{Entries: kept, Info: repository.PageInfo(info)}, nil
+	return repository.EntryPage{Entries: kept, Info: repository.PageInfo{NextCursor: info.NextCursor, HasMore: info.HasMore}}, nil
 }
 
 // activityBoundary is a decoded history cursor: the moment and the identifier the page continues

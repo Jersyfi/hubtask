@@ -31,10 +31,14 @@
     locales: readonly string[];
     zones: readonly string[];
     error?: string;
+    /** The id of a `SettingRow`'s name: the row names the value, so its own label is hidden. */
+    nameId?: string;
     onchange: (next: InstanceSetting | undefined) => void;
   }
 
-  const { area, key, declared, current, locales, zones, error, onchange }: Props = $props();
+  const { area, key, declared, current, locales, zones, error, nameId, onchange }: Props = $props();
+  /** How the value's own control is named: by the row it stands in, or by its label. */
+  const named = $derived(nameId ? { isLabelHidden: true, 'aria-labelledby': nameId } : {});
 
   const label = $derived(t(nameCode(area, key)));
   const decided = $derived(current?.set === true);
@@ -68,17 +72,20 @@
   const size = $derived(
     isBytes(area, key) && decided && typeof current?.value === 'number' && current.value > 0
       ? t('app.instance.value_size', { size: formatBytes(current.value, messages.locale) })
-      : undefined,
+      : area === 'quotas' && decided && current?.value === 0
+        ? t('app.instance.value_unlimited')
+        : undefined,
   );
 
   const lockOpen = $derived(lockCode(declared, false));
   const lockClosed = $derived(lockCode(declared, true));
 </script>
 
-<div class="value" data-value={`${area}.${key}`} data-setting={`${area}.${key}`}>
+<div class="value" data-in-row={nameId ? '' : undefined} data-value={`${area}.${key}`} data-setting={`${area}.${key}`}>
   {#if declared.kind === 'COUNT'}
     <Input
       {label}
+      {...named}
       type="number"
       inputmode="numeric"
       min={declared.minimum}
@@ -92,6 +99,7 @@
   {:else if declared.kind === 'FLAG'}
     <Select
       {label}
+      {...named}
       value={decided ? String(current?.value) : ''}
       options={[
         { value: '', label: undecided },
@@ -107,6 +115,7 @@
   {:else if declared.kind === 'CHOICE'}
     <Select
       {label}
+      {...named}
       value={decided ? String(current?.value) : ''}
       options={[{ value: '', label: undecided }, ...choices]}
       onchange={(event) => put((event.currentTarget as HTMLSelectElement).value)}
@@ -128,6 +137,7 @@
   {:else if declared.kind === 'LOCALE' && locales.length > 0}
     <Select
       {label}
+      {...named}
       value={decided ? String(current?.value) : ''}
       options={[{ value: '', label: undecided }, ...locales.map((each) => ({ value: each, label: languageName(each, messages.locale) }))]}
       onchange={(event) => put((event.currentTarget as HTMLSelectElement).value)}
@@ -136,6 +146,7 @@
   {:else if declared.kind === 'TIME_ZONE' && zones.length > 0}
     <Select
       {label}
+      {...named}
       value={decided ? String(current?.value) : ''}
       options={[{ value: '', label: undecided }, ...zones.map((each) => ({ value: each, label: each }))]}
       onchange={(event) => put((event.currentTarget as HTMLSelectElement).value)}
@@ -145,6 +156,7 @@
     <!-- A link, and a language or a zone where this installation lists none to choose from. -->
     <Input
       {label}
+      {...named}
       type={declared.kind === 'LINK' ? 'url' : 'text'}
       value={decided ? String(current?.value ?? '') : ''}
       placeholder={undecided}
@@ -186,6 +198,9 @@
     padding-block-end: var(--sp-150);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
+
+  /* In a setting row the row draws the line between settings and names the value. */
+  .value[data-in-row] { padding-block-end: 0; border-block-end: 0; grid-template-columns: minmax(0, 1fr); }
 
   .choices { margin: 0; padding: 0; border: 0; display: grid; gap: var(--sp-050); }
 

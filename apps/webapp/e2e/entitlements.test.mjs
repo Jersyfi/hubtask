@@ -21,7 +21,6 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const SHOW_DETAIL = 'What happened';
 const SERVICE_ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000001901', display_name: 'Automation', kind: 'SERVICE' };
 
 const rule = (id, name, enabled) => ({
@@ -86,19 +85,26 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   assert.ok(await page.getByText('Your 3 rules rest and stay. When automation is included again, they run from then on.').isVisible());
 
   // Every rule is still listed and reads as resting.
-  for (const each of RULES) assert.ok(await page.getByText(each.name).isVisible(), `${each.name} is not listed`);
+  for (const each of RULES) assert.ok(await page.getByText(each.name, { exact: true }).isVisible(), `${each.name} is not listed`);
   assert.equal(await page.getByText('Resting', { exact: true }).count(), RULES.length);
 
   // No new rule and no switching on; switching off stays for the two that are on.
   assert.equal(await page.getByRole('button', { name: 'Write a rule' }).count(), 0, 'a new rule is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 0, 'switching on is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it off' }).count(), 2);
+  // The switch is in each row (page-system §9.1): the two that are on may be switched off, the
+  // one that is off stays off, with the reason.
+  const main = page.getByRole('main');
+  assert.equal(await main.locator('[role="switch"]:not(:checked):not([aria-disabled="true"])').count(), 0, 'switching on is offered');
+  assert.equal(await main.locator('[role="switch"]:checked:not([aria-disabled="true"])').count(), 2);
 
   // The editor reads only: no save, no switching on, no dry run; switching off and deleting stay.
   await page.goto(`${served.origin}/administration/rules/${RULES[2].id}`);
   await page.getByText('This rule rests and stays as it is, readable.', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('button', { name: 'Save the rule' }).count(), 0, 'saving is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 0, 'switching on is offered in the editor');
+  // The rule's other acts are its record page's ⋯ (page-system §7.2).
+  await page.getByRole('button', { name: /^More for / }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Switch it on' }).count(), 0, 'switching on is offered in the editor');
+  assert.equal(await page.getByRole('menuitem', { name: 'Delete the rule' }).count(), 1, 'deleting stays');
+  await page.keyboard.press('Escape');
 
   // The runs: readable, nothing to try, start or replay.
   await page.goto(`${served.origin}/administration/runs`);
@@ -106,8 +112,9 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   assert.equal(await page.getByRole('button', { name: 'Try it' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Run it for real now' }).count(), 0);
   // A failed run, opened: what it did is readable, and nothing finishes it.
-  await page.getByRole('button', { name: SHOW_DETAIL }).first().click();
-  await page.getByRole('button', { name: 'Hide the detail' }).waitFor({ timeout: 5_000 });
+  // A run opens as its Dialog M (page-system §7.6).
+  await page.locator('[data-run]').first().click();
+  await page.locator('dialog[open] [data-run-detail]').waitFor({ timeout: 5_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.getByRole('button', { name: 'Finish this run' }).count(), 0, 'a replay is offered');
 
@@ -139,11 +146,11 @@ test('chromium: included, the rules screen offers what it always did', async (t)
   await page.goto(`${served.origin}/administration/rules`);
   await page.getByRole('button', { name: 'Write a rule' }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('Not included in your plan', { exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 1);
+  assert.equal(await page.getByRole('main').locator('[role="switch"]:not(:checked):not([aria-disabled="true"])').count(), 1);
 
   // The same failed run, opened where the rules are included, can be finished.
   await page.goto(`${served.origin}/administration/runs`);
-  await page.getByRole('button', { name: SHOW_DETAIL }).first().click();
+  await page.locator('[data-run]').first().click();
   await page.getByRole('button', { name: 'Finish this run' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
@@ -178,12 +185,20 @@ test('chromium: webhooks a plan leaves out rest with their secrets; pausing and 
   await page.getByText('2 subscriptions rest with their secrets; nothing is delivered.', { exact: false }).waitFor({ timeout: 5_000 });
   assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
   assert.equal(await page.getByText('Subscribe a system').count(), 0, 'a new subscription is offered');
-  assert.equal(await page.getByRole('button', { name: 'Switch it back on' }).count(), 0, 'resuming is offered');
-  assert.equal(await page.getByRole('button', { name: 'Pause it' }).count(), 1);
-  assert.equal(await page.getByRole('button', { name: 'Unsubscribe' }).count(), 2);
-  // A dead letter is readable, and not sent again.
-  await page.getByRole('button', { name: 'What was delivered' }).first().click();
+  // Pausing and unsubscribing are in each row's menu; resuming is not (page-system §9.3).
+  await page.getByRole('button', { name: `More for ${SUBSCRIPTIONS[0].target_url}` }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Pause it' }).count(), 1);
+  assert.equal(await page.getByRole('menuitem', { name: 'Unsubscribe…' }).count(), 1);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: `More for ${SUBSCRIPTIONS[1].target_url}` }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Switch it back on' }).count(), 0, 'resuming is offered');
+  assert.equal(await page.getByRole('menuitem', { name: 'Unsubscribe…' }).count(), 1);
+  await page.keyboard.press('Escape');
+  // A dead letter is readable on the webhook's page, and not sent again.
+  await page.goto(`${served.origin}/administration/webhooks/${SUBSCRIPTIONS[0].id}`);
   await page.getByText('503', { exact: false }).first().waitFor({ timeout: 5_000 });
+  await page.locator('main tbody tr.row').first().getByRole('button').first().click();
+  await page.locator('dialog[open]').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('button', { name: 'Send it again' }).count(), 0, 'a replay is offered');
   assert.deepEqual(failures, []);
 });
@@ -228,8 +243,13 @@ test('chromium: the workspace\'s own providers a plan leaves out sign nobody in,
   const configuring = page.locator('section[aria-labelledby="providers"]');
   assert.ok(await configuring.getByText('Not included in your plan', { exact: true }).isVisible());
   assert.equal(await page.getByRole('button', { name: 'Add a provider' }).count(), 0, 'a new provider is offered');
-  assert.equal(await page.getByRole('button', { name: 'Change' }).count(), 0, 'changing a resting provider is offered');
-  assert.equal(await page.getByRole('button', { name: 'Remove' }).count(), 2);
+  // Each provider's acts are in its row's menu: removing stays, changing is not offered.
+  for (const name of ['Company login', 'Lab login']) {
+    await configuring.getByRole('button', { name: `More for ${name}` }).click();
+    assert.equal(await page.getByRole('menuitem', { name: 'Change…' }).count(), 0, `changing the resting ${name} is offered`);
+    assert.equal(await page.getByRole('menuitem', { name: 'Remove…' }).count(), 1, `removing ${name} is not offered`);
+    await page.keyboard.press('Escape');
+  }
 
   // The ways in: a resting provider that is on keeps only the way to switch it off; one that is
   // off says so in place of its switch.

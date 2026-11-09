@@ -18,6 +18,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { DECLARED_PAIRS } from '../build/lint-status.js';
+
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = JSON.parse(fs.readFileSync(path.join(packageRoot, 'tokens', 'tokens.json'), 'utf8'));
 
@@ -204,6 +206,21 @@ function roleOf(dotted) {
 }
 
 const MODES = ['light', 'dark'];
+
+// A status border build/lint-status.js lets stand on a neutral surface: the pair is named there and
+// measured here, at the control-boundary floor, in both modes - never a status token unmeasured.
+for (const mode of MODES) {
+  test(`${mode}: every status border declared on a neutral surface clears ${NON_TEXT}:1`, () => {
+    const tokens = new Map(colourTokens(mode));
+    for (const [file, token, surface] of DECLARED_PAIRS) {
+      assert.equal(roleOf(token), 'indicator', `${token} (${file}) is declared as a border but is not an indicator`);
+      assert.ok(tokens.has(surface), `${surface} (${file}) is not a colour token`);
+      const background = over(parse(tokens.get(surface)), parse(tokens.get('bg.canvas')));
+      const value = ratio(over(parse(tokens.get(token)), background), background);
+      assert.ok(value >= NON_TEXT, `${token} on ${surface} (${file}): ${value.toFixed(2)}:1, needs ${NON_TEXT}:1`);
+    }
+  });
+}
 
 test('every semantic colour token is classified', () => {
   for (const mode of MODES) {

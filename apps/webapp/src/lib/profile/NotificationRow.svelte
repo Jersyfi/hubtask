@@ -10,9 +10,11 @@
   // described by the note, and draws no bubble of its own. The sentence used to stand under every
   // one of them, in a column kept wide for it.
   //
-  // A row of its own because a reason group belongs to a component: the note is this row's.
+  // A row of its own because a reason group belongs to a component: the note is this row's. A
+  // `SettingRow` (page-system PS-11): the category's name at the start, its boxes at the control's
+  // place, so every row's boxes stand at one x.
 
-  import { Checkbox, provideReasonGroup } from '@hubtask/design-system/components';
+  import { Checkbox, SettingRow, provideReasonGroup } from '@hubtask/design-system/components';
 
   import { preferenceFor } from '../data/preferences.ts';
   import type { NotificationPreference } from '@hubtask/sync-engine';
@@ -39,44 +41,39 @@
   provideReasonGroup(() => ({ id: noteId, reason: note }));
 </script>
 
-<tr data-setting={`notify-${category}`}>
-  <!-- A phrase per category the catalogue knows, and `humanise` for one it does not: an
-       installation that tells people about something newer still reads readably rather than
-       showing a key. -->
-  <th scope="row" class="what">
-    {t(`app.profile.category_${category}`)}
-    {#if note}<span class="note" id={noteId}>{note}</span>{/if}
-  </th>
-  {#each channels as channel (channel)}
-    {@const row = preferenceFor(rows, category, channel)}
-    <td>
-      <Checkbox
-        label={t('app.profile.enabled')}
-        isLabelHidden
-        checked={isAlwaysOn ? true : (row?.enabled ?? true)}
-        disabledReason={note}
-        isBusy={busy.has(`${channel}:enabled`)}
-        busyLabel={t('app.workspace.saving')}
-        onchange={(event: Event) => onset(channel, { enabled: (event.currentTarget as HTMLInputElement).checked })}
-      />
-    </td>
-    <td>
-      <Checkbox
-        label={t('app.profile.include_title')}
-        isLabelHidden
-        checked={row?.include_title ?? false}
-        isBusy={busy.has(`${channel}:include_title`)}
-        busyLabel={t('app.workspace.saving')}
-        onchange={(event: Event) => onset(channel, { include_title: (event.currentTarget as HTMLInputElement).checked })}
-      />
-    </td>
-  {/each}
-</tr>
+<div data-setting={`notify-${category}`} role="group" aria-label={t(`app.profile.category_${category}`)}>
+  <!-- A phrase per category the catalogue knows: an installation that tells people about something
+       newer still reads readably rather than showing a key. -->
+  <SettingRow label={t(`app.profile.category_${category}`)} fieldWidth="lg">
+    {#snippet control()}
+      <span class="boxes">
+        {#each channels as channel (channel)}
+          {@const row = preferenceFor(rows, category, channel)}
+          <Checkbox
+            label={channels.length > 1 ? `${t(`app.profile.channel_${channel}`)} · ${t('app.profile.enabled')}` : t('app.profile.enabled')}
+            checked={isAlwaysOn ? true : (row?.enabled ?? true)}
+            disabledReason={note}
+            isBusy={busy.has(`${channel}:enabled`)}
+            busyLabel={t('app.workspace.saving')}
+            onchange={(event: Event) => onset(channel, { enabled: (event.currentTarget as HTMLInputElement).checked })}
+          />
+          <Checkbox
+            label={channels.length > 1 ? `${t(`app.profile.channel_${channel}`)} · ${t('app.profile.include_title')}` : t('app.profile.include_title')}
+            checked={row?.include_title ?? false}
+            isBusy={busy.has(`${channel}:include_title`)}
+            busyLabel={t('app.workspace.saving')}
+            onchange={(event: Event) => onset(channel, { include_title: (event.currentTarget as HTMLInputElement).checked })}
+          />
+        {/each}
+        {#if note}<span class="note" id={noteId}>{note}</span>{/if}
+      </span>
+    {/snippet}
+  </SettingRow>
+</div>
 
 <style>
-  /* The category is the column that grows, so the two questions stand together at the end of the
-     row rather than being pushed to opposite edges by a table sharing its width evenly. */
-  .what { inline-size: 100%; font-weight: var(--fw-regular); text-align: start; }
+  /* Two boxes per channel in fixed columns, so every row's boxes stand at the same x. */
+  .boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-100) var(--sp-250); align-items: center; }
 
-  .note { display: block; color: var(--text-secondary); font-size: var(--fs-075); }
+  .note { grid-column: 1 / -1; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

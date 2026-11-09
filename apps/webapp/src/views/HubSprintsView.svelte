@@ -5,7 +5,7 @@
   // collections, the soonest to end first, each opening its collection's *Sprint* view. A sprint
   // belongs to its collection; this page only gathers them, as the Plans home does across hubs.
   import { untrack } from 'svelte';
-  import { EmptyState, Icon, ListRow, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Icon, ListRow, Skeleton, Stack, WorkPage } from '@hubtask/design-system/components';
   import type { SprintList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -55,8 +55,8 @@
   const today = $derived(todayIn(actor.zone));
 </script>
 
-<ToolHead {hubId} tool="plan" current="sprints" {onnavigate} />
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}<ToolHead {hubId} tool="plan" current="sprints" {onnavigate} />{/snippet}
 
   {#if isReading && running.length === 0}
     <div aria-busy="true"><Skeleton lines={3} /></div>
@@ -81,7 +81,7 @@
       </Stack>
     </section>
   {/if}
-</Stack>
+</WorkPage>
 
 <style>
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }

@@ -33,6 +33,7 @@
     <SourceChip
       label={t(chip.label)}
       isLocked={chip.isLocked}
+      isSetHere={chip.isSetHere}
       detailsLabel={t('app.source.details')}
       {value}
       source={t(chip.source)}

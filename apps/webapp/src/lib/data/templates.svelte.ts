@@ -25,6 +25,7 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
+import { reachOf } from './paging.ts';
 import { ENTRY_LISTS } from './touches.ts';
 
 /** Where a container's templates live. Naming none is a different question, so a different path. */
@@ -50,6 +51,22 @@ class Templates {
 
   stateOf(containerId?: string): ResourceState<TemplatePage> | undefined {
     return this.#paths[templatesPath(containerId)];
+  }
+
+  /** How many templates apply along the path, where the answer counted them (page-system D-1). */
+  totalOf(containerId?: string): number | undefined {
+    const state = this.stateOf(containerId);
+    return state?.status === 'ready' ? reachOf(state.data).total : undefined;
+  }
+
+  hasMoreOf(containerId?: string): boolean {
+    const state = this.stateOf(containerId);
+    return state?.status === 'ready' && reachOf(state.data).hasMore;
+  }
+
+  /** Reads the next page onto the ones held; the subscription delivers it. */
+  async readMore(containerId?: string): Promise<void> {
+    await engine.loadMore<TemplatePage>({ path: templatesPath(containerId) });
   }
 
   /** Starts one path's list. **From `untrack`**, for the reason every other store records. */

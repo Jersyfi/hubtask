@@ -1,103 +1,47 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // What an external system is told, and what happened to each telling (`automation.md` §5).
+  // What an external system is told (`automation.md` §5), as a list page (page-system §7.1, §9.3):
+  // the subscriptions in one table, narrowed by their address, state and format; *New webhook* the
+  // head's primary, a Dialog M; a webhook opening its record page with its settings and deliveries;
+  // pause, resume and unsubscribing in its row's menu.
   //
-  // **The secret appears once, and this screen keeps no copy.** It is held in one `$state` for as
-  // long as the panel is open and dropped when it closes; nothing writes it to storage, to the
-  // address, or to a message.
-  //
-  // **The event types come from the manifest**, never from a list typed here: a type this build
-  // does not emit is refused rather than stored, so the picker offers exactly what the server
-  // accepts and a subscription cannot quietly wait for something that will never arrive.
-  //
-  // **The target URL is not validated here.** A private range or the cloud metadata address is
-  // refused by the guarded client unless the installation deliberately released private networks
-  // (T-07), and that is the installation's answer rather than this screen's — so the refusal is
-  // rendered where the field is, and nothing is predicted.
-  //
-  // **The condition is written, not assembled.** It is the automation's language over `event`,
-  // `data`, `actor` and `now`, compiled by the server when it is saved and refused naming where -
-  // this screen does not parse it, because a second parser would be a second dialect. The scope
-  // offers the hubs and collections the reader sees, as the rule editor does; the form is open
-  // only to whoever may automate the workspace, which reaches each of them.
+  // **The secret appears once, and this screen keeps no copy.** It is held in one `$state` while
+  // its Dialog S is open and dropped when it closes; nothing writes it to storage, to the address,
+  // or to a message.
   //
   // **The three states say different things.** `PAUSED` is somebody's decision, `DISABLED` is what
-  // sustained unreachability concluded — so the failure count and the last error are beside the
-  // control that re-enables it, because whoever presses it should know what they are re-enabling.
+  // sustained unreachability concluded - the record page says why beside its *Switch back on*.
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Badge, Banner, Button, Checkbox, Dialog, Disclosure, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, DataTable, EmptyState, FilterBar, ListPage, Radio, Spinner, Stack, type DataColumn, type DataRowMenu, type Filter } from '@hubtask/design-system/components';
+  import type { MenuItem } from '@hubtask/design-system/components';
 
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
-
-  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { keepsSecrets } from '../lib/administration/gaps.ts';
-  import {
-    webhooks,
-    type Delivery,
-    type Subscription,
-    type SubscriptionWithSecret,
-  } from '../lib/data/webhooks.svelte.ts';
-  import {
-    WEBHOOK_FORMATS,
-    eventGroups,
-    eventKey,
-    isChat,
-    webhookFigure,
-    scopeChoiceOf,
-    subscriptionBody,
-    type WebhookFormat,
-  } from '../lib/data/webhooks.ts';
-  import { containers } from '../lib/data/containers.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
-  import { isComplete, type Missing } from '../lib/forms/missing.ts';
-  import { marked } from '../lib/forms/press.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import { containers } from '../lib/data/containers.svelte.ts';
+  import { webhooks, type Subscription } from '../lib/data/webhooks.svelte.ts';
+  import { WEBHOOK_FORMATS, isChat, webhookFigure } from '../lib/data/webhooks.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { Continued } from '../lib/page/continued.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
+  import { renderProblem } from '../lib/problem.ts';
+  import NewWebhookDialog from '../lib/webhooks/NewWebhookDialog.svelte';
+  import SecretDialog from '../lib/webhooks/SecretDialog.svelte';
+  import UnsubscribeDialog from '../lib/webhooks/UnsubscribeDialog.svelte';
+  import { eventWord, listensAt, stateTone, stateWord, webhookScopes } from '../lib/webhooks/words.svelte.ts';
   import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import FailureNote from '../lib/frame/FailureNote.svelte';
 
-  /** The outcomes the contract lets a caller narrow to. `DEAD_LETTER` is the one operators want. */
-  const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'FILTER_FAILED'];
+  const { onnavigate }: { onnavigate: (path: string) => void } = $props();
 
-  /** The rotation choices, in seconds. Zero is its own decision and says so. */
-  const GRACE_CHOICES = ['3600', '86400', '604800', '0'];
-
-  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  const failureShown = $derived(failure);
-  let isWorking = $state(false);
-
-  // The one place a secret exists in this client, for as long as its panel is open.
-  let secret = $state<SubscriptionWithSecret | undefined>(undefined);
-  /** The add form is a dialog opened from the head's primary (user-experience.md §5.2). */
-  let isAdding = $state(false);
-
-  let draftUrl = $state('');
-  let draftTypes = $state<readonly string[]>([]);
-  let draftCondition = $state('');
-  let draftScope = $state('TENANT');
-  let draftFormat = $state<WebhookFormat>('CLOUDEVENTS');
-  let draftRoom = $state('');
-  let draftCredential = $state('');
-  let draftLocale = $state('');
-
-  // What a target receives (UC-INT-12), each with the words the target field needs for it.
-  const formats = $derived(
-    WEBHOOK_FORMATS.map((format) => ({ value: format, label: t(`app.webhooks.format_${format.toLowerCase()}`) })),
-  );
-
-  let opened = $state('');
-  let outcome = $state('');
-  let rotating = $state('');
-  let grace = $state('86400');
-  let removing = $state('');
+  $effect(() => page.entitle(t('app.webhooks.title')));
 
   $effect(() => untrack(() => webhooks.open()));
   $effect(() => untrack(() => containers.start()));
@@ -105,179 +49,94 @@
     const stops = containers.hubs.map((hub) => untrack(() => containers.openLevel(hub.id)));
     return () => stops.forEach((stop) => stop());
   });
-
-  /** Where a subscription may listen: the workspace, a hub with its collections, or one collection. */
-  const scopes = $derived([
-    { value: 'TENANT', label: t('app.rules.scope_tenant') },
-    ...containers.hubs.map((hub) => ({ value: `HUB:${hub.id}`, label: t('app.rules.scope_hub', { name: hub.name }) })),
-    ...containers.hubs.flatMap((hub) =>
-      containers.collectionsOf(hub.id).map((collection) => ({
-        value: `COLLECTION:${collection.id}`,
-        label: t('app.rules.scope_collection', { name: `${hub.name} · ${collection.name}` }),
-      })),
-    ),
-  ]);
-
-  /** Where a stored subscription listens, in the picker's words; a container this reader does not see is named by nothing more. */
-  const listensAt = (subscription: Subscription) => {
-    const choice = scopeChoiceOf(subscription.scope);
-    return scopes.find((each) => each.value === choice)?.label ?? t('app.webhooks.scope_unseen');
-  };
-
-  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by another subscription or outcome. */
-  let arrived = $state<string | undefined>(undefined);
-  let isLoadingMore = $state(false);
-  /** Why the last press of *Show more* brought nothing; cleared by the next press and by another subscription or outcome. */
-  let moreFailed = $state<string | undefined>(undefined);
-  $effect(() => {
-    void opened;
-    void outcome;
-    arrived = undefined;
-    moreFailed = undefined;
-  });
-
-  /** A subscription's next page of deliveries, appended, and what arrived said once it has (P-13). */
-  async function moreDeliveries(webhookId: string): Promise<void> {
-    const status = outcome || undefined;
-    const before = webhooks.deliveriesOf(webhookId, status).length;
-    moreFailed = undefined;
-    isLoadingMore = true;
-    try {
-      await webhooks.more(webhookId, status);
-      arrived = t('app.webhooks.arrived', { count: webhooks.deliveriesOf(webhookId, status).length - before });
-    } catch (error) {
-      // Beside the button that asked, not in the page's banner: the deliveries already shown are still right.
-      moreFailed = renderProblem(error as never, messages).message;
-    } finally {
-      isLoadingMore = false;
-    }
-  }
+  const scopes = $derived(webhookScopes());
 
   const reading = $derived(webhooks.state);
   const listed = $derived(webhooks.all);
-  const refusal = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
-
-  // Exactly what the manifest declares, and nothing while it has not been read: a picker offering
-  // a guess would be offering a choice the server refuses at the end.
-  const eventTypes = $derived<readonly string[]>(manifest.value?.event_types ?? []);
-
-  const when = (at: string | null | undefined) =>
-    at ? formatDateTime(at, messages.locale) : undefined;
-
-  const sentence = (code: string | null | undefined) =>
-    code ? (messages.has(code) ? t(code) : code) : undefined;
-
-  /** An event type in words (user-experience.md §5.4, pickers never keys); a type without words keeps its name. */
-  const eventWord = (type: string) => {
-    const code = `app.webhooks.event.${eventKey(type)}`;
-    return messages.has(code) ? t(code) : type;
-  };
-  const groups = $derived(eventGroups(eventTypes));
-
-  function toggleGroup(types: readonly string[], wanted: boolean): void {
-    draftTypes = wanted ? [...new Set([...draftTypes, ...types])] : draftTypes.filter((declared) => !types.includes(declared));
-  }
-
-  const stateWord = (subscription: Subscription) =>
-    t(`app.webhooks.state_${subscription.state.toLowerCase()}`);
-
-  const stateTone = (subscription: Subscription) =>
-    subscription.state === 'ACTIVE' ? 'success' : subscription.state === 'PAUSED' ? 'neutral' : 'danger';
-
-  const outcomeTone = (delivery: Delivery) =>
-    delivery.status === 'SUCCEEDED'
-      ? 'success'
-      : delivery.status === 'DEAD_LETTER'
-        ? 'danger'
-        : delivery.status === 'FAILED' || delivery.status === 'FILTER_FAILED'
-          ? 'warning'
-          : 'neutral';
-
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
-    failure = undefined;
-    isWorking = true;
-    try {
-      await work();
-      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
-      if (said) announcer.say(said);
-    } catch (cause) {
-      failure = renderProblem(cause as never, messages);
-    } finally {
-      isWorking = false;
-    }
-  }
-
-  function toggleType(type: string, wanted: boolean): void {
-    draftTypes = wanted
-      ? [...draftTypes, type]
-      : draftTypes.filter((declared) => declared !== type);
-  }
-
-  /** What *Subscribe* found missing when pressed, marked at the field, focus on it (UC-WRK-32 check 3). */
-  let missing = $state<Missing>({});
-
-  async function subscribe(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    missing = marked(event, [
-      { kind: 'field', key: 'url', code: 'app.forms.required', isFilled: draftUrl.trim() !== '' },
-      { kind: 'at-least-one', key: 'types', code: 'app.forms.at_least_one', chosen: draftTypes.length },
-    ]);
-    if (!isComplete(missing)) return;
-    await attempt(async () => {
-      const created = await webhooks.subscribe(
-        subscriptionBody({
-          target_url: draftUrl,
-          event_types: draftTypes,
-          condition: draftCondition,
-          scope: draftScope,
-          format: draftFormat,
-          room: draftRoom,
-          credential: draftCredential,
-          locale: draftLocale,
-        }),
-      );
-      // A chat room signs nothing, so there is no secret to show it once.
-      secret = created.secret ? created : undefined;
-      draftCredential = '';
-      draftRoom = '';
-      draftUrl = '';
-      draftTypes = [];
-      draftCondition = '';
-      draftScope = 'TENANT';
-      draftFormat = 'CLOUDEVENTS';
-      draftLocale = '';
-      isAdding = false;
-    }, t('app.webhooks.subscribed_announced'));
-  }
-
-  async function openDeliveries(webhookId: string): Promise<void> {
-    if (opened === webhookId) {
-      opened = '';
-      return;
-    }
-    opened = webhookId;
-    await attempt(() => webhooks.readDeliveries(webhookId, outcome || undefined));
-  }
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.webhooks.title')));
+  const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
   /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
   const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
   /**
-   * Where the plan leaves webhooks out they rest: nothing is delivered, nothing is added, resumed
-   * or replayed - pausing, a new secret and unsubscribing stay (multi-tenancy.md §4.2, P-05).
+   * Where the plan leaves webhooks out they rest: nothing is delivered, added, resumed or replayed -
+   * pausing, a new secret and unsubscribing stay (multi-tenancy.md §4.2, P-05).
    */
   const webhooksIncluded = $derived(includedHere('WEBHOOKS') === true);
   const resting = $derived(includedHere('WEBHOOKS') === false);
   const mayAdd = $derived(mayAutomate && !resting && keepsSecrets(manifest.value?.features));
-  function openAdding(): void {
-    failure = undefined;
-    isAdding = true;
+
+  let isAdding = $state(false);
+  // The one place a secret exists in this client, for as long as its dialog is open.
+  let secret = $state<string | undefined>(undefined);
+  let removing = $state<Subscription | undefined>(undefined);
+  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+
+  let search = $state('');
+  let stateFilter = $state('');
+  let formatFilter = $state('');
+  const shown = $derived(
+    listed.filter((each) =>
+      matchesSearch(search, [each.target_url, each.room ?? '', ...each.event_types.map(eventWord)])
+      && (stateFilter === '' || each.state === stateFilter)
+      && (formatFilter === '' || (each.format ?? 'CLOUDEVENTS') === formatFilter)),
+  );
+  const continued = new Continued(() => shown);
+  $effect(() => {
+    void search;
+    void stateFilter;
+    void formatFilter;
+    untrack(() => continued.restart());
+  });
+
+  const formatWord = (format: string) => t(`app.webhooks.format_${format.toLowerCase()}`);
+  const chips = $derived<Filter[]>([
+    { id: 'state', label: t('app.webhooks.chip_state', { state: stateFilter ? t(`app.webhooks.state_${stateFilter.toLowerCase()}`) : t('app.page.any') }), isActive: stateFilter !== '' },
+    { id: 'format', label: t('app.webhooks.chip_format', { format: formatFilter ? formatWord(formatFilter) : t('app.page.any') }), isActive: formatFilter !== '' },
+  ]);
+  const activeFilters = $derived(chips.filter((chip) => chip.isActive).length);
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'target', label: t('app.webhooks.target_column'), priority: 1 },
+    { id: 'events', label: t('app.webhooks.events_column'), priority: 2 },
+    { id: 'scope', label: t('app.webhooks.scope'), priority: 3 },
+    { id: 'state', label: t('app.webhooks.state_column'), priority: 2, isStatus: true },
+  ]);
+
+  const eventsOf = (subscription: Subscription) =>
+    subscription.event_types.length <= 2
+      ? subscription.event_types.map(eventWord).join(', ')
+      : t('app.webhooks.events_count', { first: eventWord(subscription.event_types[0] ?? ''), count: String(subscription.event_types.length - 1) });
+
+  function rowMenu(subscription: Subscription): DataRowMenu | undefined {
+    if (!mayAutomate) return undefined;
+    const items: MenuItem[] = [
+      { id: 'open', label: t('app.page.open') },
+      ...(subscription.state === 'ACTIVE'
+        ? [{ id: 'pause', label: t('app.webhooks.pause') }]
+        : webhooksIncluded ? [{ id: 'resume', label: t('app.webhooks.resume') }] : []),
+      { id: 'unsubscribe', label: t('app.webhooks.unsubscribe_menu'), isDestructive: true, hasSeparatorBefore: true },
+    ];
+    return { label: t('app.page.more_for', { name: subscription.target_url }), items };
   }
+
+  async function onRowMenu(subscription: Subscription, id: string): Promise<void> {
+    if (id === 'open') {
+      onnavigate(`/administration/webhooks/${subscription.id}`);
+      return;
+    }
+    if (id === 'unsubscribe') {
+      removing = subscription;
+      return;
+    }
+    failure = undefined;
+    try {
+      await webhooks.update(subscription.id, { state: id === 'pause' ? 'PAUSED' : 'ACTIVE' }, subscription.version);
+      announcer.say(t(id === 'pause' ? 'app.webhooks.paused_announced' : 'app.webhooks.resumed_announced'));
+    } catch (cause) {
+      failure = renderProblem(cause as never, messages);
+    }
+  }
+
   const figureText = $derived.by(() => {
     if (listed.length === 0) return '';
     const counts = webhookFigure(listed);
@@ -287,558 +146,118 @@
       ...(counts.disabled > 0 ? [t('app.webhooks.figure_disabled', { count: String(counts.disabled) })] : []),
     ].join(' · ');
   });
+
+  const head = $derived({
+    title: t('app.webhooks.title'),
+    breadcrumb: adminTrail({ id: 'screen', label: t('app.webhooks.title') }),
+    primary: mayAdd ? { label: t('app.webhooks.add'), icon: 'plus' as const, opener: 'new-webhook', onclick: () => (isAdding = true) } : undefined,
+    figure: figureText ? figure : undefined,
+  });
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.webhooks.title')}
-    isTitleInBar={viewport.isCompact}
-    primary={mayAdd ? { label: t('app.webhooks.add'), icon: 'plus', onclick: openAdding } : undefined}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'webhooks', label: t('app.webhooks.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  >
-    {#snippet figure()}{#if figureText}<span class="figure" data-webhooks-figure>{figureText}</span>{/if}{/snippet}
-  </PageHeader>
+{#snippet figure()}<span class="figure" data-webhooks-figure>{figureText}</span>{/snippet}
 
-    <Stack gap="300">
-    <p class="quiet">{t('app.webhooks.intro')}</p>
-
-    {#if resting}
-      <NotInPlan body={t('app.plan.webhooks_body', { count: webhooks.all.length })} />
-    {/if}
-
-    {#if secret}
-      <!-- The only time this value exists anywhere but the server's sealed copy. The
-           acknowledgement is required, because a secret scrolled past is a secret nobody kept. -->
-      <OneTimeSecret
-        value={secret.secret}
-        label={t('app.webhooks.secret_title')}
-        hint={t('app.webhooks.secret_hint')}
-        revealLabel={t('app.webhooks.reveal')}
-        hideLabel={t('app.webhooks.hide')}
-        copyLabel={t('app.webhooks.copy')}
-        copiedLabel={t('app.webhooks.copied')}
-        acknowledgementLabel={t('app.webhooks.kept')}
-        notAcknowledgedReason={t('app.webhooks.keep_first')}
-        dismissLabel={t('app.webhooks.done')}
-        onDismiss={() => (secret = undefined)}
-      />
-    {/if}
-
-    {#if failureShown && !isAdding}{@render failureBanner(failureShown)}{/if}
-
-    <!-- One part, so the shell draws no list of sections: the webhooks are the screen. -->
-    <SettingsPage label={t('app.settings_page.sections', { name: t('app.webhooks.title') })} sections={[]}>
-    {#if reading.status === 'loading' || reading.status === 'idle'}
-      <p class="waiting">
-        <Spinner label={t('app.webhooks.reading')} /> <span>{t('app.webhooks.reading')}</span>
-      </p>
-    {:else if refusal}
-      <FailureNote problem={refusal} />
-    {:else}
-      {#each listed as subscription (subscription.id)}
-        <section class="panel">
-          <Stack gap="100">
-            <div class="row">
-              <span class="mono target">{subscription.target_url}</span>
-              <Badge tone={stateTone(subscription)}>{stateWord(subscription)}</Badge>
-              {#if isChat(subscription.format)}
-                <Badge>{t(`app.webhooks.format_${(subscription.format ?? '').toLowerCase()}`)}</Badge>
-              {/if}
-            </div>
-            {#if subscription.room}
-              <p class="quiet small">{t('app.webhooks.room_named', { room: subscription.room })}</p>
-            {/if}
-
-            <p class="quiet small">
-              {t('app.webhooks.subscribed_since', { at: when(subscription.created_at) ?? '' })}
-            </p>
-
-            <div class="row">
-              {#each subscription.event_types as type (type)}
-                <Badge>{eventWord(type)}</Badge>
-              {/each}
-            </div>
-
-            <p class="quiet small">{t('app.webhooks.listens_at', { scope: listensAt(subscription) })}</p>
-            {#if subscription.filter}
-              <!-- The condition as its author wrote it: configuration, shown to whoever may read it. -->
-              <p class="quiet small">
-                {t('app.webhooks.only_when')} <span class="mono">{subscription.filter}</span>
-              </p>
-            {/if}
-
-            {#if subscription.state === 'DISABLED' || subscription.failure_count > 0}
-              <!-- What the person pressing "switch it back on" is switching back on. `DISABLED` is
-                   a conclusion the system reached, not a setting somebody chose. -->
-              <Banner tone={subscription.state === 'DISABLED' ? 'danger' : 'warning'}>
-                <Stack gap="025">
-                  <span>
-                    {subscription.state === 'DISABLED'
-                      ? t('app.webhooks.disabled_note', { count: String(subscription.failure_count) })
-                      : t('app.webhooks.failing_note', { count: String(subscription.failure_count) })}
-                  </span>
-                  {#if subscription.last_error}
-                    <span>{sentence(subscription.last_error)}</span>
-                  {/if}
-                </Stack>
-              </Banner>
-            {/if}
-
-            <div class="row">
-              {#if !mayAutomate}
-                <!-- Pause, rotate and unsubscribe are absent; the form's gate below says why. -->
-              {:else if subscription.state === 'ACTIVE'}
-                <Button
-                  size="sm"
-                  tone="secondary"
-                  isBusy={isWorking}
-                  busyLabel={t('app.webhooks.saving')}
-                  onclick={() =>
-                    void attempt(() =>
-                      webhooks.update(subscription.id, { state: 'PAUSED' }, subscription.version), t('app.webhooks.paused_announced')
-                    )}
-                >
-                  {t('app.webhooks.pause')}
-                </Button>
-              {:else if webhooksIncluded}
-                <Button
-                  size="sm"
-                  tone="primary"
-                  isBusy={isWorking}
-                  busyLabel={t('app.webhooks.saving')}
-                  onclick={() =>
-                    void attempt(() =>
-                      webhooks.update(subscription.id, { state: 'ACTIVE' }, subscription.version), t('app.webhooks.resumed_announced')
-                    )}
-                >
-                  {t('app.webhooks.resume')}
-                </Button>
-              {/if}
-              <Button size="sm" tone="subtle" onclick={() => void openDeliveries(subscription.id)}>
-                {opened === subscription.id
-                  ? t('app.webhooks.hide_deliveries')
-                  : t('app.webhooks.show_deliveries')}
-              </Button>
-              {#if mayAutomate}
-              {#if !isChat(subscription.format)}
-              <Button
-                size="sm"
-                tone="secondary"
-                onclick={() => (rotating = rotating === subscription.id ? '' : subscription.id)}
-              >
-                {t('app.webhooks.rotate')}
-              </Button>
-              {/if}
-              <Button
-                size="sm"
-                tone="danger"
-                onclick={() => (removing = removing === subscription.id ? '' : subscription.id)}
-              >
-                {t('app.webhooks.unsubscribe')}
-              </Button>
-              {/if}
-            </div>
-
-            {#if rotating === subscription.id}
-              <!-- What rotation costs, before it is pressed. Signatures use the new secret from
-                   the moment of the call; the grace period is the subscriber's side of the check,
-                   which is the half that cannot be deployed atomically. -->
-              <Banner tone="warning" title={t('app.webhooks.rotate_title')}>
-                <Stack gap="100">
-                  <span>{t('app.webhooks.rotate_note')}</span>
-                  <Select
-                    label={t('app.webhooks.grace')}
-                    hint={t('app.webhooks.grace_hint')}
-                    bind:value={grace}
-                    options={GRACE_CHOICES.map((seconds) => ({
-                      value: seconds,
-                      label: t(`app.webhooks.grace_${seconds}`),
-                    }))}
-                  />
-                  <div class="row">
-                    <Button
-                      size="sm"
-                      tone="primary"
-                      isBusy={isWorking}
-                      busyLabel={t('app.webhooks.rotating')}
-                      onclick={() =>
-                        void attempt(async () => {
-                          secret = await webhooks.rotate(
-                            subscription.id,
-                            Number.parseInt(grace, 10),
-                          );
-                          rotating = '';
-                        }, t('app.webhooks.rotated_announced'))}
-                    >
-                      {t('app.webhooks.rotate_confirm')}
-                    </Button>
-                    <Button size="sm" tone="subtle" onclick={() => (rotating = '')}>
-                      {t('app.workspace.cancel')}
-                    </Button>
-                  </div>
-                </Stack>
-              </Banner>
-            {/if}
-
-            {#if removing === subscription.id}
-              <Banner tone="danger" title={t('app.webhooks.unsubscribe_title')}>
-                <Stack gap="100">
-                  <!-- The deliveries go with it: a log of attempts against an address the
-                       workspace no longer knows is a record of nothing. -->
-                  <span>{t('app.webhooks.unsubscribe_note')}</span>
-                  <div class="row">
-                    <Button
-                      size="sm"
-                      tone="danger"
-                      isBusy={isWorking}
-                      busyLabel={t('app.webhooks.unsubscribing')}
-                      onclick={() =>
-                        void attempt(async () => {
-                          await webhooks.unsubscribe(subscription.id);
-                          removing = '';
-                        }, t('app.webhooks.unsubscribed_announced'))}
-                    >
-                      {t('app.webhooks.unsubscribe_confirm')}
-                    </Button>
-                    <Button size="sm" tone="subtle" onclick={() => (removing = '')}>
-                      {t('app.workspace.cancel')}
-                    </Button>
-                  </div>
-                </Stack>
-              </Banner>
-            {/if}
-
-            {#if opened === subscription.id}
-              {@const state = webhooks.deliveryState(subscription.id, outcome || undefined)}
-              <Stack gap="100">
-                <Select
-                  label={t('app.webhooks.filter_outcome')}
-                  bind:value={outcome}
-                  placeholder={t('app.webhooks.all_outcomes')}
-                  options={OUTCOMES.map((value) => ({
-                    value,
-                    label: t(`app.webhooks.outcome_${value.toLowerCase()}`),
-                  }))}
-                  onchange={() =>
-                    void attempt(() =>
-                      webhooks.readDeliveries(subscription.id, outcome || undefined),
-                    )}
-                />
-
-                {#if state.status === 'loading'}
-                  <p class="waiting">
-                    <Spinner label={t('app.webhooks.reading_deliveries')} />
-                    <span>{t('app.webhooks.reading_deliveries')}</span>
-                  </p>
-                {:else if state.status === 'failed'}
-                  <p class="failure" role="alert">{renderProblem(state.error, messages).message}</p>
-                {:else}
-                  <ul class="deliveries">
-                    {#each webhooks.deliveriesOf(subscription.id, outcome || undefined) as delivery (delivery.id)}
-                      <li>
-                        <Stack gap="025">
-                          <div class="row">
-                            <Badge tone={outcomeTone(delivery)}>
-                              {t(`app.webhooks.outcome_${delivery.status.toLowerCase()}`)}
-                            </Badge>
-                            {#if delivery.attempt > 0}
-                              <span class="quiet small">
-                                {t('app.webhooks.attempt', { count: String(delivery.attempt) })}
-                              </span>
-                            {/if}
-                            {#if delivery.response_status}
-                              <span class="quiet small">
-                                {t('app.webhooks.answered', {
-                                  status: String(delivery.response_status),
-                                })}
-                              </span>
-                            {/if}
-                            <span class="quiet small">{when(delivery.created_at)}</span>
-                          </div>
-                          <span class="mono small">{delivery.event_id}</span>
-                          {#if delivery.error_code}
-                            <!-- The code as a sentence, never the target's response body. -->
-                            <span class="failure">{sentence(delivery.error_code)}</span>
-                          {/if}
-                          {#if delivery.next_attempt_at}
-                            <span class="quiet small">
-                              {t('app.webhooks.next_attempt', {
-                                at: when(delivery.next_attempt_at) ?? '',
-                              })}
-                            </span>
-                          {/if}
-                          {#if delivery.status === 'DEAD_LETTER' && mayAutomate && webhooksIncluded}
-                            <Stack gap="025">
-                              <!-- Said before the button: the replay carries the same event id, so
-                                   a subscriber that deduplicates recognises the repeat. That is
-                                   what makes it safe to press. -->
-                              <span class="quiet small">{t('app.webhooks.replay_note')}</span>
-                              <div>
-                                <Button
-                                  size="sm"
-                                  tone="primary"
-                                  isBusy={isWorking}
-                                  busyLabel={t('app.webhooks.replaying')}
-                                  onclick={() =>
-                                    void attempt(async () => {
-                                      await webhooks.replay(subscription.id, delivery.id);
-                                      await webhooks.readDeliveries(
-                                        subscription.id,
-                                        outcome || undefined,
-                                      );
-                                    }, t('app.webhooks.replayed_announced'))}
-                                >
-                                  {t('app.webhooks.replay')}
-                                </Button>
-                              </div>
-                            </Stack>
-                          {/if}
-                        </Stack>
-                      </li>
-                    {:else}
-                      <li class="quiet">{t('app.webhooks.no_deliveries')}</li>
-                    {/each}
-                  </ul>
-
-                  <!-- Drawn whole while something is to be said after the last page: the live
-                       regions go with the component, and one removed with the button is one
-                       nobody hears. -->
-                  {#if webhooks.moreAfter(subscription.id, outcome || undefined) || arrived || moreFailed}
-                    <LoadMore
-                      label={t('app.webhooks.more')}
-                      busyLabel={t('app.webhooks.loading_more')}
-                      hasMore={Boolean(webhooks.moreAfter(subscription.id, outcome || undefined))}
-                      isBusy={isLoadingMore}
-                      arrivedLabel={arrived}
-                      failedLabel={moreFailed}
-                      onLoadMore={() => void moreDeliveries(subscription.id)}
-                    />
-                  {/if}
-                {/if}
-              </Stack>
-            {/if}
-          </Stack>
-        </section>
-      {:else}
-        <EmptyState kind="unused" icon="send" title={t('app.webhooks.empty_title')} description={t('app.webhooks.empty_body')} action={mayAdd ? addAct : undefined} />
-      {/each}
-    {/if}
-    </SettingsPage>
-
-    {#if !resting && !keepsSecrets(manifest.value?.features)}
-      <!-- Each subscription's secret is sealed under the installation's key; without one the
-           server refuses at the end, so the form is not offered and the reason is said first. -->
-      <Banner tone="warning" title={t('app.webhooks.no_key_title')}>{t('app.webhooks.no_key_body')}</Banner>
-    {:else if !resting}
-    <!-- A reader without AUTOMATION is told once why nothing here can be added (P-05). -->
-    <WorkspaceGate permission="AUTOMATION" />
-    {/if}
+<ListPage {head}>
+  {#snippet intro()}
+    <Stack gap="150">
+      <p class="quiet">{t('app.webhooks.intro')}</p>
+      {#if resting}<NotInPlan body={t('app.plan.webhooks_body', { count: webhooks.all.length })} />{/if}
+      {#if !resting && !keepsSecrets(manifest.value?.features)}
+        <!-- Each subscription's secret is sealed under the installation's key; without one the
+             server refuses at the end, so nothing is offered and the reason is said first. -->
+        <Banner tone="warning" title={t('app.webhooks.no_key_title')}>{t('app.webhooks.no_key_body')}</Banner>
+      {:else if !resting}
+        <!-- A reader without AUTOMATION is told once why nothing here can be added (P-05). -->
+        <WorkspaceGate permission="AUTOMATION" />
+      {/if}
+      {#if failure}<FailureNote problem={failure} />{/if}
     </Stack>
-</Stack>
+  {/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.webhooks.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      filters={chips}
+      moreLabel={t('app.page.more_filters')}
+      filtersLabel={t('app.page.filters', { count: String(activeFilters) })}
+      sheetTitle={t('app.page.filters', { count: '0' })}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      showLabel={t('app.page.show_results', { count: String(shown.length) })}
+      clearLabel={t('app.page.clear')}
+      onclear={() => { search = ''; stateFilter = ''; formatFilter = ''; }}
+      countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(listed.length) }) : undefined}
+    >
+      {#snippet picker(chip: Filter)}
+        {#if chip.id === 'state'}
+          <Radio label={t('app.webhooks.state_column')} bind:value={stateFilter}
+            options={['', 'ACTIVE', 'PAUSED', 'DISABLED'].map((each) => ({ value: each, label: each === '' ? t('app.page.any') : t(`app.webhooks.state_${each.toLowerCase()}`) }))} />
+        {:else}
+          <Radio label={t('app.webhooks.format')} bind:value={formatFilter}
+            options={['', ...WEBHOOK_FORMATS].map((each) => ({ value: each, label: each === '' ? t('app.page.any') : formatWord(each) }))} />
+        {/if}
+      {/snippet}
+    </FilterBar>
+  {/snippet}
 
-{#snippet failureBanner(failure: NonNullable<typeof failureShown>)}
-  <FailureNote problem={failure}>
-    {#if failure.fields.size > 0}
-      <Stack gap="050">
-        {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
-      </Stack>
-    {/if}
-  </FailureNote>
-{/snippet}
+  {#if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="quiet"><Spinner label={t('app.webhooks.reading')} /> <span>{t('app.webhooks.reading')}</span></p>
+  {:else if refusal}
+    <FailureNote problem={refusal} />
+  {:else}
+    <DataTable
+      label={t('app.webhooks.title')}
+      {columns}
+      rows={continued.shown}
+      key={(each: Subscription) => each.id}
+      href={(each: Subscription) => `/administration/webhooks/${each.id}`}
+      rowLabel={(each: Subscription) => each.target_url}
+      menu={rowMenu}
+      onmenu={(each: Subscription, id: string) => void onRowMenu(each, id)}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      shownLabel={listed.length === 0 ? undefined : continued.shownLabel}
+      more={continued.more}
+      perPage={continued.perPage}
+    >
+      {#snippet cell(each: Subscription, column: DataColumn)}
+        {#if column.id === 'target'}
+          <span class="target" data-webhook={each.id}>{each.target_url}</span>
+          {#if isChat(each.format)}<span class="quiet small"> · {formatWord(each.format ?? '')}</span>{/if}
+        {:else if column.id === 'events'}
+          <span class="quiet">{eventsOf(each)}</span>
+        {:else if column.id === 'scope'}
+          <span class="quiet">{listensAt(each, scopes)}</span>
+        {:else}
+          <Badge tone={stateTone(each)}>{stateWord(each)}</Badge>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if listed.length === 0}
+          <EmptyState kind="unused" icon="send" title={t('app.webhooks.empty_title')} description={t('app.webhooks.empty_body')} action={mayAdd ? addAct : undefined} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.webhooks.none_found')} />
+        {/if}
+      {/snippet}
+    </DataTable>
+  {/if}
+</ListPage>
 
 {#snippet addAct()}
-  <Button tone="primary" icon="plus" onclick={openAdding}>{t('app.webhooks.add')}</Button>
+  <Button tone="primary" icon="plus" onclick={() => (isAdding = true)}>{t('app.webhooks.add')}</Button>
 {/snippet}
 
-{#if isAdding && mayAdd}
-  <Dialog bind:isOpen={isAdding} title={t('app.webhooks.add')} dismissLabel={t('app.webhooks.cancel')} isWide>
-      <form class="form" onsubmit={subscribe}>
-        <Stack gap="150">
-          {#if failureShown}{@render failureBanner(failureShown)}{/if}
-          <Select
-            label={t('app.webhooks.format')}
-            hint={t('app.webhooks.format_hint')}
-            error={failure?.fields.get('/format')}
-            bind:value={draftFormat}
-            options={formats}
-          />
-          <Input
-            label={t('app.webhooks.target_url')}
-            hint={draftFormat === 'MATRIX'
-              ? t('app.webhooks.target_url_hint_matrix')
-              : isChat(draftFormat)
-                ? t('app.webhooks.target_url_hint_room')
-                : t('app.webhooks.target_url_hint')}
-            bind:value={draftUrl}
-            isRequired
-            error={missing.url && !draftUrl.trim() ? t(missing.url) : failure?.fields.get('/target_url')}
-          />
-          {#if draftFormat === 'MATRIX'}
-            <Input
-              label={t('app.webhooks.room')}
-              hint={t('app.webhooks.room_hint')}
-              bind:value={draftRoom}
-              error={failure?.fields.get('/room')}
-              spellcheck="false"
-            />
-            <Input
-              type="password"
-              label={t('app.webhooks.credential')}
-              hint={t('app.webhooks.credential_hint')}
-              revealLabel={t('app.webhooks.reveal')}
-              hideLabel={t('app.webhooks.hide')}
-              bind:value={draftCredential}
-              error={failure?.fields.get('/credential')}
-              autocomplete="off"
-            />
-          {/if}
-          {#if isChat(draftFormat)}
-            <Input
-              label={t('app.webhooks.locale')}
-              hint={t('app.webhooks.locale_hint')}
-              bind:value={draftLocale}
-              error={failure?.fields.get('/locale')}
-              spellcheck="false"
-            />
-          {/if}
-
-          <fieldset
-            class="types"
-            data-invalid={missing.types && draftTypes.length === 0 ? '' : undefined}
-            aria-describedby={missing.types && draftTypes.length === 0 ? 'webhook-types-error' : undefined}
-          >
-            <legend>{t('app.webhooks.event_types')}</legend>
-            {#if missing.types && draftTypes.length === 0}<p class="failure" id="webhook-types-error">{t(missing.types)}</p>{/if}
-            {#if eventTypes.length === 0}
-              <!-- Nothing is knowable before the manifest is read, and a guess would be a choice the
-                   server refuses at the end. -->
-              <p class="quiet small">{t('app.webhooks.types_unknown')}</p>
-            {:else}
-              {#each groups as group (group.id)}
-                {@const chosen = group.types.filter((type) => draftTypes.includes(type)).length}
-                <div class="group">
-                  <Checkbox
-                    label={t('app.webhooks.group_all', { group: t(`app.webhooks.group.${group.id}`) })}
-                    checked={chosen === group.types.length}
-                    isIndeterminate={chosen > 0 && chosen < group.types.length}
-                    onchange={(event) => toggleGroup(group.types, (event.currentTarget as HTMLInputElement).checked)}
-                  />
-                  <!-- A group of many is folded (§1 UX-4): its one box chooses all of it, the list one by one. -->
-                  <Disclosure tone="quiet" label={t('app.webhooks.group_choose')}
-                    description={t('app.webhooks.group_chosen', { chosen: String(chosen), count: String(group.types.length) })}
-                    isOpen={group.types.length <= 3}>
-                    <div class="type-grid">
-                      {#each group.types as type (type)}
-                        <Checkbox
-                          label={eventWord(type)}
-                          checked={draftTypes.includes(type)}
-                          onchange={(event) =>
-                            toggleType(type, (event.currentTarget as HTMLInputElement).checked)}
-                        />
-                      {/each}
-                    </div>
-                  </Disclosure>
-                </div>
-              {/each}
-            {/if}
-          </fieldset>
-          <p class="quiet small">{t('app.webhooks.types_note')}</p>
-
-          <Select
-            label={t('app.webhooks.scope')}
-            hint={t('app.webhooks.scope_hint')}
-            error={failure?.fields.get('/scope') ?? failure?.fields.get('/scope/id')}
-            bind:value={draftScope}
-            options={scopes}
-          />
-          <Textarea
-            label={t('app.webhooks.condition')}
-            hint={t('app.webhooks.condition_hint')}
-            error={failure?.fields.get('/filter')}
-            bind:value={draftCondition}
-            rows={2}
-            spellcheck="false"
-          />
-          <p class="quiet small">{t('app.webhooks.egress_note')}</p>
-
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.webhooks.subscribing')}
-            >
-              {t('app.webhooks.subscribe')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-  </Dialog>
+{#if mayAdd}
+  <NewWebhookDialog bind:isOpen={isAdding} {scopes} onCreated={(value) => (secret = value)} />
 {/if}
+<SecretDialog {secret} onClose={() => (secret = undefined)} />
+<UnsubscribeDialog subscription={removing} onClose={() => (removing = undefined)} />
 
 <style>
-  .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-  .group { display: grid; gap: var(--sp-050); padding-block: var(--sp-050); }
-  .form { min-width: 0; }
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
   .quiet { margin: 0; color: var(--text-secondary); }
-
   .small { font-size: var(--fs-075); }
-
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-
-  .waiting {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    color: var(--text-secondary);
-  }
-
-  /* A form on a surface is still a form: its fields keep a measure while the lists and tables of
-     the screen take the region (ADR-0065 decision 2). The trail's filters are the exception and
-     say so themselves - they are a grid of their own. */
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .deliveries { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-150); }
-
-  .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
-
-  .target { font-weight: var(--fw-medium); }
-
-  .types { margin: 0; padding: 0; border: none; }
-
-  .types legend {
-    padding: 0 0 var(--sp-050);
-    color: var(--text-secondary);
-    font-size: var(--fs-075);
-  }
-
-  /* A column count the content decides, so a build with fifty event types does not become a list
-     fifty rows long on a wide screen. */
-  .type-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(22ch, 1fr));
-    gap: var(--sp-050) var(--sp-150);
-  }
+  .target { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; color: var(--text-primary); }
+  .figure { color: var(--text-secondary); }
 </style>

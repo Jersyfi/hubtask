@@ -101,7 +101,7 @@ test('A collection\'s people and its ⋯ stand in its head on every view, the �
 test('A hub tool\'s tabs draw one head - the trail, the tool\'s name, one figure slot - and the bar at one place', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const TOOLS = [['plan', ['', '/releases', '/sprints']], ['time', ['', '/workload', '/budget']], ['goals', ['', '/dashboards']]];
+  const TOOLS = [['plan', ['', '/table', '/dependencies', '/releases', '/sprints']], ['time', ['', '/workload', '/budget']], ['goals', ['', '/dashboards']]];
   for (const [name, size] of [['desktop', desktop], ['tablet', tablet], ['phone', phone]]) {
     const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}/plan`, ...size });
     t.after(close);
@@ -187,7 +187,7 @@ test('R-13: narrower than the marks and the views, the tools move behind one ⋯
 test('R-15: a new screen starts at its top, back returns to where the reader was', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 600 }]]) {
+  for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 500 }]]) {
     const { page, failures, close } = await go(browser, { path: '/', ...size });
     t.after(close);
     const tile = page.locator('section[aria-labelledby="today-lists"] a', { hasText: WEB.name });

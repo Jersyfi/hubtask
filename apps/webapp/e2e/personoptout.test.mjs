@@ -97,7 +97,8 @@ test('chromium: the consent register names who keeps their content out', async (
   const { page, close } = await open(browser, AI_SOURCE);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/privacy`);
+  // The register is the privacy page's second tab (page-system §9.3).
+  await page.goto(`${served.origin}/administration/privacy?tab=consent`);
   const register = page.locator('[data-consent-register]');
   await register.waitFor({ timeout: 15_000 });
   assert.match((await register.textContent()) ?? '', /Kim Keeper/);
@@ -112,12 +113,12 @@ test('chromium: a workspace of one is asked nothing about people keeping their c
   t.after(close);
 
   await page.goto(`${served.origin}/administration/ai?tab=consent`);
-  await page.locator('[data-settings-sections]').getByRole('link', { name: 'Source', exact: true }).waitFor({ timeout: 15_000 });
+  await page.getByRole('navigation', { name: 'Sections of AI' }).getByRole('link', { name: /^Budget/ }).first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-person-opt-out]').count(), 0, 'the position is asked of a workspace of one');
 
   await page.goto(`${served.origin}/administration/privacy`);
-  await page.getByRole('heading', { name: 'The two with their own path' }).waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { name: 'Privacy requests', level: 1 }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-consent-register]').count(), 0, 'the register is shown to a workspace of one');
 });

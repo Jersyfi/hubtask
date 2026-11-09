@@ -187,11 +187,11 @@ export const PRODUCTS: readonly ProductRow[] = [
   // *My notes* is a tab of the pages' home (§2.2); its own address is kept and is this row's.
   { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'], color: 'teal' },
   { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'], color: 'amber' },
-  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-reports', 'desk-settings'], color: 'magenta' },
-  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-classes', 'assets-sources', 'assets-settings'], color: 'slate' },
-  { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'], color: 'lime' },
-  { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'portfolio', 'dashboard'], color: 'green' },
-  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home'], color: 'violet' },
+  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-reports', 'desk-settings', 'desk-settings-section'], color: 'magenta' },
+  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-classes', 'assets-class', 'assets-sources', 'assets-settings', 'assets-settings-section'], color: 'slate' },
+  { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time', 'time-home-settings', 'time-home-settings-section'], color: 'lime' },
+  { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'goal-results', 'portfolio', 'dashboard'], color: 'green' },
+  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home', 'agents-settings', 'agents-settings-section', 'agent'], color: 'violet' },
 ];
 
 /** The products band: the rows of the modules switched on, in the one order; none while none is on. */
@@ -285,13 +285,13 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'how',
     code: 'app.admin.group_how_we_work',
     rows: [
-      { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings', 'workspace-section'] },
       // The main address, and who may change it (UC-INS-19 check 3).
       { id: 'address', icon: 'globe', code: 'app.address.title', path: '/administration/address', routes: ['workspace-address'] },
-      { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
+      { id: 'templates', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/templates', routes: ['templates'] },
       { id: 'modules', icon: 'layout-template', code: 'app.modules.title', path: '/administration/modules', routes: ['modules'] },
-      { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types'], module: 'WORKFLOWS' },
-      { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },
+      { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types', 'entry-type'], module: 'WORKFLOWS' },
+      { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows', 'workflow'], module: 'WORKFLOWS' },
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'], isAdvanced: true },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
@@ -305,12 +305,12 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_people',
     rows: [
       // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
-      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'], words: 'app.nav.words_people' },
+      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions', 'person', 'group', 'role'], words: 'app.nav.words_people' },
       // The providers are the sign-in screen's *Ways and providers* tab (§E9); their old address
       // moved there and is claimed here, so the row is current the moment it lands.
-      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'sign-in-section', 'sign-in-provider', 'identity-provider'] },
       { id: 'legal', icon: 'book-open', code: 'app.signin_settings.legal', path: '/administration/legal', routes: ['legal'] },
-      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps'], isAdvanced: true },
+      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps', 'service-account', 'app'], isAdvanced: true },
     ],
   },
   {
@@ -318,11 +318,11 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_connections',
     rows: [
       // The mail intake: a workspace's one inbox, sorted by handles and ticket keys (ADR-0094).
-      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'], words: 'app.nav.words_mail' },
-      { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'], isAdvanced: true },
+      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth', 'mail-section', 'mailbox'], words: 'app.nav.words_mail' },
+      { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks', 'webhook'], isAdvanced: true },
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
-      { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'], isAdvanced: true },
-      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
+      { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice', 'voice-section'], isAdvanced: true },
+      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai', 'ai-section'] },
     ],
   },
   {
@@ -333,11 +333,11 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // below): the page is also where *Private hubs allowed* is set, and a workspace of one has
       // neither a hub to show nor anybody to keep one from.
       { id: 'private-hubs', icon: 'lock', code: 'app.admin.private_hubs', path: '/administration/private-hubs', routes: ['private-hubs'] },
-      { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
-      { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
+      { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup', 'backup-section', 'backup-target'] },
+      { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention', 'retention-section'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'], words: 'app.nav.words_audit' },
-      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'], words: 'app.nav.words_privacy' },
+      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy', 'privacy-case'], words: 'app.nav.words_privacy' },
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'], isAdvanced: true },
     ],
   },
@@ -346,7 +346,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_changes',
     rows: [
       // The configuration's versions, the changes proposed for a person and the file (F-6).
-      { id: 'changes', icon: 'clock', code: 'app.changes.title', path: '/administration/changes', routes: ['changes'] },
+      { id: 'changes', icon: 'clock', code: 'app.changes.title', path: '/administration/changes', routes: ['changes', 'change'] },
     ],
   },
 ];
@@ -476,7 +476,7 @@ export const SETTINGS: readonly SectionGroup[] = [
     id: 'you',
     code: 'app.you.group_you',
     rows: [
-      { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile'] },
+      { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile', 'profile-section'] },
       // The theme and reduced motion: the device's (ADR-0043), and nothing else - the moments are
       // the account's and stand on *You*.
       { id: 'appearance', icon: 'sun-moon', code: 'app.profile.device_section', path: '/profile/appearance', routes: ['appearance'] },
@@ -496,7 +496,7 @@ export const SETTINGS: readonly SectionGroup[] = [
       // Three things rather than one: the password, the second factor and the recovery codes. A row
       // called after the second of them sends a reader looking for "where do I change my password"
       // to every other screen first.
-      { id: 'security', icon: 'shield', code: 'app.security.title', path: '/profile/security', routes: ['security'] },
+      { id: 'security', icon: 'shield', code: 'app.security.title', path: '/profile/security', routes: ['security', 'security-section', 'second-factor-new'] },
       { id: 'sessions', icon: 'user-check', code: 'app.you.row_sessions', titleCode: 'app.sessions.title', path: '/profile/sessions', routes: ['sessions'] },
       { id: 'devices', icon: 'arrow-right-left', code: 'app.you.row_devices', titleCode: 'app.devices.title', path: '/profile/devices', routes: ['devices'] },
     ],
@@ -506,11 +506,11 @@ export const SETTINGS: readonly SectionGroup[] = [
     code: 'app.you.group_acting',
     rows: [
       { id: 'grants', icon: 'link', code: 'app.you.row_grants', titleCode: 'app.grants.title', path: '/profile/apps', routes: ['grants'] },
-      { id: 'tokens', icon: 'key', code: 'app.tokens.title', path: '/profile/tokens', routes: ['tokens'] },
+      { id: 'tokens', icon: 'key', code: 'app.tokens.title', path: '/profile/tokens', routes: ['tokens', 'token-new', 'token'] },
       { id: 'calendars', icon: 'calendar', code: 'app.you.row_calendars', titleCode: 'app.pushes.title', path: '/profile/calendars', routes: ['calendars'] },
       { id: 'files', icon: 'paperclip', code: 'app.you.row_files', titleCode: 'app.filestores.title', path: '/profile/files', routes: ['filestores'] },
       { id: 'rules', icon: 'automation', code: 'app.you.row_rules', titleCode: 'app.rules.mine_title', path: '/profile/rules', routes: ['own-rules', 'own-rule', 'own-rule-new'] },
-      { id: 'agents', icon: 'zap', code: 'app.you.row_agents', titleCode: 'app.agents.title', path: '/profile/agents', routes: ['own-agents'], module: 'AGENTS' },
+      { id: 'agents', icon: 'zap', code: 'app.you.row_agents', titleCode: 'app.agents.title', path: '/profile/agents', routes: ['own-agents', 'own-agent'], module: 'AGENTS' },
     ],
   },
 ];
@@ -541,15 +541,15 @@ export const INSTANCE: readonly SectionGroup[] = [
     code: 'app.instance.group_installation',
     rows: [
       { id: 'overview', icon: 'gauge', code: 'app.instance.overview', path: '/instance', routes: ['instance'] },
-      { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
+      { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces', 'instance-workspace', 'instance-workspace-new'] },
       // Each workspace's people, entries and stored bytes, once metering is on (§8.4).
       { id: 'usage', icon: 'gauge', code: 'app.instance.usage', path: '/instance/usage', routes: ['instance-usage'] },
       { id: 'plans', icon: 'sliders-horizontal', code: 'app.instance.plans', path: '/instance/plans', routes: ['instance-plans', 'instance-plan'] },
-      { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
+      { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings', 'instance-settings-section'] },
       // The workspace's anatomy at this level (user-experience.md §8.4): its templates, its
       // module switches - the settings' *Modules* area - and the file in force.
       { id: 'templates', icon: 'layout-template', code: 'app.instance.templates', path: '/instance/templates', routes: ['instance-templates'] },
-      { id: 'modules', icon: 'shapes', code: 'app.instance.modules', path: '/instance/settings?tab=module', routes: [] },
+      { id: 'modules', icon: 'shapes', code: 'app.instance.modules', path: '/instance/settings/module', routes: [] },
       { id: 'file', icon: 'code', code: 'app.instance.file', path: '/instance/configuration-file', routes: ['instance-file'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
       { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },
@@ -765,6 +765,8 @@ export function toolOf(route: { readonly name: string | null; readonly query: Re
     case 'hub': return 'overview';
     case 'hub-desk': return 'queues';
     case 'hub-plan':
+    case 'hub-plan-table':
+    case 'hub-plan-dependencies':
     case 'hub-plan-releases':
     case 'hub-plan-sprints': return 'plan';
     case 'hub-inventory':

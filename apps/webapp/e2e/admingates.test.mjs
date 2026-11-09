@@ -66,11 +66,31 @@ async function offered(browser, permissions, address, waitFor, button) {
   }
 }
 
+/** What a group's row offers in its ⋯ (page-system PS-6), and *Edit* in the head of its own page. */
+async function groupEdit(browser, permissions) {
+  const { context, page } = await as(browser, permissions);
+  try {
+    await page.goto(`${served.origin}/administration/people?tab=groups`);
+    await page.getByRole('link', { name: GROUP.name, exact: true }).waitFor({ timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: `More for ${GROUP.name}` }).click();
+    await page.getByRole('menu').waitFor();
+    const inMenu = await page.getByRole('menu').getByRole('menuitem', { name: 'Edit…', exact: true }).count();
+    await page.keyboard.press('Escape');
+    await page.goto(`${served.origin}/administration/groups/${GROUP.id}`);
+    await page.getByRole('heading', { name: GROUP.name, level: 1 }).waitFor({ timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
+    return { inMenu, inHead: await page.getByRole('button', { name: 'Edit', exact: true }).count() };
+  } finally {
+    await context.close();
+  }
+}
+
 test('chromium: renaming a group is offered only to whom may manage members', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/people?tab=groups', GROUP.name, 'Rename'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/people?tab=groups', GROUP.name, 'Rename'), 0);
+  assert.deepEqual(await groupEdit(browser, PERMISSIONS.ADMIN), { inMenu: 1, inHead: 1 });
+  assert.deepEqual(await groupEdit(browser, PERMISSIONS.AUDITOR), { inMenu: 0, inHead: 0 });
 });
 
 test('chromium: a reader who may not manage members is not told the group is above their own role', async (t) => {
@@ -78,7 +98,7 @@ test('chromium: a reader who may not manage members is not told the group is abo
   t.after(() => browser.close());
   const { context, page } = await as(browser, PERMISSIONS.AUDITOR);
   t.after(() => context.close());
-  await page.goto(`${served.origin}/administration/people?tab=groups`);
+  await page.goto(`${served.origin}/administration/groups/${GROUP.id}`);
   await page.getByText(GROUP.name).first().waitFor({ timeout: 15_000 });
   await page.waitForLoadState('networkidle');
   // Their role cannot change any group; the page's read-only notice says so once, and "a role you
@@ -86,16 +106,34 @@ test('chromium: a reader who may not manage members is not told the group is abo
   assert.equal(await page.getByText('a role you do not hold yourself', { exact: false }).count(), 0);
 });
 
+/** Whether the trash's head ⋯ offers *Empty the trash* - destructive, so in the menu (page-system §7.3). */
+async function emptyOffered(browser, permissions) {
+  const { context, page } = await as(browser, permissions);
+  try {
+    await page.goto(`${served.origin}/trash`);
+    await page.getByText(TRASHED.title).first().waitFor({ timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
+    const more = page.getByRole('button', { name: 'More for the trash', exact: true });
+    if ((await more.count()) === 0) return 0;
+    await more.click();
+    await page.getByRole('menu').waitFor();
+    return await page.getByRole('menu').getByRole('menuitem', { name: 'Empty the trash', exact: true }).count();
+  } finally {
+    await context.close();
+  }
+}
+
 test('chromium: emptying the trash is offered only to whom may delete a hub', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.OWNER, '/trash', TRASHED.title, 'Empty the trash'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/trash', TRASHED.title, 'Empty the trash'), 0);
+  assert.equal(await emptyOffered(browser, PERMISSIONS.OWNER), 1);
+  assert.equal(await emptyOffered(browser, PERMISSIONS.ADMIN), 0);
 });
 
 test('chromium: a service account\'s tokens are offered only to whom may manage members', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/machines', MACHINE.display_name, 'Its tokens'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/machines', MACHINE.display_name, 'Its tokens'), 0);
+  // The tokens are a list of the account's record page, with *New token* as its add (page-system §7.2).
+  assert.equal(await offered(browser, PERMISSIONS.ADMIN, `/administration/machines/${MACHINE.id}`, MACHINE.display_name, 'New token'), 1);
+  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, `/administration/machines/${MACHINE.id}`, MACHINE.display_name, 'New token'), 0);
 });

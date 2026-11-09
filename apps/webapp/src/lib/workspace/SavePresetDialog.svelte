@@ -94,7 +94,13 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.presets.save_title')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog
+  size="m"
+  bind:isOpen
+  title={t('app.presets.save_title')}
+  dismissLabel={t('app.workspace.cancel')}
+  primary={{ label: t('app.presets.save'), isBusy: isSaving, busyLabel: t('app.presets.saving'), onclick: () => void save() }}
+>
   <div bind:this={body} data-save-preset>
     <Stack gap="150">
       <p class="hint">{t('app.presets.save_about')}</p>
@@ -113,8 +119,7 @@
   </div>
 
   {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="primary" isBusy={isSaving} busyLabel={t('app.presets.saving')} onclick={save}>{t('app.presets.save')}</Button>
+    <Button tone="subtle" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
   {/snippet}
 </Dialog>
 

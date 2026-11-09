@@ -72,7 +72,7 @@
   const ready = $derived(task?.kind === 'merge' ? into !== undefined : title.trim() !== '');
 </script>
 
-<Dialog
+<Dialog size="l" primary={{ label: t(task?.kind === 'merge' ? 'app.merge.go' : 'app.split.go'), isBusy, busyLabel: t('app.workspace.saving'), disabledReason: ready ? undefined : t(task?.kind === 'merge' ? 'app.links.choose_first' : 'app.split.title_first'), onclick: () => void go() }}
   isOpen={task !== undefined}
   title={task ? t(task.kind === 'merge' ? 'app.merge.of' : 'app.split.of', { title: task.item.title }) : ''}
   dismissLabel={t('app.workspace.cancel')}
@@ -99,14 +99,6 @@
   {/if}
   {#snippet actions()}
     <Button tone="secondary" onclick={onclose}>{t('app.workspace.cancel')}</Button>
-    <Button
-      tone="primary"
-      data-merge-split
-      isBusy={isBusy}
-      busyLabel={t('app.workspace.saving')}
-      disabledReason={ready ? undefined : t(task?.kind === 'merge' ? 'app.links.choose_first' : 'app.split.title_first')}
-      onclick={() => void go()}
-    >{t(task?.kind === 'merge' ? 'app.merge.go' : 'app.split.go')}</Button>
   {/snippet}
 </Dialog>
 

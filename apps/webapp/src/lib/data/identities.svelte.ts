@@ -27,7 +27,7 @@ const CONNECT = '/accounts/me/identities:connect';
 const COMPLETE = '/accounts/me/identities:complete';
 
 /** Where the person comes back to once the connection is settled. */
-export const SECURITY_PATH = '/profile/security';
+export const SECURITY_PATH = '/profile/security/providers';
 
 /** How long a step of the connection may take. Somebody is waiting on it. */
 const TIMEOUT_MS = 20_000;

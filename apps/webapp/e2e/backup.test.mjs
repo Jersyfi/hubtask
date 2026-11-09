@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Adding a backup target from the web app (UC-BAK-01 check 10): every kind this build speaks with
+// Adding a backup target from the web app (UC-BAK-01 check 10), in its Dialog M from the *Targets*
+// section (page-system §9.3): every kind this build speaks with
 // every field it needs. An SFTP target carries the host key the server requires, names its user in
 // the configuration and may log in with a key; a WebDAV target names its address; and a target that
 // leaves the workspace unprotected - unencrypted, or reached in the clear - goes only once its owner
@@ -49,10 +50,7 @@ test('chromium: an SFTP target is sent with its host key and its user in the con
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
-  await page.goto(`${served.origin}/administration/backup`);
-
-  const form = page.locator('form', { hasText: 'Add a target' });
-  await form.waitFor({ timeout: 15_000 });
+  const form = await addTarget(page);
   await form.getByLabel('Name').fill('The NAS');
   await form.getByLabel('Kind').selectOption('SFTP');
   await form.getByLabel('Host', { exact: true }).fill('nas.local');
@@ -60,7 +58,7 @@ test('chromium: an SFTP target is sent with its host key and its user in the con
   await form.getByLabel('User').fill('hubtask');
   await form.getByLabel('Host key').fill(HOST_KEY);
   await form.getByLabel('Password').fill('e2e-only');
-  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  await form.getByRole('button', { name: 'Add a target', exact: true }).click();
   for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
 
   assert.deepEqual(written[0], {
@@ -72,6 +70,22 @@ test('chromium: an SFTP target is sent with its host key and its user in the con
   });
   assert.deepEqual(failures, []);
 });
+
+/** The *Targets* section, and its *Add a target* dialog opened: the dialog, holding the form. */
+async function addTarget(page) {
+  await page.goto(`${served.origin}/administration/backup/targets`);
+  const add = page.getByRole('button', { name: 'Add a target', exact: true });
+  await add.waitFor({ timeout: 15_000 });
+  await add.click();
+  const dialog = page.getByRole('dialog', { name: 'Add a target' });
+  await dialog.waitFor();
+  return dialog;
+}
+
+/** What most targets leave as it is - the encryption, a region, an SFTP key - is folded. */
+async function advanced(form) {
+  await form.getByRole('button', { name: 'Advanced' }).click();
+}
 
 /** The target form, signed in as the owner, with every target the page writes recorded. */
 async function targetForm(browser) {
@@ -94,9 +108,7 @@ async function targetForm(browser) {
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
-  await page.goto(`${served.origin}/administration/backup`);
-  const form = page.locator('form', { hasText: 'Add a target' });
-  await form.waitFor({ timeout: 15_000 });
+  const form = await addTarget(page);
   const sent = async () => {
     for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
     return written[0];
@@ -115,7 +127,7 @@ test('chromium: a WebDAV target is sent with its address and user, the password 
   await form.getByLabel('Address').fill('https://dav.example.invalid/backups/');
   await form.getByLabel('User').fill('hubtask');
   await form.getByLabel('Password').fill('e2e-only');
-  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  await form.getByRole('button', { name: 'Add a target', exact: true }).click();
 
   assert.deepEqual(await sent(), {
     name: 'The cloud folder',
@@ -140,9 +152,10 @@ test('chromium: an SFTP target can log in with a private key and its passphrase'
   await form.getByLabel('Path').fill('/backups');
   await form.getByLabel('User').fill('hubtask');
   await form.getByLabel('Host key').fill(HOST_KEY);
+  await advanced(form);
   await form.getByLabel('Private key').fill(key);
   await form.getByLabel('Key passphrase').fill('e2e-only');
-  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  await form.getByRole('button', { name: 'Add a target', exact: true }).click();
 
   const body = await sent();
   assert.deepEqual(body.credentials, { private_key: `${key}\n`, private_key_passphrase: 'e2e-only' });
@@ -159,18 +172,19 @@ test('chromium: an unprotected target is added only once its owner has accepted 
   await form.getByLabel('Name').fill('A plain folder');
   await form.getByLabel('Kind').selectOption('WEBDAV');
   await form.getByLabel('Address').fill('http://dav.example.invalid/backups/');
+  await advanced(form);
   await form.getByLabel('Encryption').selectOption('NONE');
 
   // Both reasons, in the server's own words, before anything is sent.
   await form.getByText('Archives at this target are stored unencrypted.').waitFor({ timeout: 5_000 });
   await form.getByText('This target is reached over a connection anybody on the network can read.').waitFor();
   // Pressed anyway - forced past the reason it carries - nothing leaves.
-  await form.getByRole('button', { name: 'Add', exact: true }).click({ force: true });
+  await form.getByRole('button', { name: 'Add a target', exact: true }).click({ force: true });
   await page.waitForTimeout(300);
   assert.equal(written.length, 0, 'the target was sent before the risk was accepted');
 
   await form.getByLabel('I accept this and want the target anyway.').check();
-  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  await form.getByRole('button', { name: 'Add a target', exact: true }).click();
   const body = await sent();
   assert.equal(body.encryption_mode, 'NONE');
   assert.equal(body.insecure_acknowledged, true);
@@ -179,7 +193,7 @@ test('chromium: an unprotected target is added only once its owner has accepted 
 });
 
 /** The backup screen with the given targets, every target and schedule the page writes recorded. */
-async function backupScreen(browser, targets, viewport = { width: 1280, height: 1000 }, features = {}) {
+async function backupScreen(browser, targets, viewport = { width: 1280, height: 1000 }, features = {}, address = '/administration/backup') {
   const written = [];
   const context = await browser.newContext({ viewport });
   await context.route('**/api/v1/**', async (route) => {
@@ -202,7 +216,7 @@ async function backupScreen(browser, targets, viewport = { width: 1280, height: 
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   forgetUnstubbed();
-  await page.goto(`${served.origin}/administration/backup`);
+  await page.goto(`${served.origin}${address}`);
   return { page, written, failures, close: () => context.close() };
 }
 
@@ -239,12 +253,13 @@ test('chromium: an empty backup screen backs the workspace up every night with o
 test('chromium: where the operator keeps the backups, the screen says so and offers no target of its own', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, written, failures, close } = await backupScreen(browser, [], undefined, { backup_targets: false });
+  const { page, written, failures, close } = await backupScreen(browser, [], undefined, { backup_targets: false }, '/administration/backup/targets');
   t.after(close);
 
-  await page.getByText('The operator of this installation backs this workspace up.').waitFor({ timeout: 15_000 });
+  // Targets says it in one line; the whole explanation is the first section's, said once.
+  await page.getByText('The operator of this installation keeps the targets.').waitFor({ timeout: 15_000 });
   assert.equal(await page.getByRole('button', { name: 'Back up this workspace every night' }).count(), 0);
-  assert.equal(await page.locator('form', { hasText: 'Add a target' }).count(), 0, 'no form the server refuses at its end');
+  assert.equal(await page.getByRole('button', { name: 'Add a target', exact: true }).count(), 0, 'no form the server refuses at its end');
   assert.deepEqual(written, []);
   assert.deepEqual(failures, []);
 });
@@ -253,7 +268,7 @@ test('chromium: archives only on this machine suggest a target elsewhere, at pho
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const local = { id: '01a0e2e0-0000-7000-8000-0000000007b1', name: 'Backup volume', kind: 'LOCAL', encryption_mode: 'AES256_GCM', enabled: true };
-  const { page, failures, close } = await backupScreen(browser, [local], { width: 375, height: 812 });
+  const { page, failures, close } = await backupScreen(browser, [local], { width: 375, height: 812 }, {}, '/administration/backup/targets');
   t.after(close);
 
   await page.getByRole('heading', { name: 'Suggested: a copy away from this machine' }).waitFor({ timeout: 15_000 });

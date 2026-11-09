@@ -50,9 +50,10 @@ test('chromium: a form field\'s conditions are folded, picked in words, the expr
   t.after(walk.close);
   const { page } = walk;
 
+  // The form is the first region of the type's own page (page-system §9.1).
   await page.goto(`${served.origin}/administration/types`);
-  await page.locator('[data-edit-form="incident"]').click();
-  const dialog = page.getByRole('dialog', { name: 'Form of Incident' });
+  await page.getByRole('link', { name: 'Incident' }).first().click();
+  const dialog = page.getByRole('region', { name: 'Form of Incident' });
   await dialog.waitFor({ timeout: 10_000 });
 
   const severity = dialog.locator('[data-form-field="custom_fields.severity"]');

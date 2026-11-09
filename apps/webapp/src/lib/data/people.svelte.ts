@@ -21,6 +21,7 @@ import type { GroupDetail, InvitationDelivery, Membership, MembershipPage, Membe
 import { accounts } from './accounts.svelte.ts';
 import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
+import { reachOf } from './paging.ts';
 import { stepUp } from './stepup.svelte.ts';
 import { customRoleOf, handedOverLink } from '../people/invitation.ts';
 import { roles } from './roles.svelte.ts';
@@ -41,6 +42,8 @@ class People {
   /** What the server says the reader may grant at each scope it was asked about. */
   #grantable = $state<Record<string, readonly MembershipRole[]>>({});
   #complete = $state<Record<string, boolean>>({});
+  /** How many memberships each scope holds, where the answer counted them (page-system D-1). */
+  #totals = $state<Record<string, number | undefined>>({});
   /** The accounts in each group a membership named. */
   #groups = $state<Record<string, readonly string[]>>({});
   #openScopes = new Map<string, () => void>();
@@ -153,6 +156,11 @@ class People {
   /** Whether the rows held for a scope are all of them: a first page with more behind it is not. */
   isCompleteAt(scope: Scope): boolean {
     return this.#complete[membershipsPath(scope)] ?? false;
+  }
+
+  /** How many memberships a scope holds, where the server counted them; more than held while pages are unread. */
+  totalAt(scope: Scope): number | undefined {
+    return this.#totals[membershipsPath(scope)];
   }
 
   /** The accounts in a group, once it has been read. Empty while the request is still out. */
@@ -444,6 +452,7 @@ class People {
     // An answer without the list - a server older than the field - offers nothing rather than all.
     this.#grantable = { ...this.#grantable, [path]: page.grantable_roles ?? [] };
     this.#complete = { ...this.#complete, [path]: page.page?.has_more === false };
+    this.#totals = { ...this.#totals, [path]: reachOf(page).total };
   }
 
   /** Asks for the members of every group these memberships name, each group once per session. */

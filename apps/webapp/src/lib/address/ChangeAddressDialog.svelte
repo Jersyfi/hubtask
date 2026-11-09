@@ -23,6 +23,8 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import FailureNote from '../frame/FailureNote.svelte';
+  import DiscardDialog from '../page/DiscardDialog.svelte';
+  import { DiscardGuard } from '../page/discard.svelte.ts';
   import type { AddressAnswer, AddressSubject } from './change.ts';
 
   interface Props {
@@ -115,20 +117,22 @@
   }
 
   const who = $derived(lockout?.self ? 'self' : 'owner');
+
+  /** A typed address is asked about before the dialog closes without it (page-system §5.2). */
+  const guard = new DiscardGuard(() => value.trim() !== '', () => onclose());
 </script>
 
 <Dialog
+  size="m"
   title={t('app.instance.address_title', { workspace: tenant?.name ?? '' })}
   isOpen={tenant !== undefined}
-  isWide
   dismissLabel={t('app.instance.cancel')}
+  onDismiss={guard.dismiss}
   onClose={onclose}
+  primary={{ label: t('app.instance.address_submit'), isBusy: isWorking, busyLabel: t('app.instance.working'), onclick: () => void change() }}
 >
   {#snippet actions()}
-    <Button tone="subtle" onclick={onclose}>{t('app.instance.cancel')}</Button>
-    <Button tone="primary" isBusy={isWorking} busyLabel={t('app.instance.working')} onclick={() => void change()}>
-      {t('app.instance.address_submit')}
-    </Button>
+    <Button tone="subtle" onclick={() => { if (guard.dismiss()) onclose(); }}>{t('app.instance.cancel')}</Button>
   {/snippet}
   <Stack gap="200">
     {#if lockout}
@@ -185,6 +189,8 @@
     {/if}
   </Stack>
 </Dialog>
+
+<DiscardDialog {guard} />
 
 <style>
   form { margin: 0; }

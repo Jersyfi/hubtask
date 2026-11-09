@@ -8,7 +8,7 @@
   //
   // **The server counts**: capacity, holidays, absences, the remaining estimates and their spread.
   import { untrack } from 'svelte';
-  import { Button, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, DataTable, Skeleton, WorkPage, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Workload } from '@hubtask/sync-engine';
@@ -54,19 +54,29 @@
   $effect(() => { if (grid.rows.length > 0) accounts.resolve(grid.rows.map((row) => row.accountId)); });
   const weeks = $derived(answer?.aggregated ? answer.team.map((each) => each.week) : grid.weeks);
 
-  const columns = $derived<Column[]>([
-    { id: 'person', label: t('app.workload.col_person') },
-    ...weeks.map((week) => ({ id: week, label: t('app.workload.week_of', { day: week }), align: 'end' as const })),
+  // The first week stays on a phone as the row's state; the later ones give way (page-system §4.4).
+  const columns = $derived<DataColumn[]>([
+    { id: 'person', label: t('app.workload.col_person'), priority: 1 },
+    ...weeks.map((week, i) => ({ id: week, label: t('app.workload.week_of', { day: week }), align: 'end' as const, priority: (i === 0 ? 1 : i < 3 ? 2 : 3) as 1 | 2 | 3, isStatus: i === 0 })),
   ]);
+  /** The team's one row where the workspace aggregates, else a row per person. */
+  type Line = { id: string; isTeam: boolean; index: number };
+  const lines = $derived<Line[]>(
+    answer?.aggregated
+      ? answer.team.length > 0 ? [{ id: '__team', isTeam: true, index: 0 }] : []
+      : grid.rows.map((row, index) => ({ id: row.accountId, isTeam: false, index })),
+  );
 </script>
 
-{#if place?.type === 'COLLECTION'}
-  <!-- A collection's workload belongs to its *Time* view: its head is the collection's. -->
-  <CollectionHead collectionId={planId} current="time" {onnavigate} secondary={[{ label: t('app.nav.view_actuals'), icon: 'clock', onclick: () => onnavigate(`/collections/${planId}/time`) }]} />
-{:else if place}
-  <ToolHead hubId={planId} tool="time" current="workload" {onnavigate} />
-{/if}
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
+  {#if place?.type === 'COLLECTION'}
+    <!-- A collection's workload belongs to its *Time* view: its head is the collection's. -->
+    <CollectionHead collectionId={planId} current="time" {onnavigate} secondary={[{ label: t('app.nav.view_actuals'), icon: 'clock', onclick: () => onnavigate(`/collections/${planId}/time`) }]} />
+  {:else if place}
+    <ToolHead hubId={planId} tool="time" current="workload" {onnavigate} />
+  {/if}
+  {/snippet}
 
   <div class="controls">
     <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => (shift -= 1)}>{t('app.workload.earlier')}</Button>
@@ -80,53 +90,44 @@
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
     {#if answer.aggregated}<p class="quiet">{t('app.workload.aggregated')}</p>{/if}
-    <div class="scroll">
-      <Table label={t('app.workload.title')} isLabelHidden {columns}>
-        {#snippet empty()}<ProductEmpty product="PLANNING" place={{ type: containers.find(planId)?.type === 'HUB' ? 'HUB' : 'COLLECTION', id: planId }} kind="unused" title={t('app.workload.empty')} />{/snippet}
-        {#if answer.aggregated}
-          {#if answer.team.length > 0}
-            <tr>
-              <th scope="row">{t('app.workload.team')}</th>
-              {#each answer.team as week (week.week)}
-                <td class="cell" class:over={week.allocated_minutes > week.available_minutes}>
-                  {t('app.workload.of', { allocated: minutesText(week.allocated_minutes), available: minutesText(week.available_minutes) })}
-                  <span class="note">{t('app.workload.people', { count: String(week.people) })}</span>
-                </td>
-              {/each}
-            </tr>
+    <DataTable label={t('app.workload.title')} {columns} rows={lines} key={(line: Line) => line.id}>
+      {#snippet empty()}<ProductEmpty product="PLANNING" place={{ type: containers.find(planId)?.type === 'HUB' ? 'HUB' : 'COLLECTION', id: planId }} kind="unused" title={t('app.workload.empty')} />{/snippet}
+      {#snippet cell(line: Line, column: DataColumn)}
+        {#if column.id === 'person'}
+          {line.isTeam ? t('app.workload.team') : (accounts.nameOf(grid.rows[line.index]?.accountId ?? '') ?? t('app.people.unnamed'))}
+        {:else if line.isTeam && answer}
+          {@const week = answer.team.find((each) => each.week === column.id)}
+          {#if week}
+            <span class="cell" class:over={week.allocated_minutes > week.available_minutes}>
+              {t('app.workload.of', { allocated: minutesText(week.allocated_minutes), available: minutesText(week.available_minutes) })}
+              <span class="note">{t('app.workload.people', { count: String(week.people) })}</span>
+            </span>
           {/if}
         {:else}
-          {#each grid.rows as row (row.accountId)}
-            <tr>
-              <th scope="row">{accounts.nameOf(row.accountId) ?? t('app.people.unnamed')}</th>
-              {#each row.cells as cell, i (i)}
-                {@const heat = cell ? heatOf(cell) : 'unknown'}
-                <td class="cell {heat}">
-                  {#if cell && cell.known}
-                    {t('app.workload.of', { allocated: minutesText(cell.allocated_minutes), available: minutesText(cell.available_minutes) })}
-                  {:else}
-                    {t('app.workload.unknown')}
-                  {/if}
-                  <span class="note">{t(`app.workload.heat_${heat}`)}</span>
-                </td>
-              {/each}
-            </tr>
-          {/each}
+          {@const at = grid.rows[line.index]?.cells[weeks.indexOf(column.id)]}
+          {@const heat = at ? heatOf(at) : 'unknown'}
+          <span class="cell {heat}">
+            {#if at && at.known}
+              {t('app.workload.of', { allocated: minutesText(at.allocated_minutes), available: minutesText(at.available_minutes) })}
+            {:else}
+              {t('app.workload.unknown')}
+            {/if}
+            <span class="note">{t(`app.workload.heat_${heat}`)}</span>
+          </span>
         {/if}
-      </Table>
-    </div>
+      {/snippet}
+    </DataTable>
     {#if answer.unscheduled_minutes > 0}
       <p class="quiet">{t('app.workload.unscheduled', { minutes: minutesText(answer.unscheduled_minutes) })}</p>
     {/if}
     <p class="quiet">{t('app.workload.units')}</p>
   {/if}
-</Stack>
+</WorkPage>
 
 <style>
   .controls { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
-  .scroll { overflow-x: auto; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
-  .cell { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cell { display: block; padding: var(--sp-050) var(--sp-100); border-radius: var(--r-sm); text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .note { display: block; color: var(--text-subtle); font-size: var(--fs-075); }
   .room { background: var(--status-success-surface); color: var(--status-success-text); }
   .fit { background: var(--status-info-surface); color: var(--status-info-text); }

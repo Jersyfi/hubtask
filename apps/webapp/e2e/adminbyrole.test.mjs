@@ -60,20 +60,27 @@ const TENANT = {
  */
 const SCREENS = [
   { path: '/administration/workspace', buttons: [{ role: 'textbox', name: /^Name/ }], gates: ['STRUCTURE'] },
-  { path: '/administration/sign-in', buttons: ['Require a new password from everyone'], gates: ['STRUCTURE'] },
+  // *Require a new password from everyone* is the head's ⋯ on Sign-in (page-system §7.3), the
+  // menu's one item: the menu is offered exactly where the rotation is.
+  { path: '/administration/sign-in', buttons: ['More for Sign-in'], gates: ['STRUCTURE'] },
   { path: '/administration/identity-provider', buttons: ['Add a provider'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/machines?tab=apps', buttons: ['Register an app'], gates: ['MANAGE_MEMBERS'] },
-  { path: '/administration/people?tab=groups', buttons: ['Create the group'], gates: ['MANAGE_MEMBERS'] },
+  { path: '/administration/people?tab=groups', buttons: ['New group'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/machines', buttons: ['Add a service account'], gates: ['MANAGE_MEMBERS'] },
-  { path: '/administration/privacy', buttons: ['Record it'], gates: ['MANAGE_MEMBERS'] },
+  { path: '/administration/privacy', buttons: ['Record a request'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/rules', buttons: ['Write a rule'], gates: ['AUTOMATION'] },
   { path: '/administration/rules/new', buttons: ['Save the rule'], gates: ['AUTOMATION'] },
   { path: '/administration/webhooks', buttons: ['Add a webhook'], gates: ['AUTOMATION'] },
-  { path: '/administration/ai', buttons: ['Save'], gates: ['STRUCTURE'] },
-  { path: '/administration/backup', buttons: ['Add'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
-  { path: '/administration/retention', buttons: ['Write it', 'Place it'], gates: ['DELETE_CONTAINER'] },
+  // The own model's form is AI's first section here; its save bar shows only once something changed.
+  { path: '/administration/ai', buttons: [{ role: 'textbox', name: /^Model for proposals/ }], gates: ['STRUCTURE'] },
+  // Backup and Retention are one section per address (page-system §9.3): each section's own add.
+  { path: '/administration/backup', buttons: ['Back up now'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
+  { path: '/administration/backup/targets', buttons: ['Add a target'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
+  { path: '/administration/retention', buttons: ['Write a rule'], gates: ['DELETE_CONTAINER'] },
+  { path: '/administration/retention/holds', buttons: ['Place a hold'], gates: ['DELETE_CONTAINER'] },
   { path: '/administration/restore', buttons: ['See what it would do'], gates: ['STRUCTURE'] },
-  { path: '/administration/audit', buttons: ['Anchor here'], gates: ['STRUCTURE'] },
+  // Where the chain is anchored is a Dialog M from the head's ⋯ (page-system §9.3).
+  { path: '/administration/audit', open: [{ role: 'button', name: 'More for Audit log' }, { role: 'menuitem', name: 'Anchoring…' }], buttons: ['Anchor here'], gates: ['STRUCTURE'] },
 ];
 
 /**
@@ -81,12 +88,18 @@ const SCREENS = [
  * backup targets and schedules, the retention rules and the holds are set behind it on the server.
  */
 const OWNERS_ONLY = [
-  { path: '/administration/backup', buttons: ['Add'] },
-  { path: '/administration/retention', buttons: ['Write it', 'Place it'] },
+  { path: '/administration/backup/targets', buttons: ['Add a target'] },
+  { path: '/administration/retention', buttons: ['Write a rule'] },
+  { path: '/administration/retention/holds', buttons: ['Place a hold'] },
 ];
 
 /** A control as the table names it: a button by its words, or another role by its name. */
 const controlOf = (entry) => (typeof entry === 'string' ? { role: 'button', name: entry } : entry);
+
+/** Opens what a screen keeps in a dialog: the controls `open` names, pressed in turn. */
+async function opened(page, screen) {
+  for (const { role, name } of screen.open ?? []) await page.getByRole(role, { name, exact: true }).first().click({ timeout: 15_000 });
+}
 
 /** A signed-in tab as somebody holding `permissions` on the workspace. */
 async function as(browser, permissions) {
@@ -123,6 +136,7 @@ for (const screen of SCREENS) {
     const owner = await as(browser, PERMISSIONS.OWNER);
     t.after(() => owner.context.close());
     await owner.page.goto(`${served.origin}${screen.path}`);
+    await opened(owner.page, screen);
     for (const { role, name } of screen.buttons.map(controlOf)) {
       await owner.page.getByRole(role, { name, exact: true }).first().waitFor({ timeout: 15_000 })
         .catch(() => assert.fail(`the owner is not offered "${name}" on ${screen.path}`));
@@ -135,6 +149,7 @@ for (const screen of SCREENS) {
     const auditor = await as(browser, PERMISSIONS.AUDITOR);
     t.after(() => auditor.context.close());
     await auditor.page.goto(`${served.origin}${screen.path}`);
+    await opened(auditor.page, screen);
     for (const permission of screen.gates) {
       await auditor.page.getByText(refusedFor(permission)).first().waitFor({ timeout: 15_000 })
         .catch(() => assert.fail(`the auditor is not told why on ${screen.path} (${permission})`));
@@ -157,6 +172,7 @@ for (const screen of OWNERS_ONLY) {
     const admin = await as(browser, PERMISSIONS.ADMIN);
     t.after(() => admin.context.close());
     await admin.page.goto(`${served.origin}${screen.path}`);
+    await opened(admin.page, screen);
     await admin.page.getByText(refusedFor('DELETE_CONTAINER')).first().waitFor({ timeout: 15_000 })
       .catch(() => assert.fail(`the administrator is not told why on ${screen.path}`));
     assert.equal(await admin.page.getByText(refusedFor('STRUCTURE')).count(), 0, 'the administrator is told STRUCTURE is missing');

@@ -30,6 +30,8 @@
     readonly label: string;
     /** Why this view cannot be opened. Present means unavailable - there is no `disabled` boolean. */
     readonly disabledReason?: string;
+    /** A count worth seeing before opening it: *9* people, *3* groups. */
+    readonly count?: number;
   }
 
   interface Props {
@@ -119,7 +121,7 @@
           choose(position);
         }}
       >
-        {tab.label}
+        {tab.label}{#if tab.count !== undefined}{' '}<span class="count">{tab.count}</span>{/if}
       </button>
     {/each}
   </div>
@@ -173,6 +175,13 @@
   }
 
   .tab:hover { color: var(--text-primary); }
+
+  /* The count is quieter than the label it follows, as in ViewBar. */
+  .count {
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-regular);
+  }
 
   /* Rule 3: the selected tab is not only a colour. It carries the indicator and the weight, so it
      reads as selected in greyscale and to a reader who does not perceive the accent. */

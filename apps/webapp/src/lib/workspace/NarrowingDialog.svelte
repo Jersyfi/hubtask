@@ -28,7 +28,7 @@
   const flattens = $derived(preview.flatten.entries);
 </script>
 
-<Dialog
+<Dialog size="m" primary={{ label: t(narrowing === 'FLATTEN' ? 'app.structure.narrowing.confirm_flatten' : 'app.structure.narrowing.confirm_hide'), isBusy: isSaving, onclick: () => onconfirm(narrowing) }}
   bind:isOpen
   title={t('app.structure.narrowing.title')}
   dismissLabel={t('app.workspace.cancel')}
@@ -90,9 +90,6 @@
   {#snippet actions()}
     <Inline gap="100">
       <Button tone="secondary" onclick={() => { isOpen = false; oncancel(); }}>{t('app.workspace.cancel')}</Button>
-      <Button tone="primary" onclick={() => onconfirm(narrowing)} isBusy={isSaving} data-narrowing-confirm>
-        {t(narrowing === 'FLATTEN' ? 'app.structure.narrowing.confirm_flatten' : 'app.structure.narrowing.confirm_hide')}
-      </Button>
     </Inline>
   {/snippet}
 </Dialog>

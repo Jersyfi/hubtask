@@ -6,7 +6,7 @@
   // reads it, as a table of lanes, projects and bars in the visitor's own zone - read only, and no
   // row leads into the workspace. An unknown or dead link says only that there is no roadmap here.
   import { untrack } from 'svelte';
-  import { Badge, Banner, Skeleton, Table, type Column } from '@hubtask/design-system/components';
+  import { Badge, Banner, DataTable, Skeleton, StandalonePage, type DataColumn } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { PortfolioRoadmap } from '@hubtask/sync-engine';
 
@@ -29,16 +29,16 @@
   });
 
   const dayLabel = (day: string | null | undefined) => formatPlainDay(day, messages.locale);
-  const columns = $derived<Column[]>([
-    { id: 'what', label: t('app.roadmap.col_what') },
-    { id: 'start', label: t('app.planning.col_start') },
-    { id: 'finish', label: t('app.planning.col_finish') },
-    { id: 'state', label: t('app.roadmap.col_state') },
+  const columns = $derived<DataColumn[]>([
+    { id: 'what', label: t('app.roadmap.col_what'), priority: 1 },
+    { id: 'start', label: t('app.planning.col_start'), priority: 2 },
+    { id: 'finish', label: t('app.planning.col_finish'), priority: 2 },
+    { id: 'state', label: t('app.roadmap.col_state'), priority: 1, isStatus: true },
   ]);
+  type Row = (typeof rows)[number];
 </script>
 
-<main class="shared">
-  <h1 class="title">{roadmap?.name ?? t('app.roadmap.title')}</h1>
+<StandalonePage variant="public" title={roadmap?.name ?? t('app.roadmap.title')}>
   {#if gone}
     <Banner tone="warning">{t('app.roadmap.shared_gone')}</Banner>
   {:else if !roadmap}
@@ -51,38 +51,33 @@
     {#if rows.length === 0}
       <ProductEmpty product="GOALS" kind="unused" title={t('app.roadmap.empty')} />
     {:else}
-      <Table label={t('app.roadmap.table')} {columns}>
-        {#each rows as row (row.id)}
-          <tr data-depth={String(row.depth)}>
-            <th scope="row" class="what">
+      <DataTable label={t('app.roadmap.table')} {columns} {rows} key={(row: Row) => row.id}>
+        {#snippet cell(row: Row, column: DataColumn)}
+          {#if column.id === 'what'}
+            <span class="what" data-depth={String(row.depth)}>
               {row.title}
               {#if row.level !== 'entry'}<span class="note">{t(`app.roadmap.level_${row.level}`)}</span>{/if}
-            </th>
-            <td>{row.kind === 'milestone' ? '—' : dayLabel(row.start)}</td>
-            <td>{dayLabel(row.due)}</td>
-            <td>
-              {#if row.level === 'project' && row.status && row.status !== 'NONE'}
-                <Badge tone={goalTone(row.status)}>{t(`app.goals.status_${row.status}`)}</Badge>
-              {:else if row.isDone}
-                {t('app.roadmap.done')}
-              {:else if row.isCritical}
-                {t('app.planning.critical')}
-              {:else if row.kind === 'milestone'}
-                {t('app.roadmap.milestone')}
-              {/if}
-            </td>
-          </tr>
-        {/each}
-      </Table>
+            </span>
+          {:else if column.id === 'start'}{row.kind === 'milestone' ? '—' : dayLabel(row.start)}
+          {:else if column.id === 'finish'}{dayLabel(row.due)}
+          {:else if row.level === 'project' && row.status && row.status !== 'NONE'}
+            <Badge tone={goalTone(row.status)}>{t(`app.goals.status_${row.status}`)}</Badge>
+          {:else if row.isDone}
+            {t('app.roadmap.done')}
+          {:else if row.isCritical}
+            {t('app.planning.critical')}
+          {:else if row.kind === 'milestone'}
+            {t('app.roadmap.milestone')}
+          {/if}
+        {/snippet}
+      </DataTable>
     {/if}
   {/if}
-</main>
+</StandalonePage>
 
 <style>
-  .shared { display: flex; flex-direction: column; gap: var(--sp-150); margin: 0 auto; padding: var(--sp-300) var(--sp-150); min-width: 0; }
-  .title { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
-  tr[data-depth='1'] .what { padding-inline-start: var(--sp-150); }
-  tr[data-depth='2'] .what { padding-inline-start: var(--sp-300); }
+  .what[data-depth='1'] { padding-inline-start: var(--sp-150); }
+  .what[data-depth='2'] { padding-inline-start: var(--sp-300); }
 </style>

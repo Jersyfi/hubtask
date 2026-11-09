@@ -212,7 +212,7 @@
   }
 </script>
 
-<Dialog bind:isOpen title={intent === 'save' ? t('app.views.save_title') : t('app.views.title')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="l" bind:isOpen title={intent === 'save' ? t('app.views.save_title') : t('app.views.title')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="200">
     {#if intent === 'save'}
       <!-- Saving only: the views already held are the menu's own rows. -->
@@ -328,7 +328,7 @@
 </Dialog>
 
 {#if deleting}
-  <Dialog
+  <Dialog size="s"
     isOpen={true}
     title={t('app.views.delete_title', { name: deleting.name })}
     dismissLabel={t('app.workspace.cancel')}

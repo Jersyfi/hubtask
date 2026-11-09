@@ -90,17 +90,17 @@ interface SettingRow {
 
 /** The rows of *You*, *On this device* and *Password and sign-in*, in the screens' own order. */
 export const SETTING_ROWS: readonly SettingRow[] = [
-  { id: 'name', code: 'app.profile.display_name', path: '/profile', screen: 'app.profile.title', words: 'app.palette.words_name' },
-  { id: 'language', code: 'app.profile.language', path: '/profile', screen: 'app.profile.title', words: 'app.palette.words_language' },
-  { id: 'zone', code: 'app.profile.zone', path: '/profile', screen: 'app.profile.title' },
-  { id: 'week-start', code: 'app.profile.week_start', path: '/profile', screen: 'app.profile.title', words: 'app.palette.words_week' },
-  { id: 'celebrations', code: 'app.profile.celebrations', path: '/profile', screen: 'app.profile.title' },
+  { id: 'name', code: 'app.profile.display_name', path: '/profile/you/name', screen: 'app.profile.title', words: 'app.palette.words_name' },
+  { id: 'language', code: 'app.profile.language', path: '/profile/you/language', screen: 'app.profile.title', words: 'app.palette.words_language' },
+  { id: 'zone', code: 'app.profile.zone', path: '/profile/you/language', screen: 'app.profile.title' },
+  { id: 'week-start', code: 'app.profile.week_start', path: '/profile/you/language', screen: 'app.profile.title', words: 'app.palette.words_week' },
+  { id: 'celebrations', code: 'app.profile.celebrations', path: '/profile/you/moments', screen: 'app.profile.title' },
   { id: 'theme', code: 'app.profile.theme', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_theme' },
   { id: 'motion', code: 'app.profile.motion', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_motion' },
   { id: 'open', code: 'app.profile.open', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_open' },
-  { id: 'password', code: 'app.password.change_title', path: '/profile/security', screen: 'app.security.title' },
-  { id: 'passkeys', code: 'app.passkeys.title', path: '/profile/security', screen: 'app.security.title' },
-  { id: 'second-factor', code: 'app.mfa.title', path: '/profile/security', screen: 'app.security.title', words: 'app.palette.words_second_factor' },
+  { id: 'password', code: 'app.password.change_title', path: '/profile/security/password', screen: 'app.security.title' },
+  { id: 'passkeys', code: 'app.passkeys.title', path: '/profile/security/passkeys', screen: 'app.security.title' },
+  { id: 'second-factor', code: 'app.mfa.title', path: '/profile/security/second-factor', screen: 'app.security.title', words: 'app.palette.words_second_factor' },
 ];
 
 /** What decides which settings rows are drawn: the notification categories, where mail can reach. */

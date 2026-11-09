@@ -2,452 +2,126 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // Connected mailboxes (ADR-0094): the door for a workspace without a receiving domain - one
-  // existing mailbox at Gmail, GMX, web.de or IONOS, or any IMAP or JMAP server. A provider is
-  // chosen, the address and an (app) password typed, and Hubtask signs in once before it stores
-  // anything: a mailbox that cannot be read is said here, in the form, and not in a log an hour
-  // later. Only mail that arrives after connecting is taken, so connecting a personal mailbox
-  // takes nothing that was already in it.
+  // existing mailbox at Gmail, GMX, web.de or IONOS, or any IMAP or JMAP server. Only mail that
+  // arrives after connecting is taken, so connecting a personal mailbox takes nothing already in it.
   //
-  // Or without any password in Hubtask: through the provider's own sign-in (OAuth with PKCE). Google
-  // and Microsoft are one button where the operator configured an app; otherwise, and for any other
-  // provider, the administrator enters an app of their own. The provider sends the browser back to
-  // `/administration/mail/oauth`, and this section hands the answer to the API.
-  //
-  // **What is connected comes first** (user-experience.md §7.10): each mailbox a card with its
-  // state in words and, where a read failed, the failure beside *Check now*; connecting is a
-  // dialog the page's head opens, and a refusal stays inside it.
+  // **What is connected comes first** (user-experience.md §7.10): a table section (page-system
+  // §9.3) whose rows say each mailbox's state in words and, where a read failed, the failure beside
+  // *Check now*. A mailbox's row is a link to its own record page (page-system §9.3); the page
+  // holds the list and the dialogs.
 
-  import { untrack } from 'svelte';
-
-  import { Badge, Banner, Button, Dialog, EmptyState, Input, Radio, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, EmptyState, Spinner, type DataColumn } from '@hubtask/design-system/components';
 
   import FailureNote from '../frame/FailureNote.svelte';
-
-  import { announcer } from '../announce.svelte.ts';
-  import {
-    authorizeMailbox,
-    checkMailbox,
-    completeMailboxAuthorization,
-    connectMailbox,
-    readMailboxes,
-    mailboxStateOf,
-    removeMailbox,
-    type Mailbox,
-    type MailboxState,
-    type MailboxOAuthProvider,
-    type MailboxPreset,
-  } from '../data/mailintake.svelte.ts';
+  import { mailboxStateOf, type Mailbox } from '../data/mailintake.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { renderProblem } from '../problem.ts';
+  import TableSection from '../page/TableSection.svelte';
+  import { STATE_TONE, mailboxPath, wayOf, type MailboxList } from './mailboxes.svelte.ts';
 
   interface Props {
-    /** Told when the list changes, so the page can show addresses through the mailbox. */
-    onchange?: (mailboxes: readonly Mailbox[]) => void;
-    /** What the provider sent back, on `/administration/mail/oauth`. */
-    providerAnswer?: Readonly<Record<string, string>>;
-    /** Told once that answer is handed on. */
-    onanswered?: () => void;
-    /** Whether the connecting dialog is open; the page's head opens it. */
-    isAdding?: boolean;
+    list: MailboxList;
+    onnavigate?: (path: string) => void;
   }
 
-  let { onchange, providerAnswer, onanswered, isAdding = $bindable(false) }: Props = $props();
+  const { list, onnavigate }: Props = $props();
 
-  /** How a mailbox is reached, in one line: the protocol, the server, the sign-in. */
-  function wayOf(box: Mailbox): string {
-    const server = box.host ?? box.session_url;
-    return [
-      box.protocol,
-      ...(server ? [server] : []),
-      ...(box.auth === 'OAUTH' ? [t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })] : []),
-    ].join(' · ');
-  }
-
-  const STATE_TONE: Record<MailboxState, 'success' | 'warning' | 'danger' | 'neutral'> = {
-    reading: 'success',
-    failed_once: 'warning',
-    failing: 'danger',
-    off: 'neutral',
-  };
-
-  let oauthProviders = $state<readonly MailboxOAuthProvider[]>([]);
-  let redirectUrl = $state('');
-  /** The provider whose own-app form is open: a preset without the installation's app, or "custom". */
-  let oauthKind = $state<string | undefined>(undefined);
-  let oauthAddress = $state('');
-  let clientId = $state('');
-  let clientSecret = $state('');
-  let authorizeUrl = $state('');
-  let tokenUrl = $state('');
-  let scopes = $state('');
-  let oauthHost = $state('');
-  let oauthPort = $state('993');
-  let isLeaving = $state(false);
-  let isCompleting = $state(false);
-  let oauthFailure = $state<string | undefined>(undefined);
-
-  let mailboxes = $state<readonly Mailbox[]>([]);
-  let presets = $state<readonly MailboxPreset[]>([]);
-  let isReading = $state(true);
-  let readFailure = $state<string | undefined>(undefined);
-
-  let preset = $state('gmail');
-  let protocol = $state<'IMAP' | 'JMAP'>('IMAP');
-  let address = $state('');
-  let password = $state('');
-  let host = $state('');
-  let port = $state('993');
-  let sessionUrl = $state('');
-  let username = $state('');
-  let isConnecting = $state(false);
-  let connectFailure = $state<string | undefined>(undefined);
-  let working = $state<string | undefined>(undefined);
-  let rowFailure = $state<string | undefined>(undefined);
-
-  const isOther = $derived(preset === 'other');
-  const chosen = $derived(presets.find((each) => each.key === preset));
-  const providers = $derived([
-    ...presets.map((each) => ({ value: each.key, label: t(`app.mail.provider.${each.key}`) })),
-    { value: 'other', label: t('app.mail.provider.other') },
+  const columns: readonly DataColumn[] = $derived([
+    { id: 'address', label: t('app.mail.mailbox_column'), priority: 1 },
+    { id: 'way', label: t('app.mail.mailbox_column_way'), priority: 2 },
+    { id: 'read', label: t('app.mail.mailbox_column_read'), priority: 3 },
+    { id: 'state', label: t('app.mail.mailbox_column_state'), isStatus: true },
   ]);
 
-  function take(next: readonly Mailbox[]) {
-    mailboxes = next;
-    onchange?.(next);
+  // Every verb is also in the menu: a phone shows only the ⋯ (PS-18).
+  function rowMenu(box: Mailbox) {
+    return {
+      label: t('app.page.more_for', { name: box.address }),
+      items: [
+        { id: 'open', label: t('app.page.open') },
+        { id: 'check', label: t('app.mail.mailbox_check') },
+        { id: 'remove', label: t('app.mail.mailbox_remove'), isDestructive: true, hasSeparatorBefore: true },
+      ],
+    };
   }
 
-  $effect(() =>
-    untrack(() => {
-      void readMailboxes()
-        .then((read) => {
-          presets = read.presets;
-          oauthProviders = read.oauth_providers ?? [];
-          redirectUrl = read.oauth_redirect_url ?? '';
-          take(read.mailboxes);
-        })
-        .catch((error) => (readFailure = renderProblem(error as never, messages).message))
-        .finally(() => (isReading = false));
-    }),
-  );
-
-  // Back from the provider: hand its answer on once, then drop the code and the state from the address.
-  $effect(() => {
-    const answer = providerAnswer;
-    if (!answer?.['state']) return;
-    untrack(() => void complete(answer));
-  });
-
-  async function complete(answer: Readonly<Record<string, string>>) {
-    oauthFailure = undefined;
-    isCompleting = true;
-    try {
-      const connected = await completeMailboxAuthorization({
-        state: answer['state'] ?? '',
-        ...(answer['code'] ? { code: answer['code'] } : {}),
-        ...(answer['error'] ? { error: answer['error'] } : {}),
-      });
-      take([...mailboxes.filter((each) => each.id !== connected.id), connected]);
-      announcer.say(t('app.mail.mailbox_connected', { address: connected.address }));
-    } catch (error) {
-      oauthFailure = renderProblem(error as never, messages).message;
-    } finally {
-      isCompleting = false;
-      onanswered?.();
-    }
-  }
-
-  /** One button where the installation brings the app; otherwise the form for one's own. */
-  function choose(provider: MailboxOAuthProvider | 'custom') {
-    oauthFailure = undefined;
-    if (provider !== 'custom' && provider.installation) {
-      void leave({ provider: provider.key });
-      return;
-    }
-    oauthKind = provider === 'custom' ? 'custom' : provider.key;
-  }
-
-  async function leave(request: Parameters<typeof authorizeMailbox>[0]) {
-    oauthFailure = undefined;
-    isLeaving = true;
-    try {
-      window.location.assign(await authorizeMailbox(request));
-    } catch (error) {
-      oauthFailure = renderProblem(error as never, messages).message;
-      isLeaving = false;
-    }
-  }
-
-  function leaveWithOwnApp() {
-    const custom = oauthKind === 'custom';
-    void leave({
-      provider: oauthKind ?? 'custom',
-      client_id: clientId.trim(),
-      ...(clientSecret ? { client_secret: clientSecret } : {}),
-      ...(oauthAddress.trim() ? { address: oauthAddress.trim() } : {}),
-      ...(custom
-        ? {
-            authorize_url: authorizeUrl.trim(),
-            token_url: tokenUrl.trim(),
-            scopes: scopes.split(/[\s,]+/).filter(Boolean),
-            host: oauthHost.trim(),
-            port: Number(oauthPort) || 993,
-          }
-        : {}),
-    });
-  }
-
-  async function copyRedirect() {
-    try {
-      await navigator.clipboard.writeText(redirectUrl);
-      announcer.say(t('app.mail.oauth_redirect_copied'));
-    } catch {
-      /* The address stays on screen to copy by hand. */
-    }
-  }
-
-  async function connect() {
-    connectFailure = undefined;
-    isConnecting = true;
-    try {
-      const connected = await connectMailbox({
-        ...(isOther ? { protocol } : { preset }),
-        address: address.trim(),
-        secret: password,
-        ...(isOther && protocol === 'IMAP' ? { host: host.trim(), port: Number(port) || 993 } : {}),
-        ...(isOther && protocol === 'JMAP' ? { session_url: sessionUrl.trim() } : {}),
-        ...(username.trim() ? { username: username.trim() } : {}),
-      });
-      take([...mailboxes, connected]);
-      address = '';
-      password = '';
-      isAdding = false;
-      announcer.say(t('app.mail.mailbox_connected', { address: connected.address }));
-    } catch (error) {
-      connectFailure = renderProblem(error as never, messages).message;
-    } finally {
-      isConnecting = false;
-      password = '';
-    }
-  }
-
-  async function check(box: Mailbox) {
-    rowFailure = undefined;
-    working = box.id;
-    try {
-      const checked = await checkMailbox(box.id);
-      take(mailboxes.map((each) => (each.id === box.id ? checked : each)));
-      announcer.say(checked.failure ? t(checked.failure) : t('app.mail.mailbox_ok', { address: box.address }));
-    } catch (error) {
-      rowFailure = renderProblem(error as never, messages).message;
-    } finally {
-      working = undefined;
-    }
-  }
-
-  async function remove(box: Mailbox) {
-    rowFailure = undefined;
-    working = box.id;
-    try {
-      await removeMailbox(box.id);
-      take(mailboxes.filter((each) => each.id !== box.id));
-      announcer.say(t('app.mail.mailbox_removed', { address: box.address }));
-    } catch (error) {
-      rowFailure = renderProblem(error as never, messages).message;
-    } finally {
-      working = undefined;
-    }
+  function onRowMenu(box: Mailbox, id: string): void {
+    if (id === 'remove') list.askRemoval(box);
+    else if (id === 'check') void list.check(box);
+    else onnavigate?.(mailboxPath(box.id));
   }
 </script>
 
-<Stack gap="150">
-  {#if isReading}
-    <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
-  {:else if readFailure}
-    <FailureNote problem={readFailure} />
-  {:else}
-    {#if isCompleting}
-      <p class="quiet" data-mailbox-completing><Spinner label={t('app.mail.oauth_completing')} /> {t('app.mail.oauth_completing')}</p>
-    {/if}
-    {#if oauthFailure && !isAdding}<div data-mailbox-oauth-failure><FailureNote problem={oauthFailure} /></div>{/if}
-
-    {#if mailboxes.length > 0}
-      <ul class="boxes">
-        {#each mailboxes as box (box.id)}
+<div data-mail-mailboxes>
+  <TableSection title={t('app.mail.section_mailboxes')} note={list.isReading ? undefined : String(list.mailboxes.length)} description={t('app.mail.mailboxes_hint')}>
+    {#if list.isReading}
+      <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
+    {:else if list.readFailure}
+      <FailureNote problem={list.readFailure} />
+    {:else}
+      {#if list.isCompleting}
+        <p class="quiet" data-mailbox-completing><Spinner label={t('app.mail.oauth_completing')} /> {t('app.mail.oauth_completing')}</p>
+      {/if}
+      {#if list.oauthFailure && !list.isAdding}<div data-mailbox-oauth-failure><FailureNote problem={list.oauthFailure} /></div>{/if}
+      {#if list.rowFailure && !list.removing}<FailureNote problem={list.rowFailure} />{/if}
+      <DataTable
+        label={t('app.mail.section_mailboxes')}
+        {columns}
+        rows={list.mailboxes}
+        key={(box: Mailbox) => box.id}
+        href={(box: Mailbox) => mailboxPath(box.id)}
+        rowLabel={(box: Mailbox) => box.address}
+        menu={rowMenu}
+        onmenu={onRowMenu}
+        actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+      >
+        {#snippet cell(box: Mailbox, column: DataColumn)}
           {@const state = mailboxStateOf(box)}
-          <li data-mailbox={box.address} data-mailbox-is={state}>
-            <div class="box-head">
-              <strong class="address">{box.address}</strong>
-              <Badge tone={STATE_TONE[state]}>{t(`app.mail.mailbox_state.${state}`)}</Badge>
-            </div>
-            <span class="quiet small">{wayOf(box)}</span>
-            <p class="quiet small" data-mailbox-state>
+          {#if column.id === 'address'}
+            <span class="address" data-mailbox={box.address} data-mailbox-is={state}>{box.address}</span>
+          {:else if column.id === 'way'}
+            <span class="quiet">{wayOf(box)}</span>
+            {#if box.failure && state !== 'off'}
+              <!-- The failure beside the act that tries again: whoever presses it knows why. -->
+              <span class="failure" data-mailbox-failure>{t(box.failure)}</span>
+            {/if}
+          {:else if column.id === 'read'}
+            <span class="quiet" data-mailbox-state>
               {#if box.checked_at}
-                {t('app.mail.mailbox_read_at', { when: formatDateTime(box.checked_at, messages.locale) })}
+                {formatDateTime(box.checked_at, messages.locale)}
               {:else if !box.failure}
                 {t('app.mail.mailbox_waiting')}
               {/if}
-            </p>
-            {#if box.failure && state !== 'off'}
-              <!-- The failure beside the act that tries again: whoever presses it knows why. -->
-              <Banner tone={state === 'failing' ? 'danger' : 'warning'}>
-                <Stack gap="100">
-                  <span data-mailbox-failure>{t(box.failure)}</span>
-                  <div>
-                    <Button size="sm" tone="primary" isBusy={working === box.id} busyLabel={t('app.mail.checking')} onclick={() => void check(box)}>{t('app.mail.mailbox_check')}</Button>
-                  </div>
-                </Stack>
-              </Banner>
-            {/if}
-            <div class="actions">
-              {#if !box.failure || state === 'off'}
-                <Button size="sm" tone="secondary" isBusy={working === box.id} busyLabel={t('app.mail.checking')} onclick={() => void check(box)}>{t('app.mail.mailbox_check')}</Button>
-              {/if}
-              <Button size="sm" tone="danger" onclick={() => void remove(box)}>{t('app.mail.mailbox_remove')}</Button>
-            </div>
-          </li>
-        {/each}
-      </ul>
-      {#if rowFailure}<FailureNote problem={rowFailure} />{/if}
-    {:else if !isCompleting}
-      <EmptyState kind="unused" icon="mail" title={t('app.mail.mailboxes_empty_title')} description={t('app.mail.mailboxes_hint')} action={connectAct} />
+            </span>
+          {:else}
+            <Badge size="sm" tone={STATE_TONE[state]}>{t(`app.mail.mailbox_state.${state}`)}</Badge>
+          {/if}
+        {/snippet}
+        {#snippet verb(box: Mailbox)}
+          <Button size="sm" tone={box.failure && mailboxStateOf(box) !== 'off' ? 'secondary' : 'subtle'} isBusy={list.working === box.id} busyLabel={t('app.mail.checking')} onclick={() => void list.check(box)}>
+            {t('app.mail.mailbox_check')}
+          </Button>
+        {/snippet}
+        {#snippet empty()}
+          {#if !list.isCompleting}
+            <EmptyState kind="unused" icon="mail" title={t('app.mail.mailboxes_empty_title')} action={connectAct} />
+          {/if}
+        {/snippet}
+      </DataTable>
     {/if}
-  {/if}
-</Stack>
+  </TableSection>
+</div>
 
 {#snippet connectAct()}
-  <Button tone="primary" icon="plus" onclick={() => (isAdding = true)}>{t('app.mail.mailbox_add')}</Button>
+  <Button tone="primary" icon="plus" onclick={() => (list.isAdding = true)}>{t('app.mail.mailbox_add')}</Button>
 {/snippet}
-
-<Dialog bind:isOpen={isAdding} title={t('app.mail.mailbox_add')} dismissLabel={t('app.mail.oauth_cancel')} isWide>
-  <Stack gap="200">
-    <p class="quiet small">{t('app.mail.mailboxes_hint')}</p>
-    {#if oauthFailure}<div data-mailbox-oauth-failure><FailureNote problem={oauthFailure} /></div>{/if}
-
-    {#if oauthProviders.length > 0}
-      <div class="connect" data-mailbox-oauth>
-        <p class="quiet small">{t('app.mail.oauth_lead')}</p>
-        <div class="actions">
-          {#each oauthProviders as provider (provider.key)}
-            <Button tone="secondary" isBusy={isLeaving && oauthKind === undefined} busyLabel={t('app.mail.oauth_going')} onclick={() => choose(provider)}>
-              {t(`app.mail.oauth_connect.${provider.key}`)}
-            </Button>
-          {/each}
-          <Button tone="secondary" onclick={() => choose('custom')}>{t('app.mail.oauth_connect.custom')}</Button>
-        </div>
-        {#if oauthKind}
-          {@const preset = oauthProviders.find((each) => each.key === oauthKind)}
-          <div class="fields" data-mailbox-own-app={oauthKind}>
-            {#if preset}
-              <p class="quiet small">{t(preset.hint)} {t('app.mail.oauth_own_app')}</p>
-            {:else}
-              <p class="quiet small">{t('app.mail.oauth_custom_hint')}</p>
-            {/if}
-            <div class="redirect">
-              <Input label={t('app.mail.oauth_redirect')} value={redirectUrl} readonly />
-              <Button size="sm" tone="secondary" onclick={() => void copyRedirect()}>{t('app.mail.oauth_redirect_copy')}</Button>
-            </div>
-            {#if oauthKind === 'custom'}
-              <Input label={t('app.mail.oauth_authorize_url')} placeholder="https://…/authorize" bind:value={authorizeUrl} />
-              <Input label={t('app.mail.oauth_token_url')} placeholder="https://…/token" bind:value={tokenUrl} />
-              <Input label={t('app.mail.oauth_scopes')} hint={t('app.mail.oauth_scopes_hint')} bind:value={scopes} />
-              <Input label={t('app.mail.mailbox_host')} placeholder="imap.example.com" bind:value={oauthHost} />
-              <Input label={t('app.mail.mailbox_port')} inputmode="numeric" bind:value={oauthPort} />
-            {/if}
-            <Input label={t('app.mail.oauth_client_id')} autocomplete="off" bind:value={clientId} />
-            <Input label={t('app.mail.oauth_client_secret')} hint={t('app.mail.oauth_client_secret_hint')} type="password" autocomplete="new-password" bind:value={clientSecret} />
-            <Input label={t('app.mail.mailbox_address')} hint={t('app.mail.oauth_address_hint')} type="email" autocomplete="off" bind:value={oauthAddress} />
-            <div class="actions">
-              <Button
-                tone="primary"
-                isBusy={isLeaving}
-                busyLabel={t('app.mail.oauth_going')}
-                disabledReason={clientId.trim() ? undefined : t('app.mail.oauth_fill_first')}
-                onclick={leaveWithOwnApp}
-              >{t('app.mail.oauth_go')}</Button>
-              <Button tone="secondary" onclick={() => (oauthKind = undefined)}>{t('app.mail.oauth_cancel')}</Button>
-            </div>
-          </div>
-        {/if}
-      </div>
-      <p class="quiet small">{t('app.mail.password_lead')}</p>
-    {/if}
-
-    <div class="connect" data-mailbox-connect>
-      <Select label={t('app.mail.provider')} options={providers} bind:value={preset} />
-      {#if chosen}<p class="quiet small" data-mailbox-hint>{t(chosen.hint)}</p>{/if}
-      {#if isOther}
-        <Radio
-          label={t('app.mail.protocol')}
-          options={[
-            { value: 'IMAP', label: 'IMAP', hint: t('app.mail.protocol_imap_hint') },
-            { value: 'JMAP', label: 'JMAP', hint: t('app.mail.protocol_jmap_hint') },
-          ]}
-          bind:value={() => protocol, (next) => (protocol = next as 'IMAP' | 'JMAP')}
-        />
-      {/if}
-      <div class="fields">
-        <Input label={t('app.mail.mailbox_address')} type="email" autocomplete="off" bind:value={address} />
-        <Input
-          label={isOther && protocol === 'JMAP' || preset === 'fastmail' ? t('app.mail.mailbox_token') : t('app.mail.mailbox_password')}
-          type="password"
-          autocomplete="new-password"
-          bind:value={password}
-        />
-        {#if isOther && protocol === 'IMAP'}
-          <Input label={t('app.mail.mailbox_host')} placeholder="imap.example.com" bind:value={host} />
-          <Input label={t('app.mail.mailbox_port')} inputmode="numeric" bind:value={port} />
-        {/if}
-        {#if isOther && protocol === 'JMAP'}
-          <Input label={t('app.mail.mailbox_session_url')} placeholder="https://…/jmap/session" bind:value={sessionUrl} />
-        {/if}
-        {#if isOther}
-          <Input label={t('app.mail.mailbox_username')} hint={t('app.mail.mailbox_username_hint')} bind:value={username} />
-        {/if}
-      </div>
-      {#if connectFailure}<FailureNote problem={connectFailure} />{/if}
-      <div>
-        <Button
-          tone="primary"
-          isBusy={isConnecting}
-          busyLabel={t('app.mail.connecting')}
-          disabledReason={address.trim() && password ? undefined : t('app.mail.mailbox_fill_first')}
-          onclick={() => void connect()}
-        >{t('app.mail.mailbox_connect')}</Button>
-      </div>
-    </div>
-  </Stack>
-</Dialog>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
 
-  .small { font-size: var(--fs-075); }
+  .address { overflow-wrap: anywhere; font-weight: var(--fw-medium); color: var(--text-primary); }
 
-  .boxes { display: grid; gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
-
-  .boxes li {
-    display: grid;
-    gap: var(--sp-100);
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
-
-  .boxes li p { margin: 0; }
-
-  .box-head { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
-
-  .address { overflow-wrap: anywhere; }
-
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
-
-  .connect { display: grid; gap: var(--sp-150); }
-
-  .fields { display: grid; gap: var(--sp-100); max-inline-size: calc(var(--sp-1000) * 6); }
-
-  .fields p { margin: 0; }
-
-  .redirect { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-100); align-items: end; }
+  .failure { display: block; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

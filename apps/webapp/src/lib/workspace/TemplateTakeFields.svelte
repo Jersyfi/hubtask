@@ -18,7 +18,7 @@
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
-  import TemplatePreview from '../settings/TemplatePreview.svelte';
+  import TemplateCreates from '../settings/TemplateCreates.svelte';
 
   interface Props {
     template: ConfigTemplate;
@@ -148,7 +148,7 @@
 {/if}
 <section class="plan" aria-label={t('app.starter.plan')} data-starter-plan>
   <h3>{t('app.starter.plan')}</h3>
-  <TemplatePreview {template} isUnfolded />
+  <TemplateCreates {template} />
   {#if isPlanning}
     <Spinner label={t('app.starter.plan_reading')} />
   {:else if plan && (plan.refusals ?? []).length === 0}

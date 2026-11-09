@@ -63,16 +63,20 @@ test('chromium: removing a backup schedule asks first, and cancelling sends noth
   const { page, removed, failures, close } = await open(browser, '/administration/backup');
   t.after(close);
 
-  const press = page.getByRole('button', { name: 'Remove the schedule' });
-  await press.waitFor();
-  await press.click();
+  // Removing is the row's ⋯ (page-system PS-6); switching it off is the row's switch.
+  const menu = page.getByRole('button', { name: 'More for Every day at 03:00' });
+  const press = async () => {
+    await menu.click({ timeout: 15_000 });
+    await page.getByRole('menuitem', { name: 'Remove the schedule' }).click();
+  };
+  await press();
   const dialog = page.getByRole('dialog', { name: 'Remove this schedule?' });
   await dialog.getByText('The archives it wrote stay where they are.', { exact: false }).waitFor();
   await dialog.getByRole('button', { name: 'Cancel' }).first().click();
   await dialog.waitFor({ state: 'detached' });
   assert.deepEqual(removed, [], 'cancelling removed the schedule');
 
-  await press.click();
+  await press();
   await page.getByRole('dialog', { name: 'Remove this schedule?' }).getByRole('button', { name: 'Remove it' }).click();
   await settle(page, removed, 1);
   assert.deepEqual(removed, [`/backup-schedules/${SCHEDULE.id}`]);
@@ -82,10 +86,11 @@ test('chromium: removing a backup schedule asks first, and cancelling sends noth
 test('chromium: removing a backup target asks in the same dialog', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, removed, close } = await open(browser, '/administration/backup');
+  const { page, removed, close } = await open(browser, '/administration/backup/targets');
   t.after(close);
 
-  await page.getByRole('button', { name: 'Remove the target' }).click();
+  await page.getByRole('button', { name: `More for ${TARGET.name}` }).click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Remove the target' }).click();
   await page.getByRole('dialog', { name: 'Remove this target?' }).getByRole('button', { name: 'Remove it' }).click();
   await settle(page, removed, 1);
   assert.deepEqual(removed, [`/backup-targets/${TARGET.id}`]);
@@ -97,16 +102,19 @@ test('chromium: withdrawing a retention rule asks first, and cancelling sends no
   const { page, removed, failures, close } = await open(browser, '/administration/retention');
   t.after(close);
 
-  const press = page.getByRole('button', { name: 'Withdraw it' });
-  await press.waitFor();
-  await press.click();
+  // Withdrawing is the rule's ⋯ (page-system PS-6).
+  const press = async () => {
+    await page.getByRole('button', { name: 'More for What is in the trash' }).click({ timeout: 15_000 });
+    await page.getByRole('menuitem', { name: 'Withdraw it' }).click();
+  };
+  await press();
   const dialog = page.getByRole('dialog', { name: 'Withdraw this rule?' });
   await dialog.getByText('What it already removed stays removed', { exact: false }).waitFor();
   await dialog.getByRole('button', { name: 'Cancel' }).first().click();
   await dialog.waitFor({ state: 'detached' });
   assert.deepEqual(removed, [], 'cancelling withdrew the rule');
 
-  await press.click();
+  await press();
   await page.getByRole('dialog', { name: 'Withdraw this rule?' }).getByRole('button', { name: 'Withdraw it' }).click();
   await settle(page, removed, 1);
   assert.deepEqual(removed, [`/retention-policies/${POLICY.id}`]);

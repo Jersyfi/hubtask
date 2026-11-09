@@ -11,6 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countTemplatesInScopes = `-- name: CountTemplatesInScopes :one
+SELECT count(*)::integer
+FROM template
+WHERE deleted_at IS NULL
+  AND (
+    scope_type = 'TENANT'
+    OR scope_id = ANY ($1::uuid[])
+  )
+`
+
+// How many templates ListTemplatesInScopes walks over, for the page's total: the same filter
+// without the keyset.
+func (q *Queries) CountTemplatesInScopes(ctx context.Context, scopeIds []pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countTemplatesInScopes, scopeIds)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deletedTemplates = `-- name: DeletedTemplates :many
 SELECT t.id, t.scope_type, t.scope_id, c.parent_id AS hub_id
 FROM template t

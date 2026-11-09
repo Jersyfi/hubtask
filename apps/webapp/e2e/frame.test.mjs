@@ -97,7 +97,7 @@ test('chromium: 1280 px — a hub is managed from its own row: the menu holds th
   // *Settings* is a page of its own, reached from where the place is listed.
   await page.getByRole('menuitem', { name: 'Settings' }).click();
   await page.waitForURL(/\/hubs\/[^/]+\/settings/u, { timeout: 5_000 });
-  await page.getByRole('region', { name: 'General' }).getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
+  await page.locator('[data-place-general]').getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 

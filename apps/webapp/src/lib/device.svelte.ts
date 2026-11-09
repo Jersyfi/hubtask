@@ -9,6 +9,7 @@
  */
 
 import { applyMotion, readMotionChoice, storeMotionChoice, type MotionChoice } from './motion.ts';
+import { ROWS_PER_PAGE, rowsPerPageOf, type RowsPerPage } from './page/list.ts';
 import { readThemeChoice, startTheme, storeThemeChoice, type ThemeChoice } from './theme.ts';
 
 /** `localStorage` where it can be reached; nothing where it cannot (a sandbox, a test). */
@@ -25,6 +26,7 @@ export type OpenMode = 'panel' | 'whole';
 
 const OPEN_KEY = 'hubtask.entries.open';
 const PANEL_KEY = 'hubtask.panel.width';
+const ROWS_KEY = 'hubtask.list.rows';
 const SECTIONS_KEY = 'hubtask.nav.sections';
 
 /** The sidebar's sections as this device left them, open or folded, by key; unknown keys ignored. */
@@ -43,6 +45,7 @@ class Device {
   #motion = $state<MotionChoice>('system');
   #openMode = $state<OpenMode>('panel');
   #panelWidth = $state<number | undefined>(undefined);
+  #rowsPerPage = $state<RowsPerPage>(ROWS_PER_PAGE[0]);
   #sections = $state<Record<string, boolean>>({});
   #stopTheme: (() => void) | undefined;
 
@@ -61,6 +64,11 @@ class Device {
   /** The width the person dragged the panel to; none until they did. */
   get panelWidth(): number | undefined {
     return this.#panelWidth;
+  }
+
+  /** How many rows a long list shows at first. */
+  get rowsPerPage(): RowsPerPage {
+    return this.#rowsPerPage;
   }
 
   /**
@@ -88,6 +96,7 @@ class Device {
       this.#openMode = storage()?.getItem(OPEN_KEY) === 'whole' ? 'whole' : 'panel';
       const width = Number.parseFloat(storage()?.getItem(PANEL_KEY) ?? '');
       this.#panelWidth = Number.isFinite(width) && width > 0 ? width : undefined;
+      this.#rowsPerPage = rowsPerPageOf(storage()?.getItem(ROWS_KEY));
       this.#sections = sectionsOf(storage()?.getItem(SECTIONS_KEY));
     } catch {
       // A browser that refuses storage opens entries in the panel at its first width.
@@ -116,6 +125,15 @@ class Device {
     this.#panelWidth = width;
     try {
       storage()?.setItem(PANEL_KEY, String(width));
+    } catch {
+      // Kept for as long as the page is open.
+    }
+  }
+
+  setRowsPerPage(rows: RowsPerPage): void {
+    this.#rowsPerPage = rows;
+    try {
+      storage()?.setItem(ROWS_KEY, String(rows));
     } catch {
       // Kept for as long as the page is open.
     }

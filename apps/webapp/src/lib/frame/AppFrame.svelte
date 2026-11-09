@@ -23,12 +23,12 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek, providePageBar, type PageBack } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import AppWorkspaces from './AppWorkspaces.svelte';
   import SwitchWorkspace from './SwitchWorkspace.svelte';
-  import SectionNav from './SectionNav.svelte';
+  import AreaNav from './AreaNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
@@ -55,7 +55,7 @@
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
   import PhoneBar from './PhoneBar.svelte';
-  import { TabStacks, ascentOf, depthOf, phoneTabs, starOf, tabOf, type PhoneTab } from '../phone.ts';
+  import { AREA_STEP_PATHS, TabStacks, areaStepOf, ascentOf, depthOf, phoneTabs, starOf, tabOf, type PhoneTab } from '../phone.ts';
   import { levelOf, type NavLevel } from '../sidebar.ts';
   import { jumble } from '../data/jumble.svelte.ts';
   import { people } from '../data/people.svelte.ts';
@@ -81,10 +81,14 @@
   import { webAppAddress, webAppHost } from '../webApp.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, MORE_CODE, PRODUCTS, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
+  import { DESTINATIONS, PRODUCTS, SETTINGS, account, administrationFor, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { webhookColumnFigure } from '../data/webhooks.ts';
+  import { backup } from '../data/backup.svelte.ts';
+  import { runs } from '../data/runs.svelte.ts';
+  import { privacy, standingOf } from '../data/privacy.svelte.ts';
+  import { backupColumnFigure, privacyColumnFigure, runsColumnFigure } from './areafigures.ts';
   import { calendarPushesPath, pushColumnFigure } from '../data/calendarpush.ts';
   import { MAILBOXES, mailboxColumnFigure, type MailboxesRead } from '../data/mailintake.svelte.ts';
   import { engine } from '../data/engine.ts';
@@ -214,6 +218,23 @@
       engine.subscribe<CalendarPushList>({ path: calendarPushesPath }, (next) => (pushes = next.status === 'ready' ? (next.data.data ?? []) : [])),
     );
   });
+  // The backup targets, the latest runs and the open privacy requests, each for whoever may read
+  // its screen: the column says where nothing is kept, what failed and what is owed (§2.6).
+  const mayKeep = $derived(isInAdministration && holdsHere('STRUCTURE') === true);
+  const mayAutomate = $derived(isInAdministration && holdsHere('AUTOMATION') === true);
+  const mayAnswer = $derived(isInAdministration && holdsHere('MANAGE_MEMBERS') === true);
+  $effect(() => {
+    if (!session.isSignedIn || !mayKeep) return;
+    return untrack(() => backup.open());
+  });
+  $effect(() => {
+    if (!session.isSignedIn || !mayAutomate) return;
+    return untrack(() => runs.open({}));
+  });
+  $effect(() => {
+    if (!session.isSignedIn || !mayAnswer) return;
+    return untrack(() => privacy.open(false));
+  });
   const sectionFigures = $derived.by((): Readonly<Record<string, string>> => {
     const figures: Record<string, string> = {};
     if (isInAdministration) {
@@ -223,6 +244,13 @@
       if (failing) figures['mail'] = failing;
       const silent = aiProvider.source ? aiColumnFigure(aiAnsweringOf(aiProvider.source, undefined), t) : undefined;
       if (silent) figures['ai'] = silent;
+      const unkept = mayKeep && backup.targets.status === 'ready' ? backupColumnFigure(backup.all, t) : undefined;
+      if (unkept) figures['backup'] = unkept;
+      const failed = mayAutomate ? runsColumnFigure(runs.of({}), t) : undefined;
+      if (failed) figures['runs'] = failed;
+      const now = Date.now();
+      const owed = mayAnswer ? privacyColumnFigure(privacy.of(false).map((request) => standingOf(request, now)), t) : undefined;
+      if (owed) figures['privacy'] = owed;
     }
     if (route.area === 'profile') {
       const stopped = pushColumnFigure(pushes, t);
@@ -303,8 +331,6 @@
   // The installed apps look for a newer release once a start; the browser has nothing to look for.
   $effect(() => untrack(() => void appUpdate.start()));
 
-  /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
-  const destination = $derived(currentDestination(route));
   /**
    * The section the reader is inside, or nothing while they are in the workspace.
    *
@@ -342,7 +368,7 @@
     section?.groups.flatMap((group) => group.rows).find((row) => row.routes.includes(route.name ?? ''))?.id,
   );
   const accountGroup = $derived(
-    account({
+    phoneAccount(account({
       isAdministrationReachable,
       // The manifest's answer about this caller, and nothing compiled in. False until it
       // has been read, which is the third value every capability question here has.
@@ -353,35 +379,22 @@
       hasWorkspaceList: deviceList.installation !== undefined,
       // An installed app's own list, of one installation or several (UC-ID-25 check 7).
       holdsWorkspaces: appWorkspaces.isHeld,
-    }),
+    })),
   );
-  /**
-   * The bottom bar (user-experience.md §2.6): Today, Search, Capture, Inbox and *More*, which opens
-   * the drawer with the products, the tree, the administration and the keeping band.
-   */
-  const bottomDestinations = $derived([
-    ...bar({ hasJumble: holdsHere('READ') === true, hasCapture: isCaptureOffered }).map((each) =>
-      each.target.kind === 'capture'
-        ? { id: each.id, label: t(each.code), icon: each.icon, isAction: true }
-        : { id: each.id, label: t(each.code), icon: each.icon, href: each.target.kind === 'route' ? each.target.path : '/' },
-    ),
-    { id: 'more', label: t(MORE_CODE), icon: 'menu' as const, isOpener: true },
-  ]);
-  /** A place the bar carries is its own; any other place of the list is *More*'s. */
-  const bottomCurrent = $derived(
-    bottomDestinations.some((each) => each.id === destination) && destination !== 'more'
-      ? destination
-      : destination === undefined || accountGroup.some((each) => each.id === destination)
-        ? undefined
-        : 'more',
-  );
-
+  // On a phone Your settings and the installation open as their Browse step (§9).
+  function phoneAccount(rows: ReturnType<typeof account>): ReturnType<typeof account> {
+    if (!isPhone) return rows;
+    return rows.map((row) =>
+      row.id === 'profile' || row.id === 'instance' ? { ...row, target: { kind: 'route', path: AREA_STEP_PATHS[row.id] } } : row,
+    );
+  }
   // ---- The phone (the navigation concept §9) ---------------------------------------------------
   // On `compact` every screen of the workspace is a step of a stack: the bar shows the avatar on a
   // tab's root and *‹ the level above* deeper, the bottom bar is *Today · Browse · ＋ · Inbox ·
-  // Search*, each tab keeping its own stack. A section (the administration, Your settings, the
-  // instance) keeps its own list behind ☰ instead.
-  const isPhone = $derived(session.isSignedIn && viewport.isCompact && !section);
+  // Search*, each tab keeping its own stack. The areas (the administration, Your settings, the
+  // installation) are levels of the Browse stack too, their groups a step of their own.
+  const isPhone = $derived(session.isSignedIn && viewport.isCompact);
+  const areaStep = $derived(isPhone ? areaStepOf(route.name) : undefined);
   const phoneTab = $derived<PhoneTab | undefined>(tabOf(route));
   const tabs = new TabStacks();
   $effect(() => {
@@ -412,8 +425,12 @@
   let heldLevel: NavLevel = { kind: 'workspace' };
   const navLevel = $derived.by(() => (heldLevel = levelOf(route, hubOfPlace, page.place, heldLevel)));
   const phoneHubId = $derived(route.name?.startsWith('browse-') ? route.params['id'] : navLevel.kind === 'hub' ? navLevel.hubId : undefined);
+  // A page's own way back handed to the bar (an open settings section's *‹ Settings*): on a phone
+  // the way back stands only in the bar (the navigation concept §9).
+  let carried = $state<PageBack | undefined>(undefined);
   const phoneBack = $derived.by(() => {
     if (!isPhone) return undefined;
+    if (carried) return { label: carried.label, path: route.path };
     if (page.ascent) return page.ascent;
     // An entry's way up is its collection, where the screen has named it.
     const located = route.name === 'item' && page.place ? containers.find(page.place) : undefined;
@@ -424,8 +441,22 @@
       ascent.kind === 'hubs' ? t('app.nav.hubs')
         : ascent.kind === 'browse' ? t('app.nav.browse')
           : ascent.kind === 'contents' ? t('app.nav.contents')
-            : (containers.find(ascent.hubId)?.name ?? t('app.nav.hubs'));
+            : ascent.kind === 'area' ? (section?.label ?? t('app.nav.browse'))
+              : (containers.find(ascent.hubId)?.name ?? t('app.nav.hubs'));
     return { label, path: ascent.path };
+  });
+  function back(path: string) {
+    if (carried) carried.onback();
+    else go(path);
+  }
+  providePageBar({
+    get hasBack() { return phoneBack !== undefined; },
+    carry: (next) => {
+      if (!isPhone) return () => {};
+      carried = next;
+      return () => { if (carried === next) carried = undefined; };
+    },
+    offer: (menu) => page.offer(menu),
   });
   const phoneStar = $derived.by(() => {
     const star = isPhone ? starOf(route) : undefined;
@@ -462,7 +493,7 @@
     if (!swipe || !finger) return;
     const travel = (swipe.rtl ? -1 : 1) * (finger.clientX - swipe.x);
     const drift = Math.abs(finger.clientY - swipe.y);
-    if (travel > window.innerWidth / 4 && drift < travel && phoneBack) go(phoneBack.path);
+    if (travel > window.innerWidth / 4 && drift < travel && phoneBack) back(phoneBack.path);
     swipe = null;
   }
   // The inbox's count on its tab: the arrivals still undecided.
@@ -602,7 +633,7 @@
 
   /** What choosing a row of the account group does: the frame's verbs, and nothing of its own. */
   function chooseAccount(id: string) {
-    const chosen = DESTINATIONS.find((each) => each.id === id);
+    const chosen = accountGroup.find((each) => each.id === id) ?? DESTINATIONS.find((each) => each.id === id);
     if (!chosen) return;
     const area = leftOut(id);
     if (area !== undefined && chosen.target.kind === 'route') {
@@ -756,7 +787,7 @@
     {/if}
   {/snippet}
   {#if isPhone}
-    <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={go} star={phoneStar} menu={page.menu}>
+    <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
         <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
           workspaces={phoneWorkspaces} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />
@@ -824,7 +855,7 @@
       {#if viewport.isBelowExpanded && !isPhone}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
-            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
+            <AreaNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
           {:else}
             <WorkspaceNav {route} level={navLevel} located={page.place} hasForYou={!viewport.isCompact} onnavigate={go} />
           {/if}
@@ -847,7 +878,7 @@
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
                  `hubs` step points at the tree, so it does not point here: a step that pointed at
                  a column the tree is not in would explain the wrong thing. -->
-            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
+            <AreaNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
             <WorkspaceNav {route} level={navLevel} located={page.place} isRail={isRail && !isPeeking} onnavigate={go} />
           {/if}
@@ -896,10 +927,10 @@
                   <!-- A link, because it goes somewhere: announced as one, and it opens in a new tab
                        for whoever asks it to. The click stays inside the application. -->
                   <a
-                    href="/profile/security"
+                    href="/profile/security/second-factor"
                     onclick={(event) => {
                       event.preventDefault();
-                      go('/profile/security');
+                      go('/profile/security/second-factor');
                     }}
                   >
                     {t('app.recovery_note.replace')}
@@ -956,7 +987,12 @@
             </div>
           {/if}
         </div>
-        {@render children()}
+        {#if areaStep && section}
+          <!-- An area's groups as a step of the phone's Browse stack (§9). -->
+          <AreaNav label={section.label} groups={section.groups} figures={sectionFigures} size="touch" onnavigate={go} />
+        {:else}
+          {@render children()}
+        {/if}
       </div>
     </main>
   </div>
@@ -972,24 +1008,6 @@
       destinations={phoneDestinations}
       current={phoneTab}
       onnavigate={choosePhoneTab}
-    />
-  {:else if session.isSignedIn && viewport.isCompact && !isPhone}
-    <BottomBar
-      label={t('app.nav.label')}
-      destinations={bottomDestinations}
-      current={bottomCurrent}
-      onnavigate={(id) => {
-        if (id === 'more') isDrawerOpen = true;
-        // Search opens the palette here, the bar having no field to type in: its *All results*
-        // and *Open search* are the way to the search screen (UC-WRK-27 check 1).
-        else if (id === 'search') palette.summon();
-        // The ＋ is an act, not a place: it opens the capture field where the reader is.
-        else if (id === 'capture') capture.summon();
-        else {
-          const chosen = bottomDestinations.find((each) => each.id === id);
-          go(chosen && 'href' in chosen && chosen.href ? chosen.href : '/');
-        }
-      }}
     />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
@@ -1024,7 +1042,7 @@
   <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
     <TourGuide path={route.path} {onnavigate} />
-    <ProductTourGuide routeName={route.name} {onnavigate} />
+    <ProductTourGuide routeName={route.name} routeTab={route.query['tab']} {onnavigate} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a

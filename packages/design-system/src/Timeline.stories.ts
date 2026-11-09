@@ -44,6 +44,13 @@ export const undatedOnly: Story = {
   args: { mode: 'undatedOnly' },
 };
 
+export const trayFolded: Story = {
+  name: 'The tray folded under the axis',
+  about:
+    'Where most of the plan is dated, what is not is a remainder: the tray opens folded, one line under the axis that names its count, and unfolds to the same rows with their actions. Carrying an entry from it onto the axis still gives it its first dates.',
+  args: { mode: 'actions', isTrayFolded: true },
+};
+
 export const empty: Story = {
   name: 'A window with nothing in it',
   about:

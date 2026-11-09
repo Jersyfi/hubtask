@@ -14,11 +14,11 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, DataTable, Dialog, EmptyState, FilterBar, ListPage, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
-  import TargetForm from '../lib/backup/TargetForm.svelte';
+  import NewTargetDialog from '../lib/backup/NewTargetDialog.svelte';
   import type { Probe, Target } from '../lib/data/backup.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -27,7 +27,7 @@
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -51,12 +51,15 @@
   const targets = $derived(instance.targets);
   const unreadable = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
-  const columns = $derived([
-    { id: 'target', label: t('app.instance.targets_column_target') },
-    { id: 'where', label: t('app.instance.targets_column_where') },
-    { id: 'test', label: t('app.instance.targets_column_test') },
-    { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'target', label: t('app.instance.targets_column_target'), priority: 1 },
+    { id: 'where', label: t('app.instance.targets_column_where'), priority: 3 },
+    { id: 'test', label: t('app.instance.targets_column_test'), priority: 2 },
   ]);
+
+  let search = $state('');
+  const shown = $derived(targets.filter((target) => matchesSearch(search, [target.name, target.kind])));
+  let isAdding = $state(false);
 
   /** Where a target points, as its own settings say - the operator's to read, and no workspace's. */
   const where = (target: Target): string =>
@@ -95,72 +98,92 @@
   $effect(() => page.entitle(t('app.instance.targets')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.targets')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.targets') })} />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.targets_intro')}</p>
-
-      {#if failure && !removing}
-        <FailureNote problem={failure} />
-      {/if}
-
-      {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
-      {:else}
-        {#if targets.length === 0}
-          <Banner tone="info">{t('app.instance.targets_none')}</Banner>
-        {:else}
-          <Table label={t('app.instance.targets')} isLabelHidden columns={columns}>
-            {#each targets as target (target.id)}
-              <tr>
-                <td>
-                  <span class="name">{target.name}</span>
-                  <span class="slug">{target.kind}</span>
-                  {#if target.enabled === false}<Badge tone="neutral">{t('app.instance.targets_disabled')}</Badge>{/if}
-                </td>
-                <td><span class="slug mono">{where(target)}</span></td>
-                <td><span class="slug">{lastTest(target)}</span></td>
-                <td>
-                  <div class="row">
-                    <Button
-                      tone="subtle"
-                      isBusy={working === `test:${target.id}`}
-                      busyLabel={t('app.instance.working')}
-                      onclick={() =>
-                        void run(`test:${target.id}`, async () => {
-                          probes = { ...probes, [target.id]: await instance.testTarget(target.id) };
-                        })}
-                    >
-                      {t('app.backup.test')}
-                    </Button>
-                    <Button tone="danger" onclick={() => ((removing = target), (failure = undefined))}>
-                      {t('app.instance.targets_remove')}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
-
-        <TargetForm
-          heading={t('app.instance.targets_add')}
-          isWorking={working === 'add'}
-          onadd={(draft) => run('add', () => instance.createTarget(draft), t('app.instance.targets_added_announced'))}
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage
+      head={{
+        title: t('app.instance.targets'),
+        breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.targets') }),
+        primary: { label: t('app.instance.targets_add'), icon: 'plus', onclick: () => (isAdding = true) },
+      }}
+      refused={door ?? (unreadable ? failed : undefined)}
+    >
+      {#snippet intro()}<p class="quiet">{t('app.instance.targets_intro')}</p>{/snippet}
+      {#snippet filters()}
+        <FilterBar
+          searchLabel={t('app.instance.targets_search')}
+          clearSearchLabel={t('app.page.clear_search')}
+          bind:search
+          countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(targets.length) }) : undefined}
         />
+      {/snippet}
+
+      {#if failure && !removing}<FailureNote problem={failure} />{/if}
+      {#if reading.status === 'loading' || reading.status === 'idle'}
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
+      {:else}
+        <DataTable
+          label={t('app.instance.targets')}
+          {columns}
+          rows={shown}
+          key={(target: Target) => target.id}
+          rowLabel={(target: Target) => target.name}
+          menu={(target: Target) => ({
+            label: t('app.page.more_for', { name: target.name }),
+            items: [
+              { id: 'test', label: t('app.backup.test') },
+              { id: 'remove', label: `${t('app.instance.targets_remove')}…`, isDestructive: true, hasSeparatorBefore: true },
+            ],
+          })}
+          onmenu={(target: Target, id: string) => {
+            if (id === 'test') {
+              void run(`test:${target.id}`, async () => {
+                probes = { ...probes, [target.id]: await instance.testTarget(target.id) };
+              });
+            } else {
+              removing = target;
+              failure = undefined;
+            }
+          }}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={targets.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+        >
+          {#snippet cell(target: Target, column: DataColumn)}
+            {#if column.id === 'target'}
+              <span class="name">{target.name}</span>
+              <span class="slug">{t(`app.backup.kind_${target.kind}`)}</span>
+              {#if target.enabled === false}<Badge tone="neutral">{t('app.instance.targets_disabled')}</Badge>{/if}
+            {:else if column.id === 'where'}
+              <span class="slug mono">{where(target)}</span>
+            {:else}
+              <span class="slug">{working === `test:${target.id}` ? t('app.instance.working') : lastTest(target)}</span>
+            {/if}
+          {/snippet}
+          {#snippet empty()}
+            {#if targets.length === 0}
+              <EmptyState kind="unused" title={t('app.instance.targets_none')} />
+            {:else}
+              <EmptyState kind="filtered" title={t('app.instance.targets_none_found')}>
+                {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {/if}
+          {/snippet}
+        </DataTable>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </ListPage>
+  {/snippet}
+</InstanceGate>
+
+<NewTargetDialog bind:isOpen={isAdding} create={(draft) => instance.createTarget(draft)} addedLabel={t('app.instance.targets_added_announced')} />
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <Dialog
+  size="s"
   title={t('app.instance.targets_remove_title')}
   isOpen={removing !== undefined}
   dismissLabel={t('app.instance.cancel')}
@@ -189,10 +212,8 @@
 </Dialog>
 
 <style>
-  .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
   .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
 </style>

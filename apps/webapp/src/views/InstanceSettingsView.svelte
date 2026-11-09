@@ -35,17 +35,24 @@
   //
   // **The installation's presets below, in multi mode only** (UC-INS-18): written one by one, not
   // with the level, so they are a section of their own beside the editor and not one of its tabs.
+  //
+  // A settings page (page-system §7.3, §9.4): one section per area at its own address, every value
+  // in place in its setting row with where it comes from - the installation or each workspace -
+  // and one save bar per section, with *Preview the change* beside it. *History* is a section of
+  // its own.
+
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, ReadOnlyNotice, SaveBar, Spinner, Stack, Table, Tabs } from '@hubtask/design-system/components';
+  import { Banner, Input, ReadOnlyNotice, SaveBar, SettingRow, SettingsLayout, SettingsSection, Spinner, Stack } from '@hubtask/design-system/components';
+  import type { SectionLink } from '@hubtask/design-system/components';
   import type { InstanceSetting, InstanceSettings, InstanceSettingsPlan } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
   import ViewAsFile from '../lib/settings/ViewAsFile.svelte';
   import { AREAS, changesBetween, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
-  import { enterSubmits } from '../lib/forms/enter.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { languageName } from '../lib/i18n/locale.ts';
@@ -57,24 +64,30 @@
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
-    /** The area the address names (`?tab=`); the first where it names none the server answered. */
+    /** The section the address names: an area, or `history`. */
+    section?: string;
+    /** The older address's area (`?tab=`), which replaces itself with the section's own. */
     tab?: string;
-    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
+    /** Replaces the address when the section changes, so a reload or a link keeps it. */
     onreplace?: (path: string) => void;
   }
 
-  const { onnavigate, tab, onreplace }: Props = $props();
+  const { onnavigate, section, tab, onreplace }: Props = $props();
 
-  /** The document being edited, or nothing while it is only being read. */
+  const BASE = '/instance/settings';
+  const HISTORY_SECTION = 'history';
+  const idOf = (area: Area) => area.replace('_', '-');
+
+  /** What is being edited: a copy of what is in force, refilled after every save. */
   let draft = $state<InstanceSettings | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let form = $state<HTMLFormElement | undefined>(undefined);
+  let isFileOpen = $state(false);
 
   $effect(() => {
     if (!instance.isElevated) return;
@@ -84,41 +97,59 @@
 
   const reading = $derived(instance.settings);
   const settings = $derived(reading.status === 'ready' ? reading.data : undefined);
-  /** How many values the editor changes against what is in force: the save bar's count. */
-  const draftChanges = $derived(draft && settings ? changesBetween(draft, settings) : 0);
-  const unreadable = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
+  const unreadable = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
   /** A file that is written at every start makes this level read-only, and says so. */
   const enforced = $derived(settings?.is_enforced_from_file === true);
 
+  // A copy, and a deliberate one: a draft that pointed at the store would change what the source
+  // chips say while somebody is typing, and the chips are what they compare against.
+  $effect(() => {
+    if (settings && !draft) untrack(() => (draft = JSON.parse(JSON.stringify(settings)) as InstanceSettings));
+  });
+  const draftChanges = $derived(draft && settings ? changesBetween(draft, settings) : 0);
+
   const rows = $derived(rowsOf(settings));
-  /** The areas the server answered keys for, each with its rows, in the screen's order. */
-  // A private installation offers no model of its own to its one workspace, so the AI area - which
-  // is about the offered model - is not drawn there (UC-AI-06 check 8). Its values are kept as
-  // they are and sent back unchanged.
+  /** The areas the server answered keys for, each with its rows, in the page's order. */
   const groups = $derived(
     AREAS.filter((area) => !(area === 'ai' && manifest.isSingleTenant))
       .map((area) => ({ area, rows: rows.filter((row) => row.area === area) }))
       .filter((group) => group.rows.length > 0),
   );
 
-  /** The area on show: the address's where the server answered it, else the first. */
-  const shown = $derived(groups.find((group) => group.area === tab) ?? groups[0]);
+  const isKnown = (id: string | undefined): boolean => id === HISTORY_SECTION || groups.some((group) => idOf(group.area) === id);
+  const current = $derived(isKnown(section) ? (section as string) : groups[0] ? idOf(groups[0].area) : HISTORY_SECTION);
+  const view = $derived<'list' | 'detail'>(isKnown(section) ? 'detail' : 'list');
+  const shown = $derived(groups.find((group) => idOf(group.area) === current));
+
+  // An older address (`?tab=quotas`) lands on its section's own, replacing itself.
+  $effect(() => {
+    if (section !== undefined || !tab) return;
+    const target = AREAS.find((area) => area === tab);
+    if (target) untrack(() => onreplace?.(`${BASE}/${idOf(target)}`));
+  });
 
   function select(next: string): void {
-    onreplace?.(next === groups[0]?.area ? '/instance/settings' : `/instance/settings?tab=${next}`);
+    onreplace?.(`${BASE}/${next}`);
   }
+
+  /** How many of an area the installation decided and locked: the section list's state. */
+  function stateOf(group: { rows: readonly Row[] }): Pick<SectionLink, 'status' | 'statusTone'> {
+    const decided = group.rows.filter((row) => row.setting.set).length;
+    const locked = group.rows.filter((row) => row.setting.locked).length;
+    if (decided === 0) return { status: t('app.instance.section_each_workspace'), statusTone: 'quiet' };
+    return locked > 0
+      ? { status: t('app.instance.section_set_locked', { count: String(decided), locked: String(locked) }), statusTone: 'locked' }
+      : { status: t('app.instance.section_set', { count: String(decided) }), statusTone: 'set' };
+  }
+
+  const links = $derived<SectionLink[]>([
+    ...groups.map((group) => ({ id: idOf(group.area), label: t(`app.instance.area_${group.area}`), href: `${BASE}/${idOf(group.area)}`, ...stateOf(group) })),
+    { id: HISTORY_SECTION, label: t('app.instance.settings_history_title'), href: `${BASE}/${HISTORY_SECTION}` },
+  ]);
 
   const locales = $derived(localesOf(manifest.value).map((each) => each.locale));
 
-  const columns = $derived([
-    { id: 'setting', label: t('app.instance.column_setting') },
-    { id: 'value', label: t('app.instance.column_value') },
-    { id: 'lock', label: t('app.instance.workspaces_may') },
-  ]);
-
-  /** A value as the table says it: a choice in words, a flag as on or off, a list joined. */
+  /** A value as a person reads it: a choice in words, a flag as on or off, a list joined. */
   function said(row: Row): string {
     const { area, key, setting } = row;
     const value = setting.value;
@@ -129,7 +160,6 @@
       case 'FLAG':
         return value === true ? t('app.instance.flag_on') : t('app.instance.flag_off');
       case 'COUNT':
-        // Zero is a limit's "unlimited", which is a decision and not a number anybody counts to.
         if (value === 0 && area === 'quotas') return t('app.instance.value_unlimited');
         return isBytes(area, key) && typeof value === 'number' ? formatBytes(value, messages.locale) : String(value);
       case 'LOCALE':
@@ -145,37 +175,17 @@
     return code ? t(code) : '';
   }
 
-  /** How many of the level this installation has actually decided, for the line above it. */
+  /** How many of the level this installation has actually decided, for the head's figure. */
   const decided = $derived(rows.filter((row) => row.setting.set).length);
 
-  /**
-   * Opens the editor on what is in force.
-   *
-   * A copy, and a deliberate one: a draft that pointed at the store would change what the table
-   * beside it draws while somebody is typing, and the table is what they are comparing against.
-   */
-  function edit(): void {
-    if (!settings) return;
-    draft = JSON.parse(JSON.stringify(settings)) as InstanceSettings;
-    failure = undefined;
+  /** Reads one key out of the draft. */
+  function currentOf(area: Area, key: string): InstanceSetting | undefined {
+    return draftEntry(draft, area, key);
   }
 
-  /** The area on show as the installation's part of the document (configuration/ui.md A10). */
-  const shownValues = $derived(
-    (shown?.rows ?? []).map((row) => {
-      const entry = current(row.area, row.key);
-      return {
-        key: `${row.area}.${row.key}`,
-        value: entry?.value,
-        source: entry?.set ? 'INSTANCE' : 'DEFAULT',
-        lockedBy: entry?.locked ? 'INSTANCE' : undefined,
-      };
-    }),
-  );
-
-  /** Reads one key out of the draft. */
-  function current(area: Area, key: string): InstanceSetting | undefined {
-    return draftEntry(draft, area, key);
+  /** Whether a key in the draft differs from what is in force: the row's bar. */
+  function isChanged(row: Row): boolean {
+    return JSON.stringify(currentOf(row.area, row.key) ?? null) !== JSON.stringify(row.setting.set ? row.setting : null);
   }
 
   /**
@@ -189,6 +199,21 @@
     const entry: InstanceSetting = next ?? { ...declared, set: false, value: undefined, locked: false };
     draft = { ...draft, [area]: { ...(draft[area] ?? {}), [key]: entry } };
   }
+
+  function discard(): void {
+    if (!settings) return;
+    draft = JSON.parse(JSON.stringify(settings)) as InstanceSettings;
+    failure = undefined;
+    plan = undefined;
+  }
+
+  /** The section on show as the installation's part of the document (configuration/ui.md A10). */
+  const shownValues = $derived(
+    (shown?.rows ?? []).map((row) => {
+      const entry = currentOf(row.area, row.key);
+      return { key: `${row.area}.${row.key}`, value: entry?.value, source: entry?.set ? 'INSTANCE' : 'DEFAULT', lockedBy: entry?.locked ? 'INSTANCE' : undefined };
+    }),
+  );
 
   /** The server's answer to *Preview the change*, for the draft it was asked about. */
   let plan = $state<InstanceSettingsPlan | undefined>(undefined);
@@ -207,9 +232,6 @@
       isWorking = false;
     }
   }
-  $effect(() => {
-    if (!draft) plan = undefined;
-  });
 
   const HISTORY = { action: 'instance.settings_changed' } as const;
   $effect(() => {
@@ -228,6 +250,7 @@
     try {
       await instance.writeSettings(documentOf(draft));
       draft = undefined;
+      plan = undefined;
       toast.show({ text: t('app.instance.settings_saved'), tone: 'success' });
     } catch (cause) {
       failure =
@@ -242,230 +265,157 @@
   $effect(() => page.entitle(t('app.instance.settings')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.settings')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.settings') })} />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.settings_intro')}</p>
-
-      {#if failure}
-        <FailureNote problem={failure} />
-      {/if}
-
-      {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
-      {:else}
-        {#if enforced}
-          <!-- The file is the source, so nothing here is writable and no control is drawn. A form
-               that offered a save which the server refuses would be a form that lies. -->
-          <ReadOnlyNotice text={`${t('app.instance.source_file_enforced')} ${settings?.source ?? ''}`} />
-        {/if}
-        <p class="quiet-line">{t('app.instance.settings_decided', { decided, total: rows.length })}</p>
-        {#if settings?.blocklist_file}
-          <p class="quiet-line">{t('app.instance.blocklist_file', { path: settings.blocklist_file })}</p>
-        {/if}
-
-        {#if draft}
-          {@const editing = draft}
-          <form
-            class="panel"
-            bind:this={form}
-            use:enterSubmits
-            onsubmit={(event) => {
-              event.preventDefault();
-              void save();
-            }}
-          >
-            <Stack gap="300">
-              <Stack gap="100">
-                <h2 class="section">{t('app.instance.settings_edit_title')}</h2>
-                <p class="quiet-line">{t('app.instance.settings_edit_hint')}</p>
-                <span><ViewAsFile values={shownValues} place="INSTANCE" /></span>
-              </Stack>
-
-              <Tabs
-                label={t('app.instance.settings_areas')}
-                selected={shown?.area}
-                onselect={select}
-                tabs={groups.map((group) => ({ id: group.area, label: t(`app.instance.area_${group.area}`) }))}
-              >
-                {#if shown}
-                  {@const group = shown}
-                  <section class="group" aria-label={t(`app.instance.area_${group.area}`)}>
-                    <Stack gap="150">
-                      {#if group.area === 'localisation'}
-                        <p class="quiet-line">{t('app.instance.locked_never_localisation')}</p>
-                      {/if}
-                      {#each group.rows as row (row.key)}
-                        <InstanceValueField
-                          area={row.area}
-                          key={row.key}
-                          declared={row.setting}
-                          current={current(row.area, row.key)}
-                          {locales}
-                          zones={zoneOptions(String(editing.localisation?.time_zone?.value ?? ''))}
-                          error={failure?.fields.get(fieldOf(row.area, row.key))}
-                          onchange={(next) => put(row.area, row.key, row.setting, next)}
-                        />
-                      {/each}
-                      {#if group.area === 'sign_in'}
-                        <!-- The blocklist is the sign-in rules' too: the installation's alone. -->
-                        <Input
-                          label={t('app.instance.blocklist_label')}
-                          hint={t('app.instance.blocklist_hint')}
-                          value={editing.blocklist_file ?? ''}
-                          oninput={(event) => {
-                            if (!draft) return;
-                            draft = { ...draft, blocklist_file: (event.currentTarget as HTMLInputElement).value };
-                          }}
-                          autocomplete="off"
-                          spellcheck={false}
-                        />
-                      {/if}
-                    </Stack>
-                  </section>
-                {/if}
-              </Tabs>
-
-              {#if plan}
-                <section aria-labelledby="instance-plan">
-                  <Stack gap="100">
-                    <h3 class="subsection" id="instance-plan">{t('app.instance.settings_plan_title')}</h3>
-                    {#if plan.changes.length === 0}
-                      <p class="quiet-line">{t('app.instance.settings_plan_none')}</p>
-                    {:else}
-                      <ul class="changes">
-                        {#each plan.changes as change (change.key)}
-                          <li data-plan-change><code>{change.key}</code>
-                            {t('app.instance.settings_plan_change', {
-                              from: change.from === '' ? t('app.instance.value_undecided') : change.from,
-                              to: change.to === '' ? t('app.instance.value_undecided') : change.to,
-                            })}{change.from_locked !== change.to_locked ? ` · ${change.to_locked ? t('app.instance.settings_plan_locks') : t('app.instance.settings_plan_unlocks')}` : ''}</li>
-                        {/each}
-                      </ul>
-                    {/if}
-                    {#if plan.applied_through === 'FILE'}
-                      <p class="quiet-line">{t('app.instance.settings_plan_file', { path: plan.source ?? '' })}</p>
-                    {/if}
-                  </Stack>
-                </section>
-              {/if}
-
-              <!-- Cancel closes the editor; the changes and their save are the bar's. -->
-              <div class="row">
-                <Button tone="secondary" icon="eye" isBusy={isWorking} busyLabel={t('app.instance.working')}
-                  onclick={() => void preview()}>{t('app.instance.settings_plan_preview')}</Button>
-                <Button tone="subtle" onclick={() => (draft = undefined)}>
-                  {t('app.instance.cancel')}
-                </Button>
-              </div>
-            </Stack>
-            <SaveBar
-              label={t('app.save_bar.label')}
-              changesLabel={draftChanges > 0 ? t('app.save_bar.changes', { count: String(draftChanges) }) : undefined}
-              discardLabel={t('app.save_bar.discard')}
-              saveLabel={t('app.instance.settings_save')}
-              isSaving={isWorking}
-              savingLabel={t('app.instance.working')}
-              onDiscard={edit}
-              onSave={() => form?.requestSubmit()}
-            />
-          </form>
-        {:else if rows.length === 0}
-          <Banner tone="info">{t('app.instance.settings_none')}</Banner>
-        {:else}
-          <Tabs
-            label={t('app.instance.settings_areas')}
-            selected={shown?.area}
-            onselect={select}
-            tabs={groups.map((group) => ({ id: group.area, label: t(`app.instance.area_${group.area}`) }))}
-          >
-          {#if shown}
-            {@const group = shown}
-            <section aria-label={t(`app.instance.area_${group.area}`)}>
-              <Stack gap="100">
-                <Table label={t(`app.instance.area_${group.area}`)} isLabelHidden {columns}>
-                  {#each group.rows as row (row.key)}
-                    <tr>
-                      <td>{t(nameCode(row.area, row.key))}</td>
-                      <td class={row.setting.kind === 'LINK' ? 'link' : ''}>
-                        {#if row.setting.set}
-                          {said(row)}
-                        {:else}
-                          <!-- Not a blank cell: "this installation decided nothing here" is a fact
-                               worth a sentence, and the workspace is who decides it instead. -->
-                          <span class="undecided">{t('app.instance.value_undecided')}</span>
-                        {/if}
-                      </td>
-                      <td>{mayOf(row.setting)}</td>
-                    </tr>
-                  {/each}
-                </Table>
-              </Stack>
-            </section>
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <SettingsLayout
+      head={{
+        title: t('app.instance.settings'),
+        subtitle: rows.length > 0 ? t('app.instance.settings_decided', { decided, total: rows.length }) : undefined,
+        breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.settings') }),
+        secondary: shown ? [{ label: t('app.settings.view_as_file'), isQuiet: true, onclick: () => (isFileOpen = true) }] : [],
+      }}
+      nav={{ label: t('app.settings_page.sections', { name: t('app.instance.settings') }), sections: links, current, onselect: select }}
+      {view}
+      back={{ label: t('app.instance.settings'), onback: () => onreplace?.(BASE) }}
+      refused={door ?? (unreadable ? failed : undefined)}
+    >
+      {#if !settings || !draft}
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
+      {:else if current === HISTORY_SECTION}
+        <SettingsSection title={t('app.instance.settings_history_title')}>
+          {#if history.length === 0}
+            <p class="quiet-line">{t('app.instance.settings_history_none')}</p>
+          {:else}
+            <ul class="changes">
+              {#each history as entry (entry.id)}
+                <li data-history-entry>
+                  {formatDateTime(entry.occurred_at, messages.locale)} · {entry.actor_label ?? t('app.instance.settings_history_file')}
+                  {#if typeof entry.details?.version === 'number'} · {t('app.instance.settings_history_version', { version: String(entry.details.version) })}{/if}
+                  <span class="quiet-line">{switchesOf(entry.details).join(', ')}</span>
+                </li>
+              {/each}
+            </ul>
           {/if}
-          </Tabs>
-        {/if}
-
-        {#if !draft && !enforced}
-          <div>
-            <Button tone="primary" onclick={edit}>{t('app.instance.settings_edit')}</Button>
-          </div>
-        {/if}
-
-        {#if !draft}
-          <section aria-labelledby="instance-history">
-            <Stack gap="100">
-              <h2 class="section" id="instance-history">{t('app.instance.settings_history_title')}</h2>
-              {#if history.length === 0}
-                <p class="quiet-line">{t('app.instance.settings_history_none')}</p>
-              {:else}
-                <ul class="changes">
-                  {#each history as entry (entry.id)}
-                    <li data-history-entry>
-                      {formatDateTime(entry.occurred_at, messages.locale)} · {entry.actor_label ?? t('app.instance.settings_history_file')}
-                      {#if typeof entry.details?.version === 'number'} · {t('app.instance.settings_history_version', { version: String(entry.details.version) })}{/if}
-                      <span class="quiet-line">{switchesOf(entry.details).join(', ')}</span>
-                    </li>
-                  {/each}
-                </ul>
+        </SettingsSection>
+      {:else if shown}
+        {@const group = shown}
+        {@const editing = draft}
+        <form bind:this={form} onsubmit={(event) => { event.preventDefault(); void save(); }}>
+          <SettingsSection
+            title={t(`app.instance.area_${group.area}`)}
+            description={group.area === 'localisation' ? t('app.instance.locked_never_localisation') : t('app.instance.settings_intro')}
+            status={stateOf(group).status}
+          >
+            {#if enforced}
+              <!-- The file is the source, so nothing here is writable and no control is drawn. A
+                   form that offered a save which the server refuses would be a form that lies. -->
+              <ReadOnlyNotice text={`${t('app.instance.source_file_enforced')} ${settings.source ?? ''}`} />
+            {/if}
+            {#if failure && failure.fields.size === 0}<FailureNote problem={failure} />{/if}
+            {#each group.rows as row (row.key)}
+              <SettingRow label={t(nameCode(row.area, row.key))} help={mayOf(row.setting) || undefined} fieldWidth="md" isChanged={!enforced && isChanged(row)}>
+                {#snippet source()}
+                  <ValueSource source={row.setting.set ? 'INSTANCE' : 'DEFAULT'} lock={row.setting.locked ? 'INSTANCE' : null} value={row.setting.set ? said(row) : t('app.instance.value_undecided')} />
+                {/snippet}
+                {#snippet control(nameId)}
+                  {#if enforced}
+                    <span class="value">{row.setting.set ? said(row) : t('app.instance.value_undecided')}</span>
+                  {:else}
+                    <InstanceValueField
+                      area={row.area}
+                      key={row.key}
+                      declared={row.setting}
+                      current={currentOf(row.area, row.key)}
+                      {locales}
+                      zones={zoneOptions(String(editing.localisation?.time_zone?.value ?? ''))}
+                      error={failure?.fields.get(fieldOf(row.area, row.key))}
+                      {nameId}
+                      onchange={(next) => put(row.area, row.key, row.setting, next)}
+                    />
+                  {/if}
+                {/snippet}
+              </SettingRow>
+            {/each}
+            {#if group.area === 'sign_in'}
+              <!-- The blocklist is the sign-in rules' too: the installation's alone. -->
+              <SettingRow label={t('app.instance.blocklist_label')} help={t('app.instance.blocklist_hint')} fieldWidth="lg" isChanged={(editing.blocklist_file ?? '') !== (settings.blocklist_file ?? '')}>
+                {#snippet control(nameId)}
+                  {#if enforced}
+                    <span class="value">{settings.blocklist_file ?? ''}</span>
+                  {:else}
+                    <Input
+                      label={t('app.instance.blocklist_label')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      value={editing.blocklist_file ?? ''}
+                      oninput={(event) => {
+                        if (!draft) return;
+                        draft = { ...draft, blocklist_file: (event.currentTarget as HTMLInputElement).value };
+                      }}
+                      autocomplete="off"
+                      spellcheck={false}
+                    />
+                  {/if}
+                {/snippet}
+              </SettingRow>
+            {/if}
+            {#if plan}
+              <Stack gap="100">
+                <h3 class="subsection">{t('app.instance.settings_plan_title')}</h3>
+                {#if plan.changes.length === 0}
+                  <p class="quiet-line">{t('app.instance.settings_plan_none')}</p>
+                {:else}
+                  <ul class="changes">
+                    {#each plan.changes as change (change.key)}
+                      <li data-plan-change><code>{change.key}</code>
+                        {t('app.instance.settings_plan_change', {
+                          from: change.from === '' ? t('app.instance.value_undecided') : change.from,
+                          to: change.to === '' ? t('app.instance.value_undecided') : change.to,
+                        })}{change.from_locked !== change.to_locked ? ` · ${change.to_locked ? t('app.instance.settings_plan_locks') : t('app.instance.settings_plan_unlocks')}` : ''}</li>
+                    {/each}
+                  </ul>
+                {/if}
+                {#if plan.applied_through === 'FILE'}
+                  <p class="quiet-line">{t('app.instance.settings_plan_file', { path: plan.source ?? '' })}</p>
+                {/if}
+              </Stack>
+            {/if}
+            {#snippet save()}
+              {#if !enforced && draftChanges > 0}
+                <SaveBar
+                  label={t('app.save_bar.label')}
+                  changesLabel={t('app.save_bar.changes', { count: String(draftChanges) })}
+                  discardLabel={t('app.save_bar.discard')}
+                  saveLabel={t('app.instance.settings_save')}
+                  isSaving={isWorking}
+                  savingLabel={t('app.instance.working')}
+                  planLabel={t('app.instance.settings_plan_preview')}
+                  onPlan={() => void preview()}
+                  onDiscard={discard}
+                  onSave={() => form?.requestSubmit()}
+                />
               {/if}
-            </Stack>
-          </section>
-        {/if}
-
+            {/snippet}
+          </SettingsSection>
+        </form>
+      {:else}
+        <Banner tone="info">{t('app.instance.settings_none')}</Banner>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </SettingsLayout>
+  {/snippet}
+</InstanceGate>
+
+<ViewAsFile values={shownValues} place="INSTANCE" bind:isOpen={isFileOpen} isTriggerHidden />
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <style>
-  .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
-  .link { overflow-wrap: anywhere; }
-  .undecided { color: var(--text-secondary); font-size: var(--fs-100); }
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-
-  /* A form is neither prose nor a table (ADR-0065 decision 2): the fields carry a measure of their
-     own while the tables take the width. */
-  form { margin: 0; max-inline-size: 80ch; }
-
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  .value { overflow-wrap: anywhere; }
   .subsection { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); overflow-wrap: anywhere; }
+  form { margin: 0; }
 </style>

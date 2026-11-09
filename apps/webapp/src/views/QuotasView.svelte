@@ -3,6 +3,11 @@
 <script lang="ts">
   // What this workspace may use, and how close it is (`multi-tenancy.md` §4).
   //
+  // **A list page** (page-system §7.1): the limits are objects of one kind, read and compared, never
+  // configured here - nothing on the screen is a value this workspace sets, so it is not a settings
+  // page, and nothing happened at a time, so it is not a log. Search and the count above the table
+  // (PS-7); no head primary, because nothing here is created.
+  //
   // **There is no control to raise a limit, and the screen says who to ask.**
   // `/admin/tenants/{id}/quotas` is the installation operator's (multi-tenancy.md §4). A button the
   // server would refuse is worse than no button — it teaches somebody that the product is broken
@@ -22,8 +27,9 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Callout, PageHeader, ProgressBar, ReadOnlyNotice, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Callout, DataTable, EmptyState, FilterBar, ListPage, ProgressBar, ReadOnlyNotice, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
 
+  import { adminTrail } from '../lib/administration/trail.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { quotas, type Standing } from '../lib/data/quotas.svelte.ts';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
@@ -31,7 +37,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
   import AccountLink from '../lib/workspace/AccountLink.svelte';
   import LimitSource from '../lib/workspace/LimitSource.svelte';
@@ -50,12 +56,12 @@
 
   // `approach` is the column this screen exists for: "which limit am I closest to" is the
   // question, and until now the answer was read off five progress bars in the catalogue's order.
-  const columns = $derived([
-    { id: 'quota', label: t('app.quotas.limit_name'), isSortable: true },
-    { id: 'limit', label: t('app.quotas.ceiling') },
-    { id: 'used', label: t('app.quotas.used'), isSortable: true },
-    { id: 'ratio', label: t('app.quotas.approach'), isSortable: true },
-    { id: 'source', label: t('app.quotas.source') },
+  const columns: readonly DataColumn[] = $derived([
+    { id: 'quota', label: t('app.quotas.limit_name'), isSortable: true, priority: 1 },
+    { id: 'limit', label: t('app.quotas.ceiling'), priority: 2 },
+    { id: 'used', label: t('app.quotas.used'), isSortable: true, priority: 2 },
+    { id: 'ratio', label: t('app.quotas.approach'), isSortable: true, isStatus: true },
+    { id: 'source', label: t('app.quotas.source'), priority: 3 },
   ]);
 
   // `used` and `ratio` are absent where no live count exists, and absent sorts last in both
@@ -92,6 +98,9 @@
   );
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
+
+  let search = $state('');
+  const shown = $derived(order.rows.filter((standing) => matchesSearch(search, [nameOf(standing.quota), standing.quota])));
 
 
   /**
@@ -135,119 +144,112 @@
 
   /** The same number `hubtask_tenant_quota_usage_ratio` reports, as a percentage a person reads. */
   const percentOf = (ratio: number) => Math.round(ratio * 100);
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.quotas.title')));
+  const title = $derived(t('app.quotas.title'));
+  const head = $derived({ title, breadcrumb: adminTrail({ id: 'quotas', label: title }), figure: plan ? planFigure : undefined });
+  $effect(() => page.entitle(title));
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.quotas.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'quotas', label: t('app.quotas.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  >
-    {#snippet notices()}
-      {#if plan}
-        <!-- The plan the workspace is on, so "Set by your plan" refers to something a person can
-             name to their provider. A note, not an offer. -->
-        <p class="plan" data-testid="limits-plan"><Badge tone="info">{t('app.signin_settings.plan', { name: plan })}</Badge></p>
-      {/if}
-    {/snippet}
-  </PageHeader>
+{#snippet planFigure()}
+  <!-- The plan the workspace is on, so "Set by your plan" refers to something a person can name to
+       their provider. A note, not an offer. -->
+  <span class="plan" data-testid="limits-plan"><Badge tone="info">{t('app.signin_settings.plan', { name: plan ?? '' })}</Badge></span>
+{/snippet}
 
-    <Stack gap="300">
-    <!-- A single installation says neither "installation" nor "operator" (deployments.md D1); its
-         sentence also serves an administrator who cannot open the section it names. -->
-    <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.intro_single' : 'app.quotas.intro')}</p>
-
-    {#if reading.status === 'loading' || reading.status === 'idle'}
-      <p class="waiting">
-        <Spinner label={t('app.quotas.reading')} />
-        <span>{t('app.quotas.reading')}</span>
-      </p>
-    {:else if refusal}
-      <FailureNote problem={refusal} />
-    {:else}
-      <!-- The whole page is read here and changed elsewhere: said once, at the top, with whom to ask
-           (UC-WRK-32 check 4). -->
-      <ReadOnlyNotice text={t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')} />
-      {#if peopleReached}
-        <Banner tone="warning" title={t('app.quotas.people_reached')}>{t('app.quotas.people_reached_body')} <AccountLink /></Banner>
-      {/if}
-      {#each reached as standing (standing.quota)}
-        <Callout tone="warning" title={t('app.quotas.reached_title', { name: nameOf(standing.quota) })}>
-          {t('app.quotas.reached_body')} <AccountLink />
-        </Callout>
-      {/each}
-      <Table
-        label={t('app.quotas.title')}
-        isLabelHidden
-        {columns}
-        sort={order.sort}
-        onSort={(next) => order.by(next)}
-      >
-        {#each order.rows as standing (standing.quota)}
-          <tr>
-            <th scope="row" class="name">{nameOf(standing.quota)}</th>
-            <td>
-              {#if standing.limit === 0}
-                <!-- Zero is the contract's word for "no ceiling". Printing the digit would say the
-                     opposite of what it means. -->
-                {t('app.quotas.unlimited')}
-              {:else}
-                {amount(standing.quota, standing.limit)}
-              {/if}
-            </td>
-            <td>
-              {#if standing.used === undefined || standing.used === null}
-                <!-- No live count: the request rate is enforced by the limiter and reported in its
-                     own headers, so this screen would be inventing a number. -->
-                <span class="quiet">{t('app.quotas.no_count')}</span>
-              {:else}
-                {amount(standing.quota, standing.used)}
-              {/if}
-            </td>
-            <td class="approach">
-              {#if standing.ratio === undefined || standing.ratio === null}
-                <span class="quiet">—</span>
-              {:else}
-                <ProgressBar
-                  size="sm"
-                  label={nameOf(standing.quota)}
-                  value={Math.min(100, percentOf(standing.ratio))}
-                  valueLabel={t('app.quotas.percent', { percent: String(percentOf(standing.ratio)) })}
-                />
-              {/if}
-            </td>
-            <td>
-              {#if standing.source === undefined}
-                {setBy(standing)}
-              {:else}
-                <LimitSource {standing} />
-              {/if}
-            </td>
-          </tr>
+<ListPage {head}>
+  {#snippet intro()}
+    <Stack gap="150">
+      <!-- A single installation says neither "installation" nor "operator" (deployments.md D1); its
+           sentence also serves an administrator who cannot open the section it names. -->
+      <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.intro_single' : 'app.quotas.intro')}</p>
+      {#if reading.status === 'ready'}
+        <!-- The whole page is read here and changed elsewhere: said once, at the top, with whom to
+             ask (UC-WRK-32 check 4). -->
+        <ReadOnlyNotice text={t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')} />
+        {#if peopleReached}
+          <Banner tone="warning" title={t('app.quotas.people_reached')}>{t('app.quotas.people_reached_body')} <AccountLink /></Banner>
+        {/if}
+        {#each reached as standing (standing.quota)}
+          <Callout tone="warning" title={t('app.quotas.reached_title', { name: nameOf(standing.quota) })}>
+            {t('app.quotas.reached_body')} <AccountLink />
+          </Callout>
         {/each}
-      </Table>
-
-      {#if people}<p class="quiet">{t('app.quotas.people_counted')}</p>{/if}
-    {/if}
+      {/if}
     </Stack>
-</Stack>
+  {/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.quotas.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      clearLabel={t('app.page.clear')}
+      onclear={() => (search = '')}
+      countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(quotas.standings.length) }) : undefined}
+    />
+  {/snippet}
+
+  {#if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="waiting">
+      <Spinner label={t('app.quotas.reading')} />
+      <span>{t('app.quotas.reading')}</span>
+    </p>
+  {:else if refusal}
+    <FailureNote problem={refusal} />
+  {:else}
+    <DataTable
+      label={title}
+      {columns}
+      rows={shown}
+      key={(standing: Standing) => standing.quota}
+      sort={order.sort}
+      onSort={(next) => order.by(next)}
+      shownLabel={shown.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(standing: Standing, column: DataColumn)}
+        {#if column.id === 'quota'}
+          <span class="name">{nameOf(standing.quota)}</span>
+        {:else if column.id === 'limit'}
+          {#if standing.limit === 0}
+            <!-- Zero is the contract's word for "no ceiling". Printing the digit would say the
+                 opposite of what it means. -->
+            {t('app.quotas.unlimited')}
+          {:else}
+            {amount(standing.quota, standing.limit)}
+          {/if}
+        {:else if column.id === 'used'}
+          {#if standing.used === undefined || standing.used === null}
+            <!-- No live count: the request rate is enforced by the limiter and reported in its own
+                 headers, so this screen would be inventing a number. -->
+            <span class="quiet">{t('app.quotas.no_count')}</span>
+          {:else}
+            {amount(standing.quota, standing.used)}
+          {/if}
+        {:else if column.id === 'ratio'}
+          {#if standing.ratio === undefined || standing.ratio === null}
+            <span class="quiet">—</span>
+          {:else}
+            <span class="approach">
+              <ProgressBar
+                size="sm"
+                label={nameOf(standing.quota)}
+                value={Math.min(100, percentOf(standing.ratio))}
+                valueLabel={t('app.quotas.percent', { percent: String(percentOf(standing.ratio)) })}
+              />
+            </span>
+          {/if}
+        {:else if standing.source === undefined}
+          {setBy(standing)}
+        {:else}
+          <LimitSource {standing} />
+        {/if}
+      {/snippet}
+      {#snippet empty()}<EmptyState kind="filtered" title={t('app.quotas.none_found')} />{/snippet}
+    </DataTable>
+    {#if people}<p class="quiet">{t('app.quotas.people_counted')}</p>{/if}
+  {/if}
+</ListPage>
 
 <style>
-  .plan { margin: 0; }
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
+  .plan { display: inline-flex; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 
@@ -262,5 +264,5 @@
   .name { color: var(--text-primary); font-weight: var(--fw-medium); white-space: nowrap; }
 
   /* Wide enough for the bar to mean something, and it is the only column that wants width. */
-  .approach { min-inline-size: 12ch; }
+  .approach { display: block; min-inline-size: 12ch; }
 </style>

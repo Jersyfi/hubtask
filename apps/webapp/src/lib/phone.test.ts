@@ -22,14 +22,15 @@ test('every Browse step is a route, and a root has no way up', () => {
   for (const path of ['/', '/jumble', '/search', '/browse']) assert.equal(ascentOf(at(path), undefined), undefined, path);
 });
 
-test('a route belongs to its tab: the roots their own, every other place Browse, a section none', () => {
+test('a route belongs to its tab: the roots their own, every other place Browse, the areas too', () => {
   assert.equal(tabOf(at('/')), 'today');
   assert.equal(tabOf(at('/jumble')), 'inbox');
   assert.equal(tabOf(at('/search')), 'search');
   assert.equal(tabOf(at('/browse/hubs/h1')), 'browse');
   assert.equal(tabOf(at('/collections/c1')), 'browse');
   assert.equal(tabOf(at('/plans')), 'browse');
-  assert.equal(tabOf(at('/profile')), undefined);
+  assert.equal(tabOf(at('/profile')), 'browse');
+  assert.equal(tabOf(at('/administration/people')), 'browse');
 });
 
 test('one level up: the stack step above, the hub for anything of a hub, Browse for the rest', () => {
@@ -41,6 +42,21 @@ test('one level up: the stack step above, the hub for anything of a hub, Browse 
   assert.deepEqual(ascentOf(at('/browse/hubs/h1/contents?under=p1'), 'h1', (id) => parents[id]), { kind: 'contents', hubId: 'h1', path: '/browse/hubs/h1/contents' });
   assert.deepEqual(ascentOf(at('/collections/c1'), 'h1'), { kind: 'hub', hubId: 'h1', path: '/browse/hubs/h1' });
   assert.deepEqual(ascentOf(at('/plans'), undefined), { kind: 'browse', path: '/browse' });
+});
+
+test('an area is a level of the Browse stack: its groups a step, its screens under it', () => {
+  for (const path of ['/administration/browse', '/profile/browse', '/instance/browse']) {
+    assert.deepEqual(ascentOf(at(path), undefined), { kind: 'browse', path: '/browse' }, path);
+    assert.equal(depthOf(at(path), undefined), 2, path);
+  }
+  assert.deepEqual(ascentOf(at('/administration/people'), undefined), { kind: 'area', area: 'administration', path: '/administration/browse' });
+  assert.deepEqual(ascentOf(at('/administration'), undefined), { kind: 'area', area: 'administration', path: '/administration/browse' });
+  assert.deepEqual(ascentOf(at('/profile/sessions'), undefined), { kind: 'area', area: 'profile', path: '/profile/browse' });
+  assert.deepEqual(ascentOf(at('/instance/workspaces'), undefined), { kind: 'area', area: 'instance', path: '/instance/browse' });
+  assert.equal(depthOf(at('/administration/people'), undefined), 3);
+  assert.equal(browseElsewhere(at('/administration/browse')), '/administration');
+  assert.equal(browseElsewhere(at('/profile/browse')), '/profile');
+  assert.equal(browseElsewhere(at('/instance/browse')), '/instance');
 });
 
 test('the level announced: a root 1, a hub 2, what is under it 3', () => {

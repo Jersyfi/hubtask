@@ -1,6 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  // Operators as a list page (page-system §7.1, §9.4): *Add an operator* the head's primary and
+  // *Add a service account* beside it, each a Dialog M; removing in a row's ⋯, a Dialog S - asked
+  // twice for oneself. An operator has no lists of its own, so a row opens no record page.
   // Who operates this installation (ADR-0070 §1, UC-INS-05).
   //
   // **Names, never identifiers.** Each row is a person or a machine as its workspace names it, and
@@ -15,7 +18,7 @@
   // what happens: the installation closes to you the moment you confirm. The last operator has no
   // *Remove* at all - the database refuses it, so the control would offer what cannot be done.
   import { untrack } from 'svelte';
-  import { EmptyState, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, DataTable, Dialog, FilterBar, Input, ListPage, Select, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import type { Operator } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -34,7 +37,7 @@
   /** What an *Add* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
   let missing = $state<Missing>({});
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -84,13 +87,26 @@
     machines.status === 'failed' ? renderProblem(machines.error, messages) : undefined,
   );
 
-  const columns = $derived([
-    { id: 'name', label: t('app.instance.column_name') },
-    { id: 'address', label: t('app.instance.column_address') },
-    { id: 'workspace', label: t('app.instance.column_home') },
-    { id: 'added', label: t('app.instance.column_added') },
-    { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.instance.column_name'), priority: 1 },
+    { id: 'address', label: t('app.instance.column_address'), priority: 2 },
+    { id: 'workspace', label: t('app.instance.column_home'), priority: 3 },
+    { id: 'added', label: t('app.instance.column_added'), priority: 3 },
   ]);
+
+  let search = $state('');
+  const shown = $derived(operators.filter((operator) => matchesSearch(search, [nameOf(operator), addressOf(operator), workspaceOf(operator)])));
+
+  let isAdding = $state(false);
+  let isAddingMachine = $state(false);
+  let addForm = $state<HTMLFormElement | undefined>(undefined);
+  let machineForm = $state<HTMLFormElement | undefined>(undefined);
+  function openAdd(machineToo: boolean): void {
+    failure = undefined;
+    missing = {};
+    if (machineToo) isAddingMachine = true;
+    else isAdding = true;
+  }
 
   function nameOf(operator: Operator): string {
     return operator.display_name ?? operator.account_id;
@@ -149,179 +165,193 @@
   $effect(() => page.entitle(t('app.instance.operators')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.operators')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.operators') })} />
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage
+      head={{
+        title: t('app.instance.operators'),
+        breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.operators') }),
+        primary: { label: t('app.instance.operator_add_title'), icon: 'plus', onclick: () => openAdd(false) },
+        secondary: [{ label: t('app.instance.operator_service_title'), onclick: () => openAdd(true) }],
+      }}
+      refused={door ?? (unreadable ? failed : undefined)}
+    >
+      {#snippet intro()}<p class="quiet">{t('app.instance.operators_intro')}</p>{/snippet}
+      {#snippet filters()}
+        <FilterBar
+          searchLabel={t('app.instance.operators_search')}
+          clearSearchLabel={t('app.page.clear_search')}
+          bind:search
+          countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(operators.length) }) : undefined}
+        />
+      {/snippet}
 
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.operators_intro')}</p>
-
-      {#if failure}
-        <FailureNote problem={failure} />
-      {/if}
-
+      {#if failure && !isAdding && !isAddingMachine}<FailureNote problem={failure} />{/if}
       {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
-      {:else if operators.length === 0}
-        <Banner tone="info">{t('app.instance.operators_empty')}</Banner>
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else}
-        <Table label={t('app.instance.operators')} isLabelHidden columns={columns}>
-          {#each operators as operator (operator.account_id)}
-            <tr>
-              <th scope="row" class="name">
-                {nameOf(operator)}
-                {#if operator.account_id === me}
-                  <span class="you">{t('app.instance.operator_you')}</span>
-                {/if}
-              </th>
-              <td class="address">{addressOf(operator)}</td>
-              <td>{workspaceOf(operator)}</td>
-              <td class="quiet-cell">
+        <DataTable
+          label={t('app.instance.operators')}
+          {columns}
+          rows={shown}
+          key={(operator: Operator) => operator.account_id}
+          rowLabel={nameOf}
+          menu={(operator: Operator) => ({
+            label: t('app.page.more_for', { name: nameOf(operator) }),
+            // The last operator's Remove stays in its place, unavailable, and says why (UC-WRK-32
+            // check 1) rather than under the table.
+            items: [{ id: 'remove', label: `${t('app.instance.operator_remove')}…`, isDestructive: true, disabledReason: isLast ? t('app.instance.operator_last_note') : undefined }],
+          })}
+          onmenu={(operator: Operator) => (removing = { operator, step: 'first' })}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={operators.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+        >
+          {#snippet cell(operator: Operator, column: DataColumn)}
+            {#if column.id === 'name'}
+              <span class="name">{nameOf(operator)}</span>
+              {#if operator.account_id === me}<span class="you">{t('app.instance.operator_you')}</span>{/if}
+            {:else if column.id === 'address'}
+              <span class="address">{addressOf(operator)}</span>
+            {:else if column.id === 'workspace'}
+              {workspaceOf(operator)}
+            {:else}
+              <span class="quiet-cell">
                 {formatDateTime(operator.added_at, messages.locale)}
-                {#if operator.added_by_name}
-                  <span class="by">{t('app.instance.operator_added_by', { name: operator.added_by_name })}</span>
-                {/if}
-              </td>
-              <td>
-                <!-- The last operator's Remove stays in its place, unavailable, and says why on
-                     hover, focus and tap (UC-WRK-32 check 1) rather than under the table. -->
-                <Button
-                  tone="subtle"
-                  isBusy={isWorking}
-                  busyLabel={t('app.instance.working')}
-                  disabledReason={isLast ? t('app.instance.operator_last_note') : undefined}
-                  onclick={() => (removing = { operator, step: 'first' })}
-                >
-                  {t('app.instance.operator_remove')}
-                </Button>
-              </td>
-            </tr>
-          {/each}
-        </Table>
+                {#if operator.added_by_name}<span class="by">{t('app.instance.operator_added_by', { name: operator.added_by_name })}</span>{/if}
+              </span>
+            {/if}
+          {/snippet}
+          {#snippet empty()}
+            {#if operators.length === 0}
+              <EmptyState kind="unused" title={t('app.instance.operators_empty')} />
+            {:else}
+              <EmptyState kind="filtered" title={t('app.instance.operators_none_found')}>
+                {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {/if}
+          {/snippet}
+        </DataTable>
       {/if}
+    </ListPage>
+  {/snippet}
+</InstanceGate>
 
-      <form
-        class="panel"
-        onsubmit={(event) => {
-          event.preventDefault();
-          const slug = workspace.trim();
-          const address = email.trim();
-          missing = marked(event, [
-            { kind: 'field', key: 'workspace', code: 'app.forms.choose', isFilled: slug !== '' },
-            { kind: 'field', key: 'email', code: 'app.forms.required', isFilled: address !== '' },
-          ]);
-          if (!isComplete(missing)) return;
-          void run(async () => {
-            await instance.addOperator(slug, address);
-            workspace = '';
-            email = '';
-          });
-        }}
-      >
-        <Stack gap="150">
-          <h2 class="section">{t('app.instance.operator_add_title')}</h2>
-          {#if isFirst}
-            <Banner tone="info">{t('app.instance.operator_first_note')}</Banner>
-          {/if}
-          <!-- The workspace's address and the address somebody signs in with: the two things an
-               operator actually knows. The workspaces screen lists the first, and the second is
-               what the person themselves would tell them. -->
-          <Select
-            label={t('app.instance.operator_workspace_label')}
-            hint={t('app.instance.operator_workspace_hint')}
-            placeholder={t('app.instance.operator_workspace_placeholder')}
-            bind:value={workspace}
-            options={instance.workspaces.map((each) => ({
-              value: each.slug,
-              label: `${each.display_name} (${each.slug})`,
-            }))}
-            isRequired
-            error={missing.workspace && !workspace.trim() ? t(missing.workspace) : undefined}
-          />
-          <Input
-            label={t('app.instance.operator_email_label')}
-            hint={t('app.instance.operator_email_hint')}
-            bind:value={email}
-            type="email"
-            autocomplete="off"
-            spellcheck={false}
-            isRequired
-            error={missing.email && !email.trim() ? t(missing.email) : undefined}
-          />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.instance.working')}
-            >
-              {t('app.instance.operator_add')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-
-      <!-- A service account has no address to type, so it is chosen from the list of the reader's
-           own workspace (UC-INS-06 check 1) - never from another workspace's accounts. -->
-      <form
-        class="panel"
-        onsubmit={(event) => {
-          event.preventDefault();
-          missing = marked(event, [{ kind: 'field', key: 'machine', code: 'app.forms.choose', isFilled: machine !== '' }]);
-          if (!isComplete(missing)) return;
-          void run(async () => {
-            await instance.addOperatorById(machine);
-            machine = '';
-          });
-        }}
-      >
-        <Stack gap="150">
-          <h2 class="section">{t('app.instance.operator_service_title')}</h2>
-          <p class="prose">{t('app.instance.operator_service_intro')}</p>
-          {#if isFirst}
-            <Banner tone="info">{t('app.instance.operator_first_note')}</Banner>
-          {/if}
-          {#if machines.status === 'loading' || machines.status === 'idle'}
-            <p class="quiet">
-              <Spinner label={t('app.instance.reading')} />
-              <span>{t('app.instance.reading')}</span>
-            </p>
-          {:else if machinesRefused}
-            <p class="quiet">{machinesRefused.message}</p>
-          {:else if candidates.length === 0}
-            <EmptyState kind="unused" title={t('app.instance.operator_service_none')} />
-          {:else}
-            <Select
-              label={t('app.instance.operator_service_label')}
-              placeholder={t('app.instance.operator_service_placeholder')}
-              bind:value={machine}
-              options={candidates.map((each) => ({ value: each.id, label: each.display_name }))}
-              isRequired
-              error={missing.machine && !machine ? t(missing.machine) : undefined}
-            />
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={isWorking}
-                busyLabel={t('app.instance.working')}
-              >
-                {t('app.instance.operator_service_add')}
-              </Button>
-            </div>
-          {/if}
-        </Stack>
-      </form>
-    </Stack>
-  </InstanceGate>
-</Stack>
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <Dialog
+  size="m"
+  title={t('app.instance.operator_add_title')}
+  isOpen={isAdding}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (isAdding = false)}
+  primary={{ label: t('app.instance.operator_add'), isBusy: isWorking, busyLabel: t('app.instance.working'), onclick: () => addForm?.requestSubmit() }}
+>
+  <form
+    bind:this={addForm}
+    onsubmit={(event) => {
+      event.preventDefault();
+      const slug = workspace.trim();
+      const address = email.trim();
+      missing = marked(event, [
+        { kind: 'field', key: 'workspace', code: 'app.forms.choose', isFilled: slug !== '' },
+        { kind: 'field', key: 'email', code: 'app.forms.required', isFilled: address !== '' },
+      ]);
+      if (!isComplete(missing)) return;
+      void run(async () => {
+        await instance.addOperator(slug, address);
+        workspace = '';
+        email = '';
+        isAdding = false;
+      });
+    }}
+  >
+    <Stack gap="150">
+      {#if failure && isAdding}<FailureNote problem={failure} />{/if}
+      {#if isFirst}<Banner tone="info">{t('app.instance.operator_first_note')}</Banner>{/if}
+      <!-- The workspace's address and the address somebody signs in with: the two things an
+           operator actually knows. -->
+      <Select
+        label={t('app.instance.operator_workspace_label')}
+        hint={t('app.instance.operator_workspace_hint')}
+        placeholder={t('app.instance.operator_workspace_placeholder')}
+        bind:value={workspace}
+        options={instance.workspaces.map((each) => ({ value: each.slug, label: `${each.display_name} (${each.slug})` }))}
+        isRequired
+        error={missing.workspace && !workspace.trim() ? t(missing.workspace) : undefined}
+      />
+      <Input
+        label={t('app.instance.operator_email_label')}
+        hint={t('app.instance.operator_email_hint')}
+        bind:value={email}
+        type="email"
+        autocomplete="off"
+        spellcheck={false}
+        isRequired
+        error={missing.email && !email.trim() ? t(missing.email) : undefined}
+      />
+    </Stack>
+  </form>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (isAdding = false)}>{t('app.instance.cancel')}</Button>
+  {/snippet}
+</Dialog>
+
+<!-- A service account has no address to type, so it is chosen from the list of the reader's own
+     workspace (UC-INS-06 check 1) - never from another workspace's accounts. -->
+<Dialog
+  size="m"
+  title={t('app.instance.operator_service_title')}
+  isOpen={isAddingMachine}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (isAddingMachine = false)}
+  primary={candidates.length > 0 ? { label: t('app.instance.operator_service_add'), isBusy: isWorking, busyLabel: t('app.instance.working'), onclick: () => machineForm?.requestSubmit() } : undefined}
+>
+  <form
+    bind:this={machineForm}
+    onsubmit={(event) => {
+      event.preventDefault();
+      missing = marked(event, [{ kind: 'field', key: 'machine', code: 'app.forms.choose', isFilled: machine !== '' }]);
+      if (!isComplete(missing)) return;
+      void run(async () => {
+        await instance.addOperatorById(machine);
+        machine = '';
+        isAddingMachine = false;
+      });
+    }}
+  >
+    <Stack gap="150">
+      <p class="prose">{t('app.instance.operator_service_intro')}</p>
+      {#if failure && isAddingMachine}<FailureNote problem={failure} />{/if}
+      {#if isFirst}<Banner tone="info">{t('app.instance.operator_first_note')}</Banner>{/if}
+      {#if machines.status === 'loading' || machines.status === 'idle'}
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
+      {:else if machinesRefused}
+        <p class="quiet">{machinesRefused.message}</p>
+      {:else if candidates.length === 0}
+        <EmptyState kind="unused" title={t('app.instance.operator_service_none')} />
+      {:else}
+        <Select
+          label={t('app.instance.operator_service_label')}
+          placeholder={t('app.instance.operator_service_placeholder')}
+          bind:value={machine}
+          options={candidates.map((each) => ({ value: each.id, label: each.display_name }))}
+          isRequired
+          error={missing.machine && !machine ? t(missing.machine) : undefined}
+        />
+      {/if}
+    </Stack>
+  </form>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (isAddingMachine = false)}>{t('app.instance.cancel')}</Button>
+  {/snippet}
+</Dialog>
+
+<Dialog
+  size="s"
   title={removing?.operator.account_id === me
     ? removing?.step === 'again'
       ? t('app.instance.operator_remove_self_again_title')
@@ -357,7 +387,7 @@
   .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-cell { color: var(--text-secondary); font-size: var(--fs-100); }
-  .name { font-weight: var(--fw-medium); text-align: start; }
+  .name { font-weight: var(--fw-medium); }
   .address { overflow-wrap: anywhere; }
   .by { display: block; }
 
@@ -372,13 +402,5 @@
     font-weight: var(--fw-regular);
   }
 
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-  form { margin: 0; max-inline-size: 52ch; }
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  form { margin: 0; }
 </style>

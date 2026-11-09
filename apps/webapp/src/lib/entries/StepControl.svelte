@@ -133,7 +133,7 @@
 
 {#if asking}
   {@const asked = asking}
-  <Dialog
+  <Dialog size="s"
     isOpen={true}
     title={t('app.workflows.step_asks', { name: stepName(asked) })}
     dismissLabel={t('app.workflows.cancel')}

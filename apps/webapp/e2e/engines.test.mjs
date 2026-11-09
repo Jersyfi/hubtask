@@ -469,7 +469,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/administration/quotas`);
-    const chip = page.getByRole('button', { name: 'Set by your plan, locked' });
+    const chip = page.getByRole('button', { name: 'Locked by your plan' });
     await chip.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => assert.fail(`${name}: no chip beside the limit`));
     await chip.click();
     const opened = page.getByText('Set by your plan, and locked: it cannot be changed here.');

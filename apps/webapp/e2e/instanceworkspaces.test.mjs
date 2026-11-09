@@ -302,6 +302,8 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
   const single = await operatorConsole(browser, { mode: 'single', rows: [workspace(), suspended] });
   t.after(single.close);
   await single.page.getByRole('row').filter({ hasText: 'acme' }).waitFor();
+  // Both rows drawn before their menus are counted: the suspended one is the one that resumes.
+  await single.page.getByRole('row').filter({ hasText: 'paused' }).getByRole('button', { name: /^Actions for / }).waitFor();
   assert.equal(await single.page.getByRole('button', { name: 'New workspace' }).count(), 0);
   assert.equal(await pageOffers(single.page, 'Suspend'), 0);
   assert.equal(await pageOffers(single.page, 'Delete'), 0);
@@ -353,7 +355,7 @@ test('chromium: a reserved short name is refused at the field of New workspace',
   await page.goto(`${served.origin}/instance/workspaces`);
   await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
   await page.getByRole('button', { name: 'New workspace' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  const dialog = page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') });
   await dialog.waitFor();
 
   await dialog.getByLabel(/^Address/).fill('www');
@@ -404,7 +406,7 @@ for (const delivery of ['MAIL', 'LINK']) {
     await page.goto(`${served.origin}/instance/workspaces`);
     await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
     await page.getByRole('button', { name: 'New workspace' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New workspace' });
+    const dialog = page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') });
     await dialog.getByLabel(/^Address/).fill('web');
     await dialog.getByLabel(/^Name/).fill('Web');
     await dialog.getByLabel(/^The owner's email address/).fill('eva@acme.example');
@@ -456,8 +458,15 @@ test('chromium: a workspace near or at a limit is marked, and its limits say wha
   assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
   await dialog.getByRole('button', { name: 'Cancel' }).first().click();
 
-  // The *Limits* filter keeps those near or at one, or only those at one (§8.4).
-  const limits = page.getByLabel('Limits', { exact: true });
+  // The *Limits* filter keeps those near or at one, or only those at one (§8.4): a chip, behind
+  // *Filters* on a phone.
+  const limits = {
+    selectOption: async (value) => {
+      await page.getByRole('button', { name: /^Filters/ }).click();
+      await page.getByRole('radio', { name: value === 'at' ? 'At a limit' : 'Near or at a limit', exact: true }).check();
+      await page.getByRole('button', { name: /^Show / }).click();
+    },
+  };
   await limits.selectOption('at');
   await acme.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByRole('row').filter({ hasText: 'Beta' }).waitFor();
@@ -503,7 +512,7 @@ test('chromium: a short name taken meanwhile is refused at the field of New work
   await page.goto(`${served.origin}/instance/workspaces`);
   await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
   await page.getByRole('button', { name: 'New workspace' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  const dialog = page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') });
   await dialog.waitFor();
 
   await dialog.getByLabel(/^Address/).fill('sales');
@@ -576,7 +585,7 @@ test('chromium: New workspace asks for the host where the installation assigns h
   await page.goto(`${served.origin}/instance/workspaces`);
   await page.getByRole('row').filter({ hasText: 'Sales' }).waitFor();
   await page.getByRole('button', { name: 'New workspace' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  const dialog = page.getByRole('main').filter({ has: page.locator('[data-page-kind="create"]') });
   await dialog.waitFor();
 
   // The host, not a subdomain; nothing about DNS is asked, only said.
@@ -618,7 +627,7 @@ test('chromium: New workspace asks for the host where the installation assigns h
   await subdomains.goto(`${served.origin}/instance/workspaces`);
   await subdomains.getByRole('row').filter({ hasText: 'Sales' }).waitFor();
   await subdomains.getByRole('button', { name: 'New workspace' }).click();
-  const plain = subdomains.getByRole('dialog', { name: 'New workspace' });
+  const plain = subdomains.getByRole('main').filter({ has: subdomains.locator('[data-page-kind="create"]') });
   await plain.waitFor();
   assert.equal(await plain.getByLabel(/^Host/).count(), 0);
   await plain.getByLabel(/^Address/).waitFor();

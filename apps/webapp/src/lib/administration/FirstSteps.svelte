@@ -40,15 +40,8 @@
 </section>
 
 <style>
-  .first {
-    display: grid;
-    gap: var(--sp-150);
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-default);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  /* The overview's focal card draws the surface; the steps are its content (page-system §4.2). */
+  .first { display: grid; gap: var(--sp-150); }
 
   .head { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); align-items: baseline; justify-content: space-between; }
 

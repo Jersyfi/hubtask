@@ -77,10 +77,10 @@ async function as(browser, role) {
 }
 
 async function openScrum(page) {
-  await page.goto(`${served.origin}/administration/presets`);
-  const card = page.locator(`[data-template="${SCRUM.key}"]`);
+  await page.goto(`${served.origin}/administration/templates`);
+  const card = page.getByRole('button', { name: 'Scrum team', exact: true });
   await card.waitFor({ timeout: 15_000 });
-  await card.locator(`[data-take="${SCRUM.key}"]`).click();
+  await card.click();
   const dialog = page.getByRole('dialog');
   await dialog.waitFor({ timeout: 5_000 });
   return dialog;
@@ -93,6 +93,7 @@ test('chromium: an empty workspace switches Workflows on and takes Scrum team', 
   t.after(() => context.close());
 
   const dialog = await openScrum(page);
+  await dialog.locator('[data-template-needs-modules]').waitFor({ timeout: 5_000 });
   const said = await dialog.textContent();
   assert.match(said, /Needs Workflows, which is switched off here/);
   for (const raw of ['module.off', 'config.section_withheld', '/workflows', '/types']) {
@@ -101,7 +102,7 @@ test('chromium: an empty workspace switches Workflows on and takes Scrum team', 
   await dialog.getByRole('button', { name: 'Switch on Workflows and use this template' }).click();
   await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 5_000 });
   assert.ok(written.some((write) => write.method === 'PUT' && write.path === '/tenant/modules/WORKFLOWS' && write.body?.switch === 'ON'), 'the module was not switched on');
-  await dialog.locator('[data-apply-template]').click();
+  await dialog.getByRole('button', { name: 'Take template' }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.ok(written.some((write) => write.path === '/config:apply'), 'the template was not applied');
   assert.deepEqual(failures, []);
@@ -146,10 +147,10 @@ test('chromium: a group question makes its group in place and answers with it', 
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/administration/presets`);
-  const card = page.locator(`[data-template="${ITIL.key}"]`);
+  await page.goto(`${served.origin}/administration/templates`);
+  const card = page.getByRole('button', { name: 'ITIL service desk', exact: true });
   await card.waitFor({ timeout: 15_000 });
-  await card.locator(`[data-take="${ITIL.key}"]`).click();
+  await card.click();
   const dialog = page.getByRole('dialog');
   const make = dialog.locator('[data-create-group="first_group"]');
   await make.waitFor({ timeout: 5_000 });

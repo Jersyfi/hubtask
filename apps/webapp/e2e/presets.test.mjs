@@ -9,7 +9,8 @@
 // * creating a collection offers Hubtask's, the workspace's and the reader's own presets, each
 //   marked with where it comes from - the installation's too (UC-INS-18 check 2) -, and a saved one
 //   chosen is sent as `preset_id`;
-// * the workspace's *Presets* view renames and withdraws a workspace preset, draws the default's
+// * *Templates*' *Presets* tab saves a hub's structure for the workspace (*Save from a hub*),
+//   renames and withdraws a workspace preset, draws the default's
 //   withdrawal unavailable with its reason, chooses the default - never the installation's preset -
 //   and sets a lock, the installation's lock not the workspace's to lift - each sent as the server
 //   expects.
@@ -87,7 +88,7 @@ async function openPanel(page, collection) {
   await page.getByRole('heading', { name: collection.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   await page.waitForTimeout(600);
   await openSettings(page, collection.name);
-  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Templates and presets', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: /^Templates and presets( |$)/u }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;
@@ -195,44 +196,64 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
   assert.deepEqual(failures, []);
 });
 
-test("chromium: the workspace's Presets - rename, withdraw, the default kept, the default chosen, a lock set (checks 3, 4)", async (t) => {
+test("chromium: Templates' Presets - rename, withdraw, the default kept; New hubs - the default chosen, a lock set (checks 3, 4)", async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
+  // The old address moved to the list page's Presets tab (page-system §9.1).
   await page.goto(`${served.origin}/administration/presets`);
-  await page.getByRole('heading', { name: 'Templates and presets', level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.waitForURL(/\/administration\/templates$/u, { timeout: 15_000 });
+  await page.goto(`${served.origin}/administration/templates?tab=presets`);
+  await page.getByRole('heading', { name: 'Templates', level: 1 }).first().waitFor({ timeout: 15_000 });
   const shop = page.locator(`[data-preset="${SHOP.id}"]`);
   await shop.waitFor({ timeout: 10_000 });
   assert.equal(await page.locator(`[data-preset="${CLIENT.id}"]`).count(), 0, "a person's own preset is among the workspace's");
+  assert.match(await page.getByRole('row').filter({ has: page.locator(`[data-preset="${DEFAULTED.id}"]`) }).innerText(), /Default for new hubs/u);
 
-  // Check 3: renamed and withdrawn, under the version read.
-  await shop.getByRole('textbox').fill('Big shop');
-  await shop.getByRole('button', { name: 'Rename' }).click();
+  // Check 3: renamed and withdrawn, under the version read - each from the row's menu, by its dialog.
+  await page.getByRole('button', { name: 'More for Weekly shop' }).click();
+  await page.getByRole('menuitem', { name: 'Rename…' }).click();
+  const renaming = page.locator('dialog[open]');
+  await renaming.getByRole('textbox', { name: 'Name' }).fill('Big shop');
+  await renaming.getByRole('button', { name: 'Rename' }).last().click();
   await page.waitForTimeout(300);
   const renamed = written.find((write) => write.method === 'PATCH' && write.path === `/presets/${SHOP.id}`);
   assert.deepEqual(renamed?.body, { name: 'Big shop' });
   assert.equal(renamed?.ifMatch, '"2"');
-  await shop.getByRole('button', { name: 'Withdraw “Weekly shop”' }).click();
+  await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 });
+  await page.getByRole('button', { name: 'More for Weekly shop' }).click();
+  await page.getByRole('menuitem', { name: 'Withdraw…' }).click();
+  const withdrawing = page.locator('dialog[open]');
+  await withdrawing.locator('[data-withdraw-preset]').waitFor({ timeout: 5_000 });
+  await withdrawing.getByRole('button', { name: 'Withdraw', exact: true }).last().click();
   await page.waitForTimeout(300);
   assert.ok(written.some((write) => write.method === 'DELETE' && write.path === `/presets/${SHOP.id}`), 'the withdrawal was not sent');
+  await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 });
 
   // The default's withdrawal is unavailable, with its reason, and sends nothing.
-  const defaulted = page.locator(`[data-preset="${DEFAULTED.id}"]`);
-  const withdrawDefault = defaulted.getByRole('button', { name: 'Withdraw “Household”' });
+  await page.getByRole('button', { name: 'More for Household' }).click();
+  const withdrawDefault = page.getByRole('menuitem', { name: /Withdraw…/u });
   assert.equal(await withdrawDefault.getAttribute('aria-disabled'), 'true', "the default's withdrawal is offered");
   await withdrawDefault.click({ force: true });
-  const reason = await withdrawDefault.evaluate((button) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
+  const reason = await withdrawDefault.evaluate((item) => document.getElementById(item.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
   assert.ok(reason.includes('New hubs start from this preset'), `the reason reads ${JSON.stringify(reason)}`);
   assert.ok(!written.some((write) => write.path === `/presets/${DEFAULTED.id}`), "the default's withdrawal was sent");
+  await page.keyboard.press('Escape');
 
-  // Check 4: the default chosen - a workspace preset by id, Hubtask's by key.
+  // Check 4 on the workspace screen's *New hubs* (page-system §9.1), saved by its bar: the default
+  // chosen - a workspace preset by id, Hubtask's by key.
+  await page.goto(`${served.origin}/administration/workspace/new-hubs`);
   const defaultSelect = page.getByLabel('A new hub starts from');
+  await defaultSelect.waitFor({ timeout: 15_000 });
   assert.equal(await defaultSelect.locator(`option[value="${CRAFT.id}"]`).count(), 0, "the installation's preset is offered as the workspace's default");
+  const save = page.getByRole('button', { name: 'Save', exact: true });
   await defaultSelect.selectOption(SHOP.id);
+  await save.click();
   await page.waitForTimeout(300);
   await defaultSelect.selectOption('FLOW');
+  await save.click();
   await page.waitForTimeout(300);
   const defaults = written.filter((write) => write.path === '/tenant/structure').map((write) => write.body);
   assert.deepEqual(defaults, [{ default_preset_id: SHOP.id }, { default_preset: 'FLOW' }]);
@@ -241,9 +262,29 @@ test("chromium: the workspace's Presets - rename, withdraw, the default kept, th
   const locks = page.locator('[data-presets-locks]');
   assert.equal(await locks.getByRole('checkbox', { name: 'Success' }).getAttribute('aria-disabled') === 'true' || await locks.getByRole('checkbox', { name: 'Success' }).isDisabled(), true, "the installation's lock can be lifted");
   await locks.getByRole('checkbox', { name: 'Views' }).check();
+  await save.click();
   await page.waitForTimeout(300);
   const locked = written.filter((write) => write.path === '/tenant/structure').at(-1);
   assert.deepEqual(locked?.body, { locks: ['views', 'fields.TASK.DUE_DATE'] });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: Save from a hub - a Dialog M saving the hub for the workspace (check 1)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures, written } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/administration/templates?tab=presets`);
+  await page.getByRole('button', { name: 'Save from a hub' }).first().click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.locator('[data-save-hub]').waitFor({ timeout: 10_000 });
+  assert.equal(await dialog.getAttribute('data-size'), 'm');
+  await dialog.getByRole('combobox', { name: 'Hub' }).selectOption(SHAPE_HUB.id);
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Our product team');
+  await dialog.getByRole('button', { name: 'Save preset' }).last().click();
+  await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 });
+  const saved = written.find((write) => write.method === 'POST' && write.path === '/presets');
+  assert.deepEqual(saved?.body, { name: 'Our product team', origin: 'WORKSPACE', container_id: SHAPE_HUB.id });
   assert.deepEqual(failures, []);
 });
 
@@ -252,7 +293,7 @@ test("chromium: a member reaches no Presets screen", async (t) => {
   t.after(() => browser.close());
   const { context, page, written } = await as(browser, 'MEMBER');
   t.after(() => context.close());
-  await page.goto(`${served.origin}/administration/presets`);
+  await page.goto(`${served.origin}/administration/templates?tab=presets`);
   await page.waitForTimeout(1500);
   assert.equal(await page.locator('[data-presets-saved]').count(), 0, 'a member is shown the workspace\'s presets to change');
   assert.ok(!written.some((write) => write.path.startsWith('/presets') || write.path === '/tenant/structure'));

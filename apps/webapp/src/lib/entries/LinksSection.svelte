@@ -178,7 +178,7 @@
 </section>
 
 {#if isDrawOpen}
-  <Dialog
+  <Dialog size="l" primary={{ label: t('app.links.confirm'), isBusy: isDrawing, disabledReason: chosen ? undefined : t('app.links.choose_first'), onclick: () => void draw() }}
     bind:isOpen={isDrawOpen}
     title={t('app.links.picker_title')}
     dismissLabel={t('app.links.cancel')}
@@ -191,13 +191,6 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDrawOpen = false)}>{t('app.links.cancel')}</Button>
-      <Button
-        tone="primary"
-        data-confirm-link
-        isBusy={isDrawing}
-        disabledReason={chosen ? undefined : t('app.links.choose_first')}
-        onclick={draw}
-      >{t('app.links.confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}

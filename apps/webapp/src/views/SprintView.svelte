@@ -19,8 +19,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, Select, Skeleton, Stack, Table, Textarea,
-    hasLeftTheHandle, type Column, type PageAction,
+    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, Select, Skeleton, Stack, Textarea,
+    hasLeftTheHandle, DataTable, WorkPage, type DataColumn, type PageAction,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Sprint, SprintBacklog, SprintDetail, SprintEntry, SprintList, Velocity } from '@hubtask/sync-engine';
@@ -232,17 +232,19 @@
   const unitLabel = $derived(chosen ? t(`app.sprints.unit_${chosen.unit}`) : '');
   const states = $derived(list ? list.map((s) => ({ value: s.id, label: t('app.sprints.option', { name: s.name, state: t(`app.sprints.state_${s.state}`) }) })) : []);
 
-  const burndownColumns = $derived<Column[]>([
-    { id: 'day', label: t('app.sprints.col_day') },
-    { id: 'remaining', label: t('app.sprints.col_remaining'), align: 'end' },
-    { id: 'ideal', label: t('app.sprints.col_ideal'), align: 'end' },
-    { id: 'scope', label: t('app.sprints.col_scope'), align: 'end' },
+  const burndownColumns = $derived<DataColumn[]>([
+    { id: 'day', label: t('app.sprints.col_day'), priority: 1 },
+    { id: 'remaining', label: t('app.sprints.col_remaining'), align: 'end', priority: 1, isStatus: true },
+    { id: 'ideal', label: t('app.sprints.col_ideal'), align: 'end', priority: 2 },
+    { id: 'scope', label: t('app.sprints.col_scope'), align: 'end', priority: 3 },
   ]);
-  const velocityColumns = $derived<Column[]>([
-    { id: 'sprint', label: t('app.sprints.col_sprint') },
-    { id: 'committed', label: t('app.sprints.col_committed'), align: 'end' },
-    { id: 'completed', label: t('app.sprints.col_completed'), align: 'end' },
+  const velocityColumns = $derived<DataColumn[]>([
+    { id: 'sprint', label: t('app.sprints.col_sprint'), priority: 1 },
+    { id: 'committed', label: t('app.sprints.col_committed'), align: 'end', priority: 2 },
+    { id: 'completed', label: t('app.sprints.col_completed'), align: 'end', priority: 1, isStatus: true },
   ]);
+  type Point = NonNullable<typeof detail>['burndown'][number];
+  type Past = NonNullable<typeof velocity>['sprints'][number];
   const today = $derived(todayIn(zone));
 
   // The head's figure (§5.1): the time box and how far it is, from the server's own burndown.
@@ -337,16 +339,18 @@
   {@render burndownPicture()}
 {/snippet}
 
-<CollectionHead
-  {collectionId}
-  current={isBacklog ? 'backlog' : 'sprint'}
-  {onnavigate}
-  figure={figure ? sprintFigure : undefined}
-  primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
-  secondary={headActs}
-  menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
-/>
-<Stack gap="200">
+<WorkPage>
+  {#snippet top()}
+  <CollectionHead
+    {collectionId}
+    current={isBacklog ? 'backlog' : 'sprint'}
+    {onnavigate}
+    figure={figure ? sprintFigure : undefined}
+    primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
+    secondary={headActs}
+    menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
+  />
+  {/snippet}
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -425,11 +429,12 @@
 
       {#if detail && detail.burndown.length > 0 && !isBacklog}
         <Disclosure label={t('app.sprints.burndown')} description={t('app.sprints.burndown_hint')} tone="quiet">
-          <Table label={t('app.sprints.burndown')} isLabelHidden columns={burndownColumns}>
-            {#each detail.burndown as point (point.day)}
-              <tr><th scope="row">{formatPlainDay(point.day, messages.locale)}</th><td class="number">{point.remaining}</td><td class="number">{point.ideal}</td><td class="number">{point.scope}</td></tr>
-            {/each}
-          </Table>
+          <DataTable label={t('app.sprints.burndown')} columns={burndownColumns} rows={detail.burndown} key={(point: Point) => point.day}>
+            {#snippet cell(point: Point, column: DataColumn)}
+              {#if column.id === 'day'}{formatPlainDay(point.day, messages.locale)}
+              {:else}<span class="number">{column.id === 'remaining' ? point.remaining : column.id === 'ideal' ? point.ideal : point.scope}</span>{/if}
+            {/snippet}
+          </DataTable>
         </Disclosure>
       {/if}
     {/if}
@@ -437,15 +442,16 @@
     {#if velocity && velocity.sprints.length > 0 && !isBacklog}
       <section class="block" aria-labelledby="sprint-velocity">
         <h2 id="sprint-velocity" class="heading">{t('app.sprints.velocity', { value: String(velocity.average), unit: t(`app.sprints.unit_${velocity.unit}`) })}</h2>
-        <Table label={t('app.sprints.velocity_table')} isLabelHidden columns={velocityColumns}>
-          {#each velocity.sprints as s (s.id)}
-            <tr><th scope="row">{s.name}</th><td class="number">{s.committed_value}</td><td class="number">{s.completed_value}</td></tr>
-          {/each}
-        </Table>
+        <DataTable label={t('app.sprints.velocity_table')} columns={velocityColumns} rows={velocity.sprints} key={(past: Past) => past.id}>
+          {#snippet cell(past: Past, column: DataColumn)}
+            {#if column.id === 'sprint'}{past.name}
+            {:else}<span class="number">{column.id === 'committed' ? past.committed_value : past.completed_value}</span>{/if}
+          {/snippet}
+        </DataTable>
       </section>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 
 {#if isPlanning}
   <CreateDialog
@@ -469,7 +475,7 @@
 {/if}
 
 {#if isClosing && chosen}
-  <Dialog bind:isOpen={isClosing} title={t('app.sprints.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isClosing} title={t('app.sprints.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.sprints.close_hint')}</p>
       <Select label={t('app.sprints.carry_to')} bind:value={carryTo}

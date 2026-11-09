@@ -31,7 +31,7 @@ for (const width of [375, 768, 1280]) {
       return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
     });
 
-    await page.goto(`${served.origin}/profile`);
+    await page.goto(`${served.origin}/profile/you/language`);
     const language = page.getByLabel('Language', { exact: true });
     await language.waitFor({ timeout: 15_000 });
 
@@ -83,7 +83,7 @@ for (const width of [375, 768, 1280]) {
     const { page, context, failures } = await signedIn(browser, width, 900);
     await withNotifications(context);
     await page.goto(`${served.origin}/profile/notifications`);
-    const row = page.locator('tbody tr', { hasText: 'I am invited to the workspace' });
+    const row = page.locator('[data-setting^="notify-"]', { hasText: 'I am invited to the workspace' });
     await row.waitFor({ timeout: 15_000 });
     assert.equal(await page.getByText('You are always told about this one').count(), 1, 'the always-on sentence is said more than once');
     const box = row.getByRole('checkbox', { name: 'Tell me' });
@@ -105,7 +105,7 @@ for (const width of [375, 768, 1280]) {
     context.on('request', (request) => {
       if (request.method() === 'POST' && request.url().includes('/api/v1/')) sent.push(new URL(request.url()).pathname);
     });
-    await page.goto(`${served.origin}/profile/tokens`);
+    await page.goto(`${served.origin}/profile/tokens/new`);
     const create = page.getByRole('button', { name: 'Create the token' });
     await create.waitFor({ timeout: 15_000 });
     assert.equal(await create.getAttribute('aria-disabled'), null, 'Create is switched off before anything is filled');
@@ -121,7 +121,7 @@ for (const width of [375, 768, 1280]) {
       options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
     });
     // At `localhost`: an address is no relying party, so the add form is drawn only there.
-    await page.goto(`${served.origin.replace('127.0.0.1', 'localhost')}/profile/security`);
+    await page.goto(`${served.origin.replace('127.0.0.1', 'localhost')}/profile/security/passkeys`);
     const name = page.getByTestId('passkeys').getByRole('textbox', { name: /^Name/ });
     await name.waitFor({ timeout: 15_000 });
     await name.fill('');
@@ -141,7 +141,7 @@ for (const width of [375, 768, 1280]) {
       await held;
       return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
     });
-    await page.goto(`${served.origin}/profile`);
+    await page.goto(`${served.origin}/profile/you/moments`);
     const moments = page.getByRole('switch', { name: 'Mark the moments' }).or(page.getByLabel('Mark the moments'));
     await moments.first().waitFor({ timeout: 15_000 });
     await moments.first().click();

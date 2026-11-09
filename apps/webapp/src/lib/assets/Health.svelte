@@ -7,7 +7,7 @@
   // source's conflict rate; and the CIs found wanting, each opened from its row.
 
   import { untrack } from 'svelte';
-  import { Spinner, Stack } from '@hubtask/design-system/components';
+  import { DataTable, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CmdbHealth, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
@@ -58,6 +58,30 @@
 
   const share = (value: number) => t('app.assets.percent', { value: percent(value) });
   const word = (key: string) => (messages.has(`app.assets.attribute.${key}`) ? t(`app.assets.attribute.${key}`) : key);
+  const classColumns = $derived<DataColumn[]>([
+    { id: 'class', label: t('app.assets.class_label'), priority: 1 },
+    { id: 'total', label: t('app.assets.health_total'), priority: 1 },
+    { id: 'completeness', label: t('app.assets.completeness'), priority: 2 },
+    { id: 'stale', label: t('app.assets.stale'), priority: 2 },
+    { id: 'orphans', label: t('app.assets.orphans'), priority: 3 },
+    { id: 'duplicates', label: t('app.assets.duplicates'), priority: 3 },
+  ]);
+  const serviceColumns = $derived<DataColumn[]>([
+    { id: 'service', label: t('app.assets.service_label'), priority: 1 },
+    { id: 'class', label: t('app.assets.class_label'), priority: 2 },
+    { id: 'cis', label: t('app.assets.service_cis'), priority: 2 },
+    { id: 'wanting', label: t('app.assets.service_wanting'), priority: 2 },
+    { id: 'score', label: t('app.assets.service_score'), priority: 1 },
+  ]);
+  const sourceColumns = $derived<DataColumn[]>([
+    { id: 'source', label: t('app.assets.source_label'), priority: 1 },
+    { id: 'reported', label: t('app.assets.source_reported'), priority: 2 },
+    { id: 'kept', label: t('app.assets.source_kept'), priority: 2 },
+    { id: 'conflicts', label: t('app.assets.source_conflicts'), priority: 1 },
+  ]);
+  type ClassRow = CmdbHealth['classes'][number];
+  type ServiceRow = CmdbHealth['services'][number];
+  type SourceRow = CmdbHealth['sources'][number];
 </script>
 
 {#if refusal}
@@ -79,33 +103,16 @@
     </dl>
 
     {#if health.classes.length > 0}
-      <div class="scroll">
-        <table class="classes">
-          <caption>{t('app.assets.section.health')}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('app.assets.class_label')}</th>
-              <th scope="col">{t('app.assets.health_total')}</th>
-              <th scope="col">{t('app.assets.completeness')}</th>
-              <th scope="col">{t('app.assets.stale')}</th>
-              <th scope="col">{t('app.assets.orphans')}</th>
-              <th scope="col">{t('app.assets.duplicates')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each health.classes as row (row.class)}
-              <tr>
-                <th scope="row">{classWord(row.class, classes, words)}</th>
-                <td>{row.total}</td>
-                <td>{share(row.completeness)}</td>
-                <td>{row.stale}</td>
-                <td>{row.orphans}</td>
-                <td>{row.duplicates}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+      <DataTable label={t('app.assets.section.health')} columns={classColumns} rows={health.classes} key={(row: ClassRow) => row.class}>
+        {#snippet cell(row: ClassRow, column: DataColumn)}
+          {#if column.id === 'class'}{classWord(row.class, classes, words)}
+          {:else if column.id === 'total'}{row.total}
+          {:else if column.id === 'completeness'}{share(row.completeness)}
+          {:else if column.id === 'stale'}{row.stale}
+          {:else if column.id === 'orphans'}{row.orphans}
+          {:else}{row.duplicates}{/if}
+        {/snippet}
+      </DataTable>
     {/if}
 
     <section class="part" aria-labelledby="health-services">
@@ -113,30 +120,15 @@
       {#if health.services.length === 0}
         <p class="meta">{t('app.assets.services_none')}</p>
       {:else}
-        <div class="scroll">
-          <table class="classes">
-            <thead>
-              <tr>
-                <th scope="col">{t('app.assets.service_label')}</th>
-                <th scope="col">{t('app.assets.class_label')}</th>
-                <th scope="col">{t('app.assets.service_cis')}</th>
-                <th scope="col">{t('app.assets.service_wanting')}</th>
-                <th scope="col">{t('app.assets.service_score')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each health.services as service (service.ci_id)}
-                <tr>
-                  <th scope="row"><a href={`/cis/${service.ci_id}`}>{service.name}</a></th>
-                  <td>{classWord(service.class, classes, words)}</td>
-                  <td>{service.cis}</td>
-                  <td>{service.wanting}</td>
-                  <td>{share(service.score)}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
+        <DataTable label={t('app.assets.services')} columns={serviceColumns} rows={health.services} key={(service: ServiceRow) => service.ci_id}>
+          {#snippet cell(service: ServiceRow, column: DataColumn)}
+            {#if column.id === 'service'}<a href={`/cis/${service.ci_id}`}>{service.name}</a>
+            {:else if column.id === 'class'}{classWord(service.class, classes, words)}
+            {:else if column.id === 'cis'}{service.cis}
+            {:else if column.id === 'wanting'}{service.wanting}
+            {:else}{share(service.score)}{/if}
+          {/snippet}
+        </DataTable>
       {/if}
     </section>
 
@@ -145,28 +137,14 @@
       {#if health.sources.length === 0}
         <p class="meta">{t('app.assets.sources_none')}</p>
       {:else}
-        <div class="scroll">
-          <table class="classes">
-            <thead>
-              <tr>
-                <th scope="col">{t('app.assets.source_label')}</th>
-                <th scope="col">{t('app.assets.source_reported')}</th>
-                <th scope="col">{t('app.assets.source_kept')}</th>
-                <th scope="col">{t('app.assets.source_conflicts')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each health.sources as source (source.source)}
-                <tr>
-                  <th scope="row">{source.source}</th>
-                  <td>{source.reported}</td>
-                  <td>{source.kept}</td>
-                  <td>{share(source.conflict_rate)}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
+        <DataTable label={t('app.assets.sources')} columns={sourceColumns} rows={health.sources} key={(source: SourceRow) => source.source}>
+          {#snippet cell(source: SourceRow, column: DataColumn)}
+            {#if column.id === 'source'}{source.source}
+            {:else if column.id === 'reported'}{source.reported}
+            {:else if column.id === 'kept'}{source.kept}
+            {:else}{share(source.conflict_rate)}{/if}
+          {/snippet}
+        </DataTable>
       {/if}
     </section>
 
@@ -200,10 +178,6 @@
   }
   .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
   .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-  .scroll { overflow-x: auto; }
-  .classes { border-collapse: collapse; inline-size: 100%; font-size: var(--fs-075); }
-  .classes caption { text-align: start; color: var(--text-secondary); padding-block-end: var(--sp-050); }
-  .classes th, .classes td { text-align: start; padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .part { display: grid; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
@@ -212,6 +186,6 @@
     padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
     background: var(--bg-surface);
   }
-  .row a, .classes a { color: var(--text-primary); font-weight: var(--fw-medium); }
+  .row a, .part a { color: var(--text-primary); font-weight: var(--fw-medium); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>

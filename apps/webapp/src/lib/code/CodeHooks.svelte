@@ -175,7 +175,7 @@
 </Stack>
 
 {#if isAddOpen}
-  <Dialog bind:isOpen={isAddOpen} title={t('app.code.hook_new')} dismissLabel={t('app.code.cancel')}>
+  <Dialog size="m" bind:isOpen={isAddOpen} title={t('app.code.hook_new')} dismissLabel={t('app.code.cancel')} primary={{ label: t('app.code.add'), disabledReason: name.trim() ? undefined : t('forge.hook_name_required'), onclick: () => void add() }}>
     <Stack gap="150">
       <Select label={t('app.code.forge_label')} options={forgeOptions} bind:value={kind} />
       <Input label={t('app.code.name_label')} hint={t('app.code.name_hint')} bind:value={name} maxlength={80} />
@@ -183,13 +183,12 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAddOpen = false)}>{t('app.code.cancel')}</Button>
-      <Button tone="primary" disabledReason={name.trim() ? undefined : t('forge.hook_name_required')} onclick={() => void add()}>{t('app.code.add')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if renaming}
-  <Dialog isOpen={true} onClose={() => (renaming = undefined)} title={t('app.code.rename')} dismissLabel={t('app.code.cancel')}>
+  <Dialog size="s" isOpen={true} onClose={() => (renaming = undefined)} title={t('app.code.rename')} dismissLabel={t('app.code.cancel')}>
     <Stack gap="150">
       <Input label={t('app.code.name_label')} bind:value={newName} maxlength={80} />
       {#if renameFailure}<FailureNote problem={renameFailure} />{/if}

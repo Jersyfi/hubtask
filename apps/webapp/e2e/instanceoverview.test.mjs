@@ -323,7 +323,8 @@ test('chromium: usage shows each workspace\'s latest counts, and how to switch m
     final_through: '2026-11-03',
   } });
   t.after(on.close);
-  const row = on.page.locator('[data-usage="01a0e2e0-0000-7000-8000-0000000005a1"]');
+  // The row of the DataTable whose name cell carries the workspace.
+  const row = on.page.locator('tr', { has: on.page.locator('[data-usage="01a0e2e0-0000-7000-8000-0000000005a1"]') });
   await row.waitFor({ timeout: 15_000 });
   const text = await row.textContent() ?? '';
   assert.match(text, /house/);

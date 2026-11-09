@@ -26,7 +26,7 @@ export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as CheckboxGroup, type CheckboxOption } from './CheckboxGroup.svelte';
 export { default as CodeField } from './CodeField.svelte';
-export { default as Dialog } from './Dialog.svelte';
+export { default as Dialog, type DialogAction } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Kbd } from './Kbd.svelte';
 export { default as IconButton } from './IconButton.svelte';
@@ -229,3 +229,32 @@ export {
 // The one reason a group of controls shares - a composite's, or an area's notice the caller draws
 // (design-system.md §4): the parts point at it and draw no bubble of their own.
 export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts';
+
+// Wave 6 - the page system (docs/backlog/page-system/): the layer above the components, and the
+// page kinds a screen is assembled from.
+export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte';
+export { default as SectionNav, type SectionLink } from './SectionNav.svelte';
+export { default as FilterBar, type Filter } from './FilterBar.svelte';
+export { default as DataTable, type DataColumn, type RowMenu as DataRowMenu } from './DataTable.svelte';
+export { default as ResourceGrid } from './ResourceGrid.svelte';
+export { default as ResourceCard } from './ResourceCard.svelte';
+export { default as BulkBar, type BulkAction } from './BulkBar.svelte';
+export { default as SettingsSection } from './SettingsSection.svelte';
+export { default as SettingRow } from './SettingRow.svelte';
+export { default as BlockList, type Block } from './BlockList.svelte';
+export { default as FormLayout } from './FormLayout.svelte';
+export { default as FormSection } from './FormSection.svelte';
+export { default as RecordHead } from './RecordHead.svelte';
+export { default as DangerZone, type DangerAct } from './DangerZone.svelte';
+export { default as SummaryCard } from './SummaryCard.svelte';
+export { default as ListPage } from './ListPage.svelte';
+export { default as RecordPage, type RecordList } from './RecordPage.svelte';
+export { default as SettingsLayout } from './SettingsLayout.svelte';
+export { default as EditorPage } from './EditorPage.svelte';
+export { default as OverviewPage } from './OverviewPage.svelte';
+export { default as LogPage } from './LogPage.svelte';
+export { default as CreatePage } from './CreatePage.svelte';
+export { default as WorkPage } from './WorkPage.svelte';
+export { default as DetailPage } from './DetailPage.svelte';
+export { default as StandalonePage } from './StandalonePage.svelte';
+export { pageBar, providePageBar, type PageBack, type PageBar, type PageHead, type PageKind } from './page.ts';

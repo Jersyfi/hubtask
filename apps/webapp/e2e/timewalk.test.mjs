@@ -34,7 +34,7 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running, kinds, rates } = {}) {
+function timeBackend({ running, kinds, rates, absences } = {}) {
   const id = ids('00000b');
   const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
@@ -64,7 +64,7 @@ function timeBackend({ running, kinds, rates } = {}) {
     if (path === '/timer' && method === 'GET') return { json: timer };
     if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
     if (path === '/cost-rates' && method === 'GET') return { json: { data: rates ?? [] } };
-    if (path === '/time-absences' && method === 'GET') return { json: { data: [] } };
+    if (path === '/time-absences' && method === 'GET') return { json: { data: absences ?? [] } };
     if (path === '/timer:start' && method === 'POST') {
       timer = { running: true, entry_id: body.entry_id ?? null, work_type: body.work_type ?? 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
       return { json: timer };
@@ -122,6 +122,7 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   await page.getByRole('button', { name: 'Take back' }).waitFor({ timeout: 5_000 });
 
   await page.getByText(/^0:25 this week · Handed in$/).waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-page-kind="work"]').count(), 1, 'the time is no work page');
   await page.getByRole('link', { name: 'To decide' }).click();
   await page.getByRole('button', { name: 'Approve' }).first().click();
   await page.waitForTimeout(400);
@@ -151,7 +152,8 @@ test('chromium: time - a colleague\'s week is opened from the queue and sent bac
   const row = queue.getByRole('row').filter({ hasText: OTHER.display_name });
   await row.waitFor({ timeout: 5_000 });
   await row.getByText('7:30').waitFor();
-  await row.getByRole('button', { name: 'Open' }).click();
+  // The row opens the week to decide: its title is the press (PS-6).
+  await row.getByRole('button', { name: OTHER.display_name }).click();
   await page.getByRole('button', { name: 'Send back' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Why').fill('Tuesday is missing.');
@@ -199,7 +201,10 @@ test('chromium: time - a timer left running past a day is recorded until a time 
 test('chromium: time - 375 px, an empty week says what to do and nothing scrolls sideways', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend(), width: 375, height: 812 });
+  // The reader away on the 3rd of this month, so the absence calendar draws a person's month.
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const away = { id: '01a0e2e0-0000-7000-8000-00000000ab01', account_id: ACCOUNT.id, from: `${thisMonth}-03`, to: `${thisMonth}-03`, kind: 'LEAVE', half: false, version: 1 };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ absences: [away] }), width: 375, height: 812 });
   t.after(walk.close);
   const { page } = walk;
 
@@ -233,6 +238,15 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   const month = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date());
   await page.getByText(month, { exact: true }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText(/^\d{4}-\d{2}$/).count(), 0);
+  // A person's month keeps its day numbers: each day says its date to a screen reader, and a phone
+  // shows every week's first day above its mark - without scrolling sideways.
+  const strip = page.locator('ol.month:visible').first();
+  await strip.waitFor({ timeout: 5_000 });
+  assert.match((await strip.getByRole('listitem').nth(2).getAttribute('aria-label')) ?? '', /3.*: Leave$/);
+  const shown = await strip.locator('.number').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).visibility === 'visible').map((node) => node.textContent));
+  assert.deepEqual(shown, ['1', '8', '15', '22', '29'].slice(0, Math.ceil((await strip.getByRole('listitem').count()) / 7)));
+  const wider = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wider <= 0, `the absence calendar scrolls ${wider} px sideways`);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
@@ -284,13 +298,25 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
 
-  await page.goto(`${served.origin}/time?tab=settings`);
-  await page.getByRole('rowheader', { name: 'Development' }).waitFor({ timeout: 10_000 });
+  await page.goto(`${served.origin}/time/settings/kinds`);
+  await page.getByRole('cell', { name: 'Development', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('columnheader', { name: 'Key' }).count(), 0, 'a key column is drawn');
-  // One settings anatomy (§5.4): the head keeps the home's create act, and adding a kind of work
-  // is its section's own act, not a lone primary above the shell.
-  assert.equal(await page.locator('header').getByRole('button', { name: 'Record time', exact: true }).count(), 1, 'the head lost Record time on Settings');
-  assert.equal(await page.locator('#time-part-kinds').getByRole('button', { name: 'Add a kind of work' }).count(), 1, 'adding a kind is not in its section');
+  // A settings page of its own (page-system §9.6): the home's *Record time* is not shown on it, and
+  // adding a kind of work is its section's own act.
+  assert.equal(await page.getByRole('button', { name: 'Record time', exact: true }).count(), 0, 'the home\'s act is shown on Settings');
+  assert.equal(await page.locator('[data-time-part="kinds"]').getByRole('button', { name: 'Add a kind of work' }).count(), 1, 'adding a kind is not in its section');
+
+  // The policy's settings are rows as on every settings screen (PS-11): inside the region's
+  // padding, never on its edge.
+  await page.goto(`${served.origin}/time/settings/policy`);
+  const policyRow = page.locator('[data-setting="time.locked_through"]');
+  await policyRow.waitFor({ timeout: 10_000 });
+  const inset = await policyRow.evaluate((row) => {
+    const region = row.closest('.region')?.getBoundingClientRect();
+    const name = row.querySelector('.name')?.getBoundingClientRect();
+    return region && name ? Math.round(name.left - region.left) : -1;
+  });
+  assert.ok(inset >= 16, `the policy's first row starts ${inset} px inside its region`);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
@@ -323,7 +349,9 @@ test('chromium: time - the cost rates name their days in words', async (t) => {
   t.after(walk.close);
   const { page } = walk;
 
-  await page.goto(`${served.origin}/time?tab=settings`);
+  // The old address of a section lands on its own (page-system PS-9).
+  await page.goto(`${served.origin}/time?tab=settings&section=rates`);
+  await page.waitForFunction(() => location.pathname === '/time/settings/rates', null, { timeout: 15_000 });
   const rates = page.getByRole('table', { name: 'Cost rates' });
   await rates.getByText('Nov 5, 2025', { exact: true }).waitFor({ timeout: 10_000 });
   await rates.getByText('Mar 31, 2026', { exact: true }).waitFor({ timeout: 5_000 });

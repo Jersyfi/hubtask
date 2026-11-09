@@ -39,7 +39,9 @@
   }: Props = $props();
 </script>
 
-<Dialog bind:isOpen {title} dismissLabel={cancelLabel} {isWide} {onClose}>
+<!-- A name, a place and what to start from: Dialog M; with a gallery to pick from, L (page-system §5.1). -->
+<Dialog bind:isOpen {title} dismissLabel={cancelLabel} size={isWide ? 'l' : 'm'} {onClose}
+  primary={{ label: primary.label, busyLabel: primary.busyLabel, disabledReason: primary.disabledReason, onclick: primary.onclick }}>
   <Stack gap="200">
     <Input label={nameLabel} bind:value={name} {maxlength} />
     {#if gallery}{@render gallery()}{/if}
@@ -51,6 +53,5 @@
   </Stack>
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{cancelLabel}</Button>
-    <Button tone="primary" busyLabel={primary.busyLabel} disabledReason={primary.disabledReason} onclick={primary.onclick}>{primary.label}</Button>
   {/snippet}
 </Dialog>

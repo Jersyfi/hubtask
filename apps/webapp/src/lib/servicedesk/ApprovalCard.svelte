@@ -5,9 +5,11 @@
   // yeses each level has against what passes it, and who decided - for whom, when, why and on which
   // version of the entry. *Approve* and *Decline* are drawn only where the server says the reader
   // may decide now (`may_decide`, P-05); a decline asks for its reason before it is sent, as the
-  // server would refuse one without (`approvals.reason_required`).
+  // server would refuse one without (`approvals.reason_required`). The reason is written in a
+  // Dialog M the card's *Decline* opens - a card holds no form (PS-4) - where a yes with a reason
+  // is given too.
 
-  import { Badge, Button, Inline, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Inline, Stack, Textarea } from '@hubtask/design-system/components';
   import type { Approval } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -35,6 +37,12 @@
   let reason = $state('');
   let deciding = $state<Verdict | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
+  let isAnswering = $state(false);
+
+  function answer() {
+    refusal = undefined;
+    isAnswering = true;
+  }
 
   async function decide(verdict: Verdict) {
     refusal = undefined;
@@ -46,6 +54,7 @@
     try {
       await approvals.decide(approval, verdict, reason);
       reason = '';
+      isAnswering = false;
       toast.show({ text: t(verdict === 'APPROVE' ? 'app.approvals.approved_announced' : 'app.approvals.declined_announced'), tone: 'success' });
     } catch (error) {
       refusal = renderProblem(error as never, messages).message;
@@ -102,17 +111,37 @@
       </ol>
     {/if}
     {#if approval.may_decide && approval.state === 'PENDING'}
-      <Textarea label={t('app.approvals.reason')} hint={t('app.approvals.reason_hint')} rows={2} bind:value={reason} />
       <Inline gap="100">
-        <Button tone="primary" size="sm" icon="check" isBusy={deciding === 'APPROVE'} busyLabel={t('app.approvals.deciding')}
+        <Button tone="primary" size="sm" icon="check" isBusy={deciding === 'APPROVE' && !isAnswering} busyLabel={t('app.approvals.deciding')}
           disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('APPROVE')}>{t('app.approvals.approve')}</Button>
-        <Button tone="secondary" size="sm" icon="x" isBusy={deciding === 'DECLINE'} busyLabel={t('app.approvals.deciding')}
-          disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('DECLINE')}>{t('app.approvals.decline')}</Button>
+        <Button tone="secondary" size="sm" icon="x" disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={answer}>{t('app.approvals.decline')}</Button>
       </Inline>
     {/if}
-    {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+    {#if refusal && !isAnswering}<p class="refusal" role="alert">{refusal}</p>{/if}
   </Stack>
 </article>
+
+{#if approval.may_decide && approval.state === 'PENDING'}
+  <Dialog
+    size="m"
+    title={t('app.approvals.answer_title', { title: approval.item_title ?? approval.step })}
+    bind:isOpen={isAnswering}
+    dismissLabel={t('app.page.cancel')}
+    onClose={() => (refusal = undefined)}
+  >
+    <Stack gap="150">
+      <Textarea label={t('app.approvals.reason')} hint={t('app.approvals.reason_hint')} rows={3} bind:value={reason} />
+      {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+    </Stack>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => (isAnswering = false)}>{t('app.page.cancel')}</Button>
+      <Button tone="secondary" icon="check" isBusy={deciding === 'APPROVE'} busyLabel={t('app.approvals.deciding')}
+        disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('APPROVE')}>{t('app.approvals.approve_with_reason')}</Button>
+      <Button tone="primary" icon="x" isBusy={deciding === 'DECLINE'} busyLabel={t('app.approvals.deciding')}
+        disabledReason={deciding ? t('app.approvals.deciding') : undefined} onclick={() => void decide('DECLINE')}>{t('app.approvals.decline')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
 
 <style>
   .card { padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }

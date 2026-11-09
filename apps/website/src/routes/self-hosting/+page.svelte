@@ -61,7 +61,7 @@ docker compose -f deploy/docker/compose.yaml up -d
               <tr><th scope="row">Docker Compose, amd64 and arm64</th><td><span class="yes">supported</span></td></tr>
               <tr><th scope="row">Podman Compose</th><td><span class="yes">supported</span></td></tr>
               <tr><th scope="row">Kubernetes 1.28+, amd64</th><td><span class="yes">supported</span></td></tr>
-              <tr><th scope="row">Kubernetes, arm64</th><td><span class="part">best effort</span></td></tr>
+              <tr><th scope="row">Kubernetes, arm64</th><td><span class="site-part">best effort</span></td></tr>
               <tr><th scope="row">PostgreSQL 16 and 17</th><td><span class="yes">supported</span></td></tr>
               <tr><th scope="row">PostgreSQL 15 and older</th><td><span class="no">unsupported</span></td></tr>
               <tr><th scope="row">A loose binary, no container</th><td><span class="no">unsupported</span></td></tr>

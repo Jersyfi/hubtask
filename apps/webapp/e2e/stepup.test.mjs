@@ -125,11 +125,11 @@ test('chromium: a provider-only administrator confirms at the provider and the c
 
   // Back where they were, told the confirmation holds.
   await page.getByText('Confirmed with Contoso Entra ID.').waitFor({ timeout: 15_000 });
-  assert.equal(new URL(page.url()).pathname, '/administration/sign-in');
+  assert.equal(new URL(page.url()).pathname, '/administration/sign-in/sessions');
   assert.equal(sent.starts, 1);
   assert.deepEqual(sent.proofs, [{ state: 'the-state', authorization_code: 'the-code' }]);
-  // Back on the tab they were on, and nothing of the provider's answer in the address.
-  assert.equal(new URL(page.url()).search, '?tab=sessions', 'the code stayed in the address, or the tab was lost');
+  // Back on the section they were on, and nothing of the provider's answer in the address.
+  assert.equal(new URL(page.url()).search, '', 'the code stayed in the address');
 
   // The same change again: refused once more, answered with the held proof rather than a second
   // dialog, and the note is gone.

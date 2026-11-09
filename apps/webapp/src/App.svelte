@@ -23,7 +23,7 @@
   import { leaveGuard } from './lib/frame/leave.svelte.ts';
   import LeaveDialog from './lib/frame/LeaveDialog.svelte';
   import { loadReleaseAt } from './lib/frame/release.ts';
-  import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
+  import { PLACE_ROUTES, ROUTES, isSettingsRoute, keepsQuery, movedTo, movedWith, paneFor } from './lib/routes.ts';
   import { browseElsewhere, stepOf } from './lib/phone.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
@@ -63,11 +63,17 @@
   const views = onceEach({
     ...workViews,
     AgentsView: () => import('./views/AgentsView.svelte'),
+    AgentsSettingsView: () => import('./views/AgentsSettingsView.svelte'),
+    CmdbView: () => import('./views/CmdbView.svelte'),
+    ServiceDeskView: () => import('./views/ServiceDeskView.svelte'),
+    TimeSettingsView: () => import('./views/TimeSettingsView.svelte'),
+    AgentView: () => import('./views/AgentView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
     JumbleView: () => import('./views/JumbleView.svelte'),
     BrowseView: () => import('./views/BrowseView.svelte'),
     InstallationView: () => import('./views/InstallationView.svelte'),
     ProfileView: () => import('./views/ProfileView.svelte'),
+    PlaceSettingsView: () => import('./views/PlaceSettingsView.svelte'),
     AppearanceView: () => import('./views/AppearanceView.svelte'),
     NotificationsView: () => import('./views/NotificationsView.svelte'),
     SecurityView: () => import('./views/SecurityView.svelte'),
@@ -78,10 +84,17 @@
     FileStoresView: () => import('./views/FileStoresView.svelte'),
     SearchView: () => import('./views/SearchView.svelte'),
     MyTokensView: () => import('./views/MyTokensView.svelte'),
+    NewTokenView: () => import('./views/NewTokenView.svelte'),
+    SecondFactorView: () => import('./views/SecondFactorView.svelte'),
+    TokenView: () => import('./views/TokenView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
+    DeskReportsView: () => import('./views/DeskReportsView.svelte'),
+    AssetClassesView: () => import('./views/AssetClassesView.svelte'),
+    AssetClassView: () => import('./views/AssetClassView.svelte'),
+    AssetSourcesView: () => import('./views/AssetSourcesView.svelte'),
     HubDeskView: () => import('./views/HubDeskView.svelte'),
     HubSprintsView: () => import('./views/HubSprintsView.svelte'),
     ContentsView: () => import('./views/ContentsView.svelte'),
@@ -96,12 +109,14 @@
     TimeView: () => import('./views/TimeView.svelte'),
     GoalsView: () => import('./views/GoalsView.svelte'),
     GoalView: () => import('./views/GoalView.svelte'),
+    GoalResultsView: () => import('./views/GoalResultsView.svelte'),
     PortfolioView: () => import('./views/PortfolioView.svelte'),
     RoadmapView: () => import('./views/RoadmapView.svelte'),
     DashboardView: () => import('./views/DashboardView.svelte'),
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
+    CiView: () => import('./views/CiView.svelte'),
     ...ruleViews,
     // Doors few first screens open - an app's consent, the installed app's own sign-in and its
     // passkey relay, a public form and roadmap - so the first screen's budget
@@ -115,6 +130,11 @@
     AdministrationArea: () => import('./views/AdministrationArea.svelte'),
     InstanceArea: () => import('./views/InstanceArea.svelte'),
   });
+
+  // The agents' settings tab is a settings page of its own; `models` and `metering` were tabs once.
+  // Whoever does not administer agents has none and stays on the list (P-05).
+  const isAgentsSettings = (tab: string | undefined) =>
+    (tab === 'settings' || tab === 'models' || tab === 'metering') && holdsHere('MANAGE_MEMBERS') === true;
 
   const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
   $effect(() => leaveGuard.connect((path) => router.navigate(path)));
@@ -187,10 +207,11 @@
     const elsewhere = browseElsewhere(route);
     if (elsewhere && viewport.isMeasured && !viewport.isCompact) router.replace(elsewhere);
   });
-  // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's.
+  // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's;
+  // a screen that moved whole keeps its query.
   const moved = $derived(movedTo(route.name, route.params, route.query));
   $effect(() => {
-    if (moved) router.replace(moved);
+    if (moved) router.replace(keepsQuery(route.name) ? movedWith(moved, route.query) : moved);
   });
 
   /**
@@ -433,16 +454,24 @@
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
     <LazyView load={views.InstallationView} />
-  {:else if route.name === 'profile'}
-    <LazyView load={views.ProfileView} />
+  {:else if route.name === 'profile' || route.name === 'profile-section'}
+    <LazyView load={views.ProfileView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'tokens'}
-    <LazyView load={views.MyTokensView} />
+    <LazyView load={views.MyTokensView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'token-new'}
+    <LazyView load={views.NewTokenView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'token'}
+    {#key route.params.id}
+      <LazyView load={views.TokenView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name === 'appearance'}
-    <LazyView load={views.AppearanceView} />
+    <LazyView load={views.AppearanceView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'notifications'}
-    <LazyView load={views.NotificationsView} />
-  {:else if route.name === 'security'}
-    <LazyView load={views.SecurityView} />
+    <LazyView load={views.NotificationsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'security' || route.name === 'security-section'}
+    <LazyView load={views.SecurityView} props={{ section: route.params.section, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'second-factor-new'}
+    <LazyView load={views.SecondFactorView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'sessions'}
     <LazyView load={views.SessionsView} />
   {:else if route.name === 'devices'}
@@ -456,13 +485,19 @@
   {:else if route.name === 'own-rules'}
     <LazyView load={views.RulesView} props={{ isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'own-rule-new'}
-    <LazyView load={views.RuleEditorView} props={{ id: 'new', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
+    <LazyView load={views.RuleNewView} props={{ isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'own-rule'}
     {#key route.params.id}
-      <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.RuleView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
+  {:else if route.name === 'own-agents' && isAgentsSettings(route.query['tab'])}
+    <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/profile/agents', onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'own-agents'}
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'own-agent'}
+    {#key route.params.id}
+      <LazyView load={views.AgentView} props={{ id: route.params.id ?? '', base: '/profile/agents', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if moved}
     <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
   {:else if route.area === 'instance'}
@@ -491,13 +526,38 @@
   {:else if route.name === 'notes'}
     <!-- *My notes* is the pages' home's second tab (user-experience.md §2.2), at its own address. -->
     <LazyView load={views.ProductHomeView} props={{ module: 'KNOWLEDGE', tab: 'notes', onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'assets-settings' || route.name === 'assets-classes' || route.name === 'assets-sources'}
-    <LazyView load={views.ProductHomeView} props={{ module: 'ASSETS', tab: route.name.slice('assets-'.length), onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'desk-desks' || route.name === 'desk-reports' || route.name === 'desk-settings'}
+  {:else if route.name === 'assets-settings' || route.name === 'assets-settings-section'}
+    <!-- The assets' last tab, its settings page under the home's view bar (the navigation concept §4). -->
+    <LazyView load={views.CmdbView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'assets-classes'}
+    <LazyView load={views.AssetClassesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'assets-class'}
+    {#key route.params.key}
+      <LazyView load={views.AssetClassView} props={{ classKey: route.params.key ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'assets-sources'}
+    <LazyView load={views.AssetSourcesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'desk-settings' || route.name === 'desk-settings-section'}
+    <!-- The desk's last tab, its settings page under the home's view bar (the navigation concept §4). -->
+    <LazyView load={views.ServiceDeskView} props={{ section: route.params.section, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'desk-reports'}
+    <LazyView load={views.DeskReportsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'desk-desks'}
     <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name.slice('desk-'.length), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if (route.name === 'agents-settings' || route.name === 'agents-settings-section') && holdsHere('MANAGE_MEMBERS') !== false}
+    <!-- The agents' last tab, a section at its own address (page-system §9.6); while the manifest
+         is unread it stays, so a first load is not taken to the list. -->
+    <LazyView load={views.AgentsSettingsView} props={{ section: route.params.section, base: '/agents', onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'agents-settings' || route.name === 'agents-settings-section'}
+    <!-- Whoever does not administer agents has no settings and stays on the list (P-05). -->
+    <LazyView load={views.AgentsView} props={{ base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'agents-home'}
-    <!-- The agents' home is their one screen (user-experience.md §7.8), at the product's address. -->
+    <!-- The agents' home is their list (user-experience.md §7.8), at the product's address. -->
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'agent'}
+    {#key route.params.id}
+      <LazyView load={views.AgentView} props={{ id: route.params.id ?? '', base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name && PRODUCT_HOMES[route.name]}
     <LazyView load={views.ProductHomeView} props={{ module: PRODUCT_HOMES[route.name], tab: route.query['tab'], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal'}
@@ -544,10 +604,12 @@
     {#key route.params.id}
       <LazyView load={views.HubDeskView} props={{ hubId: route.params.id ?? '', queue: route.query['queue'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
-  {:else if route.name === 'hub-plan' || route.name === 'collection-timeline'}
-    {#key route.path}
-      <LazyView load={views.PlanView} props={{ planId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies' || route.name === 'collection-timeline'}
+    {#key route.params.id}
+      <LazyView load={views.PlanView} props={{ planId: route.params.id, part: route.name === 'hub-plan-table' ? 'table' : route.name === 'hub-plan-dependencies' ? 'dependencies' : 'schedule', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
+  {:else if route.name === 'time-home-settings' || route.name === 'time-home-settings-section'}
+    <LazyView load={views.TimeSettingsView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'time'}
     <LazyView load={views.TimeView} props={{ tab: route.query['tab'], week: route.query['week'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'hub-goals' || route.name === 'hub-goals-dashboards'}
@@ -556,6 +618,10 @@
     {/key}
   {:else if route.name === 'goals'}
     <LazyView load={views.GoalsView} props={{ tab: route.query['tab'], period: route.query['period'], hub: route.query['hub'], onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'goal-results'}
+    {#key route.path}
+      <LazyView load={views.GoalResultsView} props={{ goalId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name === 'goal'}
     {#key route.path}
       <LazyView load={views.GoalView} props={{ goalId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
@@ -592,18 +658,32 @@
     {#key route.path}
       <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isBacklog: route.name === 'collection-backlog', isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'hub-inventory' || route.name === 'hub-inventory-section' || route.name === 'ci'}
-    {#key route.name === 'ci' ? route.path : route.params.id}
+  {:else if route.name === 'ci'}
+    {#key route.path}
+      <LazyView load={views.CiView} props={{ ciId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'hub-inventory' || route.name === 'hub-inventory-section'}
+    {#key route.params.id}
       <LazyView
         load={views.AssetsView}
         props={{
-          hubId: route.name === 'ci' ? undefined : route.params.id,
+          hubId: route.params.id ?? '',
           section: route.name === 'hub-inventory-section' ? route.params.section : undefined,
-          ciId: route.name === 'ci' ? route.params.id : undefined,
           isCreateAsked: route.query['new'] === '1',
           onnavigate: (path: string) => router.navigate(path),
         }}
       />
+    {/key}
+  {:else if PLACE_ROUTES.includes(route.name ?? '') && isSettingsRoute(route.name)}
+    <!-- A place's settings are their own page kind (page-system §9.6); keyed on the id, as the place is. -->
+    {#key route.params.id}
+      <LazyView load={views.PlaceSettingsView} props={{
+        id: route.params.id ?? '',
+        section: route.params.section,
+        template: route.query['template'],
+        onnavigate: (path: string) => router.navigate(path),
+        onreplace: (path: string) => router.replace(path),
+      }} />
     {/key}
   {:else if PLACE_ROUTES.includes(route.name ?? '')}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
@@ -613,8 +693,6 @@
       <LazyView load={views.ContainerView} props={{
         id: route.params.id ?? '',
         openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
-        section: isSettingsRoute(route.name) ? (route.params.section ?? '') : undefined,
-        template: route.name === 'hub-settings-section' ? route.query['template'] : undefined,
         layoutAsked: route.name === 'collection' ? route.query['layout'] : undefined,
         viewAsked: route.name === 'collection' ? route.query['view'] : undefined,
         onnavigate: (path: string) => router.navigate(path),

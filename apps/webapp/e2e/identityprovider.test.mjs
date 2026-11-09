@@ -109,7 +109,8 @@ for (const locale of ['en', 'de']) {
 
     await page.goto(`${served.origin}/administration/identity-provider`);
     await page.getByRole('button', { name: words.add }).click();
-    const form = page.locator('form.panel');
+    // The form opens as its Dialog L (page-system §5.1).
+    const form = page.getByRole('dialog', { name: words.add });
     await form.waitFor();
     const kind = form.getByLabel(words.kind);
     const admission = form.getByRole('combobox').nth(1);
@@ -177,7 +178,7 @@ for (const locale of ['en', 'de']) {
     await form.getByLabel(new RegExp(`^${words.client}`)).fill('hubtask');
     await form.getByLabel(new RegExp(`^${words.secret}`)).fill('s3cr3t');
     await form.getByRole('button', { name: words.save }).click();
-    await form.waitFor({ state: 'detached' });
+    await form.waitFor({ state: 'hidden' });
     assert.equal(sent.length, 1);
     assert.equal(sent[0].provisioning, 'ANY');
     assert.equal(sent[0].newcomer_group_id, STAFF);
@@ -195,7 +196,7 @@ test('chromium: choosing Google fills its issuer in a workspace too', async (t) 
 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.getByRole('button', { name: 'Add a provider' }).click();
-  const form = page.locator('form.panel');
+  const form = page.getByRole('dialog', { name: 'Add a provider' });
   const kind = form.getByLabel('Which provider');
   const issuer = form.getByLabel(/^Issuer/);
   await kind.selectOption('GOOGLE');
@@ -215,7 +216,7 @@ test('chromium: a shared endpoint under Anyone asks for the directories and send
 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.getByRole('button', { name: 'Add a provider' }).click();
-  const form = page.locator('form.panel');
+  const form = page.getByRole('dialog', { name: 'Add a provider' });
   await form.getByLabel('Which provider').selectOption('MICROSOFT');
   const admission = form.getByRole('combobox').nth(1);
   const directories = form.getByLabel(/^Microsoft directories that may sign in/);
@@ -236,7 +237,7 @@ test('chromium: a shared endpoint under Anyone asks for the directories and send
   await form.getByLabel(/^Client id/).fill('hubtask');
   await form.getByLabel(/^Client secret/).fill('s3cr3t');
   await form.getByRole('button', { name: 'Save the provider' }).click();
-  await form.waitFor({ state: 'detached' });
+  await form.waitFor({ state: 'hidden' });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].provisioning, 'ANY');
   assert.deepEqual(sent[0].allowed_directories, ['72f988bf-86f1-41af-91ab-2d7cd011db47']);
@@ -254,7 +255,7 @@ test('chromium: Anyone is not offered on an issuer that serves personal accounts
 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.getByRole('button', { name: 'Add a provider' }).click();
-  const form = page.locator('form.panel');
+  const form = page.getByRole('dialog', { name: 'Add a provider' });
   await form.getByLabel('Which provider').selectOption('MICROSOFT');
   const admission = form.getByRole('combobox').nth(1);
   const issuer = form.getByLabel(/^Issuer/);
@@ -286,7 +287,7 @@ test('chromium: the personal directory is refused in the list before the save, e
 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.getByRole('button', { name: 'Add a provider' }).click();
-  const form = page.locator('form.panel');
+  const form = page.getByRole('dialog', { name: 'Add a provider' });
   await form.getByLabel('Which provider').selectOption('MICROSOFT');
   const admission = form.getByRole('combobox').nth(1);
   const directories = form.getByLabel(/^Microsoft directories that may sign in/);
@@ -320,6 +321,6 @@ test('chromium: the personal directory is refused in the list before the save, e
   await directories.fill('72f988bf-86f1-41af-91ab-2d7cd011db47');
   assert.equal(await form.getByText(refusal).count(), 0);
   await save.click();
-  await form.waitFor({ state: 'detached' });
+  await form.waitFor({ state: 'hidden' });
   assert.deepEqual(sent[0]?.allowed_directories, ['72f988bf-86f1-41af-91ab-2d7cd011db47']);
 });

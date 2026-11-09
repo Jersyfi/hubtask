@@ -69,14 +69,14 @@ const VIEW_OF: Readonly<Record<string, string>> = {
   '/administration/legal': 'SignInSettingsView',
   '/administration/workspace': 'WorkspaceSettingsView',
   '/administration/ai': 'AiSettingsView',
-  '/administration/presets': 'PresetsView',
-  '/agents?tab=settings': 'AgentsView',
-  '/time?tab=settings': 'TimeSettingsView',
+  '/administration/templates': 'TemplatesView',
+  '/agents/settings': 'AgentsSettingsView',
+  '/time/settings': 'TimeSettingsView',
   '/administration/rules': 'RulesView',
 };
 /** The screens that show the file by other means: the whole document, a module's own values. */
 const OWN_FILE: Readonly<Record<string, string>> = {
-  '/administration/changes': 'ChangesView',
+  '/administration/changes': '../lib/changes/FileDialog',
   '/administration/modules': '../lib/workspace/ModuleSwitches',
 };
 

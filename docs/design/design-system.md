@@ -20,6 +20,12 @@ enforces it: a colour anywhere under `apps/` and `packages/`, a length or a dura
 code (`apps/` and `packages/design-system/src/`). A line that genuinely holds no design value carries
 `design-system-lint-ignore` with its reason, on the line or the comment above it.
 
+**The system goes the way of the leading work-management suite's design system** (the owner,
+2026-11-07, [`docs/backlog/page-system/`](../backlog/page-system/README.md)): tokens → primitives →
+components → prescribed page compositions. A screen is **assembled, not designed**: it picks one of
+seven page kinds (wave 6, §4), fills its slots with the compositions of the same wave, and adds
+nothing beside them.
+
 ---
 
 ## 1. The layers
@@ -439,6 +445,64 @@ the mark the bar carries; how the product uses them is §11.
   (§12). The wordmark is the caller's resolved text, lowered by the stylesheet and never
   translated; with it the text is the accessible name, without it `label` is.
 
+### Wave 6 — compositions and pages
+`Grid` · `Sheet` · `SectionNav` · `FilterBar` · `DataTable` · `BulkBar` · `ResourceGrid` ·
+`ResourceCard` · `SettingsSection` · `SettingRow` · `BlockList` · `FormLayout` · `FormSection` ·
+`RecordHead` · `DangerZone` · `SummaryCard` · `ListPage` · `RecordPage` · `SettingsLayout` ·
+`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage` · `WorkPage` · `DetailPage` · `StandalonePage`
+
+The layer above waves 1–5 that the page system concept adds
+([`docs/backlog/page-system/`](../backlog/page-system/README.md) §4–§7; its mockups are the look).
+Every routed view renders exactly one page kind; the kinds take compositions in fixed slots.
+
+* **L1 `Grid`** — columns per width (`{ compact: 1, medium: 2, … }`) as `data-` attributes, read at
+  the five breakpoints.
+* **L2 `Sheet`** — the bottom sheet of a phone: grabber, title, a body or a list of `items`,
+  actions; as tall as what it holds and at most 85 % of the screen, beyond that the body
+  scrolls under a fixed head; every sheet has its grabber; a pull down, ✕ or Escape closes it; the
+  `overlay` rank of `layers.ts`. **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
+  head and foot fixed, the body scrolls; below `medium` an `m` or `l` is full screen with ✕ at
+  the start and the `primary` in its bar; `onDismiss` lets the caller ask *Discard changes?*.
+  Without `size` a dialog keeps its earlier look.
+* **L3 compositions** — `SectionNav` (a page's sections as links with their state; the page
+  itself below `expanded`), `FilterBar` (search, chips, *Clear*, the count; *Filters (n)* and a
+  `Sheet` on a phone), `DataTable` (a `Table` region: column priority 1–3 and `isHideable`, sort,
+  the row as a link or a press, one quiet verb and a ⋯ menu, selection with `BulkBar`, rows
+  grouped by day, the foot with the count, `LoadMore` and rows per page; list rows on a phone),
+  `ResourceGrid` and `ResourceCard` (items flat on the canvas), `SettingsSection` and `SettingRow`
+  (one region of rows, the control at its `layout.field.*` width), `BlockList` (one line per
+  block, a block opens its dialog), `FormLayout` and `FormSection` (one column in a dialog, regions
+  of `SettingRow`s on a page), `RecordHead`, `DangerZone` and `SummaryCard`.
+* **L4 page kinds** — `ListPage`, `RecordPage`, `SettingsLayout`, `EditorPage`, `OverviewPage`,
+  `LogPage`, `CreatePage`, each with `data-page-kind` on its root and a *Pages/* story with full,
+  empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, a name kept
+  from when the web app had a settings shell of that name; its `data-page-kind` is `settings`.
+  `WorkPage` (`data-page-kind="work"`) is the work surface's frame (page-system §7.8): the head
+  or a head of the screen's own, the object's `ViewBar` (the navigation concept §3), which chooses
+  the view, a toolbar of that view's own acts - never a second strip (PS-2) - and one view; the
+  work surfaces themselves stay as built (§11). Every kind keeps one rhythm, the navigation
+  concept's mockup: the head `sp.150` above what follows it, every later part `sp.200` apart, and
+  one title size, `PageHeader`'s. Below `medium` the screen's one main action floats above the
+  bottom bar, labelled; where the bar carries *‹ the level above*, a settings page draws no way back
+  of its own and an open section hands its *‹ Settings* to the bar. `browse` is the phone's Browse
+  stack, the frame's navigation drawn as a page (page-system §7.10).
+  `DetailPage` (`data-page-kind="detail"`) is one object read and edited in place, as the entry
+  screen is built (§11.8): its head, then the details column and the main column - the details
+  first in the document, under the head below `expanded`, beside the main column at the inline end
+  and at the pane's width from `expanded` up, staying in place while it scrolls. Drawn in a work
+  page's side panel (`isInPane`) it is one column and no page kind of its own.
+  `StandalonePage` (`data-page-kind="standalone"`) is a page outside the app frame - nobody is
+  signed in, or the visitor is no member, so there is no bar and nowhere to go: `card`, one centred
+  card on the canvas with the two ambient washes and the operator's legal links under it (sign-in,
+  setup, a reset, an invitation, an address to confirm, a consent, a provider's return, a rating,
+  a public form, the device's workspaces), or `public`, the content at the window's full width
+  under its title (a shared roadmap).
+
+Their breakpoints are the window's, written as media queries from `primitive.breakpoint` — so a
+story shows its widths when the window is narrowed, not the workbench's width axis. What sticks
+while the page scrolls sticks under `--page-sticky-top`, the app bar's height unless the frame says
+otherwise.
+
 ---
 
 ## 5. Naming in code
@@ -469,10 +533,12 @@ below it.
 
 ## 6. The six rules
 
-1. **Depth carries meaning.** Raised = standalone element, recessed = child element, glass =
-   temporary overlay. No shadow without one of those three reasons. A card or panel that stands on
-   its own is raised with the soft `elevation.raised` and differs from the canvas by at least
-   1.18:1, and the one primary action of a page may carry the accent's glow (decision #1624). The
+1. **Depth carries meaning.** Separation comes from space, a heading and a hairline first; a
+   container only where an object stands on its own, never a container in a container (the
+   surfaces and levels below). **No shadow without movement or an overlay**: `elevation.raised`
+   for what moves and for at most one focal card per screen, the overlay shadow for dialogs, sheets
+   and menus. A region differs from the canvas by at least 1.18:1, and the one primary action of a
+   page may carry the accent's glow (decision #1624). The
    frame — app bar, navigation column, bottom bar — is a plane of `bg.surface` above the content's
    `bg.canvas`, separated by hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
@@ -508,6 +574,27 @@ below it.
    first eight of one arrival a `--dur-stagger` apart), a keyed card travels to its new place
    (`animate:flip`), an opened section's content is revealed; each reads its role's custom
    properties at run time and does nothing under reduced motion.
+
+**The surfaces and levels** (page-system §4.2, PS-16). Two levels of containment at most in the
+content: the canvas and one region.
+
+| Level | Tokens | What sits on it | Never |
+|---|---|---|---|
+| 0 Canvas | `bg.canvas` | the page: head, strip, filter bar, headings, the regions | a shadow |
+| 1 Region | `bg.surface`, a `border.subtle` hairline, `r.lg`, no shadow | one per thing the page is about: a table, a settings section's rows, a block list, a form on a page | a region in a region; raised cards inside |
+| 1′ Item | as a region; hover `bg.surface-hover` and `border.default` | items picked from (templates, hubs), directly on the canvas | a form, scrolling inside |
+| 2 Raised | `bg.raised` + `elevation.raised` | only what moves (a board's card) and at most one focal card | grouping |
+| 3 Overlay | `bg.raised` + the overlay shadow, `bg.scrim` behind a dialog | dialogs, sheets, menus, popovers | a second dialog over the first, except *Discard changes?* |
+| Sunken | `bg.surface-sunken` | a backdrop inside level 0 or 1: a board's column, a code sample, a group row | on raised or overlay |
+
+Inside a region, rows are parted by hairlines and groups by a quiet uppercase label, never by a
+nested box. A table's filter bar stands on the canvas above it and its foot (the count, *Show
+more*, rows per page) inside it; a settings section's heading on the canvas above its region; a
+grid of items on the canvas, never inside a section — so a catalogue is a page of its own, never
+a section of another. One accent per screen draws the eye: the head's primary (rule 1). The
+elevation ladder is therefore canvas → region → raised → overlay, each step with one job; the
+gates `apps/webapp/build/pagekinds.test.js` and `dialogs.test.js` hold the region and overlay
+rows on every routed view and dialog.
 
 **The layering scale.** `primitive.layer` is the only source of a `z-index`: `base` · `raised` ·
 `sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten apart so a component may sit
@@ -785,6 +872,21 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   (§11.3); the content; from `large` up the detail pane (§11.8). The frame is `bg.surface` above the
   content's `bg.canvas` (rule 1).
 * **One `<main>`, one `h1`, a skip link** to `<main>` as the frame's first tab stop.
+* **Every screen is one page kind** (page-system PS-1, [ADR-0101](../adr/ADR-0101-one-page-system.md)):
+  its root carries exactly one `data-page-kind`, and the kind fixes which compositions sit in
+  which slot (wave 6, §4). `ListPage` — objects to find and act on: head, at most one strip of
+  sibling lists, `FilterBar`, `DataTable` or `ResourceGrid`, the foot. `RecordPage` — one
+  administered object: `RecordHead`, its own lists as regions each with its *Add*, its facts,
+  `DangerZone`. `SettingsLayout` (`settings`) — values that configure a place: `SectionNav`, one
+  `SettingsSection` at its address, `SaveBar`. `EditorPage` — a composite object built from
+  blocks (workflows, types and forms, views, classes): the object list, the object's
+  `BlockList`s, the draft bar. `OverviewPage` — what needs a look: `SummaryCard`s in a `Grid`,
+  at most one raised focal card. `LogPage` — what happened: a `ListPage` with the time range first
+  and rows grouped by day. `CreatePage` — creating something larger than a dialog, at the
+  content's full width. `WorkPage` and `DetailPage` — the work surfaces and one object read and
+  edited in place, as built. `StandalonePage` — outside the frame (`card`, `public`). Every kind
+  works at the five widths with the same functions; only what is visible at once changes
+  (PS-18). The content has two levels of containment at most, the canvas and one region (§6).
 * **Every screen carries `PageHeader`**: the trail, the title, one primary action, at most two
   secondary ones, the rest in its menu. **The head is about the place; a toolbar under it is about
   what the place holds.** On a collection the head carries its people and its own menu (*Settings…*
@@ -1163,9 +1265,13 @@ navigation (§11.3). An item unusable now stays with its reason. The people are 
 everybody. **A hub's collections are cards** in a grid, each with its mark, description and the
 figure its own head shows (UC-WRK-29); one column on `compact`.
 
-**Settings are pages** (UC-WRK-23): `/collections/:id/settings/:section` and
-`/hubs/:id/settings/:section`, in the administration's shape — the sections as a list at the start,
-the open one beside it, each at its own address. The sections are one list in one order
+**Settings are pages, one section per address** (UC-WRK-23, page-system PS-9, decision D-2):
+`/collections/:id/settings/:section` and `/hubs/:id/settings/:section`, in the administration's
+shape (`SettingsLayout`) — the sections as a list at the start saying each one's state, the open
+one beside it with its own save bar, each at its own address; the sections are never links into
+one long page. Below `expanded` the list is the page and a section opens as its own with *‹ back*,
+the tablet's portrait width included (D-4). One save model per section (PS-10); a setting is one
+row, its name, source and help beside its control at the control's width (PS-11, PS-13). The sections are one list in one order
 (`user-experience.md` §5.7; `lib/workspace/placeSections.ts`, its test pinning the order per level):
 a collection's *General · Templates and presets · Types & forms · Fields · Labels · Entry templates · Workflow ·
 Views · Rules · People*, a hub's *General · Products · Templates and presets · Types & forms · Workflow · Views ·
@@ -1279,6 +1385,25 @@ empty field is a row that says "add".
 person, the entry is theirs, last write wins — and *Also on it* — several people who follow it and
 find it under theirs, added and removed one at a time. Auto-assign is offered only where the collection has an enabled auto-assign policy; elsewhere
 the button is absent and the part says where a policy is set, linked for a reader who may set one.
+
+**Where a task opens — a dialog or a page** (page-system §5.1, PS-5, decision D-3). No list has
+a form split beside it, and an administered object has no side panel: a task takes the first rung
+that fits what it holds. *In place* — one value that is the row's or the head's state. *Popover* —
+one to three values from a short set, saved at once (a bottom `Sheet` on a phone). *Dialog S* — a
+confirmation or one field. *Dialog M* — two to six fields in one group, at most one picker list of
+eight visible rows and one *Advanced* fold, no scrolling at 1280×800. *Dialog L* — seven to twelve
+fields in at most three titled groups, or one list to choose from with search, or a preview
+beside a short form. *Create page* — more, or steps, or a table, or anything a person may leave
+and come back to. *Record page* — an existing object with lists of its own, opened by its row,
+whose head's *Edit* is a Dialog M of its own fields. A dialog holds no table, no tabs, no second
+dialog except *Discard changes?* and at most one `Disclosure`; M and L are full screen below
+`medium`, with ✕ at the start and the primary in its bar. A dialog is for doing, a page for
+having. A row carries one quiet verb and a ⋯ menu, destructive acts only there, in a Dialog S or
+a `DangerZone` (PS-6); a long list continues at its foot and says what is shown — *Showing 50 of
+1 240* where the endpoint counts (`page.total`, `api-guidelines.md` §4), *Show more* by the
+cursor, rows per page 25 · 50 · 100 kept by the device, no page numbers (PS-8, D-1).
+**The entry's panel stays**: it is the work surface a person chooses beside a collection, not
+administration, and the paragraphs below hold for it.
 
 **The detail pane is a place, not a feature.** `/items/:id` renders the full page on every width.
 `/collections/:id?item=:itemId` is the collection with an entry open: the list and the `DetailPane`

@@ -24,3 +24,22 @@ export const create: Story = {
     'Page, Page from a template…, Whiteboard; Collection where allowed.',
   args: { mode: 'new' },
 };
+
+export const menu: Story = {
+  name: 'A row’s actions on a phone',
+  about:
+    'What ⋯ opens on compact: the row’s name and its verbs, one row each, the destructive one last and red. Like every sheet it is as tall as what it holds, at most 85 % of the screen, its body scrolling under a head that stays; a pull down on the grabber, a press on it, ✕ or Escape puts it away.',
+  args: { mode: 'menu' },
+};
+
+export const filters: Story = {
+  name: 'The filters of a list',
+  about: 'What *Filters (n)* opens on a phone: the pickers over the results, *Clear* and the act that shows the count at its foot.',
+  args: { mode: 'filters' },
+};
+
+export const layered: Story = {
+  name: 'A dialog opened from inside it',
+  about: 'The sheet is on the overlay rank, so Escape closes the dialog first, then the sheet.',
+  args: { mode: 'layered' },
+};

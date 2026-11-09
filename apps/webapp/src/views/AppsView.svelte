@@ -1,9 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The third-party apps this workspace has registered.
-  //
-  // Drawn as *Machines and apps*' *Apps* tab, which carries the head, the trail and the title.
+  // The third-party apps this workspace has registered, as *Machines and apps*' second list page
+  // (page-system §7.1). A row opens the app's record page.
   //
   // **The redirect URIs are matched byte for byte**, at authorization and again at exchange. So the
   // form says that, and this screen normalises nothing: a trailing slash quietly removed here is an
@@ -13,84 +12,104 @@
   // on a server is confidential and gets one; a native or single-page app cannot keep one and
   // brings PKCE instead. Getting it wrong is how a secret ends up in a bundle somebody can read.
   //
-  // **Removing an app withdraws every grant that pointed at it** — the people who allowed it stop
-  // being able to, and the sessions it holds refuse on their next request. Said before the button.
-  //
-  // **Registering is the head's** (user-experience.md §7.10): *Machines and apps* carries the act
-  // and this tab its dialog, which keeps a refusal inside it; the secret is shown on the screen
-  // once the dialog closes, with its acknowledgement.
+  // **Registering is the head's primary**, a Dialog M (three fields); the secret it answers is shown
+  // once in a Dialog S, and removing is in the row's menu behind a Dialog S that says what it costs.
 
   import { untrack } from 'svelte';
 
   import {
-    EmptyState, Badge,
-    Banner,
+    Badge,
     Button,
     Checkbox,
+    DataTable,
     Dialog,
+    EmptyState,
+    FilterBar,
     Input,
-    OneTimeSecret,
+    ListPage,
+    Radio,
     Spinner,
     Stack,
     Textarea,
+    type DataColumn,
+    type DataRowMenu,
+    type Filter,
   } from '@hubtask/design-system/components';
 
-  import { apps, type RegisteredApp } from '../lib/data/apps.svelte.ts';
+  import { apps, type App, type RegisteredApp } from '../lib/data/apps.svelte.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
+  import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
-  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
+  import AppSecretDialog from '../lib/machines/AppSecretDialog.svelte';
+  import MachinesFigure from '../lib/machines/MachinesFigure.svelte';
+  import MachinesStrip from '../lib/machines/MachinesStrip.svelte';
+  import RemoveAppDialog from '../lib/machines/RemoveAppDialog.svelte';
+  import { machinesHead } from '../lib/machines/machineshead.svelte.ts';
+  import DiscardDialog from '../lib/page/DiscardDialog.svelte';
+  import { DiscardGuard } from '../lib/page/discard.svelte.ts';
+  import { matchesChoice, matchesSearch } from '../lib/page/list.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
 
-  interface Props {
-    /** Whether the registering dialog is open; the head opens it. */
-    isAdding?: boolean;
-  }
+  const { onnavigate }: { onnavigate?: (path: string) => void } = $props();
 
-  let { isAdding = $bindable(false) }: Props = $props();
+  const TENANT = { scopeType: 'TENANT' } as const;
+
+  $effect(() =>
+    untrack(() => {
+      // The service accounts and their memberships are counted in the head's figure.
+      people.openScope(TENANT);
+      const stopAccounts = serviceAccounts.open();
+      const stopApps = apps.open();
+      return () => {
+        stopAccounts();
+        stopApps();
+      };
+    }),
+  );
+  $effect(() => page.entitle(t('app.machines.title')));
 
   let name = $state('');
   /** What *Register* found missing when pressed, marked at the fields (UC-WRK-32 check 3). */
   let missing = $state<Missing>({});
   let uris = $state('');
   let confidential = $state(false);
+  /** What registering answered, until its dialog closes; the secret dies with it. */
   let registered = $state<RegisteredApp | undefined>(undefined);
-  let removing = $state<string | undefined>(undefined);
-  let failure = $state<string | undefined>(undefined);
+  let removing = $state<App | undefined>(undefined);
   let addFailure = $state<string | undefined>(undefined);
   let isWorking = $state(false);
-
-  $effect(() => untrack(() => apps.open()));
+  let isAdding = $state(false);
+  let addForm = $state<HTMLFormElement | undefined>(undefined);
 
   // The secret dies with the screen, like every other one-time value in this client.
   $effect(() => () => (registered = undefined));
 
   const reading = $derived(apps.state);
-  const refusal = $derived(
-    reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
-  );
+  const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
   /** One per line, and nothing else touched: they are matched byte for byte. */
-  const readUris = (written: string) =>
-    written.split('\n').map((one) => one.trim()).filter((one) => one !== '');
+  const readUris = (written: string) => written.split('\n').map((one) => one.trim()).filter((one) => one !== '');
 
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
-    failure = undefined;
-    isWorking = true;
-    try {
-      await work();
-      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
-      if (said) announcer.say(said);
-    } catch (error) {
-      failure = renderProblem(error as never, messages).message;
-    } finally {
-      isWorking = false;
-    }
+  function reset(): void {
+    name = '';
+    uris = '';
+    confidential = false;
+    missing = {};
+    addFailure = undefined;
   }
+
+  const addGuard = new DiscardGuard(() => name.trim() !== '' || uris.trim() !== '' || confidential, () => {
+    isAdding = false;
+    reset();
+  });
 
   async function register(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -103,11 +122,10 @@
     addFailure = undefined;
     isWorking = true;
     try {
-      registered = await apps.register(name.trim(), list, confidential);
-      name = '';
-      uris = '';
-      confidential = false;
+      const answer = await apps.register(name.trim(), list, confidential);
       isAdding = false;
+      reset();
+      registered = answer;
       announcer.say(t('app.apps.registered_announced'));
     } catch (error) {
       addFailure = renderProblem(error as never, messages).message;
@@ -118,98 +136,137 @@
 
   /** Whether the reader may register and remove apps (`MANAGE_MEMBERS`), as the server asks. */
   const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
+
+  // The search and the kind narrow the apps loaded: `GET /oauth/clients` answers them whole.
+  let search = $state('');
+  let kind = $state('');
+  const shown = $derived(
+    apps.all.filter(
+      (app) => matchesSearch(search, [app.name, ...app.redirect_uris]) && matchesChoice(kind || undefined, app.confidential ? 'confidential' : 'public'),
+    ),
+  );
+  const chips = $derived<Filter[]>([
+    { id: 'kind', label: t('app.apps.kind_chip', { kind: kind ? t(`app.apps.${kind}`) : t('app.page.any') }), isActive: kind !== '' },
+  ]);
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.apps.name'), isSortable: true, priority: 1 },
+    { id: 'uris', label: t('app.apps.uris'), priority: 2 },
+    { id: 'kind', label: t('app.apps.kind_column'), isStatus: true },
+  ]);
+  const order = sorting({ rows: () => shown, read: (app: App) => app.name });
+
+  function menuOf(app: App): DataRowMenu | undefined {
+    if (!mayManage) return undefined;
+    return { label: t('app.page.more_for', { name: app.name }), items: [{ id: 'remove', label: t('app.apps.remove_menu'), isDestructive: true }] };
+  }
+
+  const primary = $derived(
+    mayManage ? { label: t('app.apps.new_title'), icon: 'plus' as const, opener: 'register-app', onclick: () => (isAdding = true) } : undefined,
+  );
+
+  function clearFilters(): void {
+    search = '';
+    kind = '';
+  }
 </script>
 
-<Stack gap="300">
-    <Stack gap="300">
-    <p class="quiet">{t('app.apps.intro')}</p>
+{#snippet figure()}<MachinesFigure />{/snippet}
 
-    {#if registered}
-      {#if registered.client_secret}
-        <OneTimeSecret
-          value={registered.client_secret}
-          label={t('app.apps.secret_title')}
-          hint={t('app.apps.secret_hint')}
-          revealLabel={t('app.apps.reveal')}
-          hideLabel={t('app.apps.hide')}
-          copyLabel={t('app.apps.copy')}
-          copiedLabel={t('app.apps.copied')}
-          acknowledgementLabel={t('app.apps.kept')}
-          notAcknowledgedReason={t('app.apps.keep_first')}
-          dismissLabel={t('app.apps.done')}
-          onDismiss={() => (registered = undefined)}
+<ListPage head={machinesHead(primary, figure)}>
+  {#snippet strip()}<MachinesStrip current="apps" {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t('app.apps.intro')}</p>{/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.apps.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      filters={chips}
+      moreLabel={t('app.page.more_filters')}
+      filtersLabel={t('app.page.filters', { count: String(kind ? 1 : 0) })}
+      sheetTitle={t('app.page.filters', { count: '0' })}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      showLabel={t('app.page.show_results', { count: String(shown.length) })}
+      clearLabel={t('app.page.clear')}
+      onclear={clearFilters}
+      countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(apps.all.length) }) : undefined}
+    >
+      {#snippet picker(_filter: Filter)}
+        <Radio
+          label={t('app.apps.kind_column')}
+          bind:value={kind}
+          options={[
+            { value: '', label: t('app.page.any') },
+            { value: 'confidential', label: t('app.apps.confidential') },
+            { value: 'public', label: t('app.apps.public') },
+          ]}
         />
-      {:else}
-        <!-- A public client has no secret at all, and saying so is better than an empty panel
-             somebody reads as a failure. -->
-        <Banner tone="info">{t('app.apps.no_secret')}</Banner>
-      {/if}
-    {/if}
+      {/snippet}
+    </FilterBar>
+  {/snippet}
 
-    {#if failure}<FailureNote problem={failure} />{/if}
+  <!-- A reader without MANAGE_MEMBERS is told once why nothing here can be registered (P-05). -->
+  <WorkspaceGate permission="MANAGE_MEMBERS" />
 
-    {#if reading.status === 'loading' || reading.status === 'idle'}
-      <p class="waiting"><Spinner label={t('app.apps.reading')} /> <span>{t('app.apps.reading')}</span></p>
-    {:else if refusal}
-      <FailureNote problem={refusal} />
-    {:else}
-      {#each apps.all as app (app.id)}
-        <section class="app">
-          <Stack gap="150">
-            <div class="head">
-              <h2 class="name">{app.name}</h2>
-              <Badge tone={app.confidential ? 'info' : 'neutral'}>
-                {app.confidential ? t('app.apps.confidential') : t('app.apps.public')}
-              </Badge>
-            </div>
-            <ul class="uris">
-              {#each app.redirect_uris as uri (uri)}<li>{uri}</li>{/each}
-            </ul>
-
-            {#if removing === app.id}
-              <Banner tone="warning">{t('app.apps.remove_cost')}</Banner>
-              <div class="row">
-                <Button
-                  tone="danger"
-                  isBusy={isWorking}
-                  busyLabel={t('app.apps.working')}
-                  onclick={() =>
-                    void attempt(async () => {
-                      await apps.remove(app.id);
-                      removing = undefined;
-                    }, t('app.apps.removed_announced'))}
-                >
-                  {t('app.apps.remove_now')}
-                </Button>
-                <Button tone="subtle" onclick={() => (removing = undefined)}>{t('app.apps.keep')}</Button>
-              </div>
-            {:else if mayManage}
-              <!-- Absent where refused: the registration form's gate below says why. -->
-              <div>
-                <Button size="sm" tone="secondary" onclick={() => (removing = app.id)}>
-                  {t('app.apps.remove')}
-                </Button>
-              </div>
-            {/if}
-          </Stack>
-        </section>
-      {:else}
-        <EmptyState kind="unused" icon="key" title={t('app.apps.none')} description={t('app.apps.empty_body')} action={mayManage ? addAct : undefined} />
-      {/each}
-    {/if}
-
-    <!-- A reader without MANAGE_MEMBERS is told once why nothing here can be registered (P-05). -->
-    <WorkspaceGate permission="MANAGE_MEMBERS" />
-    </Stack>
-</Stack>
+  {#if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="quiet waiting"><Spinner label={t('app.apps.reading')} /> <span>{t('app.apps.reading')}</span></p>
+  {:else if refusal}
+    <FailureNote problem={refusal} />
+  {:else}
+    <DataTable
+      label={t('app.apps.title')}
+      {columns}
+      rows={order.rows}
+      key={(app: App) => app.id}
+      href={(app: App) => `/administration/apps/${app.id}`}
+      rowLabel={(app: App) => app.name}
+      menu={menuOf}
+      onmenu={(app: App) => (removing = app)}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      sort={order.sort}
+      onSort={(next) => order.by(next)}
+      shownLabel={apps.all.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(app: App, column: DataColumn)}
+        {#if column.id === 'name'}
+          <span class="name">{app.name}</span>
+        {:else if column.id === 'uris'}
+          <span class="uris">{app.redirect_uris.join(', ')}</span>
+        {:else}
+          <Badge tone={app.confidential ? 'info' : 'neutral'}>{app.confidential ? t('app.apps.confidential') : t('app.apps.public')}</Badge>
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if apps.all.length === 0}
+          <EmptyState kind="unused" icon="key" title={t('app.apps.none')} description={t('app.apps.empty_body')} action={mayManage ? addAct : undefined} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.apps.filtered_title')}>
+            {#snippet action()}<Button onclick={clearFilters}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
+  {/if}
+</ListPage>
 
 {#snippet addAct()}
   <Button tone="primary" icon="plus" onclick={() => (isAdding = true)}>{t('app.apps.new_title')}</Button>
 {/snippet}
 
 {#if mayManage}
-  <Dialog bind:isOpen={isAdding} title={t('app.apps.new_title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (addFailure = undefined)}>
-    <form onsubmit={register}>
+  <Dialog
+    size="m"
+    bind:isOpen={isAdding}
+    title={t('app.apps.new_title')}
+    dismissLabel={t('app.workspace.cancel')}
+    onDismiss={addGuard.dismiss}
+    onClose={() => (addFailure = undefined)}
+    primary={{ label: t('app.apps.register'), isBusy: isWorking, busyLabel: t('app.apps.registering'), onclick: () => addForm?.requestSubmit() }}
+  >
+    <form bind:this={addForm} onsubmit={register}>
       <Stack gap="200">
         {#if addFailure}<FailureNote problem={addFailure} />{/if}
         <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired error={missing.name && !name.trim() ? t(missing.name) : undefined} />
@@ -227,52 +284,22 @@
           checked={confidential}
           onchange={(event: Event) => (confidential = (event.currentTarget as HTMLInputElement).checked)}
         />
-        <div>
-          <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.apps.registering')}>
-            {t('app.apps.register')}
-          </Button>
-        </div>
       </Stack>
     </form>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => { if (addGuard.dismiss()) { isAdding = false; reset(); } }}>{t('app.workspace.cancel')}</Button>
+    {/snippet}
   </Dialog>
+  <DiscardDialog guard={addGuard} />
 {/if}
 
+<AppSecretDialog {registered} onClose={() => (registered = undefined)} />
+<RemoveAppDialog app={removing} onClose={() => (removing = undefined)} />
+
 <style>
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-
-  .app {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .head .name { flex: 1 1 auto; min-width: 0; }
-
-  .uris {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    gap: var(--sp-050);
-    font-family: var(--font-mono);
-    font-size: var(--fs-075);
-    overflow-wrap: anywhere;
-  }
-
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
-
+  .waiting { display: flex; align-items: center; gap: var(--sp-100); }
+  .name { color: var(--text-primary); font-weight: var(--fw-medium); }
+  .uris { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; color: var(--text-secondary); }
   form { margin: 0; }
 </style>

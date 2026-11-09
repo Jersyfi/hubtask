@@ -442,14 +442,23 @@ language gives it — is renamed into it, with the events and change entries a r
 ## 5. The shared patterns
 
 Each pattern names where it lives. **A pattern used by more than one product is a design-system
-component or composition**; the app holds only how a product fills it.
+component or composition**; the app holds only how a product fills it. **Every screen is one page
+kind** (`design-system.md` §11.1, [ADR-0101](../adr/ADR-0101-one-page-system.md)), and a task opens
+on the first rung of the dialog-or-page ladder that fits it (`design-system.md` §11.8).
 
 | Pattern | Design system (`packages/design-system/src/`) | Web app | Status |
 |---|---|---|---|
 | Product home | `PageHeader` (primary with a split), `ViewBar` (§2.4), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
 | Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | `lib/product/CreateDialog.svelte`, filled by each product | moved + new |
 | Find | `SearchField`, `ListRow` | `lib/data/search.svelte.ts` fan-out, `lib/palette/sources.ts` one source per module | extended |
-| Configure | `SourceChip`, `SaveBar`, `Disclosure` (new: *Advanced*), `PlanSummary` (new) | `lib/settings/SettingsPage.svelte` (new shell) | new |
+| List of objects | `ListPage` with `FilterBar`, `DataTable` or `ResourceGrid` and `ResourceCard`, `BulkBar`, `LoadMore` | `lib/page/` (`Continued`, `list.ts`, `DiscardGuard`), every administration list | built |
+| One administered object | `RecordPage` with `RecordHead`, `DangerZone`, its lists as regions | a group, a role, a webhook, a token, a workspace, a template | built |
+| Configure | `SettingsLayout` with `SectionNav`, `SettingsSection`, `SettingRow`, `SaveBar`; `SourceChip`, `Disclosure` (*Advanced*), `PlanSummary` | every settings screen, one section per address (§5.4) | built |
+| Compose from blocks | `EditorPage` with `SectionNav`, `BlockList`, the draft bar | workflows, types and forms, views | built |
+| What needs a look | `OverviewPage` with `SummaryCard`s in a `Grid` | the administration's and the installation's overviews | built |
+| What happened | `LogPage` (a `ListPage` grouped by day) | audit, rule runs, journal, failed jobs, usage | built |
+| Create something large | `CreatePage` | a new token, rule, workflow, workspace | built |
+| Add or change a little | `Dialog` `s` · `m` · `l`, `Popover`, `Sheet` | the ladder (`design-system.md` §11.8) | built |
 | Empty | `EmptyState` (gains `secondary` and `footnote` slots) | `lib/product/ProductEmpty.svelte` | extended |
 | Detail | `DetailPane` | `ItemView` order by type (§5.6) | changed |
 | Command search | the palette | `lib/palette/` | extended |
@@ -520,8 +529,9 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
 
 ### 5.4 Configure
 
-* **One settings shell**, `SettingsPage`: sections at the start, the open one beside it, a save
-  bar on change with A3's reach preview, a leave guard, a `SourceChip` per catalogue value (A1,
+* **One settings shell**, the design system's `SettingsLayout`: sections at the start, the open one
+  beside it at its own address (never links into one long page; on a phone and a tablet held
+  upright the list is the page and a section opens on its own, PS-9), a save bar on change with A3's reach preview, a leave guard, a `SourceChip` per catalogue value (A1,
   A2), and *Advanced* folded (`Disclosure`, A8). Mail, Voice, Retention, the backup schedule and
   Webhooks move onto it; instant switches stay only for single on/off switches, as
   `ModuleSwitches` documents. A test over the administration routes asserts each uses the shell.
@@ -582,7 +592,10 @@ level may configure, shared blocks read-only with *Make a copy here*. A hub's mo
 its templates are separate sections (*Products*, *Templates and presets*). Both words stay
 (`design-system.md`); the section and the administration's page that lists them read *Templates
 and presets*, so a person looking for either word finds it. Entry templates are called *Entry templates*,
-so a template of entries means one thing. A test pins the section order per level.
+so a template of entries means one thing. A collection's policies - whether completion rolls up,
+how new entries are handed out - are a section of their own after *Rules*, *Completion and
+assignment*: a document saved on its own, so each section keeps one save model (page-system PS-10).
+A test pins the section order per level.
 
 ### 5.8 Refusals and failures
 
@@ -861,7 +874,7 @@ types, organisations, priority field and pausing statuses from the workspace's o
 targets per priority one `DurationInput` per option of that field, the warning and position
 behind *Advanced*. An empty calendars, policies or replies section offers whoever holds
 `STRUCTURE` *Start from the ITIL defaults*: the workspace's *Templates* open on the ITIL desk
-template's plan (`/administration/presets?template=itil_service_desk`), in words before anything
+template's plan (`/administration/templates?template=itil_service_desk`), in words before anything
 changes - its whole workspace part, since its policies measure the types, priorities and statuses
 that part brings and would measure nothing alone. A desk entry's SLA chips lead its main column, above the
 notes; the triage fields stay in the fields beside it. The portal draws its kinds as
@@ -1266,29 +1279,22 @@ workspace's — English*), so leaving it says what it means.
 
 ### 8.10 The settings shell and the products' settings, as built
 
-* **`SettingsPage`** (§5.4, `lib/settings/SettingsPage.svelte`): the screen's sections as links
-  into one page at the start - a row of its own that scrolls sideways on a phone - the one in view
-  marked, a press moving to the section and the keyboard with it; one section draws no list. A
-  screen whose writes wait for *Save* passes `save` and gets the save bar with its count (Mail,
-  Voice; the workspace screen keeps its own bar inside its form, where Enter submits). Every
-  screen on it passes `changes`, and the leave guard (`frame/leave.ts`, `LeaveDialog`) asks
-  *Leave without saving?* before a link, the column or the browser's back drops them; a reload or
-  a closed tab gets the browser's own question. Screens of instant acts (Retention, Backup) count
-  only what is typed and not yet sent - a justification, a hold's reason, a chosen schedule
-  target, a passphrase - and draw no bar. On the shell: Mail, Voice, Retention, Backup, Webhooks
-  and the workspace screen, and since then Sign-in (with its legal page), AI, Time's settings and
-  the configuration items', held by `lib/settings/shell.test.ts` over the route table and the
-  product settings' views. A screen whose sections are addresses of their own (`?tab=`) or too long
-  for one page passes `selected` and `onselect`: the shell then draws only the open section - "the
-  open one beside it" - marks it `aria-current="page"` and moves the keyboard to its heading;
-  Sign-in and AI keep their addresses that way, the configuration items keep theirs in the page,
-  and the guard counts every section's unsaved values, not only the open one's. Time's policy saves
-  through the shell's bar; Sign-in keeps its bar in its form, where Enter submits. Not yet on it:
-  the place settings. *Advanced* is not folded
-  on these five: none has a setting the direction names as advanced, and Mail's filing order and
+* **The settings shell** (§5.4) is the design system's `SettingsLayout` (page-system §7.3): the
+  section list at the start, one section at its own address with its save bar, the list alone and
+  a section with *‹ back* below `expanded`. Each screen holds the leave guard (`frame/leave.ts`,
+  `LeaveDialog`) over its unsaved values. The web app's first shell, `lib/settings/SettingsPage`,
+  is gone; Mail, Voice, Retention, Backup, the workspace, Sign-in, AI, the place settings and the
+  products' settings stand on the layout, held by `build/pagekinds.test.js`. One section per
+  address everywhere (page-system D-2): the section list says each section's state, and from
+  `expanded` down to `medium` the list and a section are two pages (D-4). An administered object
+  is no longer edited in a side panel beside its list: it opens as its record page or a dialog by
+  the ladder (D-3, `design-system.md` §11.8); the entry's panel beside a collection stays. *Advanced* is not
+  folded on Mail, Voice, Retention, Backup and the workspace: none has a setting the direction names as advanced, and Mail's filing order and
   handles are what a newcomer reads to send mail in.
 * **A product's settings at its home** (§8.2): the service desk's, the configuration items',
-  time's and the agents' screens left the administration column. Each is its home's last tab -
+  time's and the agents' screens left the administration column. Each is its home's last tab, a
+  settings page of its own whose section list replaces the home's tabs, without the home's create
+  act and with the product in the trail (page-system §9.6, PS-2), each section at `?section=` -
   `/desk/settings`, `/assets/settings` (the assets home now *Inventory · Settings*, offered to
   whoever reaches the administration, as its door before), `/time?tab=settings` (to a holder of
   `STRUCTURE`, `APPROVE_TIME`, `MANAGE_COSTS` or `MANAGE_MEMBERS`), `/agents?tab=settings` - and

@@ -182,9 +182,19 @@
 </script>
 
 <!-- Dismissed without an answer is a skip: the question is not asked again. -->
-<Dialog bind:isOpen title={chosen ? nameOf(chosen) : t('app.starter.title')} dismissLabel={t('app.starter.skip')} onClose={() => void skip()}>
+<!-- ✕ skips; the start is the dialog's primary and *Back* leads the body, so a phone keeps both
+     (page-system §5.1). -->
+<Dialog size="l" bind:isOpen title={chosen ? nameOf(chosen) : t('app.starter.title')} dismissLabel={t('app.starter.skip')} onClose={() => void skip()}
+  primary={chosen ? {
+    label: t('app.starter.start'),
+    isBusy,
+    busyLabel: t('app.starter.starting'),
+    disabledReason: isPlanning ? t('app.starter.plan_reading') : mustAcknowledge && !acknowledged ? t('app.changes.acknowledge_first') : undefined,
+    onclick: startTemplate,
+  } : undefined}>
   <div data-starter data-starter-step={chosen ? 'template' : family ? 'gallery' : 'families'}>
     <Stack gap="150">
+      {#if family}<div><Button size="sm" tone="subtle" icon="chevron-left" onclick={back}>{t('app.starter.back')}</Button></div>{/if}
       {#if !family}
         <p class="hint">{t('app.starter.about')}</p>
         <TemplateGallery label={t('app.starter.families')}>
@@ -240,18 +250,6 @@
     </Stack>
   </div>
 
-  {#snippet actions()}
-    {#if family}
-      <Button tone="secondary" onclick={back}>{t('app.starter.back')}</Button>
-    {:else}
-      <Button tone="secondary" onclick={() => void skip()}>{t('app.starter.skip')}</Button>
-    {/if}
-    {#if chosen}
-      <Button tone="primary" isBusy={isBusy} busyLabel={t('app.starter.starting')} data-starter-start
-        disabledReason={isPlanning ? t('app.starter.plan_reading') : mustAcknowledge && !acknowledged ? t('app.changes.acknowledge_first') : undefined}
-        onclick={startTemplate}>{t('app.starter.start')}</Button>
-    {/if}
-  {/snippet}
 </Dialog>
 
 <style>

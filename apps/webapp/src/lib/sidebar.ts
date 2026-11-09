@@ -25,7 +25,7 @@ export interface LevelRoute {
 
 /** Routes whose `:id` is a hub. */
 const HUB_ROUTES = new Set([
-  'hub', 'hub-pages', 'hub-contents', 'hub-desk', 'hub-plan', 'hub-plan-releases', 'hub-plan-sprints', 'hub-inventory', 'hub-inventory-section',
+  'hub', 'hub-pages', 'hub-contents', 'hub-desk', 'hub-plan', 'hub-plan-table', 'hub-plan-dependencies', 'hub-plan-releases', 'hub-plan-sprints', 'hub-inventory', 'hub-inventory-section',
   'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-settings', 'hub-settings-section',
 ]);
 /** Routes whose `:id` is a collection. */

@@ -4,7 +4,7 @@
   // Whether the workspace lets a page be opened by a public link (UC-DOC-08 check 4), for somebody
   // who manages its members. Locked by the installation or the plan, it is shown and not switched.
 
-  import { Switch } from '@hubtask/design-system/components';
+  import { SettingRow, Switch } from '@hubtask/design-system/components';
   import type { PublicLinksPolicy } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -32,11 +32,16 @@
 
 {#if administers && held}
   <div data-public-links>
-    <Switch
-      label={t('app.admin.public_links')}
-      hint={t('app.admin.public_links_hint')}
-      disabledReason={held.locked_by ? t('app.admin.public_links_locked') : undefined}
-      bind:checked={() => held.allowed === true, (on) => void set(on)}
-    />
+    <SettingRow label={t('app.admin.public_links')} help={t('app.admin.public_links_hint')} fieldWidth="sm">
+      {#snippet control(nameId)}
+        <Switch
+          label={t('app.admin.public_links')}
+          isLabelHidden
+          aria-labelledby={nameId}
+          disabledReason={held.locked_by ? t('app.admin.public_links_locked') : undefined}
+          bind:checked={() => held.allowed === true, (on) => void set(on)}
+        />
+      {/snippet}
+    </SettingRow>
   </div>
 {/if}

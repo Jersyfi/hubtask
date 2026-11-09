@@ -3,7 +3,7 @@
 
 // The workspace keeps an owner, and Owner held through a group stays behind a proof
 // (domain-model.md §3.2, identity.md §16.3), walked as the workspace's only owner: on *People* the
-// owner's own row offers no *Revoke* and says why while another row keeps it; on *Groups* taking
+// owner's own row offers no *Revoke* and says why while another row keeps it; on a group's page taking
 // somebody out of a group that holds OWNER asks for the proof and sends the change again with it.
 
 import { test } from 'node:test';
@@ -76,7 +76,8 @@ async function open(browser, { details } = {}) {
   return { page, sent, close: () => context.close() };
 }
 
-const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('rowheader', { name, exact: true }) });
+// A row's name is the link to the person's page (page-system §5.2, *Open*).
+const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('link', { name, exact: true }) });
 
 test('the only owner is not offered to revoke their own Owner, and is told why', async (t) => {
   const browser = await chromium.launch();
@@ -86,11 +87,12 @@ test('the only owner is not offered to revoke their own Owner, and is told why',
 
   await page.goto(`${served.origin}/administration/people`);
   const other = rowOf(page, OTHER.display_name);
-  await other.getByRole('button', { name: 'Revoke' }).waitFor({ timeout: 15_000 });
-  // Revoke stays in its place, unavailable, and says why as the control's own description
-  // (UC-WRK-32 check 1) - not as a sentence in the row.
+  await other.getByRole('button', { name: `More for ${OTHER.display_name}` }).waitFor({ timeout: 15_000 });
+  // Revoke stays in its place in the row's menu (PS-6), unavailable, and says why as the item's own
+  // description (UC-WRK-32 check 1) - not as a sentence in the row.
   const me = rowOf(page, ACCOUNT.display_name);
-  const revoke = me.getByRole('button', { name: 'Revoke' });
+  await me.getByRole('button', { name: `More for ${ACCOUNT.display_name}` }).click();
+  const revoke = page.getByRole('menu').getByRole('menuitem', { name: /^Revoke access/ });
   await revoke.waitFor();
   assert.equal(await revoke.getAttribute('aria-disabled'), 'true', 'the last owner is offered Revoke');
   const described = await revoke.evaluate((button) =>
@@ -108,10 +110,11 @@ test('taking somebody out of a group that holds Owner asks for the proof and sen
 
   const failures = [];
   page.on('pageerror', (error) => failures.push(error.message));
-  await page.goto(`${served.origin}/administration/people?tab=groups`);
-  const owners = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Owners' }) });
-  await owners.getByRole('button', { name: 'Take out' }).first().waitFor({ timeout: 15_000 });
-  await owners.getByRole('button', { name: 'Take out' }).last().click();
+  // The group's own page lists its members; taking one out is in the member's row menu.
+  await page.goto(`${served.origin}/administration/groups/${OWNERS.id}`);
+  const other = page.getByRole('row').filter({ has: page.getByRole('link', { name: OTHER.display_name, exact: true }) });
+  await other.getByRole('button', { name: `More for ${OTHER.display_name}` }).click({ timeout: 15_000 });
+  await page.getByRole('menu').getByRole('menuitem', { name: 'Take out', exact: true }).click();
 
   const proof = page.getByRole('dialog', { name: 'Prove it is you' });
   await proof.waitFor();
@@ -135,18 +138,18 @@ test('a person\'s row folds the rarer acts under More', async (t) => {
 
   await page.goto(`${served.origin}/administration/people`);
   const other = rowOf(page, OTHER.display_name);
-  await other.getByRole('button', { name: 'Revoke' }).waitFor({ timeout: 15_000 });
+  await other.getByRole('button', { name: `More for ${OTHER.display_name}` }).waitFor({ timeout: 15_000 });
   await other.getByRole('cell', { name: 'other@example.com', exact: true }).waitFor({ timeout: 15_000 });
-  for (const folded of ['See their screens', 'Reset second factor']) {
+  for (const folded of ['See their screens', 'Reset second factor', 'Revoke access…']) {
     assert.equal(await other.getByRole('button', { name: folded, exact: true }).count(), 0, `${folded} stands in the row`);
   }
   await other.getByRole('button', { name: `More for ${OTHER.display_name}` }).click();
   const offered = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((each) => each.trim());
-  assert.ok(offered.includes('Reset second factor'), JSON.stringify(offered));
+  assert.ok(offered.includes('Reset second factor') && offered.at(-1) === 'Revoke access…', JSON.stringify(offered));
   // On a phone the standing reads as a word, not as a bar the width of the row.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.keyboard.press('Escape');
-  const chip = await other.locator('td').nth(2).locator('.badge, [class*="badge"]').first().evaluate((node) => [node.getBoundingClientRect().width, node.closest('td').getBoundingClientRect().width]);
+  const chip = await other.locator('td[data-role="status"]').locator('.badge, [class*="badge"]').first().evaluate((node) => [node.getBoundingClientRect().width, node.closest('tr').getBoundingClientRect().width]);
   assert.ok(chip[0] < chip[1] / 2, `the standing stretches across the row: ${chip}`);
 });
 

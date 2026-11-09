@@ -29,7 +29,7 @@
           : field;
 </script>
 
-<Dialog bind:isOpen title={t('app.item.type_drops_title', { type: typeName })} dismissLabel={t('app.item.type_drops_cancel')}>
+<Dialog size="s" bind:isOpen title={t('app.item.type_drops_title', { type: typeName })} dismissLabel={t('app.item.type_drops_cancel')}>
   <Stack gap="200">
     {#if isConfirmable}
       <p>{t('app.item.type_drops_lead', { type: typeName })}</p>

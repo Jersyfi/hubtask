@@ -15,7 +15,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { DESK_QUEUES, QUEUE_SHOWN, desksOf, queueQuery, type DeskQueue } from '../lib/servicedesk/queues.ts';
   import { queuePath } from '../lib/sidebar.ts';
-  import { Button, Dialog, Input, Skeleton, Stack, type PageAction } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, Skeleton, Stack, WorkPage, type PageAction } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -200,15 +200,17 @@
 
 {#snippet queueStar()}{#if chosen?.view_id}<StarToggle kind="VIEW" id={chosen.view_id} name={queueName} />{/if}{/snippet}
 {#snippet countFigure()}<span data-queue-count>{t('app.nav.queue_requests', { count: chosen?.count ?? 0 })}</span>{/snippet}
-<ToolHead {hubId} tool="queues" {onnavigate}
-  title={queueName}
-  figure={chosen && typeof chosen.count === 'number' ? countFigure : undefined}
-  titleEnd={chosen?.view_id ? queueStar : undefined}
-  {primary}
-  secondary={headActions}
-  menu={saved && mayShape ? { label: t('app.hub_desk.more'), items: [{ id: 'delete', label: t('app.hub_desk.delete_queue'), icon: 'trash' }], onselect: () => { failure = undefined; isDeleting = true; } } : undefined}
-/>
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
+  <ToolHead {hubId} tool="queues" {onnavigate}
+    title={queueName}
+    figure={chosen && typeof chosen.count === 'number' ? countFigure : undefined}
+    titleEnd={chosen?.view_id ? queueStar : undefined}
+    {primary}
+    secondary={headActions}
+    menu={saved && mayShape ? { label: t('app.hub_desk.more'), items: [{ id: 'delete', label: t('app.hub_desk.delete_queue'), icon: 'trash' }], onselect: () => { failure = undefined; isDeleting = true; } } : undefined}
+  />
+  {/snippet}
 
   {#if isReading}
     <div aria-busy="true"><Skeleton lines={4} /></div>
@@ -221,7 +223,7 @@
       title={t('app.desk_queues.none')}
       description={t('app.desk_queues.none_body')}
       create={mayShape
-        ? { label: t('app.desk.itil_defaults'), onclick: () => onnavigate(`/hubs/${encodeURIComponent(hubId)}/settings/modules?template=${ITIL_TEMPLATE}`) }
+        ? { label: t('app.desk.itil_defaults'), onclick: () => onnavigate(`/hubs/${encodeURIComponent(hubId)}/settings/template?template=${ITIL_TEMPLATE}`) }
         : undefined}
     />
   {:else}
@@ -236,9 +238,9 @@
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {/if}
   {/if}
-</Stack>
+</WorkPage>
 
-<Dialog bind:isOpen={isNaming} title={t('app.hub_desk.save_as_queue')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="s" bind:isOpen={isNaming} title={t('app.hub_desk.save_as_queue')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="150">
     <Input label={t('app.hub_desk.queue_name')} bind:value={newName} />
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -249,7 +251,7 @@
   {/snippet}
 </Dialog>
 
-<Dialog bind:isOpen={isDeleting} title={t('app.hub_desk.delete_title', { name: queueName })} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="s" bind:isOpen={isDeleting} title={t('app.hub_desk.delete_title', { name: queueName })} dismissLabel={t('app.workspace.cancel')}>
   <p class="quiet">{t('app.hub_desk.delete_body')}</p>
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   {#snippet actions()}

@@ -87,7 +87,7 @@
   }
 </script>
 
-<Dialog
+<Dialog size="m"
   {isOpen}
   title={view ? t('app.export.title') : t('app.export.filtered_title')}
   dismissLabel={t('app.workspace.cancel')}

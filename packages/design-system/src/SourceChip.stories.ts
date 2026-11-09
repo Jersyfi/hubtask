@@ -12,13 +12,13 @@ export default {
 } satisfies StoryMeta;
 
 export const sources: Story = {
-  name: 'The four sources',
+  name: 'Every source',
   about:
-    'Set here, a default, a plan, the installation - one chip beside the name for every value somebody may have set above the reader (P-06, P-07). Press one: the value, its source and whom to ask (UC-WRK-32 check 5). A lock is a mark and a word.',
+    'Set here (the accent dot), a default, a level above, a lock by the plan or the installation - quiet words at the end of the name\'s line for every value somebody may have set above the reader (P-06, P-07), no frame and no fill. Press one: the value, its source and whom to ask (UC-WRK-32 check 5). A lock is a mark and a word. Look at it with Theme set to Both.',
 };
 
 export const beside: Story = {
   name: 'Beside a locked setting',
-  about: 'The chip says who set it at the name; the switch itself is unavailable, and says why as a bubble at the switch.',
+  about: 'The words say who locked it at the name; the switch itself is unavailable, and says why as a bubble at the switch.',
   args: { mode: 'beside' },
 };

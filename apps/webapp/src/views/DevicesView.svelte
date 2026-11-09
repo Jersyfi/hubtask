@@ -10,17 +10,13 @@
 
   import { untrack } from 'svelte';
 
-  import {
-    Button,
-    Dialog,
-    EmptyState,
-    Skeleton,
-    Stack,
-    Table,
-  } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, EmptyState, FilterBar, ListPage, Skeleton, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
-  import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import { page } from '../lib/frame/page.svelte.ts';
+  import { Continued } from '../lib/page/continued.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
+  import { profileHead, profileTitle } from '../lib/profile/profilehead.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { devices } from '../lib/data/devices.svelte.ts';
@@ -41,13 +37,14 @@
 
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
-  const columns = $derived([
-    { id: 'device', label: t('app.devices.name'), isSortable: true },
-    { id: 'platform', label: t('app.devices.platform'), isSortable: true },
-    { id: 'seen', label: t('app.devices.last_seen'), isSortable: true },
-    { id: 'standing', label: t('app.devices.standing'), isSortable: true },
-    { id: 'forget', label: t('app.devices.forget'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'device', label: t('app.devices.name'), isSortable: true, priority: 1 },
+    { id: 'platform', label: t('app.devices.platform'), isSortable: true, priority: 2 },
+    { id: 'seen', label: t('app.devices.last_seen'), isSortable: true, priority: 1 },
+    { id: 'standing', label: t('app.devices.standing'), isSortable: true, priority: 2 },
   ]);
+
+  let search = $state('');
 
   // This device first, then the most recently seen. It is the list's own order and not a column,
   // which is why the third press of a heading matters: it is the only way back to it.
@@ -61,8 +58,9 @@
 
   // A person's devices are counted on one hand; what this list wanted was the last-seen column
   // as something to sort by rather than as something to read down.
+  const found = $derived(ordered.filter((device) => matchesSearch(search, [device.display_name ?? undefined, device.platform ?? undefined])));
   const order = sorting({
-    rows: () => ordered,
+    rows: () => found,
     read: (device, columnId) => {
       if (columnId === 'platform') return device.platform;
       if (columnId === 'seen') return device.last_seen_at;
@@ -73,7 +71,23 @@
     },
   });
 
-  const shown = $derived(order.rows);
+  const continued = new Continued(() => order.rows);
+  $effect(() => {
+    void search;
+    untrack(() => continued.restart());
+  });
+
+  const title = $derived(profileTitle('devices'));
+  $effect(() => page.entitle(title));
+
+  const nameOf = (device: (typeof devices.all)[number]) => device.display_name || t('app.devices.unnamed');
+
+  // Forgetting is destructive: the row's ⋯, confirmed by a Dialog S (PS-6). This device and one
+  // already forgotten have nothing to forget.
+  function rowMenu(device: (typeof devices.all)[number]): DataRowMenu | undefined {
+    if (device.blocked || devices.isThisDevice(device.id)) return undefined;
+    return { label: t('app.page.more_for', { name: nameOf(device) }), items: [{ id: 'forget', label: t('app.devices.forget_menu'), isDestructive: true }] };
+  }
 
   function when(at: string | null | undefined): string {
     return at ? formatDateTime(at, messages.locale) : t('app.devices.never_seen');
@@ -96,52 +110,68 @@
 {#if !account}
   <EmptyState kind="filtered" title={t('app.profile.signed_out')} />
 {:else}
-  <Stack gap="300">
-    <SettingsHead row="devices" />
+  <ListPage head={profileHead('devices')}>
+    {#snippet intro()}<p class="quiet">{t('app.devices.intro')}</p>{/snippet}
+    {#snippet filters()}
+      <FilterBar
+        searchLabel={t('app.devices.search')}
+        clearSearchLabel={t('app.page.clear_search')}
+        bind:search
+        countLabel={held?.status === 'ready' ? t('app.page.found', { shown: String(found.length), count: String(devices.all.length) }) : undefined}
+      />
+    {/snippet}
 
-    <Stack gap="150">
-      <p class="quiet">{t('app.devices.intro')}</p>
+    {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-
-      {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
-        <div aria-busy="true"><Skeleton lines={2} /></div>
-      {:else if held.status === 'failed'}
-        <FailureState problem={renderProblem(held.error, messages)} onRetry={() => devices.open()} />
-      {:else if shown.length === 0}
-        <EmptyState kind="unused" title={t('app.devices.none')} />
-      {:else}
-        <Table isStacked
-          label={t('app.devices.title')}
-          isLabelHidden
-          {columns}
-          sort={order.sort}
-          onSort={(next) => order.by(next)}
-        >
-          {#each shown as device (device.id)}
-            <tr>
-              <th scope="row" class="what">
-                {device.display_name || t('app.devices.unnamed')}
-                {#if devices.isThisDevice(device.id)}<span class="here">{t('app.devices.this_device')}</span>{/if}
-              </th>
-              <td>{device.platform || '—'}</td>
-              <td>{when(device.last_seen_at)}</td>
-              <td>{device.blocked ? t('app.devices.forgotten') : t('app.devices.synchronising')}</td>
-              <td>
-                {#if !device.blocked && !devices.isThisDevice(device.id)}
-                  <Button tone="danger" size="sm" onclick={() => (forgetting = device.id)}>
-                    {t('app.devices.forget')}
-                  </Button>
-                {/if}
-              </td>
-            </tr>
-          {/each}
-        </Table>
-      {/if}
-    </Stack>
-  </Stack>
+    {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
+      <div aria-busy="true"><Skeleton lines={2} /></div>
+    {:else if held.status === 'failed'}
+      <FailureState problem={renderProblem(held.error, messages)} onRetry={() => devices.open()} />
+    {:else}
+      <DataTable
+        label={title}
+        {columns}
+        rows={continued.shown}
+        key={(device) => device.id}
+        rowLabel={nameOf}
+        menu={rowMenu}
+        onmenu={(device) => (forgetting = device.id)}
+        actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')}
+        sheetGrabLabel={t('app.page.sheet_grab')}
+        sort={order.sort}
+        onSort={(next) => order.by(next)}
+        shownLabel={devices.all.length === 0 ? undefined : continued.shownLabel}
+        more={continued.more}
+        perPage={continued.perPage}
+      >
+        {#snippet cell(device, column: DataColumn)}
+          {#if column.id === 'device'}
+            <span class="what">{nameOf(device)}</span>
+            {#if devices.isThisDevice(device.id)}<span class="here">{t('app.devices.this_device')}</span>{/if}
+          {:else if column.id === 'platform'}
+            {device.platform || '—'}
+          {:else if column.id === 'seen'}
+            {when(device.last_seen_at)}
+          {:else}
+            {device.blocked ? t('app.devices.forgotten') : t('app.devices.synchronising')}
+          {/if}
+        {/snippet}
+        {#snippet empty()}
+          {#if devices.all.length === 0}
+            <EmptyState kind="unused" title={t('app.devices.none')} />
+          {:else}
+            <EmptyState kind="filtered" title={t('app.devices.filtered')}>
+              {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+            </EmptyState>
+          {/if}
+        {/snippet}
+      </DataTable>
+    {/if}
+  </ListPage>
 
   <Dialog
+    size="s"
     title={t('app.devices.confirm_title')}
     isOpen={forgetting !== undefined}
     dismissLabel={t('app.devices.cancel')}

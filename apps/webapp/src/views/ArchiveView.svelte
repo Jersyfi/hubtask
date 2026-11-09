@@ -21,14 +21,28 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Button, EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import {
+    Button,
+    DataTable,
+    EmptyState,
+    FilterBar,
+    Icon,
+    ListPage,
+    Radio,
+    Skeleton,
+    Stack,
+    type DataColumn,
+    type DataRowMenu,
+    type Filter,
+  } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { Container } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesChoice, matchesSearch } from '../lib/page/list.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -38,6 +52,31 @@
   $effect(() => page.entitle(t('app.archive.title')));
 
   const rows = $derived(containers.archived);
+  type Row = (typeof rows)[number];
+
+  // The archive arrives whole (one read per hub): the search and the kind chip narrow what is loaded.
+  let search = $state('');
+  let kind = $state<'' | 'HUB' | 'COLLECTION'>('');
+  const shown = $derived(
+    rows.filter((row) => matchesSearch(search, [row.container.name, row.parent?.name]) && matchesChoice(kind || undefined, row.container.type)),
+  );
+  const chips = $derived<Filter[]>([
+    { id: 'kind', label: t('app.archive.kind_chip', { choice: kind ? t(`app.archive.kind_${kind.toLowerCase()}`) : t('app.page.any') }), isActive: kind !== '' },
+  ]);
+  function clearFilters(): void {
+    search = '';
+    kind = '';
+  }
+
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.archive.column_name'), isSortable: true, priority: 1 },
+    { id: 'where', label: t('app.archive.column_where'), priority: 2 },
+  ]);
+  const order = sorting({ rows: () => shown, read: (row: Row) => row.container.name });
+
+  function rowMenu(row: Row): DataRowMenu {
+    return { label: t('app.page.more_for', { name: row.container.name }), items: [{ id: 'open', label: t('app.page.open') }] };
+  }
   const failure = $derived(
     containers.archiveState.status === 'failed' ? renderProblem(containers.archiveState.error, messages) : undefined,
   );
@@ -65,43 +104,91 @@
   const ARCHIVED_ENTRIES = `/search?${new URLSearchParams({ f: 'is:archived' }).toString()}`;
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.archive.title')} subtitle={t('app.archive.intro')} isTitleInBar={viewport.isCompact} />
+<ListPage head={{ title: t('app.archive.title') }}>
+  {#snippet intro()}<p class="quiet">{t('app.archive.intro')}</p>{/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.archive.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      filters={chips}
+      moreLabel={t('app.page.more_filters')}
+      filtersLabel={t('app.page.filters', { count: String(kind ? 1 : 0) })}
+      sheetTitle={t('app.page.filters', { count: '0' })}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      showLabel={t('app.page.show_results', { count: String(shown.length) })}
+      clearLabel={t('app.page.clear')}
+      onclear={clearFilters}
+      countLabel={containers.isArchiveReady ? t('app.page.found', { shown: String(shown.length), count: String(rows.length) }) : undefined}
+    >
+      {#snippet picker(_filter: Filter)}
+        <Radio
+          label={t('app.archive.kind')}
+          bind:value={kind}
+          options={[
+            { value: '', label: t('app.page.any') },
+            { value: 'HUB', label: t('app.archive.kind_hub') },
+            { value: 'COLLECTION', label: t('app.archive.kind_collection') },
+          ]}
+        />
+      {/snippet}
+    </FilterBar>
+  {/snippet}
 
   {#if failure}
     <FailureState problem={failure} onRetry={() => containers.refresh()} />
   {:else if !containers.isArchiveReady}
     <div aria-busy="true"><Skeleton lines={3} /></div>
-  {:else if rows.length === 0}
-    <!-- `unused` rather than `filtered`: nothing is filtering this list, and an empty archive is
-         the ordinary state of a workspace rather than a search that found nothing. -->
-    <EmptyState kind="unused" icon="archive" title={t('app.archive.none')} description={t('app.archive.none_body')} />
   {:else}
-    <Stack gap="100">
-      {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
-      {#each rows as row (row.container.id)}
-        <ListRow href={pathOf(row.container)} onactivate={() => onnavigate?.(pathOf(row.container))}>
-          {#snippet leading()}
-            <Badge icon={row.container.type === 'HUB' ? 'hub' : 'collection'}>
-              {row.parent ? t('app.archive.in_hub', { hub: row.parent.name }) : t('app.archive.a_hub')}
-            </Badge>
-          {/snippet}
-          {row.container.name}
-          {#snippet trailing()}
-            <Button
-              size="sm"
-              tone="secondary"
-              icon="rotate-ccw"
-              isBusy={restoring === row.container.id}
-              busyLabel={t('app.workspace.saving')}
-              onclick={() => void bringBack(row.container)}
-            >
-              {t('app.archive.unarchive', { name: row.container.name })}
-            </Button>
-          {/snippet}
-        </ListRow>
-      {/each}
-    </Stack>
+    {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
+    <DataTable
+      label={t('app.archive.title')}
+      {columns}
+      rows={order.rows}
+      key={(row: Row) => row.container.id}
+      href={(row: Row) => pathOf(row.container)}
+      onopen={(row: Row) => onnavigate?.(pathOf(row.container))}
+      rowLabel={(row: Row) => row.container.name}
+      menu={rowMenu}
+      onmenu={(row: Row) => onnavigate?.(pathOf(row.container))}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      sort={order.sort}
+      onSort={(next) => order.by(next)}
+      shownLabel={rows.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+    >
+      {#snippet cell(row: Row, column: DataColumn)}
+        {#if column.id === 'name'}
+          <span class="name"><Icon name={row.container.type === 'HUB' ? 'hub' : 'collection'} size="sm" />{row.container.name}</span>
+        {:else}
+          <span class="quiet">{row.parent ? t('app.archive.in_hub', { hub: row.parent.name }) : t('app.archive.a_hub')}</span>
+        {/if}
+      {/snippet}
+      {#snippet verb(row: Row)}
+        <Button
+          size="sm"
+          tone="subtle"
+          icon="rotate-ccw"
+          isBusy={restoring === row.container.id}
+          busyLabel={t('app.workspace.saving')}
+          onclick={() => void bringBack(row.container)}
+        >
+          {t('app.archive.unarchive', { name: row.container.name })}
+        </Button>
+      {/snippet}
+      {#snippet empty()}
+        {#if rows.length === 0}
+          <!-- `unused` rather than `filtered`: an empty archive is the ordinary state of a workspace. -->
+          <EmptyState kind="unused" icon="archive" title={t('app.archive.none')} description={t('app.archive.none_body')} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.archive.filtered_title')}>
+            {#snippet action()}<Button onclick={clearFilters}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
   {/if}
 
   <!-- Entries: they stay in their lists, and the search lists all of them with the archive filter. -->
@@ -122,9 +209,11 @@
       >
     </div>
   </Stack>
-</Stack>
+</ListPage>
 
 <style>
+  .name { display: inline-flex; align-items: center; gap: var(--sp-050); }
+
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }

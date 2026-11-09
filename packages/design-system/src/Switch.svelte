@@ -21,13 +21,15 @@
 
   interface Props extends Omit<HTMLInputAttributes, 'disabled' | 'type' | 'checked'>, Disableable, Busyable {
     label: string;
+    /** Announced but not drawn, where the name is beside it already - a `SettingRow`. */
+    isLabelHidden?: boolean;
     /** What it is doing while busy, said to a reader: the present participle (voice-and-tone.md §2.4). */
     busyLabel?: string;
     hint?: string;
     checked?: boolean;
   }
 
-  let { label, hint, disabledReason, isBusy = false, busyLabel, checked = $bindable(false), ...rest }: Props = $props();
+  let { label, isLabelHidden = false, hint, disabledReason, isBusy = false, busyLabel, checked = $bindable(false), ...rest }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -79,7 +81,7 @@
         <span id={busyId}><VisuallyHidden>{busyLabel}</VisuallyHidden></span>
       {/if}
     </span>
-    <label class="label" for={uid} bind:this={labelElement}>{label}</label>
+    <label class="label" class:is-hidden={isLabelHidden} for={uid} bind:this={labelElement}>{label}</label>
   </div>
   {#if disabledReason !== undefined && !groupReasonId}
     <Reason id={ownReasonId} text={disabledReason} control={native} forwarders={[labelElement]} />
@@ -90,6 +92,17 @@
 </div>
 
 <style>
+  /* Announced but not drawn - never `display: none`, which would take the name away too. */
+  .label.is-hidden {
+    position: absolute;
+    inline-size: var(--sp-025);
+    block-size: var(--sp-025);
+    margin: calc(var(--sp-025) * -1);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .switch { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   .row { display: flex; align-items: center; gap: var(--sp-150); }

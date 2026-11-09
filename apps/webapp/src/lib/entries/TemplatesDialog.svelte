@@ -19,7 +19,6 @@
 
   import {
     Button,
-    Dialog,
     Inline,
     Input,
     Select,
@@ -388,6 +387,19 @@
                   {/if}
                 </Inline>
               </div>
+              {#if deleting?.id === template.id}
+                <!-- Asked in place, under its row: no second dialog over the one this list stands
+                     in (page-system §5.1). -->
+                <div class="confirm" role="group" aria-label={t('app.templates.delete_title', { name: template.name })} data-template-delete>
+                  <p class="quiet">{t('app.templates.delete_title', { name: template.name })} {t('app.templates.delete_explains')}</p>
+                  <Inline gap="100">
+                    <Button size="sm" tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
+                      {t('app.templates.delete')}
+                    </Button>
+                    <Button size="sm" tone="secondary" onclick={() => (deleting = undefined)}>{t('app.workspace.cancel')}</Button>
+                  </Inline>
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -422,28 +434,10 @@
   </Stack>
 </PanelOrDialog>
 
-{#if deleting}
-  <Dialog
-    isOpen={true}
-    title={t('app.templates.delete_title', { name: deleting.name })}
-    dismissLabel={t('app.workspace.cancel')}
-    onClose={() => (deleting = undefined)}
-  >
-    <Stack gap="150">
-      <p class="quiet">{t('app.templates.delete_explains')}</p>
-      {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-      <Inline gap="100">
-        <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
-          {t('app.templates.delete')}
-        </Button>
-        <Button tone="secondary" onclick={() => (deleting = undefined)}>{t('app.workspace.cancel')}</Button>
-      </Inline>
-    </Stack>
-  </Dialog>
-{/if}
-
 <style>
   .list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-100); }
+
+  .confirm { display: flex; flex-direction: column; gap: var(--sp-100); padding-block-start: var(--sp-100); }
 
   .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
 

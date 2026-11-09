@@ -40,7 +40,7 @@
   }
 </script>
 
-<Dialog {title} {isOpen} dismissLabel={t('app.workspace.cancel')} {onClose}>
+<Dialog size="s" {title} {isOpen} dismissLabel={t('app.workspace.cancel')} {onClose}>
   <p class="body">{body}</p>
   {#snippet actions()}
     <Button tone="secondary" onclick={onClose}>{t('app.workspace.cancel')}</Button>

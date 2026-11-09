@@ -82,14 +82,14 @@ test('chromium: with owners not allowed to change it, the address stands without
   const { context, page, sent } = await open(browser, OFF);
   t.after(() => context.close());
 
-  await page.getByRole('heading', { name: 'Address' }).waitFor();
+  await page.getByRole('heading', { name: 'Address', level: 1 }).waitFor();
   await page.getByText('meier.tasks.example.net').waitFor();
   await page.getByText("Changing it is up to this installation's operator.", { exact: false }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Change address' }).count(), 0, 'a control the owner may not use is drawn');
   assert.equal(sent.length, 0);
   // The row sits under "Workspace and people", beside *Workspace*, which no longer shows the address.
   const section = page.getByRole('navigation', { name: 'Administration', exact: true });
-  assert.equal(await section.getByRole('treeitem', { name: 'Address', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await section.getByRole('link', { name: 'Address', exact: true }).getAttribute('aria-current'), 'page');
   await page.goto(`${served.origin}/administration/workspace`);
   await page.getByLabel(/^Name/).waitFor();
   assert.equal(await page.getByText('meier.tasks.example.net').count(), 0, 'the workspace screen still shows the address');

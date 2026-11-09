@@ -34,6 +34,7 @@
     Stack,
     Switch,
     TaskRow,
+    WorkPage,
     canCopy,
   } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
@@ -536,11 +537,12 @@
   $effect(() => page.entitle(t('app.search.title')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />
+<!-- Search is worked in - the line, the results, their selection - so a work page (§7.8). -->
+<WorkPage>
+  {#snippet top()}<PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />{/snippet}
 
   <!-- `data-tour`: where the tour points for the query language. -->
-  <Stack gap="150" data-tour="search">
+  <Stack gap="150" data-tour="search" data-head="search">
     {#if advanced}
       <!-- The whole question as text. Everything the chips can say, and the four things they
            cannot: `title:`, `note:`, `sort:` and a negation. -->
@@ -741,7 +743,7 @@
   {/if}
 
   <OtherHits words={typed} kind={shownKind} modulesOn={manifest.value?.modules_on} oncount={(count) => (otherCount = count)} {onnavigate} />
-</Stack>
+</WorkPage>
 
 <style>
   /* As wide as a sentence of search words, the width the results below are read at. */

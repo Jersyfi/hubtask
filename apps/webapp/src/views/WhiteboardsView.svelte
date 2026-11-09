@@ -89,7 +89,7 @@
 </script>
 
 {#if openRefusal || !current}
-  <div class="waiting">
+  <div class="waiting" data-page-kind="work">
     <h1 class="title">{t('app.whiteboards.title')}</h1>
     {#if openRefusal}
       <FailureNote problem={openRefusal} />
@@ -112,7 +112,7 @@
 {/if}
 
 {#if renaming}
-  <Dialog bind:isOpen={renaming} title={t('app.whiteboards.rename')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={renaming} title={t('app.whiteboards.rename')} dismissLabel={t('app.links.cancel')}>
     <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} maxlength={200} />
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (renaming = false)}>{t('app.links.cancel')}</Button>

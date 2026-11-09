@@ -141,7 +141,7 @@
 {/if}
 
 {#if isOpen}
-  <Dialog bind:isOpen title={t('app.files.dialog_title')} dismissLabel={t('app.files.cancel')}>
+  <Dialog size="m" primary={{ label: t('app.files.confirm'), isBusy: isLinking, disabledReason: address.trim() ? undefined : t('filelink.address_required'), onclick: () => void link() }} bind:isOpen title={t('app.files.dialog_title')} dismissLabel={t('app.files.cancel')}>
     <Stack gap="150">
       <StorePicker picked={picked?.item.ref} onpick={pick} />
       <Input label={t('app.files.address_label')} hint={t('app.files.address_hint')} bind:value={address} maxlength={2048} type="url" />
@@ -154,13 +154,6 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.files.cancel')}</Button>
-      <Button
-        tone="primary"
-        data-confirm-file
-        isBusy={isLinking}
-        disabledReason={address.trim() ? undefined : t('filelink.address_required')}
-        onclick={() => void link()}
-      >{t('app.files.confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}

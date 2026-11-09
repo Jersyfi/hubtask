@@ -118,10 +118,14 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
 
   // The desk is set up at its home's last tab, each form in a dialog opened by its *Add* (§7.4).
   await page.goto(`${served.origin}/desk/settings`);
-  // One settings anatomy (§5.4): the shell's sections at the start, not a second row of tabs, and
-  // the head keeps the home's create act.
-  await page.locator('[data-settings-page] [data-settings-sections]').waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('[data-settings-page] [role="tablist"]').count(), 0, 'the desk settings draw a second row of tabs');
+  // The home's last tab (the navigation concept §4): its view bar stays with *Settings* current,
+  // the section list beside the section - never a second strip.
+  const sections = page.getByRole('navigation', { name: 'Sections of Service desk settings' });
+  await sections.waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('[data-page-kind="settings"] [role="tablist"]').count(), 0, 'the desk settings draw a second row of tabs');
+  const bar = page.getByRole('navigation', { name: 'Service desk', exact: true });
+  assert.equal(await bar.getByRole('link', { name: 'Settings' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its settings');
+  assert.equal(await page.getByRole('button', { name: 'New request' }).count(), 0, 'the settings tab offers the home\'s create act');
   await page.getByRole('button', { name: 'Add the calendar' }).click();
   const calendarForm = page.getByRole('dialog').locator('form');
   await calendarForm.getByLabel('Name').fill('Office hours');
@@ -130,7 +134,7 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await calendarForm.getByRole('button', { name: 'Add the calendar' }).click();
   await page.getByText('Office hours').first().waitFor({ timeout: 5_000 });
 
-  await page.locator('[data-settings-sections]').getByRole('link', { name: 'SLA policies' }).click();
+  await sections.getByRole('link', { name: 'SLA policies' }).click();
   await page.getByRole('button', { name: 'Add the policy' }).click();
   const policyForm = page.getByRole('dialog').locator('form');
   await policyForm.getByLabel('Name').fill('Standard');
@@ -179,10 +183,13 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await first.waitFor({ state: 'detached', timeout: 5_000 });
 
   const second = page.locator('article').filter({ hasText: OTHER_REQUEST.title });
+  // The reason is written in the Dialog M the card's *Decline* opens: a card holds no form (PS-4).
   await second.getByRole('button', { name: 'Decline' }).click();
-  await second.getByRole('alert').filter({ hasText: 'Say why you decline first.' }).waitFor({ timeout: 5_000 });
-  await second.getByLabel('Reason').fill('Not in this quarter\'s budget.');
-  await second.getByRole('button', { name: 'Decline' }).click();
+  const answer = page.getByRole('dialog');
+  await answer.getByRole('button', { name: 'Decline' }).click();
+  await answer.getByRole('alert').filter({ hasText: 'Say why you decline first.' }).waitFor({ timeout: 5_000 });
+  await answer.getByLabel('Reason').fill('Not in this quarter\'s budget.');
+  await answer.getByRole('button', { name: 'Decline' }).click();
   await second.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByText('Nothing waits for your yes').waitFor({ timeout: 5_000 });
 
@@ -252,7 +259,7 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
   const { page } = walk;
   await page.goto(`${served.origin}/desk/settings`);
   await page.locator('[data-itil-defaults]').click();
-  await page.waitForURL(/\/administration\/presets\?template=itil_service_desk$/, { timeout: 10_000 });
+  await page.waitForURL(/\/administration\/templates\?template=itil_service_desk$/, { timeout: 10_000 });
   await page.getByRole('dialog').waitFor({ timeout: 10_000 });
   assert.deepEqual(plans, [''], 'the ITIL plan was not asked for the workspace once');
   assert.deepEqual(walk.errors(), []);

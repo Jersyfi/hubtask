@@ -166,7 +166,7 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
 
   // Spacious for a thumb, and the bar the thumb reaches (the navigation concept §9).
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
-  const bar = page.getByRole('navigation', { name: 'Sections' });
+  const bar = page.getByRole('navigation', { name: 'Sections', exact: true });
   for (const name of ['Today', 'Browse', 'Inbox', 'Search']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
   // The ＋ is an act: a button, never a link (UC-WRK-26 check 1).
   assert.equal(await bar.getByRole('button', { name: 'Capture' }).count(), 1, 'the bottom bar has no capture');
@@ -190,6 +190,13 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
   // ‹ the level above is the hub's step.
   await page.locator('[data-phone-bar] [data-back]').click();
   await page.waitForFunction((id) => location.pathname === `/browse/hubs/${id}`, HUB.id, { timeout: 5_000 });
+  // Browse returns to the hub's step where it was left, a second tap to its root.
+  await bar.getByRole('link', { name: 'Today' }).click();
+  await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
+  await bar.getByRole('link', { name: 'Browse' }).click();
+  await page.waitForFunction((id) => location.pathname === `/browse/hubs/${id}`, HUB.id, { timeout: 5_000 });
+  await bar.getByRole('link', { name: 'Browse' }).click();
+  await page.waitForFunction(() => location.pathname === '/browse', null, { timeout: 5_000 });
 
   // The avatar on a root opens the account group as a sheet: the name at its head, the rows,
   // sign out last.
@@ -203,27 +210,23 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
   assert.deepEqual(named, ACCOUNT_GROUP, `the sheet holds ${JSON.stringify(items)}`);
   await sheet.getByRole('link', { name: 'Your settings' }).or(sheet.getByRole('button', { name: 'Your settings' })).first().click();
   await sheet.waitFor({ state: 'hidden', timeout: 5_000 });
-  assert.equal(new URL(page.url()).pathname, '/profile');
-  assert.equal(await bar.locator('[aria-current="page"]').count(), 0, 'a place of the bar is current in Your settings');
-
-  // Your settings is a section of its own (ADR-0065 decision 3), its list behind ☰ - and its first
-  // row is the way out, which is what a section somebody cannot leave would be missing.
-  const toggle = page.getByRole('button', { name: 'Open the navigation' });
-  await toggle.click();
-  const settings = page.locator('dialog[open]');
+  // Your settings is a level of the Browse stack (the navigation concept §9): its groups a step
+  // of their own, under the same bottom bar, the way up the bar's.
+  await page.waitForFunction(() => location.pathname === '/profile/browse', null, { timeout: 5_000 });
+  const settings = page.getByRole('navigation', { name: 'Your settings', exact: true });
   await settings.waitFor({ timeout: 5_000 });
   assert.equal(await settings.getByRole('link', { name: 'Trash' }).count() + await settings.getByRole('treeitem', { name: 'Trash' }).count(), 0, 'the sidebar is drawn inside the section');
-  await settings.getByRole('treeitem', { name: 'Signed in', exact: true }).click();
-  await settings.waitFor({ state: 'hidden', timeout: 5_000 });
-  assert.equal(new URL(page.url()).pathname, '/profile/sessions');
-  await toggle.click();
-  await page.locator('dialog[open]').getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await settings.getByRole('link', { name: 'Signed in', exact: true }).click();
+  await page.waitForFunction(() => location.pathname === '/profile/sessions', null, { timeout: 5_000 });
+  const up = page.locator('[data-phone-bar] [data-back]');
+  await up.click();
+  await page.waitForFunction(() => location.pathname === '/profile/browse', null, { timeout: 5_000 });
+  await up.click();
+  await page.waitForFunction(() => location.pathname === '/browse', null, { timeout: 5_000 });
+  await bar.getByRole('link', { name: 'Today' }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
 
-  // The trash, through Browse's foot: Browse returns to the hub's step where it was left, a
-  // second tap to its root.
-  await bar.getByRole('link', { name: 'Browse' }).click();
-  await page.waitForFunction((id) => location.pathname === `/browse/hubs/${id}`, HUB.id, { timeout: 5_000 });
+  // The trash, through Browse's foot: Browse returns to its step where it was left.
   await bar.getByRole('link', { name: 'Browse' }).click();
   await page.waitForFunction(() => location.pathname === '/browse', null, { timeout: 5_000 });
   await page.locator('[data-browse-step]').getByRole('link', { name: 'Trash' }).click();
@@ -249,7 +252,7 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   t.after(close);
   await common(page, 600);
 
-  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar on a tablet');
+  assert.equal(await page.getByRole('navigation', { name: 'Sections', exact: true }).count(), 0, 'a bottom bar on a tablet');
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 0, 'spacious with a mouse on a tablet');
   await page.getByRole('button', { name: 'Open the navigation' }).click();
   const drawer = page.locator('dialog[open]');
@@ -315,7 +318,7 @@ for (const width of [905, 1280]) {
     t.after(close);
     await common(page, width);
 
-    assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, `${width}: a bottom bar on a desk`);
+    assert.equal(await page.getByRole('navigation', { name: 'Sections', exact: true }).count(), 0, `${width}: a bottom bar on a desk`);
     assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, `${width}: a drawer trigger on a desk`);
     // The sidebar's three regions (the navigation concept, §2.1): *For you* at the top, the
     // workspace level in the middle, the foot pinned below (ADR-0063 decision 1).
@@ -571,7 +574,7 @@ test('chromium: 375 px — signed out, nothing is reserved for a bar that is not
   const { page, failures, close } = await open(browser, 375, { signedIn: false });
   t.after(close);
 
-  assert.equal(await page.getByRole('navigation', { name: 'Sections' }).count(), 0, 'a bottom bar without a session');
+  assert.equal(await page.getByRole('navigation', { name: 'Sections', exact: true }).count(), 0, 'a bottom bar without a session');
   const box = await page.evaluate(() => ({ document: document.documentElement.scrollHeight, window: window.innerHeight }));
   assert.equal(box.document, box.window, `the sign-in screen scrolls ${box.document - box.window} px into nothing`);
 

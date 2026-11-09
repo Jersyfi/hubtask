@@ -1,123 +1,149 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's groups: a name, the people in it, and what happens when it goes.
-  //
-  // Drawn as *People*'s *Groups* tab, which carries the head, the trail and the title.
+  // The workspace's groups as *People*'s *Groups* list page (page-system §7.1, §9.2): one row per
+  // group, opening its record page (GroupView), where its members and roles are; *New group* in the
+  // head opens a Dialog M.
   //
   // **A group is a way to grant a role once instead of eleven times.** That is also why deleting
-  // one is not a tidy-up: what the group granted, nobody holds afterwards. The screen says that
-  // before it offers the button rather than in the dialog after it — somebody deciding whether to
-  // press is the person who needs to know.
+  // one is not a tidy-up: what the group granted, nobody holds afterwards - the confirmation says
+  // so before the button.
   //
-  // **Members are set whole.** `PATCH /groups/{id}` takes "the complete membership after the
-  // change", so adding one person means sending the list with them in it. The screen composes it;
-  // a caller that sent one identifier would empty the group.
+  // **A group passes on every role it holds.** The server answers `members_changeable`, and the
+  // delete is offered only where it says yes (domain-model.md §3.2, P-05). Renaming places
+  // nothing, so it asks only MANAGE_MEMBERS, like every write here.
   //
-  // **A group passes on every role it holds.** Joining one that holds a role above the reader's
-  // own would make them more than they are, so the server answers `members_changeable` and the
-  // member controls and the delete are drawn only where it says yes (domain-model.md §3.2, P-05);
-  // the screen says why where they are left out. Renaming places nothing, so it does not wait on
-  // that answer; it asks MANAGE_MEMBERS on the server like every write here and is offered only to
-  // a reader who holds it.
-  //
-  // **Any member may read this.** The contract's reasoning, not a relaxation: a membership granted
-  // to a group is unreadable until the group can be shown as the people it reaches. What it
-  // discloses is a name and identifiers that resolve through the same minimal read as everywhere
-  // else.
+  // **Any member may read this.** A membership granted to a group is unreadable until the group
+  // can be shown as the people it reaches.
 
-  import { tick, untrack } from 'svelte';
+  import { untrack } from 'svelte';
 
-  import { EmptyState, Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import {
+    Button,
+    DataTable,
+    Dialog,
+    EmptyState,
+    FilterBar,
+    Input,
+    ListPage,
+    Spinner,
+    Stack,
+    Textarea,
+    type DataColumn,
+    type DataRowMenu,
+    type MenuItem,
+  } from '@hubtask/design-system/components';
+  import type { Group } from '@hubtask/sync-engine';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
-
-  import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
+  import DeleteGroupDialog from '../lib/people/DeleteGroupDialog.svelte';
+  import EditGroupDialog from '../lib/people/EditGroupDialog.svelte';
+  import PeopleStrip from '../lib/people/PeopleStrip.svelte';
+  import { peopleHead } from '../lib/people/peoplehead.svelte.ts';
+  import { DiscardGuard } from '../lib/page/discard.svelte.ts';
+  import DiscardDialog from '../lib/page/DiscardDialog.svelte';
+  import { countOf, matchesSearch } from '../lib/page/list.ts';
+  import { holdsHere, mayHere } from '../lib/data/capability.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { page } from '../lib/frame/page.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
+  import { sorting } from '../lib/sorting.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+
+  const { onnavigate, onopen }: { onnavigate?: (path: string) => void; onopen?: (path: string) => void } = $props();
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
-  let newName = $state('');
-  /**
-   * What a press found missing - a new group's name, a renamed one's, the person to add - marked at
-   * its field, focus on it, nothing sent (UC-WRK-32 check 3). Keyed by the field, so one group's
-   * mark is not another's.
-   */
-  let missing = $state<Missing>({});
-
-  /** For the presses outside a form: marks one field and moves focus to it. */
-  function markOne(key: string, isFilled: boolean): boolean {
-    missing = check([{ kind: 'field', key, code: key.startsWith('add:') ? 'app.forms.choose' : 'app.forms.required', isFilled }]);
-    if (isComplete(missing)) return true;
-    void tick().then(() => focusFirst(document));
-    return false;
-  }
-  let renaming = $state<string | undefined>(undefined);
-  let renamed = $state('');
-  let removing = $state<string | undefined>(undefined);
-  let adding = $state<Record<string, string>>({});
-  let failure = $state<string | undefined>(undefined);
-  let isWriting = $state(false);
-
   $effect(() =>
     untrack(() => {
-      // The workspace's memberships are what says who could join a group at all.
       people.openScope(TENANT);
       return groups.open();
     }),
   );
+  $effect(() => page.entitle(t('app.people.title')));
 
   const reading = $derived(groups.state);
   const all = $derived(groups.all);
 
-  /** Everybody this workspace knows about, for the "add somebody" chooser. */
-  const candidates = $derived(people.candidates({}));
-
   $effect(() => {
-    // One read per group, for the members it holds. Asked for here rather than in the store,
-    // because it is this screen that wants them listed.
+    // One read per group, for its members and whether this reader may change them.
     for (const group of all) if (!groups.detail(group.id)) void groups.read(group.id);
   });
 
-  function membersOf(groupId: string): readonly string[] {
-    return groups.detail(groupId)?.members ?? [];
-  }
-
-  /** Whether the server lets this reader change who is in the group, and delete it. */
-  function changeable(groupId: string): boolean {
-    return groups.detail(groupId)?.members_changeable === true;
-  }
-
-  /** Whether the reader may rename a group: MANAGE_MEMBERS on the workspace. The server decides. */
+  const membersOf = (groupId: string): readonly string[] => groups.detail(groupId)?.members ?? [];
+  const changeable = (groupId: string): boolean => groups.detail(groupId)?.members_changeable === true;
   const mayRename = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  const mayCreate = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
 
-  function nameFor(accountId: string): string {
-    return accounts.nameOf(accountId) ?? t('app.people.unnamed');
+  // The search narrows the groups loaded: `GET /groups` has no search of its own yet.
+  let search = $state('');
+  const shown = $derived(all.filter((group) => matchesSearch(search, [group.name, group.description ?? undefined])));
+  // The foot (page-system D-1): *Showing 50 of 120* while pages are unread, and the next page by the cursor.
+  const counted = $derived(countOf(shown.length, groups.total, search !== ''));
+  const shownLabel = $derived(
+    shown.length < counted
+      ? t('app.page.showing_of', { shown: String(shown.length), count: String(counted) })
+      : t('app.page.showing', { count: String(shown.length) }),
+  );
+  let isReadingMore = $state(false);
+  async function readMore(): Promise<void> {
+    isReadingMore = true;
+    try {
+      await groups.readMore();
+    } finally {
+      isReadingMore = false;
+    }
   }
 
-  function choicesFor(groupId: string) {
-    const held = new Set(membersOf(groupId));
-    return candidates
-      .filter((id) => !held.has(id))
-      .map((id) => ({ value: id, label: nameFor(id) }));
-  }
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.groups.name'), isSortable: true, priority: 1 },
+    { id: 'description', label: t('app.groups.description'), priority: 2 },
+    { id: 'members', label: t('app.groups.members'), isSortable: true, priority: 3 },
+  ]);
+  const order = sorting({
+    rows: () => shown,
+    read: (group: Group, columnId) => (columnId === 'members' ? membersOf(group.id).length : group.name),
+  });
 
-  async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
+  // New group: a name and a description, a Dialog M.
+  let isCreating = $state(false);
+  let newName = $state('');
+  let newDescription = $state('');
+  let missing = $state<Missing>({});
+  let failure = $state<string | undefined>(undefined);
+  let isWriting = $state(false);
+  let createForm = $state<HTMLFormElement | undefined>(undefined);
+
+  function reset(): void {
+    newName = '';
+    newDescription = '';
+    missing = {};
+    failure = undefined;
+  }
+  const createGuard = new DiscardGuard(() => newName.trim() !== '' || newDescription.trim() !== '', () => {
+    isCreating = false;
+    reset();
+  });
+
+  async function create(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const name = newName.trim();
+    missing = marked(event, [{ kind: 'field', key: 'new', code: 'app.forms.required', isFilled: name !== '' }]);
+    if (!isComplete(missing)) return;
     failure = undefined;
     isWriting = true;
     try {
-      await work();
-      // Said out loud on success (4.1.3): what changed is on the screen, and a reader who cannot
-      // see the screen is told the same thing once, through the one live region.
-      if (said) announcer.say(said);
+      await groups.create(name, newDescription.trim() || undefined);
+      announcer.say(t('app.groups.created_announced'));
+      toast.show({ text: t('app.groups.created_toast', { name }), tone: 'success' });
+      isCreating = false;
+      reset();
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     } finally {
@@ -125,225 +151,120 @@
     }
   }
 
-  async function create(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const name = newName.trim();
-    missing = marked(event, [{ kind: 'field', key: 'new', code: 'app.forms.required', isFilled: name !== '' }]);
-    if (!isComplete(missing)) return;
-    await attempt(() => groups.create(name), t('app.groups.created_announced'));
-    newName = '';
+  // A row's ⋯: open it, edit it, delete it - the destructive one last.
+  let editing = $state<Group | undefined>(undefined);
+  let removing = $state<Group | undefined>(undefined);
+
+  function rowMenu(group: Group): DataRowMenu {
+    const items: MenuItem[] = [
+      { id: 'open', label: t('app.page.open') },
+      ...(mayRename ? [{ id: 'edit', label: t('app.groups.edit_menu') }] : []),
+      ...(changeable(group.id) ? [{ id: 'delete', label: t('app.groups.delete_menu'), isDestructive: true, hasSeparatorBefore: true }] : []),
+    ];
+    return { label: t('app.page.more_for', { name: group.name }), items };
   }
 
-  async function rename(groupId: string): Promise<void> {
-    const name = renamed.trim();
-    if (!markOne('rename', name !== '')) return;
-    await attempt(() => groups.update(groupId, { name }), t('app.groups.renamed_announced'));
-    renaming = undefined;
-    renamed = '';
+  function onRowMenu(group: Group, id: string): void {
+    if (id === 'open') onopen?.(`/administration/groups/${group.id}`);
+    else if (id === 'edit') editing = group;
+    else if (id === 'delete') removing = group;
   }
 
-  /** Adding and removing are the same call: the list as it should be afterwards. */
-  async function setMembers(groupId: string, members: readonly string[]): Promise<void> {
-    await attempt(() => groups.update(groupId, { members }), t('app.groups.members_announced'));
-  }
+  const primary = $derived(
+    mayCreate
+      ? { label: t('app.groups.new_title'), icon: 'plus' as const, opener: 'new-group', onclick: () => { reset(); isCreating = true; } }
+      : undefined,
+  );
 </script>
 
-<Stack gap="300">
-    <Stack gap="300">
-    <p class="quiet">{t('app.groups.intro')}</p>
+<ListPage head={peopleHead(primary)}>
+  {#snippet strip()}<PeopleStrip current="groups" {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t('app.groups.intro')}</p>{/snippet}
+  {#snippet filters()}
+    <FilterBar
+      searchLabel={t('app.groups.search')}
+      clearSearchLabel={t('app.page.clear_search')}
+      bind:search
+      countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(all.length) }) : undefined}
+    />
+  {/snippet}
 
-    {#if failure}<FailureNote problem={failure} />{/if}
+  <!-- Says once, to a reader who may not manage members, why nothing here changes. -->
+  <WorkspaceGate permission="MANAGE_MEMBERS" />
 
-    {#if reading.status === 'loading' || reading.status === 'idle'}
-      <p class="waiting"><Spinner label={t('app.groups.reading')} /> <span>{t('app.groups.reading')}</span></p>
-    {:else}
-      {#each all as group (group.id)}
-        <section class="group">
-          <Stack gap="150">
-            <div class="head">
-              {#if renaming === group.id}
-                <Input label={t('app.groups.name')} bind:value={renamed} isRequired error={missing.rename && !renamed.trim() ? t(missing.rename) : undefined} />
-                <Button
-                  tone="primary"
-                  isBusy={isWriting}
-                  busyLabel={t('app.groups.working')}
-                  onclick={() => void rename(group.id)}
-                >
-                  {t('app.groups.save_name')}
-                </Button>
-                <Button tone="subtle" onclick={() => (renaming = undefined)}>{t('app.groups.cancel')}</Button>
-              {:else}
-                <h2 class="name">{group.name}</h2>
-                {#if mayRename}
-                <Button
-                  size="sm"
-                  tone="subtle"
-                  onclick={() => {
-                    renaming = group.id;
-                    renamed = group.name;
-                  }}
-                >
-                  {t('app.groups.rename')}
-                </Button>
-                {/if}
-              {/if}
-            </div>
+  {#if reading.status === 'loading' || reading.status === 'idle'}
+    <p class="quiet"><Spinner label={t('app.groups.reading')} /> <span>{t('app.groups.reading')}</span></p>
+  {:else}
+    <DataTable
+      label={t('app.groups.title')}
+      {columns}
+      rows={order.rows}
+      key={(group: Group) => group.id}
+      href={(group: Group) => `/administration/groups/${group.id}`}
+      rowLabel={(group: Group) => group.name}
+      menu={rowMenu}
+      onmenu={onRowMenu}
+      actionsLabel={t('app.page.row_actions')}
+      sheetDismissLabel={t('app.page.sheet_close')}
+      sheetGrabLabel={t('app.page.sheet_grab')}
+      sort={order.sort}
+      onSort={(next) => order.by(next)}
+      shownLabel={all.length === 0 ? undefined : shownLabel}
+      more={groups.hasMore && search === ''
+        ? { label: t('app.groups.load_more'), isBusy: isReadingMore, hasMore: true, onLoadMore: () => void readMore() }
+        : undefined}
+    >
+      {#snippet cell(group: Group, column: DataColumn)}
+        {#if column.id === 'name'}
+          <span class="name">{group.name}</span>
+        {:else if column.id === 'description'}
+          <span class="quiet">{group.description ?? ''}</span>
+        {:else if groups.detail(group.id)}
+          {t('app.groups.member_count', { count: String(membersOf(group.id).length) })}
+        {/if}
+      {/snippet}
+      {#snippet empty()}
+        {#if all.length === 0}
+          <EmptyState kind="unused" title={t('app.groups.none')} />
+        {:else}
+          <EmptyState kind="filtered" title={t('app.groups.filtered_title')}>
+            {#snippet action()}<Button onclick={() => (search = '')}>{t('app.people.filtered_clear')}</Button>{/snippet}
+          </EmptyState>
+        {/if}
+      {/snippet}
+    </DataTable>
+  {/if}
+</ListPage>
 
-            {#if group.description}<p class="quiet small">{group.description}</p>{/if}
+{#if mayCreate}
+  <Dialog
+    size="m"
+    title={t('app.groups.new_title')}
+    bind:isOpen={isCreating}
+    dismissLabel={t('app.groups.cancel')}
+    onDismiss={createGuard.dismiss}
+    onClose={reset}
+    primary={{ label: t('app.groups.create'), isBusy: isWriting, busyLabel: t('app.groups.working'), onclick: () => createForm?.requestSubmit() }}
+  >
+    <form bind:this={createForm} onsubmit={create}>
+      <Stack gap="150">
+        {#if failure}<FailureNote problem={failure} />{/if}
+        <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired error={missing.new && !newName.trim() ? t(missing.new) : undefined} />
+        <Textarea label={t('app.groups.description')} hint={t('app.groups.description_hint')} bind:value={newDescription} />
+      </Stack>
+    </form>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => { if (createGuard.dismiss()) { isCreating = false; reset(); } }}>{t('app.groups.cancel')}</Button>
+    {/snippet}
+  </Dialog>
+  <DiscardDialog guard={createGuard} />
+{/if}
 
-            <ul class="members">
-              {#each membersOf(group.id) as member (member)}
-                <li>
-                  <span>{nameFor(member)}</span>
-                  {#if changeable(group.id)}
-                  <Button
-                    size="sm"
-                    tone="subtle"
-                    isBusy={isWriting}
-                    busyLabel={t('app.groups.working')}
-                    onclick={() =>
-                      void setMembers(group.id, membersOf(group.id).filter((id) => id !== member))}
-                  >
-                    {t('app.groups.remove_member')}
-                  </Button>
-                  {/if}
-                </li>
-              {:else}
-                <li class="quiet small">{t('app.groups.empty')}</li>
-              {/each}
-            </ul>
-
-            {#if !changeable(group.id)}
-              <!-- Without MANAGE_MEMBERS no group is changeable, and the page's notice says why. -->
-              {#if groups.detail(group.id) && mayRename}
-                <p class="quiet small">{t('app.groups.above_own')}</p>
-              {/if}
-            {:else}
-            <div class="add">
-              <Select
-                label={t('app.groups.add_member')}
-                bind:value={
-                  // A group nobody has chosen for yet has no entry, and binding undefined to a
-                  // value with a fallback stops the whole screen; the choice starts empty instead.
-                  () => adding[group.id] ?? '',
-                  (chosen) => (adding = { ...adding, [group.id]: chosen })
-                }
-                placeholder={t('app.people.choose_person')}
-                options={choicesFor(group.id)}
-                error={missing[`add:${group.id}`] && !adding[group.id] ? t(missing[`add:${group.id}`] ?? '') : undefined}
-              />
-              <Button
-                isBusy={isWriting}
-                busyLabel={t('app.groups.working')}
-                onclick={() => {
-                  const chosen = adding[group.id];
-                  if (!markOne(`add:${group.id}`, Boolean(chosen)) || !chosen) return;
-                  void setMembers(group.id, [...membersOf(group.id), chosen]);
-                  adding = { ...adding, [group.id]: '' };
-                }}
-              >
-                {t('app.groups.add')}
-              </Button>
-            </div>
-
-            {#if removing === group.id}
-              <!-- Said before the button, not after it. -->
-              <Banner tone="warning">{t('app.groups.delete_cost')}</Banner>
-              <div class="row">
-                <Button
-                  tone="danger"
-                  isBusy={isWriting}
-                  busyLabel={t('app.groups.working')}
-                  onclick={() =>
-                    void attempt(async () => {
-                      await groups.remove(group.id);
-                      removing = undefined;
-                    }, t('app.groups.removed_announced'))}
-                >
-                  {t('app.groups.delete_now')}
-                </Button>
-                <Button tone="subtle" onclick={() => (removing = undefined)}>{t('app.groups.keep')}</Button>
-              </div>
-            {:else}
-              <div>
-                <Button size="sm" tone="secondary" onclick={() => (removing = group.id)}>
-                  {t('app.groups.delete')}
-                </Button>
-              </div>
-            {/if}
-            {/if}
-          </Stack>
-        </section>
-      {:else}
-        <EmptyState kind="unused" title={t('app.groups.none')} />
-      {/each}
-    {/if}
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.groups.new_title')}</h2>
-      <WorkspaceGate permission="MANAGE_MEMBERS">
-        {#snippet actions()}
-        <form class="panel" onsubmit={create}>
-          <Stack gap="150">
-            <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired error={missing.new && !newName.trim() ? t(missing.new) : undefined} />
-            <div>
-              <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.groups.working')}>
-                {t('app.groups.create')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-        {/snippet}
-      </WorkspaceGate>
-    </Stack>
-    </Stack>
-</Stack>
+<EditGroupDialog group={editing} onClose={() => (editing = undefined)} />
+<DeleteGroupDialog group={removing} memberCount={removing ? membersOf(removing.id).length : 0} onClose={() => (removing = undefined)} />
 
 <style>
-  /* The screen takes the region it is given, and what needs a measure carries one: prose has the
-     one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
-     (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
-     around a screen that is not a document. */
-
-  .section,
-  .name { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .small { font-size: var(--fs-075); }
-
-  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-
-  .group {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-
-  .members { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-
-  .members li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .add { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
-
-  /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
-     input as wide as the region is a target nobody aims at, so the fields carry a measure of
-     their own while the lists and tables beside them take the width. */
-  form { margin: 0; max-inline-size: 52ch; }
-
-  /* The surface a form stands on, as the other screens of the section draw one: a standalone
-     element in the sense of design-system.md rule 1, on the frame's canvas. */
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  .name { color: var(--text-primary); font-weight: var(--fw-medium); }
+  form { margin: 0; }
 </style>

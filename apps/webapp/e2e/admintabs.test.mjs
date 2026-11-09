@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, ADMIN_GRANTS, MANIFEST, OTHER, OWNER_GRANTS, PAGE, PERMISSIONS, SIGN_IN_POLICY, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, waysOffered } from './addpeople.mjs';
+import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, wayDialog, waysOffered } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -81,7 +81,8 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
   for (const [old, now, tab] of MOVED) {
     await page.goto(`${served.origin}${old}`);
     await landsOn(page, now);
-    const selected = page.getByRole('tab', { name: tab, exact: true });
+    // A tab carries its count once read (page-system §4.3): *Groups 3*.
+    const selected = page.getByRole('tab', { name: new RegExp(`^${tab}( \\d+)?$`) });
     await selected.waitFor({ timeout: 15_000 });
     assert.equal(await selected.getAttribute('aria-selected'), 'true', `${tab} is not the open tab at ${now}`);
     assert.equal(await page.locator('main h1').count(), 1, `${now} has not exactly one heading`);
@@ -89,9 +90,9 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
 
   // Choosing a tab replaces the address, so a reload keeps it.
   await page.goto(`${served.origin}/administration/people`);
-  await page.getByRole('tab', { name: 'Groups', exact: true }).click();
+  await page.getByRole('tab', { name: /^Groups( \d+)?$/ }).click();
   await landsOn(page, '/administration/people?tab=groups');
-  await page.getByRole('tab', { name: 'People', exact: true }).click();
+  await page.getByRole('tab', { name: /^People( \d+)?$/ }).click();
   await landsOn(page, '/administration/people');
   await page.goto(`${served.origin}/administration/machines`);
   await page.getByRole('tab', { name: 'Third-party apps', exact: true }).click();
@@ -99,10 +100,10 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
 
   // The section's column marks *People* on its tabs and *Machines and apps* on its own.
   const section = page.getByRole('navigation', { name: 'Administration', exact: true });
-  assert.equal(await section.getByRole('treeitem', { name: 'Machines and apps', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await section.getByRole('link', { name: 'Machines and apps', exact: true }).getAttribute('aria-current'), 'page');
   await page.goto(`${served.origin}/administration/people?tab=permissions`);
   await page.getByRole('tab', { name: 'Who may do what', exact: true }).waitFor({ timeout: 15_000 });
-  assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await section.getByRole('link', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
   assert.deepEqual(failures, []);
 });
@@ -124,19 +125,22 @@ for (const [who, permissions, grants] of [['an owner', PERMISSIONS.OWNER, OWNER_
     await addPeople(page);
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('type')), 'email', 'the address field is not focused');
 
-    // One way at a time: choosing another replaces the open one.
+    // One way at a time: each is a dialog over the list, and the next opens once it is closed.
+    await wayDialog(page, INVITE).getByRole('button', { name: 'Cancel', exact: true }).click();
     await addPeople(page, GRANT);
     assert.equal(await page.getByRole('heading', { name: INVITE }).count(), 0, 'two ways are open at once');
+    await wayDialog(page, GRANT).getByRole('button', { name: 'Cancel', exact: true }).click();
     await addPeople(page, WITHOUT_ADDRESS);
     assert.equal(await page.getByRole('heading', { name: GRANT }).count(), 0, 'two ways are open at once');
 
     // Closed, the list is alone again and focus is back on the action that opened it.
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     assert.equal(await page.getByRole('heading', { name: WITHOUT_ADDRESS }).count(), 0, 'the form stayed open');
-    assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Add people');
+    // The way was chosen from the list beside *Add people*: the focus returns to that control.
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'Ways to add somebody');
 
     // The action belongs to the people: the other tabs carry none.
-    await page.getByRole('tab', { name: 'Groups', exact: true }).click();
+    await page.getByRole('tab', { name: /^Groups( \d+)?$/ }).click();
     await landsOn(page, '/administration/people?tab=groups');
     assert.equal(await page.getByRole('button', { name: 'Add people', exact: true }).count(), 0, 'the groups offer Add people');
 
@@ -155,8 +159,8 @@ test('chromium: an auditor reads the people, the groups and the roles, and is of
   assert.equal(await page.getByRole('button', { name: 'Add people', exact: true }).count(), 0, 'an auditor is offered Add people');
   assert.equal(await page.getByRole('button', { name: 'Ways to add somebody' }).count(), 0, 'an auditor is offered the ways');
   for (const tab of ['Groups', 'Who may do what']) {
-    await page.getByRole('tab', { name: tab, exact: true }).click();
-    assert.equal(await page.getByRole('tab', { name: tab, exact: true }).getAttribute('aria-selected'), 'true');
+    await page.getByRole('tab', { name: new RegExp(`^${tab}( \\d+)?$`) }).click();
+    assert.equal(await page.getByRole('tab', { name: new RegExp(`^${tab}( \\d+)?$`) }).getAttribute('aria-selected'), 'true');
   }
 
   assert.deepEqual(failures, []);
@@ -177,7 +181,7 @@ test('chromium: 375 px — the three ways are in the head\'s menu under the same
 });
 
 for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
-  test(`chromium: ${who} finds AI in three sections, each with an address of its own`, async (t) => {
+  test(`chromium: ${who} finds AI in its sections, each with an address of its own`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await as(browser, permissions, []);
@@ -187,21 +191,23 @@ for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor'
     const sections = page.getByRole('navigation', { name: 'Sections of AI' });
     const tabs = sections.getByRole('link');
     await tabs.first().waitFor({ timeout: 15_000 });
-    assert.deepEqual((await tabs.allTextContents()).map((name) => name.trim()), ['Source', 'Consent and people', 'Budget']);
+    // Where only the workspace's own model may answer, there is no source to choose (page-system §7.3).
+    const names = (await tabs.allTextContents()).map((name) => name.trim().split(/\s{2,}/)[0]);
+    assert.deepEqual(names, ['Our own model', 'Consent and people', 'Budget']);
 
-    // Each tab holds its own part and nothing of the others'.
-    await sections.getByRole('link', { name: 'Consent and people', exact: true }).click();
-    await landsOn(page, '/administration/ai?tab=consent');
+    // Each section holds its own part and nothing of the others'.
+    await sections.getByRole('link', { name: /^Consent and people/ }).click();
+    await landsOn(page, '/administration/ai/consent');
     await page.locator('[data-person-opt-out]').waitFor();
     assert.equal(await page.getByRole('heading', { name: 'The budget' }).count(), 0, 'the budget is on the consent tab');
-    await sections.getByRole('link', { name: 'Budget', exact: true }).click();
-    await landsOn(page, '/administration/ai?tab=budget');
+    await sections.getByRole('link', { name: /^Budget/ }).click();
+    await landsOn(page, '/administration/ai/budget');
     await page.getByRole('heading', { name: 'The budget' }).waitFor();
     assert.equal(await page.locator('[data-person-opt-out]').count(), 0, 'the people are on the budget tab');
-    await sections.getByRole('link', { name: 'Source', exact: true }).click();
-    await landsOn(page, '/administration/ai');
+    await sections.getByRole('link', { name: /^Our own model/ }).click();
+    await landsOn(page, '/administration/ai/own');
     await page.getByRole('heading', { name: 'The budget' }).waitFor({ state: 'detached', timeout: 5_000 })
-      .catch(() => assert.fail('the budget is on the source tab'));
+      .catch(() => assert.fail('the budget is on the own model section'));
 
     assert.deepEqual(failures, []);
   });
@@ -215,7 +221,8 @@ test('chromium: each shipped role says how many hold it at the workspace (user-e
 
   await page.goto(`${served.origin}/administration/people?tab=roles`);
   // The fixture's workspace: its owner and one member.
-  const held = (role) => page.locator(`[data-shipped-role="${role}"] [data-held]`);
+  // Each role is a row of the roles' list page; its holders stand in the row's own column.
+  const held = (role) => page.getByRole('row').filter({ has: page.locator(`[data-shipped-role="${role}"]`) }).locator('[data-held]');
   await held('OWNER').waitFor({ timeout: 15_000 });
   assert.equal((await held('OWNER').textContent())?.trim(), '1 person at the workspace');
   assert.equal((await held('MEMBER').textContent())?.trim(), '1 person at the workspace');

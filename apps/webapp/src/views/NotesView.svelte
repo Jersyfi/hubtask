@@ -6,7 +6,7 @@
   // shared with them read-only, which is where a guest outside every hub starts (UC-DOC-08).
 
   import { untrack } from 'svelte';
-  import { Button, EmptyState, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ListRow, PageHeader, Skeleton, Stack, WorkPage } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { PersonalSpace, SharedPageList } from '@hubtask/sync-engine';
 
@@ -48,49 +48,59 @@
   }
 </script>
 
-<Stack gap="300">
-  {#if isEmbedded}
+<!-- Embedded, it is a tab of the product's home and that page's kind is the home's (PS-1). -->
+{#if isEmbedded}
+  <Stack gap="300">
     <p class="quiet">{t('app.notes.intro')}</p>
-  {:else}
-    <PageHeader title={t('app.notes.title')} subtitle={t('app.notes.intro')} isTitleInBar={viewport.isCompact} />
-  {/if}
+    {@render content()}
+  </Stack>
+{:else}
+  <WorkPage>
+    {#snippet top()}
+      <PageHeader title={t('app.notes.title')} subtitle={t('app.notes.intro')} isTitleInBar={viewport.isCompact} />
+    {/snippet}
+    {@render content()}
+  </WorkPage>
+{/if}
 
-  <section aria-labelledby="notes-own">
-    <Stack gap="100">
-      <h2 class="heading" id="notes-own">{t('app.notes.own')}</h2>
-      {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
-      <div class="actions">
-        <Button tone="primary" icon="sun" isBusy={isOpening} busyLabel={t('app.notes.opening')} onclick={() => void openToday()}>
-          {t('app.notes.today')}
-        </Button>
-        {#if hubId}
-          <Button tone="secondary" icon="file-text" onclick={() => onnavigate?.(`/hubs/${hubId}/pages`)}>{t('app.notes.all')}</Button>
-        {/if}
-      </div>
-      <p class="quiet">{t('app.notes.own_hint')}</p>
-    </Stack>
-  </section>
+{#snippet content()}
 
-  <section aria-labelledby="notes-shared">
-    <Stack gap="100">
-      <h2 class="heading" id="notes-shared">{t('app.notes.shared')}</h2>
-      {#if sharedFailure}
-        <FailureState problem={sharedFailure} onRetry={() => void shared.refresh()} />
-      {:else if shared.state.status !== 'ready'}
-        <div aria-busy="true"><Skeleton lines={2} /></div>
-      {:else if sharedRows.length === 0}
-        <EmptyState kind="unused" icon="file-text" title={t('app.notes.shared_none')} description={t('app.notes.shared_none_body')} />
-      {:else}
-        {#each sharedRows as row (row.id)}
-          <ListRow href={`/pages/${row.id}`} onactivate={() => onnavigate?.(`/pages/${row.id}`)}>
-            {#if row.icon}<span aria-hidden="true">{row.icon}</span>{/if}
-            {row.title}
-          </ListRow>
-        {/each}
+<section aria-labelledby="notes-own">
+  <Stack gap="100">
+    <h2 class="heading" id="notes-own">{t('app.notes.own')}</h2>
+    {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+    <div class="actions">
+      <Button tone="primary" icon="sun" isBusy={isOpening} busyLabel={t('app.notes.opening')} onclick={() => void openToday()}>
+        {t('app.notes.today')}
+      </Button>
+      {#if hubId}
+        <Button tone="secondary" icon="file-text" onclick={() => onnavigate?.(`/hubs/${hubId}/pages`)}>{t('app.notes.all')}</Button>
       {/if}
-    </Stack>
-  </section>
-</Stack>
+    </div>
+    <p class="quiet">{t('app.notes.own_hint')}</p>
+  </Stack>
+</section>
+
+<section aria-labelledby="notes-shared">
+  <Stack gap="100">
+    <h2 class="heading" id="notes-shared">{t('app.notes.shared')}</h2>
+    {#if sharedFailure}
+      <FailureState problem={sharedFailure} onRetry={() => void shared.refresh()} />
+    {:else if shared.state.status !== 'ready'}
+      <div aria-busy="true"><Skeleton lines={2} /></div>
+    {:else if sharedRows.length === 0}
+      <EmptyState kind="unused" icon="file-text" title={t('app.notes.shared_none')} description={t('app.notes.shared_none_body')} />
+    {:else}
+      {#each sharedRows as row (row.id)}
+        <ListRow href={`/pages/${row.id}`} onactivate={() => onnavigate?.(`/pages/${row.id}`)}>
+          {#if row.icon}<span aria-hidden="true">{row.icon}</span>{/if}
+          {row.title}
+        </ListRow>
+      {/each}
+    {/if}
+  </Stack>
+</section>
+{/snippet}
 
 <style>
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }

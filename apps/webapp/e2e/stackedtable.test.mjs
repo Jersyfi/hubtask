@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// On a phone a list of records is a column of cards of label and value, and nothing scrolls
-// sideways (user-experience.md §5.12): the sessions table at 375 px, against a stubbed API. At a
-// desktop width the same table is a table with its head drawn.
+// On a phone a list of records is a column of list rows, and nothing scrolls sideways
+// (user-experience.md §5.12, page-system §4.4): the sessions' DataTable at 375 px, against a
+// stubbed API. At a desktop width the same table is a table with its head drawn.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ const SESSIONS = [
 ];
 
 for (const [width, isPhone] of [[375, true], [1280, false]]) {
-  test(`chromium: ${width} px — the sessions table ${isPhone ? 'stacks into cards' : 'stays a table'}`, async (t) => {
+  test(`chromium: ${width} px — the sessions table ${isPhone ? 'becomes list rows' : 'stays a table'}`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width, height: 900 } });
@@ -52,17 +52,13 @@ for (const [width, isPhone] of [[375, true], [1280, false]]) {
         pageSideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         headDrawn: node.querySelector('thead').getBoundingClientRect().height > 2,
         rowDisplay: getComputedStyle(row).display,
-        labelled: [...row.cells].filter((cell) => cell.dataset.label).length,
-        role: node.getAttribute('role'),
       };
     });
-    assert.equal(shape.role, 'table', 'a stacked table keeps its role');
-    assert.ok(shape.labelled >= 3, `cells labelled from the columns: ${shape.labelled}`);
     assert.ok(shape.pageSideways <= 0, `the page scrolls sideways by ${shape.pageSideways}px`);
     if (isPhone) {
       assert.ok(shape.sideways <= 0, `the table scrolls sideways by ${shape.sideways}px`);
-      assert.equal(shape.headDrawn, false, 'the column head is drawn above the cards');
-      assert.equal(shape.rowDisplay, 'flex');
+      assert.equal(shape.headDrawn, false, 'the column head is drawn above the list rows');
+      assert.equal(shape.rowDisplay, 'grid');
     } else {
       assert.equal(shape.headDrawn, true);
       assert.equal(shape.rowDisplay, 'table-row');
@@ -70,9 +66,10 @@ for (const [width, isPhone] of [[375, true], [1280, false]]) {
   });
 }
 
-// The role × permission matrix is the widest table in the administration: on a phone one card per
-// role, never a matrix cut at its edge.
-test('chromium: 375 px — who may do what stacks one card per role', async (t) => {
+// The role × permission matrix is the widest table in the administration. It stays a table on a
+// phone (page-system §4.3, §4.4): a matrix read across its rows scrolls sideways inside its own
+// frame with the role column pinned, and the page itself never scrolls sideways.
+test('chromium: 375 px — who may do what scrolls inside its frame with the role pinned', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 375, height: 900 } });
@@ -89,16 +86,22 @@ test('chromium: 375 px — who may do what stacks one card per role', async (t) 
 
   const shape = await table.evaluate((node) => {
     const scroll = node.closest('[role="region"]');
-    const row = node.querySelector('tbody tr');
+    scroll.scrollLeft = scroll.scrollWidth;
+    const role = node.querySelector('tbody th[scope="row"]');
+    const corner = node.querySelector('thead th');
+    const edge = scroll.getBoundingClientRect().left;
     return {
       sideways: scroll.scrollWidth - scroll.clientWidth,
+      scrolled: scroll.scrollLeft,
       pageSideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      headDrawn: node.querySelector('thead').getBoundingClientRect().height > 2,
-      rowDisplay: getComputedStyle(row).display,
+      headDrawn: corner.getBoundingClientRect().height > 2,
+      roleOff: Math.abs(role.getBoundingClientRect().left - edge),
+      cornerOff: Math.abs(corner.getBoundingClientRect().left - edge),
     };
   });
   assert.ok(shape.pageSideways <= 0, `the page scrolls sideways by ${shape.pageSideways}px`);
-  assert.ok(shape.sideways <= 0, `the matrix scrolls sideways by ${shape.sideways}px`);
-  assert.equal(shape.headDrawn, false, 'the column head is drawn above the cards');
-  assert.equal(shape.rowDisplay, 'flex');
+  assert.ok(shape.sideways > 0 && shape.scrolled > 0, 'the matrix does not scroll inside its frame');
+  assert.equal(shape.headDrawn, true, 'the column head is not drawn');
+  assert.ok(shape.roleOff <= 1, `the role column scrolled away by ${shape.roleOff}px`);
+  assert.ok(shape.cornerOff <= 1, `the head's corner scrolled away by ${shape.cornerOff}px`);
 });

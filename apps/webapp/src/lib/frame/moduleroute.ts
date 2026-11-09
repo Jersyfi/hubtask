@@ -12,16 +12,21 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
   'desk-desks': 'SERVICE_DESK',
   'desk-reports': 'SERVICE_DESK',
   'desk-settings': 'SERVICE_DESK',
+  'desk-settings-section': 'SERVICE_DESK',
   'entry-types': 'WORKFLOWS',
   workflows: 'WORKFLOWS',
   'time-settings': 'TIME',
   'assets-classes': 'ASSETS',
+  'assets-class': 'ASSETS',
   'assets-sources': 'ASSETS',
   'assets-settings': 'ASSETS',
+  'assets-settings-section': 'ASSETS',
   approvals: 'SERVICE_DESK',
   notes: 'KNOWLEDGE',
   // The hub tools' pages (the navigation concept §2.4): an old link to a tool switched off says so.
   'hub-plan': 'PLANNING',
+  'hub-plan-table': 'PLANNING',
+  'hub-plan-dependencies': 'PLANNING',
   'hub-plan-releases': 'PLANNING',
   'hub-plan-sprints': 'PLANNING',
   'hub-inventory': 'ASSETS',
@@ -42,6 +47,8 @@ export const PRODUCT_HOMES: Readonly<Record<string, string>> = {
   'desk-home': 'SERVICE_DESK',
   'assets-home': 'ASSETS',
   'agents-home': 'AGENTS',
+  'agents-settings': 'AGENTS',
+  'agents-settings-section': 'AGENTS',
 };
 
 /** The products whose home is a page of its own rather than the one home view. */

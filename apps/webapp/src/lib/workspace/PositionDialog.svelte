@@ -25,7 +25,7 @@
   let { isOpen = $bindable(), id, name, siblings, onmove }: Props = $props();
 </script>
 
-<Dialog bind:isOpen title={t('app.place.position_title', { name })} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="m" bind:isOpen title={t('app.place.position_title', { name })} dismissLabel={t('app.workspace.cancel')}>
   <ol class="order" aria-label={t('app.place.position_order')} data-position-order>
     {#each siblings as each, index (each.id)}
       <li aria-current={each.id === id ? 'true' : undefined}>

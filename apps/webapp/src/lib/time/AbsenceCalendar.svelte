@@ -6,7 +6,7 @@
   // own absences to record, change and remove. Every plan's workload reads them from here.
 
   import { untrack } from 'svelte';
-  import { Button, Dialog, Inline, Input, Radio, Stack, Switch, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, Input, Radio, Stack, Switch, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
   import type { Absence, AbsenceList } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -43,10 +43,19 @@
   $effect(() => { if (rows.length > 0) untrack(() => accounts.resolve(rows.map((row) => row.accountId))); });
   const mine = $derived((absences ?? []).filter((each) => each.account_id === actor.account?.id));
 
-  const columns = $derived<Column[]>([
-    { id: 'person', label: t('app.absences.col_person') },
-    ...days.map((day) => ({ id: day, label: dayHeading(day, messages.locale), align: 'end' as const })),
+  // A person's month is one strip of day marks in one column, not a column per day: the calendar
+  // stays one DataTable that never scrolls sideways (page-system §4.3, PS-4). Priority 2 makes the
+  // strip the row's line on a phone, where a column that is neither title nor line is not drawn.
+  const columns = $derived<DataColumn[]>([
+    { id: 'person', label: t('app.absences.col_person'), priority: 1 },
+    { id: 'month', label: t('app.absences.col_month'), priority: 2 },
   ]);
+  type Row = (typeof rows)[number];
+  const mineColumns = $derived<DataColumn[]>([{ id: 'span', label: t('app.absences.mine'), priority: 1 }]);
+  const mineMenu = (absence: Absence): DataRowMenu => ({
+    label: t('app.page.more_for', { name: formatPlainDay(absence.from, messages.locale) }),
+    items: [{ id: 'remove', label: t('app.absences.remove'), isDestructive: true }],
+  });
 
   let isEditing = $state(false);
   let editing = $state<Absence | undefined>(undefined);
@@ -91,21 +100,24 @@
   </div>
   {#if failure && !isEditing}<p class="failure" role="alert">{failure}</p>{/if}
 
-  <div class="scroll">
-    <Table label={t('app.absences.title')} isLabelHidden {columns}>
-      {#snippet empty()}{t('app.absences.empty')}{/snippet}
-      {#each rows as row (row.accountId)}
-        <tr>
-          <th scope="row">{accounts.nameOf(row.accountId) ?? t('app.people.unnamed')}</th>
+  <DataTable label={t('app.absences.title')} {columns} {rows} key={(row: Row) => row.accountId}>
+    {#snippet cell(row: Row, column: DataColumn)}
+      {#if column.id === 'person'}{accounts.nameOf(row.accountId) ?? t('app.people.unnamed')}
+      {:else}
+        <ol class="month">
           {#each row.days as absence, i (i)}
-            <td class="day" class:away={absence !== undefined} title={absence ? t(`app.absences.kind_${absence.kind}`) : undefined}>
-              {#if absence}{t(`app.absences.short_${absence.kind}`)}{absence.half ? t('app.absences.half_mark') : ''}{/if}
-            </td>
+            <li class="day" class:week={i % 7 === 0}
+              aria-label={`${dayHeading(days[i] ?? '', messages.locale)}${absence ? `: ${t(`app.absences.kind_${absence.kind}`)}` : ''}`}
+              title={absence ? t(`app.absences.kind_${absence.kind}`) : undefined}>
+              <span class="number" aria-hidden="true">{i + 1}</span>
+              <span class="mark" class:away={absence !== undefined}>{#if absence}{t(`app.absences.short_${absence.kind}`)}{absence.half ? t('app.absences.half_mark') : ''}{/if}</span>
+            </li>
           {/each}
-        </tr>
-      {/each}
-    </Table>
-  </div>
+        </ol>
+      {/if}
+    {/snippet}
+    {#snippet empty()}<p class="quiet">{t('app.absences.empty')}</p>{/snippet}
+  </DataTable>
   <p class="quiet">{t('app.absences.legend')}</p>
 
   <section class="block" aria-labelledby="my-absences">
@@ -113,23 +125,24 @@
     {#if mine.length === 0}
       <p class="quiet">{t('app.absences.none_mine')}</p>
     {:else}
-      <ul class="list">
-        {#each mine as absence (absence.id)}
-          <li>
-            <span>{t('app.absences.span', { from: formatPlainDay(absence.from, messages.locale), to: formatPlainDay(absence.to, messages.locale), kind: t(`app.absences.kind_${absence.kind}`) })}{absence.half ? ` · ${t('app.absences.half')}` : ''}</span>
-            <Inline gap="050">
-              <Button size="sm" tone="subtle" icon="pencil" onclick={() => open(absence)}>{t('app.absences.edit')}</Button>
-              <Button size="sm" tone="subtle" icon="trash" onclick={() => void remove(absence)}>{t('app.absences.remove')}</Button>
-            </Inline>
-          </li>
-        {/each}
-      </ul>
+      <DataTable label={t('app.absences.mine')} columns={mineColumns} rows={mine} key={(absence: Absence) => absence.id}
+        onopen={(absence: Absence) => open(absence)} menu={mineMenu} onmenu={(absence: Absence) => void remove(absence)}
+        rowLabel={(absence: Absence) => formatPlainDay(absence.from, messages.locale)} actionsLabel={t('app.page.row_actions')}
+        sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+        {#snippet cell(absence: Absence)}
+          {t('app.absences.span', { from: formatPlainDay(absence.from, messages.locale), to: formatPlainDay(absence.to, messages.locale), kind: t(`app.absences.kind_${absence.kind}`) })}{absence.half ? ` · ${t('app.absences.half')}` : ''}
+        {/snippet}
+        {#snippet verb(absence: Absence)}
+          <Button size="sm" tone="subtle" icon="pencil" onclick={() => open(absence)}>{t('app.absences.edit')}</Button>
+        {/snippet}
+      </DataTable>
     {/if}
   </section>
 </Stack>
 
 {#if isEditing}
-  <Dialog bind:isOpen={isEditing} title={editing ? t('app.absences.edit') : t('app.absences.add')} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isEditing} title={editing ? t('app.absences.edit') : t('app.absences.add')} dismissLabel={t('app.links.cancel')} size="m"
+    primary={{ label: t('app.absences.save'), onclick: () => void save() }}>
     <Stack gap="150">
       <Input label={t('app.absences.from')} type="date" bind:value={draft.from} />
       <Input label={t('app.absences.to')} type="date" bind:value={draft.to} />
@@ -137,7 +150,6 @@
         options={KINDS.map((kind) => ({ value: kind, label: t(`app.absences.kind_${kind}`), hint: t(`app.absences.kind_${kind}_hint`) }))} />
       <Switch label={t('app.absences.half')} bind:checked={draft.half} />
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-      <Inline justify="end"><Button onclick={() => void save()}>{t('app.absences.save')}</Button></Inline>
     </Stack>
   </Dialog>
 {/if}
@@ -145,12 +157,19 @@
 <style>
   .controls { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
-  .scroll { overflow-x: auto; }
-  .day { text-align: center; font-size: var(--fs-075); }
+  .month { display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: var(--bw-hairline); margin: 0; padding: 0; list-style: none; container-type: inline-size; }
+  .day { display: flex; flex-direction: column; min-inline-size: 0; text-align: center; font-size: var(--fs-075); }
+  .mark { min-block-size: var(--sp-300); overflow: hidden; border-radius: var(--r-sm); background: var(--bg-surface-sunken); line-height: var(--sp-300); }
+  /* The day's number above its mark: every day where a day is wide enough, every week's first on a
+     phone - spilling over the narrow days beside it, never widening the strip (PS-4). */
+  .number { visibility: hidden; color: var(--text-secondary); text-align: start; white-space: nowrap; }
+  .week .number { visibility: visible; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size >= 600px) {
+    .number { visibility: visible; text-align: center; }
+  }
   .away { background: var(--status-warning-surface); color: var(--status-warning-text); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); }
-  .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-050); }
-  .list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-100); align-items: center; }
 </style>

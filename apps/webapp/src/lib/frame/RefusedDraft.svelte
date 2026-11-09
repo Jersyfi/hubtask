@@ -44,7 +44,8 @@
   }
 </script>
 
-<Dialog title={t('app.sync.draft.title')} bind:isOpen dismissLabel={t('app.sync.dismiss')}>
+<Dialog size="m" title={t('app.sync.draft.title')} bind:isOpen dismissLabel={t('app.sync.dismiss')}
+  primary={{ label: t('app.sync.draft.send'), isBusy: isSending, busyLabel: t('app.sync.draft.sending'), onclick: () => void send() }}>
   <Stack gap="200">
     <p>{t('app.sync.draft.intro', { what: refusal.what, where: refusal.where })}</p>
     <p class="reason" role="alert" data-refusal-reason>{refusal.reason}</p>
@@ -57,11 +58,9 @@
     {:else}
       <p>{t('app.sync.draft.no_fields')}</p>
     {/each}
+    <!-- Dropping the draft is no primary: it stays in the body, where a phone keeps it. -->
+    <div><Button tone="subtle" data-draft-discard onclick={() => void discard()}>{t('app.sync.draft.discard')}</Button></div>
   </Stack>
-  {#snippet actions()}
-    <Button tone="subtle" data-draft-discard onclick={() => void discard()}>{t('app.sync.draft.discard')}</Button>
-    <Button tone="primary" data-draft-send isBusy={isSending} busyLabel={t('app.sync.draft.sending')} onclick={() => void send()}>{t('app.sync.draft.send')}</Button>
-  {/snippet}
 </Dialog>
 
 <style>

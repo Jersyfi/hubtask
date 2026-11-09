@@ -1,6 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  // A plan as its record page (page-system §7.2, §9.4): its name, what it includes and each area's
+  // values as regions, *Save* in the head behind its confirmation (Dialog S), removing an unused
+  // plan in the danger zone.
   // One plan, edited (UC-INS-13 checks 1, 3, 7; multi-tenancy.md §4.2): the installation's
   // *Defaults* one level down - the same areas but the language, each key with the control of its
   // kind and its lock - and the three features a plan may leave out, as switches.
@@ -15,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Callout, Dialog, Input, PageHeader, Spinner, Stack, Switch, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Callout, Dialog, EmptyState, Input, RecordPage, Stack, Switch, type RecordList } from '@hubtask/design-system/components';
   import type { InstanceSetting, InstanceSettings, Plan, PlanFeature } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -29,10 +32,8 @@
   import { plans } from '../lib/data/plans.svelte.ts';
   import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -183,174 +184,151 @@
     }
   }
 
-  const columns = $derived([
-    { id: 'setting', label: t('app.instance.column_setting') },
-    { id: 'value', label: t('app.instance.column_value') },
-    { id: 'lock', label: t('app.instance.workspaces_may') },
-  ]);
+  const LIST = '/instance/plans';
+  const lists = $derived<RecordList[]>(
+    plan && !gone
+      ? [
+          ...(enforced ? [] : [{ id: 'about', title: t('app.instance.plan_about') }]),
+          { id: 'features', title: t('app.instance.plan_features') },
+          ...groups.map((group) => ({ id: group.area, title: t(`app.instance.area_${group.area}`) })),
+        ]
+      : [],
+  );
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={plan?.display_name ?? t('app.instance.plans')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={installationTrail(
-      { id: 'plans', label: t('app.instance.plans'), href: '/instance/plans' },
-      { id: 'plan', label: plan?.display_name ?? name },
-    )}
-  />
-
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      {#if !manifest.isMultiTenant}
-        <p class="prose">{t('app.instance.plans_single')}</p>
-      {:else if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet"><Spinner label={t('app.instance.reading')} /> <span>{t('app.instance.reading')}</span></p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
-      {:else if gone || !plan}
-        <Banner tone="warning" title={t('app.instance.plan_gone')}>
-          <a href="/instance/plans">{t('app.instance.plan_back')}</a>
-        </Banner>
-      {:else}
-        <p class="quiet-line">
-          <code>{plan.name}</code> · {t('app.instance.plan_workspaces', { count: plan.workspaces })}
-        </p>
-
-        {#if enforced}
-          <Banner tone="info" title={t('app.instance.source_file_enforced')}>{level?.source ?? ''}</Banner>
-          {#each groups as group (group.area)}
-            <section aria-labelledby={`read-${group.area}`}>
-              <Stack gap="100">
-                <h2 id={`read-${group.area}`} class="section">{t(`app.instance.area_${group.area}`)}</h2>
-                <Table label={t(`app.instance.area_${group.area}`)} isLabelHidden {columns}>
-                  {#each group.rows as row (row.key)}
-                    <tr>
-                      <td>{t(nameCode(row.area, row.key))}</td>
-                      <td>{row.setting.set ? said(row.area, row.key, row.setting) : t('app.instance.value_undecided')}</td>
-                      <td>{lockCode(row.setting, row.setting.locked) ? t(lockCode(row.setting, row.setting.locked) ?? '') : ''}</td>
-                    </tr>
-                  {/each}
-                </Table>
-              </Stack>
-            </section>
-          {/each}
-          <p class="quiet-line">
-            {t('app.instance.plan_features')}:
-            {FEATURES.filter((feature) => !(plan.left_out ?? []).includes(feature)).map((feature) => t(`app.instance.feature.${feature.toLowerCase()}`)).join(', ') || '–'}
-          </p>
-        {:else}
-          {#if conflict}
-            <!-- Somebody saved first: nothing of theirs is overwritten, and nothing of this draft is
-                 lost until it is read again. -->
-            <div role="alert">
-              <Callout tone="warning" title={t('app.instance.plan_conflict_title')}>
-                {t('app.instance.plan_conflict_body')}
-                <Button size="sm" tone="secondary" onclick={() => void readAgain()}>{t('app.instance.plan_reload')}</Button>
-              </Callout>
-            </div>
-          {:else if failure && !failure.fields.size}
-            <FailureNote problem={failure} />
-          {:else if saved}
-            <Banner tone="success">{t('app.instance.plan_saved')}</Banner>
-          {/if}
-
-          <form
-            class="panel"
-            onsubmit={(event) => {
-              event.preventDefault();
-              isConfirming = true;
-            }}
-          >
-            <Stack gap="300">
-              <Input
-                label={t('app.instance.plan_display_name')}
-                bind:value={displayName}
-                error={failure?.fields.get('/display_name')}
-                isRequired
-              />
-
-              <section class="group" aria-labelledby="plan-features">
-                <Stack gap="150">
-                  <h3 id="plan-features" class="area">{t('app.instance.plan_features')}</h3>
-                  <p class="quiet-line">{t('app.instance.plan_features_hint')}</p>
-                  {#each FEATURES as feature (feature)}
-                    <Switch
-                      label={t(`app.instance.feature.${feature.toLowerCase()}`)}
-                      checked={!leftOut.includes(feature)}
-                      onchange={(event) => toggle(feature, (event.currentTarget as HTMLInputElement).checked)}
-                    />
-                  {/each}
-                </Stack>
-              </section>
-
-              {#each groups as group (group.area)}
-                <section class="group" aria-labelledby={`area-${group.area}`}>
-                  <Stack gap="150">
-                    <h3 id={`area-${group.area}`} class="area">{t(`app.instance.area_${group.area}`)}</h3>
-                    {#if group.area === 'quotas'}
-                      <p class="quiet-line">{t('app.instance.plan_limits_exception')}</p>
-                    {/if}
-                    {#each group.rows as row (row.key)}
-                      {@const installation = above(row.area, row.key)}
-                      {#if lockedAbove(row.area, row.key)}
-                        <!-- The installation's lock binds the plan: its value, the chip that says
-                             whose it is (UC-WRK-32 check 5), and no control. -->
-                        {@const inForce = installation?.set ? said(row.area, row.key, installation) : t('app.instance.value_undecided')}
-                        <div class="locked" data-value={`${row.area}.${row.key}`}>
-                          <span class="label">{t(nameCode(row.area, row.key))}</span>
-                          <span class="in-force">{inForce} <ValueSource source="INSTANCE" lock="INSTANCE" value={inForce} /></span>
-                          {#if current(row.area, row.key)}
-                            <p class="overtaken">
-                              {t('app.instance.plan_value_overtaken', { value: said(row.area, row.key, current(row.area, row.key) as InstanceSetting) })}
-                              <Button size="sm" tone="subtle" onclick={() => put(row.area, row.key, row.setting, undefined)}>
-                                {t('app.instance.plan_value_remove')}
-                              </Button>
-                            </p>
-                          {/if}
-                          {#if failure?.fields.get(fieldOf(row.area, row.key))}
-                            <p class="refusal" role="alert">{failure?.fields.get(fieldOf(row.area, row.key))}</p>
-                          {/if}
-                        </div>
-                      {:else}
-                        <InstanceValueField
-                          area={row.area}
-                          key={row.key}
-                          declared={row.setting}
-                          current={current(row.area, row.key)}
-                          {locales}
-                          zones={zoneOptions('')}
-                          error={failure?.fields.get(fieldOf(row.area, row.key))}
-                          onchange={(next) => put(row.area, row.key, row.setting, next)}
-                        />
-                        {#if !current(row.area, row.key)}
-                          <p class="fallback">
-                            {installation?.set
-                              ? t('app.instance.plan_falls_back', { value: said(row.area, row.key, installation) })
-                              : t('app.instance.plan_falls_back_default')}
-                          </p>
-                        {/if}
-                      {/if}
-                    {/each}
-                  </Stack>
-                </section>
-              {/each}
-
-              <div class="row">
-                <Button type="submit" tone="primary">{t('app.instance.plan_save')}</Button>
-                {#if plan.workspaces === 0}
-                  <Button tone="subtle" icon="trash" onclick={() => (isRemoving = true)}>{t('app.instance.plan_remove')}</Button>
-                {/if}
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <RecordPage
+      record={{
+        kind: t('app.instance.plan_kind'),
+        title: plan?.display_name ?? name,
+        back: { label: t('app.instance.plans'), href: LIST, onnavigate: () => onnavigate(LIST) },
+        facts: plan ? `${plan.name} · ${t('app.instance.plan_workspaces', { count: plan.workspaces })}` : undefined,
+        edit: plan && !enforced && !gone ? { label: t('app.instance.plan_save'), onclick: () => (isConfirming = true) } : undefined,
+      }}
+      {lists}
+      danger={plan && !enforced && !gone && plan.workspaces === 0
+        ? { title: t('app.page.danger_zone'), acts: [{ id: 'remove', title: t('app.instance.plan_remove'), cost: t('app.instance.plan_remove_body', { short: plan.name }), actionLabel: `${t('app.instance.plan_remove')}…` }], onact: () => (isRemoving = true) }
+        : undefined}
+      refused={door ?? (!manifest.isMultiTenant || unreadable || gone || (reading.status === 'ready' && !plan) ? notHere : undefined)}
+    >
+      {#snippet list(item: RecordList)}
+        {#if plan}
+          {#if item.id === 'about'}
+            <Stack gap="150">
+              {#if conflict}
+                <!-- Somebody saved first: nothing of theirs is overwritten, and nothing of this draft
+                     is lost until it is read again. -->
+                <div role="alert">
+                  <Callout tone="warning" title={t('app.instance.plan_conflict_title')}>
+                    {t('app.instance.plan_conflict_body')}
+                    <Button size="sm" tone="secondary" onclick={() => void readAgain()}>{t('app.instance.plan_reload')}</Button>
+                  </Callout>
+                </div>
+              {:else if failure && !failure.fields.size}
+                <FailureNote problem={failure} />
+              {:else if saved}
+                <Banner tone="success">{t('app.instance.plan_saved')}</Banner>
+              {/if}
+              <div class="field">
+                <Input label={t('app.instance.plan_display_name')} bind:value={displayName} error={failure?.fields.get('/display_name')} isRequired />
               </div>
             </Stack>
-          </form>
+          {:else if item.id === 'features'}
+            {#if enforced}
+              <Banner tone="info" title={t('app.instance.source_file_enforced')}>{level?.source ?? ''}</Banner>
+              <p class="quiet-line">
+                {FEATURES.filter((feature) => !(plan.left_out ?? []).includes(feature)).map((feature) => t(`app.instance.feature.${feature.toLowerCase()}`)).join(', ') || '–'}
+              </p>
+            {:else}
+              <Stack gap="150">
+                <p class="quiet-line">{t('app.instance.plan_features_hint')}</p>
+                {#each FEATURES as feature (feature)}
+                  <Switch
+                    label={t(`app.instance.feature.${feature.toLowerCase()}`)}
+                    checked={!leftOut.includes(feature)}
+                    onchange={(event) => toggle(feature, (event.currentTarget as HTMLInputElement).checked)}
+                  />
+                {/each}
+              </Stack>
+            {/if}
+          {:else}
+            {@const group = groups.find((each) => each.area === item.id)}
+            {#if group}
+              <Stack gap="150">
+                {#if group.area === 'quotas' && !enforced}
+                  <p class="quiet-line">{t('app.instance.plan_limits_exception')}</p>
+                {/if}
+                {#each group.rows as row (row.key)}
+                  {@const installation = above(row.area, row.key)}
+                  {#if enforced}
+                    <div class="locked">
+                      <span class="label">{t(nameCode(row.area, row.key))}</span>
+                      <span>{row.setting.set ? said(row.area, row.key, row.setting) : t('app.instance.value_undecided')}</span>
+                      {#if lockCode(row.setting, row.setting.locked)}<span class="quiet-line">{t(lockCode(row.setting, row.setting.locked) ?? '')}</span>{/if}
+                    </div>
+                  {:else if lockedAbove(row.area, row.key)}
+                    <!-- The installation's lock binds the plan: its value, the chip that says whose
+                         it is (UC-WRK-32 check 5), and no control. -->
+                    {@const inForce = installation?.set ? said(row.area, row.key, installation) : t('app.instance.value_undecided')}
+                    <div class="locked" data-value={`${row.area}.${row.key}`}>
+                      <span class="label">{t(nameCode(row.area, row.key))}</span>
+                      <span class="in-force">{inForce} <ValueSource source="INSTANCE" lock="INSTANCE" value={inForce} /></span>
+                      {#if current(row.area, row.key)}
+                        <p class="overtaken">
+                          {t('app.instance.plan_value_overtaken', { value: said(row.area, row.key, current(row.area, row.key) as InstanceSetting) })}
+                          <Button size="sm" tone="subtle" onclick={() => put(row.area, row.key, row.setting, undefined)}>
+                            {t('app.instance.plan_value_remove')}
+                          </Button>
+                        </p>
+                      {/if}
+                      {#if failure?.fields.get(fieldOf(row.area, row.key))}
+                        <p class="refusal" role="alert">{failure?.fields.get(fieldOf(row.area, row.key))}</p>
+                      {/if}
+                    </div>
+                  {:else}
+                    <InstanceValueField
+                      area={row.area}
+                      key={row.key}
+                      declared={row.setting}
+                      current={current(row.area, row.key)}
+                      {locales}
+                      zones={zoneOptions('')}
+                      error={failure?.fields.get(fieldOf(row.area, row.key))}
+                      onchange={(next) => put(row.area, row.key, row.setting, next)}
+                    />
+                    {#if !current(row.area, row.key)}
+                      <p class="fallback">
+                        {installation?.set
+                          ? t('app.instance.plan_falls_back', { value: said(row.area, row.key, installation) })
+                          : t('app.instance.plan_falls_back_default')}
+                      </p>
+                    {/if}
+                  {/if}
+                {/each}
+              </Stack>
+            {/if}
+          {/if}
         {/if}
-      {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+      {/snippet}
+    </RecordPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet notHere()}
+  {#if !manifest.isMultiTenant}
+    <p class="prose">{t('app.instance.plans_single')}</p>
+  {:else if unreadable}
+    <FailureNote problem={unreadable} />
+  {:else}
+    <EmptyState kind="settled" title={t('app.instance.plan_gone')}>
+      {#snippet action()}<Button onclick={() => onnavigate(LIST)}>{t('app.instance.plan_back')}</Button>{/snippet}
+    </EmptyState>
+  {/if}
+{/snippet}
 
 <Dialog
+  size="s"
   title={t('app.instance.plan_confirm_title', { name: displayName.trim() || (plan?.display_name ?? '') })}
   isOpen={isConfirming}
   dismissLabel={t('app.instance.cancel')}
@@ -366,6 +344,7 @@
 </Dialog>
 
 <Dialog
+  size="s"
   title={t('app.instance.plan_remove_title', { name: plan?.display_name ?? '' })}
   isOpen={isRemoving}
   dismissLabel={t('app.instance.cancel')}
@@ -382,22 +361,10 @@
 
 <style>
   .prose { margin: 0; max-inline-size: 60ch; }
-  .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
-  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-  .area { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
-  form { margin: 0; max-inline-size: 80ch; }
-  .panel {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  .field { max-inline-size: var(--layout-field-md); }
   .locked { display: grid; gap: var(--sp-050); }
   .label { font-weight: var(--fw-medium); }
   .overtaken, .fallback { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .refusal { margin: 0; color: var(--text-danger); font-size: var(--fs-100); }
-  code { font-family: var(--font-mono); }
 </style>

@@ -405,6 +405,8 @@ type PageInfo struct {
 	// NextCursor continues the walk, and is empty when HasMore is false.
 	NextCursor string
 	HasMore    bool
+	// Total is how many rows the whole walk passes over; nil where the list does not count them.
+	Total *int
 }
 
 // GrantPage is one page of memberships granted at a scope.

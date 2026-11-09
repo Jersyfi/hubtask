@@ -72,23 +72,27 @@ test('chromium: a subscription takes a condition and a scope, and says both back
 
   await page.goto(`${served.origin}/administration/webhooks`);
 
-  // What a stored subscription listens to, and what it waits for.
+  // What a stored subscription listens to, and what it waits for: its record page (page-system §9.3).
+  await page.getByRole('link', { name: SUBSCRIPTION.target_url }).first().click({ timeout: 10_000 });
   await page.getByText(`Listens to: The hub ${HUB.name}, and everything in it`).waitFor({ timeout: 5_000 });
   assert.ok(await page.getByText(SUBSCRIPTION.filter, { exact: true }).isVisible(), 'the condition is not shown');
 
   // An event held back reads as such, with no attempt counted.
-  await page.getByRole('button', { name: 'What was delivered' }).click();
-  await page.locator('ul.deliveries').getByText('Held back: the condition could not be judged').waitFor({ timeout: 5_000 });
-  assert.equal(await page.locator('ul.deliveries').getByText(/^Attempt/).count(), 0);
+  const deliveries = page.locator('main tbody');
+  await deliveries.getByText('Held back: the condition could not be judged').waitFor({ timeout: 5_000 });
+  assert.equal(await deliveries.getByText(/^Attempt/).count(), 0);
 
-  // The form sends both, the scope with its level.
+  // The form sends both, the scope with its level; the scope and the condition are its Advanced.
+  await page.goto(`${served.origin}/administration/webhooks`);
   await page.getByRole('button', { name: 'Add a webhook' }).first().click();
-  await page.getByLabel('Where to deliver').fill('https://example.org/hooks/narrow');
-  await page.getByLabel('An entry is created', { exact: true }).check();
-  await page.getByLabel('Where it listens').selectOption({ label: `The collection ${HUB.name} · ${COLLECTION.name}` });
-  await page.getByLabel('Only when (optional)').fill('data.title.startsWith("Ship")');
+  const dialog = page.locator('dialog[open]');
+  await dialog.getByLabel('Where to deliver').fill('https://example.org/hooks/narrow');
+  await dialog.getByRole('button', { name: /^Advanced/ }).click();
+  await dialog.getByLabel('An entry is created', { exact: true }).check();
+  await dialog.getByLabel('Where it listens').selectOption({ label: `The collection ${HUB.name} · ${COLLECTION.name}` });
+  await dialog.getByLabel('Only when (optional)').fill('data.title.startsWith("Ship")');
   const posted = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/integrations/webhooks'), { timeout: 5_000 });
-  await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Subscribe', exact: true }).last().click();
   await posted;
 
   assert.deepEqual(sent, {
@@ -116,6 +120,6 @@ test('chromium: the column counts a webhook switched off after failures', async 
   await page.goto(`${served.origin}/administration/people`);
   const column = page.getByRole('navigation', { name: 'Administration', exact: true });
   await column.getByText('1 switched off').waitFor({ timeout: 10_000 });
-  assert.equal(await column.getByRole('treeitem', { name: /Webhooks.*1 switched off/ }).count(), 1, 'the figure is not heard with the row');
+  assert.equal(await column.getByRole('link', { name: /Webhooks.*1 switched off/ }).count(), 1, 'the figure is not heard with the row');
   assert.deepEqual(failures, []);
 });

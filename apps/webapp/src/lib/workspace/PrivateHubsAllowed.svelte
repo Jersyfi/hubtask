@@ -7,6 +7,7 @@
   // **Here rather than on *Sign-in*.** It is stored and resolved with the sign-in rule's switches -
   // the installation's and the plan's default and lock are that rule's - but it is not a way in, and
   // the one place a person looks for whether private hubs may be made is the page that lists them.
+  // It stands in that list page's intro, flat on the canvas: the in-place rung of page-system §5.1.
   //
   // **It acts at once, behind the step-up**, as every switch of the rule does: one row is not a
   // form. It shows its work in place and says it landed as a passing message. Off stops new private
@@ -63,9 +64,8 @@
 </script>
 
 {#if setting}
-  <section class="panel" data-private-hubs-allowed>
-    <Stack gap="200">
-      <h2>{t('app.private_hubs.allowed_title')}</h2>
+  <div class="allowed" data-private-hubs-allowed>
+    <Stack gap="100">
       <Switch
         label={t('app.private_hubs.allowed')}
         hint={t('app.private_hubs.allowed_hint')}
@@ -84,26 +84,10 @@
         />
       </p>
     </Stack>
-  </section>
+  </div>
 {/if}
 
 <style>
-  .panel {
-    padding: var(--sp-250);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
   .origin { margin: 0; }
 
   .refusal { margin: 0; color: var(--text-danger); }

@@ -65,14 +65,16 @@ test('chromium: a Matrix room is subscribed by homeserver, room and token, and s
   await page.goto(`${served.origin}/administration/webhooks`);
 
   await page.getByRole('button', { name: 'Add a webhook' }).first().click();
-  await page.getByLabel('Delivered as').selectOption({ label: 'Matrix room' });
-  await page.getByLabel('Where to deliver').fill('https://matrix.example.org');
-  await page.getByLabel('Room', { exact: true }).fill(ROOM);
-  await page.getByLabel('Access token').fill('syt_e2e_token');
-  await page.getByLabel('Language').fill('de');
-  await page.getByLabel('An entry is created', { exact: true }).check();
+  const dialog = page.locator('dialog[open]');
+  await dialog.getByLabel('Delivered as').selectOption({ label: 'Matrix room' });
+  await dialog.getByLabel('Where to deliver').fill('https://matrix.example.org');
+  await dialog.getByLabel('Room', { exact: true }).fill(ROOM);
+  await dialog.getByLabel('Access token').fill('syt_e2e_token');
+  await dialog.getByLabel('Language').fill('de');
+  await dialog.getByRole('button', { name: /^Advanced/ }).click();
+  await dialog.getByLabel('An entry is created', { exact: true }).check();
   const posted = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/integrations/webhooks'), { timeout: 5_000 });
-  await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Subscribe', exact: true }).last().click();
   await posted;
 
   assert.deepEqual(sent, {
@@ -84,12 +86,19 @@ test('chromium: a Matrix room is subscribed by homeserver, room and token, and s
     locale: 'de',
   });
 
-  // The stored room says what it is; a room signs nothing, so no secret is shown or offered anew.
-  await page.getByText(`Room ${ROOM}`).waitFor({ timeout: 5_000 });
-  assert.ok(await page.getByText('Matrix room', { exact: true }).first().isVisible(), 'the format is not shown');
-  assert.equal(await page.getByText('The signing secret').count(), 0, 'a secret is shown for a chat room');
-  assert.equal(await page.getByRole('button', { name: 'New secret' }).count(), 0, 'a chat room offers a new secret');
-  // The form starts over as a signed event, so the token is not left in it.
-  assert.equal(await page.getByLabel('Access token').count(), 0, 'the token stays in the form');
+  // A room signs nothing, so no secret is shown; the form starts over, the token not left in it.
+  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await page.getByText('The signing secret').filter({ visible: true }).count(), 0, 'a secret is shown for a chat room');
+  assert.equal(await page.getByLabel('Access token').filter({ visible: true }).count(), 0, 'the token stays in the form');
+  // The stored room says what it is on its record page, which offers no new secret.
+  await page.getByRole('link', { name: STORED.target_url }).first().click({ timeout: 5_000 });
+  await page.getByText(`Room ${ROOM}`, { exact: false }).waitFor({ timeout: 5_000 });
+  assert.match(await page.locator('main').innerText(), /Matrix room/, 'the format is not shown');
+  const more = page.getByRole('button', { name: /^More for/ });
+  if (await more.count() > 0) {
+    await more.first().click();
+    assert.equal(await page.getByRole('menuitem', { name: 'New secret…' }).count(), 0, 'a chat room offers a new secret');
+    await page.keyboard.press('Escape');
+  }
   assert.deepEqual(failures, []);
 });

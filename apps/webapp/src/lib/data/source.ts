@@ -25,6 +25,8 @@ export interface ChipCodes {
   /** The chip's own text, which is also its accessible name. */
   readonly label: string;
   readonly isLocked: boolean;
+  /** Whether the value is set at the level the reader is on: the chip's accent dot. */
+  readonly isSetHere: boolean;
   /** The source in a sentence, for the opened chip. */
   readonly source: string;
   /** Whom to ask, where somebody else decides. */
@@ -54,6 +56,7 @@ export function chipCodes(
   return {
     label: `app.source.${isLocked ? 'locked' : 'label'}_${level}`,
     isLocked,
+    isSetHere: !isLocked && (level === 'workspace' || level === 'hub'),
     source: `app.source.${isLocked ? 'locked_sentence' : 'sentence'}_${level}`,
     whomToAsk: whomToAsk(source as ValueSource, isLocked, reader.operates),
   };

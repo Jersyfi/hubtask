@@ -53,34 +53,43 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       return stub(route);
     });
     try {
+      // Each section at its own address, each with its own save (page-system §7.3, PS-10).
+      // The head with its figure is the list's: on a phone a section's address shows the section.
       await page.goto(`${served.origin}/administration/voice`);
+      const figure = page.locator('[data-voice-figure]');
+      await figure.getByText('Spoken entries off').waitFor({ timeout: 15_000 });
+      await figure.getByText('Alexa not connected yet').waitFor();
+      await page.goto(`${served.origin}/administration/voice/on`);
       const on = page.locator('[data-voice-settings]');
       await on.waitFor({ timeout: 15_000 });
-      // The head says what is connected, from what is saved (user-experience.md §7.10).
-      const figure = page.locator('[data-voice-figure]');
-      await figure.getByText('Spoken entries off').waitFor();
-      await figure.getByText('Alexa not connected yet').waitFor();
 
-      // UC-WRK-35 check 1 and UC-WRK-35 check 2: on, a default list, a name - saved together.
-      await on.getByText('Take spoken entries').click();
+      await on.getByRole('switch', { name: 'Take spoken entries' }).check();
       await on.getByLabel('Default list').selectOption({ value: COLLECTION.id });
+      await on.getByRole('button', { name: 'Save', exact: true }).click();
+      await page.getByText('The voice settings are saved.').waitFor({ state: 'attached', timeout: 5_000 }).catch(() => undefined);
+      await page.goto(`${served.origin}/administration/voice`);
+      await figure.getByText('Spoken entries on').waitFor({ timeout: 5_000 });
+      const first = writes.find((each) => each.call === 'PUT /voice/settings');
+      assert.equal(first?.body.enabled, true);
+      assert.equal(first?.body.default_collection_id, COLLECTION.id);
+
+      await page.goto(`${served.origin}/administration/voice/names`);
       const names = page.locator('[data-voice-names]');
       await names.getByRole('button', { name: 'Add a name' }).click();
       await names.getByLabel('Said as').fill('fridge');
-      await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+      await names.getByRole('button', { name: 'Save', exact: true }).click();
       await page.waitForTimeout(300);
-      const saved = writes.find((each) => each.call === 'PUT /voice/settings');
-      assert.equal(saved?.body.enabled, true);
+      const saved = writes.filter((each) => each.call === 'PUT /voice/settings').at(-1);
+      assert.equal(saved?.body.enabled, true, 'a section save keeps what another saved');
       assert.equal(saved?.body.default_collection_id, COLLECTION.id);
       assert.deepEqual(saved?.body.aliases, [{ phrase: 'fridge', collection_id: COLLECTION.id }]);
-      await figure.getByText('Spoken entries on').waitFor({ timeout: 5_000 });
 
-      // UC-WRK-35 check 3: a sentence tried, nothing added.
+      await page.goto(`${served.origin}/administration/voice/try`);
       const trying = page.locator('[data-voice-try]');
       await trying.getByRole('button', { name: 'Try' }).click();
       await trying.locator('[data-voice-result]').getByText('2 l Milk, Eggs would go on Kitchen.').waitFor({ timeout: 5_000 });
 
-      // UC-WRK-35 check 6: the values to copy, and the linking made from the vendor ID.
+      await page.goto(`${served.origin}/administration/voice/alexa`);
       const alexa = page.locator('[data-voice-alexa]');
       await alexa.locator('[data-copy="endpoint"]').getByText(`${served.origin}/api/v1/voice/alexa`).waitFor();
       await alexa.locator('[data-copy="token"]').getByText(`${served.origin}/api/v1/oauth/token`).waitFor();
@@ -91,7 +100,8 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       await alexa.getByLabel('Invocation name').first().fill('Kitchen Lists');
       await alexa.getByRole('button', { name: 'Save' }).first().click();
       await alexa.locator('[data-copy="invocation"]').getByText('kitchen lists').waitFor({ timeout: 5_000 });
-      assert.equal(writes.at(-1).body.invocation_name, 'kitchen lists');
+      // The last write naming the invocation, not the last write: another write may land after it.
+      assert.equal(writes.findLast((each) => each.body && 'invocation_name' in each.body)?.body.invocation_name, 'kitchen lists');
       await alexa.getByLabel('Vendor ID').fill('M2AB3CD');
       await alexa.getByRole('button', { name: 'Make the linking' }).click();
       await alexa.locator('[data-copy="client"]').getByText('01a0e2e0-0000-7000-8000-00000000a1e1').waitFor({ timeout: 5_000 });
@@ -141,7 +151,7 @@ test('chromium: an installation that publishes its skill says to enable and link
     return stub(route);
   });
   try {
-    await page.goto(`${served.origin}/administration/voice`);
+    await page.goto(`${served.origin}/administration/voice/alexa`);
     const alexa = page.locator('[data-voice-alexa]');
     await alexa.getByText('This installation publishes a Hubtask skill', { exact: false }).waitFor({ timeout: 15_000 });
     assert.equal(await alexa.getByLabel('Vendor ID').count(), 0, 'a published skill still asks for a vendor ID');

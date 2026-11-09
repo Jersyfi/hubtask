@@ -1637,7 +1637,7 @@
 {/if}
 
 {#if amending}
-  <Dialog
+  <Dialog size="s"
     isOpen={true}
     title={t('app.entries.change_amount')}
     dismissLabel={t('app.entries.cancel')}
@@ -1655,7 +1655,7 @@
 
 {#if categorising}
   {@const row = categorising}
-  <Dialog
+  <Dialog size="s"
     isOpen={true}
     title={t('app.entries.choose_category')}
     dismissLabel={t('app.entries.cancel')}

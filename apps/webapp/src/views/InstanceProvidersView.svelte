@@ -29,7 +29,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, DataTable, Dialog, EmptyState, FilterBar, Input, ListPage, Spinner, Stack, type DataColumn, type MenuItem } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderPreset } from '@hubtask/sync-engine';
 
   import { draftBody, draftOf, draftRefusal, emptyDraft } from '../lib/signin/issuer.ts';
@@ -53,7 +53,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { focusFirst } from '../lib/forms/missing.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { matchesSearch } from '../lib/page/list.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -91,13 +91,34 @@
   );
   const presets = $derived(instance.presets);
 
-  const columns = $derived([
-    { id: 'provider', label: t('app.instance.column_provider') },
-    { id: 'issuer', label: t('app.instance.column_issuer') },
-    { id: 'admission', label: t('app.instance.column_admission') },
-    { id: 'state', label: t('app.instance.column_state') },
-    { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
+  const columns = $derived<DataColumn[]>([
+    { id: 'provider', label: t('app.instance.column_provider'), priority: 1 },
+    { id: 'issuer', label: t('app.instance.column_issuer'), priority: 3 },
+    { id: 'admission', label: t('app.instance.column_admission'), priority: 3 },
+    { id: 'state', label: t('app.instance.column_state'), priority: 2, isStatus: true },
   ]);
+
+  let search = $state('');
+  const shown = $derived(providers.filter((provider) => matchesSearch(search, [provider.display_name, provider.issuer])));
+
+  /** A provider's ⋯: change it, withdraw it or keep offering it, and remove it last. */
+  function rowMenu(provider: IdentityProvider) {
+    const items: MenuItem[] = [
+      { id: 'change', label: `${t('app.instance.provider_change')}…` },
+      withdrawalPhase(provider) === 'offered'
+        ? { id: 'withdraw', label: `${t('app.instance.provider_withdraw')}…` }
+        : { id: 'keep', label: t('app.instance.provider_keep_offering') },
+      // Removal comes after the withdrawal (ADR-0077 §2): while the offer stands and a workspace
+      // uses it, the item says why instead of acting.
+      { id: 'remove', label: `${t('app.instance.provider_remove')}…`, isDestructive: true, hasSeparatorBefore: true, disabledReason: removalReason(provider) },
+    ];
+    return { label: t('app.page.more_for', { name: provider.display_name }), items };
+  }
+
+  function onRowMenu(provider: IdentityProvider, id: string): void {
+    if (id === 'keep') void run(`keep:${provider.id}`, async () => { await instance.cancelWithdrawal(provider.id); });
+    else open(id as 'change' | 'withdraw' | 'remove', provider);
+  }
 
   /**
    * What a mode is called, in the use case's own words (UC-ID-11 check 1). Which list `DOMAINS`
@@ -204,106 +225,94 @@
   $effect(() => page.entitle(t('app.instance.providers')));
 </script>
 
-<Stack gap="300">
-  <PageHeader title={t('app.instance.providers')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.providers') })} />
+<InstanceGate onleave={() => onnavigate('/')}>
+  {#snippet children(door)}
+    <ListPage
+      head={{
+        title: t('app.instance.providers'),
+        breadcrumb: installationTrail({ id: 'screen', label: t('app.instance.providers') }),
+        primary: { label: t('app.instance.provider_add'), icon: 'plus', onclick: () => open('add') },
+      }}
+      refused={door ?? (unreadable ? failed : undefined)}
+    >
+      {#snippet intro()}<p class="quiet">{t('app.instance.providers_intro')}</p>{/snippet}
+      {#snippet filters()}
+        <FilterBar
+          searchLabel={t('app.instance.providers_search')}
+          clearSearchLabel={t('app.page.clear_search')}
+          bind:search
+          countLabel={reading.status === 'ready' ? t('app.page.found', { shown: String(shown.length), count: String(providers.length) }) : undefined}
+        />
+      {/snippet}
 
-  <InstanceGate onleave={() => onnavigate('/')}>
-    <Stack gap="200">
-      <p class="prose">{t('app.instance.providers_intro')}</p>
-
-      {#if failure}
-        <FailureNote problem={failure} />
-      {/if}
-
+      {#if failure && acting === undefined}<FailureNote problem={failure} />{/if}
       {#if reading.status === 'loading' || reading.status === 'idle'}
-        <p class="quiet">
-          <Spinner label={t('app.instance.reading')} />
-          <span>{t('app.instance.reading')}</span>
-        </p>
-      {:else if unreadable}
-        <FailureNote problem={unreadable} />
+        <p class="quiet"><Spinner label={t('app.instance.reading')} /><span>{t('app.instance.reading')}</span></p>
       {:else}
-        <div>
-          <Button tone="primary" onclick={() => open('add')}>{t('app.instance.provider_add')}</Button>
-        </div>
-
-        {#if providers.length === 0}
-          <Banner tone="info">{t('app.instance.providers_none')}</Banner>
-        {:else}
-          <Table label={t('app.instance.providers')} isLabelHidden columns={columns}>
-            {#each providers as provider (provider.id)}
-              <tr>
-                <td>
-                  <span class="name">{provider.display_name}</span>
-                  <span class="slug">{t(`app.identity_provider.kind.${provider.kind.toLowerCase()}`)}</span>
-                </td>
-                <td class="mono">{provider.issuer}</td>
-                <td>
-                  <span>{admissionLabel(provider.provisioning)}</span>
-                  {#if admits(provider).length > 0}
-                    <span class="slug">{admits(provider).join(', ')}</span>
-                  {/if}
-                </td>
-                <td>
-                  {#if withdrawalPhase(provider) === 'offered'}
-                    <Badge tone="success">{t('app.instance.provider_offered')}</Badge>
-                  {:else if withdrawalPhase(provider) === 'withdrawing'}
-                    <Badge tone="warning">{t('app.instance.provider_withdrawing', { date: when(provider.withdraw_at) })}</Badge>
-                  {:else}
-                    <Badge tone="neutral">{t('app.instance.provider_withdrawn')}</Badge>
-                  {/if}
-                  {#if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ended'}
-                    <Badge tone="danger">{t('app.identity_provider.certificate_ended', { date: when(provider.saml_certificate_expires_at) })}</Badge>
-                  {:else if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ending'}
-                    <Badge tone="warning">{t('app.identity_provider.certificate_ending', { date: when(provider.saml_certificate_expires_at) })}</Badge>
-                  {/if}
-                  <span class="slug">{t('app.instance.provider_in_use', { count: String(usedBy(provider)) })}</span>
-                  {#if lockSays(provider)}<span class="slug" data-lock>{lockSays(provider)}</span>{/if}
-                </td>
-                <td>
-                  <div class="row">
-                    <Button tone="subtle" onclick={() => open('change', provider)}>
-                      {t('app.instance.provider_change')}
-                    </Button>
-                    {#if withdrawalPhase(provider) === 'offered'}
-                      <Button tone="subtle" onclick={() => open('withdraw', provider)}>
-                        {t('app.instance.provider_withdraw')}
-                      </Button>
-                    {:else}
-                      <Button
-                        tone="subtle"
-                        isBusy={working === `keep:${provider.id}`}
-                        busyLabel={t('app.instance.working')}
-                        onclick={() =>
-                          void run(`keep:${provider.id}`, async () => {
-                            await instance.cancelWithdrawal(provider.id);
-                          })}
-                      >
-                        {t('app.instance.provider_keep_offering')}
-                      </Button>
-                    {/if}
-                    <!-- Removal comes after the withdrawal (ADR-0077 §2): while the offer stands and a
-                         workspace uses it, the button says why instead of acting - withdraw it first,
-                         or, announced already, the day it may go. -->
-                    <Button
-                      tone="danger"
-                      disabledReason={removalReason(provider)}
-                      onclick={() => open('remove', provider)}
-                    >
-                      {t('app.instance.provider_remove')}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            {/each}
-          </Table>
-        {/if}
+        <DataTable
+          label={t('app.instance.providers')}
+          {columns}
+          rows={shown}
+          key={(provider: IdentityProvider) => provider.id}
+          onopen={(provider: IdentityProvider) => open('change', provider)}
+          rowLabel={(provider: IdentityProvider) => provider.display_name}
+          menu={rowMenu}
+          onmenu={onRowMenu}
+          actionsLabel={t('app.page.row_actions')}
+          sheetDismissLabel={t('app.page.sheet_close')}
+          sheetGrabLabel={t('app.page.sheet_grab')}
+          shownLabel={providers.length === 0 ? undefined : t('app.page.showing', { count: String(shown.length) })}
+        >
+          {#snippet cell(provider: IdentityProvider, column: DataColumn)}
+            {#if column.id === 'provider'}
+              <span class="name">{provider.display_name}</span>
+              <span class="slug">{t(`app.identity_provider.kind.${provider.kind.toLowerCase()}`)}</span>
+            {:else if column.id === 'issuer'}
+              <span class="mono">{provider.issuer}</span>
+            {:else if column.id === 'admission'}
+              <span>{admissionLabel(provider.provisioning)}</span>
+              {#if admits(provider).length > 0}<span class="slug">{admits(provider).join(', ')}</span>{/if}
+            {:else}
+              <span class="badges">
+                {#if withdrawalPhase(provider) === 'offered'}
+                  <Badge tone="success">{t('app.instance.provider_offered')}</Badge>
+                {:else if withdrawalPhase(provider) === 'withdrawing'}
+                  <Badge tone="warning">{t('app.instance.provider_withdrawing', { date: when(provider.withdraw_at) })}</Badge>
+                {:else}
+                  <Badge tone="neutral">{t('app.instance.provider_withdrawn')}</Badge>
+                {/if}
+                {#if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ended'}
+                  <Badge tone="danger">{t('app.identity_provider.certificate_ended', { date: when(provider.saml_certificate_expires_at) })}</Badge>
+                {:else if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ending'}
+                  <Badge tone="warning">{t('app.identity_provider.certificate_ending', { date: when(provider.saml_certificate_expires_at) })}</Badge>
+                {/if}
+                {#if working === `keep:${provider.id}`}<Spinner label={t('app.instance.working')} />{/if}
+              </span>
+              <span class="slug">{t('app.instance.provider_in_use', { count: String(usedBy(provider)) })}</span>
+              {#if lockSays(provider)}<span class="slug" data-lock>{lockSays(provider)}</span>{/if}
+            {/if}
+          {/snippet}
+          {#snippet empty()}
+            {#if providers.length === 0}
+              <EmptyState kind="unused" title={t('app.instance.providers_none')} />
+            {:else}
+              <EmptyState kind="filtered" title={t('app.instance.providers_none_found')}>
+                {#snippet action()}<Button onclick={() => (search = '')}>{t('app.page.clear')}</Button>{/snippet}
+              </EmptyState>
+            {/if}
+          {/snippet}
+        </DataTable>
       {/if}
-    </Stack>
-  </InstanceGate>
-</Stack>
+    </ListPage>
+  {/snippet}
+</InstanceGate>
+
+{#snippet failed()}
+  {#if unreadable}<FailureNote problem={unreadable} />{/if}
+{/snippet}
 
 <Dialog
+  size="l"
   title={acting?.kind === 'change' ? t('app.instance.provider_change_title') : t('app.instance.provider_add_title')}
   isOpen={acting?.kind === 'add' || acting?.kind === 'change'}
   dismissLabel={t('app.instance.cancel')}
@@ -332,6 +341,7 @@
   {/snippet}
   <Stack gap="150">
     <p class="prose">{t('app.instance.provider_form_intro')}</p>
+    {#if failure && failure.fields.size === 0}<FailureNote problem={failure} />{/if}
 
     <ProviderFields bind:draft {presets} level="installation" isNew={acting?.kind !== 'change'}>
       {#snippet more()}
@@ -342,6 +352,7 @@
 </Dialog>
 
 <Dialog
+  size="m"
   title={t('app.instance.provider_withdraw_title')}
   isOpen={acting?.kind === 'withdraw'}
   dismissLabel={t('app.instance.cancel')}
@@ -418,6 +429,7 @@
 </Dialog>
 
 <Dialog
+  size="s"
   title={t('app.instance.provider_remove_title')}
   isOpen={acting?.kind === 'remove'}
   dismissLabel={t('app.instance.cancel')}
@@ -434,7 +446,10 @@
       {t('app.instance.provider_remove')}
     </Button>
   {/snippet}
-  <Banner tone="warning">{t('app.instance.provider_remove_cost')}</Banner>
+  <Stack gap="150">
+    {#if failure}<FailureNote problem={failure} />{/if}
+    <Banner tone="warning">{t('app.instance.provider_remove_cost')}</Banner>
+  </Stack>
 </Dialog>
 
 <style>
@@ -443,6 +458,6 @@
   .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
-  .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 </style>

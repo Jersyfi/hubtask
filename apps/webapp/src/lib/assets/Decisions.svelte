@@ -5,7 +5,7 @@
   // CI, the rule that matched, the attributes taken and those kept with the source that kept them,
   // a duplicate's candidates and a hold's or refusal's reason - by name, never by value.
 
-  import { Badge } from '@hubtask/design-system/components';
+  import { Badge, DataTable, type DataColumn } from '@hubtask/design-system/components';
   import type { CiClass, CiDecision } from '@hubtask/sync-engine';
 
   import { classWord, outcomeTone, type Words } from '../data/cmdb.svelte.ts';
@@ -19,44 +19,37 @@
 
   const { decisions, classes, words }: Props = $props();
   const word = (key: string) => (messages.has(`app.assets.attribute.${key}`) ? t(`app.assets.attribute.${key}`) : key);
+  const columns = $derived<DataColumn[]>([
+    { id: 'row', label: t('app.assets.row'), priority: 1 },
+    { id: 'class', label: t('app.assets.class_label'), priority: 2 },
+    { id: 'what', label: t('app.assets.decisions'), priority: 1 },
+  ]);
+  const keyed = $derived(decisions.map((decision, index) => ({ decision, id: `${decision.ref}-${index}` })));
+  type Row = (typeof keyed)[number];
 </script>
 
-<table class="decisions">
-  <caption>{t('app.assets.decisions')}</caption>
-  <thead>
-    <tr>
-      <th scope="col">{t('app.assets.row')}</th>
-      <th scope="col">{t('app.assets.class_label')}</th>
-      <th scope="col">{t('app.assets.decisions')}</th>
-    </tr>
-  </thead>
-  <tbody>
-    {#each decisions as decision, index (`${decision.ref}-${index}`)}
-      {@const tone = outcomeTone(decision.outcome)}
-      <tr>
-        <td>
-          {#if decision.ci_id}<a href={`/cis/${decision.ci_id}`}>{decision.ref}</a>{:else}{decision.ref}{/if}
-        </td>
-        <td>{decision.class ? classWord(decision.class, classes, words) : '—'}</td>
-        <td class="what">
-          <Badge size="sm" tone={tone}>{t(`app.assets.outcome.${decision.outcome}`)}</Badge>
-          {#if decision.rule}<span>{t('app.assets.decision_rule', { rule: decision.rule.split('+').map(word).join(' + ') })}</span>{/if}
-          {#if decision.taken?.length}<span>{t('app.assets.decision_taken', { keys: decision.taken.map(word).join(', ') })}</span>{/if}
-          {#each decision.kept ?? [] as kept (kept.attribute)}
-            <span>{t('app.assets.decision_kept', { key: word(kept.attribute), by: kept.by })}</span>
-          {/each}
-          {#if decision.candidates?.length}<span>{t('app.assets.decision_candidates', { count: decision.candidates.length })}</span>{/if}
-          {#if decision.reason}<span class="reason">{messages.has(decision.reason) ? t(decision.reason) : decision.reason}</span>{/if}
-        </td>
-      </tr>
-    {/each}
-  </tbody>
-</table>
+<DataTable label={t('app.assets.decisions')} {columns} rows={keyed} key={(row: Row) => row.id}>
+  {#snippet cell({ decision }: Row, column: DataColumn)}
+    {#if column.id === 'row'}
+      {#if decision.ci_id}<a href={`/cis/${decision.ci_id}`}>{decision.ref}</a>{:else}{decision.ref}{/if}
+    {:else if column.id === 'class'}
+      {decision.class ? classWord(decision.class, classes, words) : '—'}
+    {:else}
+      <span class="what">
+        <Badge size="sm" tone={outcomeTone(decision.outcome)}>{t(`app.assets.outcome.${decision.outcome}`)}</Badge>
+        {#if decision.rule}<span>{t('app.assets.decision_rule', { rule: decision.rule.split('+').map(word).join(' + ') })}</span>{/if}
+        {#if decision.taken?.length}<span>{t('app.assets.decision_taken', { keys: decision.taken.map(word).join(', ') })}</span>{/if}
+        {#each decision.kept ?? [] as kept (kept.attribute)}
+          <span>{t('app.assets.decision_kept', { key: word(kept.attribute), by: kept.by })}</span>
+        {/each}
+        {#if decision.candidates?.length}<span>{t('app.assets.decision_candidates', { count: decision.candidates.length })}</span>{/if}
+        {#if decision.reason}<span class="reason">{messages.has(decision.reason) ? t(decision.reason) : decision.reason}</span>{/if}
+      </span>
+    {/if}
+  {/snippet}
+</DataTable>
 
 <style>
-  .decisions { border-collapse: collapse; inline-size: 100%; font-size: var(--fs-075); }
-  .decisions caption { text-align: start; color: var(--text-secondary); padding-block-end: var(--sp-050); }
-  .decisions th, .decisions td { text-align: start; vertical-align: baseline; padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .what { display: flex; flex-wrap: wrap; gap: var(--sp-050) var(--sp-100); align-items: baseline; }
   .reason { color: var(--text-secondary); }
   a { color: var(--text-primary); }

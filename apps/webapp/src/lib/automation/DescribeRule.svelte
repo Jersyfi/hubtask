@@ -13,7 +13,7 @@
   // newest proposed rule made after the ask is the one this ask produced.
   import { untrack } from 'svelte';
 
-  import { AISuggestion, Button, Dialog, Inline, Stack, Textarea } from '@hubtask/design-system/components';
+  import { AISuggestion, Button, Dialog, Stack, Textarea } from '@hubtask/design-system/components';
   import type { Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
   import { notDraftedOf, type NotDrafted } from './model.ts';
@@ -162,7 +162,7 @@
 </div>
 
 {#if isOpen}
-  <Dialog bind:isOpen title={t('app.flow.describe_title')} dismissLabel={t('app.workspace.cancel')}>
+  <Dialog bind:isOpen size="s" title={t('app.flow.describe_title')} dismissLabel={t('app.workspace.cancel')}>
     <Stack gap="150">
       <Textarea
         label={t('app.flow.describe_label')}
@@ -173,13 +173,13 @@
       />
       <p class="quiet">{t('app.flow.describe_note')}</p>
       {#if failure && !failure.fields.get('/description')}<p class="failure" role="alert">{failure.message}</p>{/if}
-      <Inline gap="100">
-        <Button tone="primary" icon="sparkles" isBusy={isAsking} busyLabel={t('app.suggestions.pending')} onclick={ask}>
-          {t('app.flow.describe_submit')}
-        </Button>
-        <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
+      <Button tone="primary" icon="sparkles" isBusy={isAsking} busyLabel={t('app.suggestions.pending')} onclick={ask}>
+        {t('app.flow.describe_submit')}
+      </Button>
+    {/snippet}
   </Dialog>
 {/if}
 

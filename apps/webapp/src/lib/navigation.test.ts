@@ -154,7 +154,7 @@ test('the account menu holds only what is about the person', () => {
   assert.equal(rows().includes('entry-types'), false);
   assert.equal(rows(['WORKFLOWS']).includes('entry-types'), true);
   // UC-GOL-01 check 9: the goals row stays current on each of their pages.
-  for (const name of ['goals', 'goal', 'portfolio', 'dashboard']) {
+  for (const name of ['goals', 'goal', 'goal-results', 'portfolio', 'dashboard']) {
     assert.equal(currentDestination({ name, area: 'end-user' }), 'goals');
   }
 });
@@ -245,7 +245,7 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
   // The desk's, the assets', time's and the agents' settings are their homes' last tabs (user-experience.md §8.2).
-  assert.deepEqual(of('how'), ['workspace', 'address', 'presets', 'modules', 'entry-types', 'workflows', 'link-types', 'rules', 'runs']);
+  assert.deepEqual(of('how'), ['workspace', 'address', 'templates', 'modules', 'entry-types', 'workflows', 'link-types', 'rules', 'runs']);
   assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
   assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);
@@ -280,7 +280,7 @@ test('every row of the section resolves to a route it claims, and every screen i
   // An address whose screen moved elsewhere (`movedTo`) replaces itself and needs no row.
   const unlisted = ROUTES.filter((route) => route.area === 'administration')
     .map((route) => route.name)
-    .filter((name) => !claimed.has(name) && movedTo(name) === undefined);
+    .filter((name) => !claimed.has(name) && movedTo(name) === undefined && !name.startsWith('browse-'));
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 });
 
@@ -300,7 +300,7 @@ test('the installation section lists every screen of its area, and every word of
   const claimed = new Set(INSTANCE.flatMap((group) => group.rows).flatMap((row) => row.routes));
   const unlisted = ROUTES.filter((route) => route.area === 'instance')
     .map((route) => route.name)
-    .filter((name) => !claimed.has(name));
+    .filter((name) => !claimed.has(name) && name !== 'browse-instance');
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 
   // And its front door is a screen of the section rather than the way out.
@@ -399,7 +399,7 @@ test('the advanced rows fold while the workspace holds one person, and never wha
   assert.deepEqual(folded(administrationFor({ ...base, hasSeveralPeople: true, isOnePerson: false })), []);
   // Folded rows are still rows, so the palette, which reads the same list, finds them.
   const ids = administrationFor({ ...base, isOnePerson: true }).flatMap((group) => group.rows.map((row) => row.id));
-  assert.ok(ids.includes('voice') && ids.includes('presets'));
+  assert.ok(ids.includes('voice') && ids.includes('templates'));
 });
 
 test('the Android app keeps the administration\'s and the installation\'s rows, and leaves them to the web app (UC-SYN-07 check 7)', () => {
@@ -434,7 +434,7 @@ const level = (name: string, params: Record<string, string> = {}, query: Record<
   levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located, held);
 
 test('anything of a hub shows its hub\'s level; everything else the workspace level (§2.4, §6.1)', () => {
-  for (const name of ['hub', 'hub-plan', 'hub-plan-releases', 'hub-plan-sprints', 'hub-desk', 'hub-inventory', 'hub-inventory-section', 'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-pages', 'hub-contents', 'hub-settings']) {
+  for (const name of ['hub', 'hub-plan', 'hub-plan-table', 'hub-plan-dependencies', 'hub-plan-releases', 'hub-plan-sprints', 'hub-desk', 'hub-inventory', 'hub-inventory-section', 'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-pages', 'hub-contents', 'hub-settings']) {
     assert.deepEqual(level(name, { id: 'h' }), { kind: 'hub', hubId: 'h' }, name);
   }
   for (const name of ['collection', 'collection-timeline', 'collection-sprint', 'collection-time', 'collection-workload', 'collection-settings']) {

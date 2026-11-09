@@ -15,7 +15,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, ADMIN_GRANTS, INVITED, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { addPeople } from './addpeople.mjs';
+import { addPeople, wayDialog } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const LINK = 'https://home.example/redeem#token=hbt_inv_e2e-link';
@@ -82,7 +82,7 @@ const linked = {
 
 async function invite(page, address) {
   await addPeople(page);
-  const form = page.locator('form').filter({ has: page.getByLabel('Email address') });
+  const form = wayDialog(page);
   await form.getByLabel('Email address').fill(address);
   await form.getByLabel('Role').selectOption('MEMBER');
   return form;
@@ -153,7 +153,8 @@ test('a row still invited is given a new link, drawn where the reader is taken t
 
     await page.getByText('Invitation link for Bert').waitFor();
     assert.equal(sent.renewed, true);
-    const focused = await page.evaluate(() => document.activeElement?.hasAttribute('data-invitation-link'));
+    // The link stands in its own dialog, and the focus is in it.
+    const focused = await page.evaluate(() => document.activeElement?.closest('dialog')?.querySelector('[data-invitation-link]') != null);
     assert.equal(focused, true, 'the reader is not taken to the new link');
     // A person who arrived has nothing to renew.
     const arrived = page.getByRole('row').filter({ hasText: ACCOUNT.display_name });
@@ -240,7 +241,7 @@ test('an administrator is not offered Owner', async () => {
   try {
     await page.goto(`${served.origin}/administration/people`);
     await addPeople(page);
-    const inviteForm = page.locator('form').filter({ has: page.getByLabel('Email address') });
+    const inviteForm = wayDialog(page);
     await inviteForm.getByLabel('Role').waitFor();
     const offered = async (select) => select.locator('option').evaluateAll((options) => options.map((option) => option.value));
     const invitable = await offered(inviteForm.getByLabel('Role'));

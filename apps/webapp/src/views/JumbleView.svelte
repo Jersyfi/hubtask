@@ -42,6 +42,7 @@
     Spinner,
     Stack,
     ViewSwitcher,
+    WorkPage,
   } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -284,10 +285,10 @@
 
 <svelte:window {onkeydown} />
 
-<div class="screen">
-  <Stack gap="300">
+<WorkPage>
+  {#snippet top()}
     <!-- `data-tour`: where the tour points for "where things arrive before they are work". -->
-    <div data-tour="jumble">
+    <div data-tour="jumble" data-head="jumble">
       <PageHeader
         title={t('app.jumble.title')}
         isTitleInBar={viewport.isCompact}
@@ -299,6 +300,12 @@
       <!-- The workspace's intake address, where people look for it (ADR-0094). -->
       {#if intakeAddress}<IntakeAddress address={intakeAddress} lead={t('app.mail.jumble_lead')} />{/if}
     </div>
+  {/snippet}
+  <!-- Which arrivals: three states, one chosen - the segments the collection's layouts use, not a
+       field the width of the page; the work page's toolbar (PS-2). -->
+  {#snippet toolbar()}
+    <ViewSwitcher label={t('app.jumble.showing')} views={filters.map((each) => ({ id: each.value, label: each.label }))} selected={filter} onselect={(id) => (filter = id as typeof filter)} />
+  {/snippet}
 
     {#if failure}<FailureNote problem={failure} />{/if}
     {#if askFailure}<FailureNote problem={askFailure} />{/if}
@@ -307,12 +314,6 @@
     {#if hasAi && suggestions.arrivalBudgetSpent}
       <p class="quiet" data-arrival-budget>{renderRefusal(suggestions.arrivalBudgetSpent, messages)}</p>
     {/if}
-
-    <!-- Which arrivals: three states, one chosen - the segments the collection's layouts use, not a
-         field the width of the page. -->
-    <div class="states">
-      <ViewSwitcher label={t('app.jumble.showing')} views={filters.map((each) => ({ id: each.value, label: each.label }))} selected={filter} onselect={(id) => (filter = id as typeof filter)} />
-    </div>
 
     {#if selectable && selection.isOn}
       <div class="selection" role="toolbar" aria-label={t('app.jumble.actions')} data-jumble-selection>
@@ -530,13 +531,9 @@
         {/if}
       </Stack>
     {/if}
-  </Stack>
-</div>
+</WorkPage>
 
 <style>
-  /* As wide as its segments, at the page's edge - not the width of the page. */
-  .states { display: flex; }
-
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }

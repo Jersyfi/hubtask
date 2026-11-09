@@ -21,6 +21,7 @@
 </script>
 
 <Dialog
+  size="s"
   title={t('app.people.renew_title')}
   isOpen={who !== undefined}
   dismissLabel={t('app.workspace.cancel')}

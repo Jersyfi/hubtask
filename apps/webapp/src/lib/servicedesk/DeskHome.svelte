@@ -5,11 +5,10 @@
   // (*12 open · 2 about to breach · 3 unassigned*), *New request* as the primary - capture opened on
   // the desk's collection - then *Queues · Desks · Settings*. The queues span every desk
   // collection of the hubs where the desk is on; the desks are listed with their hub; the settings
-  // are the workspace's calendars, policies, replies and organisations, read by every member and
-  // changed by whoever shapes the workspace (ServiceDeskView).
+  // are a settings page of their own (ServiceDeskView, page-system §9.6).
 
   import { untrack } from 'svelte';
-  import { Icon, ListRow, PageHeader, ViewBar, Skeleton, Stack, type ViewLink } from '@hubtask/design-system/components';
+  import { Icon, ListRow, PageHeader, Skeleton, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -20,7 +19,6 @@
   import { holdsHere } from '../data/capability.svelte.ts';
   import ProductEmpty from '../product/ProductEmpty.svelte';
   import { markOf } from '../workspace/look.ts';
-  import ServiceDeskView from '../../views/ServiceDeskView.svelte';
   import DeskQueues from './DeskQueues.svelte';
   import { desksOf, type DeskQueue } from './queues.ts';
 
@@ -40,8 +38,8 @@
 
   const name = $derived(t('app.nav.desk'));
   // The report is the workspace's, read by a holder of STRUCTURE there (P-05), as its section was.
-  const tabs = $derived<ViewLink[]>(homeTabs('SERVICE_DESK').filter((each) => each.id !== 'reports' || holdsHere('STRUCTURE') === true).map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
-  const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'foryou');
+  const homeViews = $derived<ViewLink[]>(homeTabs('SERVICE_DESK').filter((each) => each.id !== 'reports' || holdsHere('STRUCTURE') === true).map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
+  const current = $derived(homeViews.some((each) => each.id === tab) ? (tab as string) : 'foryou');
 
   const hubKey = $derived(hubs.map((hub) => hub.id).join(','));
   $effect(() => {
@@ -93,7 +91,8 @@
   });
 </script>
 
-<Stack gap="300">
+<WorkPage>
+  {#snippet top()}
   <PageHeader
     title={name}
     subtitle={t('app.modules.hint_service_desk')}
@@ -111,11 +110,10 @@
     {#snippet figure()}{#if figureText}<span class="figure" data-desk-figure>{figureText}</span>{/if}{/snippet}
   </PageHeader>
 
-  <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
+  {/snippet}
+  {#snippet tabs()}<ViewBar label={name} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate(homeViews.find((each) => each.id === id)?.href ?? '/desk')} />{/snippet}
 
-  {#if current === 'settings' || current === 'reports'}
-    <ServiceDeskView isEmbedded {onnavigate} parts={current === 'reports' ? ['report'] : ['calendars', 'policies', 'replies', 'organisations']} />
-  {:else if isReading || desksAt === undefined}
+  {#if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
       <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}
         description={t(createHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')} create={createHub} isInHead {templates} />
@@ -139,7 +137,7 @@
   {:else}
     <DeskQueues desks={desksAt} withHub={hubs.length > 1} {onnavigate} ontotals={(next) => (totals = next)} />
   {/if}
-</Stack>
+</WorkPage>
 
 <style>
   .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }

@@ -16,10 +16,13 @@
   // Where the own domain is the main address (UC-INS-15 checks 7 and 8) the panel names it, and the
   // subdomain beside it that sends browsers on, with the way back; the own domain's own panel is then
   // this one. Either move of the main address ends every session, and the browser goes on likewise.
+  //
+  // A `SettingsLayout` of one section (page-system §9.1); a change of address opens its Dialog M,
+  // which names the plan - the new address and what the change ends - before anything moves.
 
   import { untrack } from 'svelte';
 
-  import { Badge, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, SettingRow, SettingsLayout, SettingsSection, Spinner } from '@hubtask/design-system/components';
 
   import ChangeAddressDialog from '../lib/address/ChangeAddressDialog.svelte';
   import MainAddressDialog from '../lib/address/MainAddressDialog.svelte';
@@ -29,14 +32,20 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatLongDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
+  interface Props {
+    /** Opens another address, entering it into the history: the way back below `expanded`. */
+    onnavigate?: (path: string) => void;
+  }
+  const { onnavigate }: Props = $props();
+
+  const title = $derived(t('app.address.title'));
   $effect(() => untrack(() => workspace.open()));
-  $effect(() => page.entitle(t('app.address.title')));
+  $effect(() => page.entitle(title));
 
   const reading = $derived(workspace.state);
   const current = $derived(workspace.workspace);
@@ -68,20 +77,22 @@
   }
 </script>
 
-<Stack gap="300">
-  <PageHeader
-    title={t('app.address.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
+<SettingsLayout
+  head={{
+    title,
+    breadcrumb: {
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'address', label: t('app.address.title') },
+        { id: 'address', label: title },
       ],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
+    },
+  }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: [{ id: 'address', label: title, href: '/administration/address' }], current: 'address' }}
+  view="detail"
+  back={{ label: t('app.admin.title'), onback: () => onnavigate?.('/administration') }}
+>
   {#if reading.status === 'loading' || reading.status === 'idle'}
     <p class="quiet">
       <Spinner label={t('app.address.reading')} />
@@ -89,54 +100,61 @@
     </p>
   {:else if refusal}
     <FailureNote problem={refusal} />
-  {:else if current && address && wayBack}
-    <section class="panel" aria-labelledby="main-address" data-main="own">
-      <Stack gap="100">
-        <div class="row between">
-          <span class="label" id="main-address">{t('app.address.main')}</span>
-          <Badge tone="success">{t('app.address.own_main_badge')}</Badge>
+  {:else if current}
+    <!-- One section (page-system §9.1): the main address, the way back where the own domain is
+         main, and the own domain, as rows of one region. -->
+    <SettingsSection title={title}>
+      {#if address && wayBack}
+        <div data-main="own">
+        <div class="row">
+          <SettingRow label={t('app.address.main')} help={t('app.address.own_main_note')} fieldWidth="lg">
+            {#snippet source()}<Badge tone="success">{t('app.address.own_main_badge')}</Badge>{/snippet}
+            {#snippet control()}<p class="fixed">{address.host}</p>{/snippet}
+          </SettingRow>
         </div>
-        <p class="fixed">{address.host}</p>
-        <p class="note">{t('app.address.own_main_note')}</p>
-        <hr class="rule" />
-        <span class="label">{t('app.address.also')}</span>
-        <p class="mono">{wayBack}</p>
-        <p class="note">{t('app.address.also_note', { main: address.host })}</p>
-        {#if address.may_manage_own_domain}
-          <div>
-            <Button tone="secondary" onclick={() => (moving = { direction: 'back', from: address.host, to: wayBack })}>
-              {t('app.address.switch_back', { host: wayBack })}
-            </Button>
+        <div class="row">
+          <SettingRow label={t('app.address.also')} help={t('app.address.also_note', { main: address.host })} fieldWidth="lg">
+            {#snippet control()}
+              <p class="fixed">{wayBack}</p>
+              {#if address.may_manage_own_domain}
+                <Button tone="secondary" size="sm" onclick={() => (moving = { direction: 'back', from: address.host, to: wayBack })}>
+                  {t('app.address.switch_back', { host: wayBack })}
+                </Button>
+              {/if}
+            {/snippet}
+          </SettingRow>
+        </div>
+        </div>
+      {:else}
+        <div class="row">
+          <SettingRow label={t('app.address.main')} help={note} fieldWidth="lg">
+            {#snippet control()}
+              <p class="fixed">{address?.host ?? current.slug}</p>
+              {#if address?.may_change}
+                <Button tone="secondary" size="sm" onclick={open}>{t('app.address.change')}</Button>
+              {/if}
+            {/snippet}
+          </SettingRow>
+        </div>
+        <!-- UC-INS-15 check 1: where the installation allows own domains; one set up before it
+             stopped allowing them is still shown, for its owner to see and remove. -->
+        {#if address && (address.own_domains_allowed || address.own_domain)}
+          <div class="row own">
+            <OwnDomainPanel
+              own={address.own_domain}
+              main={address.host}
+              isOwner={address.may_manage_own_domain === true}
+              isAllowed={address.own_domains_allowed === true}
+              onmakemain={() => {
+                if (address.own_domain) moving = { direction: 'own', from: address.host, to: address.own_domain.domain };
+              }}
+            />
           </div>
         {/if}
-      </Stack>
-    </section>
-  {:else if current}
-    <section class="panel" aria-labelledby="main-address">
-      <Stack gap="100">
-        <span class="label" id="main-address">{t('app.address.main')}</span>
-        <p class="fixed">{address?.host ?? current.slug}</p>
-        <p class="note">{note}</p>
-        {#if address?.may_change}
-          <div><Button tone="secondary" onclick={open}>{t('app.address.change')}</Button></div>
-        {/if}
-      </Stack>
-    </section>
-    <!-- UC-INS-15 check 1: where the installation allows own domains; one set up before it stopped
-         allowing them is still shown, for its owner to see and remove. -->
-    {#if address && (address.own_domains_allowed || address.own_domain)}
-      <OwnDomainPanel
-        own={address.own_domain}
-        main={address.host}
-        isOwner={address.may_manage_own_domain === true}
-        isAllowed={address.own_domains_allowed === true}
-        onmakemain={() => {
-          if (address.own_domain) moving = { direction: 'own', from: address.host, to: address.own_domain.domain };
-        }}
-      />
-    {/if}
+      {/if}
+    </SettingsSection>
   {/if}
-</Stack>
+</SettingsLayout>
 
 <ChangeAddressDialog
   subject={changing}
@@ -166,19 +184,6 @@
     color: var(--text-secondary);
   }
 
-  /* The surface the address stands on, as the section's other screens draw one, with the measure
-     of the prose inside it. */
-  .panel {
-    max-inline-size: 72ch;
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .label { color: var(--text-primary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
-
   .fixed {
     margin: 0;
     font-family: var(--font-mono);
@@ -187,13 +192,8 @@
     overflow-wrap: anywhere;
   }
 
-  .row { display: flex; align-items: center; gap: var(--sp-100); flex-wrap: wrap; }
-  .between { justify-content: space-between; }
-
-  .mono { margin: 0; font-family: var(--font-mono); color: var(--text-primary); overflow-wrap: anywhere; }
-
-  .rule { margin: var(--sp-050) 0; border: 0; border-block-start: var(--bw-hairline) solid var(--border-subtle); }
-
-  /* The panel carries the measure, so the note runs its width as the preview draws it. */
-  .note { margin: 0; max-inline-size: none; font-size: var(--fs-075); color: var(--text-subtle); }
+  /* The rows are wrapped so a test finds each with its parts; the hairline between two rows is
+     drawn here, since the design system's own rule sees siblings. */
+  .row + .row :global(.setting-row > .setting-line:first-child),
+  .row + .own { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 </style>

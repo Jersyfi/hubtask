@@ -4,11 +4,12 @@
   import Button from './Button.svelte';
   import Checkbox from './Checkbox.svelte';
   import Dialog from './Dialog.svelte';
+  import DialogSizesDemo from './_DialogSizesDemo.svelte';
   import Input from './Input.svelte';
   import Popover from './Popover.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'confirm' }: { mode?: 'confirm' | 'layers' | 'wide' } = $props();
+  const { mode = 'confirm', size }: { mode?: 'confirm' | 'layers' | 'wide'; size?: 's' | 'm' | 'l' | 'discard' } = $props();
 
   let working = $state(false);
 
@@ -16,7 +17,9 @@
   let editing = $state(false);
 </script>
 
-{#if mode === 'wide'}
+{#if size}
+  <DialogSizesDemo {size} />
+{:else if mode === 'wide'}
   <Stack gap="200">
     <Button tone="primary" icon="plus" onclick={() => (working = true)}>Capture</Button>
     <Dialog title="Capture" bind:isOpen={working} dismissLabel="Close" isWide>

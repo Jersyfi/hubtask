@@ -23,13 +23,14 @@
     Button,
     Checkbox,
     CheckboxGroup,
+    DataTable,
     Dialog,
-    Inline,
     Input,
     Select,
     Stack,
     Textarea,
   } from '@hubtask/design-system/components';
+  import type { DataColumn } from '@hubtask/design-system/components';
   import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
@@ -41,18 +42,20 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { check, focusFirst, isComplete, without, type Missing } from '../forms/missing.ts';
-  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
+  import { DiscardGuard } from '../page/discard.svelte.ts';
+  import DiscardDialog from '../page/DiscardDialog.svelte';
+  import TableSection from '../page/TableSection.svelte';
 
   interface Props {
-    /** Drawn as a tab of the *Structure* panel rather than as a dialog of its own. */
-    isEmbedded?: boolean;
-    isOpen: boolean;
     collectionId: string;
     /** The role this reader holds along the collection, which is what `STRUCTURE` is read from. */
     role?: string;
   }
 
-  let { isEmbedded = false, isOpen = $bindable(), collectionId, role }: Props = $props();
+  const { collectionId, role }: Props = $props();
+
+  /** The field dialog: a new definition, or `editing`'s (a Dialog M, page-system §5.1). */
+  let isOpen = $state(false);
 
   const structure = $derived(holds(role, 'STRUCTURE'));
   const carriers = $derived(typesWith('CUSTOM_FIELDS'));
@@ -101,13 +104,6 @@
   let missing = $state<Missing>({});
   let form = $state<HTMLElement | null>(null);
 
-  // Opening starts from nothing. Closing leaves the fields alone: they are re-read on the next
-  // open, and clearing them here would blank the dialog while it is still fading out.
-  $effect(() => {
-    if (!isOpen) return;
-    reset();
-  });
-
   function reset() {
     name = '';
     key = '';
@@ -122,12 +118,18 @@
     // The default is what the column's default is — every carrier rather than a guess at one.
     chosen = [...carriers];
     editing = undefined;
-    deleting = undefined;
     failure = undefined;
     missing = {};
   }
 
+  function startNew() {
+    reset();
+    isOpen = true;
+  }
+
   function startEdit(definition: CustomFieldDefinition) {
+    reset();
+    isOpen = true;
     editing = definition;
     name = definition.name ?? '';
     key = definition.key;
@@ -223,6 +225,7 @@
           crypto.randomUUID(),
         );
       }
+      isOpen = false;
       reset();
     }, current ? t('app.fields.saved_announced') : t('app.fields.defined_announced'));
   }
@@ -237,53 +240,80 @@
   }
 
   const kindLabel = (value: string) => t(`app.fields.kind_${value}`);
+
+  // What was typed and not defined asks before it is dropped (page-system §5.1).
+  const guard = new DiscardGuard(() => (editing ? false : name.trim() !== '' || key !== '' || options.trim() !== '' || formula.trim() !== ''), () => {
+    isOpen = false;
+    reset();
+  });
+
+  /** Changed where it was defined: a workspace-wide or a hub's field is listed here without its acts. */
+  const isOwn = (definition: CustomFieldDefinition) => !isWorkspaceWide(definition) && !isHubs(definition);
+  const scopeOf = (definition: CustomFieldDefinition) =>
+    isHubs(definition) ? t('app.fields.this_hub') : isWorkspaceWide(definition) ? t('app.fields.workspace_wide') : t('app.fields.this_collection');
+  const columns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.fields.name'), priority: 1 },
+    { id: 'kind', label: t('app.fields.kind'), priority: 2 },
+    { id: 'scope', label: t('app.settings.type_source'), priority: 3 },
+  ]);
+  const menuOf = (definition: CustomFieldDefinition) =>
+    isOwn(definition) && mayShape
+      ? {
+          label: t('app.page.more_for', { name: fieldName(definition) }),
+          items: [
+            { id: 'edit', label: t('app.fields.edit') },
+            { id: 'delete', label: t('app.fields.delete'), isDestructive: true, hasSeparatorBefore: true },
+          ],
+        }
+      : undefined;
 </script>
 
-<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.fields.title')}>
-  <Stack gap="200">
-    <p class="hint">{t('app.fields.scope_hint')}</p>
+<!-- The custom fields in force here as one table (page-system §9.6, PS-4): defining and changing in
+     a Dialog M, taking out of use behind the row's ⋯ with its Dialog S. Defining is drawn only for
+     a role that may shape (P-05, UC-WRK-22 check 4). -->
+{#snippet define()}
+  {#if mayShape}<Button size="sm" tone="secondary" onclick={startNew}>{t('app.fields.define')}</Button>{/if}
+{/snippet}
 
-    {#if existing.length === 0}
-      <p class="hint">{t('app.fields.none')}</p>
-    {:else}
-      <ul class="fields">
-        {#each existing as definition (definition.id)}
-          <li>
-            <div class="row">
-              <div>
-                <span class="name">{fieldName(definition)}</span>
-                {#if definition.name}<span class="key">{definition.key}</span>{/if}
-                <span class="meta">
-                  {kindLabel(definition.kind)}{#if definition.currency} ({definition.currency}){/if} ·
-                  {isHubs(definition)
-                    ? t('app.fields.this_hub')
-                    : isWorkspaceWide(definition)
-                      ? t('app.fields.workspace_wide')
-                      : t('app.fields.this_collection')}
-                </span>
-              </div>
-              <!-- A definition is changed where it was defined. The workspace-wide ones are listed
-                   here because they apply here, and their controls are not. -->
-              {#if !isWorkspaceWide(definition) && !isHubs(definition) && mayShape}
-                <Inline gap="050">
-                  <Button size="sm" tone="secondary" onclick={() => startEdit(definition)}>
-                    {t('app.fields.edit')}
-                  </Button>
-                  <Button size="sm" tone="secondary" onclick={() => (deleting = definition)}>
-                    {t('app.fields.delete')}
-                  </Button>
-                </Inline>
-              {/if}
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+<TableSection title={t('app.fields.title')} note={String(existing.length)} description={t('app.fields.scope_hint')} acts={define}>
+  {#if failure && !isOpen && !deleting}<p class="failure" role="alert">{failure.message}</p>{/if}
+  <DataTable
+    label={t('app.structure.tab_fields')}
+    {columns}
+    rows={existing}
+    key={(definition) => definition.id}
+    rowLabel={fieldName}
+    menu={menuOf}
+    onmenu={(definition, id) => (id === 'delete' ? (deleting = definition) : startEdit(definition))}
+    actionsLabel={t('app.page.row_actions')}
+    sheetDismissLabel={t('app.page.sheet_close')}
+    sheetGrabLabel={t('app.page.sheet_grab')}
+  >
+    {#snippet cell(definition, column)}
+      {#if column.id === 'name'}
+        <span class="name">{fieldName(definition)}</span>
+        {#if definition.name}<span class="key">{definition.key}</span>{/if}
+      {:else if column.id === 'kind'}
+        <span class="meta">{kindLabel(definition.kind)}{#if definition.currency} ({definition.currency}){/if}</span>
+      {:else}
+        <span class="meta">{scopeOf(definition)}</span>
+      {/if}
+    {/snippet}
+    {#snippet empty()}<p class="hint">{t('app.fields.none')}</p>{/snippet}
+  </DataTable>
+</TableSection>
 
-    <!-- Defining and changing are the shape of the workspace: drawn for a role that may, absent for
-         any other and while the role is still being read (P-05, UC-WRK-22 check 4). -->
-    {#if mayShape}
-      <div bind:this={form}>
+{#if mayShape}
+  <Dialog
+    size="m"
+    title={editing ? fieldName(editing) : t('app.fields.define')}
+    bind:isOpen
+    dismissLabel={t('app.workspace.cancel')}
+    onDismiss={guard.dismiss}
+    onClose={reset}
+    primary={{ label: editing ? t('app.workspace.save') : t('app.fields.define'), isBusy: isSaving, busyLabel: t('app.workspace.saving'), onclick: save }}
+  >
+    <div bind:this={form}>
       <Stack gap="150">
         <Input
           label={t('app.fields.name')}
@@ -381,48 +411,35 @@
         {/if}
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-
-        <Inline gap="100">
-          <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
-            {editing ? t('app.workspace.save') : t('app.fields.define')}
-          </Button>
-          {#if editing}
-            <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
-          {/if}
-        </Inline>
       </Stack>
-      </div>
-    {/if}
-  </Stack>
-</PanelOrDialog>
+    </div>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => { if (guard.dismiss()) { isOpen = false; reset(); } }}>{t('app.workspace.cancel')}</Button>
+    {/snippet}
+  </Dialog>
+  <DiscardDialog {guard} />
+{/if}
 
 {#if deleting}
   <Dialog
+    size="s"
     isOpen={true}
     title={t('app.fields.delete_title', { key: deleting.key })}
     dismissLabel={t('app.workspace.cancel')}
     onClose={() => (deleting = undefined)}
+    primary={{ label: t('app.fields.delete'), tone: 'danger', isBusy: isSaving, busyLabel: t('app.workspace.saving'), onclick: confirmDelete }}
   >
     <Stack gap="150">
       <p class="hint">{t('app.fields.delete_explains')}</p>
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-      <Inline gap="100">
-        <Button tone="danger" isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={confirmDelete}>
-          {t('app.fields.delete')}
-        </Button>
-        <Button tone="secondary" onclick={() => (deleting = undefined)}>
-          {t('app.workspace.cancel')}
-        </Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => (deleting = undefined)}>{t('app.workspace.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 <style>
-  .fields { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-100); }
-
-  .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
-
   .name { display: block; }
   .key { display: block; font-family: var(--font-mono); }
 

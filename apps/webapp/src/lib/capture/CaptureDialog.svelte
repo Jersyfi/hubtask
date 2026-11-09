@@ -727,7 +727,7 @@
   });
 </script>
 
-<Dialog title={t('app.capture.title')} dismissLabel={t('app.capture.close')} isOpen={capture.isOpen} onClose={() => capture.close()} isWide>
+<Dialog size="l" title={t('app.capture.title')} dismissLabel={t('app.capture.close')} isOpen={capture.isOpen} onClose={() => capture.close()}>
   <form
     class="capture"
     bind:this={field}

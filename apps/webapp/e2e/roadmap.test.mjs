@@ -63,8 +63,10 @@ test('chromium: 1280 px — the roadmap says its reach and its projects at risk,
   // The window holds the whole reach, months away from today, without a press.
   // A little room before and after, the start snapped to its month's line.
   await page.getByText('Dec 1, 2026 to Jun 5, 2027', { exact: true }).waitFor({ timeout: 5_000 });
-  await page.getByRole('table', { name: 'Roadmap as a table' }).waitFor({ timeout: 5_000 });
   assert.ok(await page.getByRole('button', { name: 'Fit roadmap' }).isVisible());
+  // The table is the roadmap's other view (page-system §9.7).
+  await page.getByRole('radio', { name: 'Table' }).click();
+  await page.getByRole('table', { name: 'Roadmap as a table' }).waitFor({ timeout: 5_000 });
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);

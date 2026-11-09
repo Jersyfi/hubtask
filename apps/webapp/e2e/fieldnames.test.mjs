@@ -57,13 +57,16 @@ test('chromium: the field settings name a field, and a new key follows the name'
       await part.getByText('First response', { exact: true }).waitFor({ timeout: 15_000 });
       assert.equal(await part.getByText('first_response', { exact: true }).count(), 1, 'the key stands beside the name');
 
-      await part.getByLabel('Name', { exact: true }).fill('Customer account');
-      assert.equal(await part.getByLabel('Key', { exact: true }).inputValue(), 'customer_account');
-      await part.getByLabel('Key', { exact: true }).fill('client');
-      await part.getByLabel('Name', { exact: true }).fill('Client account');
-      assert.equal(await part.getByLabel('Key', { exact: true }).inputValue(), 'client', 'a key written by hand stays');
-
+      // A field is defined in its Dialog M, opened from the section's head (page-system §9.6).
       await part.getByRole('button', { name: 'Define a field' }).click();
+      const form = page.getByRole('dialog', { name: 'Define a field' });
+      await form.getByLabel('Name', { exact: true }).fill('Customer account');
+      assert.equal(await form.getByLabel('Key', { exact: true }).inputValue(), 'customer_account');
+      await form.getByLabel('Key', { exact: true }).fill('client');
+      await form.getByLabel('Name', { exact: true }).fill('Client account');
+      assert.equal(await form.getByLabel('Key', { exact: true }).inputValue(), 'client', 'a key written by hand stays');
+
+      await form.getByRole('button', { name: 'Define a field' }).click();
       for (let tries = 0; tries < 50 && written.length === 0; tries++) await page.waitForTimeout(100);
       assert.equal(written[0]?.name, 'Client account');
       assert.equal(written[0]?.key, 'client');

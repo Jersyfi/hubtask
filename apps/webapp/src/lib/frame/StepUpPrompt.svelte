@@ -139,6 +139,7 @@
 
 {#if pending}
   <Dialog
+    size="s"
     title={t('app.step_up.title')}
     isOpen
     dismissLabel={t('app.step_up.cancel')}

@@ -28,7 +28,7 @@
   import { untrack } from 'svelte';
 
   import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
-  import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow, WorkPage } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -581,11 +581,13 @@
   {/if}
 {/snippet}
 
-<Stack gap="300">
-  <!-- The day starts with the person (§11.7): the greeting is the heading, the date at its end. -->
-  <PageHeader title={greeting} isTitleInBar={viewport.isCompact}>
-    {#snippet aside()}<span class="date">{dayLine}</span>{/snippet}
-  </PageHeader>
+<WorkPage>
+  {#snippet top()}
+    <!-- The day starts with the person (§11.7): the greeting is the heading, the date at its end. -->
+    <PageHeader title={greeting} isTitleInBar={viewport.isCompact}>
+      {#snippet aside()}<span class="date">{dayLine}</span>{/snippet}
+    </PageHeader>
+  {/snippet}
 
   {#if actor.hasNoAccess && actor.portals.length > 0}
     <!-- A requester holding nothing but portals: where they ask, not a notice about access. -->
@@ -975,7 +977,7 @@
       {/if}
     </div>
   {/if}
-</Stack>
+</WorkPage>
 
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 

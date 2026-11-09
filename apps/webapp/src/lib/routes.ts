@@ -50,16 +50,25 @@ export const ROUTES: readonly Route[] = [
   // this area in full and excludes administration, and a route that carried no area would be one
   // somebody has to classify by reading it.
   { name: 'profile', pattern: '/profile', area: 'profile' },
+  // Name and language's sections, each at an address (page-system §9.5).
+  { name: 'profile-section', pattern: '/profile/you/:section', area: 'profile' },
   // A person's own credentials are profile configuration, not administration: nobody else can
   // list them, and an administrator who could would learn which of somebody's automations to
   // attack (`security.md` §5).
   { name: 'tokens', pattern: '/profile/tokens', area: 'profile' },
+  // A new token is a create page and a token a record page (page-system §9.5); `new` before `:id`.
+  { name: 'token-new', pattern: '/profile/tokens/new', area: 'profile' },
+  { name: 'token', pattern: '/profile/tokens/:id', area: 'profile' },
   // The rest of Your settings, which is a section since ADR-0065 decision 3: one screen per
   // question, each with an address of its own, all of them the reader's own and therefore
   // `profile` - the area the mobile shell ships in full (ADR-0032).
   { name: 'appearance', pattern: '/profile/appearance', area: 'profile' },
   { name: 'notifications', pattern: '/profile/notifications', area: 'profile' },
   { name: 'security', pattern: '/profile/security', area: 'profile' },
+  // Password and sign-in's sections each at an address, and setting up the authenticator app a
+  // create page of its own (page-system §9.5).
+  { name: 'security-section', pattern: '/profile/security/:section', area: 'profile' },
+  { name: 'second-factor-new', pattern: '/profile/security/second-factor/new', area: 'profile' },
   { name: 'sessions', pattern: '/profile/sessions', area: 'profile' },
   { name: 'devices', pattern: '/profile/devices', area: 'profile' },
   { name: 'grants', pattern: '/profile/apps', area: 'profile' },
@@ -77,15 +86,28 @@ export const ROUTES: readonly Route[] = [
   // The agents acting for the reader and what they wait on (UC-AGT-02), reached without the
   // administration: a member's agent is theirs, and its notice links here.
   { name: 'own-agents', pattern: '/profile/agents', area: 'profile' },
+  // One of them as its record page (page-system §9.5).
+  { name: 'own-agent', pattern: '/profile/agents/:id', area: 'profile' },
   // ADR-0032's administration area. Every route added under it is tagged as it is
   // added, and `router.test.ts` asserts that the tagged set is exactly the set under
   // `/administration` — so a screen added here without the tag, or tagged without living here,
   // fails rather than quietly shipping in the mobile shell.
   { name: 'administration', pattern: '/administration', area: 'administration' },
   { name: 'workspace-settings', pattern: '/administration/workspace', area: 'administration' },
+  // One section per address (page-system PS-9), as the sign-in screen's.
+  { name: 'workspace-section', pattern: '/administration/workspace/:section', area: 'administration' },
   { name: 'workspace-address', pattern: '/administration/address', area: 'administration' },
+  { name: 'templates', pattern: '/administration/templates', area: 'administration' },
+  // Kept as an address that moved (`movedTo`): *Templates and presets* is *Templates* now.
   { name: 'presets', pattern: '/administration/presets', area: 'administration' },
   { name: 'people', pattern: '/administration/people', area: 'administration' },
+  // An object with lists of its own opens as its record page at its own address (page-system
+  // §5.1): a person, a group, a role, a service account, an app.
+  { name: 'person', pattern: '/administration/people/:id', area: 'administration' },
+  { name: 'group', pattern: '/administration/groups/:id', area: 'administration' },
+  { name: 'role', pattern: '/administration/roles/:id', area: 'administration' },
+  { name: 'service-account', pattern: '/administration/machines/:id', area: 'administration' },
+  { name: 'app', pattern: '/administration/apps/:id', area: 'administration' },
   // Kept as addresses that moved (`movedTo`): the groups and the roles are tabs of *People* now.
   { name: 'groups', pattern: '/administration/groups', area: 'administration' },
   { name: 'permissions', pattern: '/administration/permissions', area: 'administration' },
@@ -95,10 +117,15 @@ export const ROUTES: readonly Route[] = [
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
   { name: 'voice', pattern: '/administration/voice', area: 'administration' },
+  { name: 'voice-section', pattern: '/administration/voice/:section', area: 'administration' },
   { name: 'mail', pattern: '/administration/mail', area: 'administration' },
   // Where a mail provider sends the browser back after connecting a mailbox (ADR-0094): the mail
   // screen, which hands the code and the state to the API and then drops them from the address.
   { name: 'mail-oauth', pattern: '/administration/mail/oauth', area: 'administration' },
+  // A connected mailbox's record page (page-system §9.3).
+  { name: 'mailbox', pattern: '/administration/mail/mailboxes/:id', area: 'administration' },
+  // After `mail-oauth`, which it would otherwise take as a section named `oauth`.
+  { name: 'mail-section', pattern: '/administration/mail/:section', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
   // The rule editor: a rule drawn as a path. `new` before `:id`, so that a rule whose
   // identifier happened to be `new` could not exist and the two do not compete.
@@ -106,11 +133,15 @@ export const ROUTES: readonly Route[] = [
   { name: 'rule', pattern: '/administration/rules/:id', area: 'administration' },
   { name: 'runs', pattern: '/administration/runs', area: 'administration' },
   { name: 'webhooks', pattern: '/administration/webhooks', area: 'administration' },
+  // A webhook as its record page, with its deliveries (page-system §9.3).
+  { name: 'webhook', pattern: '/administration/webhooks/:id', area: 'administration' },
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
   // The suite's modules, switched for the workspace (UC-INS-21).
   { name: 'modules', pattern: '/administration/modules', area: 'administration' },
   // The workspace's entry types, where the workflows module is on (UC-FLW-01 check 1).
   { name: 'entry-types', pattern: '/administration/types', area: 'administration' },
+  // A type opens as its record page, with its form (page-system §9.1).
+  { name: 'entry-type', pattern: '/administration/types/:key', area: 'administration' },
   { name: 'link-types', pattern: '/administration/link-types', area: 'administration' },
   // The time policy and the kinds of work, where the time module is on (UC-TIM-03 check 4).
   { name: 'time-settings', pattern: '/administration/time', area: 'administration' },
@@ -118,26 +149,41 @@ export const ROUTES: readonly Route[] = [
   { name: 'service-desk', pattern: '/administration/service-desk', area: 'administration' },
   { name: 'cmdb', pattern: '/administration/configuration-items', area: 'administration' },
   { name: 'changes', pattern: '/administration/changes', area: 'administration' },
+  // A configuration version as its record page, with what it changed (page-system §9.3).
+  { name: 'change', pattern: '/administration/changes/:version', area: 'administration' },
   // The workflow designer, where the workflows module is on (UC-FLW-02 check 2).
   { name: 'workflows', pattern: '/administration/workflows', area: 'administration' },
+  // Each workflow at its own address, the editor's list beside it (page-system §7.4).
+  { name: 'workflow', pattern: '/administration/workflows/:key', area: 'administration' },
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },
+  // One section per address (page-system PS-9), and a target as its record page with its archives;
+  // the target before the section, so that `targets/…` is never read as a section.
+  { name: 'backup-target', pattern: '/administration/backup/targets/:id', area: 'administration' },
+  { name: 'backup-section', pattern: '/administration/backup/:section', area: 'administration' },
   { name: 'retention', pattern: '/administration/retention', area: 'administration' },
+  { name: 'retention-section', pattern: '/administration/retention/:section', area: 'administration' },
   { name: 'restore', pattern: '/administration/restore', area: 'administration' },
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
   { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },
+  // A privacy case as its record page (page-system §9.3).
+  { name: 'privacy-case', pattern: '/administration/privacy/:id', area: 'administration' },
   // Kept as an address that moved (`movedTo`): the providers are a tab of the sign-in screen now.
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
   // How people sign in: the rules, what the installation locked, and the one action that asks
   // everybody for a new password. Beside the provider rather than inside the workspace screen,
   // because ADR-0065 decision 3 is one screen per question and this is a question of its own.
   { name: 'sign-in-settings', pattern: '/administration/sign-in', area: 'administration' },
+  // One section per address (page-system PS-9), and a sign-in provider as its record page.
+  { name: 'sign-in-provider', pattern: '/administration/sign-in/providers/:id', area: 'administration' },
+  { name: 'sign-in-section', pattern: '/administration/sign-in/:section', area: 'administration' },
   // The links the sign-in footer shows: the same rule, but nothing about how somebody signs in.
   { name: 'legal', pattern: '/administration/legal', area: 'administration' },
   // The AI provider and the consent that lets it be used: where a workspace's content may
   // be sent is administration, exactly as the sign-in provider above it is.
   { name: 'ai', pattern: '/administration/ai', area: 'administration' },
+  { name: 'ai-section', pattern: '/administration/ai/:section', area: 'administration' },
   // The governed agents, their models, held acts and metering, where the agents module is on (M9).
   { name: 'agents', pattern: '/administration/agents', area: 'administration' },
   // No parameter, and that is the point: `/search` is a `POST` because a search term is content
@@ -155,9 +201,17 @@ export const ROUTES: readonly Route[] = [
   { name: 'browse-hub', pattern: '/browse/hubs/:id' },
   { name: 'browse-queues', pattern: '/browse/hubs/:id/queues' },
   { name: 'browse-contents', pattern: '/browse/hubs/:id/contents' },
+  // The areas as Browse steps of their own (the navigation concept §9): the administration's, Your
+  // settings' and the installation's groups, each in its area so who reaches it stays the area's.
+  { name: 'browse-administration', pattern: '/administration/browse', area: 'administration' },
+  { name: 'browse-profile', pattern: '/profile/browse', area: 'profile' },
+  { name: 'browse-instance', pattern: '/instance/browse', area: 'instance' },
   // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
   // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
   { name: 'time', pattern: '/time' },
+  // The time's last tab, a section at its own address as the desk's (page-system PS-9).
+  { name: 'time-home-settings', pattern: '/time/settings' },
+  { name: 'time-home-settings-section', pattern: '/time/settings/:section' },
   // Goals, portfolios and dashboards (M8): a period's goals, the portfolios and the dashboards as
   // tabs (`?tab=`, `?period=`, `?hub=`), and one of each by itself.
   // The products' workspace-wide homes (user-experience.md §2.2): one door per product, across the
@@ -170,13 +224,22 @@ export const ROUTES: readonly Route[] = [
   { name: 'desk-desks', pattern: '/desk/desks' },
   { name: 'desk-reports', pattern: '/desk/reports' },
   { name: 'desk-settings', pattern: '/desk/settings' },
+  { name: 'desk-settings-section', pattern: '/desk/settings/:section' },
   { name: 'assets-home', pattern: '/assets' },
   // The assets' classes and sources, the workspace's (§8.2), each a tab of the home.
   { name: 'assets-classes', pattern: '/assets/classes' },
+  { name: 'assets-class', pattern: '/assets/classes/:key' },
   { name: 'assets-sources', pattern: '/assets/sources' },
   { name: 'assets-settings', pattern: '/assets/settings' },
+  { name: 'assets-settings-section', pattern: '/assets/settings/:section' },
   { name: 'agents-home', pattern: '/agents' },
+  // The agents' last tab, a section at its own address; before `agent`, which would take it for an id.
+  { name: 'agents-settings', pattern: '/agents/settings' },
+  { name: 'agents-settings-section', pattern: '/agents/settings/:section' },
+  // An agent as its record page: its ledger, jobs and evaluation (page-system §9.5).
+  { name: 'agent', pattern: '/agents/:id' },
   { name: 'goals', pattern: '/goals' },
+  { name: 'goal-results', pattern: '/goals/:id/results' },
   { name: 'goal', pattern: '/goals/:id' },
   { name: 'portfolio', pattern: '/portfolios/:id' },
   // A portfolio's roadmap (M2): a lane per hub, a bar per top-level entry.
@@ -212,6 +275,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'hub-plan', pattern: '/hubs/:id/plan' },
   // The tool *Plan*'s other tabs (the navigation concept §2.4): the hub's releases, the running
   // sprints of its collections.
+  // The plan's table and its dependencies are tabs of the tool's one view bar (the navigation concept §3).
+  { name: 'hub-plan-table', pattern: '/hubs/:id/plan/table' },
+  { name: 'hub-plan-dependencies', pattern: '/hubs/:id/plan/dependencies' },
   { name: 'hub-plan-releases', pattern: '/hubs/:id/plan/releases' },
   { name: 'hub-plan-sprints', pattern: '/hubs/:id/plan/sprints' },
   // Moved (`movedTo`): a collection's plan is its *Timeline* view.
@@ -262,9 +328,13 @@ export const ROUTES: readonly Route[] = [
   // refusal rather than a list that is quietly empty.
   { name: 'instance', pattern: '/instance', area: 'instance' },
   { name: 'instance-workspaces', pattern: '/instance/workspaces', area: 'instance' },
+  // `new` before `:id`: creating a workspace is a page of its own (page-system §9.4).
+  { name: 'instance-workspace-new', pattern: '/instance/workspaces/new', area: 'instance' },
+  { name: 'instance-workspace', pattern: '/instance/workspaces/:id', area: 'instance' },
   { name: 'instance-plans', pattern: '/instance/plans', area: 'instance' },
   { name: 'instance-plan', pattern: '/instance/plans/:name', area: 'instance' },
   { name: 'instance-settings', pattern: '/instance/settings', area: 'instance' },
+  { name: 'instance-settings-section', pattern: '/instance/settings/:section', area: 'instance' },
   { name: 'instance-providers', pattern: '/instance/providers', area: 'instance' },
   { name: 'instance-ai', pattern: '/instance/ai', area: 'instance' },
   { name: 'instance-targets', pattern: '/instance/backup-targets', area: 'instance' },
@@ -289,7 +359,8 @@ export const ADMINISTRATION_PREFIX = '/administration';
  */
 type Params = Readonly<Record<string, string | undefined>>;
 const MOVED: Readonly<Record<string, (params: Params, query: Params) => string | undefined>> = {
-  'identity-provider': () => '/administration/sign-in?tab=ways',
+  'identity-provider': () => '/administration/sign-in/ways',
+  presets: () => '/administration/templates',
   groups: () => '/administration/people?tab=groups',
   permissions: () => '/administration/people?tab=permissions',
   'service-accounts': () => '/administration/machines',
@@ -297,10 +368,25 @@ const MOVED: Readonly<Record<string, (params: Params, query: Params) => string |
   // A product's settings are its home's last tab (user-experience.md §8.2).
   'service-desk': () => '/desk/settings',
   cmdb: () => '/assets/settings',
-  'time-settings': () => '/time?tab=settings',
-  agents: () => '/agents?tab=settings',
+  'time-settings': (_params, query) => `/time/settings${query['section'] ? `/${query['section']}` : ''}`,
+  // The time's and the agents' settings were `?tab=settings&section=`; `models` and `metering` were tabs once.
+  time: (_params, query) => (query['tab'] === 'settings' ? `/time/settings${query['section'] ? `/${query['section']}` : ''}` : undefined),
+  'agents-home': (_params, query) => {
+    const tab = query['tab'];
+    if (tab === 'models' || tab === 'metering') return `/agents/settings/${tab}`;
+    return tab === 'settings' ? `/agents/settings${query['section'] ? `/${query['section']}` : ''}` : undefined;
+  },
+  // A product's settings section is an address of its own; the report is the desk's *Reports*, the
+  // classes and the sources are the assets' tabs again (the navigation concept §4).
+  'desk-settings': (_params, query) => (query['section'] === 'report' ? '/desk/reports' : query['section'] ? `/desk/settings/${query['section']}` : undefined),
+  'assets-settings': (_params, query) =>
+    query['section'] === 'classes' || query['section'] === 'sources' ? `/assets/${query['section']}` : query['section'] ? `/assets/settings/${query['section']}` : undefined,
+  agents: (_params, query) => `/agents/settings${query['section'] ? `/${query['section']}` : ''}`,
   // The hub's former tabs are its tools' pages and *All contents* (the navigation concept §8).
   'hub-releases': (params) => `/hubs/${params['id']}/plan/releases`,
+  // The plan's former `?view=` is a tab of its own; what had no dates is the schedule's fold.
+  'hub-plan': (params, query) =>
+    query['view'] === 'table' || query['view'] === 'dependencies' ? `/hubs/${params['id']}/plan/${query['view']}` : query['view'] ? `/hubs/${params['id']}/plan` : undefined,
   'hub-assets': (params, query) => `/hubs/${params['id']}/inventory${query['new'] ? `?new=${query['new']}` : ''}`,
   'hub-assets-section': (params) => `/hubs/${params['id']}/inventory/${params['section']}`,
   'hub-actuals': (params) => `/hubs/${params['id']}/time`,
@@ -313,9 +399,27 @@ const MOVED: Readonly<Record<string, (params: Params, query: Params) => string |
   'collection-actuals': (params) => `/collections/${params['id']}/time`,
 };
 
+/** The moves of a whole screen, whose old query still means the same at the new address. */
+const KEEPS_QUERY: ReadonlySet<string> = new Set(['identity-provider', 'presets', 'groups', 'permissions', 'service-accounts', 'apps', 'service-desk', 'cmdb']);
+
+/** Whether a moved address carries its own query along (`movedWith`). */
+export const keepsQuery = (name: string | null): boolean => name !== null && KEEPS_QUERY.has(name);
+
 /** Where an address that moved now is, or nothing for one that did not. */
 export function movedTo(name: string | null, params: Params = {}, query: Params = {}): string | undefined {
   return name === null ? undefined : MOVED[name]?.(params, query);
+}
+
+/**
+ * Where a moved address goes, its own query kept where the new address does not set the same
+ * name: `/administration/presets?template=itil` still opens that template.
+ */
+export function movedWith(target: string, query: Readonly<Record<string, string>>): string {
+  const [path, own = ''] = target.split('?');
+  const params = new URLSearchParams(own);
+  for (const [name, value] of Object.entries(query)) if (!params.has(name)) params.set(name, value);
+  const kept = params.toString();
+  return kept === '' ? (path ?? target) : `${path}?${kept}`;
 }
 
 /** The instance area's own prefix, for the same reason (ADR-0070 §5). */

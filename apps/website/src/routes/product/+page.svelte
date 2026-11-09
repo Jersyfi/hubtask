@@ -57,7 +57,7 @@
           <tr><th scope="row">Completion</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td></tr>
           <tr><th scope="row">Due date</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td></tr>
           <tr><th scope="row">Reminders</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td></tr>
-          <tr><th scope="row">Assignment</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="part">one assignee</span></td></tr>
+          <tr><th scope="row">Assignment</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="site-part">one assignee</span></td></tr>
           <tr><th scope="row">Several members</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="no">no</span></td></tr>
           <tr><th scope="row">Notes, labels, comments</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="no">no</span></td></tr>
           <tr><th scope="row">Attachments</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="no">no</span></td></tr>
@@ -65,7 +65,7 @@
           <tr><th scope="row">Bucket on a board</th><td><span class="yes">yes</span></td><td><span class="no">no</span></td><td><span class="no">no</span></td></tr>
           <tr><th scope="row">Cover (colour or image)</th><td><span class="yes">yes</span></td><td><span class="no">no</span></td><td><span class="no">no</span></td></tr>
           <tr><th scope="row">Recurrence</th><td><span class="yes">yes</span></td><td><span class="no">no</span></td><td><span class="no">no</span></td></tr>
-          <tr><th scope="row">History</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="part">compact</span></td></tr>
+          <tr><th scope="row">History</th><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td><td><span class="site-part">compact</span></td></tr>
         </tbody>
       </table>
     </div>

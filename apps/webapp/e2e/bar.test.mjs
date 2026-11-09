@@ -150,17 +150,17 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   assert.equal(await page.getByRole('treeitem', { name: HUB.name }).count(), 0, 'a hub is drawn inside the section');
 
   // The way out is the first row, and the row the reader is on is announced as current.
-  const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  const rows = (await section.getByRole('link').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
   // The way out, the overview and the screens of the suite's groups a workspace without its modules
   // holds ("Link types", "Changes" and "Address" among them): the number moves when the section
   // gains a screen, which is what this assertion is for.
   assert.equal(rows.length, 24, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.
-  assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await section.getByRole('link', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
   // And it leads out: back to the overview, where the tree is again.
-  await section.getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await section.getByRole('link', { name: 'The workspace', exact: true }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
   await page.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
 
@@ -229,7 +229,7 @@ test('chromium: every screen of the section says where it is and leads back', as
   assert.equal(
     await page
       .getByRole('navigation', { name: 'Administration', exact: true })
-      .getByRole('treeitem', { name: 'Overview', exact: true })
+      .getByRole('link', { name: 'Overview', exact: true })
       .getAttribute('aria-current'),
     'page',
   );
@@ -237,24 +237,31 @@ test('chromium: every screen of the section says where it is and leads back', as
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 375 px — the section is behind the drawer, and the bottom bar still leaves it', async (t) => {
+test('chromium: 375 px — the area is a level of the Browse stack, under the same bottom bar', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser);
   t.after(close);
 
+  // A screen of the area: one level under the area's groups, the way up the bar's (§9).
   await page.goto(`${served.origin}/administration/quotas`);
-  await page.getByRole('button', { name: 'Open the navigation' }).click();
-  const drawer = page.locator('dialog[open]');
-  await drawer.waitFor({ timeout: 10_000 });
-  assert.equal(await drawer.getByRole('treeitem', { name: 'Limits' }).count(), 1, 'the section is not in the drawer');
-  assert.equal(await drawer.getByRole('treeitem', { name: HUB.name }).count(), 0, 'the tree is in the drawer inside the section');
-  await page.keyboard.press('Escape');
+  const back = page.locator('[data-phone-bar] [data-back]');
+  await back.waitFor({ timeout: 10_000 });
+  assert.equal((await back.innerText()).trim(), 'Administration');
+  assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'the area is behind a drawer on a phone');
+  const tabs = page.getByRole('navigation', { name: 'Sections' });
+  assert.deepEqual((await tabs.locator('.word').allInnerTexts()).map((word) => word.trim()), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
+  assert.equal(await tabs.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page');
 
-  // The bottom bar is the frame's and stays whatever section the reader is in - it is how they
-  // leave one on a phone.
-  const bar = page.getByRole('navigation', { name: 'Sections' });
-  assert.equal(await bar.getByRole('link', { name: 'Today' }).count(), 1, 'no way out of the section on a phone');
+  // One level up: the area's groups as a step, its rows leading on, and Browse above it.
+  await back.click();
+  await page.waitForFunction(() => location.pathname === '/administration/browse', null, { timeout: 5_000 });
+  const groups = page.getByRole('navigation', { name: 'Administration', exact: true });
+  await groups.getByRole('link', { name: 'Limits' }).waitFor({ timeout: 10_000 });
+  assert.equal(await groups.getByRole('treeitem', { name: HUB.name }).count(), 0, 'the tree is drawn inside the area');
+  assert.equal((await back.innerText()).trim(), 'Browse');
+  await groups.getByRole('link', { name: 'Limits' }).click();
+  await page.waitForFunction(() => location.pathname === '/administration/quotas', null, { timeout: 5_000 });
 
   assert.deepEqual(failures, []);
 });

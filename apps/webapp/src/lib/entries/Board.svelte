@@ -1101,7 +1101,7 @@
   {@const column = deleting}
   <!-- Confirmed, and the confirmation says the one thing a reader would otherwise have to guess:
        the entries are not deleted with the column. -->
-  <Dialog
+  <Dialog size="s"
     bind:isOpen={isDeletingColumn}
     title={t('app.board.delete_column')}
     dismissLabel={t('app.workspace.cancel')}

@@ -208,7 +208,7 @@
 {/if}
 
 {#if isStartOpen}
-  <Dialog bind:isOpen={isStartOpen} title={t('app.campaigns.start')} dismissLabel={t('app.assets.cancel')}>
+  <Dialog size="m" bind:isOpen={isStartOpen} title={t('app.campaigns.start')} dismissLabel={t('app.assets.cancel')} primary={{ label: t('app.campaigns.start'), isBusy: isStarting, disabledReason: missing[0] ? t(missing[0]) : undefined, onclick: () => void start() }}>
     <Stack gap="150">
       <Input label={t('app.campaigns.name')} bind:value={draft.name} maxlength={200} isRequired />
       <CheckboxGroup label={t('app.campaigns.classes')} hint={t('app.campaigns.classes_hint')} options={classChecks} selected={draft.classes} onChange={(next) => (draft.classes = [...next])} />
@@ -219,7 +219,6 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isStartOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button tone="primary" isBusy={isStarting} disabledReason={missing[0] ? t(missing[0]) : undefined} onclick={() => void start()}>{t('app.campaigns.start')}</Button>
     {/snippet}
   </Dialog>
 {/if}

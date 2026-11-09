@@ -12,15 +12,10 @@ import { once, onceEach } from './once.ts';
 
 /** A place's settings: the work of a place draws none of them. */
 export const settingsParts = onceEach({
-  StructurePanel: () => import('../workspace/StructurePanel.svelte'),
   ModuleSwitches: () => import('../workspace/ModuleSwitches.svelte'),
   CustomFieldsDialog: () => import('../entries/CustomFieldsDialog.svelte'),
   LabelsDialog: () => import('../entries/LabelsDialog.svelte'),
-  PoliciesDialog: () => import('../workspace/PoliciesDialog.svelte'),
-  HandleField: () => import('../mail/HandleField.svelte'),
-  KeyPrefixField: () => import('../entries/KeyPrefixField.svelte'),
-  PageDraftsSwitch: () => import('../pages/PageDraftsSwitch.svelte'),
-  ContainerEditDialog: () => import('../workspace/ContainerEditDialog.svelte'),
+  PlacePolicies: () => import('../workspace/PlacePolicies.svelte'),
   HubCalendars: () => import('../servicedesk/HubCalendars.svelte'),
   HubSlaPolicies: () => import('../servicedesk/HubSlaPolicies.svelte'),
   TemplatesGallery: () => import('../settings/TemplatesGallery.svelte'),
@@ -56,7 +51,8 @@ export const workViews = onceEach({
  */
 export const ruleViews = onceEach({
   RulesView: () => import('../../views/RulesView.svelte'),
-  RuleEditorView: () => import('../../views/RuleEditorView.svelte'),
+  RuleNewView: () => import('../../views/RuleNewView.svelte'),
+  RuleView: () => import('../../views/RuleView.svelte'),
 });
 
 /** Every part's loader, for the precache. */

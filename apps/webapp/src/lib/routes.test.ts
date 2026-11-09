@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, movedTo, paneFor } from './routes.ts';
+import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, movedTo, movedWith, paneFor } from './routes.ts';
 import { normalisePath, resolve } from './router.ts';
 
 test('the administration area is exactly the routes under its prefix', () => {
@@ -39,12 +39,20 @@ test('the administration area is exactly these screens, by name', () => {
     'administration',
     'agents',
     'ai',
+    'ai-section',
+    'app',
     'apps',
     'audit',
     'backup',
+    'backup-section',
+    'backup-target',
+    'browse-administration',
+    'change',
     'changes',
     'cmdb',
+    'entry-type',
     'entry-types',
+    'group',
     'groups',
     'identity-provider',
     'legal',
@@ -52,27 +60,41 @@ test('the administration area is exactly these screens, by name', () => {
     'machines',
     'mail',
     'mail-oauth',
+    'mail-section',
+    'mailbox',
     'modules',
     'people',
     'permissions',
+    'person',
     'presets',
     'privacy',
+    'privacy-case',
     'private-hubs',
     'quotas',
     'restore',
     'retention',
+    'retention-section',
+    'role',
     'rule',
     'rule-new',
     'rules',
     'runs',
+    'service-account',
     'service-accounts',
     'service-desk',
+    'sign-in-provider',
+    'sign-in-section',
     'sign-in-settings',
+    'templates',
     'time-settings',
     'voice',
+    'voice-section',
+    'webhook',
     'webhooks',
+    'workflow',
     'workflows',
     'workspace-address',
+    'workspace-section',
     'workspace-settings',
   ]);
 });
@@ -107,9 +129,11 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // installation's own rows, the other a count per key that names no workspace at all. *Usage* is
   // counts per workspace and day, the metering read `hubctl admin usage` already has. *Templates*
   // and *Configuration file* are the installation's own level too: its presets and its settings
-  // as the document, neither reading into a workspace.
+  // as the document, neither reading into a workspace. A workspace's record page and the page that
+  // creates one show the same `tenant` row the list shows (page-system §9.4).
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
+    'browse-instance',
     'instance',
     'instance-ai',
     'instance-dead-letters',
@@ -122,9 +146,12 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
     'instance-platform',
     'instance-providers',
     'instance-settings',
+    'instance-settings-section',
     'instance-targets',
     'instance-templates',
     'instance-usage',
+    'instance-workspace',
+    'instance-workspace-new',
     'instance-workspaces',
   ]);
 });
@@ -150,18 +177,25 @@ test('every route resolves to one of the four areas, and the profile ones are na
   const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
   assert.deepEqual(profile, [
     'appearance',
+    'browse-profile',
     'calendars',
     'devices',
     'filestores',
     'grants',
     'notifications',
+    'own-agent',
     'own-agents',
     'own-rule',
     'own-rule-new',
     'own-rules',
     'profile',
+    'profile-section',
+    'second-factor-new',
     'security',
+    'security-section',
     'sessions',
+    'token',
+    'token-new',
     'tokens',
   ]);
 });
@@ -193,6 +227,7 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/auth/callback?code=a&state=b').name, 'oidc-callback');
   assert.equal(resolve(ROUTES, '/administration').name, 'administration');
   assert.equal(resolve(ROUTES, '/administration/workspace').name, 'workspace-settings');
+  assert.equal(resolve(ROUTES, '/administration/workspace/new-hubs').name, 'workspace-section');
   assert.equal(resolve(ROUTES, '/administration/quotas').name, 'quotas');
   assert.equal(resolve(ROUTES, '/administration/backup').name, 'backup');
   assert.equal(resolve(ROUTES, '/administration/audit').name, 'audit');
@@ -206,7 +241,7 @@ test('the addresses this application publishes resolve to their screens', () => 
 
 test('an address whose screen became a tab replaces itself with that tab, and no other moves', () => {
   // A bookmark or a link in a mail keeps working (ux-inventory §E9); every other address stays.
-  assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in?tab=ways');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in/ways');
   assert.equal(movedTo(resolve(ROUTES, '/administration/groups').name), '/administration/people?tab=groups');
   assert.equal(movedTo(resolve(ROUTES, '/administration/permissions').name), '/administration/people?tab=permissions');
   assert.equal(movedTo(resolve(ROUTES, '/administration/service-accounts').name), '/administration/machines');
@@ -214,8 +249,21 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   // A product's settings live at its home's last tab (user-experience.md §8.2).
   assert.equal(movedTo(resolve(ROUTES, '/administration/service-desk').name), '/desk/settings');
   assert.equal(movedTo(resolve(ROUTES, '/administration/configuration-items').name), '/assets/settings');
-  assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time?tab=settings');
-  assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents?tab=settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time/settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents/settings');
+  // The time's and the agents' settings sections are addresses of their own; the old query lands there.
+  const moved = (address: string) => {
+    const at = resolve(ROUTES, address);
+    return movedTo(at.name, at.params, at.query);
+  };
+  assert.equal(moved('/time?tab=settings&section=rates'), '/time/settings/rates');
+  assert.equal(moved('/time?tab=settings'), '/time/settings');
+  assert.equal(moved('/time?tab=week'), undefined);
+  assert.equal(moved('/agents?tab=settings&section=every'), '/agents/settings/every');
+  assert.equal(moved('/agents?tab=models'), '/agents/settings/models');
+  assert.equal(moved('/agents?tab=runs'), undefined);
+  assert.equal(resolve(ROUTES, '/agents/settings/models').name, 'agents-settings-section');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/presets').name), '/administration/templates');
   for (const route of ROUTES) {
     const target = movedTo(route.name, { id: 'x1', section: 'health' }, { hub: 'h1' });
     if (target === undefined) continue;
@@ -227,6 +275,12 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   assert.equal(movedTo(resolve(ROUTES, '/administration/sign-in').name), undefined);
   assert.equal(movedTo(resolve(ROUTES, '/administration/people').name), undefined);
   assert.equal(movedTo(null), undefined);
+});
+
+test('a moved address keeps its query where the new address does not set the same name', () => {
+  assert.equal(movedWith('/administration/templates', { template: 'itil_service_desk' }), '/administration/templates?template=itil_service_desk');
+  assert.equal(movedWith('/administration/people?tab=groups', { tab: 'roles', q: 'x' }), '/administration/people?tab=groups&q=x');
+  assert.equal(movedWith('/administration/machines', {}), '/administration/machines');
 });
 
 test('the former hub tabs open the place that took their role (UC-WRK-36 check 12, the navigation concept §8)', () => {
@@ -244,6 +298,11 @@ test('the former hub tabs open the place that took their role (UC-WRK-36 check 1
   assert.equal(moved('/goals?hub=h1&tab=dashboards'), '/hubs/h1/goals/dashboards');
   assert.equal(moved('/goals'), undefined, 'the workspace\'s goals stay the product\'s home');
   assert.equal(moved('/collections/c1/plan'), '/collections/c1/timeline');
+  // The plan's former views are its bar's tabs; what had no dates is the schedule's fold.
+  assert.equal(moved('/hubs/h1/plan?view=dependencies'), '/hubs/h1/plan/dependencies');
+  assert.equal(moved('/hubs/h1/plan?view=table'), '/hubs/h1/plan/table');
+  assert.equal(moved('/hubs/h1/plan?view=undated'), '/hubs/h1/plan');
+  assert.equal(moved('/hubs/h1/plan'), undefined);
   assert.equal(moved('/collections/c1/sprints'), '/collections/c1/sprint');
   assert.equal(moved('/collections/c1/actuals'), '/collections/c1/time');
   // The desk and the pages are answered by their screens, which know the first queue and page.

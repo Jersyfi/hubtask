@@ -1,0 +1,1201 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+     Copyright (c) 2026 Jérôme Bastian Winkel -->
+<script lang="ts" module>
+  import type { Snippet } from 'svelte';
+  import type { Rule } from '../data/rules.svelte.ts';
+
+  /**
+   * What the page around the editor draws in its head (page-system §7.2, §7.7): the routed view
+   * owns the page kind and its one heading, the editor the draft every act works on.
+   */
+  export interface RuleHead {
+    readonly status: 'reading' | 'missing' | 'ready';
+    /** The rule's name as shown: its own, or the generated one. */
+    readonly name: string;
+    readonly isAutomatic: boolean;
+    readonly stored?: Rule;
+    readonly isBroken: boolean;
+    readonly needsAttention: boolean;
+    readonly isDirty: boolean;
+    readonly isWorking: boolean;
+    /** Saving is offered: the reader may write here and the plan includes rules. */
+    readonly maySave: boolean;
+    /** Switching is offered, and why switching on is refused. */
+    readonly mayToggle: boolean;
+    readonly toggleRefusal?: string;
+    readonly mayStart: boolean;
+    readonly startRefusal?: string;
+    readonly mayDelete: boolean;
+    readonly save: () => void;
+    readonly toggle: () => void;
+    readonly start: () => void;
+    readonly rename: () => void;
+    readonly remove: () => void;
+  }
+</script>
+
+<script lang="ts">
+  import { platform } from '../platform/index.ts';
+  // The rule editor: a rule drawn as a path (automation.md §1.5, design-system.md §4). The page
+  // kind around it is the routed view's (`RuleView`, `RuleNewView`); the editor hands it `RuleHead`
+  // and the body to draw.
+  //
+  // **The view holds one draft**, and everything else draws from it: the head with the name and
+  // the sentence, the canvas, the inspector. An edit is a function over the draft; nothing edits
+  // in place, so the three surfaces cannot disagree.
+  //
+  // **The name is generated unless it is owned** (automation.md §1.5). A stored name equal to the one the
+  // rule generates for itself counts as automatic and follows every edit; any other is the
+  // person's and is left alone; clearing it returns to automatic.
+  //
+  // **Every list is read rather than compiled in.** The triggers, the action kinds, their fields
+  // and the event types come from `/meta/capabilities`, so an installation that serves one more
+  // action gets one more card without a release of this client.
+  //
+  // **Nothing is pre-empted.** Writing a rule needs the automation permission *and* the rights the
+  // rule's own actions need, which no client can compute; the server refuses and this renders the
+  // refusal at the field it names.
+  //
+  // **A person's own rule (UC-AUT-01 check 10)** - opened from Your settings (`isOwn`), or chosen as
+  // *Only for me* - is fixed to its owner: scope and runner are the reader, the trigger an event,
+  // and the reader writes it without the automation permission (`asOwn`).
+
+  import { untrack } from 'svelte';
+
+  import { EmptyState, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
+
+  import type { Suggestion } from '@hubtask/sync-engine';
+
+  import RuleCanvas from './RuleCanvas.svelte';
+  import DescribeRule from './DescribeRule.svelte';
+  import BlocksPanel from './BlocksPanel.svelte';
+  import RuleInspector from './RuleInspector.svelte';
+  import RuleProbe from './RuleProbe.svelte';
+  import RuleRuns from './RuleRuns.svelte';
+  import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from './probe.ts';
+  import type { Choice } from './ActionForm.svelte';
+  import { OWN_TRIGGERS, addRung, asOwn, canPlace, emptyDraft, isOwnRule, endsRun, stepDraft, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from './model.ts';
+  import { DRAG_TYPE, dragHint, type Drag, type Selection } from './selection.ts';
+  import { REFERENCE, eventWords, generatedName, kindWord, offeredKinds, sentence, usageOf, type Names } from './words.ts';
+  import { findingWords, marksOf } from './findings.ts';
+  import { review, type Note } from './review.ts';
+  import { includedHere, mayHere } from '../data/capability.svelte.ts';
+  import NotInPlan from '../workspace/NotInPlan.svelte';
+  import WorkspaceRefusal from '../workspace/WorkspaceRefusal.svelte';
+  import { page } from '../frame/page.svelte.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
+  import { suggestions } from '../data/suggestions.svelte.ts';
+  import { buckets } from '../data/buckets.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
+  import { groups } from '../data/groups.svelte.ts';
+  import { roles } from '../data/roles.svelte.ts';
+  import { roleLabel, SHIPPED_ROLES } from '../people/rolewords.ts';
+  import { labels } from '../data/labels.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
+  import { rules, type InboundToken } from '../data/rules.svelte.ts';
+  import { inboundAddressOf } from '../data/rules.ts';
+  import { runs, type Run } from '../data/runs.svelte.ts';
+  import { serviceAccounts } from '../data/serviceaccounts.svelte.ts';
+  import { templates } from '../data/templates.svelte.ts';
+  import { workflows } from '../data/workflows.svelte.ts';
+  import { workflowChoices } from '../data/workflows.ts';
+  import { webhooks } from '../data/webhooks.svelte.ts';
+  import { announcer } from '../announce.svelte.ts';
+  import { formatDateTime } from '../i18n/datetime.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { renderProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
+
+  interface Props {
+    /** The rule's identifier, or `new`. */
+    id: string;
+    /** A new rule on a step: the workflow's key and the step's, from the designer's *Then*. */
+    workflow?: string;
+    step?: string;
+    /** Opened from Your settings: a rule of the reader's own. */
+    isOwn?: boolean;
+    onnavigate: (path: string) => void;
+    /** The page kind: its head from `RuleHead`, the editor's body inside it. */
+    frame: Snippet<[RuleHead, Snippet]>;
+  }
+
+  const { id, workflow: onWorkflow, step: onStepKey, isOwn = false, onnavigate, frame }: Props = $props();
+  const me = $derived(actor.account?.id);
+  const base = $derived(isOwn ? '/profile/rules' : '/administration/rules');
+
+  const TENANT = { scopeType: 'TENANT' } as const;
+  const isNew = $derived(id === 'new');
+
+  // What the first paint needs, and nothing more: the rules, the hubs and their
+  // collections for the scope's name, the service accounts for the runner's. Everything a form or
+  // a name might need later - the memberships, the groups, the templates, the webhooks, each
+  // collection's labels and buckets - is opened when a field of the rule or the panel names its
+  // kind (`needed`, below), so that a deep link never meets the credential's burst on one screen.
+  // The canvas takes the content region whole: it is a surface with its own head, its own
+  // hairlines and an inspector against the far edge, and standing it in the frame's padding draws
+  // a slab of one colour on a page of another - a box on a page.
+  $effect(() => page.fill());
+
+  // And the bar carries the rule's name on a phone (ADR-0061 decision 1's table).
+  $effect(() => page.entitle(shownName || t('app.flow.new_title')));
+
+  $effect(() => untrack(() => rules.open()));
+  $effect(() => untrack(() => containers.start()));
+  $effect(() => {
+    if (isOwn) return;
+    return untrack(() => serviceAccounts.open());
+  });
+  $effect(() => {
+    for (const hub of containers.hubs) untrack(() => containers.openLevel(hub.id));
+  });
+
+  const stored = $derived(isNew ? undefined : rules.all.find((rule) => rule.id === id));
+  $effect(() => {
+    if (isNew) return;
+    return untrack(() => runs.open({ ruleId: id }));
+  });
+  const ruleRuns = $derived(isNew ? [] : runs.of({ ruleId: id }));
+  const reading = $derived(rules.state);
+
+  /** The draft, taken once from the stored rule when it arrives; edits never re-read it. */
+  let draft = $state<Draft>(emptyDraft());
+  let taken = $state(false);
+  $effect(() => {
+    if (taken) return;
+    if (isNew) {
+      // The first event type is what a fresh rule starts on, and the manifest is what says which:
+      // taking the draft before it has arrived leaves the rule starting on nothing, silently, on
+      // every deep link into `/rules/new` that beats the boot.
+      if (manifest.state.status === 'loading' || manifest.state.status === 'idle') return;
+      const first = manifest.value?.event_types?.[0] ?? '';
+      if (isOwn) {
+        if (!me) return;
+        draft = asOwn(emptyDraft(first), me, first);
+      } else {
+        draft = onWorkflow && onStepKey ? stepDraft(onWorkflow, onStepKey) : emptyDraft(first);
+      }
+      taken = true;
+    } else if (stored) {
+      draft = fromRule(stored);
+      taken = true;
+    }
+  });
+  let dirty = $state(false);
+  const update = (change: (draft: Draft) => Draft): void => {
+    const next = change(draft);
+    // *Only for me* chosen: the runner and the trigger follow, as the server would demand.
+    draft = me && isOwnRule(next, me) ? asOwn(next, me, manifest.value?.event_types?.[0] ?? '') : next;
+    dirty = true;
+  };
+  /** Whether the draft is a rule of the reader's own, which they write without `AUTOMATION`. */
+  const ownMode = $derived(isOwn || isOwnRule(draft, me));
+
+  let selection = $state<Selection>({ kind: 'rule' });
+  /** The panel's five tabs (automation.md §1.5): Rule, Blocks, Details, Probe, Runs. */
+  let tab = $state('rule');
+  const RULE_TAB: ReadonlySet<Selection['kind']> = new Set(['rule', 'scope', 'runas', 'guardrails']);
+  const TABS = [
+    { id: 'rule', code: 'app.flow.tab_rule', icon: 'settings' },
+    { id: 'blocks', code: 'app.flow.tab_blocks', icon: 'plus' },
+    { id: 'piece', code: 'app.flow.tab_piece', icon: 'pencil' },
+    { id: 'probe', code: 'app.flow.tab_probe', icon: 'play' },
+    { id: 'runs', code: 'app.flow.tab_runs', icon: 'clock' },
+  ] as const;
+
+  /* ---------- Narrow: the inspector as a sheet, one arm at a time (automation.md §1.5) ---------- */
+
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
+  const narrowQuery = typeof matchMedia === 'function' ? matchMedia('(max-width: 904px)') : undefined;
+  let narrow = $state(narrowQuery?.matches ?? false);
+  $effect(() => {
+    if (!narrowQuery) return;
+    const onchange = (event: MediaQueryListEvent) => (narrow = event.matches);
+    narrowQuery.addEventListener('change', onchange);
+    return () => narrowQuery.removeEventListener('change', onchange);
+  });
+  let sheetOpen = $state(false);
+  /**
+   * How much of the screen the sheet takes (design-system.md §4): half to begin with, and afterwards
+   * whatever the reader dragged it to, kept in this browser. Not the account's: it is a choice
+   * about this screen, like the theme (design-system.md §11.10).
+   */
+  let sheetSize = $state(0.5);
+  try {
+    const kept = Number(localStorage.getItem('hubtask.rule.sheet'));
+    if (Number.isFinite(kept) && kept > 0) sheetSize = kept;
+  } catch {
+    // A private window, or storage blocked: half the screen, every time.
+  }
+  $effect(() => {
+    const share = sheetSize;
+    try {
+      localStorage.setItem('hubtask.rule.sheet', String(share));
+    } catch {
+      // The size lives for this view then.
+    }
+  });
+  const select = (next: Selection): void => {
+    selection = next;
+    if (next.kind === 'none') {
+      // Nothing is selected (automation.md §1.5): *Details* has nothing to show, so the panel moves to
+      // the blocks - what one does next after letting a card go is add another - while *Rule*,
+      // *Probe* and *Runs*, which are about the whole rule, stay where they are. On a narrow
+      // screen the sheet is over the canvas, so it closes instead.
+      if (tab === 'piece') tab = 'blocks';
+      if (narrow) sheetOpen = false;
+      return;
+    }
+    // The canvas shows, the panel sets (automation.md §1.5): what was clicked opens where it is edited.
+    tab = RULE_TAB.has(next.kind) ? 'rule' : 'piece';
+    if (narrow) sheetOpen = true;
+  };
+  let armChoice = $state<Map<string, 'then' | 'else'>>(new Map());
+  const pickArm = (path: string, arm: 'then' | 'else'): void => {
+    armChoice = new Map([...armChoice, [path, arm]]);
+  };
+
+  /* ---------- Drag and drop (automation.md §1.5) ---------- */
+
+  let drag = $state<Drag | undefined>(undefined);
+  let refusal = $state<string | undefined>(undefined);
+  let refusalTimer: ReturnType<typeof setTimeout> | undefined;
+  function lift(event: DragEvent, piece: Drag): void {
+    if (!event.dataTransfer) return;
+    event.dataTransfer.setData(DRAG_TYPE, JSON.stringify(piece));
+    event.dataTransfer.effectAllowed = 'copy';
+    drag = piece;
+  }
+  function dropped(list: string, index: number, piece: Drag): void {
+    if (piece.src === 'action') insert(list, index, piece.kind);
+    else if (piece.src === 'step') {
+      const moved = moveStep(draft.actions, piece.path, list, index);
+      if (moved) {
+        update((current) => ({ ...current, actions: moved }));
+        select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
+      } else {
+        refuse(piece, list);
+      }
+    }
+    drag = undefined;
+  }
+  /** Why a piece may not go where it was let go, said in the hint line (automation.md §1.5). */
+  function refuse(piece: Drag, list?: string): void {
+    const stop = (piece.src === 'action' && piece.kind === 'STOP') || (piece.src === 'step' && stepAt(draft.actions, piece.path)?.kind === 'STOP');
+    const ended = list !== undefined && endsRun(listAt(draft.actions, list) ?? []);
+    refusal = stop ? t('app.flow.refused_stop') : ended ? t('app.flow.refused_after_end') : t(`app.flow.refused_${piece.src}`);
+    clearTimeout(refusalTimer);
+    refusalTimer = setTimeout(() => (refusal = undefined), 6000);
+  }
+
+  /** + Else if: a rung under the ladder, selected so the panel opens on its condition (automation.md §1.5). */
+  function addElseIf(path: string): void {
+    const before = stepAt(draft.actions, path);
+    if (!before || before.kind !== 'BRANCH') return;
+    update((current) => ({ ...current, actions: addRung(current.actions, path) }));
+    // The new rung is the last of the ladder: follow the else arms down to it.
+    let at = path;
+    let step = stepAt(draft.actions, at);
+    while (step && step.else?.length === 1 && step.else[0]?.kind === 'BRANCH') {
+      at = `${at}/else/0`;
+      step = step.else[0];
+    }
+    select({ kind: 'step', path: at });
+  }
+  /** The trash on a rung: the ladder closes over it, and nothing is left selected (automation.md §1.5). */
+  function removeElseIf(path: string): void {
+    update((current) => ({ ...current, actions: removeRung(current.actions, path) }));
+    select({ kind: 'none' });
+  }
+
+  let sentenceOpen = $state(false);
+  try {
+    sentenceOpen = localStorage.getItem('hubtask.rule.sentence') === 'open';
+  } catch {
+    // A private window, or storage blocked: the sentence starts collapsed.
+  }
+  function toggleSentence(): void {
+    sentenceOpen = !sentenceOpen;
+    try {
+      localStorage.setItem('hubtask.rule.sentence', sentenceOpen ? 'open' : 'closed');
+    } catch {
+      // The choice lives for this view then.
+    }
+  }
+
+  /* ---------- What the manifest and the workspace offer ---------- */
+
+  const triggers = $derived((manifest.value?.automation?.triggers ?? []).filter((kind) => !ownMode || OWN_TRIGGERS.includes(kind)));
+  // The workflows a rule on a step names, read only once a rule is one.
+  const onAStep = $derived(draft.trigger.kind === 'STEP_TAKEN');
+  $effect(() => {
+    if (!onAStep) return;
+    return untrack(() => workflows.open());
+  });
+  const stepChoices = $derived(onAStep ? workflowChoices(workflows.list?.data ?? [], t) : []);
+  const actionKinds = $derived(offeredKinds(offeredBlocks(manifest.value?.automation?.actions ?? []), manifest.value?.features));
+  const actionFields = $derived((manifest.value?.automation?.action_fields ?? {}) as Readonly<Record<string, readonly { name: string; kind: string; required: boolean; enum?: readonly string[]; description?: string }[]>>);
+  const eventTypes = $derived(manifest.value?.event_types ?? []);
+  const itemTypes = $derived<Choice[]>(
+    (manifest.value?.item_types ?? []).flatMap((entry) => (entry.type ? [{ value: String(entry.type), label: String(entry.type) }] : [])),
+  );
+
+  // One row per account: a service account that also holds a membership is in both lists, and
+  // the select showed the second row's words for it (the third walk).
+  const everyone = $derived<Choice[]>([
+    ...serviceAccounts.all.map((account) => ({ value: account.id, label: t('app.rules.service_account_named', { name: account.display_name }) })),
+    ...people.candidates({}).filter((accountId) => !serviceAccounts.all.some((account) => account.id === accountId)).map((accountId) => ({ value: accountId, label: accounts.nameOf(accountId) ?? t('app.people.unnamed') })),
+  ]);
+
+  /** Who the rule may run as: an own rule runs as its owner, and nobody else is offered. */
+  const runners = $derived<Choice[]>(ownMode && me ? [{ value: me, label: t('app.rules.runs_as_you') }] : everyone);
+
+  const ownScope = $derived<Choice[]>(me ? [{ value: `PERSON:${me}`, label: t('app.rules.scope_person') }] : []);
+  const scopes = $derived<Choice[]>(isOwn ? ownScope : [
+    { value: 'TENANT', label: t('app.rules.scope_tenant') },
+    ...containers.hubs.map((hub) => ({ value: `HUB:${hub.id}`, label: t('app.rules.scope_hub', { name: hub.name }) })),
+    ...containers.hubs.flatMap((hub) =>
+      containers.collectionsOf(hub.id).map((collection) => ({
+        value: `COLLECTION:${collection.id}`,
+        label: t('app.rules.scope_collection', { name: `${hub.name} · ${collection.name}` }),
+      })),
+    ),
+    ...ownScope,
+  ]);
+
+  /** The collections the rule's scope sees: what a label or bucket picker draws from. */
+  const collectionsInScope = $derived.by(() => {
+    if (draft.scope.type === 'COLLECTION' && draft.scope.id) {
+      const found = containers.hubs.flatMap((hub) => containers.collectionsOf(hub.id)).find((each) => each.id === draft.scope.id);
+      return found ? [found] : [];
+    }
+    const hubs = draft.scope.type === 'HUB' && draft.scope.id ? containers.hubs.filter((hub) => hub.id === draft.scope.id) : containers.hubs;
+    return hubs.flatMap((hub) => containers.collectionsOf(hub.id));
+  });
+  /**
+   * The kinds of thing the rule names or the panel is about to ask for: what decides which stores
+   * are read. A step's declared fields name their kinds through the reference table;
+   * a condition anywhere may name a label, a bucket or an account; the composer and the runner
+   * picker need theirs open while they are shown.
+   */
+  const needed = $derived.by(() => {
+    const kinds = new Set<string>();
+    const conditions: string[] = [...draft.conditions];
+    walk(draft.actions, (step) => {
+      for (const field of actionFields[step.kind] ?? []) {
+        const reference = REFERENCE[field.name];
+        if (reference) kinds.add(reference);
+      }
+      if (step.kind === 'BRANCH') conditions.push(String(step.params.condition ?? ''));
+    });
+    for (const expr of conditions) {
+      if (expr.includes('item.labels')) kinds.add('label');
+      if (expr.includes('item.bucket_id')) kinds.add('bucket');
+      if (expr.includes('assignee_id') || expr.includes('actor.id')) kinds.add('account');
+    }
+    if (selection.kind === 'gate' || selection.kind === 'condition' || (selection.kind === 'step' && stepAt(draft.actions, selection.path)?.kind === 'BRANCH')) {
+      kinds.add('label');
+      kinds.add('bucket');
+      kinds.add('account');
+    }
+    if (tab === 'rule' || selection.kind === 'runas' || (draft.runAs && !serviceAccounts.all.some((account) => account.id === draft.runAs))) kinds.add('account');
+    return kinds;
+  });
+  $effect(() => {
+    if (!needed.has('label') && !needed.has('bucket')) return;
+    for (const collection of collectionsInScope) {
+      untrack(() => {
+        if (needed.has('label')) labels.open(collection.id);
+        if (needed.has('bucket')) buckets.open(collection.id);
+      });
+    }
+  });
+  $effect(() => {
+    if (needed.has('account')) untrack(() => people.openScope(TENANT));
+  });
+  $effect(() => {
+    if (needed.has('group')) untrack(() => groups.open());
+  });
+  $effect(() => {
+    if (needed.has('role')) untrack(() => roles.open());
+  });
+  $effect(() => {
+    if (needed.has('template')) untrack(() => templates.open());
+  });
+  $effect(() => {
+    if (needed.has('subscription')) untrack(() => webhooks.open());
+  });
+
+  const pickers = $derived<Readonly<Record<string, readonly Choice[]>>>({
+    label: collectionsInScope.flatMap((collection) => labels.of(collection.id).map((label) => ({ value: label.id, label: collectionsInScope.length > 1 ? `${collection.name} · ${label.name}` : label.name }))),
+    bucket: collectionsInScope.flatMap((collection) => buckets.of(collection.id).map((bucket) => ({ value: bucket.id, label: collectionsInScope.length > 1 ? `${collection.name} · ${bucket.name}` : bucket.name }))),
+    container: [
+      ...containers.hubs.map((hub) => ({ value: hub.id, label: hub.name })),
+      ...containers.hubs.flatMap((hub) => containers.collectionsOf(hub.id).map((collection) => ({ value: collection.id, label: `${hub.name} · ${collection.name}` }))),
+    ],
+    template: templates.of().map((template) => ({ value: template.id, label: template.name })),
+    subscription: webhooks.all.map((subscription) => ({ value: subscription.id, label: subscription.target_url })),
+    group: groups.all.map((group) => ({ value: group.id, label: group.name })),
+    // The built-in roles are always offered; the workspace's own once its catalogue is read.
+    role: [
+      ...SHIPPED_ROLES.map((role) => ({ value: role, label: roleLabel(role) })),
+      ...(roles.catalogue?.custom ?? []).map((role) => ({ value: role.key, label: role.name })),
+    ],
+    account: everyone,
+  });
+
+  /* ---------- Words ---------- */
+
+  const words = { t, has: (code: string) => messages.has(code) };
+  const names = $derived<Names>({
+    // An own rule is said as what it acts on and who it acts as, inside the sentence and on its chips.
+    scope: (scope) => scope.type === 'PERSON' ? t('app.rules.scope_person_said') : scopes.find((choice) => choice.value === (scope.id ? `${scope.type}:${scope.id}` : scope.type))?.label ?? scope.type,
+    account: (accountId) => accountId === me ? t('app.rules.runs_as_you_said') : [...runners, ...everyone].find((choice) => choice.value === accountId)?.label ?? accounts.nameOf(accountId) ?? t('app.rules.choose_runner'),
+    event: (type) => eventWords(words, type).clause,
+    bucket: (bucketId) => pickers.bucket?.find((choice) => choice.value === bucketId)?.label,
+    label: (labelId) => pickers.label?.find((choice) => choice.value === labelId)?.label,
+  });
+  /** The guardrails in the words the canvas's card used, now the head's third chip (automation.md §1.5). */
+  const guardrailWords = $derived(
+    [
+      t(`app.rules.on_error_${draft.onError.toLowerCase()}`),
+      draft.throttle.maxRunsPerHour ? t('app.flow.card_guardrails_runs', { count: draft.throttle.maxRunsPerHour }) : t('app.flow.card_guardrails_unbounded'),
+      ...(draft.throttle.dedupeKeyExpr ? [t('app.flow.card_guardrails_dedupe', { expr: draft.throttle.dedupeKeyExpr })] : []),
+    ].join(' · '),
+  );
+
+  const generated = $derived(generatedName(words, names, draft));
+  const automatic = $derived(isAutomatic(draft.name, generated));
+  const shownName = $derived(automatic ? generated : draft.name);
+  const said = $derived(sentence(words, names, { ...draft, name: shownName }));
+
+  const triggerMeta = $derived.by(() => {
+    const trigger = draft.trigger;
+    switch (trigger.kind) {
+      case 'EVENT':
+        return trigger.event_type ? eventWords(words, trigger.event_type).said : t('app.rules.choose_event');
+      case 'SCHEDULE':
+        return [trigger.rrule, trigger.timezone].filter(Boolean).join(' · ');
+      case 'RELATIVE_DATE':
+        return `${trigger.offset ?? ''} · ${t(`app.flow.anchor_${(trigger.anchor ?? 'DUE_DATE').toLowerCase()}`)}`;
+      case 'INBOUND_WEBHOOK':
+        return stored?.inbound_rotated_at ? t('app.rules.inbound_minted', { moment: formatDateTime(stored.inbound_rotated_at, messages.locale) }) : t('app.flow.no_address');
+      case 'MANUAL':
+        return t('app.flow.manual_hint');
+      case 'STEP_TAKEN': {
+        const workflow = stepChoices.find((choice) => choice.value === trigger.workflow);
+        const step = workflow?.steps.find((choice) => choice.value === trigger.step);
+        return [workflow?.label ?? trigger.workflow, step?.label ?? trigger.step].filter(Boolean).join(' · ') || t('app.flow.choose_step');
+      }
+      default:
+        return t('app.flow.jumble_hint');
+    }
+  });
+
+  /** One line under a step's title: its settings, identifiers replaced by their names. */
+  function describe(step: Step): string {
+    const named = (key: string, value: unknown): string => {
+      for (const choices of Object.values(pickers)) {
+        const found = choices.find((choice) => choice.value === value);
+        if (found) return found.label;
+      }
+      // A reference the choices do not hold is said as such, never as its identifier (P-08).
+      if (REFERENCE[key]) return t('app.flow.field_unlisted');
+      return typeof value === 'object' ? JSON.stringify(value) : String(value);
+    };
+    return Object.entries(step.params)
+      .filter(([, value]) => value !== undefined && value !== '' && value !== null)
+      .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${named(key, value)}`)
+      .join(' · ');
+  }
+
+  /* ---------- Edits ---------- */
+
+  function insert(list: string, index: number, kind: string): void {
+    if (!canPlace(draft.actions, list, index, kind)) {
+      // An end anywhere but an arm's last place, or anything after an end (automation.md §1.5): said,
+      // never silently dropped.
+      refuse({ src: 'action', kind }, list);
+      return;
+    }
+    update((current) => ({ ...current, actions: insertAt(current.actions, list, index, newStep(kind)) }));
+    select({ kind: 'step', path: list ? `${list}/${index}` : String(index) });
+  }
+
+  function nudgeStep(path: string, direction: -1 | 1): void {
+    const { list, index } = { list: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '', index: Number(path.slice(path.lastIndexOf('/') + 1)) };
+    const target = index + direction;
+    update((current) => ({ ...current, actions: nudge(current.actions, path, direction) }));
+    if (target >= 0) selection = { kind: 'step', path: list ? `${list}/${target}` : String(target) };
+  }
+
+  function remove(path: string): void {
+    update((current) => ({ ...current, actions: removeAt(current.actions, path) }));
+    select({ kind: 'none' });
+  }
+
+  function replaceTrigger(kind: string): void {
+    update((current) => ({ ...current, trigger: { kind, ...(kind === 'EVENT' ? { event_type: current.trigger.event_type ?? eventTypes[0] ?? '' } : {}) } }));
+    select({ kind: 'trigger' });
+  }
+
+  function fold(path: string): void {
+    const step = stepAt(draft.actions, path);
+    if (!step) return;
+    draft = { ...draft, actions: replaceAt(draft.actions, path, { ...step, collapsed: !step.collapsed }) };
+  }
+
+  function addCondition(): void {
+    update((current) => ({ ...current, conditions: [...current.conditions, "item.type == 'TASK'"] }));
+    // The gate holds every condition and so does its panel (automation.md §1.5): the new one is already
+    // on screen, at the bottom of it, and jumping to it alone would take the others away.
+    select({ kind: 'gate' });
+  }
+
+  function removeCondition(index: number): void {
+    update((current) => ({ ...current, conditions: current.conditions.filter((_, at) => at !== index) }));
+    select({ kind: 'gate' });
+  }
+
+  /* ---------- Saving and the switches ---------- */
+
+  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  let isWorking = $state(false);
+  let isDeleting = $state(false);
+  let minted = $state<InboundToken | undefined>(undefined);
+
+  const errors = $derived(failure?.fields ?? new Map<string, string>());
+
+  /** What the check found (ADR-0060), and whether the rule can run at all. */
+  const findings = $derived(stored?.findings ?? []);
+  const isBroken = $derived(findings.some((finding) => finding.level === 'BROKEN'));
+
+  /**
+   * What the draft itself is missing (automation.md §1.5): read from the draft and the manifest,
+   * live, because the check runs on a stored rule and has nothing to say about what is under the
+   * hands. An inbound rule has an address only once one has been minted.
+   */
+  const notes = $derived(review(draft, actionFields, { hasInboundAddress: Boolean(stored?.inbound_rotated_at) }));
+  /** One note as a sentence: the kind in its own words, a parameter as the form spells it. */
+  const noteWords = (note: Note): string =>
+    t(note.code, {
+      ...note.params,
+      ...(note.params?.kind ? { kind: kindWord(words, String(note.params.kind)) } : {}),
+      ...(note.params?.parameter ? { parameter: String(note.params.parameter).replace(/_/g, ' ') } : {}),
+    });
+  /** Whether anything in the rule reads the entry: what a probe without a subject cannot answer. */
+  const readsEntry = $derived.by(() => {
+    const expressions = [...draft.conditions];
+    walk(draft.actions, (step) => {
+      if (step.kind === 'BRANCH') expressions.push(String(step.params.condition ?? ''));
+    });
+    return expressions.some((expr) => expr.includes('item.'));
+  });
+  const noteList = $derived(notes.map((note) => ({ level: note.level, card: note.card, text: noteWords(note) })));
+
+  /** The card a note or a finding is about, selected. */
+  function pick(card: string): void {
+    if (card === '') return select({ kind: 'rule' });
+    if (card === 'trigger') return select({ kind: 'trigger' });
+    if (card === 'run_as') return select({ kind: 'runas' });
+    const condition = /^conditions\/(\d+)$/.exec(card);
+    if (condition) return select({ kind: 'condition', index: Number(condition[1]) });
+    select({ kind: 'step', path: card });
+  }
+
+  /**
+   * A finding or refusal drawn at a card: the check's findings first, a refusal over them, and
+   * the draft's own review where neither has spoken - the server, which knows the workspace,
+   * outranks the client, which knows only the draft.
+   */
+  const marks = $derived.by(() => {
+    const found = marksOf(words, findings);
+    for (const [pointer, message] of errors) {
+      if (pointer.startsWith('/trigger')) found.set('trigger', message);
+      const condition = /^\/conditions\/(\d+)/.exec(pointer);
+      if (condition) found.set(`conditions/${condition[1]}`, message);
+      const step = /^\/actions\/(.+?)(?:\/kind|\/params\/(?!then|else).*)?$/.exec(pointer);
+      if (step?.[1]) found.set(step[1].replace(/\/params\/(then|else)/g, '/$1'), message);
+    }
+    for (const note of notes) {
+      if (note.card !== '' && !found.has(note.card)) found.set(note.card, noteWords(note));
+    }
+    return found;
+  });
+
+  async function attempt(work: () => Promise<unknown>, announced?: string): Promise<boolean> {
+    failure = undefined;
+    isWorking = true;
+    try {
+      await work();
+      if (announced) announcer.say(announced);
+      return true;
+    } catch (cause) {
+      failure = renderProblem(cause as never, messages);
+      return false;
+    } finally {
+      isWorking = false;
+    }
+  }
+
+  async function save(): Promise<void> {
+    if (!draft.runAs) {
+      selection = { kind: 'runas' };
+      return;
+    }
+    const body = toRuleDraft(draft, shownName);
+    if (isNew && drafted) {
+      // A drafted rule is saved by accepting its draft: CreateRule as the person, with the canvas
+      // as it stands laid over the draft, so the trail says the rule came from a suggestion
+      // (UC-AI-04 check 5). Stored switched off, as every new rule is.
+      const accepting = drafted;
+      let created: string | undefined;
+      const ok = await attempt(async () => {
+        created = (await suggestions.accept(accepting, body as unknown as Record<string, unknown>)).created_id ?? undefined;
+        if (created) await rules.adopt(created);
+      }, t('app.flow.saved_off_announced'));
+      if (ok && created) {
+        dirty = false;
+        drafted = undefined;
+        onnavigate(`${base}/${created}`);
+      }
+      return;
+    }
+    if (isNew) {
+      let created: { id: string } | undefined;
+      const ok = await attempt(async () => {
+        created = await rules.write(body);
+      }, t('app.flow.saved_off_announced'));
+      if (ok && created) {
+        dirty = false;
+        onnavigate(`${base}/${created.id}`);
+      }
+      return;
+    }
+    if (!stored) return;
+    const ok = await attempt(() => rules.change(stored.id, body, stored.version), t('app.flow.saved_announced'));
+    if (ok) {
+      dirty = false;
+      // The write leaves the rule unchecked; the check right after it is what tells the writer
+      // whether the repair held, at the card it concerns, rather than at the next opening of the
+      // list. Nothing to undo if it fails: the list checks again when it opens.
+      await rules.check().catch(() => undefined);
+    }
+  }
+
+  async function toggle(): Promise<void> {
+    if (!stored) return;
+    if (stored.enabled) {
+      await attempt(() => rules.disable(stored.id), t('app.rules.disabled_announced'));
+    } else {
+      await attempt(() => rules.enable(stored.id), t('app.rules.enabled_announced'));
+    }
+  }
+
+  async function remove_rule(): Promise<void> {
+    if (!stored) return;
+    const ok = await attempt(() => rules.remove(stored.id), t('app.rules.removed_announced'));
+    isDeleting = false;
+    if (ok) onnavigate(base);
+  }
+
+  async function mint(): Promise<void> {
+    if (!stored) return;
+    await attempt(async () => {
+      minted = await rules.rotateInbound(stored.id);
+    }, t('app.rules.rotated_announced'));
+  }
+
+  async function start(): Promise<void> {
+    if (!stored) return;
+    await attempt(() => runs.trigger(stored.id), t('app.flow.manual_started'));
+  }
+
+  /**
+   * Why *Start now* cannot start this rule, or nothing. It is drawn for every saved rule (the runs
+   * page's own start is gone, ux-inventory.md §E9), and the server starts only an enabled rule
+   * somebody starts (UC-AUT-03 check 4): the two refusals it would answer are said here first, as
+   * something the reader can change.
+   */
+  const startRefusal = $derived.by(() => {
+    if (!stored) return undefined;
+    if (stored.trigger.kind !== 'MANUAL') return t('app.flow.start_only_manual', { trigger: t('app.rules.trigger_manual') });
+    if (!stored.enabled) return t('app.flow.start_needs_on');
+    return undefined;
+  });
+
+  /** Each kind's sentence from the manifest, and how often this workspace's rules use it (automation.md §1.5). */
+  const summaries = $derived((manifest.value?.automation?.action_summaries ?? {}) as Readonly<Record<string, string>>);
+  const usage = $derived(usageOf(rules.all));
+
+  /* ---------- The probe, drawn onto the canvas (automation.md §1.5) ---------- */
+
+  let verdicts = $state<Map<string, Verdict>>(new Map());
+  let drawn = $state(false);
+  let outcome = $state<Outcome | undefined>(undefined);
+  let isProbing = $state(false);
+  let drawing: ReturnType<typeof setTimeout> | undefined;
+
+  /** One frame every beat, the arm a branch takes shown, the outcome last. Reduced motion: all at once. */
+  function draw(frames: readonly Frame[], result: Outcome): void {
+    clearTimeout(drawing);
+    verdicts = new Map();
+    drawn = false;
+    outcome = undefined;
+    const reduced = typeof matchMedia === 'function' && (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'reduced');
+    const step = (at: number): void => {
+      if (at >= frames.length) {
+        drawn = true;
+        outcome = result;
+        announcer.say(t('app.flow.probe_announced'));
+        return;
+      }
+      const frame = frames[at]!;
+      verdicts = new Map([...verdicts, [frame.key, frame.verdict]]);
+      if (frame.verdict.code === 'app.flow.verdict_then' || frame.verdict.code === 'app.flow.verdict_otherwise') {
+        pickArm(frame.key, frame.verdict.state === 'yes' ? 'then' : 'else');
+      }
+      if (reduced) step(at + 1);
+      else drawing = setTimeout(() => step(at + 1), 260);
+    };
+    step(0);
+  }
+
+  function clearDrawing(): void {
+    clearTimeout(drawing);
+    verdicts = new Map();
+    drawn = false;
+    outcome = undefined;
+  }
+
+  async function probe(sample: { type: string; subject?: string; payload?: Record<string, unknown> }): Promise<void> {
+    isProbing = true;
+    clearDrawing();
+    try {
+      const result = await runs.dryRunDraft(toRuleDraft(draft, shownName), { type: sample.type, subject: sample.subject }, sample.payload);
+      failure = undefined;
+      const { frames, outcome: ended } = framesOfTest(draft.actions, result);
+      draw(frames, ended);
+    } catch (cause) {
+      failure = renderProblem(cause as never, messages);
+    } finally {
+      isProbing = false;
+    }
+  }
+
+  function drawRun(run: Run): void {
+    const { frames, outcome: ended } = framesOfRun(draft.actions, run);
+    draw(frames, ended);
+    if (narrow) sheetOpen = false;
+  }
+
+  /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
+  const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
+  /** Whether the reader may write this rule: their own, or any with the automation permission. */
+  const mayWrite = $derived(ownMode || mayAutomate);
+  /**
+   * Where the plan leaves the rules out the editor reads only: no save, no switching on, no dry run
+   * and no manual start - switching off, deleting and a new inbound address stay
+   * (multi-tenancy.md §4.2, P-05).
+   */
+  const rulesIncluded = $derived(includedHere('AUTOMATION_RULES') === true);
+  const resting = $derived(includedHere('AUTOMATION_RULES') === false);
+
+  /* ---------- Describe it (UC-AUT-10) ---------- */
+
+  /** The draft on the canvas, while it is one: saving it is accepting it. */
+  let drafted = $state<Suggestion | undefined>(undefined);
+  /**
+   * *Describe it* is offered exactly where asking could succeed (P-05): a new rule, AI available to
+   * this person, and an editor that may save here - the three refusals a client can know.
+   */
+  const describing = $derived(
+    offersDescribing({
+      isNew,
+      aiAvailable: manifest.value?.features?.ai_suggestions === true,
+      mayAutomate,
+      rulesIncluded,
+    }) && actor.account !== undefined,
+  );
+
+  function drawDraft(suggestion: Suggestion): void {
+    drafted = suggestion;
+    update((current) => fromDraft(suggestion.payload ?? {}, current));
+    selection = { kind: 'rule' };
+    // The probe is offered at once (UC-AUT-10 check 3): the panel opens on it, ready, and runs
+    // nothing until the person presses it.
+    tab = 'probe';
+    if (narrow) sheetOpen = true;
+  }
+
+  const head = $derived<RuleHead>({
+    status: !isNew && (reading.status === 'loading' || reading.status === 'idle') ? 'reading' : !isNew && !stored ? 'missing' : 'ready',
+    name: shownName || t('app.flow.new_title'),
+    isAutomatic: automatic,
+    stored,
+    isBroken,
+    needsAttention: findings.length > 0,
+    isDirty: dirty,
+    isWorking,
+    maySave: mayWrite && rulesIncluded,
+    mayToggle: stored !== undefined && mayWrite && (rulesIncluded || stored.enabled),
+    toggleRefusal: stored && !stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined,
+    mayStart: stored !== undefined && mayWrite && rulesIncluded,
+    startRefusal,
+    mayDelete: stored !== undefined && mayWrite,
+    save: () => void save(),
+    toggle: () => void toggle(),
+    start: () => void start(),
+    rename: () => select({ kind: 'rule' }),
+    remove: () => (isDeleting = true),
+  });
+</script>
+
+{#snippet body()}
+<div class="editor">
+  {#if head.status === 'reading'}
+    <p class="waiting"><Spinner label={t('app.flow.reading')} /> <span>{t('app.flow.reading')}</span></p>
+  {:else if head.status === 'missing'}
+    <Banner tone="danger" title={t('app.flow.not_found')} />
+  {:else}
+    <div class="head">
+      {#if !ownMode}<WorkspaceRefusal permission="AUTOMATION" />{/if}
+      {#if resting}
+        <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rule_body')} />
+      {/if}
+
+      <div class="chips">
+        <!-- The name is the rule's own once typed (automation.md §1.5): pressing it opens the field. -->
+        <button class="chip" class:automatic type="button" onclick={() => select({ kind: 'rule' })} title={t('app.flow.name_own')}>
+          <Icon name="pencil" size="sm" /><span>{t('app.flow.name_chip')}</span><b>{shownName || t('app.flow.new_title')}</b>
+          {#if automatic}<span class="auto" title={t('app.flow.name_automatic_hint')}>{t('app.flow.name_automatic')}</span>{/if}
+        </button>
+          <button class="chip" type="button" onclick={() => select({ kind: 'scope' })}>
+            <Icon name="hub" size="sm" /><span>{t('app.flow.applies_in')}</span><b>{names.scope(draft.scope)}</b>
+          </button>
+          <!-- A finding at the pill is the mark, with the sentence on hover and for a screen
+               reader; the sentence itself stands in the banner above, where a sentence fits. -->
+          <button class="chip" class:flagged={marks.has('run_as')} type="button" title={marks.get('run_as')} onclick={() => select({ kind: 'runas' })}>
+            <Icon name="shield" size="sm" /><span>{t('app.flow.runs_as')}</span><b>{names.account(draft.runAs)}</b>
+            {#if marks.get('run_as')}<span class="chip-flag"><Icon name="triangle-alert" size="sm" /><VisuallyHidden>{marks.get('run_as')}</VisuallyHidden></span>{/if}
+          </button>
+          <!-- The guardrails are the rule's, not a card on the canvas (automation.md §1.5): said here,
+               set on the *Rule* tab, and nowhere else. -->
+          <button class="chip" type="button" onclick={() => select({ kind: 'guardrails' })}>
+            <Icon name="settings" size="sm" /><span>{t('app.flow.card_guardrails')}</span><b>{guardrailWords}</b>
+          </button>
+      </div>
+
+      <div class="sentence-row">
+        <p class="sentence" class:open={sentenceOpen}>{said}</p>
+        <button class="fold" type="button" aria-expanded={sentenceOpen} onclick={toggleSentence} aria-label={sentenceOpen ? t('app.flow.sentence_hide') : t('app.flow.sentence_show')}>
+          <Icon name={sentenceOpen ? 'chevron-up' : 'chevron-down'} size="sm" />
+        </button>
+      </div>
+
+      {#if describing && actor.account}
+        <DescribeRule
+          accountId={actor.account.id}
+          scope={draft.scope}
+          {drafted}
+          ondraft={drawDraft}
+          ondismissed={() => (drafted = undefined)}
+        />
+      {/if}
+
+      {#if findings.length > 0}
+        <Banner tone={isBroken ? 'danger' : 'warning'} title={isBroken ? t('app.flow.enable_refused_broken') : t('app.flow.health_attention')}>
+          {findings.map((finding) => findingWords(words, finding)).join(' · ')}
+          {#if stored?.checked_at}<span class="quiet small"> — {t('app.flow.checked_at', { moment: formatDateTime(stored.checked_at, messages.locale) })}</span>{/if}
+        </Banner>
+      {/if}
+      {#if failure && !failure.fields.size}
+        <FailureNote problem={failure} />
+      {:else if failure}
+        <FailureNote problem={failure} />
+      {/if}
+
+      {#if minted && minted.rule_id === stored?.id}
+        <OneTimeSecret
+          value={inboundAddressOf(platform.webOrigin, minted.token)}
+          label={t('app.rules.inbound_address')}
+          hint={t('app.rules.inbound_minted_hint')}
+          revealLabel={t('app.jumble.reveal')}
+          hideLabel={t('app.jumble.hide')}
+          copyLabel={t('app.jumble.copy')}
+          copiedLabel={t('app.jumble.copied')}
+          acknowledgementLabel={t('app.jumble.kept')}
+          notAcknowledgedReason={t('app.jumble.keep_first')}
+          dismissLabel={t('app.jumble.done')}
+          onDismiss={() => (minted = undefined)}
+        />
+      {/if}
+    </div>
+
+    <!-- Where a lifted piece may go, and why a drop was refused (automation.md §1.5): a line that takes
+         no room - it is zero height and its words overlay the canvas's top padding - so nothing
+         moves under the pointer when a piece is lifted, and sticky, so it is read while scrolling. -->
+    <p class="dragline" role="status" class:lifted={drag !== undefined} class:refused={drag === undefined && refusal !== undefined}>
+      {#if drag || refusal}<span>{drag ? dragHint(drag, draft.actions, t) : refusal}</span>{/if}
+    </p>
+
+    <div class="bench">
+
+      <!-- The room around the flow deselects too (automation.md §1.5): the flow answers a click on its
+           own background, this one the pixels beside and below it. Escape does the same from
+           anywhere on the canvas, which is the keyboard's way to the same place. -->
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <section
+        class="canvas"
+        aria-label={t('app.rules.title')}
+        onclick={(event) => { if (event.target === event.currentTarget) select({ kind: 'none' }); }}
+        onkeydown={(event) => { if (event.key === 'Escape' && selection.kind !== 'none') { event.preventDefault(); select({ kind: 'none' }); } }}
+      >
+        <RuleCanvas
+          {draft}
+          {selection}
+          kinds={actionKinds}
+          {summaries}
+          {usage}
+          {names}
+          {triggerMeta}
+          {marks}
+          {describe}
+          onselect={select}
+          oninsert={insert}
+          onremove={remove}
+          onfold={fold}
+          onaddcondition={addCondition}
+          onnudge={nudgeStep}
+          onaddrung={addElseIf}
+          onremoverung={removeElseIf}
+          {drag}
+          ondragchange={(next) => (drag = next)}
+          ondrop={dropped}
+          onreplacetrigger={replaceTrigger}
+          onrefuse={refuse}
+          segmented={narrow}
+          {armChoice}
+          onpickarm={pickArm}
+          {verdicts}
+          dimUnvisited={drawn}
+        />
+      </section>
+
+      {#if narrow}
+        <!-- Below the expanded breakpoint the details come to the canvas rather than the reader
+             scrolling to them: a sheet over it, one glass surface at a time (rule 2). -->
+        <Drawer
+          bind:isOpen={sheetOpen}
+          edge="block-end"
+          title={t('app.flow.inspector')}
+          dismissLabel={t('app.flow.sheet_close')}
+          isResizable
+          resizeLabel={t('app.flow.sheet_size')}
+          bind:size={sheetSize}
+        >
+          {@render inspector()}
+        </Drawer>
+        <div class="sheetbar" role="tablist" aria-label={t('app.flow.inspector')}>
+          {#each TABS as each (each.id)}
+            <button type="button" role="tab" aria-selected={tab === each.id} onclick={() => { tab = each.id; sheetOpen = true; if (each.id === 'runs' && !isNew) void runs.reload({ ruleId: id }); }}>
+              <Icon name={each.icon} size="sm" /><span>{t(each.code)}</span>
+            </button>
+          {/each}
+        </div>
+      {:else}
+        <aside class="inspector" aria-label={t('app.flow.inspector')}>
+          {@render inspector()}
+        </aside>
+      {/if}
+    </div>
+
+    {#snippet inspector()}
+        <!-- The tabs stay where the head stays (design-system.md §4): they are how the panel is steered,
+             and a panel whose steering scrolls away is steered by scrolling back up. -->
+        <div class="tabsrow">
+        <Tabs
+          label={t('app.flow.inspector')}
+          selected={tab}
+          onselect={(next) => {
+            tab = next;
+            // What the rule has done since the editor opened: no record announces a run.
+            if (next === 'runs' && !isNew) void runs.reload({ ruleId: id });
+          }}
+          tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
+        />
+        </div>
+        {#if tab === 'rule'}
+          <RuleInspector
+            {draft}
+            {selection}
+            section="rule"
+            ruleId={stored?.id}
+            generatedName={generated}
+            {triggers}
+            {eventTypes}
+            {actionFields}
+            {scopes}
+            {runners}
+            {pickers}
+            {itemTypes}
+            workflowChoices={stepChoices}
+            {errors}
+            {marks}
+            {findings}
+            onupdate={update}
+            onremovestep={remove}
+            onremovecondition={removeCondition}
+            onaddcondition={addCondition}
+          />
+        {:else if tab === 'blocks'}
+          <div class="panel">
+            <BlocksPanel
+              {triggers}
+              kinds={actionKinds}
+              {summaries}
+              {usage}
+              onpick={(kind) => insert('', draft.actions.length, kind)}
+              onpicktrigger={replaceTrigger}
+              onlift={(event, piece) => lift(event, piece)}
+              ondrop={() => (drag = undefined)}
+            />
+          </div>
+        {:else if tab === 'piece'}
+          <RuleInspector
+            {draft}
+            {selection}
+            ruleId={stored?.id}
+            generatedName={generated}
+            {triggers}
+            {eventTypes}
+            {actionFields}
+            {scopes}
+            {runners}
+            {pickers}
+            {itemTypes}
+            workflowChoices={stepChoices}
+            {errors}
+            {marks}
+            {findings}
+            onupdate={update}
+            onremovestep={remove}
+            onremovecondition={removeCondition}
+            onaddcondition={addCondition}
+            inbound={stored?.trigger.kind === 'INBOUND_WEBHOOK' ? { rotatedAt: stored.inbound_rotated_at ?? undefined, onmint: mint, isWorking } : undefined}
+          />
+        {:else if tab === 'probe' && resting}
+          <p class="quiet panel">{t('app.plan.runs_body')}</p>
+        {:else if tab === 'probe'}
+          <RuleProbe
+            {eventTypes}
+            defaultType={draft.trigger.event_type ?? ''}
+            notes={noteList}
+            onpick={pick}
+            readsEntry={readsEntry}
+            takesPayload={draft.trigger.kind === 'INBOUND_WEBHOOK'}
+            isRunning={isProbing}
+            {outcome}
+            onrun={probe}
+            onclear={clearDrawing}
+          />
+        {:else if stored}
+          <RuleRuns ruleId={stored.id} enabled={stored.enabled} findings={stored.findings ?? []} runs={ruleRuns} ondraw={drawRun} />
+        {:else}
+          <EmptyState kind="unused" title={t('app.flow.runs_none')} />
+        {/if}
+    {/snippet}
+
+  {/if}
+</div>
+{/snippet}
+
+{@render frame(head, body)}
+
+{#if isDeleting && stored}
+  <Dialog bind:isOpen={isDeleting} size="s" title={t('app.flow.delete_title')} dismissLabel={t('app.flow.cancel')}>
+    <p class="quiet">{t('app.flow.delete_body')}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.flow.cancel')}</Button>
+      <Button tone="danger" isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={remove_rule}>{t('app.flow.delete_confirm')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+<style>
+  /* The editor is the region it was given, and nothing of it hangs past the fold: the head at the
+     top, the bench the rest, each of the two surfaces scrolling on its own (automation.md §1.5). The
+     frame answers `page.fill()` with a region of a definite height, and the page kind around the
+     editor hands the rest of it down (`RuleView`, `RuleNewView`). */
+  .editor { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; }
+
+  .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
+
+  .head { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); background: var(--bg-surface); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+
+  .chip.automatic b { color: var(--text-secondary); }
+
+  .auto { flex: 0 0 auto; padding: 0 var(--sp-100); border-radius: var(--r-full); background: var(--label-slate-bg); color: var(--label-slate-fg); font-size: var(--fs-050); font-weight: var(--fw-medium); }
+
+  .chip:focus-visible, .fold:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+
+  .chip { display: inline-flex; align-items: center; gap: var(--sp-050); padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-full); background: var(--bg-surface-sunken); color: var(--text-secondary); font-size: var(--fs-075); cursor: pointer; }
+
+  .chip:hover { border-color: var(--border-default); }
+
+  .chip b { font-weight: var(--fw-medium); color: var(--text-primary); }
+  .chip.flagged { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
+  .chip-flag { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-warning); }
+
+  .sentence-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
+
+  /* Collapsed to one line, expanded on request, the choice kept in this browser (automation.md §1.5). */
+  .sentence { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--fs-075); color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+  .sentence.open { display: block; max-width: 80ch; }
+
+  .fold { flex: 0 0 auto; width: var(--sp-300); height: var(--sp-300); padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-subtle); }
+
+  .fold:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+  /* The canvas and the panel, nothing else (automation.md §1.5): the panel reaches the bottom and
+     scrolls on its own, the canvas takes every other pixel. */
+  .bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 44ch); flex: 1 1 auto; min-height: 0; }
+
+  .dragline { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); margin: 0; max-width: none; align-self: stretch; height: 0; overflow: visible; text-align: center; pointer-events: none; }
+
+  .dragline span { display: inline-block; max-width: 100%; padding: var(--sp-050) var(--sp-200); border-end-start-radius: var(--r-md); border-end-end-radius: var(--r-md); font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-inverse); background: var(--accent-primary); box-shadow: var(--shadow-raised); }
+
+  .dragline.refused span { background: var(--status-warning-accent); }
+
+  .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
+
+  .inspector { display: flex; flex-direction: column; border-inline-start: var(--bw-hairline) solid var(--border-subtle); background: var(--bg-surface); block-size: 100%; min-block-size: 0; overflow: auto; }
+
+  .quiet { margin: 0; color: var(--text-secondary); }
+
+  .small { font-size: var(--fs-075); }
+
+  .panel { padding: var(--sp-200); font-size: var(--fs-075); }
+
+  /* Sticky in whatever scrolls the panel: the aside on a wide screen, the sheet's body on a narrow one. */
+  .tabsrow { position: sticky; inset-block-start: 0; z-index: var(--z-sticky); background: var(--bg-surface); }
+
+  /* Below the expanded breakpoint the palette is gone (the + is the way in) and the inspector
+     follows the canvas as a sheet over it. */
+  .sheetbar { display: none; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px) less one; a media query cannot read a custom property. */
+  @media (max-width: 904px) {
+    .bench { grid-template-columns: minmax(0, 1fr); }
+    .canvas { padding-block-end: calc(var(--sp-1600) + var(--layout-bottombar-height)); }
+    /* Above the shell's bottom bar, not behind it. */
+    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-raised); box-shadow: var(--shadow-overlay); overflow: hidden; }
+    .sheetbar button { flex: 1 1 0; min-width: 0; display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-025); padding: var(--sp-050) var(--sp-025); border: 0; background: transparent; color: var(--text-secondary); font-size: var(--fs-050); }
+    .sheetbar button[aria-selected='true'] { color: var(--accent-primary); }
+    .sheetbar button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--sp-025)); }
+  }
+</style>
