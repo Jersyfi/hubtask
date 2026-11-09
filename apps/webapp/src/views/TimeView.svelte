@@ -76,7 +76,7 @@
   const current = $derived(offered.some((each) => each.id === tab) ? (tab as string) : 'week');
   const homeViews = $derived<ViewLink[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
   function select(next: string) {
-    onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
+    onnavigate(next === 'week' ? '/time' : next === 'settings' ? '/time/settings' : `/time?tab=${next}`);
   }
 
   $effect(() => frame.entitle(t('app.time.title')));

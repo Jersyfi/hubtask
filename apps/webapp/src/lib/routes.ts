@@ -204,6 +204,9 @@ export const ROUTES: readonly Route[] = [
   // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
   // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
   { name: 'time', pattern: '/time' },
+  // The time's last tab, a section at its own address as the desk's (page-system PS-9).
+  { name: 'time-home-settings', pattern: '/time/settings' },
+  { name: 'time-home-settings-section', pattern: '/time/settings/:section' },
   // Goals, portfolios and dashboards (M8): a period's goals, the portfolios and the dashboards as
   // tabs (`?tab=`, `?period=`, `?hub=`), and one of each by itself.
   // The products' workspace-wide homes (user-experience.md §2.2): one door per product, across the
@@ -224,6 +227,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'assets-settings', pattern: '/assets/settings' },
   { name: 'assets-settings-section', pattern: '/assets/settings/:section' },
   { name: 'agents-home', pattern: '/agents' },
+  // The agents' last tab, a section at its own address; before `agent`, which would take it for an id.
+  { name: 'agents-settings', pattern: '/agents/settings' },
+  { name: 'agents-settings-section', pattern: '/agents/settings/:section' },
   // An agent as its record page: its ledger, jobs and evaluation (page-system §9.5).
   { name: 'agent', pattern: '/agents/:id' },
   { name: 'goals', pattern: '/goals' },
@@ -356,13 +362,20 @@ const MOVED: Readonly<Record<string, (params: Params, query: Params) => string |
   // A product's settings are its home's last tab (user-experience.md §8.2).
   'service-desk': () => '/desk/settings',
   cmdb: () => '/assets/settings',
-  'time-settings': () => '/time?tab=settings',
+  'time-settings': (_params, query) => `/time/settings${query['section'] ? `/${query['section']}` : ''}`,
+  // The time's and the agents' settings were `?tab=settings&section=`; `models` and `metering` were tabs once.
+  time: (_params, query) => (query['tab'] === 'settings' ? `/time/settings${query['section'] ? `/${query['section']}` : ''}` : undefined),
+  'agents-home': (_params, query) => {
+    const tab = query['tab'];
+    if (tab === 'models' || tab === 'metering') return `/agents/settings/${tab}`;
+    return tab === 'settings' ? `/agents/settings${query['section'] ? `/${query['section']}` : ''}` : undefined;
+  },
   // A product's settings section is an address of its own; the report is the desk's *Reports*, the
   // classes and the sources are the assets' tabs again (the navigation concept §4).
   'desk-settings': (_params, query) => (query['section'] === 'report' ? '/desk/reports' : query['section'] ? `/desk/settings/${query['section']}` : undefined),
   'assets-settings': (_params, query) =>
     query['section'] === 'classes' || query['section'] === 'sources' ? `/assets/${query['section']}` : query['section'] ? `/assets/settings/${query['section']}` : undefined,
-  agents: () => '/agents?tab=settings',
+  agents: (_params, query) => `/agents/settings${query['section'] ? `/${query['section']}` : ''}`,
   // The hub's former tabs are its tools' pages and *All contents* (the navigation concept §8).
   'hub-releases': (params) => `/hubs/${params['id']}/plan/releases`,
   // The plan's former `?view=` is a tab of its own; what had no dates is the schedule's fold.
@@ -381,7 +394,7 @@ const MOVED: Readonly<Record<string, (params: Params, query: Params) => string |
 };
 
 /** The moves of a whole screen, whose old query still means the same at the new address. */
-const KEEPS_QUERY: ReadonlySet<string> = new Set(['identity-provider', 'presets', 'groups', 'permissions', 'service-accounts', 'apps', 'service-desk', 'cmdb', 'time-settings', 'agents']);
+const KEEPS_QUERY: ReadonlySet<string> = new Set(['identity-provider', 'presets', 'groups', 'permissions', 'service-accounts', 'apps', 'service-desk', 'cmdb']);
 
 /** Whether a moved address carries its own query along (`movedWith`). */
 export const keepsQuery = (name: string | null): boolean => name !== null && KEEPS_QUERY.has(name);

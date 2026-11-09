@@ -65,11 +65,11 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
   }
   const time = page.locator('[data-switched-on="TIME"]');
   assert.equal(await time.getByRole('link', { name: 'Find it in Time' }).getAttribute('href'), '/time');
-  assert.equal(await time.getByRole('link', { name: /^Set up time/u }).getAttribute('href'), '/time?tab=settings');
+  assert.equal(await time.getByRole('link', { name: /^Set up time/u }).getAttribute('href'), '/time/settings');
   await time.getByRole('button', { name: 'Close' }).click();
   await time.waitFor({ state: 'detached', timeout: 5_000 });
   // Beside each switch that is on, its product's settings (user-experience.md §8.2); none while off.
-  assert.equal(await page.locator('[data-module="TIME"]').getByRole('link', { name: 'Time settings' }).getAttribute('href'), '/time?tab=settings');
+  assert.equal(await page.locator('[data-module="TIME"]').getByRole('link', { name: 'Time settings' }).getAttribute('href'), '/time/settings');
   assert.equal(await page.locator('[data-module-settings="SERVICE_DESK"]').count(), 0, 'a module that is off links its settings');
   assert.deepEqual(walk.errors(), []);
 });

@@ -10,7 +10,7 @@
   // MANAGE_MEMBERS at the workspace, a kind of work written with STRUCTURE; without, the page
   // shows the values. The cost rates (UC-TIM-08) are drawn only for MANAGE_COSTS or MANAGE_MEMBERS.
   //
-  // Each part is a section at `/time?tab=settings&section=<id>`: the time's last tab, under the
+  // Each part is a section at `/time/settings/<id>`: the time's last tab, under the
   // home's head and `ViewBar` (the navigation concept §4); *Record time* is not offered on it.
 
   import { untrack } from 'svelte';
@@ -43,14 +43,14 @@
   import { productHead } from '../lib/product/frame.svelte.ts';
 
   interface Props {
-    /** The section the address names (`&section=`); none is the list of sections. */
+    /** The section the address names (`/time/settings/<id>`); none is the list of sections. */
     section?: string;
     /** Replaces the address: a move between sections. */
     onreplace?: (path: string) => void;
     onnavigate?: (path: string) => void;
   }
   const { section, onreplace, onnavigate }: Props = $props();
-  const BASE = '/time?tab=settings';
+  const BASE = '/time/settings';
   const title = $derived(t('app.time_settings.page_title'));
   $effect(() => page.entitle(title));
 
@@ -125,7 +125,7 @@
   const view = $derived<'list' | 'detail'>(named ? 'detail' : 'list');
   const sectionLabel = (id: string) => t(id === 'policy' ? 'app.time_settings.policy' : id === 'kinds' ? 'app.time_settings.kinds' : 'app.rates.title');
   const links = $derived<SectionLink[]>(offered.map((id) => ({
-    id, label: sectionLabel(id), href: `${BASE}&section=${id}`,
+    id, label: sectionLabel(id), href: `${BASE}/${id}`,
     ...(id === 'kinds' && kinds ? { status: String(kinds.length) } : {}),
     ...(id === 'policy' && changes > 0 ? { status: t('app.save_bar.changes', { count: String(changes) }), statusTone: 'set' as const } : {}),
   })));
@@ -206,7 +206,7 @@
 <SettingsLayout
   head={{ ...productHead('TIME'), secondary: fileAction ? ([fileAction] as const) : ([] as const) }}
   {tabs}
-  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}&section=${next}`) }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
   {view}
   back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(BASE) }}
 >
@@ -267,7 +267,7 @@
   {/if}
 </SettingsLayout>
 
-<ViewSectionsAsFile {...pagePart('/time?tab=settings')} bind:isOpen={isFileOpen} isTriggerHidden />
+<ViewSectionsAsFile {...pagePart(BASE)} bind:isOpen={isFileOpen} isTriggerHidden />
 
 {#snippet saveBar()}
   <SaveBar

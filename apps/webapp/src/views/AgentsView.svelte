@@ -65,7 +65,7 @@
   const viewer = $derived<Viewer>({ administers, accountId: actor.account?.id });
 
   const current = $derived(tab === 'requests' || tab === 'runs' ? tab : 'agents');
-  const hrefOf = (id: string) => (id === 'agents' ? base : `${base}?tab=${id}`);
+  const hrefOf = (id: string) => (id === 'agents' ? base : id === 'settings' && base === AGENTS_HOME ? `${base}/settings` : `${base}?tab=${id}`);
 
   const agentsRead = resource<AgentList>(agentsPath);
   const all = $derived(agentsRead.state.status === 'ready' ? agentsRead.state.data.data : []);

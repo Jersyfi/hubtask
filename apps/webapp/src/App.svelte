@@ -539,9 +539,13 @@
     <LazyView load={views.DeskReportsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'desk-desks'}
     <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name.slice('desk-'.length), onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'agents-home' && isAgentsSettings(route.query['tab'])}
-    <!-- The agents' settings are a settings page of their own (page-system §9.6). -->
-    <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/agents', onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if (route.name === 'agents-settings' || route.name === 'agents-settings-section') && holdsHere('MANAGE_MEMBERS') !== false}
+    <!-- The agents' last tab, a section at its own address (page-system §9.6); while the manifest
+         is unread it stays, so a first load is not taken to the list. -->
+    <LazyView load={views.AgentsSettingsView} props={{ section: route.params.section, base: '/agents', onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'agents-settings' || route.name === 'agents-settings-section'}
+    <!-- Whoever does not administer agents has no settings and stays on the list (P-05). -->
+    <LazyView load={views.AgentsView} props={{ base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'agents-home'}
     <!-- The agents' home is their list (user-experience.md §7.8), at the product's address. -->
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
@@ -599,8 +603,8 @@
     {#key route.params.id}
       <LazyView load={views.PlanView} props={{ planId: route.params.id, part: route.name === 'hub-plan-table' ? 'table' : route.name === 'hub-plan-dependencies' ? 'dependencies' : 'schedule', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'time' && route.query['tab'] === 'settings'}
-    <LazyView load={views.TimeSettingsView} props={{ section: route.query['section'], onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'time-home-settings' || route.name === 'time-home-settings-section'}
+    <LazyView load={views.TimeSettingsView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'time'}
     <LazyView load={views.TimeView} props={{ tab: route.query['tab'], week: route.query['week'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'hub-goals' || route.name === 'hub-goals-dashboards'}

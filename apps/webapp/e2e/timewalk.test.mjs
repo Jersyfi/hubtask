@@ -298,7 +298,7 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
 
-  await page.goto(`${served.origin}/time?tab=settings&section=kinds`);
+  await page.goto(`${served.origin}/time/settings/kinds`);
   await page.getByRole('cell', { name: 'Development', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('columnheader', { name: 'Key' }).count(), 0, 'a key column is drawn');
   // A settings page of its own (page-system §9.6): the home's *Record time* is not shown on it, and
@@ -308,7 +308,7 @@ test('chromium: time - a workspace without a kind of work is given the usual one
 
   // The policy's settings are rows as on every settings screen (PS-11): inside the region's
   // padding, never on its edge.
-  await page.goto(`${served.origin}/time?tab=settings&section=policy`);
+  await page.goto(`${served.origin}/time/settings/policy`);
   const policyRow = page.locator('[data-setting="time.locked_through"]');
   await policyRow.waitFor({ timeout: 10_000 });
   const inset = await policyRow.evaluate((row) => {
@@ -349,7 +349,9 @@ test('chromium: time - the cost rates name their days in words', async (t) => {
   t.after(walk.close);
   const { page } = walk;
 
+  // The old address of a section lands on its own (page-system PS-9).
   await page.goto(`${served.origin}/time?tab=settings&section=rates`);
+  await page.waitForFunction(() => location.pathname === '/time/settings/rates', null, { timeout: 15_000 });
   const rates = page.getByRole('table', { name: 'Cost rates' });
   await rates.getByText('Nov 5, 2025', { exact: true }).waitFor({ timeout: 10_000 });
   await rates.getByText('Mar 31, 2026', { exact: true }).waitFor({ timeout: 5_000 });

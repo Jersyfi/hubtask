@@ -33,10 +33,10 @@ test('a module with settings at its home names them, to whoever that tab is offe
   const none = (): boolean => false;
   assert.equal(settingsOf('SERVICE_DESK', none), '/desk/settings');
   assert.equal(settingsOf('ASSETS', none), '/assets/settings');
-  assert.equal(settingsOf('TIME', all), '/time?tab=settings');
+  assert.equal(settingsOf('TIME', all), '/time/settings');
   assert.equal(settingsOf('TIME', none), undefined);
-  assert.equal(settingsOf('TIME', (permission) => permission === 'APPROVE_TIME'), '/time?tab=settings');
-  assert.equal(settingsOf('AGENTS', all), '/agents?tab=settings');
+  assert.equal(settingsOf('TIME', (permission) => permission === 'APPROVE_TIME'), '/time/settings');
+  assert.equal(settingsOf('AGENTS', all), '/agents/settings');
   assert.equal(settingsOf('AGENTS', (permission) => permission === 'STRUCTURE'), undefined);
   for (const module of ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'GOALS']) assert.equal(settingsOf(module, all), undefined, module);
 });

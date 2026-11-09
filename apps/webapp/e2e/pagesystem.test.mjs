@@ -727,7 +727,7 @@ for (const size of [DESKTOP, PHONE]) {
     t.after(() => context.close());
     for (const [path, kind] of [
       ['/agents', 'list'], ['/agents?tab=requests', 'list'], ['/agents?tab=runs', 'list'],
-      ['/agents?tab=settings', 'settings'], ['/agents?tab=settings&section=models', 'settings'], [`/agents/${AGENT.id}`, 'record'],
+      ['/agents/settings', 'settings'], ['/agents/settings/models', 'settings'], [`/agents/${AGENT.id}`, 'record'],
       ['/profile/agents', 'list'], [`/profile/agents/${AGENT.id}`, 'record'],
     ]) {
       await visit(page, path);
@@ -755,8 +755,9 @@ for (const size of [DESKTOP, PHONE]) {
     // The administration's old address and the old tabs land on the settings' sections.
     await page.goto(`${served.origin}/administration/agents?tab=settings`);
     await page.locator('nav.section-nav').getByRole('link', { name: /^Every agent/ }).waitFor({ timeout: 15_000 });
-    for (const [old, heading] of [['/agents?tab=models', 'Models'], ['/agents?tab=metering', 'Metering']]) {
+    for (const [old, heading, now] of [['/agents?tab=models', 'Models', 'models'], ['/agents?tab=metering', 'Metering', 'metering'], ['/agents?tab=settings&section=models', 'Models', 'models']]) {
       await page.goto(`${served.origin}${old}`);
+      await page.waitForFunction((section) => location.pathname === `/agents/settings/${section}`, now, { timeout: 15_000 });
       await page.locator('[data-page-kind="settings"]').waitFor({ timeout: 15_000 });
       await page.getByRole('main').getByRole('heading', { name: heading, exact: true }).first().waitFor({ timeout: 15_000 });
     }

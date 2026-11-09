@@ -246,8 +246,20 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   // A product's settings live at its home's last tab (user-experience.md §8.2).
   assert.equal(movedTo(resolve(ROUTES, '/administration/service-desk').name), '/desk/settings');
   assert.equal(movedTo(resolve(ROUTES, '/administration/configuration-items').name), '/assets/settings');
-  assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time?tab=settings');
-  assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents?tab=settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time/settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents/settings');
+  // The time's and the agents' settings sections are addresses of their own; the old query lands there.
+  const moved = (address: string) => {
+    const at = resolve(ROUTES, address);
+    return movedTo(at.name, at.params, at.query);
+  };
+  assert.equal(moved('/time?tab=settings&section=rates'), '/time/settings/rates');
+  assert.equal(moved('/time?tab=settings'), '/time/settings');
+  assert.equal(moved('/time?tab=week'), undefined);
+  assert.equal(moved('/agents?tab=settings&section=every'), '/agents/settings/every');
+  assert.equal(moved('/agents?tab=models'), '/agents/settings/models');
+  assert.equal(moved('/agents?tab=runs'), undefined);
+  assert.equal(resolve(ROUTES, '/agents/settings/models').name, 'agents-settings-section');
   assert.equal(movedTo(resolve(ROUTES, '/administration/presets').name), '/administration/templates');
   for (const route of ROUTES) {
     const target = movedTo(route.name, { id: 'x1', section: 'health' }, { hub: 'h1' });

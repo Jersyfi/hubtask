@@ -84,8 +84,8 @@ export const PAGE_PARTS: Readonly<Record<string, PagePart>> = {
   '/administration/workspace': { sections: ['structure'], settings: ['localisation', 'knowledge', 'servicedesk', 'goals'] },
   '/administration/ai': { sections: [], settings: ['ai'] },
   '/administration/templates': { sections: ['structure'] },
-  '/agents?tab=settings': { sections: [], settings: ['agents'] },
-  '/time?tab=settings': { sections: [], settings: ['time'] },
+  '/agents/settings': { sections: [], settings: ['agents'] },
+  '/time/settings': { sections: [], settings: ['time'] },
   '/administration/rules': { sections: ['rules'] },
 };
 

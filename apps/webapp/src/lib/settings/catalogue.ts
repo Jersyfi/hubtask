@@ -77,10 +77,10 @@ const WORKSPACE: Readonly<Record<string, Screen>> = {
   // A roadmap's public link is switched there too (PublicRoadmapsSwitch).
   goals: { path: '/administration/workspace', code: 'app.admin.workspace' },
   config: { path: '/administration/changes', code: 'app.changes.title' },
-  agents: { path: '/agents?tab=settings', code: 'app.agents.title' },
+  agents: { path: '/agents/settings', code: 'app.agents.title' },
   // The workspace's tolerance is drawn beside the modules it belongs to (WorkspaceTolerance).
   planning: { path: '/administration/modules', code: 'app.modules.title' },
-  time: { path: '/time?tab=settings', code: 'app.time_settings.title' },
+  time: { path: '/time/settings', code: 'app.time_settings.title' },
 };
 
 /** The workspace's screen of each area, for the test that every one shows its part of the file. */

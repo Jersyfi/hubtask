@@ -46,6 +46,8 @@ export const PRODUCT_HOMES: Readonly<Record<string, string>> = {
   'desk-home': 'SERVICE_DESK',
   'assets-home': 'ASSETS',
   'agents-home': 'AGENTS',
+  'agents-settings': 'AGENTS',
+  'agents-settings-section': 'AGENTS',
 };
 
 /** The products whose home is a page of its own rather than the one home view. */

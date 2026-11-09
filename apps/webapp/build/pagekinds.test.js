@@ -143,7 +143,8 @@ const ON_SETTINGS = ['mail', 'voice', 'retention', 'backup', 'workspace-settings
 const PRODUCT_SETTINGS = {
   'desk-settings': 'ServiceDeskView',
   'assets-settings': 'CmdbView',
-  time: 'TimeSettingsView',
+  'time-home-settings': 'TimeSettingsView',
+  'agents-settings': 'AgentsSettingsView',
 };
 
 test('the administration\'s settings screens draw the settings kind', () => {

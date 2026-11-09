@@ -2,8 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The agents' settings (page-system §9.6): a settings page of *Every agent* (the kill switch and
-  // MCP's registered-only), *Models* and *Metering*, each at `<base>?tab=settings&section=<id>`.
-  // `?tab=models` and `?tab=metering`, tabs of their own once, land on their section. For whoever
+  // MCP's registered-only), *Models* and *Metering*, each at `/agents/settings/<id>` - in Your
+  // settings at `<base>?tab=settings&section=<id>`. `?tab=models` and `?tab=metering`, tabs of
+  // their own once, land on their section. For whoever
   // administers agents (UC-AGT-01 check 9, UC-AGT-02 check 10, UC-AGT-03 check 7); the server
   // decides (rule 2).
 
@@ -46,7 +47,9 @@
   $effect(() => page.entitle(title));
 
   const administers = $derived(holdsHere('MANAGE_MEMBERS') === true);
-  const here = $derived(`${base}?tab=settings`);
+  const isHome = $derived(base === AGENTS_HOME);
+  const here = $derived(isHome ? `${AGENTS_HOME}/settings` : `${base}?tab=settings`);
+  const sectionAt = (id: string) => (isHome ? `${here}/${id}` : `${here}&section=${id}`);
 
   const SECTIONS = [
     { id: 'every', code: 'app.agents.settings_every' },
@@ -112,7 +115,7 @@
     if (id === 'models' && modelsRead.state.status === 'ready') return { status: String(models.length) };
     return {};
   }
-  const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: `${here}&section=${each.id}`, ...statusOf(each.id) })));
+  const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: sectionAt(each.id), ...statusOf(each.id) })));
 </script>
 
 {#snippet tabs()}<ProductTabs module="AGENTS" current="settings" {onnavigate} />{/snippet}
@@ -120,8 +123,8 @@
 <!-- The agents' last tab (the navigation concept §4): the home's head and `ViewBar` stay. -->
 <SettingsLayout
   head={{ ...productHead('AGENTS'), breadcrumb: agentsTrail(base), secondary: fileAction ? ([fileAction] as const) : ([] as const) }}
-  tabs={base === AGENTS_HOME ? tabs : undefined}
-  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${here}&section=${next}`) }}
+  tabs={isHome ? tabs : undefined}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(sectionAt(next)) }}
   {view}
   back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(here) }}
 >
@@ -218,7 +221,7 @@
   {/if}
 </SettingsLayout>
 
-<ViewSectionsAsFile {...pagePart('/agents?tab=settings')} bind:isOpen={isFileOpen} isTriggerHidden />
+<ViewSectionsAsFile {...pagePart('/agents/settings')} bind:isOpen={isFileOpen} isTriggerHidden />
 <ModelDialog opened={modelOpened} onclose={() => (modelOpened = undefined)} />
 
 <style>

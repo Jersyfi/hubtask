@@ -70,8 +70,8 @@ const VIEW_OF: Readonly<Record<string, string>> = {
   '/administration/workspace': 'WorkspaceSettingsView',
   '/administration/ai': 'AiSettingsView',
   '/administration/templates': 'TemplatesView',
-  '/agents?tab=settings': 'AgentsSettingsView',
-  '/time?tab=settings': 'TimeSettingsView',
+  '/agents/settings': 'AgentsSettingsView',
+  '/time/settings': 'TimeSettingsView',
   '/administration/rules': 'RulesView',
 };
 /** The screens that show the file by other means: the whole document, a module's own values. */
