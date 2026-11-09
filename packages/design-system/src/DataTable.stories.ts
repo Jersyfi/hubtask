@@ -46,3 +46,10 @@ export const log: Story = {
   about: 'A log’s rows: a sunken group row where the day changes, words instead of keys, a row that opens its record in a dialog, and `LoadMore` at the foot, saying once what arrived.',
   args: { mode: 'log' },
 };
+
+export const tree: Story = {
+  name: 'A tree, its folds before the titles',
+  about:
+    'A hierarchy drawn as a table: each row’s fold stands before its title in `lead`, outside the press that opens the row, so the fold is its own target and never a button within a link.',
+  args: { mode: 'tree' },
+};

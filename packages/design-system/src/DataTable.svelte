@@ -57,6 +57,11 @@
     key: (row: T) => string;
     /** One cell's content. */
     cell: Snippet<[T, DataColumn]>;
+    /**
+     * What stands before a row's title, outside the press that opens the row: a tree's fold. A
+     * control inside the press would be a button within a link and lie under its stretched box.
+     */
+    lead?: Snippet<[T]>;
     /** The columns the person hid. */
     hiddenColumns?: readonly string[];
     /** The row's address: its record page. */
@@ -100,6 +105,7 @@
     rows,
     key,
     cell,
+    lead,
     hiddenColumns = [],
     href,
     onopen,
@@ -173,6 +179,7 @@
             data-align={column.align ?? 'start'}
             data-role={column.id === titleColumn ? 'title' : column.isStatus ? 'status' : priority === 2 ? 'line' : undefined}
           >
+            {#if column.id === titleColumn && lead}<span class="lead">{@render lead(row)}</span>{/if}
             {#if column.id === titleColumn && link}
               <a class="press" href={link}>{@render cell(row, column)}</a>
             {:else if column.id === titleColumn && onopen}
@@ -268,7 +275,9 @@
   }
 
   .select,
+  .lead,
   .end-inner { position: relative; z-index: var(--z-raised); }
+  .lead { display: inline-flex; vertical-align: middle; }
 
   .end { white-space: nowrap; inline-size: 1%; }
   .end-inner { display: inline-flex; align-items: center; gap: var(--sp-100); }
