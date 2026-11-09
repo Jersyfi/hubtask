@@ -86,12 +86,6 @@
      */
     isMenuInBar?: boolean;
     /**
-     * Folded, the primary stays in the page's flow as a full-width button under the title instead
-     * of floating over the content (page-system §4.4: the bottom bar's ＋ is capture, and a second
-     * add in that corner covers a row). The page kinds of wave 6 set it.
-     */
-    isPrimaryInFlow?: boolean;
-    /**
      * What the head would have drawn, handed to whoever draws it instead.
      *
      * Called with the folded list while `isMenuInBar`, and with nothing when the menu comes back
@@ -141,7 +135,6 @@
     isTitleInBar = false,
     isFigureBelow = false,
     isMenuInBar = false,
-    isPrimaryInFlow = false,
     onmenu,
     figure,
     mark,
@@ -287,7 +280,7 @@
     </div>
 {/snippet}
 
-<header class="head" data-folded={isFolded ? '' : undefined} data-title-in-bar={isTitleInBar ? '' : undefined} data-primary-in-flow={isPrimaryInFlow ? '' : undefined} bind:this={head}>
+<header class="head" data-folded={isFolded ? '' : undefined} data-title-in-bar={isTitleInBar ? '' : undefined} bind:this={head}>
   {#if breadcrumb}
     <div class="top">
       <div class="trail">
@@ -514,19 +507,5 @@
     z-index: var(--z-raised);
     box-shadow: var(--shadow-overlay);
     border-radius: var(--r-xl);
-  }
-
-  /* In the flow: the primary is the whole width under the title, the folded menu beside it. */
-  .head[data-folded][data-primary-in-flow] .actions:has(.primary) { flex-basis: 100%; }
-  .head[data-folded][data-primary-in-flow] .primary {
-    position: static;
-    flex: 1;
-    box-shadow: none;
-    border-radius: 0;
-  }
-  .head[data-folded][data-primary-in-flow] .primary > :global(.button) {
-    inline-size: 100%;
-    min-block-size: var(--density-control-md-min);
-    justify-content: center;
   }
 </style>

@@ -2,8 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The root every page kind shares: `data-page-kind`, the gaps between its parts, the head drawn
-  // from `PageHead` with its primary in the flow, and a refusal that takes the content's place
-  // while the head stays (page-system §4.1).
+  // from `PageHead` - on a phone its primary floating above the bottom bar, labelled, the one main
+  // action of the screen (the navigation concept §9) - and a refusal that takes the content's
+  // place while the head stays (page-system §4.1).
   import type { Snippet } from 'svelte';
 
   import PageHeader from './PageHeader.svelte';
@@ -43,7 +44,6 @@
       {isTitleInBar}
       isMenuInBar={isTitleInBar && bar !== undefined}
       onmenu={isTitleInBar ? bar?.offer : undefined}
-      isPrimaryInFlow
     />
   {/if}
   {#if refused}
