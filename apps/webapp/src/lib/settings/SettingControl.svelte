@@ -10,7 +10,7 @@
   // and the version check stay the area's (P-18). What is drawn comes from the declaration, so the
   // same setting looks the same on every screen that draws it.
 
-  import { Checkbox, Input, Radio, Select, Switch } from '@hubtask/design-system/components';
+  import { Checkbox, Input, Radio, Select, SettingRow, Switch } from '@hubtask/design-system/components';
   import type { SettingDefinition } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -65,111 +65,126 @@
   const inForce = $derived(shownValue(definition, cell?.value, (code, params) => t(code, params)));
   // A few choices are all shown at once; a longer list folds into one field.
   const isFew = $derived(options.length > 0 && options.length <= 3);
+  // A count says its bounds under the name, beside the explanation.
+  const help = $derived(editor === 'count' ? [explanation, say(boundsWords(definition))].filter(Boolean).join(' ') || undefined : explanation);
+  // As wide as what it holds (PS-13).
+  const width = $derived<'xs' | 'sm' | 'md' | 'lg'>(
+    editor === 'count' ? 'xs' : editor === 'flag' || editor === 'date' ? 'sm' : editor === 'choice' && !isFew ? 'md'
+    : editor === 'locale' || editor === 'zone' ? 'md' : 'lg',
+  );
 </script>
 
-<div class="setting" data-setting={definition.key}>
-  {#if editor === 'count'}
-    <Input
-      {label}
-      type="number"
-      inputmode="numeric"
-      min={definition.minimum}
-      max={definition.maximum}
-      value={current === undefined || current === null ? '' : String(current)}
-      hint={[explanation, say(boundsWords(definition))].filter(Boolean).join(' ') || undefined}
-      disabledReason={reason}
-      oninput={(event) => onchange(countFrom((event.currentTarget as HTMLInputElement).value))}
-      {error}
-    />
-  {:else if editor === 'flag'}
-    <Switch
-      {label}
-      hint={explanation}
-      checked={current === true}
-      disabledReason={reason}
-      onchange={(event) => onchange((event.currentTarget as HTMLInputElement).checked)}
-    />
-  {:else if editor === 'choice' && isFew}
-    <Radio
-      {label}
-      {options}
-      hint={explanation}
-      bind:value={() => (current === undefined || current === null ? '' : String(current)), (next) => onchange(next)}
-      disabledReason={reason}
-      {error}
-    />
-  {:else if editor === 'choice'}
-    <Select
-      {label}
-      value={current === undefined || current === null ? '' : String(current)}
-      options={options.map(({ value: option, label: words }) => ({ value: option, label: words }))}
-      disabledReason={reason}
-      onchange={(event) => onchange((event.currentTarget as HTMLSelectElement).value)}
-      {error}
-    />
-  {:else if editor === 'choices'}
-    <fieldset class="choices">
-      <legend>{label}</legend>
-      {#each options as option (option.value)}
-        <Checkbox
-          label={option.label}
-          hint={option.hint}
-          checked={chosen.includes(option.value)}
+<!-- A `SettingRow` as on every settings screen: the name, its source and its help at the start,
+     the control at the end, labelled by the name and drawing none of its own. -->
+<div class="setting-control" data-setting={definition.key}>
+  <SettingRow {label} help={help} fieldWidth={width}>
+    {#snippet source()}<ValueSource source={cell?.source} lock={cell?.locked_by} value={inForce} atHub={level === 'HUB'} />{/snippet}
+    {#snippet control(nameId)}
+      {#if editor === 'count'}
+        <Input
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          type="number"
+          inputmode="numeric"
+          min={definition.minimum}
+          max={definition.maximum}
+          value={current === undefined || current === null ? '' : String(current)}
           disabledReason={reason}
-          onchange={(event) => onchange(toggled(definition.options ?? [], chosen, option.value, (event.currentTarget as HTMLInputElement).checked))}
+          oninput={(event) => onchange(countFrom((event.currentTarget as HTMLInputElement).value))}
+          {error}
         />
-      {/each}
-      {#if error}<p class="refusal" role="alert">{error}</p>{/if}
-    </fieldset>
-  {:else if editor === 'locale' && locales.length > 0}
-    <Select
-      {label}
-      value={String(current ?? '')}
-      options={locales.map((each) => ({ value: each, label: languageName(each, messages.locale) }))}
-      disabledReason={reason}
-      onchange={(event) => onchange((event.currentTarget as HTMLSelectElement).value)}
-      {error}
-    />
-  {:else if editor === 'zone' && zones.length > 0}
-    <Select
-      {label}
-      value={String(current ?? '')}
-      options={zones.map((each) => ({ value: each, label: each }))}
-      disabledReason={reason}
-      onchange={(event) => onchange((event.currentTarget as HTMLSelectElement).value)}
-      {error}
-    />
-  {:else if editor !== 'none'}
-    <!-- A day, a link, a text, and a language or a zone where none are offered to choose from. -->
-    <Input
-      {label}
-      type={editor === 'date' ? 'date' : editor === 'link' ? 'url' : 'text'}
-      hint={explanation}
-      value={current === undefined || current === null ? '' : String(current)}
-      disabledReason={reason}
-      oninput={(event) => {
-        const typed = (event.currentTarget as HTMLInputElement).value.trim();
-        onchange(typed === '' ? null : typed);
-      }}
-      autocomplete="off"
-      spellcheck={false}
-      {error}
-    />
-  {/if}
-  <ValueSource source={cell?.source} lock={cell?.locked_by} value={inForce} atHub={level === 'HUB'} />
+      {:else if editor === 'flag'}
+        <Switch
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          checked={current === true}
+          disabledReason={reason}
+          onchange={(event) => onchange((event.currentTarget as HTMLInputElement).checked)}
+        />
+      {:else if editor === 'choice' && isFew}
+        <!-- A radio group names itself; it repeats the row's name, as every settings row does. -->
+        <Radio
+          {label}
+          {options}
+          bind:value={() => (current === undefined || current === null ? '' : String(current)), (next) => onchange(next)}
+          disabledReason={reason}
+          {error}
+        />
+      {:else if editor === 'choice'}
+        <Select
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          value={current === undefined || current === null ? '' : String(current)}
+          options={options.map(({ value: option, label: words }) => ({ value: option, label: words }))}
+          disabledReason={reason}
+          onchange={(event) => onchange((event.currentTarget as HTMLSelectElement).value)}
+          {error}
+        />
+      {:else if editor === 'choices'}
+        <div class="choices" role="group" aria-labelledby={nameId}>
+          {#each options as option (option.value)}
+            <Checkbox
+              label={option.label}
+              hint={option.hint}
+              checked={chosen.includes(option.value)}
+              disabledReason={reason}
+              onchange={(event) => onchange(toggled(definition.options ?? [], chosen, option.value, (event.currentTarget as HTMLInputElement).checked))}
+            />
+          {/each}
+          {#if error}<p class="refusal" role="alert">{error}</p>{/if}
+        </div>
+      {:else if editor === 'locale' && locales.length > 0}
+        <Select
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          value={String(current ?? '')}
+          options={locales.map((each) => ({ value: each, label: languageName(each, messages.locale) }))}
+          disabledReason={reason}
+          onchange={(event) => onchange((event.currentTarget as HTMLSelectElement).value)}
+          {error}
+        />
+      {:else if editor === 'zone' && zones.length > 0}
+        <Select
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          value={String(current ?? '')}
+          options={zones.map((each) => ({ value: each, label: each }))}
+          disabledReason={reason}
+          onchange={(event) => onchange((event.currentTarget as HTMLSelectElement).value)}
+          {error}
+        />
+      {:else if editor !== 'none'}
+        <!-- A day, a link, a text, and a language or a zone where none are offered to choose from. -->
+        <Input
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          type={editor === 'date' ? 'date' : editor === 'link' ? 'url' : 'text'}
+          value={current === undefined || current === null ? '' : String(current)}
+          disabledReason={reason}
+          oninput={(event) => {
+            const typed = (event.currentTarget as HTMLInputElement).value.trim();
+            onchange(typed === '' ? null : typed);
+          }}
+          autocomplete="off"
+          spellcheck={false}
+          {error}
+        />
+      {/if}
+    {/snippet}
+  </SettingRow>
 </div>
 
 <style>
-  .setting { display: flex; flex-direction: column; gap: var(--sp-050); min-width: 0; max-width: 52ch; }
+  /* Wrapped for `data-setting`, so the rows' hairline is drawn here (as `SettingRow` draws it). */
+  :global(.setting-control + .setting-control > .setting-row > .setting-line:first-child) { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 
-  .choices { margin: 0; padding: 0; border: 0; display: grid; gap: var(--sp-050); }
-
-  .choices legend {
-    padding: 0;
-    color: var(--text-primary);
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-  }
+  .choices { display: grid; gap: var(--sp-050); }
 
   .refusal { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

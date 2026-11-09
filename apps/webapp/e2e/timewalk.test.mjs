@@ -305,6 +305,18 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   // adding a kind of work is its section's own act.
   assert.equal(await page.getByRole('button', { name: 'Record time', exact: true }).count(), 0, 'the home\'s act is shown on Settings');
   assert.equal(await page.locator('[data-time-part="kinds"]').getByRole('button', { name: 'Add a kind of work' }).count(), 1, 'adding a kind is not in its section');
+
+  // The policy's settings are rows as on every settings screen (PS-11): inside the region's
+  // padding, never on its edge.
+  await page.goto(`${served.origin}/time?tab=settings&section=policy`);
+  const policyRow = page.locator('[data-setting="time.locked_through"]');
+  await policyRow.waitFor({ timeout: 10_000 });
+  const inset = await policyRow.evaluate((row) => {
+    const region = row.closest('.region')?.getBoundingClientRect();
+    const name = row.querySelector('.name')?.getBoundingClientRect();
+    return region && name ? Math.round(name.left - region.left) : -1;
+  });
+  assert.ok(inset >= 16, `the policy's first row starts ${inset} px inside its region`);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
