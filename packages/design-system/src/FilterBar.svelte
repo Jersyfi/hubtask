@@ -77,8 +77,15 @@
   }: Props = $props();
 
   let isSheetOpen = $state(false);
+  /** A pinned chip pressed on a phone: the sheet holds its picker alone. */
+  let sheetOnly = $state<Filter | undefined>(undefined);
+  const inSheet = $derived(sheetOnly ? [sheetOnly] : filters.filter((filter) => !filter.isPinned));
   const hasActive = $derived(filters.some((filter) => filter.isActive));
   const folding = $derived(filters.filter((filter) => !filter.isPinned));
+  function openSheet(only?: Filter) {
+    sheetOnly = only;
+    isSheetOpen = true;
+  }
   const rankOf = (filter: Filter) => (filter.isPinned ? 'pinned' : folding.indexOf(filter) < 2 ? 'first' : 'rest');
 </script>
 
@@ -106,12 +113,18 @@
         {/snippet}
         {@render picker?.(filter)}
       </Popover>
+      {#if filter.isPinned}
+        <button type="button" class="chip phone-chip" data-active={filter.isActive ? '' : undefined} onclick={() => openSheet(filter)}>
+          <span>{filter.label}</span>
+          <Icon name="chevron-down" size="sm" />
+        </button>
+      {/if}
     </span>
   {/each}
 
   {#if folding.length > 2 && moreLabel}
     <span class="more">
-      <button type="button" class="chip" onclick={() => (isSheetOpen = true)}>
+      <button type="button" class="chip" onclick={() => openSheet()}>
         <Icon name="plus" size="sm" />
         <span>{moreLabel}</span>
       </button>
@@ -124,16 +137,16 @@
 
   {#if folding.length > 0 && filtersLabel}
     <span class="filters-button">
-      <Button size="sm" icon="funnel" onclick={() => (isSheetOpen = true)}>{filtersLabel}</Button>
+      <Button size="sm" icon="funnel" onclick={() => openSheet()}>{filtersLabel}</Button>
     </span>
   {/if}
 
   {#if countLabel}<span class="count" aria-live="polite">{countLabel}</span>{/if}
 </div>
 
-{#if folding.length > 0}
+{#if filters.length > 0}
   <Sheet bind:isOpen={isSheetOpen} title={sheetTitle ?? filtersLabel ?? ''} closeLabel={sheetDismissLabel ?? ''} grabLabel={sheetGrabLabel ?? ''}>
-    {#each folding as filter (filter.id)}
+    {#each inSheet as filter (filter.id)}
       <section class="sheet-filter">
         <h3 class="sheet-filter-name">{filter.label}</h3>
         {@render picker?.(filter)}
@@ -191,7 +204,8 @@
   .count { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-100); white-space: nowrap; }
 
   .more,
-  .filters-button { display: none; }
+  .filters-button,
+  .phone-chip { display: none; }
 
   .sheet-filter { display: flex; flex-direction: column; gap: var(--sp-100); }
   .sheet-filter-name { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); color: var(--text-secondary); }
@@ -210,6 +224,9 @@
     .more,
     .clear { display: none; }
     .filters-button { display: inline-flex; }
+    /* A pinned chip opens the sheet on a phone (§5.1), its picker alone in it. */
+    .chip-slot[data-rank='pinned'] > :global(:not(.phone-chip)) { display: none; }
+    .phone-chip { display: inline-flex; }
     .count { inline-size: 100%; margin: 0; }
   }
 
