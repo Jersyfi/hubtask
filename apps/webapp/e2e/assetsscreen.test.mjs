@@ -288,9 +288,10 @@ test('chromium: the assets settings are a settings page without the home\'s act,
   await page.locator('[data-class-row="hardware"] [data-class-toggle]').click();
   assert.deepEqual(await rows(), ['ci', 'hardware', 'server', 'software']);
   assert.equal(await page.locator('[data-class-row="hardware"] [data-class-toggle]').getAttribute('aria-expanded'), 'true');
-  assert.equal(await page.locator('[data-page-kind="settings"]').count(), 1, 'the assets settings are no settings page');
-  await page.getByRole('navigation', { name: 'Sections of Assets settings' }).waitFor({ timeout: 10_000 });
-  assert.equal(await page.getByRole('navigation', { name: 'Assets', exact: true }).count(), 0, 'the home\'s tabs stand beside the section list');
+  // *Classes* is a tab of the home again (the navigation concept §4): a list page under its view bar.
+  assert.equal(await page.locator('[data-page-kind="list"]').count(), 1, 'the classes are no list page');
+  const bar = page.getByRole('navigation', { name: 'Assets', exact: true });
+  assert.equal(await bar.getByRole('link', { name: 'Classes' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its classes');
   assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0, 'the home\'s create act is shown on its settings');
   assert.equal(await page.locator('header').getByRole('link', { name: 'Assets', exact: true }).getAttribute('href'), '/assets');
   assert.deepEqual(failures, []);
