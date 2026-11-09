@@ -76,12 +76,11 @@ test('chromium: at 375 px the administration carries the installation too', asyn
   t.after(() => browser.close());
 
   const { context, page } = await administration(browser, 'single', { width: 375, height: 812 });
-  await page.getByText('Applies to every workspace you create').first().waitFor({ state: 'attached' });
-
-  // In the drawer the row is one line with an ellipsis, the whole words its tooltip and its
-  // accessible name (user-experience.md §2.5, design-system.md §10).
-  await page.getByRole('button', { name: 'Open the navigation' }).click();
-  const drawer = page.locator('dialog[open]');
+  // On a phone the area's groups are a step of the Browse stack (§9): the row is one line with an
+  // ellipsis there, the whole words its tooltip and its accessible name (user-experience.md §2.5,
+  // design-system.md §10).
+  await page.locator('[data-phone-bar] [data-back]').click();
+  const drawer = page.getByRole('navigation', { name: 'Administration', exact: true });
   await drawer.waitFor({ timeout: 5_000 });
   const row = drawer.getByRole('link').filter({ hasText: 'Applies to every workspace you create' });
   const label = row.locator('.name');

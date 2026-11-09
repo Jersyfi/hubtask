@@ -71,6 +71,8 @@ export async function pressHead(page, name) {
     if (await button.first().getAttribute('aria-haspopup') !== null) await item.click();
     return;
   }
-  await page.getByRole('main').getByRole('button', { name: /^More for / }).filter({ visible: true }).first().click();
+  // On a phone the head's ⋯ is the bar's (the navigation concept §9); a row's ⋯ is not the head's.
+  const inBar = page.locator('[data-bar="menu"] button');
+  await (await inBar.count() > 0 ? inBar.first() : page.getByRole('main').getByRole('button', { name: /^More for / }).filter({ visible: true }).first()).click();
   await item.click();
 }

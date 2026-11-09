@@ -18,6 +18,8 @@
 
   import { t } from '../i18n/i18n.svelte.ts';
   import type { SectionGroup, SectionRow } from '../navigation.ts';
+  import { AREA_STEP_PATHS } from '../phone.ts';
+  import { page } from './page.svelte.ts';
 
   interface Props {
     /** The area's name, for the landmark. Resolved text. */
@@ -51,17 +53,27 @@
     if (holding && !untrack(() => moreOpen)[holding.id]) moreOpen = { ...untrack(() => moreOpen), [holding.id]: true };
   });
 
-  const go = (row: SectionRow) => () => onnavigate(row.path);
+  // On a phone the installation, the administration's last group, opens as its own step.
+  const pathOf = (row: SectionRow) => (size === 'touch' && row.path === '/instance' && row.routes.length === 0 ? AREA_STEP_PATHS.instance : row.path);
+  const go = (row: SectionRow) => () => onnavigate(pathOf(row));
+  // The step names itself for the bar.
+  $effect(() => {
+    if (size !== 'touch') return;
+    return page.entitle(label);
+  });
   const hidden = (group: SectionGroup) =>
-    group.rows.filter((row) => row.isFolded).map((row) => ({ id: row.id, label: t(row.code), icon: row.icon, href: row.path }));
-  const pathOf = (id: string) => rows.find((row) => row.id === id)?.path;
+    group.rows.filter((row) => row.isFolded).map((row) => ({ id: row.id, label: t(row.code), icon: row.icon, href: pathOf(row) }));
+  const goId = (id: string) => {
+    const found = rows.find((row) => row.id === id);
+    if (found) onnavigate(pathOf(found));
+  };
 </script>
 
 {#snippet row(each: SectionRow)}
   <NavItem
     label={t(each.code)}
     icon={each.icon}
-    href={each.path}
+    href={pathOf(each)}
     figure={figures[each.id]}
     isFigureUrgent={figures[each.id] !== undefined}
     isCurrent={size === 'md' && each.id === current}
@@ -76,7 +88,7 @@
   {#each heads as each (each.id)}{@render row(each)}{/each}
 {/snippet}
 
-<nav class="area" aria-label={label} data-size={size}>
+<nav class="area" aria-label={label} data-size={size} data-page-kind={size === 'touch' ? 'browse' : undefined}>
   {#if size === 'touch'}
     <VisuallyHidden as="h1">{label}</VisuallyHidden>
     {#if heads.length > 0}
@@ -86,7 +98,7 @@
       {@const shown = group.rows.filter((each) => !each.isFolded)}
       <NavGroup label={t(group.code ?? '')} size="touch" hiddenRows={hidden(group)} hiddenLabel={t('app.admin.more')}
         bind:isHiddenOpen={() => moreOpen[group.id] ?? false, (next) => (moreOpen = { ...moreOpen, [group.id]: next })}
-        onnavigate={(id) => { const path = pathOf(id); if (path) onnavigate(path); }}>
+        onnavigate={goId}>
         {#each shown as each (each.id)}{@render row(each)}{/each}
       </NavGroup>
     {/each}
@@ -103,7 +115,7 @@
           bind:isOpen={() => open[group.id] ?? true, (next) => (open = { ...open, [group.id]: next })}
           hiddenRows={hidden(group)} hiddenLabel={t('app.admin.more')} {current}
           bind:isHiddenOpen={() => moreOpen[group.id] ?? false, (next) => (moreOpen = { ...moreOpen, [group.id]: next })}
-          onnavigate={(id) => { const path = pathOf(id); if (path) onnavigate(path); }}>
+          onnavigate={goId}>
           {#each shown as each (each.id)}{@render row(each)}{/each}
         </NavGroup>
       {/each}

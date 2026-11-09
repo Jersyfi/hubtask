@@ -26,6 +26,7 @@
   import { backlogTiles, featureNameCode, instancePageOfFeature, schemaState } from '../lib/instance/health.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
   import { rowsOf } from '../lib/instance/values.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
@@ -109,6 +110,9 @@
   const unreadable = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
+  // The report is the bell's read; on a phone below a tab's root the bar draws no bell (the
+  // navigation concept §9), so the screen keeps the read open itself, under the bell's condition.
+  $effect(() => health.start(reachesAdministrationArea() === true || instance.isElevated));
   const report = $derived(health.report);
   const schema = $derived(schemaState(report));
   const backlogs = $derived(backlogTiles(report));

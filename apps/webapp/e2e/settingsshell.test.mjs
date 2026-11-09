@@ -127,7 +127,8 @@ test('chromium: at a phone width the sections are a row of their own and nothing
     await page.locator('[data-mail-log]').waitFor({ timeout: 5_000 });
     assert.equal(await list.isVisible(), false, 'the list stays beside the section on a phone');
     assert.equal(await wide(), false, 'the section is wider than the screen');
-    await page.getByRole('button', { name: /E-mail/ }).first().click();
+    // The way back is the bar's on a phone (the navigation concept §9).
+    await page.locator('[data-phone-bar] [data-back]').click();
     await page.waitForURL('**/administration/mail', { timeout: 5_000 });
     // The head's act works from the list too: the dialog is the page's, not a section's.
     await page.getByRole('button', { name: 'Connect a mailbox' }).filter({ visible: true }).first().click();

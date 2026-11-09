@@ -118,7 +118,7 @@
   } from '../sidebar.ts';
   import { leftToWebApp, type ProductRow } from '../navigation.ts';
   import { device } from '../device.svelte.ts';
-  import { contentsStep, hubStep, queuesStep, type PhoneStep } from '../phone.ts';
+  import { AREA_STEP_PATHS, contentsStep, hubStep, queuesStep, type PhoneStep } from '../phone.ts';
   import { page } from './page.svelte.ts';
   import { actsAsDesk } from '../portal/portal.ts';
   import { platform } from '../platform/index.ts';
@@ -1342,7 +1342,9 @@
     </div>
     <ul class="card-list" aria-label={t('app.nav.keeping')}>
       {#each footRows as row (row.id)}
-        <NavItem label={t(row.code)} icon={row.icon} href={row.path} figure={footFigure(row.id)} size="touch" isDrillDown onnavigate={() => goFoot(row.id, row.path)} />
+        <!-- The administration opens as its own step of the stack (§9). -->
+        {@const path = row.id === 'administration' ? AREA_STEP_PATHS.administration : row.path}
+        <NavItem label={t(row.code)} icon={row.icon} href={path} figure={footFigure(row.id)} size="touch" isDrillDown onnavigate={() => goFoot(row.id, path)} />
       {/each}
     </ul>
   {:else if hub && step.kind === 'hub'}
