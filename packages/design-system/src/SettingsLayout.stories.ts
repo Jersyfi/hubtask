@@ -24,6 +24,13 @@ export const section: Story = {
   args: { start: 'detail' },
 };
 
+export const tab: Story = {
+  name: 'Settings as a home’s last tab',
+  about:
+    'A product’s settings under its home’s `ViewBar`, *Settings* current; the section list beside the section, never a second strip.',
+  args: { isTab: true },
+};
+
 export const empty: Story = {
   name: 'Sign-in — nothing set here',
   about:

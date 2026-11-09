@@ -5,12 +5,14 @@
   import SettingRow from './SettingRow.svelte';
   import SettingsLayout from './SettingsLayout.svelte';
   import SettingsSection from './SettingsSection.svelte';
+  import ViewBar from './ViewBar.svelte';
   import SourceChip from './SourceChip.svelte';
   import SignInSection from './_SignInSection.svelte';
   import Refused from './_RefusedDemo.svelte';
   import { signInSections } from './_pageFixtures.ts';
 
-  const { content = 'full', start = 'list' }: { content?: 'full' | 'empty' | 'refused'; start?: 'list' | 'detail' } = $props();
+  const { content = 'full', start = 'list', isTab = false }: { content?: 'full' | 'empty' | 'refused'; start?: 'list' | 'detail'; isTab?: boolean } = $props();
+  const homeViews = [{ id: 'foryou', label: 'For you', href: '#foryou' }, { id: 'reports', label: 'Reports', href: '#reports' }, { id: 'settings', label: 'Settings', href: '#settings' }];
 
   let opened = $state<string | undefined>(undefined);
   const view = $derived<'list' | 'detail'>(opened !== undefined ? 'detail' : start);
@@ -29,6 +31,7 @@
   nav={{ label: 'Sections of Sign-in', sections, current, onselect: (id) => (opened = id) }}
   {view}
   back={{ label: 'Sign-in', onback: () => (opened = undefined) }}
+  tabs={isTab ? tabs : undefined}
   refused={content === 'refused' ? refused : undefined}
 >
   {#if content === 'empty'}
@@ -43,4 +46,5 @@
   {/if}
 </SettingsLayout>
 
+{#snippet tabs()}<ViewBar label="Service desk" views={homeViews} current="settings" closeLabel="Close" onnavigate={() => {}} />{/snippet}
 {#snippet refused()}<Refused what="the sign-in settings" />{/snippet}
