@@ -58,6 +58,8 @@
      the height down to it; its head sits on the canvas with the editor's own padding. */
   .rule-page { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
   .rule-page :global(.create-page), .rule-page :global([data-page-kind]) { flex: 1 1 auto; min-block-size: 0; gap: 0; }
+  /* The head's own padding parts it from the canvas: no rhythm of the page kind between them. */
+  .rule-page :global([data-page-kind] > *) { margin-block-start: 0; }
   .rule-page :global([data-page-kind] > header) { padding: var(--sp-200) var(--sp-200) var(--sp-150); }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {

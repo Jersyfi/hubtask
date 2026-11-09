@@ -89,7 +89,7 @@
   /* The canvas fills what the frame gives a filled page (`page.fill()`): the page kind and its one
      region pass the height down to the editor, and the head keeps the editor's own padding. */
   .rule-page { display: flex; flex-direction: column; block-size: 100%; min-block-size: 0; }
-  .rule-page :global([data-page-kind]) { flex: 1 1 auto; min-block-size: 0; gap: var(--sp-150); }
+  .rule-page :global([data-page-kind]) { flex: 1 1 auto; min-block-size: 0; }
   .rule-page :global([data-page-kind] > header) { padding: var(--sp-200) var(--sp-200) 0; }
   .rule-page :global([data-page-kind] > section) { flex: 1 1 auto; min-block-size: 0; gap: var(--sp-100); }
   .rule-page :global([data-page-kind] > section > :first-child) { padding-inline: var(--sp-200); }
