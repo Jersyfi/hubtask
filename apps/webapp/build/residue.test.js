@@ -402,6 +402,8 @@ test('the route table and this test name the same screens', async () => {
     // (`movedTo`) draws nothing either - it replaces itself with the tab it became.
     .filter((name) => !['hub', 'hub-settings', 'hub-settings-section', 'collection-settings', 'oidc-callback', 'mail-oauth'].includes(name))
     .filter((name) => movedTo(name) === undefined)
+    // An area's groups as a phone's Browse step are the frame's own list, no view's.
+    .filter((name) => !['browse-administration', 'browse-profile', 'browse-instance'].includes(name))
     .sort();
   assert.deepEqual(named, routed);
 });

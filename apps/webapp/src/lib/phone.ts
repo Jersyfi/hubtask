@@ -55,17 +55,35 @@ export function stepOf(route: LevelRoute): PhoneStep | undefined {
   return undefined;
 }
 
+/** An area with a column of its own: on a phone its groups are a Browse step (§9). */
+export type AreaStep = 'administration' | 'profile' | 'instance';
+
+/** The Browse step that lists an area's groups, by route name. */
+const AREA_STEPS: Readonly<Record<string, AreaStep>> = {
+  'browse-administration': 'administration',
+  'browse-profile': 'profile',
+  'browse-instance': 'instance',
+};
+/** Each area's step, by the area. */
+export const AREA_STEP_PATHS: Readonly<Record<AreaStep, string>> = {
+  administration: '/administration/browse',
+  profile: '/profile/browse',
+  instance: '/instance/browse',
+};
+
+/** The area whose groups this route lists, where it is such a step. */
+export const areaStepOf = (name: string | null): AreaStep | undefined => (name ? AREA_STEPS[name] : undefined);
+
 /** The Browse stack's own steps. */
-export const BROWSE_ROUTES: ReadonlySet<string> = new Set(['browse', 'browse-hub', 'browse-queues', 'browse-contents']);
+export const BROWSE_ROUTES: ReadonlySet<string> = new Set(['browse', 'browse-hub', 'browse-queues', 'browse-contents', ...Object.keys(AREA_STEPS)]);
 
-/** The areas with a section of their own: drawn with the section's drawer, not the stack. */
-const SECTION_AREAS: ReadonlySet<string> = new Set(['administration', 'instance', 'profile']);
-
-/** Which tab a route belongs to: a root's own, every other place of the workspace Browse's. */
+/** Which tab a route belongs to: a root's own, every other place - the areas' screens too - Browse's. */
 export function tabOf(route: { readonly name: string | null; readonly area?: string }): PhoneTab | undefined {
-  if (!route.name || (route.area && SECTION_AREAS.has(route.area))) return undefined;
+  if (!route.name) return undefined;
   return ROOTS[route.name] ?? 'browse';
 }
+
+const isArea = (area: string | undefined): area is AreaStep => area === 'administration' || area === 'profile' || area === 'instance';
 
 /** Whether the route is a tab's root. */
 export const isTabRoot = (name: string | null): boolean => name !== null && name in ROOTS;
@@ -79,11 +97,14 @@ export type Ascent =
   | { readonly kind: 'browse'; readonly path: string }
   | { readonly kind: 'hubs'; readonly path: string }
   | { readonly kind: 'hub'; readonly hubId: string; readonly path: string }
+  | { readonly kind: 'area'; readonly area: AreaStep; readonly path: string }
   | { readonly kind: 'contents'; readonly hubId: string; readonly pageId?: string; readonly path: string };
 
-export function ascentOf(route: LevelRoute, hubId: string | undefined, parentOf?: (pageId: string) => string | null | undefined): Ascent | undefined {
+export function ascentOf(route: LevelRoute & { readonly area?: string }, hubId: string | undefined, parentOf?: (pageId: string) => string | null | undefined): Ascent | undefined {
   const name = route.name ?? '';
   if (isTabRoot(name) || !name) return undefined;
+  if (areaStepOf(name)) return { kind: 'browse', path: '/browse' };
+  if (isArea(route.area)) return { kind: 'area', area: route.area, path: AREA_STEP_PATHS[route.area] };
   const id = route.params['id'];
   if (name === 'browse-hub') return { kind: 'hubs', path: '/browse' };
   if ((name === 'browse-queues' || name === 'browse-contents') && id) {
@@ -112,9 +133,11 @@ export const contentsStep = (hubId: string, under?: string): string => `/browse/
  * The level a screen stands on, for the announcement on every stack change ("IT operations, level
  * 2"): a root 1, a hub's step 2, what is under a hub 3, deeper contents one more per page.
  */
-export function depthOf(route: LevelRoute, hubId: string | undefined, ancestors = 0): number {
+export function depthOf(route: LevelRoute & { readonly area?: string }, hubId: string | undefined, ancestors = 0): number {
   const name = route.name ?? '';
   if (!name || isTabRoot(name)) return 1;
+  if (areaStepOf(name)) return 2;
+  if (isArea(route.area)) return 3;
   if (name === 'browse-hub') return 2;
   if (name === 'browse-queues') return 3;
   if (name === 'browse-contents') return 3 + (route.query['under'] ? 1 + ancestors : 0);
@@ -129,6 +152,9 @@ export function browseElsewhere(route: LevelRoute): string | undefined {
     case 'browse-hub': return id ? `/hubs/${id}` : '/';
     case 'browse-queues': return id ? `/hubs/${id}/desk` : '/';
     case 'browse-contents': return id ? `/hubs/${id}/contents` : '/';
+    case 'browse-administration': return '/administration';
+    case 'browse-profile': return '/profile';
+    case 'browse-instance': return '/instance';
     default: return undefined;
   }
 }

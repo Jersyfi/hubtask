@@ -46,6 +46,7 @@ test('the administration area is exactly these screens, by name', () => {
     'backup',
     'backup-section',
     'backup-target',
+    'browse-administration',
     'change',
     'changes',
     'cmdb',
@@ -132,6 +133,7 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // creates one show the same `tenant` row the list shows (page-system §9.4).
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
+    'browse-instance',
     'instance',
     'instance-ai',
     'instance-dead-letters',
@@ -175,6 +177,7 @@ test('every route resolves to one of the four areas, and the profile ones are na
   const profile = ROUTES.filter((route) => route.area === 'profile').map((route) => route.name).sort();
   assert.deepEqual(profile, [
     'appearance',
+    'browse-profile',
     'calendars',
     'devices',
     'filestores',

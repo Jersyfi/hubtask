@@ -201,6 +201,11 @@ export const ROUTES: readonly Route[] = [
   { name: 'browse-hub', pattern: '/browse/hubs/:id' },
   { name: 'browse-queues', pattern: '/browse/hubs/:id/queues' },
   { name: 'browse-contents', pattern: '/browse/hubs/:id/contents' },
+  // The areas as Browse steps of their own (the navigation concept §9): the administration's, Your
+  // settings' and the installation's groups, each in its area so who reaches it stays the area's.
+  { name: 'browse-administration', pattern: '/administration/browse', area: 'administration' },
+  { name: 'browse-profile', pattern: '/profile/browse', area: 'profile' },
+  { name: 'browse-instance', pattern: '/instance/browse', area: 'instance' },
   // The reader's time (M7): their week, the weeks waiting for their decision, and the report, as
   // tabs (`?tab=`). End-user: recording one's own time is the work, not its administration.
   { name: 'time', pattern: '/time' },

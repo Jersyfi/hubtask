@@ -280,7 +280,7 @@ test('every row of the section resolves to a route it claims, and every screen i
   // An address whose screen moved elsewhere (`movedTo`) replaces itself and needs no row.
   const unlisted = ROUTES.filter((route) => route.area === 'administration')
     .map((route) => route.name)
-    .filter((name) => !claimed.has(name) && movedTo(name) === undefined);
+    .filter((name) => !claimed.has(name) && movedTo(name) === undefined && !name.startsWith('browse-'));
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 });
 
@@ -300,7 +300,7 @@ test('the installation section lists every screen of its area, and every word of
   const claimed = new Set(INSTANCE.flatMap((group) => group.rows).flatMap((row) => row.routes));
   const unlisted = ROUTES.filter((route) => route.area === 'instance')
     .map((route) => route.name)
-    .filter((name) => !claimed.has(name));
+    .filter((name) => !claimed.has(name) && name !== 'browse-instance');
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 
   // And its front door is a screen of the section rather than the way out.
