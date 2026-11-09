@@ -145,15 +145,21 @@
       onopen={mayShape ? (each: CiClass) => { if (!each.system) openClass(each); } : undefined}
       menu={rowMenu} onmenu={(each: CiClass) => openClass(each)}
       actionsLabel={t('app.page.row_actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
+      <!-- The fold stands before the title, outside the press that opens the row: inside it, it
+           was a button within a button, under the press's stretched box. -->
+      {#snippet lead(each: CiClass)}
+        {@const holds = depthOf(each) > 0 ? (below.get(each.key) ?? 0) : 0}
+        <span class="indent" data-depth={String(Math.min(depthOf(each), 6))}></span>
+        {#if holds > 0 && search.trim() === ''}
+          <IconButton icon={opened.has(each.key) ? 'chevron-down' : 'chevron-right'} size="sm" tone="subtle"
+            label={t(opened.has(each.key) ? 'app.cmdb_admin.fold_named' : 'app.cmdb_admin.open_named', { name: nameOf(each.key), count: holds })}
+            aria-expanded={opened.has(each.key)} data-class-toggle onclick={() => toggle(each.key)} />
+        {/if}
+      {/snippet}
       {#snippet cell(each: CiClass, column: DataColumn)}
         {@const holds = depthOf(each) > 0 ? (below.get(each.key) ?? 0) : 0}
         {#if column.id === 'class'}
-          <span class="named" style:--depth={depthOf(each)} data-class-row={each.key}>
-            {#if holds > 0 && search.trim() === ''}
-              <IconButton icon={opened.has(each.key) ? 'chevron-down' : 'chevron-right'} size="sm" tone="subtle"
-                label={t(opened.has(each.key) ? 'app.cmdb_admin.fold_named' : 'app.cmdb_admin.open_named', { name: nameOf(each.key), count: holds })}
-                aria-expanded={opened.has(each.key)} data-class-toggle onclick={(event: MouseEvent) => { event.stopPropagation(); toggle(each.key); }} />
-            {/if}
+          <span class="named" data-class-row={each.key}>
             <span>{nameOf(each.key)}</span>
             <span class="meta" data-class-meta>{[
               each.abstract ? t('app.cmdb_admin.abstract') : '',
@@ -217,7 +223,13 @@
 {/if}
 
 <style>
-  .named { display: inline-flex; align-items: center; gap: var(--sp-050); padding-inline-start: calc(var(--depth, 0) * var(--sp-150)); }
+  .named { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .indent[data-depth='1'] { inline-size: var(--sp-150); }
+  .indent[data-depth='2'] { inline-size: var(--sp-300); }
+  .indent[data-depth='3'] { inline-size: var(--sp-400); }
+  .indent[data-depth='4'] { inline-size: var(--sp-500); }
+  .indent[data-depth='5'],
+  .indent[data-depth='6'] { inline-size: var(--sp-600); }
   .group { display: grid; gap: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); margin: 0; }
   .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
