@@ -367,9 +367,11 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     queries.length = 0;
     const { page, failures, close } = await open(browser, { width, scheme, path: '/desk', modulesOn: ['WORKFLOWS', 'SERVICE_DESK'] });
     t.after(close);
-    // The queue is the filter bar's first chip, its counts in the popover (a sheet on a phone).
-    const chip = width < 600 ? page.getByRole('button', { name: 'Filters (1)' }) : page.getByRole('button', { name: 'Queue: Mine (1)' });
+    // The queue is the filter bar's first chip, pinned beside the search on a phone too; its counts
+    // in the popover (a sheet on a phone).
+    const chip = page.getByRole('button', { name: 'Queue: Mine (1)' });
     await chip.waitFor({ timeout: 10_000 });
+    assert.equal(await page.getByRole('button', { name: /^Filters/u }).count(), 0, 'the queue hides behind Filters');
     await chip.click();
     const queues = page.locator('[data-desk-queues]');
     await queues.getByRole('radio', { name: 'Mine (1)' }).waitFor({ timeout: 10_000 });

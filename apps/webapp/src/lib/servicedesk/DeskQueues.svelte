@@ -94,7 +94,7 @@
   const rows = $derived(all.filter((item) => matchesSearch(search, [item.title, String(item.number)])));
   // The queue is the filter bar's first chip, its counts in the popover (a sheet on a phone):
   // never a second strip under the home's view bar (the navigation concept §4, PS-2).
-  const chips = $derived<Filter[]>([{ id: 'queue', label: t('app.desk_queues.chip', { queue: tabs.find((each) => each.id === selected)?.label ?? '' }), isActive: true }]);
+  const chips = $derived<Filter[]>([{ id: 'queue', label: t('app.desk_queues.chip', { queue: tabs.find((each) => each.id === selected)?.label ?? '' }), isActive: true, isPinned: true }]);
 
   $effect(() => untrack(() => workflows.open()));
   // Which field names a priority is the policies' word; a member may read them (UC-SVC-02).
