@@ -27,6 +27,10 @@
   const { kind, head, top, isHeadHidden = false, isTitleInBar = false, refused, children }: Props = $props();
 
   const bar = pageBar();
+  // Where the application's bar carries the way up (a phone below a tab's root, the navigation
+  // concept §9), it carries the title and the ⋯ too: one bar, never a second head under it. A
+  // create or editor page keeps its head: its primary is the page's own act on its canvas.
+  const isInBar = $derived(isTitleInBar || (bar?.hasBack === true && kind !== 'create' && kind !== 'editor'));
 </script>
 
 <div class="page" data-page-kind={kind}>
@@ -41,9 +45,9 @@
       secondary={head.secondary}
       menu={head.menu}
       figure={head.figure}
-      {isTitleInBar}
-      isMenuInBar={isTitleInBar && bar !== undefined}
-      onmenu={isTitleInBar ? bar?.offer : undefined}
+      isTitleInBar={isInBar}
+      isMenuInBar={isInBar && bar !== undefined}
+      onmenu={isInBar ? bar?.offer : undefined}
     />
   {/if}
   {#if refused}

@@ -11,6 +11,7 @@
   import DangerZone, { type DangerAct } from './DangerZone.svelte';
   import RecordHead from './RecordHead.svelte';
   import PageFrame from './_PageFrame.svelte';
+  import { pageBar } from './page.ts';
   import RegionHead from './_RegionHead.svelte';
   import type { MenuItem } from './overlay.ts';
   import type { PageAction } from './PageHeader.svelte';
@@ -46,11 +47,20 @@
   }
 
   const { record, strip, lists = [], list, facts, danger, refused }: Props = $props();
+
+  // On a phone the way back to the list is the bar's (the navigation concept §9): handed over,
+  // and not drawn a second time in the head.
+  const bar = pageBar();
+  $effect(() => {
+    const back = record.back;
+    if (bar && back?.onnavigate) return bar.carry({ label: back.label, onback: back.onnavigate });
+  });
+  const head = $derived(bar?.hasBack && record.back ? { ...record, back: undefined } : record);
 </script>
 
 <PageFrame kind="record" {refused}>
   {#snippet top()}
-    <RecordHead {...record} />
+    <RecordHead {...head} />
   {/snippet}
   {#snippet children()}
     {#if strip}{@render strip()}{/if}
