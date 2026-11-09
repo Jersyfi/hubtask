@@ -133,9 +133,9 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   assert.equal(await sourcesOf(page, 'Remember previous passwords'), 'INSTANCE-locked');
   assert.equal(await page.getByLabel('Remember previous passwords', { exact: true }).isDisabled(), true);
 
-  // Nobody decided: Hubtask's default, and no installation column - the private installation's case.
+  // Nobody decided: the quiet *Default*, and no installation column - the private installation's case.
   const plain = await originOf(page, 'Check against known breaches');
-  assert.match(plain, /Hubtask.s default/, plain);
+  assert.match(plain, /Default/, plain);
   assert.doesNotMatch(plain, /Installation/, plain);
 
   // The installation requires a factor of administrators: "Nobody" is not a choice here. The
@@ -172,7 +172,7 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   await page.keyboard.press('Escape');
 
   // A switch kept on by Hubtask's own default says so, not that the installation required it: the
-  // origin line beside it says "Hubtask's default", and the reason must not contradict it (check 4).
+  // origin line beside it says "Default", and the reason must not contradict it (check 4).
   const common = await page.getByLabel('Refuse commonly used passwords', { exact: true }).evaluate((input) =>
     input.closest('[data-rule]')?.textContent ?? '');
   assert.match(common, /Hubtask requires this of every workspace/, common);
@@ -192,7 +192,7 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   await toTab(page, 'Ways and providers');
   assert.ok(await page.locator('ul.ways li').count() >= 1, 'no list of the ways to sign in');
   const way = await page.locator('ul.ways li').first().locator('[data-origin]').textContent();
-  assert.match(way ?? '', /Hubtask.s default/, way ?? '');
+  assert.match(way ?? '', /Default/, way ?? '');
 });
 
 // UC-ID-12 check 4 (multi-tenancy.md §4.2): on a plan, the screen names it, and what the plan set
@@ -780,7 +780,7 @@ test('chromium: the sign-in rules read in German', async (t) => {
   await unfold(page, 'Erweitert');
   await page.getByLabel('Frühestens änderbar nach, in Stunden', { exact: true }).waitFor();
   const text = await page.locator('main').innerText();
-  for (const german of ['Wege und Anbieter', 'Hier festgelegt', 'Voreinstellung von Hubtask', 'Frühestens änderbar nach, in Stunden', 'Zweiter Faktor']) {
+  for (const german of ['Wege und Anbieter', 'Hier festgelegt', 'Vorgabe', 'Frühestens änderbar nach, in Stunden', 'Zweiter Faktor']) {
     assert.ok(text.includes(german), `"${german}" is missing`);
   }
   for (const english of ['Minimum length', 'Ways to sign in', 'Set here', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {

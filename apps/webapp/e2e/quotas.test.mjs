@@ -153,9 +153,10 @@ test('chromium: a workspace on a plan names it, and each limit says who set it',
   await row('Entries').waitFor({ timeout: 15_000 });
 
   assert.equal((await page.getByTestId('limits-plan').textContent())?.trim(), 'Plan: Family');
-  assert.match(await row('Entries').textContent() ?? '', /Set by your plan/);
+  // A lock names who holds it; a value set above without one says who set it.
+  assert.match(await row('Entries').textContent() ?? '', /Locked by your plan/);
   assert.match(await row('Export jobs').textContent() ?? '', /Set by your plan/);
-  assert.match(await row('Webhook').textContent() ?? '', /Set by the installation/);
+  assert.match(await row('Webhook').textContent() ?? '', /Locked by the installation/);
   // One chip per limit, with its lock where a level locked it (UC-WRK-32 check 5).
   assert.equal(await row('Entries').locator('[data-source]').getAttribute('data-source'), 'PLAN-locked');
   assert.equal(await row('Export jobs').locator('[data-source]').getAttribute('data-source'), 'PLAN');
@@ -164,7 +165,7 @@ test('chromium: a workspace on a plan names it, and each limit says who set it',
   // The page is read here and changed by the operator: said once, at the top.
   assert.equal(await page.getByRole('note').filter({ hasText: /operator/ }).count(), 1);
   const runs = await page.getByRole('row').filter({ hasText: /Automation/i }).textContent() ?? '';
-  assert.match(runs, /Hubtask's default/, runs);
+  assert.match(runs, /Default/, runs);
 });
 
 // UC-INS-10 check 5: the people limit is a row like any other; reached, the screen says nobody new
@@ -180,7 +181,7 @@ test('chromium: a reached people limit says nobody new comes in and nobody here 
   const row = (await reached.page.getByRole('row').filter({ hasText: 'People' }).textContent()) ?? '';
   await reached.close();
   assert.match(row, /6/, row);
-  assert.match(row, /Set by your plan/, row);
+  assert.match(row, /Locked by your plan/, row);
   assert.match(said, /The limit for people is reached\./, said);
   assert.match(said, /Everybody here stays as they are\./, said);
   assert.match(said, /service accounts and invitations whose link ran out are not counted/, said);
