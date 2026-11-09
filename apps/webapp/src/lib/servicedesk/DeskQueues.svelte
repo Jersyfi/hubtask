@@ -10,7 +10,7 @@
   // merge two orders by a moment it is not sent. The SLA is one read per row shown (at most
   // `QUEUE_SHOWN` a hub): the query answers no goal.
   import { untrack } from 'svelte';
-  import { Avatar, DataTable, EmptyState, LabelChip, Skeleton, Stack, ViewSwitcher, type DataColumn } from '@hubtask/design-system/components';
+  import { Avatar, DataTable, EmptyState, FilterBar, LabelChip, Radio, Skeleton, Stack, type DataColumn, type Filter } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { ItemQueryResult, SlaPolicyList, WorkItem } from '@hubtask/sync-engine';
 
@@ -23,6 +23,7 @@
   import EntryKey from '../entries/EntryKey.svelte';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { matchesSearch } from '../page/list.ts';
   import EntryPlace from '../workspace/EntryPlace.svelte';
   import { DESK_QUEUES, QUEUE_SHOWN, priorityOf, queueQuery, queueTotal, type DeskQueue } from './queues.ts';
   import SlaRemaining from './SlaRemaining.svelte';
@@ -88,7 +89,12 @@
   });
   const shown = $derived(hubIds.map((hubId) => ({ hubId, answer: answers[at(selected, hubId)] })));
   const isReading = $derived(shown.some((each) => each.answer === undefined));
-  const rows = $derived(shown.flatMap((each) => each.answer?.data ?? []));
+  let search = $state('');
+  const all = $derived(shown.flatMap((each) => each.answer?.data ?? []));
+  const rows = $derived(all.filter((item) => matchesSearch(search, [item.title, String(item.number)])));
+  // The queue is the filter bar's first chip, its counts in the popover (a sheet on a phone):
+  // never a second strip under the home's view bar (the navigation concept §4, PS-2).
+  const chips = $derived<Filter[]>([{ id: 'queue', label: t('app.desk_queues.chip', { queue: tabs.find((each) => each.id === selected)?.label ?? '' }), isActive: true }]);
 
   $effect(() => untrack(() => workflows.open()));
   // Which field names a priority is the policies' word; a member may read them (UC-SVC-02).
@@ -127,7 +133,17 @@
 </script>
 
 <Stack gap="200">
-  {#if !only}<div class="queues"><ViewSwitcher label={t('app.desk_queues.label')} views={tabs} {selected} onselect={(id) => (chosen = id as DeskQueue)} /></div>{/if}
+  {#if !only}
+    <FilterBar searchLabel={t('app.desk_queues.search')} clearSearchLabel={t('app.page.clear_search')} bind:search filters={chips}
+      moreLabel={t('app.page.more_filters')} filtersLabel={t('app.page.filters', { count: '1' })} sheetTitle={t('app.desk_queues.label')}
+      sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')} showLabel={t('app.page.show_results', { count: String(rows.length) })}
+      countLabel={isReading ? undefined : t('app.page.found', { shown: String(rows.length), count: String(all.length) })}>
+      {#snippet picker()}
+        <div data-desk-queues><Radio label={t('app.desk_queues.label')} bind:value={() => selected, (next) => (chosen = next as DeskQueue)}
+          options={tabs.map((each) => ({ value: each.id, label: each.label }))} /></div>
+      {/snippet}
+    </FilterBar>
+  {/if}
   <div role="region" aria-label={only?.name ?? t(`app.desk_queues.${selected}`)}>
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -166,8 +182,6 @@
 </Stack>
 
 <style>
-  /* Four queues with their counts are wider than a phone: the choice scrolls, the page does not. */
-  .queues { overflow-x: auto; }
   .request { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
   /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5), short
      enough that the six columns beside it fit at a desktop's width rather than behind the edge fade. */
