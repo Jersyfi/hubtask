@@ -19,17 +19,19 @@
   interface Props {
     /** The route the frame is drawing, whose product home's first visit is marked. */
     routeName: string | null | undefined;
+    /** The home's tab the address names (`?tab=`): a tab other than the first is no first visit. */
+    routeTab?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { routeName, onnavigate }: Props = $props();
+  const { routeName, routeTab, onnavigate }: Props = $props();
 
   $effect(() => {
     productTour.attach(onnavigate);
   });
 
   $effect(() => {
-    const module = homeModuleOf(routeName, PRODUCTS);
+    const module = homeModuleOf(routeName, PRODUCTS, routeTab);
     const marks = marksFirstVisit(module, actor.account, {
       baseTourOpen: tour.isOpen,
       baseTourMayStart: onboarding.tourMayStart,

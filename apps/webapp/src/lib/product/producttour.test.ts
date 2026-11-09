@@ -29,6 +29,9 @@ test('every product with a home has its three steps, with words for each', () =>
 test('the first visit is marked on a product home not yet seen, after the starter and the base tour', () => {
   assert.equal(homeModuleOf('desk-home', PRODUCTS), 'SERVICE_DESK');
   assert.equal(homeModuleOf('desk-settings', PRODUCTS), undefined);
+  // A tab of the home is not its first visit: the mark would take the reader away from it.
+  assert.equal(homeModuleOf('agents-home', PRODUCTS), 'AGENTS');
+  assert.equal(homeModuleOf('agents-home', PRODUCTS, 'runs'), undefined);
   assert.equal(homeModuleOf('home', PRODUCTS), undefined);
   assert.equal(marksFirstVisit('SERVICE_DESK', { products_seen: [] }, free), true);
   assert.equal(marksFirstVisit('SERVICE_DESK', {}, free), true);

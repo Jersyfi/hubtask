@@ -1041,7 +1041,7 @@
   <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
     <TourGuide path={route.path} {onnavigate} />
-    <ProductTourGuide routeName={route.name} {onnavigate} />
+    <ProductTourGuide routeName={route.name} routeTab={route.query['tab']} {onnavigate} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a
