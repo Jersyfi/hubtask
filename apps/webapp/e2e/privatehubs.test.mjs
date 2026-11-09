@@ -208,8 +208,9 @@ test('chromium: with several people and no private hub the page stays, with *Pri
   await toggle.waitFor({ timeout: 10_000 });
   assert.equal(await toggle.isChecked(), true);
   // The chip beside the switch says whose value it is (UC-WRK-32 check 5), and that it is this
-  // workspace's own once it was switched here; the save confirms as a passing message.
-  await page.getByRole('button', { name: "Hubtask's default" }).waitFor();
+  // workspace's own once it was switched here; the save confirms as a passing message. The chip's
+  // words are the quiet *Default* (lib/data/source.ts).
+  await page.locator('[data-private-hubs-allowed]').getByRole('button', { name: 'Default', exact: true }).waitFor({ timeout: 10_000 });
   await toggle.uncheck();
   await page.getByRole('button', { name: 'Set here' }).waitFor({ timeout: 10_000 });
   await page.getByText('Saved: who may make private hubs.').first().waitFor();
