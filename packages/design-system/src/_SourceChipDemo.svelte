@@ -14,7 +14,7 @@
     <div class="setting">
       <span class="name">Second factor for everybody</span>
       <SourceChip
-        label="Installation, locked"
+        label="Locked by the installation"
         isLocked
         detailsLabel="Where this comes from"
         value="On"
@@ -26,14 +26,15 @@
   </Stack>
 {:else}
   <Stack gap="150">
-    <div class="setting"><span class="name">Password length</span><SourceChip label="Set here" detailsLabel="Where this comes from" value="12 characters" source="Set in this workspace." /></div>
-    <div class="setting"><span class="name">Session length</span><SourceChip label="Default" detailsLabel="Where this comes from" value="14 days" source="Hubtask's default; nobody has changed it." /></div>
-    <div class="setting"><span class="name">Storage per workspace</span><SourceChip label="Plan, locked" isLocked detailsLabel="Where this comes from" value="25 GB" source="Set by your plan, Team." whomToAsk="Ask the workspace owner about another plan." /></div>
-    <div class="setting"><span class="name">Sign-in with a passkey</span><SourceChip label="Installation, locked" isLocked detailsLabel="Where this comes from" value="Allowed" source="Set by the installation for every workspace." whomToAsk="Ask your provider to change it." /></div>
+    <div class="setting"><span class="name">Password length</span><SourceChip label="Set here" isSetHere detailsLabel="Where this comes from" value="12 characters" source="Set in this workspace." /></div>
+    <div class="setting"><span class="name">Session length</span><SourceChip label="Default" detailsLabel="Where this comes from" value="14 days" source="Nobody set it, so Hubtask's default applies." /></div>
+    <div class="setting"><span class="name">Files per entry</span><SourceChip label="Set by the installation" detailsLabel="Where this comes from" value="50" source="Set by the installation." /></div>
+    <div class="setting"><span class="name">Storage per workspace</span><SourceChip label="Locked by your plan" isLocked detailsLabel="Where this comes from" value="25 GB" source="Set by your plan, Team." whomToAsk="Ask the workspace owner about another plan." /></div>
+    <div class="setting"><span class="name">Sign-in with a passkey</span><SourceChip label="Locked by the installation" isLocked detailsLabel="Where this comes from" value="Allowed" source="Set by the installation for every workspace." whomToAsk="Ask your provider to change it." /></div>
   </Stack>
 {/if}
 
 <style>
   .setting { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-  .name { color: var(--text-primary); }
+  .name { color: var(--text-primary); font-weight: var(--fw-medium); }
 </style>
