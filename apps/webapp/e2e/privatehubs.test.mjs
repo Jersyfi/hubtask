@@ -151,7 +151,7 @@ test('chromium: the administration lists the private hubs - whose and how big, n
 
   await page.goto(`${served.origin}/administration/workspace`);
   const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
-  await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).click();
+  await nav.getByRole('link', { name: 'Private hubs', exact: true }).click();
   const table = page.getByRole('table', { name: 'Private hubs' });
   await table.waitFor({ timeout: 10_000 });
   const rows = table.getByRole('row');
@@ -175,9 +175,9 @@ test('chromium: no private hub in a workspace of one, or no right to the list, a
     await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: { ...WORKSPACE, several_people: false, private_hubs_offered: false } }));
     await page.goto(`${served.origin}/administration/workspace`);
     const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
-    await nav.getByRole('treeitem', { name: 'Limits', exact: true }).waitFor({ timeout: 10_000 });
+    await nav.getByRole('link', { name: 'Limits', exact: true }).waitFor({ timeout: 10_000 });
     await page.waitForTimeout(300);
-    assert.equal(await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).count(), 0, `answered ${answer.status ?? 200}`);
+    assert.equal(await nav.getByRole('link', { name: 'Private hubs', exact: true }).count(), 0, `answered ${answer.status ?? 200}`);
     assert.deepEqual(failures, []);
     await context.close();
   }
@@ -203,7 +203,7 @@ test('chromium: with several people and no private hub the page stays, with *Pri
 
   await page.goto(`${served.origin}/administration/workspace`);
   const nav = page.getByRole('navigation', { name: 'Administration', exact: true });
-  await nav.getByRole('treeitem', { name: 'Private hubs', exact: true }).click();
+  await nav.getByRole('link', { name: 'Private hubs', exact: true }).click();
   const toggle = page.getByRole('switch', { name: 'People here may make private hubs' });
   await toggle.waitFor({ timeout: 10_000 });
   assert.equal(await toggle.isChecked(), true);

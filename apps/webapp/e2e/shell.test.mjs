@@ -213,11 +213,11 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
   const settings = page.locator('dialog[open]');
   await settings.waitFor({ timeout: 5_000 });
   assert.equal(await settings.getByRole('link', { name: 'Trash' }).count() + await settings.getByRole('treeitem', { name: 'Trash' }).count(), 0, 'the sidebar is drawn inside the section');
-  await settings.getByRole('treeitem', { name: 'Signed in', exact: true }).click();
+  await settings.getByRole('link', { name: 'Signed in', exact: true }).click();
   await settings.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, '/profile/sessions');
   await toggle.click();
-  await page.locator('dialog[open]').getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await page.locator('dialog[open]').getByRole('link', { name: 'The workspace', exact: true }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
 
   // The trash, through Browse's foot: Browse returns to the hub's step where it was left, a

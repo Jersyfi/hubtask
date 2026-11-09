@@ -100,10 +100,10 @@ test('chromium: each old address lands on its tab, and a tab chosen is an addres
 
   // The section's column marks *People* on its tabs and *Machines and apps* on its own.
   const section = page.getByRole('navigation', { name: 'Administration', exact: true });
-  assert.equal(await section.getByRole('treeitem', { name: 'Machines and apps', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await section.getByRole('link', { name: 'Machines and apps', exact: true }).getAttribute('aria-current'), 'page');
   await page.goto(`${served.origin}/administration/people?tab=permissions`);
   await page.getByRole('tab', { name: 'Who may do what', exact: true }).waitFor({ timeout: 15_000 });
-  assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await section.getByRole('link', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
   assert.deepEqual(failures, []);
 });

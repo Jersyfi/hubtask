@@ -83,8 +83,8 @@ test('chromium: at 375 px the administration carries the installation too', asyn
   await page.getByRole('button', { name: 'Open the navigation' }).click();
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
-  const row = drawer.getByRole('treeitem').filter({ hasText: 'Applies to every workspace you create' });
-  const label = row.locator('.label');
+  const row = drawer.getByRole('link').filter({ hasText: 'Applies to every workspace you create' });
+  const label = row.locator('.name');
   await label.waitFor();
   const box = await label.evaluate((element) => ({
     title: element.getAttribute('title') ?? '',

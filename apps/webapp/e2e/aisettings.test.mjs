@@ -113,7 +113,7 @@ test('chromium: a withdrawn offered model is said in the head and counted in the
   await page.goto(`${served.origin}/administration/people`);
   const column = page.getByRole('navigation', { name: 'Administration', exact: true });
   await column.getByText('Nothing answers').waitFor({ timeout: 15_000 });
-  assert.equal(await column.getByRole('treeitem', { name: /Nothing answers/ }).count(), 1, 'the figure is not heard with the row');
+  assert.equal(await column.getByRole('link', { name: /Nothing answers/ }).count(), 1, 'the figure is not heard with the row');
 
   await page.goto(`${served.origin}/administration/ai`);
   await page.locator('[data-ai-answering="withdrawn"]').getByText('the offered model was withdrawn', { exact: false }).waitFor({ timeout: 15_000 });

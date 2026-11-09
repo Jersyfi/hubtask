@@ -267,7 +267,7 @@ test('chromium: a failing mailbox is said beside Check now and counted in the co
   await page.goto(`${served.origin}/administration/people`);
   const column = page.getByRole('navigation', { name: 'Administration', exact: true });
   await column.getByText('1 failing').waitFor({ timeout: 10_000 });
-  assert.equal(await column.getByRole('treeitem', { name: /1 failing/ }).count(), 1, 'the figure is not heard with the row');
+  assert.equal(await column.getByRole('link', { name: /1 failing/ }).count(), 1, 'the figure is not heard with the row');
 
   await page.goto(`${served.origin}/administration/mail`);
   await page.locator('[data-mail-figure]').getByText('2 reading · 1 failing').waitFor({ timeout: 10_000 });

@@ -1350,6 +1350,8 @@ export function fallback(route, request, path) {
   if (read === '/settings/catalogue' && request.method() === 'GET') return route.fulfill({ json: SETTINGS_CATALOGUE });
   if (read === '/roles' && request.method() === 'GET') return route.fulfill({ json: ROLE_CATALOGUE });
   if (read === '/time-work-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
+  // The rules' latest runs, read by the administration's column for its *n failed* figure.
+  if (read === '/automation/runs' && request.method() === 'GET') return route.fulfill({ json: { data: [], page: { has_more: false } } });
   // A plan's time and the reader's file stores, empty, in the contract's shapes rather than a list's:
   // the hub's and a collection's *Time*, the report and *Profile -> Files* read fields a page lacks.
   const plan = /^\/plans\/([^/]+)\/(actuals|budget|billing-rates)$/.exec(read);

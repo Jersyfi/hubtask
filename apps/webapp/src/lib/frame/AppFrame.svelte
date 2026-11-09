@@ -28,7 +28,7 @@
   import AccountMenu from './AccountMenu.svelte';
   import AppWorkspaces from './AppWorkspaces.svelte';
   import SwitchWorkspace from './SwitchWorkspace.svelte';
-  import SectionNav from './SectionNav.svelte';
+  import AreaNav from './AreaNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
@@ -85,6 +85,10 @@
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { webhookColumnFigure } from '../data/webhooks.ts';
+  import { backup } from '../data/backup.svelte.ts';
+  import { runs } from '../data/runs.svelte.ts';
+  import { privacy, standingOf } from '../data/privacy.svelte.ts';
+  import { backupColumnFigure, privacyColumnFigure, runsColumnFigure } from './areafigures.ts';
   import { calendarPushesPath, pushColumnFigure } from '../data/calendarpush.ts';
   import { MAILBOXES, mailboxColumnFigure, type MailboxesRead } from '../data/mailintake.svelte.ts';
   import { engine } from '../data/engine.ts';
@@ -214,6 +218,23 @@
       engine.subscribe<CalendarPushList>({ path: calendarPushesPath }, (next) => (pushes = next.status === 'ready' ? (next.data.data ?? []) : [])),
     );
   });
+  // The backup targets, the latest runs and the open privacy requests, each for whoever may read
+  // its screen: the column says where nothing is kept, what failed and what is owed (§2.6).
+  const mayKeep = $derived(isInAdministration && holdsHere('STRUCTURE') === true);
+  const mayAutomate = $derived(isInAdministration && holdsHere('AUTOMATION') === true);
+  const mayAnswer = $derived(isInAdministration && holdsHere('MANAGE_MEMBERS') === true);
+  $effect(() => {
+    if (!session.isSignedIn || !mayKeep) return;
+    return untrack(() => backup.open());
+  });
+  $effect(() => {
+    if (!session.isSignedIn || !mayAutomate) return;
+    return untrack(() => runs.open({}));
+  });
+  $effect(() => {
+    if (!session.isSignedIn || !mayAnswer) return;
+    return untrack(() => privacy.open(false));
+  });
   const sectionFigures = $derived.by((): Readonly<Record<string, string>> => {
     const figures: Record<string, string> = {};
     if (isInAdministration) {
@@ -223,6 +244,13 @@
       if (failing) figures['mail'] = failing;
       const silent = aiProvider.source ? aiColumnFigure(aiAnsweringOf(aiProvider.source, undefined), t) : undefined;
       if (silent) figures['ai'] = silent;
+      const unkept = mayKeep && backup.targets.status === 'ready' ? backupColumnFigure(backup.all, t) : undefined;
+      if (unkept) figures['backup'] = unkept;
+      const failed = mayAutomate ? runsColumnFigure(runs.of({}), t) : undefined;
+      if (failed) figures['runs'] = failed;
+      const now = Date.now();
+      const owed = mayAnswer ? privacyColumnFigure(privacy.of(false).map((request) => standingOf(request, now)), t) : undefined;
+      if (owed) figures['privacy'] = owed;
     }
     if (route.area === 'profile') {
       const stopped = pushColumnFigure(pushes, t);
@@ -841,7 +869,7 @@
       {#if viewport.isBelowExpanded && !isPhone}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
-            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
+            <AreaNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
           {:else}
             <WorkspaceNav {route} level={navLevel} located={page.place} hasForYou={!viewport.isCompact} onnavigate={go} />
           {/if}
@@ -854,7 +882,7 @@
           class="sidenav"
           data-rail={isRail ? '' : undefined}
           data-peek={isRail && isPeeking ? '' : undefined}
-          data-levels={section ? undefined : ''}
+          data-levels
           data-tour={section ? undefined : 'hubs'}
           onpointerenter={() => isRail && !section && peek?.enter()}
           onpointerleave={() => peek?.leave()}
@@ -864,7 +892,7 @@
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
                  `hubs` step points at the tree, so it does not point here: a step that pointed at
                  a column the tree is not in would explain the wrong thing. -->
-            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
+            <AreaNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
             <WorkspaceNav {route} level={navLevel} located={page.place} isRail={isRail && !isPeeking} onnavigate={go} />
           {/if}

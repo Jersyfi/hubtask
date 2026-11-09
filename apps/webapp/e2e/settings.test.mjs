@@ -94,7 +94,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
 
   // The section's own list replaces the workspace's tree rather than joining it.
   assert.equal(await page.getByRole('navigation', { name: 'Workspace' }).count(), 0, 'the workspace tree is drawn inside the section');
-  const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  const rows = (await section.getByRole('link').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
   // The way out and twelve screens, the calendars pushed to, the file stores and the reader's own
   // rules and agents among them (the agents' row only while that module is on, as it is here).
@@ -114,7 +114,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
     // One `h1` per screen, whether drawn or read: two headings is two answers to what a page is.
     if ((await page.locator('main h1').count()) !== 1) unheaded.push(route);
     // And the column says where the reader is, on every one of them.
-    if ((await section.getByRole('treeitem', { selected: true }).count()) !== 1) unmarked.push(route);
+    if ((await section.locator('[aria-current="page"]').count()) !== 1) unmarked.push(route);
   }
 
   assert.deepEqual(untrailed, [], `these screens do not say where they are: ${untrailed.join(', ')}`);
@@ -122,7 +122,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
   assert.deepEqual(unmarked, [], `the column marks no row on these: ${unmarked.join(', ')}`);
 
   // The way out, which is what a section somebody cannot leave would be missing.
-  await section.getByRole('treeitem', { name: 'The workspace', exact: true }).click();
+  await section.getByRole('link', { name: 'The workspace', exact: true }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
 
   assert.deepEqual(failures, []);
@@ -993,9 +993,9 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
   const page = await context.newPage();
   await page.goto(`${served.origin}/profile`);
   await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
-  const back = page.getByRole('treeitem', { name: 'Der Arbeitsbereich', exact: true });
+  const back = page.getByRole('link', { name: 'Der Arbeitsbereich', exact: true });
   await back.waitFor({ timeout: 15_000 });
-  const rows = (await page.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  const rows = (await page.getByRole('link').allTextContents()).map((row) => row.trim());
   for (const english of ['The workspace', 'Name and language', 'Notifications', 'Signed in', 'Devices']) {
     assert.equal(rows.includes(english), false, `"${english}" is English in a German session: ${rows.join(', ')}`);
   }

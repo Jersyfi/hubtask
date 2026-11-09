@@ -56,7 +56,7 @@ test('chromium: a stopped calendar push says why beside Connect again, and the c
   await page.locator('[data-pushes-figure]').getByText('1 writing · 1 stopped').waitFor({ timeout: 10_000 });
 
   const column = page.getByRole('navigation', { name: 'Your settings' });
-  assert.equal(await column.getByRole('treeitem', { name: /1 stopped/ }).count(), 1, 'the figure is not heard with the row');
+  assert.equal(await column.getByRole('link', { name: /1 stopped/ }).count(), 1, 'the figure is not heard with the row');
 
   const writing = page.getByRole('row').filter({ has: page.locator('[data-push="GOOGLE"]') });
   await writing.getByText('Writing', { exact: true }).waitFor();
