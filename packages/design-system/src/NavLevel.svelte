@@ -42,6 +42,8 @@
     /** What the region is called for a screen reader: the level's name. */
     label: string;
     hub?: HubHead;
+    /** A level that is not a hub - the administration's, Your settings' - has the way back alone. */
+    back?: { readonly label: string; readonly href?: string; readonly onback?: () => void };
     /** The quick switch beside the hub's name, usually a `NavFlyout`; given the head to drop from. */
     switcher?: Snippet<[HTMLElement | null]>;
     /** *Overview* and the hub tools, above a hairline. */
@@ -49,7 +51,9 @@
     children: Snippet;
   }
 
-  const { levelKey, label, hub, switcher, tools, children }: Props = $props();
+  const { levelKey, label, hub, back: way, switcher, tools, children }: Props = $props();
+
+  const out = $derived(hub ? { label: hub.backLabel, href: hub.backHref, onback: hub.onback } : way);
 
   let back = $state<HTMLElement | null>(null);
   let head = $state<HTMLElement | null>(null);
@@ -68,25 +72,27 @@
 <div class="level" role="region" aria-label={label} data-nav-scroll data-scrollbar="thin">
   {#key levelKey}
     <div class="slide">
-      {#if hub}
+      {#if out}
         <div class="back-row">
           <!-- An anchor or a button: both are interactive, the linter only cannot tell from the tag. -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <svelte:element
-            this={hub.backHref ? 'a' : 'button'}
+            this={out.href ? 'a' : 'button'}
             bind:this={back}
             class="back"
-            type={hub.backHref ? undefined : 'button'}
-            href={hub.backHref}
+            type={out.href ? undefined : 'button'}
+            href={out.href}
             onclick={(event: MouseEvent) => {
-              if (!hub.onback || event.metaKey || event.ctrlKey || event.shiftKey) return;
+              if (!out.onback || event.metaKey || event.ctrlKey || event.shiftKey) return;
               event.preventDefault();
-              hub.onback();
+              out.onback();
             }}
           >
-            <Icon name="chevron-left" size="sm" />{hub.backLabel}
+            <Icon name="chevron-left" size="sm" />{out.label}
           </svelte:element>
         </div>
+      {/if}
+      {#if hub}
         <div class="hub" bind:this={head}>
           <ProductTile icon={hub.icon} color={hub.color} />
           <h2 class="hub-name" title={hub.name}>{hub.name}</h2>
