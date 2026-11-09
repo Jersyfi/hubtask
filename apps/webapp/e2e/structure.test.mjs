@@ -388,7 +388,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the project did not open as its outline');
   const panel = await openPanel(page, SHAPES.locked.name, 'Views');
   const views = panel.locator('[data-setting="views"]');
-  assert.equal((await views.locator('.head button').first().textContent()).trim(), 'Workspace, locked');
+  assert.equal((await views.locator('.head button').first().textContent()).trim(), 'Locked by Mara Lind');
   assert.equal(await views.getByRole('button', { name: /^Reset / }).count(), 0, 'a locked setting offers a reset');
   // The controls stay, readable and unavailable, with the lock's reason.
   const board = views.getByRole('checkbox', { name: 'Board' });

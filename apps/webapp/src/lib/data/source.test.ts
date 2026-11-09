@@ -15,6 +15,14 @@ test('at a hub, its own value is set here and the workspace\'s is a level above'
   assert.equal(chipCodes({ source: 'WORKSPACE', lock: null }, member)?.label, 'app.source.label_workspace');
 });
 
+test('only a value set on the reader\'s own level carries the set-here mark', () => {
+  assert.equal(chipCodes({ source: 'WORKSPACE', lock: null }, member)?.isSetHere, true);
+  assert.equal(chipCodes({ source: 'HUB', lock: null }, { operates: false, atHub: true })?.isSetHere, true);
+  assert.equal(chipCodes({ source: 'WORKSPACE', lock: null }, { operates: false, atHub: true })?.isSetHere, false);
+  assert.equal(chipCodes({ source: 'DEFAULT', lock: null }, member)?.isSetHere, false);
+  assert.equal(chipCodes({ source: 'WORKSPACE', lock: 'INSTANCE' }, member)?.isSetHere, false);
+});
+
 test('each source has its own words', () => {
   for (const [source, level] of [
     ['WORKSPACE', 'workspace'],
@@ -34,6 +42,7 @@ test('a lock names the level that holds it, whatever the stored source', () => {
   assert.deepEqual(chipCodes({ source: 'WORKSPACE', lock: 'INSTANCE' }, member), {
     label: 'app.source.locked_instance',
     isLocked: true,
+    isSetHere: false,
     source: 'app.source.locked_sentence_instance',
     whomToAsk: 'app.source.ask_operator',
   });

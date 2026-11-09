@@ -182,6 +182,12 @@
                 atHub={place === 'HUB'}
                 value={state.on ? t('app.signin_settings.on') : t('app.signin_settings.off')}
               />
+              <!-- *Reset* stands beside "Set here", the words it undoes. -->
+              {#if isSetHere(state, place)}
+                <Button tone="subtle" size="sm" data-reset={state.module} onclick={() => send(state, 'INHERIT')}>
+                  {t('app.modules.reset')}
+                </Button>
+              {/if}
             {/snippet}
             {#snippet control(nameId)}
               <span class="acts">
@@ -196,11 +202,6 @@
                   disabledReason={reason ? t(reason) : undefined}
                 />
                 {#if settings}<a class="act" href={settings} data-module-settings={state.module}>{t('app.modules.settings_of', { module: t(codes.name) })}</a>{/if}
-                {#if isSetHere(state, place)}
-                  <Button tone="subtle" size="sm" data-reset={state.module} onclick={() => send(state, 'INHERIT')}>
-                    {t('app.modules.reset')}
-                  </Button>
-                {/if}
               </span>
             {/snippet}
           </SettingRow>

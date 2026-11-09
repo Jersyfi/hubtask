@@ -217,10 +217,12 @@
   function chipOf(setting: SettingName) {
     const source = (structure?.sources?.[setting] as string | undefined) ?? 'DEFAULT';
     const locker = lockerOf(setting);
-    const label = t(`app.structure.source.${source === 'HUB' && isHub ? 'here' : source === 'COLLECTION' ? 'here' : source.toLowerCase()}`);
+    const isHere = (source === 'HUB' && isHub) || source === 'COLLECTION';
+    const label = t(`app.structure.source.${isHere ? 'here' : source.toLowerCase()}`);
     return {
-      label: locker === undefined ? label : t('app.structure.source_locked', { source: label }),
+      label: locker === undefined ? label : t('app.structure.source_locked', { name: locker }),
       isLocked: locker !== undefined,
+      isSetHere: locker === undefined && isHere,
       value: summaryOf(setting),
       source: t('app.figure.source_hint', { source: sourceWords(source) }),
       whomToAsk:
@@ -625,18 +627,20 @@
   </div>
 {/snippet}
 
-<!-- Where a setting's value comes from, its lock and its reset: the row's source (PS-11). -->
+<!-- Where a setting's value comes from, its lock and its reset beside it: the row's source (PS-11). -->
 {#snippet chipFor(setting: SettingName)}
   {@const chip = chipOf(setting)}
   <span class="head">
     <SourceChip
       label={chip.label}
       isLocked={chip.isLocked}
+      isSetHere={chip.isSetHere}
       detailsLabel={t('app.structure.where_from', { setting: titleOf(setting) })}
       value={chip.value}
       source={chip.source}
       whomToAsk={chip.whomToAsk}
     />
+    {@render resetOf(setting)}
   </span>
 {/snippet}
 
@@ -700,7 +704,6 @@
             {#if !isHub}
               <Button size="sm" tone="secondary" disabledReason={categoriesWait} onclick={() => (categoriesOf = type)}>{t('app.structure.categories_of', { level: levelName(type) })}</Button>
             {/if}
-            {#if index === 0}{@render resetOf('fields')}{/if}
           </span>
         {/snippet}
                 </SettingRow>
@@ -773,7 +776,6 @@
                 {#snippet control(nameId)}
                   <span class="acts">
                     {@render ticks(nameId, levelOptions, offeredTypes, chooseLevels)}
-                    {@render resetOf(setting)}
                   </span>
                 {/snippet}
               </SettingRow>
@@ -783,7 +785,6 @@
                 {#snippet control(nameId)}
                   <span class="acts">
                     {@render ticks(nameId, viewOptions, (values.views?.offered ?? []) as readonly string[], chooseViews)}
-                    {@render resetOf(setting)}
                   </span>
                   {#if isViewMissing}<p class="failure" role="alert">{t('app.structure.views_missing')}</p>{/if}
                 {/snippet}
@@ -813,7 +814,6 @@
                       options={figures.figures.map((kind) => ({ value: kind, label: t(`app.figure.option.${kind.toLowerCase()}`) }))}
                       bind:value={() => (figures.figures.includes(figure) ? figure : 'NONE'), (kind) => chooseFigure(kind)}
                     />
-                    {@render resetOf(setting)}
                   </span>
                 {/snippet}
               </SettingRow>
@@ -852,7 +852,6 @@
                       ]}
                       bind:value={() => (values.completion as string | undefined) ?? 'MANUAL', (choice) => draft && (draft = setValue(draft, 'completion', choice as StructureSettings['completion']))}
                     />
-                    {@render resetOf(setting)}
                   </span>
                 {/snippet}
               </SettingRow>
@@ -867,7 +866,6 @@
                       (values.capture ?? []) as readonly string[],
                       (selected) => draft && (draft = setValue(draft, 'capture', CAPTURE.filter((token) => selected.includes(token)))),
                     )}
-                    {@render resetOf(setting)}
                   </span>
                 {/snippet}
               </SettingRow>
@@ -887,7 +885,6 @@
                       ]}
                       bind:value={() => (values.celebration as string | undefined) ?? 'ALL', (choice) => draft && (draft = setValue(draft, 'celebration', choice as StructureSettings['celebration']))}
                     />
-                    {@render resetOf(setting)}
                   </span>
                 {/snippet}
               </SettingRow>
@@ -902,7 +899,6 @@
                       (values.automation ?? []) as readonly string[],
                       (selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour)))),
                     )}
-                    {@render resetOf(setting)}
                   </span>
                 {/snippet}
               </SettingRow>
@@ -920,7 +916,6 @@
         <TableSection title={titleOf('entry_types')} note={String(typeRows.length)} description={t(isHub ? 'app.structure.hub_types_hint' : 'app.structure.entry_types_hint')}>
           {#snippet acts()}
             {@render chipFor('entry_types')}
-            {@render resetOf('entry_types')}
           {/snippet}
           <DataTable
             label={titleOf('entry_types')}
@@ -1054,7 +1049,7 @@
   .panel { display: contents; }
   .ticks { display: flex; flex-wrap: wrap; gap: var(--sp-050) var(--sp-200); }
   .acts { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); min-inline-size: 0; }
-  .head { display: inline-flex; }
+  .head { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .hint { margin: 0; color: var(--text-secondary); max-inline-size: 64ch; }
   .pending { padding: 0 var(--sp-250) var(--sp-150); }
   .quiet { color: var(--text-secondary); }
