@@ -28,7 +28,7 @@ export const create: Story = {
 export const menu: Story = {
   name: 'A row’s actions on a phone',
   about:
-    'What ⋯ opens on compact: the row’s name and its verbs, one row each, the destructive one last and red. It opens at half the height at most; the grabber (pull it up, press it, or the arrow keys on it) takes it to full height, a pull down or ✕ or Escape puts it away.',
+    'What ⋯ opens on compact: the row’s name and its verbs, one row each, the destructive one last and red. Like every sheet it is as tall as what it holds, at most 85 % of the screen, its body scrolling under a head that stays; a pull down on the grabber, a press on it, ✕ or Escape puts it away.',
   args: { mode: 'menu' },
 };
 

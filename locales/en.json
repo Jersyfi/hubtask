@@ -14065,7 +14065,7 @@
   "app.page.clear_search": "Clear the search",
   "app.page.show_results": "{count, plural, one {Show # result} other {Show # results}}",
   "app.page.sheet_close": "Close",
-  "app.page.sheet_grab": "Drag to resize",
+  "app.page.sheet_grab": "Pull down to close",
   "app.page.row_actions": "Actions",
   "app.page.danger_zone": "Danger zone",
   "app.page.any": "any",

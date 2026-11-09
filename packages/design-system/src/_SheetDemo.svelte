@@ -49,9 +49,9 @@
   </Stack>
 
   {#if mode === 'menu'}
-    <Sheet bind:isOpen title="Lukas Brandt" closeLabel="Close" grabLabel="Pull to full height" {items} onselect={(id) => (chosen = id)} />
+    <Sheet bind:isOpen title="Lukas Brandt" closeLabel="Close" grabLabel="Pull down to close" {items} onselect={(id) => (chosen = id)} />
   {:else}
-    <Sheet bind:isOpen title="Filters" closeLabel="Close" grabLabel="Pull to full height">
+    <Sheet bind:isOpen title="Filters" closeLabel="Close" grabLabel="Pull down to close">
       <Checkbox label="Owner" />
       <Checkbox label="Administrator" checked />
       <Checkbox label="Member" />

@@ -14065,7 +14065,7 @@
   "app.page.clear_search": "Suche leeren",
   "app.page.show_results": "{count, plural, one {# Ergebnis zeigen} other {# Ergebnisse zeigen}}",
   "app.page.sheet_close": "Schließen",
-  "app.page.sheet_grab": "Ziehen, um die Größe zu ändern",
+  "app.page.sheet_grab": "Nach unten ziehen, um zu schließen",
   "app.page.row_actions": "Aktionen",
   "app.page.danger_zone": "Gefahrenbereich",
   "app.page.any": "alle",

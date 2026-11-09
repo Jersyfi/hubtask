@@ -7,9 +7,11 @@
   // scrim; `Escape` and a press on the scrim close it, and the focus goes back where it was.
   //
   // A list of actions is `items` (page-system §4.4): one row each, the destructive one in the
-  // danger colour and never the first focused. With `grabLabel` the grabber is a control: the
-  // sheet opens at half the height, so the page stays in sight, and the grabber pulls it to full
-  // height and back - the two heights travel as a `data-` attribute, not a style (ADR-0028).
+  // danger colour and never the first focused.
+  //
+  // **One height for every sheet**: as tall as what it holds, at most 85 % of the screen; beyond
+  // that its body scrolls under a head that stays. Every sheet has its grabber, and pulling it down
+  // closes the sheet; with `grabLabel` the grabber is also a button that closes it.
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
@@ -27,7 +29,7 @@
     icon?: IconName;
     isOpen?: boolean;
     onClose?: () => void;
-    /** The grabber's name; given, it pulls the sheet from half to full height and back. */
+    /** The grabber's name; given, the grabber is a button that closes the sheet as a pull does. */
     grabLabel?: string;
     /** A list of actions instead of a body: one row each, closing the sheet before it runs. */
     items?: readonly MenuItem[];
@@ -54,11 +56,12 @@
   const titleId = `sheet-${instanceId}`;
   let node = $state<HTMLDialogElement | null>(null);
   let opener: Element | null = null;
-  let isFull = $state(false);
 
   /** Where a pull began and how far it has gone; a quarter of the sheet decides. */
   let pullFrom: number | null = null;
   let pulled = 0;
+  /** A pull ends in a click on the grabber; that click is the pull's, not a press of its own. */
+  let wasPulled = false;
 
   function close() {
     isOpen = false;
@@ -79,18 +82,9 @@
     (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
     pullFrom = null;
     const reach = (node?.getBoundingClientRect().height ?? 0) / 4;
-    if (pulled < -reach) isFull = true;
-    else if (pulled > reach) {
-      if (isFull) isFull = false;
-      else close();
-    }
-  }
-
-  function byKey(event: KeyboardEvent) {
-    if (event.key === 'ArrowUp') isFull = true;
-    else if (event.key === 'ArrowDown') isFull = false;
-    else return;
-    event.preventDefault();
+    wasPulled = pulled !== 0;
+    if (pulled > reach) close();
+    pulled = 0;
   }
 
   function choose(item: MenuItem) {
@@ -107,7 +101,6 @@
       return;
     }
     opener = document.activeElement;
-    isFull = false;
     if (!sheet.open) sheet.showModal();
     const handle = layers.open('overlay', close);
     const onKeydown = escapeHandler();
@@ -124,8 +117,6 @@
 
 <dialog
   class="sheet"
-  data-grab={grabLabel !== undefined ? '' : undefined}
-  data-full={isFull ? '' : undefined}
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
@@ -142,18 +133,19 @@
         type="button"
         class="grabber"
         aria-label={grabLabel}
-        aria-expanded={isFull}
-        onclick={() => (isFull = !isFull)}
+        onclick={() => {
+          if (wasPulled) wasPulled = false;
+          else close();
+        }}
         onpointerdown={grab}
         onpointermove={pull}
         onpointerup={letGo}
         onpointercancel={letGo}
-        onkeydown={byKey}
       >
         <span class="grip"></span>
       </button>
     {:else}
-      <span class="grabber" aria-hidden="true"><span class="grip"></span></span>
+      <span class="grabber" aria-hidden="true" onpointerdown={grab} onpointermove={pull} onpointerup={letGo} onpointercancel={letGo}><span class="grip"></span></span>
     {/if}
     <header class="head">
       <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
@@ -206,7 +198,7 @@
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     color: var(--text-primary);
-    overflow: auto;
+    overflow: hidden;
     animation: rise var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
 
@@ -215,16 +207,10 @@
     to { transform: none; }
   }
 
-  /* A grabbable sheet opens at half the height and is pulled to full (page-system §4.4); its body
-     scrolls, so its foot stays in sight. */
-  .sheet[data-grab] { max-block-size: 50%; overflow: hidden; }
-  .sheet[data-grab][open] { display: flex; flex-direction: column; }
-  .sheet[data-grab] .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
-  .sheet[data-grab] .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
-  .sheet[data-full] {
-    max-block-size: calc(100% - var(--layout-appbar-height));
-    block-size: calc(100% - var(--layout-appbar-height));
-  }
+  /* The head and the foot stay; only the body scrolls once the sheet is at its most. */
+  .sheet[open] { display: flex; flex-direction: column; }
+  .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
+  .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
@@ -234,21 +220,17 @@
     padding: var(--sp-100) var(--sp-150) calc(var(--sp-250) + env(safe-area-inset-bottom, 0));
   }
 
+  /* The whole strip above the head is the grabber, so a thumb finds it anywhere along the edge. */
   .grabber {
-    align-self: center;
+    align-self: stretch;
     display: grid;
     place-items: center;
-    padding: 0;
-    margin: 0 auto calc(var(--sp-100) + var(--sp-025));
+    padding: var(--sp-050) var(--sp-200) var(--sp-100);
+    margin: 0;
     border: 0;
     border-radius: var(--r-sm);
     background: none;
-  }
-
-  button.grabber {
-    padding: var(--sp-050) var(--sp-200);
-    margin-block-end: 0;
-    cursor: ns-resize;
+    cursor: grab;
     touch-action: none;
   }
 
