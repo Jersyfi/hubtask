@@ -3,29 +3,29 @@
 <script lang="ts">
   // The service desk's settings (page-system §9.6): a settings page of the workspace's business
   // calendars (UC-SVC-01), its SLA policies (UC-SVC-02 check 1), its canned replies (UC-SVC-06
-  // check 1), the portal's organisations (UC-SVC-11 check 5) and how the goals of a period stood
-  // (UC-SVC-02 check 7), each at `/desk/settings?section=<id>`. The section list takes the place of
-  // the desk's tabs (PS-2) and the home's *New request* is not shown here; the desk is in the trail.
+  // check 1) and the portal's organisations (UC-SVC-11 check 5), each at `/desk/settings/<id>`.
+  // The desk's last tab (the navigation concept §4): the home's head and `ViewBar` stay, the
+  // section list beside the section, and the home's *New request* is not offered on it. How the
+  // goals of a period stood is the home's *Reports* (DeskReportsView).
   //
   // **What the reader may never do is not drawn** (P-05): defining and deleting need STRUCTURE at
-  // the workspace, and so does the report; a member without it reads the calendars, policies and
+  // the workspace; a member without it reads the calendars, policies and
   // replies. Each definition replaces the block under its key whole, as the API does.
 
   import { untrack } from 'svelte';
   import {
-    EmptyState, Badge, Button, Checkbox, CheckboxGroup, Dialog, Disclosure, IconButton, Inline, Input, Select, SettingsLayout, Skeleton, Stack, Switch, Textarea,
-    type SectionLink,
+    EmptyState, Badge, Button, Checkbox, CheckboxGroup, DataTable, Dialog, Disclosure, Inline, Input, Select, SettingsLayout, Skeleton, Stack, Switch, Textarea,
+    type DataColumn, type DataRowMenu, type SectionLink,
   } from '@hubtask/design-system/components';
   import DurationInput from '../lib/forms/DurationInput.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import type {
-    BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine, SlaPolicyList, SlaReport,
+    BusinessCalendar, BusinessCalendarList, ReplyTemplate, ReplyTemplateList, RequesterOrganisation, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine,
+    SlaPolicyList,
   } from '@hubtask/sync-engine';
 
-  import { actor } from '../lib/data/account.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import { calendarsPath, desk, organisationsPath, policiesPath, repliesPath, slaReportPath } from '../lib/data/desk.svelte.ts';
-  import { engine } from '../lib/data/engine.ts';
+  import { calendarsPath, desk, organisationsPath, policiesPath, repliesPath } from '../lib/data/desk.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
@@ -35,16 +35,18 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { addDays, deviceZone, instantOf, todayIn } from '../lib/i18n/zone.ts';
+  import { deviceZone } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
   import TableSection from '../lib/page/TableSection.svelte';
-  import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, minutesFor, policyDefinitionOf, reportRows, textOf, withMinutes, wordsOf } from '../lib/servicedesk/desk.ts';
+  import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, minutesFor, policyDefinitionOf, textOf, withMinutes, wordsOf } from '../lib/servicedesk/desk.ts';
+  import ProductTabs from '../lib/product/ProductTabs.svelte';
+  import { productHead } from '../lib/product/frame.svelte.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
   import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
   interface Props {
-    /** The section the address names (`?section=`); none is the list of sections. */
+    /** The section the address names (`/desk/settings/<id>`); none is the list of sections. */
     section?: string;
     onnavigate?: (path: string) => void;
     /** Replaces the address: a move between sections. */
@@ -61,8 +63,7 @@
   const offersItil = $derived(mayShape && onnavigate !== undefined);
   const startFromItil = () => onnavigate?.(`/administration/templates?template=${ITIL_TEMPLATE}`);
 
-  const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
-  const offered = $derived(TABS.filter((tab) => tab !== 'report' || mayShape));
+  const offered = ['calendars', 'policies', 'replies', 'organisations'] as const;
   const named = $derived(offered.find((tab) => tab === section));
   const current = $derived(named ?? 'calendars');
   const view = $derived<'list' | 'detail'>(named ? 'detail' : 'list');
@@ -223,20 +224,6 @@
     }
   }
 
-  // The report over the last thirty days by default.
-  // Days on the reader's clock, and each bound the start of its day in the reader's zone.
-  let reportFrom = $state(addDays(todayIn(actor.zone), -30));
-  let reportTo = $state(addDays(todayIn(actor.zone), 1));
-  let report = $state<SlaReport | undefined>(undefined);
-  async function readReport() {
-    refusal = undefined;
-    const state = await engine.refresh<SlaReport>({
-      path: slaReportPath(instantOf(reportFrom, '00:00', actor.zone) ?? new Date(reportFrom).toISOString(), instantOf(reportTo, '00:00', actor.zone) ?? new Date(reportTo).toISOString()),
-    });
-    if (state.status === 'ready') report = state.data;
-    else if (state.status === 'failed') refusal = renderProblem(state.error as never, messages).message;
-  }
-  const rows = $derived(report ? reportRows(report) : []);
   // Whose promise a policy is: the requester's, or a team's OLA (UC-SVC-02 check 10). A group
   // already named but gone stays offered by its identifier, so a save drops nothing unseen.
   const groupOptions = $derived([
@@ -281,31 +268,54 @@
     ({ calendars: calendarRows, policies: policyRows, replies: replyRows, organisations: organisationRows } as Record<string, readonly unknown[] | undefined>)[tab]?.length;
   const links = $derived<SectionLink[]>(offered.map((tab) => {
     const count = countOf(tab);
-    return { id: tab, label: t(`app.desk.tab.${tab}`), href: `${BASE}?section=${tab}`, ...(count === undefined ? {} : { status: String(count) }) };
+    return { id: tab, label: t(`app.desk.tab.${tab}`), href: `${BASE}/${tab}`, ...(count === undefined ? {} : { status: String(count) }) };
   }));
+
+  // A row's acts are its ⋯ (PS-6): *Edit* opens the row's dialog, *Delete* removes it.
+  const rowMenu = (name: string): DataRowMenu | undefined => (mayShape ? { label: t('app.page.more_for', { name }), items: [
+    { id: 'edit', label: t('app.desk.edit') },
+    { id: 'delete', label: t('app.desk.delete'), isDestructive: true, hasSeparatorBefore: true },
+  ] } : undefined);
+  const tableProps = $derived({ actionsLabel: t('app.page.row_actions'), sheetDismissLabel: t('app.page.sheet_close'), sheetGrabLabel: t('app.page.sheet_grab') });
+  const calendarColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.desk.name'), priority: 1 },
+    { id: 'zone', label: t('app.desk.zone'), priority: 2 },
+    { id: 'hours', label: t('app.desk.col_hours'), priority: 3 },
+  ]);
+  const policyColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.desk.name'), priority: 1 },
+    { id: 'types', label: t('app.desk.types'), priority: 2 },
+    { id: 'for', label: t('app.desk.col_for'), priority: 3 },
+    { id: 'state', label: t('app.desk.col_state'), isStatus: true },
+  ]);
+  const replyColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.desk.name'), priority: 1 },
+    { id: 'body', label: t('app.desk.reply_body'), priority: 2 },
+  ]);
+  const organisationColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.desk.name'), priority: 1 },
+    { id: 'domains', label: t('app.desk.organisation_domains'), priority: 2 },
+    { id: 'shares', label: t('app.desk.col_shares'), isStatus: true },
+  ]);
+  const editReply = (row: ReplyTemplate) => { reply = { key: row.key, name: row.name, body: row.body }; editing = 'reply'; };
+  const editOrganisation = (row: RequesterOrganisation) => {
+    organisation = { key: row.key, name: row.name, domains: row.domains.join(', '), shares: row.shares_requests };
+    editing = 'organisation';
+  };
 </script>
 
 {#snippet itilAct()}
   <Button tone="secondary" icon="layout-template" data-itil-defaults onclick={startFromItil}>{t('app.desk.itil_defaults')}</Button>
 {/snippet}
 
+{#snippet tabs()}<ProductTabs module="SERVICE_DESK" current="settings" {onnavigate} />{/snippet}
+
 <SettingsLayout
-  head={{
-    title,
-    subtitle: t('app.desk.subtitle'),
-    breadcrumb: {
-      trail: [
-        { id: 'products', label: t('app.nav.products') },
-        { id: 'desk', label: t('app.nav.desk'), href: '/desk' },
-        { id: 'settings', label: t('app.product_home.tab_settings') },
-      ],
-      label: t('app.product_home.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    },
-  }}
-  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current, onselect: (next) => onreplace?.(`${BASE}?section=${next}`) }}
+  head={productHead('SERVICE_DESK')}
+  {tabs}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current, onselect: (next) => onreplace?.(`${BASE}/${next}`) }}
   {view}
-  back={{ label: title, onback: () => onreplace?.(BASE) }}
+  back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(BASE) }}
 >
   <!-- Every change here is a dialog's own save or a row's act, so nothing waits for a save bar. -->
   <TableSection title={t(`app.desk.tab.${current}`)} description={current === 'organisations' ? t('app.desk.organisations_intro') : undefined}>
@@ -323,23 +333,15 @@
     {#if current === 'calendars'}
       <Stack gap="150">
         {#if !calendarRows}<Skeleton lines={3} />{:else if calendarRows.length === 0}<EmptyState kind="unused" title={t('app.desk.calendars_none')}
-          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{/if}
-        <ul class="rows">
-          {#each calendarRows ?? [] as row (row.key)}
-            <li>
-              <Inline gap="100" align="center" justify="between">
-                <span><strong>{row.name}</strong> · {row.zone} · {t('app.desk.spans', { count: String(row.hours.length) })}</span>
-                {#if mayShape}
-                  <Inline gap="050">
-                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')} onclick={() => editCalendar(row.key)} />
-                    <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
-                      onclick={() => void attempt(() => desk.deleteCalendar(row.key), 'app.desk.deleted')} />
-                  </Inline>
-                {/if}
-              </Inline>
-            </li>
-          {/each}
-        </ul>
+          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{:else}
+          <DataTable label={t('app.desk.tab.calendars')} columns={calendarColumns} rows={calendarRows} key={(row: BusinessCalendar) => row.key} rowLabel={(row: BusinessCalendar) => row.name}
+            onopen={mayShape ? (row: BusinessCalendar) => editCalendar(row.key) : undefined} menu={(row: BusinessCalendar) => rowMenu(row.name)}
+            onmenu={(row: BusinessCalendar, id: string) => (id === 'edit' ? editCalendar(row.key) : void attempt(() => desk.deleteCalendar(row.key), 'app.desk.deleted'))} {...tableProps}>
+            {#snippet cell(row: BusinessCalendar, column: DataColumn)}
+              {#if column.id === 'name'}{row.name}{:else if column.id === 'zone'}{row.zone}{:else}{t('app.desk.spans', { count: String(row.hours.length) })}{/if}
+            {/snippet}
+          </DataTable>
+        {/if}
         {#if mayShape}
           <Dialog title={calendar.key ? calendar.name : t('app.desk.add_calendar')} isOpen={editing === 'calendar'} onClose={close} dismissLabel={t('app.desk.cancel')} size="m">
             <form onsubmit={(event) => void saveCalendar(event)}>
@@ -373,28 +375,21 @@
     {:else if current === 'policies'}
       <Stack gap="150">
         {#if !policyRows}<Skeleton lines={3} />{:else if policyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.policies_none')}
-          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{/if}
-        <ul class="rows">
-          {#each policyRows ?? [] as row (row.key)}
-            <li>
-              <Inline gap="100" align="center" justify="between">
-                <span>
-                  <strong>{row.name}</strong> · {row.entry_types.join(', ')}
-                  {#if row.organisations.length > 0}· {t('app.desk.policy_for', { organisations: row.organisations.join(', ') })}{/if}
-                  {#if row.assignee_group}· {t('app.desk.policy_ola', { group: groups.nameOf(row.assignee_group) ?? row.assignee_group })}{/if}
-                  {#if !row.enabled}<Badge size="sm">{t('app.desk.off')}</Badge>{/if}
-                </span>
-                {#if mayShape}
-                  <Inline gap="050">
-                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')} onclick={() => editPolicy(row)} />
-                    <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
-                      onclick={() => void attempt(() => desk.deletePolicy(row.key), 'app.desk.deleted')} />
-                  </Inline>
-                {/if}
-              </Inline>
-            </li>
-          {/each}
-        </ul>
+          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{:else}
+          <DataTable label={t('app.desk.tab.policies')} columns={policyColumns} rows={policyRows} key={(row: SlaPolicy) => row.key} rowLabel={(row: SlaPolicy) => row.name}
+            onopen={mayShape ? (row: SlaPolicy) => editPolicy(row) : undefined} menu={(row: SlaPolicy) => rowMenu(row.name)}
+            onmenu={(row: SlaPolicy, id: string) => (id === 'edit' ? editPolicy(row) : void attempt(() => desk.deletePolicy(row.key), 'app.desk.deleted'))} {...tableProps}>
+            {#snippet cell(row: SlaPolicy, column: DataColumn)}
+              {#if column.id === 'name'}{row.name}
+              {:else if column.id === 'types'}{row.entry_types.join(', ')}
+              {:else if column.id === 'for'}<span class="quiet">{[
+                ...(row.organisations.length > 0 ? [t('app.desk.policy_for', { organisations: row.organisations.join(', ') })] : []),
+                ...(row.assignee_group ? [t('app.desk.policy_ola', { group: groups.nameOf(row.assignee_group) ?? row.assignee_group })] : []),
+              ].join(' · ')}</span>
+              {:else if !row.enabled}<Badge size="sm">{t('app.desk.off')}</Badge>{/if}
+            {/snippet}
+          </DataTable>
+        {/if}
         {#if mayShape}
           <Dialog title={policy.key ? policy.name : t('app.desk.add_policy')} isOpen={editing === 'policy'} onClose={close} dismissLabel={t('app.desk.cancel')} size="l">
             <form onsubmit={(event) => void savePolicy(event)}>
@@ -471,24 +466,15 @@
     {:else if current === 'replies'}
       <Stack gap="150">
         {#if !replyRows}<Skeleton lines={3} />{:else if replyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.replies_none')}
-          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{/if}
-        <ul class="rows">
-          {#each replyRows ?? [] as row (row.key)}
-            <li>
-              <Inline gap="100" align="center" justify="between">
-                <strong>{row.name}</strong>
-                {#if mayShape}
-                  <Inline gap="050">
-                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')} onclick={() => { reply = { key: row.key, name: row.name, body: row.body }; editing = 'reply'; }} />
-                    <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
-                      onclick={() => void attempt(() => desk.deleteReply(row.key), 'app.desk.deleted')} />
-                  </Inline>
-                {/if}
-              </Inline>
-              <p class="body">{row.body}</p>
-            </li>
-          {/each}
-        </ul>
+          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{:else}
+          <DataTable label={t('app.desk.tab.replies')} columns={replyColumns} rows={replyRows} key={(row: ReplyTemplate) => row.key} rowLabel={(row: ReplyTemplate) => row.name}
+            onopen={mayShape ? editReply : undefined} menu={(row: ReplyTemplate) => rowMenu(row.name)}
+            onmenu={(row: ReplyTemplate, id: string) => (id === 'edit' ? editReply(row) : void attempt(() => desk.deleteReply(row.key), 'app.desk.deleted'))} {...tableProps}>
+            {#snippet cell(row: ReplyTemplate, column: DataColumn)}
+              {#if column.id === 'name'}{row.name}{:else}<span class="body">{row.body}</span>{/if}
+            {/snippet}
+          </DataTable>
+        {/if}
         {#if mayShape}
           <Dialog title={reply.key ? reply.name : t('app.desk.add_reply')} isOpen={editing === 'reply'} onClose={close} dismissLabel={t('app.desk.cancel')} size="m">
             <form onsubmit={(event) => void saveReply(event)}>
@@ -507,25 +493,15 @@
       </Stack>
     {:else if current === 'organisations'}
       <Stack gap="150">
-        {#if !organisationRows}<Skeleton lines={3} />{:else if organisationRows.length === 0}<EmptyState kind="unused" title={t('app.desk.organisations_none')} />{/if}
-        <ul class="rows">
-          {#each organisationRows ?? [] as row (row.key)}
-            <li data-organisation-row>
-              <Inline gap="100" align="center" justify="between">
-                <span><strong>{row.name}</strong> · {row.domains.join(', ')}</span>
-                <Inline gap="050" align="center">
-                  {#if row.shares_requests}<Badge tone="info" size="sm">{t('app.desk.organisation_shares')}</Badge>{/if}
-                  {#if mayShape}
-                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')}
-                      onclick={() => { organisation = { key: row.key, name: row.name, domains: row.domains.join(', '), shares: row.shares_requests }; editing = 'organisation'; }} />
-                    <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
-                      onclick={() => void attempt(() => desk.deleteOrganisation(row.key), 'app.desk.deleted')} />
-                  {/if}
-                </Inline>
-              </Inline>
-            </li>
-          {/each}
-        </ul>
+        {#if !organisationRows}<Skeleton lines={3} />{:else if organisationRows.length === 0}<EmptyState kind="unused" title={t('app.desk.organisations_none')} />{:else}
+          <DataTable label={t('app.desk.tab.organisations')} columns={organisationColumns} rows={organisationRows} key={(row: RequesterOrganisation) => row.key} rowLabel={(row: RequesterOrganisation) => row.name}
+            onopen={mayShape ? editOrganisation : undefined} menu={(row: RequesterOrganisation) => rowMenu(row.name)}
+            onmenu={(row: RequesterOrganisation, id: string) => (id === 'edit' ? editOrganisation(row) : void attempt(() => desk.deleteOrganisation(row.key), 'app.desk.deleted'))} {...tableProps}>
+            {#snippet cell(row: RequesterOrganisation, column: DataColumn)}
+              {#if column.id === 'name'}<span data-organisation-row>{row.name}</span>{:else if column.id === 'domains'}{row.domains.join(', ')}
+              {:else if row.shares_requests}<Badge tone="info" size="sm">{t('app.desk.organisation_shares')}</Badge>{/if}
+            {/snippet}
+          </DataTable>{/if}
         {#if mayShape}
           <Dialog title={organisation.key ? organisation.name : t('app.desk.add_organisation')} isOpen={editing === 'organisation'} onClose={close} dismissLabel={t('app.desk.cancel')} size="m">
             <form onsubmit={(event) => void saveOrganisation(event)}>
@@ -547,25 +523,6 @@
           </Dialog>
         {/if}
       </Stack>
-    {:else}
-      <Stack gap="150">
-        <div class="fields">
-          <Input label={t('app.desk.from')} type="date" bind:value={reportFrom} />
-          <Input label={t('app.desk.to')} type="date" bind:value={reportTo} />
-          <div><Button tone="secondary" icon="gauge" onclick={() => void readReport()}>{t('app.desk.count')}</Button></div>
-        </div>
-        {#if report && rows.length === 0}<EmptyState kind="unused" title={t('app.desk.report_none')} />{/if}
-        <ul class="rows" aria-label={t('app.desk.tab.report')}>
-          {#each rows as row (row.policy + row.goal)}
-            <li data-report-row>
-              <strong>{policyRows?.find((each) => each.key === row.policy)?.name ?? row.policy}</strong> · {t(`app.portal.goal.${row.goal}`)}
-              <span class="quiet">{t('app.desk.report_row', {
-                met: String(row.met), breached: String(row.breached), running: String(row.running), paused: String(row.paused),
-              })}{row.metShare !== undefined ? ` · ${t('app.desk.met_share', { share: String(row.metShare) })}` : ''}</span>
-            </li>
-          {/each}
-        </ul>
-      </Stack>
     {/if}
     </div>
   </TableSection>
@@ -575,12 +532,7 @@
   .quiet { margin: 0; color: var(--text-secondary); }
   .part { display: grid; gap: var(--sp-150); }
   .refusal { margin: 0; color: var(--text-danger); }
-  /* One region of rows, a hairline between them (page-system §4.2 rule 1). */
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
-  .rows:empty { display: none; }
-  .rows li { padding: var(--sp-150) var(--sp-200); }
-  .rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
-  .body { margin: var(--sp-050) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); }
+  .body { display: block; overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
   form { margin: 0; max-inline-size: 64ch; }
   .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20ch), 1fr)); gap: var(--sp-100); align-items: end; }
   /* A goal's own target, then one per priority beside each other (user-experience.md §7.4). */

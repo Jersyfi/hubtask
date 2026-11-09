@@ -187,8 +187,8 @@ export const PRODUCTS: readonly ProductRow[] = [
   // *My notes* is a tab of the pages' home (§2.2); its own address is kept and is this row's.
   { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'], color: 'teal' },
   { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'], color: 'amber' },
-  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-reports', 'desk-settings'], color: 'magenta' },
-  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-classes', 'assets-sources', 'assets-settings'], color: 'slate' },
+  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-reports', 'desk-settings', 'desk-settings-section'], color: 'magenta' },
+  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-classes', 'assets-sources', 'assets-settings', 'assets-settings-section'], color: 'slate' },
   { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'], color: 'lime' },
   { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'goal-results', 'portfolio', 'dashboard'], color: 'green' },
   { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home', 'agent'], color: 'violet' },

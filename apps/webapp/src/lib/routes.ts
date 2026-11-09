@@ -216,11 +216,13 @@ export const ROUTES: readonly Route[] = [
   { name: 'desk-desks', pattern: '/desk/desks' },
   { name: 'desk-reports', pattern: '/desk/reports' },
   { name: 'desk-settings', pattern: '/desk/settings' },
+  { name: 'desk-settings-section', pattern: '/desk/settings/:section' },
   { name: 'assets-home', pattern: '/assets' },
   // The assets' classes and sources, the workspace's (§8.2), each a tab of the home.
   { name: 'assets-classes', pattern: '/assets/classes' },
   { name: 'assets-sources', pattern: '/assets/sources' },
   { name: 'assets-settings', pattern: '/assets/settings' },
+  { name: 'assets-settings-section', pattern: '/assets/settings/:section' },
   { name: 'agents-home', pattern: '/agents' },
   // An agent as its record page: its ledger, jobs and evaluation (page-system §9.5).
   { name: 'agent', pattern: '/agents/:id' },
@@ -352,6 +354,11 @@ const MOVED: Readonly<Record<string, (params: Params, query: Params) => string |
   'service-desk': () => '/desk/settings',
   cmdb: () => '/assets/settings',
   'time-settings': () => '/time?tab=settings',
+  // A product's settings section is an address of its own; the report is the desk's *Reports*, the
+  // classes and the sources are the assets' tabs again (the navigation concept §4).
+  'desk-settings': (_params, query) => (query['section'] === 'report' ? '/desk/reports' : query['section'] ? `/desk/settings/${query['section']}` : undefined),
+  'assets-settings': (_params, query) =>
+    query['section'] === 'classes' || query['section'] === 'sources' ? `/assets/${query['section']}` : query['section'] ? `/assets/settings/${query['section']}` : undefined,
   agents: () => '/agents?tab=settings',
   // The hub's former tabs are its tools' pages and *All contents* (the navigation concept §8).
   'hub-releases': (params) => `/hubs/${params['id']}/plan/releases`,

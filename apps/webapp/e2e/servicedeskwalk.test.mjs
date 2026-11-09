@@ -118,12 +118,14 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
 
   // The desk is set up at its home's last tab, each form in a dialog opened by its *Add* (§7.4).
   await page.goto(`${served.origin}/desk/settings`);
-  // A settings page of its own (page-system §9.6, PS-2): its section list in place of the home's
-  // tabs, never both.
+  // The home's last tab (the navigation concept §4): its view bar stays with *Settings* current,
+  // the section list beside the section - never a second strip.
   const sections = page.getByRole('navigation', { name: 'Sections of Service desk settings' });
   await sections.waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('[data-page-kind="settings"] [role="tablist"]').count(), 0, 'the desk settings draw a second row of tabs');
-  assert.equal(await page.getByRole('navigation', { name: 'Service desk', exact: true }).count(), 0, 'the home\'s tabs stand beside the section list');
+  const bar = page.getByRole('navigation', { name: 'Service desk', exact: true });
+  assert.equal(await bar.getByRole('link', { name: 'Settings' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its settings');
+  assert.equal(await page.getByRole('button', { name: 'New request' }).count(), 0, 'the settings tab offers the home\'s create act');
   await page.getByRole('button', { name: 'Add the calendar' }).click();
   const calendarForm = page.getByRole('dialog').locator('form');
   await calendarForm.getByLabel('Name').fill('Office hours');
