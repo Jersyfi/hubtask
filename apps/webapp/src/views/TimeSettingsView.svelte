@@ -10,8 +10,8 @@
   // MANAGE_MEMBERS at the workspace, a kind of work written with STRUCTURE; without, the page
   // shows the values. The cost rates (UC-TIM-08) are drawn only for MANAGE_COSTS or MANAGE_MEMBERS.
   //
-  // Each part is a section at `/time?tab=settings&section=<id>`, the list in place of the time's
-  // views (PS-2); *Record time* is the time home's act and is not shown here.
+  // Each part is a section at `/time?tab=settings&section=<id>`: the time's last tab, under the
+  // home's head and `ViewBar` (the navigation concept §4); *Record time* is not offered on it.
 
   import { untrack } from 'svelte';
 
@@ -39,14 +39,17 @@
   import { pagePart } from '../lib/settings/asFile.ts';
   import TableSection from '../lib/page/TableSection.svelte';
   import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
+  import ProductTabs from '../lib/product/ProductTabs.svelte';
+  import { productHead } from '../lib/product/frame.svelte.ts';
 
   interface Props {
     /** The section the address names (`&section=`); none is the list of sections. */
     section?: string;
     /** Replaces the address: a move between sections. */
     onreplace?: (path: string) => void;
+    onnavigate?: (path: string) => void;
   }
-  const { section, onreplace }: Props = $props();
+  const { section, onreplace, onnavigate }: Props = $props();
   const BASE = '/time?tab=settings';
   const title = $derived(t('app.time_settings.page_title'));
   $effect(() => page.entitle(title));
@@ -198,23 +201,14 @@
   }
 </script>
 
+{#snippet tabs()}<ProductTabs module="TIME" current="settings" {onnavigate} />{/snippet}
+
 <SettingsLayout
-  head={{
-    title,
-    breadcrumb: {
-      trail: [
-        { id: 'products', label: t('app.nav.products') },
-        { id: 'time', label: t('app.nav.time'), href: '/time' },
-        { id: 'settings', label: t('app.product_home.tab_settings') },
-      ],
-      label: t('app.product_home.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    },
-    secondary: fileAction ? ([fileAction] as const) : ([] as const),
-  }}
+  head={{ ...productHead('TIME'), secondary: fileAction ? ([fileAction] as const) : ([] as const) }}
+  {tabs}
   nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${BASE}&section=${next}`) }}
   {view}
-  back={{ label: title, onback: () => onreplace?.(BASE) }}
+  back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(BASE) }}
 >
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

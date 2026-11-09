@@ -26,6 +26,8 @@
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
   import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
+  import ProductTabs from '../lib/product/ProductTabs.svelte';
+  import { productHead } from '../lib/product/frame.svelte.ts';
 
   interface Props {
     /** The tab the address names: `settings`, or `models`/`metering` from an older link. */
@@ -35,9 +37,10 @@
     base?: string;
     /** Replaces the address: a move between sections. */
     onreplace?: (path: string) => void;
+    onnavigate?: (path: string) => void;
   }
 
-  const { tab, section, base = AGENTS_HOME, onreplace }: Props = $props();
+  const { tab, section, base = AGENTS_HOME, onreplace, onnavigate }: Props = $props();
 
   const title = $derived(t('app.agents.settings_title'));
   $effect(() => page.entitle(title));
@@ -112,15 +115,15 @@
   const links = $derived<SectionLink[]>(SECTIONS.map((each) => ({ id: each.id, label: t(each.code), href: `${here}&section=${each.id}`, ...statusOf(each.id) })));
 </script>
 
+{#snippet tabs()}<ProductTabs module="AGENTS" current="settings" {onnavigate} />{/snippet}
+
+<!-- The agents' last tab (the navigation concept §4): the home's head and `ViewBar` stay. -->
 <SettingsLayout
-  head={{
-    title,
-    breadcrumb: agentsTrail(base, title),
-    secondary: fileAction ? ([fileAction] as const) : ([] as const),
-  }}
+  head={{ ...productHead('AGENTS'), breadcrumb: agentsTrail(base), secondary: fileAction ? ([fileAction] as const) : ([] as const) }}
+  tabs={base === AGENTS_HOME ? tabs : undefined}
   nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current: shown, onselect: (next) => onreplace?.(`${here}&section=${next}`) }}
   {view}
-  back={{ label: title, onback: () => onreplace?.(here) }}
+  back={{ label: t('app.product_home.tab_settings'), onback: () => onreplace?.(here) }}
 >
   {#if shown === 'every'}
     <SettingsSection title={t('app.agents.settings_every')} description={t('app.agents.settings_every_body')}>
