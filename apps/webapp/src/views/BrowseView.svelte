@@ -17,9 +17,9 @@
   const { route, step, onnavigate }: Props = $props();
 </script>
 
-<!-- The stack's step is navigation drawn as a page: a work surface (page-system §7.8) whose box
-     is the sidebar's own. -->
-<div class="browse" data-page-kind="work"><WorkspaceNav {route} {step} {onnavigate} /></div>
+<!-- The stack's step is the frame's own navigation drawn as a page, a kind of its own
+     (page-system §7.10) whose box is the sidebar's. -->
+<div class="browse" data-page-kind="browse"><WorkspaceNav {route} {step} {onnavigate} /></div>
 
 <style>
   .browse { display: contents; }

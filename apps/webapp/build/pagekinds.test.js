@@ -71,7 +71,9 @@ function kindsOf(view) {
     for (const [component, kind] of Object.entries(KINDS)) {
       if (new RegExp(`<${component}(?=[\\s/>])`).test(markup)) kinds.add(kind);
     }
-    for (const match of markup.matchAll(/data-page-kind="(work|detail)"/g)) kinds.add(match[1]);
+    // Drawn without a design-system kind: a canvas's work surface, and the phone's Browse stack,
+    // which is the frame's navigation as a page (page-system §7.10).
+    for (const match of markup.matchAll(/data-page-kind="(work|detail|browse)"/g)) kinds.add(match[1]);
   }
   return kinds;
 }

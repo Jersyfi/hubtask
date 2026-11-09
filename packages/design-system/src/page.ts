@@ -11,7 +11,7 @@ import type { MenuItem } from './overlay.ts';
 import type { PageAction } from './PageHeader.svelte';
 import type { Crumb } from './structure.ts';
 
-export type PageKind = 'list' | 'record' | 'settings' | 'editor' | 'overview' | 'log' | 'create' | 'work' | 'detail' | 'standalone';
+export type PageKind = 'list' | 'record' | 'settings' | 'editor' | 'overview' | 'log' | 'create' | 'work' | 'detail' | 'standalone' | 'browse';
 
 export interface PageHead {
   readonly title: string;
