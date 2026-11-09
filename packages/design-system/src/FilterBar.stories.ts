@@ -23,3 +23,10 @@ export const audit: Story = {
     'A log’s filter bar: the time range is the first chip.',
   args: { mode: 'audit' },
 };
+
+export const pinned: Story = {
+  name: 'A desk, its queue pinned',
+  about:
+    'A chip that says which list this is - a desk’s queue - is pinned: it stays beside the search at every width, never folded behind *More filters* or the phone’s *Filters*, and the sheet holds only the other filters.',
+  args: { mode: 'queue' },
+};

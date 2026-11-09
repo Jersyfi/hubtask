@@ -6,7 +6,7 @@
   import Radio from './Radio.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'people' }: { mode?: 'people' | 'audit' } = $props();
+  const { mode = 'people' }: { mode?: 'people' | 'audit' | 'queue' } = $props();
 
   let search = $state('');
   let roleOn = $state(true);
@@ -17,6 +17,13 @@
     { id: 'group', label: 'Group' },
     { id: 'seen', label: 'Last seen' },
   ]);
+
+  // A desk's queue says which list this is: pinned, it stays beside the search on a phone.
+  const queueFilters: Filter[] = [
+    { id: 'queue', label: 'Queue: Mine (1)', isActive: true, isPinned: true },
+    { id: 'priority', label: 'Priority' },
+    { id: 'requester', label: 'Requester' },
+  ];
 
   const auditFilters: Filter[] = [
     { id: 'range', label: 'Last 7 days', isActive: true },
@@ -30,7 +37,7 @@
   searchLabel={mode === 'audit' ? 'Action, e.g. sign-in' : 'Search people'}
   clearSearchLabel="Clear the search"
   bind:search
-  filters={mode === 'audit' ? auditFilters : peopleFilters}
+  filters={mode === 'audit' ? auditFilters : mode === 'queue' ? queueFilters : peopleFilters}
   moreLabel="More filters"
   filtersLabel={mode === 'audit' ? 'Filters (2)' : roleOn ? 'Filters (1)' : 'Filters'}
   sheetTitle="Filters"

@@ -6,7 +6,8 @@
   //
   // Per width (§4.4): from `expanded` up every chip is inline; on `medium` the first two, the rest
   // behind *More filters*; on a phone the search fills the line, one *Filters (n)* button opens a
-  // `Sheet` with every picker, and the count goes under the search so it stays in sight. The
+  // `Sheet` with every picker, and the count goes under the search so it stays in sight. A pinned
+  // chip - what the list *is*, a desk's queue - stays beside the search at every width. The
   // pickers are the caller's - one snippet, handed the filter - because what a filter chooses from
   // is the screen's; where the filters live (the address) is the caller's too.
 
@@ -24,6 +25,11 @@
     readonly label: string;
     /** Whether it narrows the list now: drawn in the brand colour and counted. */
     readonly isActive?: boolean;
+    /**
+     * Whether it stays in sight at every width, never folded behind *More filters* or the phone's
+     * *Filters*: for the one choice that says which list this is.
+     */
+    readonly isPinned?: boolean;
   }
 
   interface Props {
@@ -72,6 +78,8 @@
 
   let isSheetOpen = $state(false);
   const hasActive = $derived(filters.some((filter) => filter.isActive));
+  const folding = $derived(filters.filter((filter) => !filter.isPinned));
+  const rankOf = (filter: Filter) => (filter.isPinned ? 'pinned' : folding.indexOf(filter) < 2 ? 'first' : 'rest');
 </script>
 
 <div class="filter-bar">
@@ -87,8 +95,8 @@
     />
   </div>
 
-  {#each filters as filter, index (filter.id)}
-    <span class="chip-slot" data-rank={index < 2 ? 'first' : 'rest'}>
+  {#each filters as filter (filter.id)}
+    <span class="chip-slot" data-rank={rankOf(filter)}>
       <Popover label={filter.label}>
         {#snippet trigger(props)}
           <button type="button" class="chip" data-active={filter.isActive ? '' : undefined} {...props}>
@@ -101,7 +109,7 @@
     </span>
   {/each}
 
-  {#if filters.length > 2 && moreLabel}
+  {#if folding.length > 2 && moreLabel}
     <span class="more">
       <button type="button" class="chip" onclick={() => (isSheetOpen = true)}>
         <Icon name="plus" size="sm" />
@@ -114,7 +122,7 @@
     <span class="clear"><Button tone="subtle" size="sm" onclick={() => onclear?.()}>{clearLabel}</Button></span>
   {/if}
 
-  {#if filters.length > 0 && filtersLabel}
+  {#if folding.length > 0 && filtersLabel}
     <span class="filters-button">
       <Button size="sm" icon="funnel" onclick={() => (isSheetOpen = true)}>{filtersLabel}</Button>
     </span>
@@ -123,9 +131,9 @@
   {#if countLabel}<span class="count" aria-live="polite">{countLabel}</span>{/if}
 </div>
 
-{#if filters.length > 0}
+{#if folding.length > 0}
   <Sheet bind:isOpen={isSheetOpen} title={sheetTitle ?? filtersLabel ?? ''} closeLabel={sheetDismissLabel ?? ''} grabLabel={sheetGrabLabel ?? ''}>
-    {#each filters as filter (filter.id)}
+    {#each folding as filter (filter.id)}
       <section class="sheet-filter">
         <h3 class="sheet-filter-name">{filter.label}</h3>
         {@render picker?.(filter)}
@@ -198,7 +206,7 @@
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .search { flex: 1 1 0; inline-size: auto; min-inline-size: 0; }
-    .chip-slot,
+    .chip-slot:not([data-rank='pinned']),
     .more,
     .clear { display: none; }
     .filters-button { display: inline-flex; }
