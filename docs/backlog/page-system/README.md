@@ -90,7 +90,7 @@ them again at 820×1180 and 390×844** (a touch device). Probe and shots are not
 
 Tokens, the primitives (`Box`, `Stack`, `Inline`), the 88 components of waves 1–5, the shell, the
 eight cases of an unusable control, `SourceChip`, `SaveBar`, `Disclosure`, `PlanSummary`,
-`EmptyState`'s three kinds, `PageHeader`'s one primary, `PlaceTabs`, `LoadMore`, `Dialog`,
+`EmptyState`'s three kinds, `PageHeader`'s one primary, `ViewBar`, `LoadMore`, `Dialog`,
 `Drawer`, the leave guard, the five widths of design-system §6. What is missing is the layer
 above them, and rules for levels and overlays.
 
@@ -172,7 +172,7 @@ container only where an object stands on its own; never a container in a contain
 
 | Level | Token | What sits on it | Never |
 |---|---|---|---|
-| **0 Canvas** | `bg.canvas` | the page itself: head, strip, toolbar, headings, the content's regions | a shadow |
+| **0 Canvas** | `bg.canvas` | the page itself: head, view bar, toolbar, headings, the content's regions | a shadow |
 | **1 Region** | `bg.surface`, `border.subtle` hairline, `r.lg`, **no shadow** | one table, one settings section's rows, one block list, one form on a page — **one region per thing the page is about** | a region inside a region; a region holding raised cards |
 | **1′ Item** | `bg.surface`, hairline, `r.lg`, no shadow; hover `bg.surface-hover` and the border `border.default` | items of a grid that a person picks from (a template, a dashboard, a hub): placed **directly on the canvas** | a form inside; scrolling inside |
 | **2 Raised** | `bg.raised` + `shadow.raised` | only what moves (a board's card) and at most **one** focal point per screen (the overview's *Getting started*) | grouping |
@@ -201,14 +201,15 @@ At most **three layers of navigation** at once (PS-2), each with one component:
 
 | Layer | Component | Where |
 |---|---|---|
-| 1 The frame's column | `SideNav` (other concept) — in the administration it is the administration's column, in the installation the installation's, in *Your settings* yours | start of the window |
-| 2 The place's views | `PlaceTabs` (a hub, a collection, a product home) **or** the page's one `Tabs` strip (People · Groups · Roles) | under the head |
-| 3 The page's sections | `SectionNav` (settings, an editor's objects) | start of the content |
+| 1 The sidebar | the navigation concept's sidebar with its **workspace level and hub level** (navigation §2) — in the administration the administration's groups, in the installation the installation's, in *Your settings* yours | start of the window |
+| 2 The object's views | the **`ViewBar`** (a hub tool, a collection, a product home: navigation §3) **or** the page's one `Tabs` strip (People · Groups · Roles) | under the head |
+| 3 The page's sections | `SectionNav` (settings, an editor's objects) | beside the content |
 
-Layers 2 and 3 **never both** appear: a settings tab under a product home (*Assets › Settings*)
-opens a `SettingsPage` whose section list replaces the product's tab strip below the head, with
-*Back to Assets* in the trail. A choice between views of the same content (*Plan · Releases*, *List
-· Board · Timeline*) is a **segmented control in the toolbar**, not a strip.
+**Never a second strip under the view bar**: what was a tab's second strip becomes the view's own
+tools or a menu (*Manage ▾*). A section list **beside** the content is allowed under a view bar: a
+settings tab of a product home (*Assets › Settings*) shows its `SectionNav` beside the open section.
+A choice between views of the same content (*Schedule · Releases · Sprints*, *Board · List ·
+Timeline*) is a view of the `ViewBar`, not a control of its own.
 
 **What stays in place while the page scrolls** (the owner: the column must remain visible to go
 on):
@@ -234,15 +235,15 @@ Hubtask's five widths (design-system §6) stay; this is what each page part does
 |---|---|---|---|---|---|
 | Column | ☰ opens it as a drawer; `BottomBar` (other concept) | ☰ drawer | pinned, collapsible to a rail | pinned | pinned |
 | Page gutter | `sp.200` | `sp.300` | `sp.400` | `sp.400` | content capped at `layout.content.max`, centred |
-| `PageHeader` | title in the app bar; head row: trail (parent only), the primary as a **full-width button** under the title, the rest in ⋯ | title, primary and ⋯ on one line; secondary acts into ⋯ | as built | as built | as built |
+| `PageHeader` | title, *‹ the level above* and ⋯ in the app bar; the screen's **one main action floats above the bottom bar, labelled** (navigation §9) | title, primary and ⋯ on one line; secondary acts into ⋯ | as built | as built | as built |
 | One strip (tabs) | scrolls sideways inside itself, the current tab in view (built) | same | inline | inline | inline |
-| `SectionNav` | **list → detail**: the section list is the page; choosing a section opens it with *‹ Sign-in* to go back | list → detail | two panes: list (`layout.settings.nav`) and the section | two panes | two panes |
+| `SectionNav` | **list → detail**: the section list is the page; a section opens as a step of the stack with *‹ Sign-in* in the bar, none on the page | list → detail | two panes: list (`layout.settings.nav`) and the section | two panes | two panes |
 | `FilterBar` | search full width, **Filters (2)** opens a bottom `Sheet` with the filters, the count under the search | search, the first two filters as chips, *More filters* | everything inline | inline | inline |
 | `DataTable` | **list rows**: the column marked `priority 1` as the title, `priority 2` as one secondary line, a status at the end, ⋯ opening a `Sheet` of verbs | priority 1–2 as columns, the rest folded into the row's secondary line | every column the person chose | same | same |
 | `ResourceGrid` | one column | two | three | four | five |
 | Dialog S | centred, `layout.dialog.s` | centred | centred | centred | centred |
 | Dialog M / L | **full screen**: ✕ at the start, the title, the primary at the end of its bar; body scrolls | centred, at most the window minus `sp.600` | centred | centred | centred |
-| Menu, picker | bottom `Sheet`, at most half the height, grabber, swipe to close | anchored menu | anchored | anchored | anchored |
+| Menu, picker | bottom `Sheet`, as tall as its content and at most 85 %, grabber, swipe down to close | anchored menu | anchored | anchored | anchored |
 | Page primary | at the top of the content, not floating; the `BottomBar`'s ＋ stays capture | in the head | in the head | in the head | in the head |
 | Density | `spacious` (built) | `comfortable` | `comfortable` | `comfortable` | `comfortable` |
 
@@ -321,7 +322,7 @@ physical direction).
 | Name | Layer | Anatomy and behaviour | Replaces |
 |---|---|---|---|
 | `Grid` | L1 | columns and gaps from the space scale, `columns` per width (`{ compact: 1, medium: 2, … }`) via `data-` attributes | grids per screen |
-| `Sheet` | L2 | bottom sheet for `compact`: grabber, title, body, optional actions; opens at most half height, drags to full; swipe down or ✕ closes; focus trapped; on the `overlay` rank of `layers.ts` | menus and pickers on a phone |
+| `Sheet` | L2 | bottom sheet for `compact`: grabber, title, body, optional actions; as tall as its content, at most 85 % of the screen, beyond that the body scrolls under a fixed head; a grabber on every sheet, swipe down or ✕ closes; focus trapped; on the `overlay` rank of `layers.ts` | menus and pickers on a phone |
 | `Dialog` sizes | L2 | `size: 's' \| 'm' \| 'l'`; below `medium`, `m` and `l` become full screen (✕ · title · primary in a bar); head and foot fixed, body scrolls; `onDismiss` asks the caller whether to confirm | per-dialog widths |
 | `SectionNav` | L3 | the sections of a page as links (each its address), a status per section (*Default*, *2 set here*, *Locked*, a count), the current one `aria-current`; sticky with its own scroll; `compact`/`medium`: renders the list as the page, the section opens as a detail with *‹ back*; arrow keys, Home, End | the settings shell's in-page anchors; the sideways strip on a phone |
 | `FilterBar` | L3 | `SearchField` · filter chips (each opens a `Popover`, a `Sheet` on a phone, with a picker) · *More filters* · *Clear* · the count; the URL holds the filters; per width as §4.4 | the audit's form, the workspaces' fields |
@@ -387,7 +388,8 @@ token, New rule, New workflow, New workspace.*
 
 ### 7.8 `WorkPage` and `DetailPage` — as built
 The work surface (collection, hub, product homes, plan, time, goals) and one object read and edited
-in place (entry, page, goal), held to PS-2 (*Plan · Releases* becomes a segmented control) and PS-6.
+in place (entry, page, goal), held to PS-2 (the views are the object's `ViewBar`, never a second
+strip) and PS-6.
 
 ### 7.9 `StandalonePage` — outside the frame
 A page nobody reaches through the app frame - signed out, or by a public link: no bar, nowhere to
@@ -396,12 +398,18 @@ invitation, address confirmation, consent, a provider's return, rating, public f
 workspaces) as sign-in is built; `public`, the content at the window's full width under its title
 (a shared roadmap). The portal is inside the frame and takes the kinds of the frame.
 
+### 7.10 `browse` — the phone's Browse stack
+A step of the phone's Browse stack (the navigation concept §9): the frame's own navigation - the
+workspace level, a hub's level, its queues and contents - drawn as touch rows by the sidebar from
+the same reads. No page content and no head of its own: the bar carries the title and the way
+back. Known to the gate as `browse`, not as a work surface.
+
 ## 8. The rules
 
 | # | Rule |
 |---|---|
 | PS-1 | One page kind per routed view |
-| PS-2 | At most three navigation layers; place tabs and a section list never both; view choices are a segmented control |
+| PS-2 | At most three navigation layers; never a second strip under the view bar (a section list beside the content is allowed); view choices are views of the `ViewBar` |
 | PS-3 | The create act is the head's primary; no create or filter form is open on arrival |
 | PS-4 | Objects of one kind are a `DataTable` or a `ResourceGrid`; a card holds no form |
 | PS-5 | A task opens on the first rung of §5.1 that fits — never in a split beside the list |
@@ -496,8 +504,8 @@ Desktop and phone are named where they differ from §4.4. "Rungs" names where cr
 ### 9.7 Products and work
 
 Collection, hub, entry, Today, search, pages, whiteboards, goals: `WorkPage`/`DetailPage` as built.
-Plan: *Plan · Releases* a segmented control; the tray, the table and the dependencies as views of
-that control, one at a time; a dependency's lag in a Popover. Time: weeks as a segmented control.
+Plan: its views are the tool's `ViewBar` (the navigation concept §3) - the schedule, the table,
+the dependencies, releases and sprints, one at a time; a dependency's lag in a Popover. Time: weeks as a segmented control.
 
 ## 10. Use cases
 

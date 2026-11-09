@@ -458,7 +458,8 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
 * **L1 `Grid`** — columns per width (`{ compact: 1, medium: 2, … }`) as `data-` attributes, read at
   the five breakpoints.
 * **L2 `Sheet`** — the bottom sheet of a phone: grabber, title, a body or a list of `items`,
-  actions; at most half the height, pulled to full; a pull down, ✕ or Escape closes it; the
+  actions; as tall as what it holds and at most 85 % of the screen, beyond that the body
+  scrolls under a fixed head; every sheet has its grabber; a pull down, ✕ or Escape closes it; the
   `overlay` rank of `layers.ts`. **`Dialog`** gains `size` (`s` · `m` · `l`, `layout.dialog.*`):
   head and foot fixed, the body scrolls; below `medium` an `m` or `l` is full screen with ✕ at
   the start and the `primary` in its bar; `onDismiss` lets the caller ask *Discard changes?*.
@@ -477,8 +478,14 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   empty and refused content. The concept's *SettingsPage* is **`SettingsLayout`** here, a name kept
   from when the web app had a settings shell of that name; its `data-page-kind` is `settings`.
   `WorkPage` (`data-page-kind="work"`) is the work surface's frame (page-system §7.8): the head
-  or a head of the screen's own, the object's `ViewBar` (the navigation concept §3), one toolbar
-  whose segmented control chooses the view (PS-2), and one view; the work surfaces themselves stay as built (§11).
+  or a head of the screen's own, the object's `ViewBar` (the navigation concept §3), which chooses
+  the view, a toolbar of that view's own acts - never a second strip (PS-2) - and one view; the
+  work surfaces themselves stay as built (§11). Every kind keeps one rhythm, the navigation
+  concept's mockup: the head `sp.150` above what follows it, every later part `sp.200` apart, and
+  one title size, `PageHeader`'s. Below `medium` the screen's one main action floats above the
+  bottom bar, labelled; where the bar carries *‹ the level above*, a settings page draws no way back
+  of its own and an open section hands its *‹ Settings* to the bar. `browse` is the phone's Browse
+  stack, the frame's navigation drawn as a page (page-system §7.10).
   `DetailPage` (`data-page-kind="detail"`) is one object read and edited in place, as the entry
   screen is built (§11.8): its head, then the details column and the main column - the details
   first in the document, under the head below `expanded`, beside the main column at the inline end
