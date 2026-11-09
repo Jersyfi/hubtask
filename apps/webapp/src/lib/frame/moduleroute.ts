@@ -17,6 +17,7 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
   workflows: 'WORKFLOWS',
   'time-settings': 'TIME',
   'assets-classes': 'ASSETS',
+  'assets-class': 'ASSETS',
   'assets-sources': 'ASSETS',
   'assets-settings': 'ASSETS',
   'assets-settings-section': 'ASSETS',

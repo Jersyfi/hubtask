@@ -228,6 +228,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'assets-home', pattern: '/assets' },
   // The assets' classes and sources, the workspace's (§8.2), each a tab of the home.
   { name: 'assets-classes', pattern: '/assets/classes' },
+  { name: 'assets-class', pattern: '/assets/classes/:key' },
   { name: 'assets-sources', pattern: '/assets/sources' },
   { name: 'assets-settings', pattern: '/assets/settings' },
   { name: 'assets-settings-section', pattern: '/assets/settings/:section' },

@@ -93,6 +93,7 @@
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
     DeskReportsView: () => import('./views/DeskReportsView.svelte'),
     AssetClassesView: () => import('./views/AssetClassesView.svelte'),
+    AssetClassView: () => import('./views/AssetClassView.svelte'),
     AssetSourcesView: () => import('./views/AssetSourcesView.svelte'),
     HubDeskView: () => import('./views/HubDeskView.svelte'),
     HubSprintsView: () => import('./views/HubSprintsView.svelte'),
@@ -530,6 +531,10 @@
     <LazyView load={views.CmdbView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'assets-classes'}
     <LazyView load={views.AssetClassesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'assets-class'}
+    {#key route.params.key}
+      <LazyView load={views.AssetClassView} props={{ classKey: route.params.key ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
   {:else if route.name === 'assets-sources'}
     <LazyView load={views.AssetSourcesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'desk-settings' || route.name === 'desk-settings-section'}

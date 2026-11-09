@@ -302,6 +302,7 @@ async function views() {
     ['desk-settings-section', await load('ServiceDeskView'), { section: 'policies', onnavigate: noop }],
     ['assets-home', await load('ProductHomeView'), { module: 'ASSETS', onnavigate: noop }],
     ['assets-classes', await load('AssetClassesView'), { onnavigate: noop }],
+    ['assets-class', await load('AssetClassView'), { classKey: 'server', onnavigate: noop }],
     ['assets-sources', await load('AssetSourcesView'), { onnavigate: noop }],
     ['assets-settings', await load('CmdbView'), { onnavigate: noop }],
     ['assets-settings-section', await load('CmdbView'), { section: 'aliases', onnavigate: noop }],

@@ -3,29 +3,26 @@
 <script lang="ts">
   // The assets' *Classes* (M6, UC-AST-02 check 6, the navigation concept §4): the class hierarchy
   // Hubtask ships with the workspace's own classes beneath it, as one table drawn as a tree - each
-  // deeper branch folded until opened. An administrator adds a class (*New class*, a dialog L) and
-  // changes the workspace's own; a shipped class is read, never changed.
+  // deeper branch folded until opened. A class opens its record page; an administrator adds a class
+  // (*New class*, a dialog L) and changes the workspace's own; a shipped class is read, never changed.
   //
   // **What the reader may never do is not drawn** (P-05): without STRUCTURE at the workspace the
   // page lists the classes and offers no control.
-  import {
-    Button, Checkbox, CheckboxGroup, DataTable, Dialog, EmptyState, FilterBar, IconButton, Input, ListPage, Select, Spinner, Stack, Switch, Textarea,
-    type DataColumn, type DataRowMenu, type SelectOption,
-  } from '@hubtask/design-system/components';
-  import type { CiAttribute, CiClass, CiClassList, CiRelationTypeList } from '@hubtask/sync-engine';
+  import { DataTable, EmptyState, FilterBar, IconButton, ListPage, Spinner, type DataColumn, type DataRowMenu } from '@hubtask/design-system/components';
+  import type { CiClass, CiClassList, CiRelationTypeList } from '@hubtask/sync-engine';
   import { untrack } from 'svelte';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import { holdsHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
-  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { matchesSearch } from '../lib/page/list.ts';
   import ProductTabs from '../lib/product/ProductTabs.svelte';
   import { productHead } from '../lib/product/frame.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { classesBelow, shownClasses } from '../lib/assets/classTree.ts';
-  import { classDefine, classDraft, classesPath, classWord, cmdb, keyIsWellFormed, relationTypesPath, relationWord, type ClassDraft, type Words } from '../lib/data/cmdb.svelte.ts';
+  import ClassDialog from '../lib/assets/ClassDialog.svelte';
+  import { classPath, classesBelow, classesInOrder, shownClasses } from '../lib/assets/classTree.ts';
+  import { classesPath, classWord, relationTypesPath, type Words } from '../lib/data/cmdb.svelte.ts';
 
   interface Props {
     onnavigate?: (path: string) => void;
@@ -42,21 +39,7 @@
   const refusal = $derived(classesRead.state.status === 'failed' ? renderProblem(classesRead.state.error, messages).message : undefined);
   const nameOf = (key: string) => classWord(key, classes, words);
   const depthOf = (each: CiClass) => Math.max(0, each.lineage.length - 1);
-  /** The hierarchy in reading order: each class after its parent, siblings by their order in the list. */
-  const tree = $derived.by(() => {
-    const out: CiClass[] = [];
-    const visit = (parent: string) => {
-      for (const each of classes.filter((one) => one.parent === parent)) {
-        out.push(each);
-        visit(each.key);
-      }
-    };
-    for (const root of classes.filter((each) => !each.parent)) {
-      out.push(root);
-      visit(root.key);
-    }
-    return out;
-  });
+  const tree = $derived(classesInOrder(classes));
   // The families open, each deeper branch folded until opened (§5.4); a search shows every match.
   let opened = $state<ReadonlySet<string>>(new Set());
   const below = $derived(classesBelow(tree));
@@ -67,54 +50,14 @@
     if (!next.delete(key)) next.add(key);
     opened = next;
   }
-  const classOptions = $derived<SelectOption[]>(tree.map((each) => ({ value: each.key, label: nameOf(each.key) })));
-  const kinds: readonly CiAttribute['kind'][] = ['TEXT', 'NUMBER', 'BOOLEAN', 'DATE', 'CHOICE', 'URL', 'GROUP', 'ACCOUNT'];
-  const kindOptions = $derived<SelectOption[]>(kinds.map((each) => ({ value: each, label: t(`app.cmdb_admin.kind.${each}`) })));
-  const needOptions = $derived<SelectOption[]>((['OPTIONAL', 'RECOMMENDED', 'REQUIRED'] as const).map((each) => ({ value: each, label: t(`app.cmdb_admin.need.${each}`) })));
-  const typeKeys = $derived<SelectOption[]>(types.map((each) => ({ value: each.key, label: relationWord(each, each.key, true, words) })));
-
-  // One dialog is open at a time; its refusal is said inside it, which keeps what was typed
-  // (user-experience.md §5.10). An action outside a dialog says it in a toast.
-  let dialogFailure = $state<string | undefined>(undefined);
-  async function act<T>(run: () => Promise<T>, done: string, inDialog = false): Promise<T | undefined> {
-    if (inDialog) dialogFailure = undefined;
-    try {
-      const out = await run();
-      toast.show({ text: done, tone: 'success' });
-      return out;
-    } catch (error) {
-      const said = renderProblem(error as never, messages).message;
-      if (inDialog) dialogFailure = said;
-      else toast.show({ text: said, tone: 'danger' });
-      return undefined;
-    }
-  }
-
   // --- A class ---------------------------------------------------------------------------------
 
   let classEditing = $state<CiClass | undefined>(undefined);
-  let classDraftState = $state<ClassDraft | undefined>(undefined);
   let isClassOpen = $state(false);
 
   function openClass(of?: CiClass) {
     classEditing = of;
-    classDraftState = classDraft(of);
-    dialogFailure = undefined;
     isClassOpen = true;
-  }
-
-  const classReason = $derived(
-    !classDraftState ? undefined
-    : !classEditing && !keyIsWellFormed(classDraftState.key) ? t('app.cmdb_admin.key_hint')
-    : !classDraftState.name.trim() ? t('app.cmdb_admin.needs_name')
-    : undefined,
-  );
-
-  async function saveClass() {
-    const draft = classDraftState;
-    if (!draft) return;
-    const done = await act(() => cmdb.defineClass(classEditing?.key ?? draft.key, classDefine(draft), classEditing?.version), t('app.cmdb_admin.saved'), true);
-    if (done) isClassOpen = false;
   }
 
   const columns = $derived<DataColumn[]>([
@@ -142,7 +85,7 @@
     <Spinner label={t('app.assets.loading')} />
   {:else}
     <DataTable label={t('app.cmdb_admin.classes')} {columns} rows={shownTree} key={(each: CiClass) => each.key} rowLabel={(each: CiClass) => nameOf(each.key)}
-      onopen={mayShape ? (each: CiClass) => { if (!each.system) openClass(each); } : undefined}
+      href={(each: CiClass) => classPath(each.key)}
       menu={rowMenu} onmenu={(each: CiClass) => openClass(each)}
       actionsLabel={t('app.page.row_actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
       <!-- The fold stands before the title, outside the press that opens the row: inside it, it
@@ -178,49 +121,7 @@
 <!-- Offered to whoever reaches the administration, as the door before them was (P-05). -->
 {#snippet notYours()}<EmptyState kind="filtered" title={t('app.settings.not_yours')} />{/snippet}
 
-{#if isClassOpen && classDraftState}
-  <Dialog bind:isOpen={isClassOpen} title={classEditing ? t('app.cmdb_admin.edit_named', { name: nameOf(classEditing.key) }) : t('app.cmdb_admin.new_class')} dismissLabel={t('app.assets.cancel')} size="l">
-    <Stack gap="150">
-      {#if !classEditing}<Input label={t('app.cmdb_admin.key')} hint={t('app.cmdb_admin.key_hint')} bind:value={classDraftState.key} maxlength={63} />{/if}
-      <Input label={t('app.assets.name_label')} bind:value={classDraftState.name} maxlength={120} />
-      <Select label={t('app.cmdb_admin.parent')} options={classOptions.filter((each) => each.value !== classEditing?.key)} bind:value={classDraftState.parent} />
-      <Switch label={t('app.cmdb_admin.abstract')} bind:checked={classDraftState.abstract} />
-      <fieldset class="group">
-        <legend>{t('app.assets.attributes')}</legend>
-        {#each classDraftState.attributes as attribute, index (index)}
-          <div class="line">
-            <Input label={t('app.cmdb_admin.key')} size="sm" bind:value={attribute.key} maxlength={63} />
-            <Select label={t('app.cmdb_admin.kind_label')} size="sm" options={kindOptions} bind:value={attribute.kind} />
-            <Select label={t('app.cmdb_admin.need_label')} size="sm" options={needOptions} bind:value={attribute.need} />
-            <Checkbox label={t('app.cmdb_admin.identifying')} bind:checked={attribute.identifier} />
-            {#if attribute.kind === 'CHOICE'}<Textarea label={t('app.cmdb_admin.options')} rows={2} bind:value={attribute.options} />{/if}
-            <IconButton icon="x" size="sm" tone="subtle" label={t('app.cmdb_admin.remove')} onclick={() => classDraftState?.attributes.splice(index, 1)} />
-          </div>
-        {/each}
-        <div><Button size="sm" tone="subtle" icon="plus" onclick={() => classDraftState?.attributes.push({ key: '', kind: 'TEXT', need: 'OPTIONAL', identifier: false, options: '' })}>{t('app.cmdb_admin.add_attribute')}</Button></div>
-      </fieldset>
-      <Textarea label={t('app.cmdb_admin.rules')} hint={t('app.cmdb_admin.rules_hint')} rows={3} bind:value={classDraftState.rules} />
-      <fieldset class="group">
-        <legend>{t('app.cmdb_admin.required')}</legend>
-        {#each classDraftState.required as needed, index (index)}
-          <div class="line">
-            <CheckboxGroup label={t('app.cmdb_admin.required_types')} options={typeKeys.map((each) => ({ value: each.value, label: each.label }))} selected={needed.types} onChange={(next) => (needed.types = [...next])} />
-            <Checkbox label={t('app.cmdb_admin.outgoing')} bind:checked={needed.outgoing} />
-            <IconButton icon="x" size="sm" tone="subtle" label={t('app.cmdb_admin.remove')} onclick={() => classDraftState?.required.splice(index, 1)} />
-          </div>
-        {/each}
-        <div><Button size="sm" tone="subtle" icon="plus" onclick={() => classDraftState?.required.push({ types: [], outgoing: true })}>{t('app.cmdb_admin.add_required')}</Button></div>
-      </fieldset>
-      <Input label={t('app.cmdb_admin.staleness_label')} hint={t('app.cmdb_admin.staleness_hint')} inputmode="numeric" bind:value={classDraftState.staleness} />
-      {#if classEditing}<Switch label={t('app.cmdb_admin.archived')} bind:checked={classDraftState.archived} />{/if}
-      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-    </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isClassOpen = false)}>{t('app.assets.cancel')}</Button>
-      <Button tone="primary" disabledReason={classReason} onclick={() => void saveClass()}>{t('app.assets.save')}</Button>
-    {/snippet}
-  </Dialog>
-{/if}
+<ClassDialog bind:isOpen={isClassOpen} editing={classEditing} classes={tree} {types} />
 
 <style>
   .named { display: inline-flex; align-items: center; gap: var(--sp-050); }
@@ -230,7 +131,5 @@
   .indent[data-depth='4'] { inline-size: var(--sp-500); }
   .indent[data-depth='5'],
   .indent[data-depth='6'] { inline-size: var(--sp-600); }
-  .group { display: grid; gap: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); margin: 0; }
-  .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>

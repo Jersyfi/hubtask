@@ -26,3 +26,42 @@ export function classesBelow(tree: readonly ClassRow[]): Map<string, number> {
   }
   return below;
 }
+
+/** A class's record page. */
+export const classPath = (key: string): string => `/assets/classes/${encodeURIComponent(key)}`;
+
+interface TreeClass extends ClassRow {
+  readonly parent?: string | null;
+}
+
+/** The hierarchy in reading order: each class after its parent, siblings in the order listed. */
+export function classesInOrder<T extends TreeClass>(classes: readonly T[]): T[] {
+  const out: T[] = [];
+  const visit = (parent: string) => {
+    for (const each of classes.filter((one) => one.parent === parent)) {
+      out.push(each);
+      visit(each.key);
+    }
+  };
+  for (const root of classes.filter((each) => !each.parent)) {
+    out.push(root);
+    visit(root.key);
+  }
+  return out;
+}
+
+/** The classes directly beneath one. */
+export const classesUnder = <T extends TreeClass>(classes: readonly T[], key: string): T[] => classes.filter((each) => each.parent === key);
+
+interface Joining {
+  readonly key: string;
+  readonly pairs: readonly { readonly from: string; readonly to: string }[];
+}
+
+/**
+ * Where a class is used among the relation types: each type with a pair that names the class or a
+ * class above it at either end, a pair naming an ancestor applying to it too.
+ */
+export function typesJoining<T extends Joining>(types: readonly T[], lineage: readonly string[]): T[] {
+  return types.filter((type) => type.pairs.some((pair) => lineage.includes(pair.from) || lineage.includes(pair.to)));
+}
