@@ -91,6 +91,9 @@
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
+    DeskReportsView: () => import('./views/DeskReportsView.svelte'),
+    AssetClassesView: () => import('./views/AssetClassesView.svelte'),
+    AssetSourcesView: () => import('./views/AssetSourcesView.svelte'),
     HubDeskView: () => import('./views/HubDeskView.svelte'),
     HubSprintsView: () => import('./views/HubSprintsView.svelte'),
     ContentsView: () => import('./views/ContentsView.svelte'),
@@ -522,20 +525,23 @@
   {:else if route.name === 'notes'}
     <!-- *My notes* is the pages' home's second tab (user-experience.md §2.2), at its own address. -->
     <LazyView load={views.ProductHomeView} props={{ module: 'KNOWLEDGE', tab: 'notes', onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'assets-settings' || route.name === 'assets-classes' || route.name === 'assets-sources'}
-    <!-- A product's settings are a settings page of their own, its sections in place of the home's
-         tabs (page-system §9.6, PS-2); the home's *Classes* and *Sources* open their sections (an
-         open design point between the page system and the navigation concept). -->
-    <LazyView load={views.CmdbView} props={{ section: route.name === 'assets-settings' ? route.query['section'] : route.name.slice('assets-'.length), onreplace: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'desk-settings' || route.name === 'desk-reports'}
-    <!-- The report is a section of the desk's settings page here; the home's *Reports* tab opens it
-         (an open design point between the page system and the navigation concept). -->
-    <LazyView load={views.ServiceDeskView} props={{ section: route.name === 'desk-reports' ? 'report' : route.query['section'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'assets-settings' || route.name === 'assets-settings-section'}
+    <!-- The assets' last tab, its settings page under the home's view bar (the navigation concept §4). -->
+    <LazyView load={views.CmdbView} props={{ section: route.params.section, onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'assets-classes'}
+    <LazyView load={views.AssetClassesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'assets-sources'}
+    <LazyView load={views.AssetSourcesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'desk-settings' || route.name === 'desk-settings-section'}
+    <!-- The desk's last tab, its settings page under the home's view bar (the navigation concept §4). -->
+    <LazyView load={views.ServiceDeskView} props={{ section: route.params.section, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'desk-reports'}
+    <LazyView load={views.DeskReportsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'desk-desks'}
     <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name.slice('desk-'.length), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'agents-home' && isAgentsSettings(route.query['tab'])}
     <!-- The agents' settings are a settings page of their own (page-system §9.6). -->
-    <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/agents', onreplace: (path: string) => router.replace(path) }} />
+    <LazyView load={views.AgentsSettingsView} props={{ tab: route.query['tab'], section: route.query['section'], base: '/agents', onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'agents-home'}
     <!-- The agents' home is their list (user-experience.md §7.8), at the product's address. -->
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
@@ -594,7 +600,7 @@
       <LazyView load={views.PlanView} props={{ planId: route.params.id, view: route.query['view'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
   {:else if route.name === 'time' && route.query['tab'] === 'settings'}
-    <LazyView load={views.TimeSettingsView} props={{ section: route.query['section'], onreplace: (path: string) => router.replace(path) }} />
+    <LazyView load={views.TimeSettingsView} props={{ section: route.query['section'], onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'time'}
     <LazyView load={views.TimeView} props={{ tab: route.query['tab'], week: route.query['week'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'hub-goals' || route.name === 'hub-goals-dashboards'}

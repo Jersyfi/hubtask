@@ -137,8 +137,8 @@ test('a list page opens no field or form outside its filter bar and a dialog', (
 
 // The settings screens stand on the settings kind (page-system §7.3): the administration's, read
 // from its area's route branches so a screen that moves to another view is still held to it, and
-// the products' settings, each a page of its own at the home's *Settings* address (§9.6) whose
-// section list replaces the home's tabs (PS-2) - no strip of tabs on it.
+// the products' settings, each the home's last tab (the navigation concept §4): the home's
+// `ViewBar` (`ProductTabs`) under the head, the section list beside the section - no second strip.
 const ON_SETTINGS = ['mail', 'voice', 'retention', 'backup', 'workspace-settings', 'sign-in-settings', 'legal', 'ai'];
 const PRODUCT_SETTINGS = {
   'desk-settings': 'ServiceDeskView',
@@ -156,7 +156,7 @@ test('the administration\'s settings screens draw the settings kind', () => {
   assert.deepEqual(wrong, []);
 });
 
-test('a product\'s settings are a settings page of their own, routed at its address, with no strip of tabs', () => {
+test('a product\'s settings are a settings page under the home\'s view bar, routed at its address, with no second strip', () => {
   const app = fs.readFileSync(path.join(SRC, 'App.svelte'), 'utf8');
   const wrong = Object.entries(PRODUCT_SETTINGS).flatMap(([route, view]) => {
     const found = [];
@@ -166,6 +166,7 @@ test('a product\'s settings are a settings page of their own, routed at its addr
     if ([...kindsOf(view)].join() !== 'settings') found.push(`${view}: ${[...kindsOf(view)].join(', ') || 'no page kind'}`);
     const { markup } = read(fileOf(view));
     if (/<(Tabs|PlaceTabs)(?=[\s/>])/.test(markup)) found.push(`${view}: a strip of tabs`);
+    if (!/<ProductTabs(?=[\s/>])/.test(markup)) found.push(`${view}: not under the home's view bar`);
     return found;
   });
   assert.deepEqual(wrong, []);
