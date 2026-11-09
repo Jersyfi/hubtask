@@ -94,6 +94,8 @@
 
   /* Every control of the bar a thumb's size (§9: 44 px), the marks' included. */
   .bar :global(button) { min-inline-size: var(--layout-nav-touchrow); min-block-size: var(--layout-nav-touchrow); }
+  /* An icon button is a touch target of its own size elsewhere; in the bar it is the bar's (G2). */
+  .bar :global(.icon-button) { inline-size: var(--layout-nav-touchrow); block-size: var(--layout-nav-touchrow); }
 
   .title {
     overflow: hidden;
