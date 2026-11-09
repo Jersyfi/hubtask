@@ -49,7 +49,10 @@ test('chromium: with AI off no screen draws an AI control, placeholder or prompt
     assert.equal(await page.locator('[data-ai]').count(), 0, `${screen}: an element marked as AI`);
     assert.equal(await page.getByText('✦').count(), 0, `${screen}: the AI mark`);
     assert.equal(await page.getByRole('button', { name: /\bAI\b|Suggest/ }).count(), 0, `${screen}: an AI control`);
-    assert.equal(await page.getByRole('link', { name: /\bAI\b/ }).count(), 0, `${screen}: a way to set AI up`);
+    // The administration's own row to its AI section is the check's one exception: the section,
+    // for those allowed to configure it, now that the area's column is a level of the sidebar.
+    const ways = page.getByRole('link', { name: /\bAI\b/ }).filter({ hasNot: page.locator('xpath=self::*[@href="/administration/ai"]') });
+    assert.equal(await ways.count(), 0, `${screen}: a way to set AI up`);
   }
   assert.deepEqual(failures, []);
 });
