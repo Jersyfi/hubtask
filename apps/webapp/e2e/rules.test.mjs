@@ -167,6 +167,8 @@ function stubFor(written, tested = TEST_HELD, listed = [RULE, STALE]) {
       return route.fulfill({ json: tested });
     }
     if (path.endsWith('/api/v1/automation/runs')) {
+      // The column's unnarrowed read for its *n failed* figure is the frame's, not the editor's.
+      if (url.searchParams.size === 0) return route.fulfill({ json: { ...PAGE, data: [] } });
       written.push({ runs: Object.fromEntries(url.searchParams) });
       return route.fulfill({ json: { ...PAGE, data: RUNS } });
     }
@@ -333,9 +335,11 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   // Seventeen: the frame's own reads grew by the person's AI notice, their emergency notices and
   // their address notices, each read once per frame (PH-03, PH-05, UC-INS-19), and the
   // administration's by the private hubs, the webhooks and the mailboxes its column counts
-  // (user-experience.md §7.10) - what this bounds is the editor's.
+  // (user-experience.md §7.10), and its backup targets and schedules, latest runs and open privacy
+  // requests for the figures of their rows (the navigation concept §2.6) - what this bounds is the
+  // editor's.
   assert.equal(gets.filter((line) => line.includes('/accounts/me/address-notices')).length, 1, 'the address notices are read once, by the frame');
-  assert.ok(gets.length <= 17, `${gets.length} reads on open: ${gets.join(', ')}`);
+  assert.ok(gets.length <= 21, `${gets.length} reads on open: ${gets.join(', ')}`);
 
   // And the canvas meets the content region rather than standing in its padding: standing in it
   // draws a slab of one colour on a page of another, which reads as a border no other screen has.
@@ -857,7 +861,8 @@ test('chromium: a sample the gate refuses stops at the gate, and a recorded run 
   await page.getByText('Fails sometimes').waitFor();
   await page.getByText('1 of 3 runs failed').waitFor();
   assert.equal(written.filter((body) => body.runs).length, readBefore + 1, 'the tab read the runs again');
-  await page.locator('.rows .row').nth(1).click();
+  // The runs' own list: the sidebar's levels have rows of the same class.
+  await page.getByRole('main').locator('.rows .row').nth(1).click();
   await page.locator('[data-card="0"] .verdict').waitFor();
   assert.equal(await page.locator('[data-card="0"] .verdict').textContent(), 'failed');
   await page.getByText('Failed', { exact: true }).first().waitFor();
