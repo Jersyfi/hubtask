@@ -283,6 +283,11 @@ test('the former hub tabs open the place that took their role (UC-WRK-36 check 1
   assert.equal(moved('/goals?hub=h1&tab=dashboards'), '/hubs/h1/goals/dashboards');
   assert.equal(moved('/goals'), undefined, 'the workspace\'s goals stay the product\'s home');
   assert.equal(moved('/collections/c1/plan'), '/collections/c1/timeline');
+  // The plan's former views are its bar's tabs; what had no dates is the schedule's fold.
+  assert.equal(moved('/hubs/h1/plan?view=dependencies'), '/hubs/h1/plan/dependencies');
+  assert.equal(moved('/hubs/h1/plan?view=table'), '/hubs/h1/plan/table');
+  assert.equal(moved('/hubs/h1/plan?view=undated'), '/hubs/h1/plan');
+  assert.equal(moved('/hubs/h1/plan'), undefined);
   assert.equal(moved('/collections/c1/sprints'), '/collections/c1/sprint');
   assert.equal(moved('/collections/c1/actuals'), '/collections/c1/time');
   // The desk and the pages are answered by their screens, which know the first queue and page.

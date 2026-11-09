@@ -2,10 +2,11 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Plan* of a hub or a collection (M2, UC-PLN-02 … 05): the schedule as a Gantt chart, as a
-  // table, its dependencies and what has no dates yet - views of one segmented control in the
-  // toolbar, one at a time, with a hub's *Releases* beside them (page-system §9.7, PS-2), at
-  // `?view=`. The chart comes first, its window fitting the plan; the tolerance and the baselines
-  // are the plan's settings, behind *Plan settings* in the head (user-experience.md §7.5).
+  // table and its dependencies. A hub's are tabs of the tool's one view bar beside *Releases* and
+  // *Sprints*, each at its address; a collection's *Timeline* is one view of its bar, so the table
+  // and the dependencies stand under its chart (the navigation concept §3: never a second strip).
+  // What has no dates is a fold under the axis - a sheet on a phone. The chart's window fits the
+  // plan; the tolerance and the baselines are behind *Plan settings* (user-experience.md §7.5).
   //
   // **The server schedules; this screen draws and writes.** Every date is the one
   // `GET /plans/{id}/schedule` answered; a drag, a mode, a milestone, a dependency's timing or an
@@ -31,7 +32,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, DataTable, Dialog, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, ViewSwitcher, WorkPage,
+    Banner, Button, Checkbox, DataTable, Dialog, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, WorkPage,
     type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
@@ -69,14 +70,12 @@
   interface Props {
     /** The hub or collection the plan is. */
     planId: string;
-    /** The view the address names (`?view=`): the chart where none or an unknown one. */
-    view?: string;
+    /** The hub tool's tab the address names; a collection's *Timeline* shows all three. */
+    part?: 'schedule' | 'table' | 'dependencies';
     onnavigate: (path: string) => void;
-    /** Replaces the address: a move between the plan's views. */
-    onreplace?: (path: string) => void;
   }
 
-  const { planId, view, onnavigate, onreplace }: Props = $props();
+  const { planId, part = 'schedule', onnavigate }: Props = $props();
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
@@ -337,6 +336,7 @@
       newWaited = '';
       newKind = 'FS';
       newLag = '0';
+      isAdding = false;
     }, t('app.planning.linked', { waiting: titleOf(waiting), waited: titleOf(waited) }));
   }
   function removeDependency(linkId: string, waitingId: string, waitedId: string) {
@@ -348,6 +348,8 @@
   const linkable = $derived(rows.filter((row) => !row.entry.external && !row.entry.summary).map((row) => ({ value: row.id, label: row.title })));
 
   let isTaking = $state(false);
+  /** A dependency added from the keyboard: four values of one new thing, a small dialog (§5.1). */
+  let isAdding = $state(false);
   let isImporting = $state(false);
   let isSetting = $state(false);
 
@@ -447,22 +449,15 @@
     if (!lagErrors[linkId]) timingOpen = undefined;
   }
 
-  // The plan's views (§9.7): one at a time; *No dates yet* only while something has none, a hub's
-  // *Releases* its own screen beside them.
-  const placeViews = $derived([
-    { id: 'chart', label: t('app.planning.view_chart') },
-    { id: 'table', label: t('app.planning.view_table') },
-    { id: 'dependencies', label: t('app.timeline.dependencies') },
-    ...(undated.length > 0 ? [{ id: 'undated', label: t('app.planning.view_undated', { count: String(undated.length) }) }] : []),
-  ]);
-  const viewShown = $derived(placeViews.some((each) => each.id === view) ? (view as string) : 'chart');
-  // A collection's plan is its *Timeline* view; a hub's the tool *Plan* (the navigation concept §8).
-  const planPath = $derived(place?.type === 'COLLECTION' ? `${placePath}/timeline` : `${placePath}/plan`);
-  function choose(next: string) {
-    (onreplace ?? onnavigate)(next === 'chart' ? planPath : `${planPath}?view=${next}`);
-  }
-  /** The chart trays nothing: what has no dates is its own view, the chart with its tray. */
-  const chartRows = $derived(viewShown === 'undated' ? timelineRows : timelineRows.filter((row) => !undatedIds.has(row.id)));
+  // A hub shows the tab its address names; a collection's *Timeline* is one view, all three in it.
+  const isHub = $derived(place?.type === 'HUB');
+  const showsChart = $derived(!isHub || part === 'schedule');
+  const showsTable = $derived(!isHub || part === 'table');
+  const showsDependencies = $derived(!isHub || part === 'dependencies');
+  // On a phone the fold is a sheet (§5.1): a tray inside a chart that scrolls sideways is not reached.
+  const chartRows = $derived(viewport.isCompact ? timelineRows.filter((row) => !undatedIds.has(row.id)) : timelineRows);
+  const undatedSaid = $derived(t('app.planning.figure_undated', { count: String(undated.length) }));
+  let isUndatedOpen = $state(false);
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
   // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
   // dates; the standing against the tolerance where it is kept and not exceeded.
@@ -501,7 +496,7 @@
     <!-- A collection's *Timeline* is one of its views: its head is the collection's (CollectionHead). -->
     <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
   {:else if place}
-    <ToolHead hubId={planId} tool="plan" current="schedule" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+    <ToolHead hubId={planId} tool="plan" current={part} {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
   {/if}
   {/snippet}
 
@@ -555,12 +550,8 @@
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
-    {#if viewShown === 'table'}
-      {@render planTable()}
-    {:else if viewShown === 'dependencies'}
-      {@render dependencyTable()}
-    {:else}
-      <div class="window" data-plan-view={viewShown}>
+    {#if showsChart}
+      <div class="window" data-plan-view="schedule">
         <Timeline
           label={t('app.planning.chart')}
           from={current.from}
@@ -570,7 +561,6 @@
           {gridlines}
           {today}
           todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
-          undatedLabel={t('app.timeline.undated')}
           emptyLabel={t('app.planning.empty')}
           startHandleLabel={t('app.timeline.move_start')}
           dueHandleLabel={t('app.timeline.move_due')}
@@ -582,16 +572,54 @@
           linkHandleLabel={t('app.planning.draw_dependency')}
           criticalLabel={t('app.planning.critical_named')}
           resizeLabel={t('app.planning.resize_titles')}
-          rowAction={viewShown === 'undated' ? giveDates : undefined}
+          undatedLabel={undatedSaid}
+          isTrayFolded
+          rowAction={undated.length > 0 ? giveDates : undefined}
         />
+        {#if viewport.isCompact && undated.length > 0}
+          <Button size="sm" tone="subtle" icon="chevron-right" data-undated-open onclick={() => (isUndatedOpen = true)}>{undatedSaid}</Button>
+        {/if}
       </div>
+    {/if}
+    {#if showsTable}
+      {#if isHub}{@render planTable()}{:else}
+        <section aria-labelledby="plan-table" class="block">
+          <Inline justify="between" align="center">
+            <h2 id="plan-table" class="heading">{t('app.planning.table')}</h2>
+            {@render acceptChosen()}
+          </Inline>
+          {@render planTable()}
+        </section>
+      {/if}
+    {/if}
+    {#if showsDependencies}
+      {#if isHub}{@render dependencyTable()}{:else if schedule.dependencies.length > 0 || (mayWrite && linkable.length > 1)}
+        <section aria-labelledby="plan-dependencies" class="block">
+          <Inline justify="between" align="center">
+            <h2 id="plan-dependencies" class="heading">{t('app.timeline.dependencies')}</h2>
+            {@render addOpener()}
+          </Inline>
+          {@render dependencyTable()}
+        </section>
+      {/if}
     {/if}
   {/if}
 </WorkPage>
 
+{#snippet acceptChosen()}
+  {#if mayWrite && accepted.length > 0}
+    <Button size="sm" onclick={() => applyMoves(accepted)}>{t('app.planning.accept_chosen', { count: String(accepted.length) })}</Button>
+  {/if}
+{/snippet}
+
+{#snippet addOpener()}
+  {#if mayWrite && linkable.length > 1}
+    <Button size="sm" tone="secondary" icon="plus" data-add-dependency-open onclick={() => (isAdding = true)}>{t('app.planning.add_dependency')}</Button>
+  {/if}
+{/snippet}
+
 {#snippet toolbar()}
-  <ViewSwitcher label={t('app.planning.views')} views={placeViews} selected={viewShown} onselect={choose} />
-  {#if viewShown === 'chart' || viewShown === 'undated'}
+  {#if showsChart}
     <div class="controls" role="group" aria-label={t('app.planning.chart')}>
       <Inline gap="050">
         <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
@@ -617,8 +645,10 @@
       {/if}
       <span class="quiet window-said">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
     </div>
-  {:else if viewShown === 'table' && mayWrite && accepted.length > 0}
-    <Button size="sm" onclick={() => applyMoves(accepted)}>{t('app.planning.accept_chosen', { count: String(accepted.length) })}</Button>
+  {:else if part === 'table'}
+    {@render acceptChosen()}
+  {:else if part === 'dependencies'}
+    {@render addOpener()}
   {/if}
 {/snippet}
 
@@ -714,7 +744,6 @@
 {/snippet}
 
 {#snippet dependencyTable()}
-  <section class="block" aria-label={t('app.timeline.dependencies')}>
     <DataTable
       label={t('app.timeline.dependencies')}
       columns={dependencyColumns}
@@ -735,16 +764,6 @@
         {:else}<span class="number">{each.lag_days}</span>{/if}
       {/snippet}
     </DataTable>
-    {#if mayWrite && linkable.length > 1}
-      <div class="controls" role="group" aria-label={t('app.planning.add_dependency')} data-add-dependency>
-        <Select label={t('app.planning.new_waiting')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
-        <Select label={t('app.planning.new_waited')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
-        <Select label={t('app.planning.col_kind')} size="sm" bind:value={newKind} options={kinds} />
-        <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" error={newLagError} />
-        <Button data-list-add size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
-      </div>
-    {/if}
-  </section>
 {/snippet}
 
 <!-- A dependency's kind and lag: two values of one thing, a popover's rung (§5.1); a bottom sheet
@@ -781,6 +800,32 @@
     </div>
   {/if}
 {/snippet}
+
+{#if isAdding}
+  <Dialog bind:isOpen={isAdding} title={t('app.planning.add_dependency')} dismissLabel={t('app.links.cancel')} size="s">
+    <div class="fields" data-add-dependency>
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+      <Select label={t('app.planning.new_waiting')} placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
+      <Select label={t('app.planning.new_waited')} placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
+      <Select label={t('app.planning.col_kind')} bind:value={newKind} options={kinds} />
+      <Input label={t('app.planning.col_lag')} bind:value={newLag} inputmode="numeric" error={newLagError} />
+      <Inline justify="end"><Button data-list-add icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button></Inline>
+    </div>
+  </Dialog>
+{/if}
+
+{#if isUndatedOpen}
+  <Sheet title={t('app.timeline.undated')} closeLabel={t('app.page.sheet_close')} grabLabel={t('app.page.sheet_grab')} bind:isOpen={isUndatedOpen}>
+    <ul class="plain" data-undated>
+      {#each undated as each (each.item_id)}
+        <li class="baseline">
+          <a class="grow" href={`/items/${each.item_id}`}>{each.title}</a>
+          {@render giveDates(each.item_id)}
+        </li>
+      {/each}
+    </ul>
+  </Sheet>
+{/if}
 
 {#if isImporting}
   <Dialog bind:isOpen={isImporting} title={t('app.planning.import')} dismissLabel={t('app.links.cancel')} size="m">
@@ -855,6 +900,7 @@
   .grow { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; }
   .window { min-width: 0; }
   .block { display: flex; flex-direction: column; gap: var(--sp-250); min-width: 0; }
+  .fields { display: grid; gap: var(--sp-150); }
   .timing { display: grid; gap: var(--sp-150); padding: var(--sp-150); min-inline-size: var(--layout-field-sm); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }

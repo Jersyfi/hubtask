@@ -765,6 +765,8 @@ export function toolOf(route: { readonly name: string | null; readonly query: Re
     case 'hub': return 'overview';
     case 'hub-desk': return 'queues';
     case 'hub-plan':
+    case 'hub-plan-table':
+    case 'hub-plan-dependencies':
     case 'hub-plan-releases':
     case 'hub-plan-sprints': return 'plan';
     case 'hub-inventory':

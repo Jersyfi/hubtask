@@ -24,6 +24,8 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
   notes: 'KNOWLEDGE',
   // The hub tools' pages (the navigation concept §2.4): an old link to a tool switched off says so.
   'hub-plan': 'PLANNING',
+  'hub-plan-table': 'PLANNING',
+  'hub-plan-dependencies': 'PLANNING',
   'hub-plan-releases': 'PLANNING',
   'hub-plan-sprints': 'PLANNING',
   'hub-inventory': 'ASSETS',

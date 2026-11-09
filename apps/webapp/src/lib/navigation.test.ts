@@ -434,7 +434,7 @@ const level = (name: string, params: Record<string, string> = {}, query: Record<
   levelOf({ name, params, query }, (each) => LEVEL_HUBS[each], located, held);
 
 test('anything of a hub shows its hub\'s level; everything else the workspace level (§2.4, §6.1)', () => {
-  for (const name of ['hub', 'hub-plan', 'hub-plan-releases', 'hub-plan-sprints', 'hub-desk', 'hub-inventory', 'hub-inventory-section', 'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-pages', 'hub-contents', 'hub-settings']) {
+  for (const name of ['hub', 'hub-plan', 'hub-plan-table', 'hub-plan-dependencies', 'hub-plan-releases', 'hub-plan-sprints', 'hub-desk', 'hub-inventory', 'hub-inventory-section', 'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-pages', 'hub-contents', 'hub-settings']) {
     assert.deepEqual(level(name, { id: 'h' }), { kind: 'hub', hubId: 'h' }, name);
   }
   for (const name of ['collection', 'collection-timeline', 'collection-sprint', 'collection-time', 'collection-workload', 'collection-settings']) {

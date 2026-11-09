@@ -38,11 +38,11 @@ test('a collection that runs sprints opens with the board and the sprint; a desk
 });
 
 test('a hub tool with tabs of its own holds them in one bar; a hub itself has none', () => {
-  assert.deepEqual(ids(toolViews('h', 'plan')), ['schedule', 'releases', 'sprints']);
+  assert.deepEqual(ids(toolViews('h', 'plan')), ['schedule', 'table', 'dependencies', 'releases', 'sprints']);
   assert.deepEqual(ids(toolViews('h', 'time')), ['actuals', 'workload']);
   assert.deepEqual(ids(toolViews('h', 'time', { mayCost: true })), ['actuals', 'workload', 'budget']);
   assert.deepEqual(ids(toolViews('h', 'goals')), ['goals', 'dashboards']);
-  assert.deepEqual(toolViews('h', 'plan').map((view) => view.href), ['/hubs/h/plan', '/hubs/h/plan/releases', '/hubs/h/plan/sprints']);
+  assert.deepEqual(toolViews('h', 'plan').map((view) => view.href), ['/hubs/h/plan', '/hubs/h/plan/table', '/hubs/h/plan/dependencies', '/hubs/h/plan/releases', '/hubs/h/plan/sprints']);
   assert.deepEqual(ids(toolViews('h', 'overview')), []);
 });
 

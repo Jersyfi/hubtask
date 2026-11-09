@@ -314,6 +314,8 @@ async function views() {
     ['hub-desk', await load('HubDeskView'), { hubId: COLLECTION, onnavigate: noop }],
     ['whiteboard', await load('WhiteboardsView'), { boardId: ITEM, onnavigate: noop }],
     ['hub-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
+    ['hub-plan-table', await load('PlanView'), { planId: COLLECTION, part: 'table', onnavigate: noop }],
+    ['hub-plan-dependencies', await load('PlanView'), { planId: COLLECTION, part: 'dependencies', onnavigate: noop }],
     ['collection-timeline', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
     ['collection-sprint', await load('SprintView'), { collectionId: COLLECTION, onnavigate: noop }],
     ['collection-backlog', await load('SprintView'), { collectionId: COLLECTION, isBacklog: true, onnavigate: noop }],

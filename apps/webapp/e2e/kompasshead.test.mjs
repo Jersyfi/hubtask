@@ -101,7 +101,7 @@ test('A collection\'s people and its â‹¯ stand in its head on every view, the â‹
 test('A hub tool\'s tabs draw one head - the trail, the tool\'s name, one figure slot - and the bar at one place', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const TOOLS = [['plan', ['', '/releases', '/sprints']], ['time', ['', '/workload', '/budget']], ['goals', ['', '/dashboards']]];
+  const TOOLS = [['plan', ['', '/table', '/dependencies', '/releases', '/sprints']], ['time', ['', '/workload', '/budget']], ['goals', ['', '/dashboards']]];
   for (const [name, size] of [['desktop', desktop], ['tablet', tablet], ['phone', phone]]) {
     const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}/plan`, ...size });
     t.after(close);

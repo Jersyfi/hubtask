@@ -263,6 +263,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'hub-plan', pattern: '/hubs/:id/plan' },
   // The tool *Plan*'s other tabs (the navigation concept §2.4): the hub's releases, the running
   // sprints of its collections.
+  // The plan's table and its dependencies are tabs of the tool's one view bar (the navigation concept §3).
+  { name: 'hub-plan-table', pattern: '/hubs/:id/plan/table' },
+  { name: 'hub-plan-dependencies', pattern: '/hubs/:id/plan/dependencies' },
   { name: 'hub-plan-releases', pattern: '/hubs/:id/plan/releases' },
   { name: 'hub-plan-sprints', pattern: '/hubs/:id/plan/sprints' },
   // Moved (`movedTo`): a collection's plan is its *Timeline* view.
@@ -362,6 +365,9 @@ const MOVED: Readonly<Record<string, (params: Params, query: Params) => string |
   agents: () => '/agents?tab=settings',
   // The hub's former tabs are its tools' pages and *All contents* (the navigation concept §8).
   'hub-releases': (params) => `/hubs/${params['id']}/plan/releases`,
+  // The plan's former `?view=` is a tab of its own; what had no dates is the schedule's fold.
+  'hub-plan': (params, query) =>
+    query['view'] === 'table' || query['view'] === 'dependencies' ? `/hubs/${params['id']}/plan/${query['view']}` : query['view'] ? `/hubs/${params['id']}/plan` : undefined,
   'hub-assets': (params, query) => `/hubs/${params['id']}/inventory${query['new'] ? `?new=${query['new']}` : ''}`,
   'hub-assets-section': (params) => `/hubs/${params['id']}/inventory/${params['section']}`,
   'hub-actuals': (params) => `/hubs/${params['id']}/time`,

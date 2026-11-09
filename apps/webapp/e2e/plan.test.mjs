@@ -203,14 +203,11 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
-  // The plan's views are one segmented control, one view at a time (page-system §9.7): the
-  // dependencies, then the table, never stacked under the chart.
-  const views = page.getByRole('radiogroup', { name: 'Views of the plan' });
+  // A collection's *Timeline* is one view of its bar (the navigation concept §3): no second strip
+  // under it, its table and its dependencies stand under the chart.
   assert.equal(await page.locator('[data-page-kind="work"]').count(), 1, 'the plan is no work page');
-  assert.equal(await page.getByRole('table', { name: 'The plan as a table' }).count(), 0, 'the table stands under the chart');
-  await views.getByRole('radio', { name: 'Dependencies' }).click();
-  await page.waitForURL(/\?view=dependencies$/u, { timeout: 5_000 });
-  assert.equal(await page.locator('.timeline').count(), 0, 'the chart stays beside the dependencies');
+  assert.equal(await page.getByRole('radiogroup', { name: 'Views of the plan' }).count(), 0, 'a second strip under the view bar');
+  await page.getByRole('table', { name: 'The plan as a table' }).waitFor({ timeout: 5_000 });
 
   // A dependency's lag, typed and saved in its popover (§5.1), not in a field per row.
   const opening = page.getByRole('button', { name: `Change the timing of the dependency of ${SECOND.title}` });
@@ -231,9 +228,6 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   assert.equal(written.filter((each) => each.path === `/links/${LINK}/timing`).length, 1);
   assert.equal(await lag.count(), 1, 'the refused lag closed its popover');
   await page.keyboard.press('Escape');
-
-  await views.getByRole('radio', { name: 'Table' }).click();
-  await page.getByRole('table', { name: 'The plan as a table' }).waitFor({ timeout: 5_000 });
 
   // An entry made manual: choosing writes nothing - a closed select changes on every arrow key
   // (SC 3.2.2) - and the apply beside it writes the mode.
@@ -261,8 +255,9 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
-  // The knob the chart draws has no key bindings; the dependencies' view is the keyboard's way.
-  await page.getByRole('radiogroup', { name: 'Views of the plan' }).getByRole('radio', { name: 'Dependencies' }).click();
+  // The knob the chart draws has no key bindings; the dependencies' small dialog is the keyboard's way.
+  await page.locator('[data-add-dependency-open]').focus();
+  await page.keyboard.press('Enter');
   const adding = page.locator('[data-add-dependency]');
   await adding.getByLabel('Waiting entry').selectOption(THIRD.id);
   await adding.getByLabel('Waits for').selectOption(FIRST.id);
@@ -310,9 +305,9 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
     return { step: Number(node.dataset.title), scrolls: scroller.scrollWidth > scroller.clientWidth + 1 };
   });
   assert.ok(room.step >= 2 && !room.scrolls, `the title column stays narrow beside an empty chart: ${JSON.stringify(room)}`);
-  // What has no dates is a view of its own, the chart with its tray, not a tray under the chart.
-  assert.equal(await page.getByRole('button', { name: 'Give Write the brief dates' }).count(), 0, 'the tray stands under the chart');
-  await page.getByRole('radiogroup', { name: 'Views of the plan' }).getByRole('radio', { name: /^No dates yet/u }).click();
+  // What has no dates is a fold under the axis that names its count, folded until it is opened.
+  assert.equal(await page.getByRole('button', { name: 'Give Write the brief dates' }).count(), 0, 'the tray opened unfolded');
+  await page.locator('.timeline details.undated summary').filter({ hasText: '1 without dates' }).click();
   await page.getByRole('button', { name: 'Give Write the brief dates' }).click();
   await page.waitForURL(`**/items/${UNDATED}`, { timeout: 5_000 });
   await page.goBack();

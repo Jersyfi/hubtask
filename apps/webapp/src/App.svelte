@@ -595,9 +595,9 @@
     {#key route.params.id}
       <LazyView load={views.HubDeskView} props={{ hubId: route.params.id ?? '', queue: route.query['queue'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
-  {:else if route.name === 'hub-plan' || route.name === 'collection-timeline'}
-    {#key route.path}
-      <LazyView load={views.PlanView} props={{ planId: route.params.id, view: route.query['view'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies' || route.name === 'collection-timeline'}
+    {#key route.params.id}
+      <LazyView load={views.PlanView} props={{ planId: route.params.id, part: route.name === 'hub-plan-table' ? 'table' : route.name === 'hub-plan-dependencies' ? 'dependencies' : 'schedule', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'time' && route.query['tab'] === 'settings'}
     <LazyView load={views.TimeSettingsView} props={{ section: route.query['section'], onreplace: (path: string) => router.replace(path), onnavigate: (path: string) => router.navigate(path) }} />

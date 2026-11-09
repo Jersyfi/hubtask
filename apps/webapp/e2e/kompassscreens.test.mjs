@@ -70,9 +70,14 @@ test('UC-WRK-36 check 9: each hub tool draws one view bar of its own tabs, never
   t.after(close);
   const bar = main(page).getByRole('navigation', { name: PD.name });
   await bar.getByRole('link', { name: 'Schedule' }).waitFor({ timeout: 10_000 });
-  assert.deepEqual(await texts(bar.getByRole('link')), ['Schedule', 'Releases', 'Sprints']);
+  assert.deepEqual(await texts(bar.getByRole('link')), ['Schedule', 'Table', 'Dependencies', 'Releases', 'Sprints']);
   assert.equal(await bar.getByRole('link', { name: 'Schedule' }).getAttribute('aria-current'), 'page');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-plan.png` });
+  // The plan's table and dependencies are tabs of the same bar, each at its address (§3).
+  await bar.getByRole('link', { name: 'Dependencies' }).click();
+  await at(page, `/hubs/${PD.id}/plan/dependencies`);
+  assert.equal(await bar.getByRole('link', { name: 'Dependencies' }).getAttribute('aria-current'), 'page');
+  assert.equal(await main(page).getByRole('radiogroup').count(), 0, 'a second strip under the bar');
   await bar.getByRole('link', { name: 'Sprints' }).click();
   await at(page, `/hubs/${PD.id}/plan/sprints`);
   await main(page).locator('[data-running-sprint]').first().waitFor({ timeout: 10_000 });
