@@ -257,4 +257,4 @@ export { default as CreatePage } from './CreatePage.svelte';
 export { default as WorkPage } from './WorkPage.svelte';
 export { default as DetailPage } from './DetailPage.svelte';
 export { default as StandalonePage } from './StandalonePage.svelte';
-export type { PageBack, PageHead, PageKind } from './page.ts';
+export { pageBar, providePageBar, type PageBack, type PageBar, type PageHead, type PageKind } from './page.ts';

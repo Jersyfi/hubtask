@@ -23,7 +23,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden, createPeek, providePageBar, type PageBack } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import AppWorkspaces from './AppWorkspaces.svelte';
@@ -412,8 +412,12 @@
   let heldLevel: NavLevel = { kind: 'workspace' };
   const navLevel = $derived.by(() => (heldLevel = levelOf(route, hubOfPlace, page.place, heldLevel)));
   const phoneHubId = $derived(route.name?.startsWith('browse-') ? route.params['id'] : navLevel.kind === 'hub' ? navLevel.hubId : undefined);
+  // A page's own way back handed to the bar (an open settings section's *‹ Settings*): on a phone
+  // the way back stands only in the bar (the navigation concept §9).
+  let carried = $state<PageBack | undefined>(undefined);
   const phoneBack = $derived.by(() => {
     if (!isPhone) return undefined;
+    if (carried) return { label: carried.label, path: route.path };
     if (page.ascent) return page.ascent;
     // An entry's way up is its collection, where the screen has named it.
     const located = route.name === 'item' && page.place ? containers.find(page.place) : undefined;
@@ -426,6 +430,19 @@
           : ascent.kind === 'contents' ? t('app.nav.contents')
             : (containers.find(ascent.hubId)?.name ?? t('app.nav.hubs'));
     return { label, path: ascent.path };
+  });
+  function back(path: string) {
+    if (carried) carried.onback();
+    else go(path);
+  }
+  providePageBar({
+    get hasBack() { return phoneBack !== undefined; },
+    carry: (next) => {
+      if (!isPhone) return () => {};
+      carried = next;
+      return () => { if (carried === next) carried = undefined; };
+    },
+    offer: (menu) => page.offer(menu),
   });
   const phoneStar = $derived.by(() => {
     const star = isPhone ? starOf(route) : undefined;
@@ -462,7 +479,7 @@
     if (!swipe || !finger) return;
     const travel = (swipe.rtl ? -1 : 1) * (finger.clientX - swipe.x);
     const drift = Math.abs(finger.clientY - swipe.y);
-    if (travel > window.innerWidth / 4 && drift < travel && phoneBack) go(phoneBack.path);
+    if (travel > window.innerWidth / 4 && drift < travel && phoneBack) back(phoneBack.path);
     swipe = null;
   }
   // The inbox's count on its tab: the arrivals still undecided.
@@ -756,7 +773,7 @@
     {/if}
   {/snippet}
   {#if isPhone}
-    <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={go} star={phoneStar} menu={page.menu}>
+    <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
         <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
           workspaces={phoneWorkspaces} onworkspace={(host) => deviceList.open(host)} onchoose={chooseAccount} />

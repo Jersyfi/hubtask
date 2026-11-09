@@ -15,10 +15,12 @@
     nav: { label: string; sections: readonly SectionLink[]; current?: string; onselect?: (id: string) => void; search?: Snippet };
     view: 'list' | 'detail';
     back: PageBack;
+    /** Whether the application's bar carries the way back, so the pane draws none. */
+    isBackHidden?: boolean;
     children: Snippet;
   }
 
-  const { nav, view, back, children }: Props = $props();
+  const { nav, view, back, isBackHidden = false, children }: Props = $props();
 </script>
 
 <div class="two-pane" data-view={view}>
@@ -26,9 +28,11 @@
     <SectionNav label={nav.label} sections={nav.sections} current={nav.current} onselect={nav.onselect} search={nav.search} />
   </div>
   <div class="detail">
-    <button type="button" class="back" onclick={back.onback}>
-      <Icon name="chevron-left" size="sm" /><span>{back.label}</span>
-    </button>
+    {#if !isBackHidden}
+      <button type="button" class="back" onclick={back.onback}>
+        <Icon name="chevron-left" size="sm" /><span>{back.label}</span>
+      </button>
+    {/if}
     {@render children()}
   </div>
 </div>

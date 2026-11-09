@@ -7,7 +7,7 @@
   import type { Snippet } from 'svelte';
 
   import PageHeader from './PageHeader.svelte';
-  import type { PageHead, PageKind } from './page.ts';
+  import { pageBar, type PageHead, type PageKind } from './page.ts';
 
   interface Props {
     kind: PageKind;
@@ -16,12 +16,16 @@
     top?: Snippet;
     /** Hides the head - a section or an object opened below `expanded` stands alone. */
     isHeadHidden?: boolean;
+    /** Whether the application's bar carries the title, the way up and the ⋯ (`PageHeader`'s). */
+    isTitleInBar?: boolean;
     /** What the person may not see, in the content's place. */
     refused?: Snippet;
     children: Snippet;
   }
 
-  const { kind, head, top, isHeadHidden = false, refused, children }: Props = $props();
+  const { kind, head, top, isHeadHidden = false, isTitleInBar = false, refused, children }: Props = $props();
+
+  const bar = pageBar();
 </script>
 
 <div class="page" data-page-kind={kind}>
@@ -36,6 +40,9 @@
       secondary={head.secondary}
       menu={head.menu}
       figure={head.figure}
+      {isTitleInBar}
+      isMenuInBar={isTitleInBar && bar !== undefined}
+      onmenu={isTitleInBar ? bar?.offer : undefined}
       isPrimaryInFlow
     />
   {/if}

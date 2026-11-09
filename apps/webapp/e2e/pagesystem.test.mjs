@@ -829,6 +829,15 @@ for (const size of [DESKTOP, PHONE]) {
       // *General*: one save for every value - no button of the prefix's or the handle's own.
       await page.locator('[data-place-general]').waitFor({ timeout: 15_000 });
       assert.equal(await main.getByRole('button', { name: /^Change the (prefix|handle)$/ }).count(), 0, `${place}: a save of its own`);
+      if (size === PHONE) {
+        // On a phone the way back stands only in the bar (the navigation concept §9): an open
+        // section is a step of the stack with *‹ Settings* up there, and the page draws none.
+        assert.equal((await page.locator('[data-back]').first().textContent())?.trim(), 'Settings', `${place}: the bar's way back`);
+        assert.equal(await main.getByRole('button', { name: 'Settings', exact: true }).count(), 0, `${place}: a second way back on the page`);
+        await page.locator('[data-back]').first().click();
+        await page.waitForURL((url) => url.pathname === `${place}/settings`);
+        assert.equal(await main.locator('.parent a').count(), 0, `${place}: the list's way up drawn on the page`);
+      }
 
       // Every section by its address: one section, at most two screens on a desk, four on a phone.
       await visit(page, `${place}/settings`);
