@@ -1,0 +1,220 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!--
+  Mockups of docs/backlog/work-surface/README.md: the 59 scenes of the work-surface concept, drawn
+  after the change, at desktop 1440, tablet 820 and phone 390. Draws the generated token sheet only
+  (rule 15), so serve it from the checkout's root (python3 -m http.server) after `make tokens` and
+  open /docs/backlog/work-surface/mockups/. The labels inside the drawn screens are the product's
+  German locale strings; the prose around them is English. The red numbers in a screen belong to
+  the numbered list above it, and the README's scene table uses the same numbers.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockups — the work surface</title>
+<link rel="stylesheet" href="../../../../packages/design-system/dist/tokens.css">
+<link rel="stylesheet" href="../../../../packages/design-system/dist/fonts.css">
+<link rel="stylesheet" href="mock.css">
+<link rel="stylesheet" href="mock2.css">
+<link rel="stylesheet" href="mock3.css">
+<style>
+  /* ===== presentation chrome (not the product): a reading column, a wide stage ===== */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-canvas); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--fs-200); line-height: var(--lh-normal); }
+  .page { padding: 0 var(--sp-200) var(--sp-1000); }
+  .cx { max-width: 880px; margin-inline: auto; }
+  .wide { max-width: 1680px; margin-inline: auto; }
+  header.top { padding-block: var(--sp-800) var(--sp-400); }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--fs-090); color: var(--text-brand); }
+  h1.title { font-family: var(--font-display); font-size: var(--fs-800); line-height: var(--lh-tight); margin: var(--sp-150) 0 var(--sp-250); text-wrap: balance; }
+  .lede { font-size: var(--fs-300); color: var(--text-secondary); margin: 0; }
+  .metaline { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-300); margin-top: var(--sp-300); font-family: var(--font-mono); font-size: var(--fs-090); color: var(--text-secondary); }
+  nav.chapters { position: sticky; top: 0; z-index: 20; background: var(--bg-canvas); border-block: var(--bw-hairline) solid var(--border-subtle); padding: var(--sp-100) 0; overflow-x: auto; white-space: nowrap; }
+  nav.chapters a { display: inline-block; padding: var(--sp-050) var(--sp-150); border-radius: var(--r-md); color: var(--text-secondary); text-decoration: none; font-size: var(--fs-100); }
+  nav.chapters a:hover, nav.chapters a:focus-visible { background: var(--accent-primary-subtle); color: var(--text-primary); outline: none; }
+  section.chap { padding-top: var(--sp-800); }
+  h2.ch { font-family: var(--font-display); font-size: var(--fs-600); line-height: var(--lh-tight); margin: 0 0 var(--sp-100); }
+  h2.ch small { display: block; font-family: var(--font-mono); font-size: var(--fs-090); color: var(--text-brand); margin-bottom: var(--sp-150); }
+  h3.sub { font-size: var(--fs-400); margin: var(--sp-500) 0 var(--sp-100); }
+  p { margin: 0 0 var(--sp-200); }
+  .muted { color: var(--text-secondary); }
+  .code { font-family: var(--font-mono); font-size: var(--fs-090); }
+  .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-200); margin-top: var(--sp-200); }
+  @media (max-width: 860px) { .rules { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-xl); padding: var(--sp-250); min-width: 0; }
+  .card h4 { margin: 0 0 var(--sp-050); font-size: var(--fs-200); }
+  .card p { font-size: var(--fs-100); color: var(--text-secondary); margin: 0; }
+  .card b.id { font-family: var(--font-mono); font-size: var(--fs-090); color: var(--text-brand); margin-inline-end: var(--sp-100); }
+  .tbl-wrap { overflow-x: auto; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-xl); background: var(--bg-surface); margin-top: var(--sp-200); }
+  table.t { border-collapse: collapse; width: 100%; font-size: var(--fs-100); }
+  table.t th, table.t td { text-align: start; padding: var(--sp-100) var(--sp-150); border-bottom: var(--bw-hairline) solid var(--border-subtle); vertical-align: top; }
+  table.t th { font-family: var(--font-mono); font-size: var(--fs-075); text-transform: uppercase; color: var(--text-secondary); background: var(--bg-surface-sunken); }
+  table.t tr:last-child td { border-bottom: 0; }
+  table.t td:first-child { font-weight: var(--fw-semibold); }
+  .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-150); margin-top: var(--sp-150); }
+  @media (max-width: 760px) { .swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .sw { border-radius: var(--r-lg); padding: var(--sp-150); display: flex; gap: var(--sp-100); align-items: center; background: var(--tb); color: var(--tf); font-weight: var(--fw-semibold); }
+  .sw small { display: block; font-family: var(--font-mono); font-size: var(--fs-075); font-weight: var(--fw-regular); }
+  .scene { margin-top: var(--sp-600); border-top: var(--bw-hairline) solid var(--border-subtle); padding-top: var(--sp-300); }
+  .scene-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: var(--sp-400); align-items: start; }
+  @media (max-width: 1000px) { .scene-head { grid-template-columns: minmax(0, 1fr); gap: var(--sp-150); } }
+  .scene-head h3 { font-family: var(--font-display); font-size: var(--fs-500); line-height: var(--lh-tight); margin: 0 0 var(--sp-100); }
+  .scene .where { font-family: var(--font-mono); font-size: var(--fs-090); color: var(--text-secondary); }
+  .scene .sid { font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-subtle); }
+  ol.changes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-100); font-size: var(--fs-100); }
+  ol.changes li { display: grid; grid-template-columns: var(--sp-300) minmax(0, 1fr); gap: var(--sp-100); }
+  ol.changes li b.n { display: inline-grid; place-items: center; width: var(--sp-250); height: var(--sp-250); border-radius: var(--r-full); background: var(--accent-signature); color: var(--text-inverse); font-size: var(--fs-075); }
+  .controls { display: flex; flex-wrap: wrap; gap: var(--sp-150); align-items: center; margin: var(--sp-250) 0 var(--sp-150); }
+  .seg2 { display: inline-flex; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); padding: var(--sp-025); background: var(--bg-surface); }
+  .seg2 button { border: 0; background: none; padding: var(--sp-050) var(--sp-150); border-radius: var(--r-md); font: inherit; font-size: var(--fs-100); color: var(--text-secondary); cursor: pointer; }
+  .seg2 button[aria-pressed="true"] { background: var(--accent-primary); color: var(--text-inverse); }
+  .tog { display: inline-flex; gap: var(--sp-050); align-items: center; font-size: var(--fs-100); color: var(--text-secondary); cursor: pointer; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .pair.phone { grid-template-columns: minmax(0, 390px); justify-content: center; }
+  .shot { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); overflow: hidden; background: var(--bg-surface); }
+  .scaler { position: relative; overflow: hidden; }
+  .stage { transform-origin: top left; position: absolute; top: 0; left: 0; }
+  .none { padding: var(--sp-500) var(--sp-250); text-align: center; color: var(--text-secondary); font-size: var(--fs-100); }
+  footer.end { margin-top: var(--sp-1000); padding-top: var(--sp-300); border-top: var(--bw-hairline) solid var(--border-subtle); color: var(--text-secondary); font-size: var(--fs-100); }
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top cx">
+  <div class="eyebrow">Concept · released by the owner on 2026-11-12 · drawn against main 617bd76c5</div>
+  <h1 class="title">The work surface: one shape for everything people work on</h1>
+  <p class="lede">The concept for Hubtask's work surfaces: everything to the right of the navigation in every product, from <i>Today</i> through lists, boards and entries to the service desk, pages, time and goals. Every object gets the same shape, every product keeps its colour, and every view does the same on a phone, a tablet and a desktop.</p>
+  <div class="metaline"><span>59 scenes · after the change</span><span>Desktop 1440 · Tablet 820 · Phone 390</span><span>Drawn with the Hubtask tokens</span><span>Argument, survey, decisions, build steps: <a href="../README.md">README.md</a></span></div>
+</header>
+
+<div class="cx"><nav class="chapters" aria-label="Chapters">
+  <a href="#principles">Principles</a><a href="#blocks">Building blocks</a><a href="#screens">Screens</a><a href="#pages">Pages</a><a href="#whiteboards">Whiteboards</a><a href="#posts">Posts</a><a href="#entry">Entry</a><a href="#inventory">Inventory</a><a href="#query">Query and search</a><a href="#create">Create</a><a href="#files">Files</a><a href="#portal">Portal</a><a href="#devices">Devices</a><a href="#decisions">Decisions</a>
+</nav></div>
+
+<section class="chap cx" id="principles">
+  <h2 class="ch"><small>Principles</small>Eight rules for every work surface</h2>
+  <p>They add to UX-1…UX-8 (<span class="code">user-experience.md</span>) and PS-1…PS-18 (the page system), with an id of their own so that tests and reviews can cite them.</p>
+  <div class="rules" id="rules-wb"></div>
+</section>
+
+<section class="chap cx" id="blocks">
+  <h2 class="ch"><small>Building blocks</small>What the design system gains</h2>
+  <p>The product colours are already chosen (<span class="code">navigation.ts</span>, one label token each). New is only that they also appear inside a product, through alias tokens <span class="code">product.&lt;id&gt;.surface</span> and <span class="code">.ink</span> in the semantic part of <span class="code">tokens.json</span>, so that no component picks a colour itself.</p>
+  <div class="mk swatches" data-theme="light" id="swatches" style="background:none"></div>
+  <p class="muted" style="margin-top:var(--sp-150);font-size:var(--fs-100)">Time (lime) and Goals (green) sit close together. That belongs to the navigation; the tile's glyph tells them apart, so no change is proposed.</p>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>Block</th><th>What for</th><th>Replaces today</th></tr></thead><tbody>
+    <tr><td class="code">ObjectHead</td><td>Key with product tile, type, title (edited in place), action bar. For entry, configuration item, goal, release, agent, portfolio</td><td>Six heads of their own in <span class="code">ItemView</span>, <span class="code">CiView</span>, <span class="code">GoalView</span>, <span class="code">ReleaseView</span>, <span class="code">AgentView</span>, <span class="code">PortfolioView</span></td></tr>
+    <tr><td class="code">StatusButton</td><td>The status as a lozenge button with its allowed steps; the next step as the primary button beside it</td><td>A row of step buttons; a pill plus a button</td></tr>
+    <tr><td class="code">PropertyRail</td><td>The property rail with sections. Products register sections (service desk, time, affected items, links, files, goal, code, retention). Empty sections folded</td><td>Nine stacked sections in the main column</td></tr>
+    <tr><td class="code">StateLozenge</td><td>A state with word and glyph for every vocabulary: SLA, goal, health, agent, rule, release, sync</td><td>Badges in five shapes</td></tr>
+    <tr><td class="code">ProductBand</td><td>Head band of a product home: tile, name, figures line, primary action</td><td><span class="code">PageHeader</span> without a product</td></tr>
+    <tr><td class="code">Widget</td><td>One anatomy for Today and the hub overview: tile, title, figure, content, one act as a button</td><td>Cards with underlined links</td></tr>
+    <tr><td class="code">Composer</td><td>One input for comment, reply and internal note, with the switch, attachments and snippets through "/"</td><td>A field, a switch and two selects</td></tr>
+    <tr><td class="code">DataTable</td><td>Extended: groups with count and "+ entry", density, a row act on hover, a stacked row with swipe on the phone</td><td>A list of single cards</td></tr>
+    <tr><td class="code">Tokens</td><td><span class="code">product.*</span> (8 aliases), <span class="code">chart.categorical.1–7</span>, <span class="code">layout.rail</span> 320 px, <span class="code">layout.reading</span> 720 px, <span class="code">density.row.compact</span> 32 px</td><td>—</td></tr>
+  </tbody></table></div>
+</section>
+
+<section class="chap" id="screens">
+  <div class="cx"><h2 class="ch"><small>Screens</small>Every work screen, after the change</h2>
+  <p>Pages, whiteboards and posts, the entry and the inventory, and search, create, files and the portal have chapters of their own below; here are the other screens and every product home on its own, with its empty state.</p>
+  <div class="controls"><label class="tog"><input type="checkbox" id="pins" checked> Show the numbers</label><label class="tog"><input type="checkbox" id="dark"> Draw in dark mode</label></div></div>
+  <div class="wide" id="scenes"></div>
+</section>
+
+<section class="chap" id="pages">
+  <div class="cx"><h2 class="ch"><small>Pages in Knowledge</small>Find, trust, read, contribute</h2>
+  <p>A wiki is used only when people find what they look for and can trust the page. People scan a page by its headings first; reading is the common act, writing the rarer one.</p>
+  <div class="rules" id="rules-s"></div></div>
+  <div class="wide" id="scenes-pages"></div>
+</section>
+
+<section class="chap" id="whiteboards">
+  <div class="cx"><h2 class="ch"><small>Whiteboards</small>Capture fast, arrange freely, moderate together, turn results into work</h2>
+  <div class="rules" id="rules-w"></div></div>
+  <div class="wide" id="scenes-wb"></div>
+</section>
+
+<section class="chap" id="posts">
+  <div class="cx"><h2 class="ch"><small>Posts</small>News that works like a page</h2>
+  <p>Nothing of the kind exists today. A post has a date and an audience; it is read once, discussed, perhaps confirmed, and then steps back. Everything else works exactly as on pages.</p>
+  <div class="rules" id="rules-b"></div></div>
+  <div class="wide" id="scenes-posts"></div>
+</section>
+
+<section class="chap" id="entry">
+  <div class="cx"><h2 class="ch"><small>The entry</small>A normal entry and a service-desk ticket</h2>
+  <p>Drawn with the story <span class="code">TAMA-18</span> filled to the edge (8 work packages, 10 activities of three types, 7 links, 9 attachments, 18 fields, 13 comments) and the ticket <span class="code">SA-12</span> with one SLA and two OLAs (six running deadlines), 5 affected items, 4 attachments, internal notes and replies.</p>
+  <div class="rules" id="rules-et"></div></div>
+  <div class="wide" id="scenes-entry"></div>
+</section>
+
+<section class="chap" id="inventory">
+  <div class="cx"><h2 class="ch"><small>Inventory</small>One name, one object, one place for upkeep</h2>
+  <div class="rules" id="rules-in"></div></div>
+  <div class="wide" id="scenes-inv"></div>
+</section>
+
+<section class="chap" id="query">
+  <div class="cx"><h2 class="ch"><small>Query and search</small>One query language for the whole platform</h2>
+  <p>It builds on the line the search page already speaks and on the filter tree the server already checks and turns into parameterised SQL (rule 9, as <span class="code">api-guidelines.md</span> §3.1 bounds it). Keywords stay English so that saved queries survive a change of language; suggestions and chips show the person's language.</p>
+  <div class="rules" id="rules-q"></div></div>
+  <div class="wide" id="scenes-query"></div>
+</section>
+
+<section class="chap" id="create">
+  <div class="cx"><h2 class="ch"><small>Create</small>One button to create anything</h2>
+  <div class="rules" id="rules-c"></div></div>
+  <div class="wide" id="scenes-create"></div>
+</section>
+
+<section class="chap" id="files">
+  <div class="cx"><h2 class="ch"><small>Files</small>See a file without downloading it</h2>
+  <div class="rules" id="rules-f"></div></div>
+  <div class="wide" id="scenes-files"></div>
+</section>
+
+<section class="chap" id="portal">
+  <div class="cx"><h2 class="ch"><small>Portal</small>For people inside and outside</h2>
+  <div class="rules" id="rules-po"></div></div>
+  <div class="wide" id="scenes-portal"></div>
+</section>
+
+<section class="chap cx" id="devices">
+  <h2 class="ch"><small>Devices</small>What each work surface does at each width</h2>
+  <p>The five widths stay the design system's. The navigation behaves as the navigation concept says; only the content is described here.</p>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>Part</th><th>Phone &lt; 600</th><th>Tablet 600–904</th><th>Desktop from 905</th></tr></thead><tbody>
+    <tr><td>List</td><td>Row: title, meta line (key, status, priority), SLA bar; swipe right completes, left opens the menu; filters as a sheet</td><td>Table with the two most important columns, the rest in the meta line</td><td>Table with chosen columns, groups, density</td></tr>
+    <tr><td>Board</td><td>Column strip with counts, one column, swipe to the next, long press "Verschieben nach …"</td><td>Two to three columns visible, scrolling sideways</td><td>All columns, done folded</td></tr>
+    <tr><td>Entry</td><td>Whole page; three properties visible, all properties as a sheet; description / conversation / parts as a switch; reply docked at the foot</td><td>Pane as a sheet over 88 % of the width, properties under the head</td><td>Pane beside list or board; as a page with a 320 px property rail</td></tr>
+    <tr><td>Today</td><td>"Dein Tag | Überblick" as a switch</td><td>Your day, then widgets in two columns</td><td>Your day left, widgets right</td></tr>
+    <tr><td>Product homes</td><td>Compact head band, two figures, list; primary action floating</td><td>Four figures in two rows</td><td>Four figures in one row</td></tr>
+    <tr><td>Page, reading</td><td>Reading first; at the foot "Inhalt · Kommentare · Bearbeiten"; tables scroll inside</td><td>Reading column; outline and margin comments as buttons above the text</td><td>Outline and margin comments on the right from 1240</td></tr>
+    <tr><td>Page, writing</td><td>"Bearbeiten" opens a bar above the keyboard: Aa, bold, italic, list, checklist, @, /, image; long press a line to move it</td><td colspan="2">Bar above the selection, "/" menu, handle ⋮⋮ at the margin; everything by keyboard without a mouse</td></tr>
+    <tr><td>Page history</td><td>A list of versions; compared one under the other</td><td colspan="2">Versions left, two versions side by side with marks</td></tr>
+    <tr><td>Whiteboard</td><td>Opens the first frame fitted; frames paged at the top; select, note, text, comment in the dock, the rest under ⋯; two fingers pan and zoom; voting and timer visible, templates and export not</td><td>Dock at the foot; the pen draws, the finger selects and pans; two-finger tap undoes, three redo; never switching between pan and select by itself</td><td>Four corners plus dock, shortcuts, the map on request</td></tr>
+    <tr><td>Charts</td><td>One per row, the table as a toggle</td><td>Two per row</td><td>Tile grid in three sizes</td></tr>
+    <tr><td>Targets</td><td>At least 44 px for every tap; nothing only by dragging</td><td colspan="2">Every drag has an alternative without dragging (WCAG 2.5.7); focus is never hidden (2.4.11)</td></tr>
+  </tbody></table></div>
+</section>
+
+<section class="chap cx" id="decisions">
+  <h2 class="ch"><small>Decisions</small>E-1…E-23, approved as proposed on 2026-11-12</h2>
+  <div class="tbl-wrap"><table class="t"><thead><tr><th>#</th><th>Question</th><th>Answer</th></tr></thead><tbody id="decisions-body"></tbody></table></div>
+</section>
+
+<footer class="end cx">The work surface · the drawn screens are drafts with the demo workspace's data; statuses, priorities and remaining SLA times of the tickets are added for the picture.</footer>
+</div>
+
+<script src="mock.js"></script>
+<script src="mock2.js"></script>
+<script src="mock3.js"></script>
+<script src="mock4.js"></script>
+<script src="mock5.js"></script>
+<script src="mock6.js"></script>
+<script src="mock7.js"></script>
+<script src="mockz.js"></script>
+<script src="scenes.js"></script>
+</body>
+</html>
