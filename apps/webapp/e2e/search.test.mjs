@@ -10,9 +10,9 @@
 // the address, because a narrowing is structural and linkable. And a narrowing with no words at
 // all is a question the server answers, which is what ADR-0064 changed.
 //
-// The narrowing travels as one parameter, `?f=`, written in the language the chips and the text
-// surface both speak (`data/searchquery.ts`) — one parameter per chip is what it was before, and
-// it could say only the six things the chips had controls for.
+// The narrowing travels as one parameter, `?f=`, written in the language the line speaks
+// (`data/searchquery.ts`). The page is one line (§6.11): words ask `POST /search:all` for every
+// kind; a narrowing alone, or the *Entries* facet, asks `POST /search` for the entry list.
 //
 // Chromium only: what is walked here is a form, a navigation and a query string, none of which
 // has an engine-specific part; `engines.test.mjs` loads the bundle in all three.
@@ -37,6 +37,9 @@ const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false }
 /** A hit none of the words found: the server names it under `found_by_meaning`. */
 const MEANT = { ...HIT, id: '01a0e2e1-0000-7000-8000-000000000005', title: 'Dairy for the week', order_key: 'a1' };
 
+/** The account's saved search: a narrowing kept as a view (UC-WRK-18 check 12). */
+const SAVED = { id: '01a0e2e1-0000-7000-8000-000000000006', scope_type: 'ACCOUNT', scope_id: null, name: 'Mine', layout: 'LIST_COLLAPSED', query: { q: 'who:me' }, version: 1 };
+
 /** What `/search` answers; a walk that needs more than the one hit sets it and puts it back. */
 let answer = { ...PAGE, data: [HIT] };
 /** Every bulk the walk sent. */
@@ -44,6 +47,11 @@ const bulks = [];
 
 /** Every search this walk makes, in the order the client made them. */
 const asked = [];
+/** Every search over every kind, in the order asked. */
+const everything = [];
+
+/** A hit of the search over every kind, in the shape `POST /search:all` answers it. */
+const hitOf = (item) => ({ kind: 'ENTRY', id: item.id, title: item.title, hub_id: HUB.id, collection_id: COLLECTION.id, tile: null, snippet: null, state: null, key: null, updated_at: '2026-11-01T00:00:00Z', on: null });
 
 async function stub(route) {
   const url = new URL(route.request().url());
@@ -76,6 +84,10 @@ async function stub(route) {
       },
     });
   }
+  if (path.endsWith('/api/v1/search:all')) {
+    everything.push(route.request().postDataJSON());
+    return route.fulfill({ json: { data: answer.data.map(hitOf), facets: [{ kind: 'ENTRY', count: answer.data.length, more: false }] } });
+  }
   if (path.endsWith('/api/v1/search')) {
     asked.push(route.request().postDataJSON());
     return route.fulfill({ json: answer });
@@ -92,6 +104,8 @@ async function stub(route) {
   if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
   if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
+  // One saved search of the account's own: the bar offers it before anything is typed.
+  if (path.endsWith('/api/v1/views')) return route.fulfill({ json: [SAVED] });
   if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
   // The frame's own reads, in the shapes the API answers them, and a record of anything this
   // walk never prepared: a guess nobody notices is what `fallback` exists to prevent.
@@ -131,33 +145,54 @@ async function waitForAsked(count) {
   assert.fail(`only ${asked.length} searches were asked, wanted ${count}`);
 }
 
+/** The page's line: where words are typed, and what it reads as - its chips and the text not yet one. */
+const LINE = 'main [data-head="search"] input[role="combobox"]';
+const lineOf = (page) =>
+  page.evaluate(() => {
+    const head = document.querySelector('main [data-head="search"]');
+    const chips = [...(head?.querySelectorAll('.chip-body') ?? [])].map((chip) => chip.textContent.replace(/\s+/g, ' ').trim());
+    return [...chips, head?.querySelector('input[role="combobox"]')?.value ?? ''].join(' ').trim();
+  });
+const waitForLine = (page, wanted) =>
+  page.waitForFunction(
+    (wanted) => {
+      const head = document.querySelector('main [data-head="search"]');
+      const chips = [...(head?.querySelectorAll('.chip-body') ?? [])].map((chip) => chip.textContent.replace(/\s+/g, ' ').trim());
+      return [...chips, head?.querySelector('input[role="combobox"]')?.value ?? ''].join(' ').trim() === wanted;
+    },
+    wanted,
+    { timeout: 10_000 },
+  );
+
 // UC-WRK-18 check 4.
 test('chromium: the bar leads to the search, and the words are not in the address', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
-  asked.length = 0;
+  everything.length = 0;
 
+  // Enter opens the hit marked first; ⌘↵ (Ctrl↵) shows every hit on the search page.
   const field = page.locator('header form[role="search"] input');
   await field.fill('milk');
-  await page.keyboard.press('Enter');
+  await page.locator('#search-menu').getByText(HIT.title).first().waitFor({ timeout: 10_000 });
+  await page.keyboard.press('ControlOrMeta+Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
 
   // The words arrived, and the address carries a handle rather than them.
   assert.equal(new URL(page.url()).searchParams.get('q'), null, 'the term reached the address bar');
   assert.equal(page.url().includes('milk'), false, `the term is in the address: ${page.url()}`);
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('main input[type="search"]').inputValue(), 'milk', 'the screen did not take the words');
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  assert.equal(await lineOf(page), 'milk', 'the screen did not take the words');
   // And the bar's own field emptied itself, so one question is not shown in two places.
   assert.equal(await field.inputValue(), '', 'the bar kept the words as well');
-  assert.equal(asked.at(0)?.q, 'milk', `the server was asked ${JSON.stringify(asked.at(0))}`);
+  // The line travels whole in the body of the search over every kind (Q-5).
+  assert.equal(everything.at(-1)?.q, 'milk', `the server was asked ${JSON.stringify(everything.at(-1))}`);
 
   // Searching again from the bar while already on the screen is a second search, not nothing.
   await field.fill('bread');
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => document.querySelector('main input[type="search"]')?.value === 'bread', null, { timeout: 5_000 });
-  await page.waitForFunction(() => true);
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await waitForLine(page, 'bread');
   assert.equal(page.url().includes('bread'), false, `the second term is in the address: ${page.url()}`);
 
   assert.deepEqual(failures, []);
@@ -169,11 +204,10 @@ test('chromium: a reload keeps the words, and the address never held them', asyn
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
-  asked.length = 0;
 
-  await page.locator('header form[role="search"] input').fill('milk');
-  await page.keyboard.press('Enter');
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await page.goto(`${served.origin}/search`);
+  await page.locator(LINE).fill('milk');
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
 
   // The address names a handle and nothing else about the search's content.
   await page.waitForFunction(() => new URL(location.href).searchParams.get('s') !== null, null, { timeout: 5_000 });
@@ -183,18 +217,18 @@ test('chromium: a reload keeps the words, and the address never held them', asyn
 
   // What a reload is for: the words come back, and so do the results.
   await page.reload();
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('main input[type="search"]').inputValue(), 'milk', 'the reload lost the words');
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  assert.equal(await lineOf(page), 'milk', 'the reload lost the words');
   assert.equal(new URL(page.url()).searchParams.get('s'), handle, 'the reload minted a second handle');
 
   // Going away and coming back is the same promise through the other door. The entry is waited
   // for rather than raced past: a `goBack()` issued while the entry is still rendering passes on a
-  // fast machine and fails on a slow one, which is how this walk first went red only in CI.
-  await page.getByRole('link', { name: HIT.title }).click();
+  // fast machine and fails on a slow one.
+  await page.locator('main').getByRole('link', { name: HIT.title }).click();
   await page.waitForFunction(() => location.pathname.startsWith('/items/'), null, { timeout: 10_000 });
   await page.getByRole('heading', { name: HIT.title }).first().waitFor({ timeout: 10_000 });
   await page.goBack();
-  await page.waitForFunction(() => document.querySelector('main input[type="search"]')?.value === 'milk', null, { timeout: 10_000 });
+  await waitForLine(page, 'milk');
 
   assert.deepEqual(failures, []);
 });
@@ -205,73 +239,61 @@ test('chromium: a link carries the narrowing and none of the words', async (t) =
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
-  asked.length = 0;
 
-  // A search with both: words typed, and a chip chosen.
+  // A search with both: a narrowing in the address, and words typed after it.
   await page.goto(`${served.origin}/search?f=type%3Atask`);
-  await page.locator('main input[type="search"]').fill('milk');
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await page.locator(LINE).fill('milk');
   await page.waitForFunction(() => new URL(location.href).searchParams.get('s') !== null, null, { timeout: 5_000 });
 
-  // The link the screen offers: the chip, and no handle - a handle is this tab's, not a link's.
-  const link = await page.evaluate(async () => {
-    const control = [...document.querySelectorAll('button')].find((each) => each.textContent?.includes('Copy a link'));
-    control?.click();
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    return navigator.clipboard.readText();
-  });
+  // The link the screen offers: the narrowing, and no handle - a handle is this tab's, not a link's.
+  await page.getByRole('button', { name: 'Copy a link to this search' }).click();
+  await page.getByRole('button', { name: /copied/i }).first().waitFor({ timeout: 5_000 });
+  const link = await page.evaluate(() => navigator.clipboard.readText());
   assert.equal(decodeURIComponent(link).includes('f=type:task'), true, `the link lost the narrowing: ${link}`);
   assert.equal(link.includes('milk'), false, `the link carries the term: ${link}`);
   assert.equal(link.includes('s='), false, `the link carries a handle: ${link}`);
 
-  // And opening it in a tab that never saw the words shows the narrowing with an empty field.
+  // And opening it in a tab that never saw the words shows the narrowing alone.
   const second = await page.context().newPage();
   await second.goto(link);
-  await second.getByRole('link', { name: HIT.title }).waitFor({ timeout: 15_000 });
-  assert.equal(await second.locator('main input[type="search"]').inputValue(), '', 'the link carried the words after all');
+  await second.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 15_000 });
+  assert.equal((await lineOf(second)).includes('milk'), false, 'the link carried the words after all');
   await second.close();
 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: a chip is in the address, and a narrowing with no words is a search', async (t) => {
+test('chromium: a narrowing is in the address, and a narrowing with no words is a search', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
-  asked.length = 0;
 
   // Straight to the screen, with nothing typed: the empty state, and no request yet.
   await page.goto(`${served.origin}/search`);
-  const chip = page.getByRole('button', { name: /^Kind/ });
-  await chip.waitFor({ timeout: 10_000 });
+  await page.locator(LINE).waitFor({ timeout: 10_000 });
+  asked.length = 0;
   // The sidebar's *Today* count reads what is on the reader (`today.svelte.ts`); the screen asks nothing.
   const isMine = (body) => body?.filter?.nodes?.some((node) => node.field === 'assignee_id' && node.value === '@me') && !body.q;
+  await new Promise((resolve) => setTimeout(resolve, 400));
   assert.equal(asked.filter((body) => !isMine(body)).length, 0, 'an empty screen searched');
 
-  // A chip with no words at all — what ADR-0064 made askable.
-  await chip.click();
-  await page.getByRole('checkbox', { name: 'Task' }).check();
-  await page.keyboard.press('Escape');
+  // A narrowing typed into the line, with no words at all - what ADR-0064 made askable.
+  await page.locator(LINE).fill('type:task ');
   await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'type:task', null, { timeout: 5_000 });
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
 
   const wordless = asked.filter((body) => !isMine(body)).at(-1);
   assert.equal(wordless.q, undefined, `a wordless search sent ${JSON.stringify(wordless)}`);
   assert.deepEqual(wordless.filter, { op: 'IN', field: 'type', value: ['TASK'] }, `the filter sent was ${JSON.stringify(wordless.filter)}`);
 
-  // The narrowing is a link: the address alone brings the same screen back.
+  // The narrowing is a link: the address alone brings the same screen back, the chip on the line.
   const linked = page.url();
   await page.goto(`${served.origin}/`);
   await page.goto(linked);
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
-  // The chip says *what* is chosen, not how many (ADR-0066 decision 3): a count is a pill inside a
-  // pill, and it makes a reader open a chip to find out what it holds.
-  assert.match(
-    await page.getByRole('button', { name: /^Kind/ }).textContent().then((text) => text.replace(/\s+/g, ' ').trim()),
-    /^Kind\s*Task$/,
-    'the chip does not name what is chosen',
-  );
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('main [data-head="search"] .chip-body').count(), 1, 'the narrowing is not a chip on the line');
 
   assert.deepEqual(failures, []);
 });
@@ -287,30 +309,26 @@ test('chromium: a narrowing pressed in the bar reaches a screen already standing
   // mounted, so nothing remounts, and a narrowing pressed in the bar arrives as a changed address
   // and nothing else.
   await page.goto(`${served.origin}/search?f=type%3Atask`);
-  await page.getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
+  await page.locator('main').getByRole('link', { name: HIT.title }).waitFor({ timeout: 10_000 });
   await waitForAsked(1);
   assert.deepEqual(asked.at(-1).filter, { op: 'IN', field: 'type', value: ['TASK'] });
 
-  // The bar's menu, and one of the narrowings in it.
+  // The bar's menu, and a saved search in it: the search it keeps replaces the one stood on.
   const answered = asked.length;
-  await page.getByRole('combobox', { name: 'Search everything' }).click();
-  await page.locator('#search-menu').getByRole('option', { name: 'Mine, open' }).click();
-  await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'who:me is:open', null, { timeout: 5_000 });
+  await page.locator('header').getByRole('combobox', { name: 'Search everything' }).click();
+  await page.locator('#search-menu').getByRole('option', { name: /Mine/ }).click();
+  await page.waitForFunction(() => new URL(location.href).searchParams.get('f') === 'who:me', null, { timeout: 5_000 });
 
-  // The address moved, and so did the question. Had the address moved alone - the URL changed, the
-  // chips keeping their old answers and the same filter asked again - it would read as a screen
-  // that did not load.
+  // The address moved, and so did the question. Had the address moved alone it would read as a
+  // screen that did not load.
   await waitForAsked(answered + 1);
   assert.deepEqual(
     asked.at(-1).filter,
-    { op: 'AND', nodes: [{ op: 'EQ', field: 'assignee_id', value: '@me' }, { op: 'EQ', field: 'is_completed', value: false }] },
+    { op: 'EQ', field: 'assignee_id', value: '@me' },
     `the screen kept asking ${JSON.stringify(asked.at(-1).filter)}`,
   );
-  // And the chips say the new narrowing rather than the old one.
-  const reads = async (name) =>
-    (await page.getByRole('button', { name }).textContent()).replace(/\s+/g, ' ').trim();
-  assert.equal(await reads(/^Kind/), 'Kind', 'the old narrowing is still on the chips');
-  assert.equal(await reads(/^Status/), 'Status Open', 'the new narrowing is not on the chips');
+  // And the line says the new narrowing rather than the old one.
+  assert.equal(await page.locator('main [data-head="search"] .chip-body').count(), 1, `the line reads ${await lineOf(page)}`);
 
   assert.deepEqual(failures, []);
 });
@@ -321,10 +339,9 @@ test('chromium: Enter with nothing typed does what the menu says it does', async
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
-  // The menu draws the word "Enter" against "Open search" before a single character is typed, so
-  // that is what the key has to mean there. Opening the menu is the one thing it
-  // cannot mean, because the menu is already open: it is where the reader read the word.
-  await page.getByRole('combobox', { name: 'Search everything' }).click();
+  // Enter before a single character is typed opens the search page: the menu is already open, so
+  // opening it is the one thing the key cannot mean.
+  await page.locator('header').getByRole('combobox', { name: 'Search everything' }).click();
   await page.locator('#search-menu').waitFor({ timeout: 10_000 });
   await page.keyboard.press('Enter');
   await page.waitForURL(/\/search$/, { timeout: 5_000 });
@@ -345,9 +362,11 @@ test('chromium: a hit found by meaning is marked, and hits are picked and acted 
   asked.length = 0;
   bulks.length = 0;
 
+  // Words show every kind; the *Entries* facet is the entry list, with its selection.
   await page.goto(`${served.origin}/search`);
-  await page.locator('main input[type="search"]').fill('milk');
-  await page.getByRole('link', { name: MEANT.title }).waitFor({ timeout: 10_000 });
+  await page.locator(LINE).fill('milk');
+  await page.locator('main nav [data-facet="ENTRY"]').click();
+  await page.locator(`[data-hit="${MEANT.id}"]`).waitFor({ timeout: 10_000 });
 
   // Only the hit none of the words found says so.
   assert.equal(await page.locator(`[data-hit="${MEANT.id}"]`).getByText('By meaning').count(), 1);

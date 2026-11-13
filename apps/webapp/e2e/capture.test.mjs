@@ -41,6 +41,15 @@ const NEAR_MIDNIGHT = Date.parse('2026-10-21T09:59:30Z');
 
 const dialogOf = (page) => page.getByRole('dialog', { name: 'Capture' });
 const fieldOf = (page) => dialogOf(page).getByRole('textbox', { name: FIELD });
+/** *Create*'s first line, which is capture's (UC-WRK-46 check 1). */
+const lineOf = (page) => page.getByRole('textbox', { name: 'A new entry in one sentence' });
+
+/** `Q` opens *Create*; Enter on its empty line opens capture there (UC-WRK-26 check 1). */
+async function pressQ(page) {
+  await page.keyboard.press('q');
+  await lineOf(page).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Enter');
+}
 
 /** The writes the page sent, as `METHOD path` with the body. */
 function recordWrites(page) {
@@ -97,34 +106,40 @@ async function as(browser, permissions, hubRole, width = 1280) {
   return { context, page, failures };
 }
 
-test('chromium: Q and the bar’s Capture open the field on every framed page (check 1)', async (t) => {
+test('chromium: Q and the bar’s Create open Create, whose line is the capture field (check 1)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
+  const create = () => page.getByRole('banner').getByRole('button', { name: 'Create' });
 
   for (const path of [`/collections/${COLLECTION.id}`, `/items/${ITEMS[0].id}`, '/search', '/profile', '/jumble', `/hubs/${HUB.id}`]) {
     await land(page, path);
     await page.keyboard.press('q');
-    await fieldOf(page).waitFor({ timeout: 5_000 });
-    assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA', `Q on ${path}: focus is not in the field`);
-    // `Q` in the field is a letter, not the shortcut.
+    await lineOf(page).waitFor({ timeout: 5_000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'A new entry in one sentence', `Q on ${path}: focus is not in Create's line`);
+    // `Q` in the line is a letter, not the shortcut; Enter takes the sentence into capture.
     await page.keyboard.press('q');
-    assert.equal(await fieldOf(page).inputValue(), 'q');
+    assert.equal(await lineOf(page).inputValue(), 'q');
+    await page.keyboard.press('Enter');
+    await fieldOf(page).waitFor({ timeout: 5_000 });
+    assert.equal(await fieldOf(page).inputValue(), 'q', 'capture did not take the sentence');
     await page.keyboard.press('Escape');
     await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
 
-    await page.getByRole('banner').getByRole('button', { name: 'Capture' }).click();
+    await create().click();
+    await lineOf(page).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Enter');
     await fieldOf(page).waitFor({ timeout: 5_000 });
     assert.equal(await fieldOf(page).inputValue(), '', 'the field opens empty');
     await page.keyboard.press('Escape');
     await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
   }
-  assert.equal(await page.getByRole('banner').getByRole('button', { name: 'Capture' }).getAttribute('aria-keyshortcuts'), 'Q');
+  assert.equal(await create().getAttribute('aria-keyshortcuts'), 'C Q');
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 375 px — the bottom bar’s ＋ opens the field (check 1)', async (t) => {
+test('chromium: 375 px — the bottom bar’s ＋ opens Create, and its line the field (check 1)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await signedIn(browser, 375, 800, { hasTouch: true });
@@ -136,8 +151,10 @@ test('chromium: 375 px — the bottom bar’s ＋ opens the field (check 1)', as
   const names = await bar.locator('li').allTextContents();
   assert.deepEqual(names.map((name) => name.trim()), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
   await bar.getByRole('button', { name: 'Capture' }).tap();
+  await lineOf(page).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Enter');
   await fieldOf(page).waitFor({ timeout: 5_000 });
-  assert.equal(await page.getByRole('banner').getByRole('button', { name: 'Capture' }).count(), 0, 'the bar carries Capture on a phone too');
+  assert.equal(await page.getByRole('banner').getByRole('button', { name: 'Create' }).count(), 0, 'the bar carries Create on a phone too');
   assert.deepEqual(failures, []);
 });
 
@@ -150,7 +167,7 @@ test('chromium: the story — chips, the entry in the right place on the person�
   const writes = recordWrites(page);
 
   await land(page, `/collections/${COLLECTION.id}`);
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('Call the electrician tomorrow 11am +Mara !Urgent');
   const chips = dialogOf(page).getByRole('list', { name: 'Recognised' }).getByRole('listitem');
   // The day and its hour are one chip, as the concept draws it: when, then who, then the label.
@@ -179,7 +196,7 @@ test('chromium: the story — chips, the entry in the right place on the person�
 
   // A chip taken back stays in the title sent.
   await land(page, `/collections/${COLLECTION.id}`);
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('Call the electrician tomorrow');
   await dialogOf(page).getByRole('button', { name: 'Keep “tomorrow” in the title' }).click();
   await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul[aria-label="Recognised"] li').length === 0, null, { timeout: 5_000 });
@@ -205,7 +222,9 @@ for (const width of [390, 1280]) {
 
     await land(page, '/jumble');
     assert.equal(await page.getByRole('main').getByRole('textbox').count(), 0, 'the jumble draws a capture form of its own');
-    await page.getByRole(width < 600 ? 'navigation' : 'banner').getByRole('button', { name: 'Capture', exact: true }).click();
+    await page.getByRole(width < 600 ? 'navigation' : 'banner').getByRole('button', { name: width < 600 ? 'Capture' : 'Create', exact: true }).click();
+    await lineOf(page).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Enter');
     await fieldOf(page).fill('Call the plumber\nThe tap drips.\n\n  Since Monday.');
     await page.keyboard.press('Enter');
     const submitted = await sent(page, writes, 'POST /jumble/entries');
@@ -222,7 +241,7 @@ test('chromium: without a collection the jumble, and its Undo dismisses (check 4
   const writes = recordWrites(page);
 
   await land(page, '/search');
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('Call the plumber tomorrow');
   // UC-WRK-26 check 4: the prompt says the jumble is the workspace's, read by all who read it.
   assert.ok((await dialogOf(page).textContent()).includes('Into the workspace\'s shared inbox, which everyone who can read the workspace sees.'));
@@ -254,7 +273,7 @@ test('chromium: a list takes no date, person or label, and makes one entry per l
   const writes = recordWrites(page);
 
   await land(page, `/collections/${GROCERIES.id}`);
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('Milk tomorrow +Mara !Urgent');
   await page.waitForTimeout(500);
   assert.match(await dialogOf(page).locator('[data-chip="place"]').innerText(), /Groceries/u);
@@ -296,7 +315,7 @@ test('chromium: a list reads amounts and lines - the amount chip, taken back kee
 
   // From another collection's page, `@Groceries` names the list: what it recognises is the list's.
   await land(page, `/collections/${COLLECTION.id}`);
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('@Groceries 1 kg apples');
   await recognised().getByText('1 kg', { exact: true }).waitFor({ timeout: 5_000 });
   await fieldOf(page).press('Shift+Enter');
@@ -317,7 +336,7 @@ test('chromium: a list reads amounts and lines - the amount chip, taken back kee
 
   // The chip shows the split before Enter; removing it keeps the number in the title.
   await land(page, `/collections/${GROCERIES.id}`);
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('3 lemons');
   await recognised().getByText('3', { exact: true }).waitFor({ timeout: 5_000 });
   await recognised().getByRole('button', { name: 'Keep “3” in the title' }).click();
@@ -330,7 +349,7 @@ test('chromium: a list reads amounts and lines - the amount chip, taken back kee
 
   // A collection that does not recognise AMOUNT reads no amount: the number is the title's.
   await land(page, `/collections/${COLLECTION.id}`);
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).fill('2 kg apples');
   await page.waitForTimeout(500);
   assert.equal(await recognised().count(), 0, 'a collection without AMOUNT showed an amount');
@@ -347,7 +366,7 @@ test('chromium: a reader who may create nowhere has no capture at all (check 1, 
     await page.keyboard.press('q');
     await page.waitForTimeout(300);
     assert.equal(await dialogOf(page).count(), 0, `${width}: Q opened a field`);
-    assert.equal(await page.getByRole('button', { name: 'Capture' }).count(), 0, `${width}: a capture control is drawn`);
+    assert.equal(await page.getByRole('button', { name: /^(Capture|Create)$/ }).count(), 0, `${width}: a capture control is drawn`);
     assert.deepEqual(failures, []);
     await context.close();
   }
@@ -361,9 +380,11 @@ test('chromium: a child with one hub and no workspace role captures into their o
   const writes = recordWrites(page);
 
   await land(page, '/search');
-  const button = page.getByRole('banner').getByRole('button', { name: 'Capture' });
+  const button = page.getByRole('banner').getByRole('button', { name: 'Create' });
   await button.waitFor({ timeout: 10_000 });
   await button.click();
+  await lineOf(page).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Enter');
   await fieldOf(page).fill('Homework');
   await page.waitForTimeout(300);
   assert.ok((await dialogOf(page).textContent()).includes('Nowhere yet'), 'no current collection and no jumble: nowhere yet');
@@ -389,10 +410,10 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
 
   await land(page, `/collections/${COLLECTION.id}`);
   // Focus on something real before Q, to see it come back.
-  await page.getByRole('banner').getByRole('button', { name: 'Capture' }).focus();
+  await page.getByRole('banner').getByRole('button', { name: 'Create' }).focus();
   await page.keyboard.press('Tab');
   const before = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).waitFor();
   await page.keyboard.type('Order tiles !Materials tomorrow');
   // What was recognised is said once typing pauses, through the frame's one live region.
@@ -414,7 +435,7 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
 
   // Escape returns focus where it was.
-  await page.keyboard.press('q');
+  await pressQ(page);
   await fieldOf(page).waitFor();
   await page.keyboard.press('Escape');
   await dialogOf(page).waitFor({ state: 'hidden' });

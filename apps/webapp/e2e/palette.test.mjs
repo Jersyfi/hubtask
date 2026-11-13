@@ -434,7 +434,8 @@ test('chromium: the empty palette offers the common actions and the places opene
   await page.waitForTimeout(600);
   await ask(page, '');
   const headings = await listOf(page).locator('[role="group"] > .head').allTextContents();
-  assert.ok(headings.includes('Actions'), `no actions group: ${headings.join(' | ')}`);
+  // Before typing the actions stand under *Quick* (§6.11, palette scene 1).
+  assert.ok(headings.includes('Quick'), `no quick group: ${headings.join(' | ')}`);
   assert.ok(headings.includes('Recently opened'), `no recent group: ${headings.join(' | ')}`);
   const names = await rowNames(page);
   assert.ok(names.includes('Capture'), 'the empty palette does not offer capture');
