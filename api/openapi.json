@@ -16966,7 +16966,9 @@
           "products_seen": [],
           "nav_products": [],
           "nav_products_hidden": [],
-          "nav_hubs_hidden": []
+          "nav_hubs_hidden": [],
+          "today_sections": [],
+          "today_sections_hidden": []
         },
         "x-hubtask-rest-words": [
           "celebrations"
@@ -37181,6 +37183,20 @@
               "format": "uuid"
             }
           },
+          "today_sections": {
+            "type": "array",
+            "description": "The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.\n",
+            "items": {
+              "$ref": "#/components/schemas/TodaySection"
+            }
+          },
+          "today_sections_hidden": {
+            "type": "array",
+            "description": "The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.\n",
+            "items": {
+              "$ref": "#/components/schemas/TodaySection"
+            }
+          },
           "nav_hubs_order": {
             "type": [
               "string",
@@ -37648,6 +37664,30 @@
             "items": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          "today_sections": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 16,
+            "uniqueItems": true,
+            "description": "The order of *Today*'s cards and tiles, the whole list. `null` or an empty list clears it, which gives the product's own order again.\n",
+            "items": {
+              "$ref": "#/components/schemas/TodaySection"
+            }
+          },
+          "today_sections_hidden": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 16,
+            "uniqueItems": true,
+            "description": "The cards and tiles hidden on *Today*, the whole list. `null` or an empty list clears it, which shows every section again.\n",
+            "items": {
+              "$ref": "#/components/schemas/TodaySection"
             }
           },
           "nav_hubs_order": {
@@ -43226,6 +43266,20 @@
             "description": "How many workspaces were given a re-sealing job."
           }
         }
+      },
+      "TodaySection": {
+        "type": "string",
+        "description": "A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, inbox and recently opened.\n",
+        "enum": [
+          "OVERDUE",
+          "DUE_TODAY",
+          "REPLY",
+          "TIME",
+          "APPROVALS",
+          "COLLECTIONS",
+          "INBOX",
+          "RECENT"
+        ]
       },
       "Module": {
         "type": "string",

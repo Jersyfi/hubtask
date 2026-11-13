@@ -85,6 +85,8 @@ INSERT INTO account (
   nav_hubs_order,
   nav_contents_mode,
   nav_hubs_hidden,
+  today_sections,
+  today_sections_hidden,
   redemption_token_hash,
   redemption_expires_at,
   password_set_at,
@@ -123,6 +125,9 @@ SELECT
   r.nav_contents_mode,
   -- An archive from before migration 0393 carries none: every hub shown.
   coalesce(r.nav_hubs_hidden, '{}'),
+  -- An archive from before migration 0396 carries none: Today in the product's own arrangement.
+  coalesce(r.today_sections, '{}'),
+  coalesce(r.today_sections_hidden, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
   r.password_set_at,
@@ -160,6 +165,8 @@ ON CONFLICT (id) DO UPDATE SET
   nav_hubs_order = EXCLUDED.nav_hubs_order,
   nav_contents_mode = EXCLUDED.nav_contents_mode,
   nav_hubs_hidden = EXCLUDED.nav_hubs_hidden,
+  today_sections = EXCLUDED.today_sections,
+  today_sections_hidden = EXCLUDED.today_sections_hidden,
   redemption_token_hash = EXCLUDED.redemption_token_hash,
   redemption_expires_at = EXCLUDED.redemption_expires_at,
   password_set_at = EXCLUDED.password_set_at,

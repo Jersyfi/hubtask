@@ -10756,6 +10756,42 @@ func (e TimesheetWeekState) Valid() bool {
 	}
 }
 
+// Defines values for TodaySection.
+const (
+	TodaySectionAPPROVALS   TodaySection = "APPROVALS"
+	TodaySectionCOLLECTIONS TodaySection = "COLLECTIONS"
+	TodaySectionDUETODAY    TodaySection = "DUE_TODAY"
+	TodaySectionINBOX       TodaySection = "INBOX"
+	TodaySectionOVERDUE     TodaySection = "OVERDUE"
+	TodaySectionRECENT      TodaySection = "RECENT"
+	TodaySectionREPLY       TodaySection = "REPLY"
+	TodaySectionTIME        TodaySection = "TIME"
+)
+
+// Valid indicates whether the value is a known member of the TodaySection enum.
+func (e TodaySection) Valid() bool {
+	switch e {
+	case TodaySectionAPPROVALS:
+		return true
+	case TodaySectionCOLLECTIONS:
+		return true
+	case TodaySectionDUETODAY:
+		return true
+	case TodaySectionINBOX:
+		return true
+	case TodaySectionOVERDUE:
+		return true
+	case TodaySectionRECENT:
+		return true
+	case TodaySectionREPLY:
+		return true
+	case TodaySectionTIME:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrashEntryHeldBy.
 const (
 	TrashEntryHeldByLegalHold   TrashEntryHeldBy = "legal_hold"
@@ -12655,9 +12691,15 @@ type Account struct {
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
 	// person's in it is gone.
-	Status    AccountStatus     `json:"status"`
-	TimeZone  *string           `json:"time_zone,omitempty"`
-	WeekStart *AccountWeekStart `json:"week_start,omitempty"`
+	Status   AccountStatus `json:"status"`
+	TimeZone *string       `json:"time_zone,omitempty"`
+
+	// TodaySections The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.
+	TodaySectionsHidden *[]TodaySection   `json:"today_sections_hidden,omitempty"`
+	WeekStart           *AccountWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountKind defines model for Account.Kind.
@@ -12713,9 +12755,15 @@ type AccountPreferences struct {
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
 	// ProductsSeen The products whose first-visit mark the person has seen, written by the client as the whole list. `null` or an empty list clears it, which shows each product's mark again.
-	ProductsSeen *[]Module                    `json:"products_seen,omitempty"`
-	TimeZone     *string                      `json:"time_zone,omitempty"`
-	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
+	ProductsSeen *[]Module `json:"products_seen,omitempty"`
+	TimeZone     *string   `json:"time_zone,omitempty"`
+
+	// TodaySections The order of *Today*'s cards and tiles, the whole list. `null` or an empty list clears it, which gives the product's own order again.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles hidden on *Today*, the whole list. `null` or an empty list clears it, which shows every section again.
+	TodaySectionsHidden *[]TodaySection              `json:"today_sections_hidden,omitempty"`
+	WeekStart           *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountPreferencesNavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
@@ -19420,9 +19468,15 @@ type InvitedAccount struct {
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
 	// stays so that the workspace's own content is still readable, and everything of the
 	// person's in it is gone.
-	Status    InvitedAccountStatus     `json:"status"`
-	TimeZone  *string                  `json:"time_zone,omitempty"`
-	WeekStart *InvitedAccountWeekStart `json:"week_start,omitempty"`
+	Status   InvitedAccountStatus `json:"status"`
+	TimeZone *string              `json:"time_zone,omitempty"`
+
+	// TodaySections The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own order; a section not named keeps its own place after those named.
+	TodaySections *[]TodaySection `json:"today_sections,omitempty"`
+
+	// TodaySectionsHidden The cards and tiles the person hid on *Today*. Absent or empty: every section the person's roles and modules give is shown.
+	TodaySectionsHidden *[]TodaySection          `json:"today_sections_hidden,omitempty"`
+	WeekStart           *InvitedAccountWeekStart `json:"week_start,omitempty"`
 }
 
 // InvitedAccountKind defines model for InvitedAccount.Kind.
@@ -26365,6 +26419,9 @@ type TimesheetWeek struct {
 
 // TimesheetWeekState defines model for TimesheetWeek.State.
 type TimesheetWeekState string
+
+// TodaySection A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, inbox and recently opened.
+type TodaySection string
 
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {

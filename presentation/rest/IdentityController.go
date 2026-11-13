@@ -211,6 +211,8 @@ func accountResponse(out usecase.Output) openapi.Account {
 	}
 	account.NavProducts = modulesOf(out["nav_products"])
 	account.NavProductsHidden = modulesOf(out["nav_products_hidden"])
+	account.TodaySections = sectionsOf(out["today_sections"])
+	account.TodaySectionsHidden = sectionsOf(out["today_sections_hidden"])
 	if hubs, ok := out["nav_hubs_hidden"].([]string); ok && len(hubs) > 0 {
 		ids := make([]openapi_types.UUID, 0, len(hubs))
 		for _, hub := range hubs {
@@ -283,6 +285,19 @@ func modulesOf(value any) *[]openapi.Module {
 		modules = append(modules, openapi.Module(key))
 	}
 	return &modules
+}
+
+// sectionsOf answers Today's sections as the contract names them; absent while none.
+func sectionsOf(value any) *[]openapi.TodaySection {
+	keys, ok := value.([]string)
+	if !ok || len(keys) == 0 {
+		return nil
+	}
+	sections := make([]openapi.TodaySection, 0, len(keys))
+	for _, key := range keys {
+		sections = append(sections, openapi.TodaySection(key))
+	}
+	return &sections
 }
 
 func membershipResponse(out usecase.Output) openapi.Membership {

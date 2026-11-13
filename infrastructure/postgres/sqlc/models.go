@@ -367,6 +367,8 @@ type Account struct {
 	NavHubsOrder          *string
 	NavContentsMode       *string
 	NavHubsHidden         []pgtype.UUID
+	TodaySections         []string
+	TodaySectionsHidden   []string
 }
 
 type AccountGroup struct {

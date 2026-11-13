@@ -315,7 +315,8 @@ LIMIT sqlc.arg('row_limit');
 -- name: FindAccount :one
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at, avatar_media_id, products_seen,
-  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden
+  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden,
+  today_sections, today_sections_hidden
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -413,6 +414,8 @@ UPDATE account SET
   nav_hubs_order = sqlc.narg('nav_hubs_order'),
   nav_contents_mode = sqlc.narg('nav_contents_mode'),
   nav_hubs_hidden = sqlc.arg('nav_hubs_hidden')::uuid[],
+  today_sections = sqlc.arg('today_sections')::text[],
+  today_sections_hidden = sqlc.arg('today_sections_hidden')::text[],
   updated_at = sqlc.arg('updated_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 

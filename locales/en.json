@@ -14937,6 +14937,8 @@
   "accounts.nav_hubs_hidden_too_many": "At most {max} hubs can be hidden in the sidebar.",
   "accounts.nav_hubs_order_invalid": "{value} is not a way to order the hubs.",
   "accounts.nav_contents_mode_invalid": "{value} is not a way to show a hub's contents.",
+  "accounts.today_sections_invalid": "{value} is not a section of Today that can be ordered.",
+  "accounts.today_sections_hidden_invalid": "{value} is not a section of Today that can be hidden.",
   "stars.too_many": "You can star at most {max} places.",
   "stars.kind_invalid": "{value} cannot be starred.",
   "stars.id_required": "A star needs the place it points at.",

@@ -74,6 +74,8 @@ class Account(TypedDict, total=False):
     nav_products: list["Module"]
     nav_products_hidden: list["Module"]
     nav_hubs_hidden: list[str]
+    today_sections: list["TodaySection"]
+    today_sections_hidden: list["TodaySection"]
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
@@ -143,6 +145,8 @@ class InvitedAccount(TypedDict, total=False):
     nav_products: list["Module"]
     nav_products_hidden: list["Module"]
     nav_hubs_hidden: list[str]
+    today_sections: list["TodaySection"]
+    today_sections_hidden: list["TodaySection"]
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
@@ -186,6 +190,8 @@ class AccountPreferences(TypedDict, total=False):
     nav_products: list["Module"] | None
     nav_products_hidden: list["Module"] | None
     nav_hubs_hidden: list[str] | None
+    today_sections: list["TodaySection"] | None
+    today_sections_hidden: list["TodaySection"] | None
     nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
     nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
 
@@ -1355,6 +1361,8 @@ class EncryptionStoreCount(TypedDict, total=False):
 class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
+
+TodaySection = Literal["OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "INBOX", "RECENT"]
 
 Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
 

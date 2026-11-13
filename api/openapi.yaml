@@ -10642,7 +10642,7 @@ paths:
       operationId: updateAccountPreferences
       x-hubtask-rest: generated
       x-hubtask-rest-null: empty
-      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [], nav_hubs_hidden: [] }
+      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [], nav_hubs_hidden: [], today_sections: [], today_sections_hidden: [] }
       x-hubtask-rest-words: [celebrations]
       x-hubtask-rest-utc: [onboarding_completed_at]
       x-hubtask-rest-answer: accountResponse
@@ -25580,6 +25580,18 @@ components:
             The hubs the person moved behind *More* in the sidebar, by id. Absent or empty: none.
             An id of a hub the person no longer sees is kept and shows nothing.
           items: { type: string, format: uuid }
+        today_sections:
+          type: array
+          description: >
+            The order the person gave *Today*'s cards and tiles. Absent or empty: the product's own
+            order; a section not named keeps its own place after those named.
+          items: { $ref: "#/components/schemas/TodaySection" }
+        today_sections_hidden:
+          type: array
+          description: >
+            The cards and tiles the person hid on *Today*. Absent or empty: every section the
+            person's roles and modules give is shown.
+          items: { $ref: "#/components/schemas/TodaySection" }
         nav_hubs_order:
           type: [string, "null"]
           enum: [MANUAL, RECENT, NAME, null]
@@ -25906,6 +25918,22 @@ components:
             The hubs shown behind *More* in the sidebar, by id, the whole list. `null` or an empty
             list clears it, which shows every hub again.
           items: { type: string, format: uuid }
+        today_sections:
+          type: [array, "null"]
+          maxItems: 16
+          uniqueItems: true
+          description: >
+            The order of *Today*'s cards and tiles, the whole list. `null` or an empty list clears
+            it, which gives the product's own order again.
+          items: { $ref: "#/components/schemas/TodaySection" }
+        today_sections_hidden:
+          type: [array, "null"]
+          maxItems: 16
+          uniqueItems: true
+          description: >
+            The cards and tiles hidden on *Today*, the whole list. `null` or an empty list clears
+            it, which shows every section again.
+          items: { $ref: "#/components/schemas/TodaySection" }
         nav_hubs_order:
           type: [string, "null"]
           enum: [MANUAL, RECENT, NAME, null]
@@ -29850,6 +29878,14 @@ components:
         queued_tenants:
           type: integer
           description: How many workspaces were given a re-sealing job.
+
+    TodaySection:
+      type: string
+      description: >
+        A card or a tile of *Today* a person may hide and order: the cards overdue, due today,
+        needs your reply, time today and waits for your yes; the tiles your collections, inbox and
+        recently opened.
+      enum: [OVERDUE, DUE_TODAY, REPLY, TIME, APPROVALS, COLLECTIONS, INBOX, RECENT]
 
     Module:
       type: string

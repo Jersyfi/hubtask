@@ -57,6 +57,9 @@ type UpdateAccountPreferencesCommand struct {
 	NavHubsHidden     *[]string
 	NavHubsOrder      *string
 	NavContentsMode   *string
+	// Today's sections under the same rule: each list whole, empty to clear.
+	TodaySections       *[]string
+	TodaySectionsHidden *[]string
 }
 
 // UpdateAccountPreferences sets how the product speaks to one account: its locale, its time zone
@@ -121,6 +124,10 @@ func (h UpdateAccountPreferences) Execute(
 				HubsHidden:     listOr(cmd.NavHubsHidden, before.Nav.HubsHidden),
 				HubsOrder:      valueOr(cmd.NavHubsOrder, before.Nav.HubsOrder),
 				ContentsMode:   valueOr(cmd.NavContentsMode, before.Nav.ContentsMode),
+			},
+			Today: domain.TodaySections{
+				Order:  listOr(cmd.TodaySections, before.Today.Order),
+				Hidden: listOr(cmd.TodaySectionsHidden, before.Today.Hidden),
 			},
 		})
 		if err != nil {
@@ -192,6 +199,8 @@ func (h UpdateAccountPreferences) recordAudit(
 		audit.Change{Field: "nav_hubs_hidden", Classification: audit.Open, From: strings.Join(before.Nav.HubsHidden, ","), To: strings.Join(after.Nav.HubsHidden, ",")},
 		audit.Change{Field: "nav_hubs_order", Classification: audit.Open, From: before.Nav.HubsOrder, To: after.Nav.HubsOrder},
 		audit.Change{Field: "nav_contents_mode", Classification: audit.Open, From: before.Nav.ContentsMode, To: after.Nav.ContentsMode},
+		audit.Change{Field: "today_sections", Classification: audit.Open, From: strings.Join(before.Today.Order, ","), To: strings.Join(after.Today.Order, ",")},
+		audit.Change{Field: "today_sections_hidden", Classification: audit.Open, From: strings.Join(before.Today.Hidden, ","), To: strings.Join(after.Today.Hidden, ",")},
 	)
 
 	return h.Audit.Append(ctx, audit.Entry{
@@ -264,6 +273,14 @@ func (h UpdateAccountPreferences) Descriptor() usecase.Descriptor {
 				Description: "The hubs shown behind More in the sidebar, by id - the whole list. Empty clears it.",
 			},
 			{
+				Name: "today_sections", Kind: usecase.KindList,
+				Description: "The order of Today's cards and tiles, as section keys - the whole list. Empty clears it.",
+			},
+			{
+				Name: "today_sections_hidden", Kind: usecase.KindList,
+				Description: "The cards and tiles hidden on Today, as section keys - the whole list. Empty clears it.",
+			},
+			{
 				Name: "nav_hubs_order", Kind: usecase.KindString,
 				Enum:        []string{"MANUAL", "RECENT", "NAME"},
 				Description: "How the sidebar orders the hubs: the shared order, recently visited first, or by name. Empty clears it, and the default is MANUAL.",
@@ -291,7 +308,7 @@ func (h UpdateAccountPreferences) invoke(
 	}
 
 	lists := map[string]*[]string{}
-	for _, name := range []string{"products_seen", "nav_products", "nav_products_hidden", "nav_hubs_hidden"} {
+	for _, name := range []string{"products_seen", "nav_products", "nav_products_hidden", "nav_hubs_hidden", "today_sections", "today_sections_hidden"} {
 		if _, present := in[name]; !present {
 			continue
 		}
@@ -314,6 +331,8 @@ func (h UpdateAccountPreferences) invoke(
 		NavHubsHidden:         lists["nav_hubs_hidden"],
 		NavHubsOrder:          in.OptionalString("nav_hubs_order"),
 		NavContentsMode:       in.OptionalString("nav_contents_mode"),
+		TodaySections:         lists["today_sections"],
+		TodaySectionsHidden:   lists["today_sections_hidden"],
 	})
 	if err != nil {
 		return nil, err

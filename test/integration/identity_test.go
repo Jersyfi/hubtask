@@ -161,6 +161,7 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 			Products: []string{"TIME", "PLANNING"}, ProductsHidden: []string{"AGENTS"},
 			HubsHidden: []string{hiddenHub, otherHiddenHub}, HubsOrder: "NAME", ContentsMode: "RECENT",
 		},
+		Today: identity.TodaySections{Order: []string{"TIME", "OVERDUE"}, Hidden: []string{"INBOX", "RECENT"}},
 	})
 	if err != nil {
 		t.Fatalf("applying: %v", err)
@@ -197,6 +198,10 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 		strings.Join(nav.HubsHidden, ",") != hiddenHub+","+otherHiddenHub || nav.HubsOrder != "NAME" || nav.ContentsMode != "RECENT" {
 		t.Errorf("the sidebar's preferences read back %+v", nav)
 	}
+	// Today's sections, which another device reads back too (work-surface concept E-17).
+	if strings.Join(read.Today.Order, ",") != "TIME,OVERDUE" || strings.Join(read.Today.Hidden, ",") != "INBOX,RECENT" {
+		t.Errorf("Today's sections read back %+v", read.Today)
+	}
 
 	// Cleared: both columns back to NULL, which is the default and "the tour has not been taken".
 	cleared, err := read.WithPreferences(identity.Preferences{Locale: "de-AT", TimeZone: "Europe/Vienna", WeekStart: "MONDAY"})
@@ -213,7 +218,8 @@ func TestPreferencesAreWrittenAndReadBack(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("clearing the moments: %v", err)
 	}
-	if read.Celebrations != nil || read.OnboardingCompletedAt != nil || len(read.ProductsSeen) != 0 || len(read.Nav.HubsHidden) != 0 || read.Nav.HubsOrder != "" {
+	if read.Celebrations != nil || read.OnboardingCompletedAt != nil || len(read.ProductsSeen) != 0 || len(read.Nav.HubsHidden) != 0 || read.Nav.HubsOrder != "" ||
+		len(read.Today.Order) != 0 || len(read.Today.Hidden) != 0 {
 		t.Errorf("after clearing, read back celebrations %v, completed at %v, products seen %v", read.Celebrations, read.OnboardingCompletedAt, read.ProductsSeen)
 	}
 }
@@ -225,7 +231,10 @@ func TestPreferencesOfAnotherTenantCannotBeWritten(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	account := invitedIn(t, tenantA)
 
-	updated, err := account.WithPreferences(identity.Preferences{Locale: "nl", Nav: identity.NavPreferences{HubsHidden: []string{hiddenHub}}})
+	updated, err := account.WithPreferences(identity.Preferences{
+		Locale: "nl", Nav: identity.NavPreferences{HubsHidden: []string{hiddenHub}},
+		Today: identity.TodaySections{Hidden: []string{"OVERDUE"}},
+	})
 	if err != nil {
 		t.Fatalf("applying: %v", err)
 	}
@@ -245,8 +254,8 @@ func TestPreferencesOfAnotherTenantCannotBeWritten(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("reading back: %v", err)
 	}
-	if read.Locale != "" || len(read.Nav.HubsHidden) != 0 {
-		t.Errorf("tenant B changed tenant A's locale to %q and its hidden hubs to %v", read.Locale, read.Nav.HubsHidden)
+	if read.Locale != "" || len(read.Nav.HubsHidden) != 0 || len(read.Today.Hidden) != 0 {
+		t.Errorf("tenant B changed tenant A's locale to %q, its hidden hubs to %v and Today's hidden sections to %v", read.Locale, read.Nav.HubsHidden, read.Today.Hidden)
 	}
 }
 

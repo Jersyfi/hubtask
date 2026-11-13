@@ -570,7 +570,8 @@ const findAccount = `-- name: FindAccount :one
 
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at, avatar_media_id, products_seen,
-  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden
+  nav_products, nav_products_hidden, nav_hubs_order, nav_contents_mode, nav_hubs_hidden,
+  today_sections, today_sections_hidden
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -595,6 +596,8 @@ type FindAccountRow struct {
 	NavHubsOrder          *string
 	NavContentsMode       *string
 	NavHubsHidden         []pgtype.UUID
+	TodaySections         []string
+	TodaySectionsHidden   []string
 }
 
 // ============================== Accounts ==============================
@@ -624,6 +627,8 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.NavHubsOrder,
 		&i.NavContentsMode,
 		&i.NavHubsHidden,
+		&i.TodaySections,
+		&i.TodaySectionsHidden,
 	)
 	return i, err
 }
@@ -2079,8 +2084,10 @@ UPDATE account SET
   nav_hubs_order = $9,
   nav_contents_mode = $10,
   nav_hubs_hidden = $11::uuid[],
-  updated_at = $12
-WHERE id = $13 AND deleted_at IS NULL
+  today_sections = $12::text[],
+  today_sections_hidden = $13::text[],
+  updated_at = $14
+WHERE id = $15 AND deleted_at IS NULL
 `
 
 type UpdateAccountPreferencesParams struct {
@@ -2095,6 +2102,8 @@ type UpdateAccountPreferencesParams struct {
 	NavHubsOrder          *string
 	NavContentsMode       *string
 	NavHubsHidden         []pgtype.UUID
+	TodaySections         []string
+	TodaySectionsHidden   []string
 	UpdatedAt             pgtype.Timestamptz
 	ID                    pgtype.UUID
 }
@@ -2114,6 +2123,8 @@ func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccoun
 		arg.NavHubsOrder,
 		arg.NavContentsMode,
 		arg.NavHubsHidden,
+		arg.TodaySections,
+		arg.TodaySectionsHidden,
 		arg.UpdatedAt,
 		arg.ID,
 	)

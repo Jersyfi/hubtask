@@ -8117,6 +8117,11 @@ ALTER TABLE account ADD COLUMN nav_products text[] NOT NULL DEFAULT '{}',
 ALTER TABLE account ADD COLUMN nav_hubs_hidden uuid[] NOT NULL DEFAULT '{}',
   ADD CONSTRAINT account_nav_hubs_hidden_bound CHECK (cardinality(nav_hubs_hidden) <= 1000);
 
+-- Migrations 0396, 0397: Today's cards and tiles as the person arranged them.
+ALTER TABLE account ADD COLUMN today_sections text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN today_sections_hidden text[] NOT NULL DEFAULT '{}',
+  ADD CONSTRAINT account_today_sections_bound CHECK (cardinality(today_sections) <= 16 AND cardinality(today_sections_hidden) <= 16);
+
 -- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
 CREATE TABLE sample_object (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,

@@ -70,6 +70,7 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 		Products: row.NavProducts, ProductsHidden: row.NavProductsHidden, HubsHidden: idStrings(row.NavHubsHidden),
 		HubsOrder: stringFrom(row.NavHubsOrder), ContentsMode: stringFrom(row.NavContentsMode),
 	}
+	account.Today = identity.TodaySections{Order: row.TodaySections, Hidden: row.TodaySectionsHidden}
 	if !row.AvatarMediaID.Valid {
 		return account, nil
 	}
@@ -418,6 +419,8 @@ func (r AccountRepository) UpdatePreferences(
 		NavHubsOrder:          optionalText(account.Nav.HubsOrder),
 		NavContentsMode:       optionalText(account.Nav.ContentsMode),
 		NavHubsHidden:         hubsHidden,
+		TodaySections:         productsSeenOf(account.Today.Order),
+		TodaySectionsHidden:   productsSeenOf(account.Today.Hidden),
 		UpdatedAt:             timestampOf(at),
 		ID:                    id,
 	})
