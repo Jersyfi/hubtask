@@ -4924,6 +4924,27 @@ func (e EntrySlaGoalStanding) Valid() bool {
 	}
 }
 
+// Defines values for EntryStepsStateMode.
+const (
+	EntryStepsStateModeCOLUMNS  EntryStepsStateMode = "COLUMNS"
+	EntryStepsStateModeNONE     EntryStepsStateMode = "NONE"
+	EntryStepsStateModeWORKFLOW EntryStepsStateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the EntryStepsStateMode enum.
+func (e EntryStepsStateMode) Valid() bool {
+	switch e {
+	case EntryStepsStateModeCOLUMNS:
+		return true
+	case EntryStepsStateModeNONE:
+		return true
+	case EntryStepsStateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -14055,6 +14076,31 @@ type BlockedStep struct {
 // BlockedStepReason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
 type BlockedStepReason string
 
+// BoardRepair defines model for BoardRepair.
+type BoardRepair struct {
+	// Boards The boards looked at.
+	Boards int `json:"boards"`
+
+	// ColumnsAdded Columns added for statuses no column showed.
+	ColumnsAdded int `json:"columns_added"`
+
+	// ColumnsRemoved Unused starting columns taken off.
+	ColumnsRemoved int `json:"columns_removed"`
+
+	// Completed Open entries in a done column completed.
+	Completed int `json:"completed"`
+
+	// DoneMarked Boards given exactly one done column.
+	DoneMarked int  `json:"done_marked"`
+	DryRun     bool `json:"dry_run"`
+
+	// MovedIntoDone Completed entries moved into the done column.
+	MovedIntoDone int `json:"moved_into_done"`
+
+	// PlacedByStatus Entries put into the column of their status.
+	PlacedByStatus int `json:"placed_by_status"`
+}
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -17670,6 +17716,16 @@ type EntrySteps struct {
 	// ByDefault True where no workflow runs: the picture is the default one, every status is reachable, and completing the entry reaches done.
 	ByDefault *bool `json:"by_default,omitempty"`
 
+	// ColumnId At `COLUMNS` the column the entry reads as; null otherwise.
+	ColumnId *openapi_types.UUID `json:"column_id,omitempty"`
+
+	// Columns At `COLUMNS` the board's columns, left to right, as the entry's states; `completes` marks the done column, which completes what enters it. Empty otherwise.
+	Columns *[]struct {
+		Completes bool               `json:"completes"`
+		Id        openapi_types.UUID `json:"id"`
+		Name      string             `json:"name"`
+	} `json:"columns,omitempty"`
+
 	// DoneRoute The fewest steps from the status into a done one, whoever may take them; empty from a done status, where no step leads there, and where no workflow runs.
 	DoneRoute *[]struct {
 		Key  string  `json:"key"`
@@ -17681,11 +17737,17 @@ type EntrySteps struct {
 	MayDesign *bool `json:"may_design,omitempty"`
 
 	// Picture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
-	Picture  *WorkflowPicture `json:"picture,omitempty"`
-	Status   *string          `json:"status"`
-	Steps    []StepVerdict    `json:"steps"`
-	Workflow *string          `json:"workflow"`
+	Picture *WorkflowPicture `json:"picture,omitempty"`
+
+	// StateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
+	StateMode *EntryStepsStateMode `json:"state_mode,omitempty"`
+	Status    *string              `json:"status"`
+	Steps     []StepVerdict        `json:"steps"`
+	Workflow  *string              `json:"workflow"`
 }
+
+// EntryStepsStateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
+type EntryStepsStateMode string
 
 // EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
@@ -28318,6 +28380,11 @@ type DownloadWorkspaceArchiveParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// RepairBoardsJSONBody defines parameters for RepairBoards.
+type RepairBoardsJSONBody struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
 // ListBusinessCalendarsParams defines parameters for ListBusinessCalendars.
 type ListBusinessCalendarsParams struct {
 	IncludeOffered *bool `form:"include_offered,omitempty" json:"include_offered,omitempty"`
@@ -31032,6 +31099,9 @@ type StartBackupJSONRequestBody = BackupStart
 
 // DownloadWorkspaceArchiveJSONRequestBody defines body for DownloadWorkspaceArchive for application/json ContentType.
 type DownloadWorkspaceArchiveJSONRequestBody = WorkspaceArchiveDownload
+
+// RepairBoardsJSONRequestBody defines body for RepairBoards for application/json ContentType.
+type RepairBoardsJSONRequestBody RepairBoardsJSONBody
 
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
@@ -35923,6 +35993,40 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
 	CompareBaseline(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RepairBoardsWithBody Bring every board of the workspace to one model
+	//
+	// Once, for a workspace whose boards were made before columns, completion and statuses were
+	// kept together: on a board without a workflow exactly one done column (the rightmost marked
+	// one, else the rightmost column), every completed entry moved into it and every open entry
+	// standing in it completed; on a board under a workflow a column for each status no column
+	// shows, and every entry in the column of its status; the unused starting columns of a
+	// collection whose default view is not the board taken off, the done column last.
+	//
+	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+	// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+	RepairBoardsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RepairBoards Bring every board of the workspace to one model
+	//
+	// Once, for a workspace whose boards were made before columns, completion and statuses were
+	// kept together: on a board without a workflow exactly one done column (the rightmost marked
+	// one, else the rightmost column), every completed entry moved into it and every open entry
+	// standing in it completed; on a board under a workflow a column for each status no column
+	// shows, and every entry in the column of its status; the unused starting columns of a
+	// collection whose default view is not the board taken off, the done column last.
+	//
+	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+	// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+	RepairBoards(ctx context.Context, body RepairBoardsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListBusinessCalendars The workspace's business calendars
 	//
@@ -50764,6 +50868,60 @@ func (c *Client) DeleteBaseline(ctx context.Context, baselineId openapi_types.UU
 // Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
 func (c *Client) CompareBaseline(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompareBaselineRequest(c.Server, baselineId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RepairBoardsWithBody Bring every board of the workspace to one model
+//
+// Once, for a workspace whose boards were made before columns, completion and statuses were
+// kept together: on a board without a workflow exactly one done column (the rightmost marked
+// one, else the rightmost column), every completed entry moved into it and every open entry
+// standing in it completed; on a board under a workflow a column for each status no column
+// shows, and every entry in the column of its status; the unused starting columns of a
+// collection whose default view is not the board taken off, the done column last.
+//
+// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+func (c *Client) RepairBoardsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRepairBoardsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RepairBoards Bring every board of the workspace to one model
+//
+// Once, for a workspace whose boards were made before columns, completion and statuses were
+// kept together: on a board without a workflow exactly one done column (the rightmost marked
+// one, else the rightmost column), every completed entry moved into it and every open entry
+// standing in it completed; on a board under a workflow a column for each status no column
+// shows, and every entry in the column of its status; the unused starting columns of a
+// collection whose default view is not the board taken off, the done column last.
+//
+// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+func (c *Client) RepairBoards(ctx context.Context, body RepairBoardsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRepairBoardsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -77978,6 +78136,46 @@ func NewCompareBaselineRequest(server string, baselineId openapi_types.UUID) (*h
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewRepairBoardsRequest calls the generic RepairBoards builder with application/json body
+func NewRepairBoardsRequest(server string, body RepairBoardsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRepairBoardsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRepairBoardsRequestWithBody constructs an http.Request for the RepairBoards method, with any body, and a specified content type
+func NewRepairBoardsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boards:repair")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -112170,6 +112368,40 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /baselines/{baselineId} (the `CompareBaseline` operationId).
 	CompareBaselineWithResponse(ctx context.Context, baselineId openapi_types.UUID, reqEditors ...RequestEditorFn) (*CompareBaselineResult, error)
 
+	// RepairBoardsWithBodyWithResponse Bring every board of the workspace to one model
+	//
+	// Once, for a workspace whose boards were made before columns, completion and statuses were
+	// kept together: on a board without a workflow exactly one done column (the rightmost marked
+	// one, else the rightmost column), every completed entry moved into it and every open entry
+	// standing in it completed; on a board under a workflow a column for each status no column
+	// shows, and every entry in the column of its status; the unused starting columns of a
+	// collection whose default view is not the board taken off, the done column last.
+	//
+	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+	// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+	RepairBoardsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RepairBoardsResult, error)
+
+	// RepairBoardsWithResponse Bring every board of the workspace to one model
+	//
+	// Once, for a workspace whose boards were made before columns, completion and statuses were
+	// kept together: on a board without a workflow exactly one done column (the rightmost marked
+	// one, else the rightmost column), every completed entry moved into it and every open entry
+	// standing in it completed; on a board under a workflow a column for each status no column
+	// shows, and every entry in the column of its status; the unused starting columns of a
+	// collection whose default view is not the board taken off, the done column last.
+	//
+	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+	// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+	RepairBoardsWithResponse(ctx context.Context, body RepairBoardsJSONRequestBody, reqEditors ...RequestEditorFn) (*RepairBoardsResult, error)
+
 	// ListBusinessCalendarsWithResponse The workspace's business calendars
 	//
 	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it; the workspace's calendar of a key the installation also offers then carries `shadows_offered`. Needs READ at the workspace and the service desk switched on.
@@ -131867,6 +132099,54 @@ func (r CompareBaselineResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompareBaselineResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RepairBoardsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BoardRepair
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RepairBoardsResult) GetJSON200() *BoardRepair {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RepairBoardsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RepairBoardsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RepairBoardsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RepairBoardsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RepairBoardsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -168353,6 +168633,52 @@ func (c *ClientWithResponses) CompareBaselineWithResponse(ctx context.Context, b
 	return ParseCompareBaselineResult(rsp)
 }
 
+// RepairBoardsWithBodyWithResponse Bring every board of the workspace to one model
+//
+// Once, for a workspace whose boards were made before columns, completion and statuses were
+// kept together: on a board without a workflow exactly one done column (the rightmost marked
+// one, else the rightmost column), every completed entry moved into it and every open entry
+// standing in it completed; on a board under a workflow a column for each status no column
+// shows, and every entry in the column of its status; the unused starting columns of a
+// collection whose default view is not the board taken off, the done column last.
+//
+// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+func (c *ClientWithResponses) RepairBoardsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RepairBoardsResult, error) {
+	rsp, err := c.RepairBoardsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRepairBoardsResult(rsp)
+}
+
+// RepairBoardsWithResponse Bring every board of the workspace to one model
+//
+// Once, for a workspace whose boards were made before columns, completion and statuses were
+// kept together: on a board without a workflow exactly one done column (the rightmost marked
+// one, else the rightmost column), every completed entry moved into it and every open entry
+// standing in it completed; on a board under a workflow a column for each status no column
+// shows, and every entry in the column of its status; the unused starting columns of a
+// collection whose default view is not the board taken off, the done column last.
+//
+// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
+// and writes nothing; a second run answers zeros. Auditable, with the counts only.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /boards:repair (the `RepairBoards` operationId).
+func (c *ClientWithResponses) RepairBoardsWithResponse(ctx context.Context, body RepairBoardsJSONRequestBody, reqEditors ...RequestEditorFn) (*RepairBoardsResult, error) {
+	rsp, err := c.RepairBoards(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRepairBoardsResult(rsp)
+}
+
 // ListBusinessCalendarsWithResponse The workspace's business calendars
 //
 // Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it; the workspace's calendar of a key the installation also offers then carries `shadows_offered`. Needs READ at the workspace and the service desk switched on.
@@ -190324,6 +190650,39 @@ func ParseCompareBaselineResult(rsp *http.Response) (*CompareBaselineResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest BaselineComparison
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRepairBoardsResult parses an HTTP response from a RepairBoardsWithResponse call
+func ParseRepairBoardsResult(rsp *http.Response) (*RepairBoardsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RepairBoardsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BoardRepair
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

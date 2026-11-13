@@ -29892,6 +29892,49 @@
         }
       }
     },
+    "/boards:repair": {
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "repairBoards",
+        "x-hubtask-cli": "board repair",
+        "x-hubtask-rest": "generated",
+        "summary": "Bring every board of the workspace to one model",
+        "description": "Once, for a workspace whose boards were made before columns, completion and statuses were\nkept together: on a board without a workflow exactly one done column (the rightmost marked\none, else the rightmost column), every completed entry moved into it and every open entry\nstanding in it completed; on a board under a workflow a column for each status no column\nshows, and every entry in the column of its status; the unused starting columns of a\ncollection whose default view is not the board taken off, the done column last.\n\nRequires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts\nand writes nothing; a second run answers zeros. Auditable, with the counts only.\n",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the run found and, unless it was a dry run, did",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardRepair"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}:complete": {
       "parameters": [
         {
@@ -51811,6 +51854,52 @@
           }
         }
       },
+      "BoardRepair": {
+        "type": "object",
+        "required": [
+          "dry_run",
+          "boards",
+          "done_marked",
+          "moved_into_done",
+          "completed",
+          "columns_added",
+          "placed_by_status",
+          "columns_removed"
+        ],
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
+          "boards": {
+            "type": "integer",
+            "description": "The boards looked at."
+          },
+          "done_marked": {
+            "type": "integer",
+            "description": "Boards given exactly one done column."
+          },
+          "moved_into_done": {
+            "type": "integer",
+            "description": "Completed entries moved into the done column."
+          },
+          "completed": {
+            "type": "integer",
+            "description": "Open entries in a done column completed."
+          },
+          "columns_added": {
+            "type": "integer",
+            "description": "Columns added for statuses no column showed."
+          },
+          "placed_by_status": {
+            "type": "integer",
+            "description": "Entries put into the column of their status."
+          },
+          "columns_removed": {
+            "type": "integer",
+            "description": "Unused starting columns taken off."
+          }
+        }
+      },
       "DropAnswer": {
         "type": "object",
         "required": [
@@ -51866,6 +51955,47 @@
           "steps"
         ],
         "properties": {
+          "state_mode": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "COLUMNS",
+              "WORKFLOW"
+            ],
+            "description": "How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.\n"
+          },
+          "columns": {
+            "type": "array",
+            "description": "At `COLUMNS` the board's columns, left to right, as the entry's states; `completes` marks the done column, which completes what enters it. Empty otherwise.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "completes"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "completes": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "column_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "At `COLUMNS` the column the entry reads as; null otherwise."
+          },
           "workflow": {
             "type": [
               "string",

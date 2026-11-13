@@ -635,6 +635,11 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name"}},
+	{Group: "board", Verb: "repair", OperationID: "repairBoards", Method: "POST", Path: "/boards:repair", Summary: "Bring every board of the workspace to one model",
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"boards", "columns_added", "columns_removed", "completed", "done_marked"}},
 	{Group: "business-calendar", Verb: "define", OperationID: "defineBusinessCalendar", Method: "PUT", Path: "/business-calendars/{calendarKey}", Summary: "Add or replace a business calendar",
 		PathParams: []doorParam{
 			{Name: "calendarKey", Kind: "string", Help: "", Required: true},

@@ -3718,6 +3718,11 @@ export class HubtaskClient {
     return this.call("POST", "/search:reindex", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Bring every board of the workspace to one model */
+  repairBoards(body: NonNullable<operations["repairBoards"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["repairBoards"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/boards:repair", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /items/{itemId}:complete */
   completeWorkItem(itemId: string, body: NonNullable<operations["completeWorkItem"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["completeWorkItem"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/items/{itemId}:complete", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);

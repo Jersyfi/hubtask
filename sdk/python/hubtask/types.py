@@ -2731,12 +2731,25 @@ StepVerdict = TypedDict("StepVerdict", {
     "leaves_from": bool,
 }, total=False)
 
+class BoardRepair(TypedDict, total=False):
+    dry_run: Required[bool]
+    boards: Required[int]
+    done_marked: Required[int]
+    moved_into_done: Required[int]
+    completed: Required[int]
+    columns_added: Required[int]
+    placed_by_status: Required[int]
+    columns_removed: Required[int]
+
 class DropAnswer(TypedDict, total=False):
     outcome: Required[Literal["MOVED", "STEP_TAKEN", "CHOOSE"]]
     steps: Required[list[dict[str, Any]]]
     item: Required["WorkItem"]
 
 class EntrySteps(TypedDict, total=False):
+    state_mode: Literal["NONE", "COLUMNS", "WORKFLOW"]
+    columns: list[dict[str, Any]]
+    column_id: str | None
     workflow: Required[str | None]
     status: Required[str | None]
     steps: Required[list["StepVerdict"]]

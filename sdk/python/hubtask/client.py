@@ -2955,6 +2955,10 @@ class Client:
         """Bring the workspace's search documents current"""
         return self._call("POST", "/search:reindex", {}, None, {}, None, "none", None, "json")
 
+    def repair_boards(self, body: dict[str, Any]) -> "BoardRepair":
+        """Bring every board of the workspace to one model"""
+        return self._call("POST", "/boards:repair", {}, None, {}, body, "json", "application/json", "json")
+
     def complete_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:complete"""
         return self._call("POST", "/items/{itemId}:complete", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
