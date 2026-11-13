@@ -367,6 +367,12 @@ type EntrySteps struct {
 	ByDefault bool
 	// MayDesign reports whether the person may open the workflow in the designer.
 	MayDesign bool
+	// StateMode is the entry type's level in its collection (domain-model.md §3.5a); without a
+	// workflow on a board, Columns are the entry's states - the done column completing - and
+	// Column is the one it reads as.
+	StateMode domain.StateMode
+	Columns   []domain.Bucket
+	Column    shared.ID
 }
 
 // Execute reads the steps.
@@ -399,9 +405,13 @@ func (h ListEntrySteps) Execute(ctx context.Context, actor appshared.ActorContex
 	}
 	err = w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		workflow, found, err := w.Workflow.InForce(ctx, collection, domain.EntryTypeKeyOf(subject))
-		if err != nil || !found {
+		if err != nil {
 			return err
 		}
+		if !found {
+			return h.columns(ctx, collection, subject, &out)
+		}
+		out.StateMode = domain.StateModeWorkflow
 		out.Workflow, out.InForce, out.ByDefault = workflow, true, false
 		out.Picture = workflow.Published
 		out.Status = StatusOf(workflow.Published, subject)
@@ -413,6 +423,22 @@ func (h ListEntrySteps) Execute(ctx context.Context, actor appshared.ActorContex
 		return err
 	})
 	return out, err
+}
+
+// columns answers the level of an entry without a workflow, and at L1 the columns as its states.
+func (h ListEntrySteps) columns(ctx context.Context, collection domain.Container, subject domain.WorkItem, out *EntrySteps) error {
+	out.StateMode = domain.StateModeNone
+	if !h.Completion.Boards.Wired() {
+		return nil
+	}
+	board, err := h.Completion.Boards.Of(ctx, collection.ID)
+	if err != nil {
+		return err
+	}
+	if out.StateMode = domain.StateModeOf(subject.Type, false, len(board.Columns)); out.StateMode == domain.StateModeColumns {
+		out.Columns, out.Column = board.Columns, board.ColumnOfEntry(subject)
+	}
+	return nil
 }
 
 // StepOutput is a step as the contract spells it, with how it stands where it is judged.
@@ -530,7 +556,15 @@ func (h ListEntrySteps) Descriptor() usecase.Descriptor {
 			out := usecase.Output{
 				"workflow": nil, "status": nil, "steps": offered, "blocked": blocked, "done_route": route,
 				"picture": PictureOutput(steps.Picture), "by_default": steps.ByDefault, "may_design": steps.MayDesign,
+				"state_mode": string(steps.StateMode), "column_id": idOrNil(steps.Column),
 			}
+			columns := make([]usecase.Output, 0, len(steps.Columns))
+			for _, column := range steps.Columns {
+				columns = append(columns, usecase.Output{
+					"id": column.ID.String(), "name": column.Name, "completes": column.IsDoneBucket,
+				})
+			}
+			out["columns"] = columns
 			if steps.InForce {
 				out["workflow"] = steps.Workflow.Key
 				out["status"] = steps.Status

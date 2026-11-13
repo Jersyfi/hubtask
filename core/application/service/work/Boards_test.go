@@ -50,6 +50,14 @@ type placedByStatus struct {
 	from      shared.ID
 }
 
+func (m *mapping) Collections(context.Context) ([]shared.ID, error) {
+	return []shared.ID{collectionID}, nil
+}
+func (m *mapping) CompleteInColumn(context.Context, shared.ID, shared.ID, shared.ID, time.Time) ([]repository.MovedEntry, error) {
+	return nil, nil
+}
+func (m *mapping) EntriesOnBoard(context.Context, shared.ID) (int, error) { return 0, nil }
+
 func (m *mapping) PlaceByCompletion(_ context.Context, _ shared.ID, completed bool, from, column shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
 	m.placed = append(m.placed, placedByStatus{completed: completed, from: from, column: column})
 	return []repository.MovedEntry{{ID: taskID, Version: 3}}, nil
@@ -412,4 +420,27 @@ func TestDeletingAColumnKeepsTheBoardCoupled(t *testing.T) {
 			t.Errorf("deleted %+v: %v", deletion, err)
 		}
 	})
+}
+
+// Without a workflow the steps answer says the level: at L1 the columns are the entry's states,
+// the done column completing, and the column it reads as; at L0 none (UC-FLW-06 check 5).
+func TestTheStepsAnswerTheColumnsWithoutAWorkflow(t *testing.T) {
+	h := newCompletionHarness(domain.CompletionManual)
+	steps := ListEntrySteps{Completion: h.writer}
+	answer, err := steps.Execute(t.Context(), actorFixture(), taskID)
+	if err != nil || answer.StateMode != domain.StateModeNone || len(answer.Columns) != 0 {
+		t.Fatalf("a list answered %s with %d columns: %v", answer.StateMode, len(answer.Columns), err)
+	}
+	board := &buckets{stored: map[shared.ID]domain.Bucket{}}
+	threeColumnBoard(board)
+	h.writer.Boards = Boards{Buckets: board}
+	steps = ListEntrySteps{Completion: h.writer}
+	answer, err = steps.Execute(t.Context(), actorFixture(), taskID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if answer.StateMode != domain.StateModeColumns || len(answer.Columns) != 3 || !answer.Columns[2].IsDoneBucket ||
+		answer.Column != todoColumn {
+		t.Errorf("a board answered %s, columns %+v, standing in %s", answer.StateMode, answer.Columns, answer.Column)
+	}
 }
