@@ -770,6 +770,8 @@
                   class="cell"
                   data-today={column === todayColumn ? '' : undefined}
                   data-filled={isFilled ? '' : undefined}
+                  data-first={isFilled && column === entry.at.first ? '' : undefined}
+                  data-last={isFilled && column === entry.at.last ? '' : undefined}
                   data-point={entry.at.first === entry.at.last && column === entry.at.first && !entry.row.start
                     ? ''
                     : undefined}
@@ -898,7 +900,16 @@
 
   /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
      descendant of an unpositioned scroller overflows the page instead. */
-  .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); container-type: inline-size; }
+  /* The chart stands on its own surface, its rows ruled, as a table does. */
+  .scroller {
+    position: relative;
+    overflow-x: auto;
+    padding: var(--sp-100) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+    container-type: inline-size;
+  }
   .scroller:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   /* `max-content`, so the box is exactly as wide as the columns in it. A grid that filled its
@@ -957,7 +968,8 @@
     list-style: none;
   }
 
-  .row { display: flex; align-items: center; gap: var(--sp-100); }
+  .row { display: flex; align-items: center; gap: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .row:last-child { border-block-end: none; }
 
   .row[data-carrying] { opacity: 0.7; }
 
@@ -1281,8 +1293,8 @@
   .timeline[data-narrow='2'] { --narrow-n: 2; }
   .heads {
     position: absolute;
-    inset-block-start: 0;
-    inset-inline-start: 0;
+    inset-block-start: var(--sp-100);
+    inset-inline-start: var(--sp-150);
     display: flex;
     gap: var(--sp-100);
     align-items: end;
@@ -1310,7 +1322,8 @@
     white-space: nowrap;
     pointer-events: none;
   }
-  .cell[data-milestone] .note { inset-inline-start: calc(100% + var(--sp-050)); }
+  /* From the diamond's middle: a one-day cell is narrower than the diamond drawn on it. */
+  .cell[data-milestone] .note { inset-inline-start: calc(50% + var(--sp-150)); }
 
   /* Done in the success tone, beside the word *done* after it (rule 3). */
   .cell[data-filled][data-done]:not([data-milestone]) { background: var(--status-success-accent); }
@@ -1344,7 +1357,20 @@
     background-image: none;
     box-shadow: inset 0 var(--bw-hairline) var(--accent-primary), inset 0 calc(-1 * var(--bw-hairline)) var(--accent-primary);
   }
+  .timeline[data-look='light'] .cell[data-filled][data-first]:not([data-summary]):not([data-milestone]) {
+    box-shadow: inset var(--bw-hairline) 0 var(--accent-primary), inset 0 var(--bw-hairline) var(--accent-primary), inset 0 calc(-1 * var(--bw-hairline)) var(--accent-primary);
+  }
+  .timeline[data-look='light'] .cell[data-filled][data-last]:not([data-summary]):not([data-milestone]) {
+    box-shadow: inset calc(-1 * var(--bw-hairline)) 0 var(--accent-primary), inset 0 var(--bw-hairline) var(--accent-primary), inset 0 calc(-1 * var(--bw-hairline)) var(--accent-primary);
+  }
+  .timeline[data-look='light'] .cell[data-filled][data-first][data-last]:not([data-summary]):not([data-milestone]) {
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--accent-primary);
+  }
   .timeline[data-look='light'] .cell[data-filled][data-summary] { background: var(--text-primary); }
+
+  /* A bar's ends are rounded, so a run of day cells reads as one bar. */
+  .cell[data-filled][data-first]:not([data-milestone]):not([data-summary]) { border-start-start-radius: var(--r-sm); border-end-start-radius: var(--r-sm); }
+  .cell[data-filled][data-last]:not([data-milestone]):not([data-summary]) { border-start-end-radius: var(--r-sm); border-end-end-radius: var(--r-sm); }
 
   /* Narrow - a phone, a narrow pane - the chart comes first (user-experience.md §7.5): a column of
      titles would leave the bars a sliver, so each title stands on its own line above its bar, as
