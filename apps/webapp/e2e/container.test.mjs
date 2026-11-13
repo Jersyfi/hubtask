@@ -235,6 +235,13 @@ test('chromium: 375 px — the folded head, the panel as a sheet of pages, the b
   assert.equal(boxes.position, 'fixed');
   assert.ok(boxes.bulkBottom <= boxes.navTop, `the bulk bar (${boxes.bulkBottom}) sits over the bottom bar (${boxes.navTop})`);
   assert.equal(boxes.navOpacity, '1', 'a ticked checkbox hid the bottom bar');
+  // A thumb's target (§7): every control of the bar is at least 44 px tall on a phone.
+  const short = await page.evaluate(() =>
+    [...document.querySelectorAll('.bar[data-active] :is(button, select, [role="combobox"], .checkbox .row)')]
+      .map((each) => ({ name: each.getAttribute('aria-label') ?? each.textContent.trim().slice(0, 30), height: Math.round(each.getBoundingClientRect().height) }))
+      .filter((each) => each.height > 0 && each.height < 44),
+  );
+  assert.deepEqual(short, [], 'a control of the bulk bar is under 44 px on a phone');
 
   // And the way out: `Escape`, from anywhere on the screen. The picks and the bar go with it.
   await page.keyboard.press('Escape');
