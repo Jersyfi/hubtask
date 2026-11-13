@@ -801,11 +801,23 @@ An entry **arriving** on a board - moved from another collection, imported - tak
 column it is put in, and a completed one put in none goes into the done column (`Board.Arrived`); a
 **copy** or an entry from a template is open, so it stands outside the done column (`Board.Copied`);
 under a workflow both stand in the column of their status. **Marking** a column done takes the mark
-off the others; the only done column cannot be cleared (`Board.MarkDone`). A **deleted** done
-column's entries go to its successor, the rightmost column left, which takes the mark; an open
-column's go to the first open column; under a mapping they go to *Ohne Spalte*
-(`Board.TargetAfterDeleting`). A board made before this model is brought to it once by an
-administrator's repair (`RepairBoards`, `POST /boards:repair`).
+off the others; the only done column cannot be cleared (`Board.MarkDone`). Done column and
+completion move at once: the completed entries of the old done column go with the mark into the new
+one, and the open entries standing in the new one are completed. **Deleting** the done column of a
+board without a workflow asks which column means done instead: the deletion names it
+(`new_done_bucket_id`) or is refused with `buckets.done_successor_required`, the rightmost column
+left as the suggestion (`Board.ChooseDoneSuccessor`); the deleted column's entries go there and its
+open entries are completed. Under a mapping the suggestion is taken and the entries go to *Ohne
+Spalte*; an open column's go to the first open column (`Board.TargetAfterDeleting`). A board made
+before this model is brought to it once by an administrator's repair (`RepairBoards`,
+`POST /boards:repair`).
+
+A **completion in bulk** - the mark moving, the repair - writes each entry's history
+(`item.completed`, by the person who moved the mark or ran the repair, its `cause`
+`DONE_COLUMN_MOVED` or `BOARD_REPAIR`) and its change for offline clients, but announces no
+completion event: nobody completed these entries by hand, so no notification goes out and no rule
+or automation runs - for hundreds of old entries both would be noise, and a rule firing on a repair
+would act on work nobody touched.
 
 ### 3.6 Automatic assignment
 
