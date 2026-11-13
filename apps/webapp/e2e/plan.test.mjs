@@ -449,6 +449,7 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
 });
 
 // §6.2 (scene planview): the plan's view panel is the collections' one - from 905 px a side pane
+// (and a row's menu shows under the pointer only)
 // beside the plan, which stays usable; between 600 and 904 a drawer over it.
 test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is a drawer at 800 px', async (t) => {
   const browser = await chromium.launch();
@@ -456,6 +457,14 @@ test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is 
   const wide = await plan(browser);
   t.after(wide.close);
   const { page } = wide;
+  // A row's ⋯ shows where the pointer is, over the title's end, as a list row's tools do.
+  const row = page.locator(`.timeline .rows [data-row="${FIRST.id}"]`);
+  const menuWidth = () => row.locator('[data-action]').evaluate((element) => element.getBoundingClientRect().width);
+  const height = (await row.boundingBox()).height;
+  assert.ok((await menuWidth()) < 8, 'the row\'s menu is drawn without the pointer');
+  await row.locator('button.title').hover();
+  assert.ok((await menuWidth()) > 20, 'the row\'s menu does not show under the pointer');
+  assert.equal((await row.boundingBox()).height, height, 'the row grew when its menu showed');
   await page.locator('[data-plan-view-open]').first().click();
   const side = page.locator('[data-view-side]');
   await side.locator('[data-plan-view-panel]').waitFor({ timeout: 5_000 });
