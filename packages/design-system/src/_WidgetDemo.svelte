@@ -2,6 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Widget from './Widget.svelte';
+  import WidgetStrip from './WidgetStrip.svelte';
 
   interface Props {
     mode?: 'today' | 'overview' | 'busy';
@@ -11,13 +12,13 @@
 </script>
 
 {#if mode === 'today'}
-  <div class="strip">
-    <Widget title="Overdue" tile={{ icon: 'triangle-alert', color: 'red' }} figure="1" line="since yesterday" act={{ label: 'Show', onclick: () => {} }} />
+  <WidgetStrip label="Your day in figures">
+    <Widget title="Overdue" tile={{ icon: 'triangle-alert', color: 'red' }} figure="1" figureTone={{ tone: 'danger', word: 'overdue' }} line="since yesterday" act={{ label: 'Show', onclick: () => {} }} />
     <Widget title="Due today" tile={{ icon: 'calendar', color: 'blue' }} figure="4" line="1 of them with a time" />
-    <Widget title="Needs your reply" tile={{ icon: 'inbox', product: 'desk' }} figure="2" line="1 breached" act={{ label: 'Open', onclick: () => {} }} />
+    <Widget title="Needs your reply" tile={{ icon: 'inbox', product: 'desk' }} figure="2" figureTone={{ tone: 'danger', word: '1 breached' }} line="first reply in 3 min" act={{ label: 'Open', onclick: () => {} }} />
     <Widget title="Time today" tile={{ icon: 'clock', product: 'time' }} figure="3:10" line="of 7:30 h · timer running" act={{ label: 'Stop', onclick: () => {} }} />
     <Widget title="Waits for your yes" tile={{ icon: 'user-check', product: 'goals' }} figure="2" line="1 change, 1 page" />
-  </div>
+  </WidgetStrip>
 {:else if mode === 'overview'}
   <div class="tiles">
     <Widget title="Your collections" tile={{ icon: 'folder', color: 'brand' }}>
@@ -38,7 +39,7 @@
 {/if}
 
 <style>
-  .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--sp-1600)), 1fr)); gap: var(--sp-150); }
+  .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-rail)), 1fr)); gap: var(--sp-300); }
   .rows { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; font-size: var(--fs-090); }
   .rows li { display: flex; justify-content: space-between; gap: var(--sp-100); }

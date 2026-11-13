@@ -8,6 +8,7 @@
   import type { Snippet } from 'svelte';
 
   import Button from './Button.svelte';
+  import StateLozenge from './StateLozenge.svelte';
   import ProductTile, { type ProductId } from './ProductTile.svelte';
   import Skeleton from './Skeleton.svelte';
   import type { IconName } from './icons/index.ts';
@@ -18,6 +19,11 @@
     tile?: { icon: IconName; product?: ProductId; color?: string };
     /** The one figure: *3:10*, *4*, *50 %*. */
     figure?: string;
+    /**
+     * The figure says something is wrong: overdue, breached. A lozenge in the tone stands beside
+     * it with its glyph and word, so it never rests on colour alone (UX-7): *overdue*.
+     */
+    figureTone?: { tone: 'danger' | 'warning'; word: string };
     /** A quiet figure at the end of the head: *6*, *5 today · 1 overdue*. */
     count?: string;
     /** One line under the figure: *of 7:30 h · timer running*. */
@@ -30,7 +36,7 @@
     children?: Snippet;
   }
 
-  const { title, tile, figure, count, line, act, isBusy = false, busyLabel, children }: Props = $props();
+  const { title, tile, figure, figureTone, count, line, act, isBusy = false, busyLabel, children }: Props = $props();
   const uid = $props.id();
 </script>
 
@@ -44,7 +50,12 @@
   {#if isBusy}
     <div class="busy" role="status" aria-label={busyLabel}><Skeleton lines={figure !== undefined ? 2 : 3} shape="text" /></div>
   {:else}
-    {#if figure !== undefined}<span class="figure">{figure}</span>{/if}
+    {#if figure !== undefined}
+      <span class="figure-line" data-tone={figureTone?.tone}>
+        <span class="figure">{figure}</span>
+        {#if figureTone}<StateLozenge label={figureTone.word} tone={figureTone.tone} icon="triangle-alert" />{/if}
+      </span>
+    {/if}
     {#if line}<span class="line">{line}</span>{/if}
     {#if children}<div class="content">{@render children()}</div>{/if}
   {/if}
@@ -73,7 +84,10 @@
     margin: 0;
     font-size: var(--fs-090);
     font-weight: var(--fw-semibold);
-    overflow-wrap: anywhere;
+    /* Whole words only: a title that does not fit wraps between them, never inside one. */
+    overflow-wrap: normal;
+    word-break: normal;
+    text-wrap: balance;
   }
 
   .widget[data-figure] .title { color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
@@ -88,6 +102,8 @@
     font-variant-numeric: tabular-nums;
     line-height: var(--lh-tight);
   }
+
+  .figure-line { display: flex; align-items: center; gap: var(--sp-100); flex-wrap: wrap; }
 
   .line { color: var(--text-secondary); font-size: var(--fs-075); }
   .content { display: flex; flex-direction: column; gap: var(--sp-100); min-inline-size: 0; }

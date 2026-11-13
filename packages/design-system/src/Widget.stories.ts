@@ -13,7 +13,7 @@ export default {
 
 export const today: Story = {
   name: 'Today’s cards (scene today)',
-  about: 'One row of equal cards: tile, title, one act as a button, the figure, one line. A card whose role the reader lacks is absent, not empty.',
+  about: 'One row of equal cards in a `WidgetStrip`: tile, title (whole words), one act as a button, the figure, one line. A figure that warns carries `figureTone`: its colour, a glyph and a word. On a phone the strip swipes. A card whose role the reader lacks is absent, not empty.',
 };
 
 export const overview: Story = {
