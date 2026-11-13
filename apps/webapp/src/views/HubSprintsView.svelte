@@ -11,11 +11,13 @@
   // `/sprints/{id}` and `/collections/{id}/velocity`, as the sprint's own view reads them.
   import { untrack } from 'svelte';
   import { Button, DataTable, EmptyState, Icon, ProgressBar, Skeleton, StateLozenge, WorkPage, type DataColumn } from '@hubtask/design-system/components';
-  import type { Sprint, SprintDetail, SprintList, Velocity } from '@hubtask/sync-engine';
+  import type { ReleaseList, Sprint, SprintDetail, SprintList, Velocity } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
+  import { releasesPath } from '../lib/data/releases.svelte.ts';
+  import ReleasesFigure from '../lib/planning/ReleasesFigure.svelte';
   import { burndownLine, burndownTop, planLoad, sprintDays, sprintPath, sprintsPath, valueOf, velocityPath } from '../lib/data/sprints.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { formatShortDay } from '../lib/i18n/datetime.ts';
@@ -78,6 +80,14 @@
   const without = $derived(collections.filter((each) => lists[each.id] !== undefined && runs[each.id] === false));
   const today = $derived(todayIn(actor.zone));
 
+  // The releases, for the head sentence the tool's *Releases* tab says too.
+  let releaseList = $state<ReleaseList['data']>([]);
+  $effect(() => {
+    const path = releasesPath(hubId);
+    return untrack(() => engine.subscribe<ReleaseList>({ path }, (next) => { if (next.status === 'ready') releaseList = next.data.data; }));
+  });
+  const hasFigure = $derived(releaseList.length > 0 || running.length > 0);
+
   // The running and planned sprints' own reads: their entries for what is done and planned, the burndown.
   const detailKey = $derived([...running, ...planned].map((each) => each.id).join(','));
   let details = $state<Record<string, SprintDetail>>({});
@@ -128,8 +138,9 @@
   {/if}
 {/snippet}
 
+{#snippet headFigure()}<ReleasesFigure releases={releaseList} running={running[0]} {today} />{/snippet}
 <WorkPage>
-  {#snippet top()}<ToolHead {hubId} tool="plan" current="sprints" {onnavigate} />{/snippet}
+  {#snippet top()}<ToolHead {hubId} tool="plan" current="sprints" {onnavigate} figure={hasFigure ? headFigure : undefined} />{/snippet}
 
   {#if isReading && running.length === 0 && planned.length === 0 && closed.length === 0}
     <div aria-busy="true"><Skeleton lines={3} /></div>

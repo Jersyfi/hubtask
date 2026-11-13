@@ -32,7 +32,6 @@
   import { releaseAxis, releaseCandidates, releaseGroups, releasePath, releases, releaseShown, releasesPath, releaseTargets } from '../lib/data/releases.svelte.ts';
   import { sprintsPath } from '../lib/data/sprints.svelte.ts';
   import { sprintsRunning } from '../lib/product/home.ts';
-  import { sprintDaysLeft } from '../lib/today.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -41,6 +40,7 @@
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ToolHead from '../lib/workspace/ToolHead.svelte';
+  import ReleasesFigure from '../lib/planning/ReleasesFigure.svelte';
 
   interface Props {
     /** The hub the releases belong to. */
@@ -201,17 +201,7 @@
 
   // The head's figure (§5.1): what is coming, the next one and its day, what went out.
   const groups = $derived(list ? releaseGroups(list, today) : undefined);
-  const figureText = $derived.by(() => {
-    if (!groups || (groups.planned.length === 0 && groups.released.length === 0)) return undefined;
-    const next = groups.planned[0];
-    return [
-      groups.planned.length > 0 ? t('app.releases.figure_planned', { count: String(groups.planned.length) }) : undefined,
-      next ? t(groups.late.has(next.id) ? 'app.releases.figure_late' : 'app.releases.figure_next', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) }) : undefined,
-      groups.released.length > 0 ? t('app.releases.figure_released', { count: String(groups.released.length) }) : undefined,
-      runningSprint ? t('app.releases.figure_sprint', { name: runningSprint.name, count: String(sprintDaysLeft(runningSprint.end_on, today)) }) : undefined,
-    ].filter((part): part is string => !!part).join(' · ');
-  });
-  const figureNext = $derived(groups?.planned[0]);
+  const hasFigure = $derived(!!groups && (groups.planned.length > 0 || groups.released.length > 0));
   const isPlanned = $derived(chosen?.state === 'PLANNED');
   const mayChange = $derived(mayWrite && isPlanned);
 
@@ -251,11 +241,11 @@
   type InRelease = NonNullable<typeof detail>['entries'][number];
 </script>
 
-{#snippet headFigure()}<span data-head-figure>{#if groups && groups.planned.length > 0}{t('app.releases.figure_planned', { count: String(groups.planned.length) })}{/if}{#if figureNext}{groups && groups.planned.length > 0 ? ' · ' : ''}<b>{t(groups?.late.has(figureNext.id) ? 'app.releases.figure_late' : 'app.releases.figure_next', { name: figureNext.name, day: formatPlainDay(figureNext.release_on, messages.locale) })}</b>{/if}{#if groups && groups.released.length > 0}{' · '}{t('app.releases.figure_released', { count: String(groups.released.length) })}{/if}{#if runningSprint}{' · '}{t('app.releases.figure_sprint', { name: runningSprint.name, count: String(sprintDaysLeft(runningSprint.end_on, today)) })}{/if}</span>{/snippet}
+{#snippet headFigure()}<ReleasesFigure releases={list ?? []} running={runningSprint} {today} />{/snippet}
 <WorkPage>
   {#snippet top()}
   <ToolHead {hubId} tool="plan" current="releases" {onnavigate}
-    figure={figureText ? headFigure : undefined}
+    figure={hasFigure ? headFigure : undefined}
     primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
     menu={headMenu}
   />

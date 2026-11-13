@@ -423,6 +423,8 @@ test('chromium: 1280 px — the hub\'s sprints: running with its burndown, plann
   await card.getByText('Goal: The worktop is in').waitFor({ timeout: 5_000 });
   await card.locator('dd', { hasText: '5 of 8 Points' }).waitFor({ timeout: 5_000 });
   assert.equal(await card.locator('[data-burndown] polyline').count(), 2, 'the burndown draws ideal and remaining');
+  // The head says what Releases says: the next release and the sprint running (scene plansprints 1).
+  await page.locator('main [data-head="tool"] [data-head-figure]').getByText(new RegExp(`^2 planned · next: 1\\.1 on .+ · 1 released · ${RUNNING.name} `)).waitFor({ timeout: 5_000 });
   assert.equal(await card.getByRole('img', { name: `Burndown of ${RUNNING.name}` }).count(), 1);
 
   // A planned one stands against the velocity of its collection, with the way into its backlog.
