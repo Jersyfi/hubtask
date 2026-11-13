@@ -48,6 +48,8 @@
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
   import ViewPanel from '../lib/entries/ViewPanel.svelte';
   import QueryStrip from '../lib/entries/QueryStrip.svelte';
+  import QueryChips from '../lib/entries/QueryChips.svelte';
+  import { namesPlan, planNames } from '../lib/data/planNames.svelte.ts';
   import CalendarView from '../lib/entries/CalendarView.svelte';
   import { changedParts, groupingOf, lineOf, readQuery, type Names, type ViewSetup } from '../lib/data/viewquery.ts';
   import { labels as labelStore } from '../lib/data/labels.svelte.ts';
@@ -1097,8 +1099,16 @@
   let showsLimits = $state(true);
   let baseSetup = $state<ViewSetup | undefined>(undefined);
 
+  /** A release or a sprint the line names, read only then (§6.11, Q-2). */
+  const planned = planNames(() => ({
+    hubId: container?.type === 'HUB' ? container.id : (container?.parent_id ?? undefined),
+    collectionIds: container?.type === 'COLLECTION' ? [container.id] : [],
+    wanted: namesPlan(line),
+  }));
   /** Names typed into the line, looked up among what this reader already holds (ADR-0102). */
   const names: Names = {
+    release: planned.release,
+    sprint: planned.sprint,
     person: (name) => {
       const wanted = name.toLowerCase();
       return people.candidates(containerPath).find((each) => accounts.nameOf(each)?.toLowerCase() === wanted);
@@ -1108,7 +1118,9 @@
     nameOf: (field, value) =>
       field === 'labels' ? labelStore.of(id).find((each) => each.id === value)?.name
         : field === 'collection_id' ? containers.find(value)?.name
-          : accounts.nameOf(value),
+          : field === 'release_id' ? planned.releaseName(value)
+            : field === 'sprint_id' ? planned.sprintName(value)
+              : accounts.nameOf(value),
   };
   $effect(() => {
     const at = id;
@@ -1593,12 +1605,8 @@
         {#if viewport.isCompact}
           <!-- A phone: the strip with "+n" and the filter sheet (scene qline 5). -->
           <QueryStrip {line} keys={queryKeys} total={lineCount} values={(key) => valueCounts[key] ?? []} ontyping={(key) => (typingKey = key)} onchange={(next) => { line = next; if (next.trim() === '') kept = undefined; }} bind:isSheetOpen={isPhoneFilterOpen} sheetEnd={phoneViewRow} />
-        {:else if queryPieces.length > 0}
-          <ul class="query-chips" aria-label={t('app.viewcfg.query')}>
-            {#each queryPieces as piece, index (index)}
-              <li><span>{piece}</span><IconButton icon="x" size="sm" label={t('app.viewcfg.remove_chip', { spelling: piece })} onclick={() => (line = queryPieces.filter((_, at) => at !== index).join(' '))} /></li>
-            {/each}
-          </ul>
+        {:else}
+          <QueryChips {line} {names} onchange={(next) => (line = next)} />
         {/if}
         {#if !viewport.isCompact}<span class="tools-end">{@render filterTool()}{@render entryTools()}</span>{/if}
       </div>
@@ -1908,9 +1916,6 @@
   .phone-view-name { font-weight: var(--fw-medium); }
   .phone-view-hint { flex: 1; color: var(--text-secondary); font-size: var(--fs-075); }
   .tools-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
-  .query-chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; min-inline-size: 0; }
-  .query-chips li { display: inline-flex; align-items: center; gap: var(--sp-025); padding-inline-start: var(--sp-100); font-size: var(--fs-075); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); max-inline-size: 100%; }
-  .query-chips span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }
   /* Private is a fact about the hub, not a warning: said quietly, with the lock the tree shows. */
