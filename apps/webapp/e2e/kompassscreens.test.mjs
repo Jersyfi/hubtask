@@ -216,7 +216,7 @@ test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keep
       return route.fulfill({ status: 201, json: { ...SAVED, query: request.postDataJSON().query } }).then(() => true);
     }
     if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`) && saved.length > 0) {
-      return route.fulfill({ json: { data: [...QUEUES, { view_id: SAVED.id, key: SAVED.key, name: SAVED.name, count: 1, at_risk: 0 }] } }).then(() => true);
+      return route.fulfill({ json: { data: [...QUEUES, { view_id: SAVED.id, key: SAVED.key, name: SAVED.name, count: 1, at_risk: 0 }], desks: [DESK.id] } }).then(() => true);
     }
     return extra(route, request, url);
   };

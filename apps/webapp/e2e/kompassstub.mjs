@@ -208,7 +208,7 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
     if (path.endsWith('/api/v1/entry-types')) {
       return route.fulfill({ json: { data: [{ key: 'incident', name: 'Incident', level: 'TASK', hub_id: null, form: { channels: [{ channel: 'PORTAL' }] } }], page: PAGE.page } });
     }
-    if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`)) return route.fulfill({ json: { data: QUEUES } });
+    if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`)) return route.fulfill({ json: { data: QUEUES, desks: [DESK.id] } });
     // A queue is a saved view of its hub; a starred one is read by its own address.
     const view = /\/api\/v1\/views\/([^/:]+)$/.exec(path);
     const queue = view && QUEUES.find((each) => each.view_id === view[1]);

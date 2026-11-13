@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DESK_QUEUES, desksAnswered, desksOf, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal } from './queues.ts';
+import { DESK_QUEUES, desksAnswered, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal } from './queues.ts';
 
 // UC-SVC-03 checks 1 to 3: a queue is ordered by what breaks first and counted exactly; the four
 // queues of §7.4 differ only in their narrowing, all inside the hub's desks and open.
@@ -35,17 +35,6 @@ test('a queue is counted across hubs only once every hub has answered', () => {
   assert.equal(queueTotal({ a: 3 }, ['a', 'b']), undefined);
   assert.equal(queueTotal({ a: 3, b: null }, ['a', 'b']), undefined);
   assert.equal(queueTotal({}, []), 0);
-});
-
-// UC-SVC-05: a collection is a desk where it offers a type the portal takes; only those are asked.
-// A Scrum collection beside an ITIL one stays a Scrum collection, though the ITIL types are the
-// workspace's and so usable everywhere.
-test('a hub\'s desks are its collections offering a type open to the portal', () => {
-  const type = (key: string, channels?: { channel: string }[]) => ({ key, level: 'TASK', system: false, position: 0, archived: false, form: channels ? { channels } : undefined }) as never;
-  const types = [type('incident', [{ channel: 'PORTAL' }]), type('story')];
-  const collection = (id: string, offered?: string[]) => ({ id, parent_id: 'hub', structure: offered ? { settings: { entry_types: { TASK: offered } } } : null });
-  assert.deepEqual(desksOf([collection('help', ['incident']), collection('scrum', ['story']), collection('all')], types), ['help']);
-  assert.deepEqual(desksOf([collection('help', ['incident'])], [type('story')]), []);
 });
 
 // user-experience.md §7.4: the queue's priority column reads the field the policies name.

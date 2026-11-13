@@ -13,7 +13,7 @@
   import { untrack } from 'svelte';
   import type { HubQueueList, SavedView } from '@hubtask/sync-engine';
   import { engine } from '../lib/data/engine.ts';
-  import { DESK_QUEUES, QUEUE_SHOWN, desksOf, queueQuery, type DeskQueue } from '../lib/servicedesk/queues.ts';
+  import { DESK_QUEUES, QUEUE_SHOWN, queueQuery, type DeskQueue } from '../lib/servicedesk/queues.ts';
   import { queuePath } from '../lib/sidebar.ts';
   import { Button, Dialog, Input, Skeleton, Stack, WorkPage, type PageAction } from '@hubtask/design-system/components';
 
@@ -24,7 +24,6 @@
   import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import DeskQueues from '../lib/servicedesk/DeskQueues.svelte';
@@ -53,11 +52,13 @@
 
   // The hub's queues, one read, as the sidebar reads them.
   let queues = $state<HubQueueList['data'] | undefined>(undefined);
+  // The desks the server names with them (`desks`): the client does not read the entry types for them.
+  let deskIds = $state<readonly string[] | undefined>(undefined);
   $effect(() => {
     const at = hubId;
     return untrack(() => engine.subscribe<HubQueueList>({ path: `/hubs/${at}/queues` }, (next) => {
-      if (next.status === 'ready') queues = next.data.data;
-      if (next.status === 'failed') queues = [];
+      if (next.status === 'ready') { queues = next.data.data; deskIds = next.data.desks ?? []; }
+      if (next.status === 'failed') { queues = []; deskIds = []; }
     }));
   });
   const chosen = $derived(queues?.find((each) => each.view_id === queue || (each.view_id === null && each.key === queue)) ?? queues?.find((each) => each.key === queue));
@@ -84,11 +85,11 @@
     // names, else its open requests, rather than a page that waits for ever.
     if (!chosen && queues?.length === 0) {
       const fallback = STANDARD[queue ?? ''] ?? 'open';
-      return narrowed({ queue: fallback, name: t(`app.desk_queues.${fallback}`), query: queueQuery(fallback, hubId, deskIds) });
+      return narrowed({ queue: fallback, name: t(`app.desk_queues.${fallback}`), query: queueQuery(fallback, hubId, deskIds ?? []) });
     }
     if (!chosen) return undefined;
     const standard = STANDARD[chosen.key];
-    if (standard) return narrowed({ queue: standard, name: queueName, query: queueQuery(standard, hubId, deskIds) });
+    if (standard) return narrowed({ queue: standard, name: queueName, query: queueQuery(standard, hubId, deskIds ?? []) });
     if (!saved) return undefined;
     const asked = saved.query as Record<string, unknown>;
     return narrowed({
@@ -200,18 +201,15 @@
     const at = hubId;
     return untrack(() => containers.openLevel(at));
   });
-  $effect(() => untrack(() => entryTypes.open()));
   $effect(() => {
     const at = hubId;
     return untrack(() => people.open({ hubId: at }));
   });
   const mayShape = $derived(holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
 
-  // A refused read of the types reads as no desk: what the reader cannot read offers no portal.
-  const typesStatus = $derived(entryTypes.state?.status);
-  const isReading = $derived(containers.isLevelLoading(hubId) || typesStatus === undefined || typesStatus === 'idle' || typesStatus === 'loading');
-  const deskIds = $derived(isReading ? [] : desksOf(containers.collectionsOf(hubId), entryTypes.all));
-  const desks = $derived(containers.collectionsOf(hubId).filter((collection) => deskIds.includes(collection.id)));
+  // A refused read of the queues reads as no desk: what the reader cannot read offers no portal.
+  const isReading = $derived(containers.isLevelLoading(hubId) || deskIds === undefined);
+  const desks = $derived(containers.collectionsOf(hubId).filter((collection) => deskIds?.includes(collection.id)));
   // *New request* opens the desk's list, where an entry is captured (§5.2); each other desk in its list.
   const primary = $derived.by(() => {
     const first = desks[0];

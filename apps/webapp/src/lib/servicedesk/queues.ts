@@ -9,10 +9,8 @@
  * order and the count of, and a hub the reader may not read is refused rather than left out.
  */
 
-import type { EntryType, HubQueueList, ResourceState } from '@hubtask/sync-engine';
+import type { HubQueueList, ResourceState } from '@hubtask/sync-engine';
 
-import { entryTypesOffered } from '../data/entrytypes.ts';
-import { actsAsDesk } from '../portal/portal.ts';
 
 export const DESK_QUEUES = ['mine', 'unassigned', 'breaching', 'open'] as const;
 export type DeskQueue = (typeof DESK_QUEUES)[number];
@@ -76,16 +74,6 @@ export function desksAnswered(
     out[hubId] = answer.status === 'ready' ? [...(answer.data.desks ?? [])] : [];
   }
   return out;
-}
-
-/** A hub's collections that act as a desk (UC-SVC-05): those offering a type the portal takes. */
-export function desksOf(
-  collections: readonly { readonly id: string; readonly parent_id?: string | null; readonly structure?: { readonly settings?: { entry_types?: Record<string, readonly string[]> } } | null }[],
-  types: readonly EntryType[],
-): string[] {
-  return collections
-    .filter((collection) => actsAsDesk(types, entryTypesOffered(collection.structure?.settings ?? undefined, 'TASK'), collection.parent_id))
-    .map((collection) => collection.id);
 }
 
 /**
