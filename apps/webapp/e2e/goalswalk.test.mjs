@@ -525,6 +525,20 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
   await library.locator('[data-kind="BAR"] [data-chart="BAR"]').getByText('4', { exact: true }).waitFor({ timeout: 5_000 });
   await library.getByRole('button', { name: 'Lists' }).click();
   assert.equal(await library.locator('.card').count(), 2, 'a kind filter narrows the cards');
+  // The editor's three tabs (UC-GOL-04 check 18): a text is written under Display, a target set under Look.
+  await library.getByRole('button', { name: 'Text' }).click();
+  await library.locator('[data-kind="TEXT"]').click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('tab', { name: 'Display' }).click();
+  await editor.getByLabel('Text', { exact: true }).fill('This week **SA-7** first.');
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await editor.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.getByRole('button', { name: 'Change Open' }).click();
+  await editor.getByRole('tab', { name: 'Look' }).click();
+  await editor.getByLabel('Target').fill('30');
+  await editor.getByLabel('Warning from').fill('40');
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await editor.waitFor({ state: 'detached', timeout: 5_000 });
 
   await band.getByRole('button', { name: 'Done' }).click();
   await band.waitFor({ state: 'detached', timeout: 5_000 });
@@ -532,6 +546,8 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
   const open = puts[0].widgets.find((each) => each.title === 'Open');
   assert.deepEqual([open.x, open.y, open.w, open.h], [0, 1, 3, 2], 'undo took the resize back, the move stayed');
   assert.ok(puts[0].widgets.find((each) => each.title === 'Late').w > 3, 'the corner widened the widget');
+  assert.equal(puts[0].widgets.find((each) => each.chart === 'TEXT')?.text, 'This week **SA-7** first.');
+  assert.deepEqual([open.target, open.warn_at], [30, 40], 'the figure carries its target and warning line');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });

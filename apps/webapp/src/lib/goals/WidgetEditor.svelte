@@ -20,7 +20,7 @@
   // to it, and with both the server answers what is left between them, a burndown.
 
   import { untrack } from 'svelte';
-  import { Button, Checkbox, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, Checkbox, CheckboxGroup, Inline, Input, Select, Stack, Tabs, Textarea } from '@hubtask/design-system/components';
   import type { DashboardWidgetWrite, Goal, SavedView } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -43,7 +43,7 @@
 
   type Chart = DashboardWidgetWrite['chart'];
   type Source = DashboardWidgetWrite['source'];
-  const CHARTS: readonly Chart[] = ['NUMBER', 'BAR', 'PIE', 'LINE', 'TABLE', 'MATRIX', 'PROGRESS'];
+  const CHARTS: readonly Chart[] = ['NUMBER', 'BAR', 'PIE', 'LINE', 'TABLE', 'MATRIX', 'PROGRESS', 'LIST', 'TEXT'];
   const FUNCTIONS = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'P50', 'P85', 'P95'] as const;
   const PERIODS = ['', 'day', 'week', 'month'] as const;
   const SOURCES = ['entries', 'links', 'time', 'pages'] as const;
@@ -85,7 +85,16 @@
     bucketField: asked.aggregate?.bucket?.field ?? 'created_at',
     period: asked.aggregate?.bucket?.period ?? '',
     goalIds: [...(widget?.goal_ids ?? [])] as string[],
+    text: widget?.text ?? '',
+    column: widget?.column ?? 'due_at',
+    target: typeof widget?.target === 'number' ? String(widget.target) : '',
+    warnAt: typeof widget?.warn_at === 'number' ? String(widget.warn_at) : '',
+    tab: 'data',
   });
+  /** A figure's target and warning line, where a number or a line draws them. */
+  const aims = $derived(draft.chart === 'NUMBER' || draft.chart === 'LINE');
+  const targetValue = $derived(draft.target.trim() === '' ? undefined : Number(draft.target.replace(',', '.')));
+  const warnValue = $derived(draft.warnAt.trim() === '' ? undefined : Number(draft.warnAt.replace(',', '.')));
 
   const reported = $derived(new Set(queryFields(manifest.value).map((field) => field.field)));
   const groups = $derived([
@@ -144,6 +153,12 @@
 
   const problem = $derived.by(() => {
     if (draft.title.trim() === '') return t('app.dashboards.widget_title_needed');
+    if ((draft.chart === 'TEXT') !== (draft.source === 'TEXT')) return t('dashboards.chart_invalid');
+    if (draft.source === 'TEXT' && draft.text.trim() === '') return t('dashboards.text_required');
+    if (draft.chart === 'LIST' && draft.source !== 'QUERY') return t('dashboards.list_needs_query');
+    if (aims && (targetValue !== undefined && !Number.isFinite(targetValue) || warnValue !== undefined && !Number.isFinite(warnValue))) return t('app.dashboards.aim_number');
+    if (aims && warnValue !== undefined && targetValue === undefined) return t('dashboards.warn_needs_target');
+    if (aims && warnValue !== undefined && warnValue === targetValue) return t('dashboards.warn_equal');
     if (draft.chart === 'PROGRESS' && draft.source !== 'GOALS') return t('dashboards.chart_invalid');
     if (draft.source === 'VIEW' && draft.viewId === '') return t('dashboards.view_required');
     if (draft.source === 'GOALS' && (draft.goalIds.length === 0 || draft.goalIds.length > 20)) return t('dashboards.goals_count');
@@ -175,6 +190,21 @@
     };
     if (draft.source === 'VIEW') write.view_id = draft.viewId;
     if (draft.source === 'GOALS') write.goal_ids = [...draft.goalIds];
+    if (draft.source === 'TEXT') write.text = draft.text.trim();
+    if (aims && targetValue !== undefined) {
+      write.target = targetValue;
+      if (warnValue !== undefined) write.warn_at = warnValue;
+    }
+    if (draft.source === 'QUERY' && draft.chart === 'LIST') {
+      write.column = draft.column;
+      write.query = {
+        scope: draft.scope ? { container_id: draft.scope } : { workspace: true },
+        ...(draft.line.trim() === '' && kept !== undefined ? { filter: kept } : compiled.filter ? { filter: compiled.filter } : {}),
+        sort: [{ field: 'due_at', dir: 'ASC' }],
+      };
+      onsave(write);
+      return;
+    }
     if (draft.source === 'QUERY') {
       const aggregate: Aggregate = { function: draft.fn };
       if (draft.summarySource !== 'entries') aggregate.source = draft.summarySource;
@@ -213,13 +243,35 @@
 </script>
 
 <Stack gap="150">
-  <Input label={t('app.dashboards.widget_title')} bind:value={draft.title} maxlength={200} />
+  <Tabs label={t('app.dashboards.editor_tabs')} tabs={[{ id: 'data', label: t('app.dashboards.tab_data') }, { id: 'look', label: t('app.dashboards.tab_look') }, { id: 'show', label: t('app.dashboards.tab_show') }]} bind:selected={draft.tab}>
+  <Stack gap="150">
+  {#if draft.tab === 'show'}
+    <Input label={t('app.dashboards.widget_title')} bind:value={draft.title} maxlength={200} />
+    {#if draft.source === 'TEXT'}
+      <Textarea label={t('app.dashboards.text')} hint={t('app.dashboards.text_hint')} bind:value={draft.text} maxlength={2000} />
+    {/if}
+    {#if draft.chart === 'LIST'}
+      <Select label={t('app.dashboards.list_column')} bind:value={draft.column}
+        options={['due_at', 'status', 'assignee_id', 'updated_at', 'created_at'].map((field) => ({ value: field, label: t(`app.dashboards.column_${field}`) }))} />
+    {/if}
+  {:else if draft.tab === 'look'}
+    <Select label={t('app.dashboards.chart')} bind:value={draft.chart}
+      options={CHARTS.filter((each) => (each !== 'PROGRESS' || draft.source === 'GOALS') && (each !== 'TEXT' || draft.source === 'TEXT') && (each !== 'LIST' || draft.source === 'QUERY')).map((each) => ({ value: each, label: t(`app.dashboards.chart_${each}`) }))} />
+    {#if aims}
+      <Inline gap="100" isWrapping>
+        <Input label={t('app.dashboards.target')} hint={t('app.dashboards.target_hint')} bind:value={draft.target} inputmode="decimal" />
+        <Input label={t('app.dashboards.warn_at')} bind:value={draft.warnAt} inputmode="decimal" />
+      </Inline>
+    {/if}
+    {#if drawsSeries}
+      <Checkbox label={t('app.dashboards.cumulative')} hint={t('app.dashboards.cumulative_hint')} bind:checked={draft.cumulative} />
+    {/if}
+  {:else}
   <Select label={t('app.dashboards.source')} bind:value={draft.source}
-    options={(['QUERY', 'VIEW', 'GOALS'] as const).map((each) => ({ value: each, label: t(`app.dashboards.source_${each}`) }))} />
-  <Select label={t('app.dashboards.chart')} bind:value={draft.chart}
-    options={CHARTS.filter((each) => each !== 'PROGRESS' || draft.source === 'GOALS').map((each) => ({ value: each, label: t(`app.dashboards.chart_${each}`) }))} />
-
-  {#if draft.source === 'VIEW'}
+    options={(['QUERY', 'VIEW', 'GOALS', 'TEXT'] as const).map((each) => ({ value: each, label: t(`app.dashboards.source_${each}`) }))} />
+  {#if draft.source === 'TEXT'}
+    <p class="quiet">{t('app.dashboards.text_runs_nothing')}</p>
+  {:else if draft.source === 'VIEW'}
     <Select label={t('app.dashboards.view')} hint={t('app.dashboards.view_hint')} bind:value={draft.viewId} placeholder={t('app.goals.kr_view_pick')}
       options={summaryViews.map((each) => ({ value: each.id, label: each.name }))} />
   {:else if draft.source === 'GOALS'}
@@ -252,7 +304,6 @@
   {/if}
 
   {#if drawsSeries}
-    <Checkbox label={t('app.dashboards.cumulative')} hint={t('app.dashboards.cumulative_hint')} bind:checked={draft.cumulative} />
     {#if draft.source === 'QUERY'}
       <Checkbox label={t('app.dashboards.series_second')} hint={t('app.dashboards.series_second_hint')} bind:checked={draft.hasCompare} />
       {#if draft.hasCompare}
@@ -269,5 +320,12 @@
     {/if}
   {/if}
 
-  <Inline justify="end"><Button disabledReason={problem} onclick={save}>{t('app.goals.save')}</Button></Inline>
+  {/if}
+  </Stack>
+  </Tabs>
+  <Inline justify="end"><Button tone="primary" disabledReason={problem} onclick={save}>{t('app.dashboards.apply')}</Button></Inline>
 </Stack>
+
+<style>
+  .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+</style>
