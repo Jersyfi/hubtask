@@ -941,7 +941,7 @@
   .content { flex: 1 1 auto; min-width: 0; min-block-size: 0; overflow: auto; }
   .grid .widget { overflow: hidden; }
   .grid.half .widget, .grid.stacked .widget { overflow: visible; }
-  .foot { margin: 0; overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  .foot { flex: none; margin: 0; overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .filterbar :global([data-query-strip]) { flex: 1 1 0; }
   .filter-lead { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
