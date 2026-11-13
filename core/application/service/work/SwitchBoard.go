@@ -148,6 +148,7 @@ func (h SwitchBoard) toBoard(ctx context.Context, actor appshared.ActorContext, 
 		}
 		column, err := w.addColumn(ctx, actor, collection, domain.NewBucketInput{
 			Name: name(start.NameCode), OrderKey: orderKey, IsDoneBucket: start.IsDoneBucket, ColorToken: start.ColorToken,
+			Text: w.Text,
 		}, now)
 		if err != nil {
 			return err
