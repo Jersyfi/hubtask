@@ -38,6 +38,7 @@
   import { DeskTools } from '../servicedesk/desktools.svelte.ts';
   import EntryPresence from '../entries/EntryPresence.svelte';
   import { quietRowsInView } from './quietrows.ts';
+  import RichText from '../entries/RichText.svelte';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -260,6 +261,7 @@
     <CommentThread
       label={t('app.comments.title')}
       comments={threadRows().slice(0, shownCount)}
+      body={formatted}
       events={show === 'all' ? quietRowsInView(events, threadRows().slice(0, shownCount)) : []}
       emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
       removedLabel={t('app.comments.removed')}
@@ -290,6 +292,8 @@
     {/if}
   </Stack>
   {#if mayComment}<MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={mention} />{/if}
+
+{#snippet formatted(markdown: string)}<RichText value={markdown} label={t('app.comments.title')} />{/snippet}
 
 <style>
   [data-composer] { display: flex; flex-direction: column; gap: var(--sp-100); }
