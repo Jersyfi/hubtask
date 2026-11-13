@@ -37,7 +37,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, conditionsOf, searchFilter, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    MAX_WIDGETS, conditionsOf, searchFilter, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, groupedPeople, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
     seriesTable, widgetWrite, type FigureNaming, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
@@ -404,7 +404,8 @@
   });
   $effect(() => {
     if (!groupFields.has('assignee_id') && !groupFields.has('created_by')) return;
-    const ids = (figures?.widgets ?? []).flatMap((each) => each.data.map((row) => row['group'])).filter((id): id is string => typeof id === 'string');
+    const fieldOf = (id: string) => { const widget = shown.find((each) => each.id === id); return widget ? aggregateOf(widget)?.group_by : undefined; };
+    const ids = groupedPeople(figures?.widgets ?? [], fieldOf);
     untrack(() => accounts.resolve(ids));
   });
   /** A group's value in words (user-experience.md §5.6), by the field it is a value of. */

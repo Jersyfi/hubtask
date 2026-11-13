@@ -312,6 +312,28 @@ export function leftRows(data: readonly Record<string, unknown>[] | null | undef
   });
 }
 
+/** The fields whose groups are people, named by their account. */
+const PERSON_FIELDS: ReadonlySet<unknown> = new Set(['assignee_id', 'created_by']);
+
+/**
+ * The accounts a dashboard's groups name, once each: the groups of the widgets grouped by a person
+ * only - one value that is no account (a "true", a status key) would refuse the whole batch read.
+ */
+export function groupedPeople(
+  figures: readonly { id: string; data: readonly Record<string, unknown>[]; compare?: { data?: readonly Record<string, unknown>[] | null } | null }[],
+  fieldOf: (widgetId: string) => unknown,
+): string[] {
+  const ids = new Set<string>();
+  for (const figure of figures) {
+    if (!PERSON_FIELDS.has(fieldOf(figure.id))) continue;
+    for (const row of [...figure.data, ...(figure.compare?.data ?? [])]) {
+      const group = row['group'];
+      if (typeof group === 'string' && group !== '') ids.add(group);
+    }
+  }
+  return [...ids];
+}
+
 /** Several series of one widget side by side: one line per label, one value per series. */
 export interface SeriesTable {
   readonly labels: readonly string[];

@@ -9,7 +9,7 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
   folded, leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
-  widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces, conditionsOf, inheritedFilter, listFilter, searchFilter,
+  widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces, conditionsOf, inheritedFilter, listFilter, searchFilter, groupedPeople,
 } from './goals.ts';
 
 const goal = (id: string, parent: string | null, progress: number | null = null): Goal => ({
@@ -315,4 +315,18 @@ test('the search a widget opens names the hub it counts in once', () => {
   assert.deepEqual(searchFilter({ op: 'AND', nodes: [hub, open] }, [], undefined, 'h1'), { op: 'AND', nodes: [hub, open] });
   assert.deepEqual(searchFilter(open, [], undefined, undefined), open);
   assert.equal(searchFilter(undefined, [], undefined, undefined), undefined);
+});
+
+// UC-GOL-04 check 8: a person's group is named by the person - and only a person-grouped widget's
+// groups are asked for, since one value that is no account (a PIE's "true") refuses the whole read.
+test('the people a dashboard names are the groups of its person-grouped widgets alone', () => {
+  const figures = [
+    { id: 'pie', data: [{ group: 'true', count: 3 }, { group: 'false', count: 19 }] },
+    { id: 'table', data: [{ group: 'a1', count: 1 }, { group: null, count: 2 }], compare: { data: [{ group: 'a2', count: 4 }] } },
+    { id: 'bar', data: [{ group: 'approved', count: 1 }] },
+    { id: 'made', data: [{ group: 'a1', count: 5 }, { group: 'a3', count: 1 }] },
+  ];
+  const fields: Record<string, unknown> = { pie: 'is_completed', table: 'assignee_id', bar: 'status', made: 'created_by' };
+  assert.deepEqual(groupedPeople(figures, (id) => fields[id]), ['a1', 'a2', 'a3']);
+  assert.deepEqual(groupedPeople(figures, () => 'status'), []);
 });

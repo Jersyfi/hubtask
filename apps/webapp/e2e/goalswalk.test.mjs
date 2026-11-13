@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, COLLECTION, HUB } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, HUB, OTHER } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -310,6 +310,48 @@ test('chromium: a widget names its groups and periods, and every chart draws som
   await page.getByRole('menuitem', { name: 'As chart' }).click();
   const dot = await page.locator('[data-chart="LINE"] path.dots').boundingBox();
   assert.ok(dot && dot.width > 0 && dot.height > 0, `a line of one week draws its dot: ${JSON.stringify(dot)}`);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+// UC-GOL-04 check 8: a widget grouped by a person names the person, beside a widget whose groups
+// are no accounts - the server refuses a batch read naming one, as it does here.
+test('chromium: a widget grouped by person names the people beside one grouped by state', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = (n, title, chart, group) => ({
+    id: `01a0e2e0-0000-7000-8000-00000000a71${n}`, title, chart, source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT', group_by: group } },
+    goal_ids: [], compare: null, cumulative: false, x: (n - 1) * 6, y: 0, w: 6, h: 4,
+  });
+  const byPerson = widget(1, 'Open per person', 'TABLE', 'assignee_id');
+  const byState = widget(2, 'Open and done', 'PIE', 'is_completed');
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a720', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], version: 1, widgets: [byPerson, byState] };
+  const walk = await productWalk(browser, {
+    modules: ['GOALS'],
+    answer: goalsBackend({ seed: {
+      dashboards: [board],
+      figures: {
+        [byPerson.id]: [{ group: ACCOUNT.id, period: null, count: 2, value: null }, { group: OTHER.id, period: null, count: 1, value: null }],
+        [byState.id]: [{ group: 'false', period: null, count: 3, value: null }, { group: 'true', period: null, count: 1, value: null }],
+      },
+    } }),
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  const asked = [];
+  await page.route('**/api/v1/accounts:resolve', (route) => {
+    const ids = route.request().postDataJSON()?.ids ?? [];
+    asked.push(...ids);
+    if (ids.some((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(id))) return route.fulfill({ status: 400, json: { code: 'malformed_request', status: 400 } });
+    return route.fulfill({ json: { data: [ACCOUNT, OTHER].filter((each) => ids.includes(each.id)) } });
+  });
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  const table = page.getByRole('table', { name: 'Open per person' });
+  await table.getByText(OTHER.display_name, { exact: true }).waitFor({ timeout: 10_000 });
+  await table.getByText(ACCOUNT.display_name, { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('Somebody in this workspace').count(), 0, 'every person is named');
+  assert.deepEqual(asked.filter((id) => id === 'true' || id === 'false'), [], 'only people are asked for');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
