@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-admin, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-13, P-17]
-state: specified
+state: verified
 tasks: []
-checked_by: [apps/webapp/src/lib/create/kinds.test.ts, apps/webapp/src/lib/shortcuts.test.ts]
+checked_by: [apps/webapp/e2e/create.test.mjs, apps/webapp/src/lib/create/kinds.test.ts, apps/webapp/src/lib/shortcuts.test.ts]
 ---
 
 # Create anything from one button
@@ -46,10 +46,3 @@ the hub, ready to be written. On the phone they hold the ＋ and a new entry sta
 * A department's whole directory of portals is the service desk's ([UC-SVC-05](../servicedesk/UC-SVC-05-ask-the-service-desk-for-help.md)).
 * No kind is made outside a place the person may write in.
 
-## Today
-
-* Check 1: not met — built, no walk opens *Erstellen* from the bar, `C`, `Q` and the phone's ＋ yet.
-* Check 3: not met — the place chip is built, no walk changes it yet.
-* Check 4: not met — built, no walk makes a page at once or opens a kind's dialog yet.
-* Check 5: not met — the letters are proven, no walk holds the phone's ＋ yet.
-* Check 6: not met — built, no walk opens a template or an import from the foot yet.
