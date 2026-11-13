@@ -255,6 +255,18 @@ func (q *Queries) ClearBucket(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearBucketStatus = `-- name: ClearBucketStatus :execrows
+DELETE FROM bucket_status
+`
+
+func (q *Queries) ClearBucketStatus(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearBucketStatus)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearBusinessCalendar = `-- name: ClearBusinessCalendar :execrows
 DELETE FROM business_calendar
 `
@@ -1924,6 +1936,21 @@ SELECT EXISTS (SELECT 1 FROM bucket WHERE id = ($1::jsonb->>'id')::uuid) AS held
 
 func (q *Queries) HoldsBucket(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsBucket, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsBucketStatus = `-- name: HoldsBucketStatus :one
+SELECT EXISTS (
+  SELECT 1 FROM bucket_status
+  WHERE collection_id = ($1::jsonb->>'collection_id')::uuid
+    AND status = $1::jsonb->>'status'
+) AS held
+`
+
+func (q *Queries) HoldsBucketStatus(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsBucketStatus, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4190,6 +4217,31 @@ type ImportBucketParams struct {
 
 func (q *Queries) ImportBucket(ctx context.Context, arg ImportBucketParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importBucket, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importBucketStatus = `-- name: ImportBucketStatus :execrows
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT r.tenant_id, r.collection_id, r.bucket_id, r.status
+FROM jsonb_populate_record(
+  NULL::bucket_status,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, collection_id, status) DO UPDATE SET
+  bucket_id = EXCLUDED.bucket_id
+WHERE $2::boolean
+`
+
+type ImportBucketStatusParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportBucketStatus(ctx context.Context, arg ImportBucketStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importBucketStatus, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

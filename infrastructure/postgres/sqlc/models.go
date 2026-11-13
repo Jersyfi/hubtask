@@ -942,6 +942,13 @@ type Bucket struct {
 	Version      int32
 }
 
+type BucketStatus struct {
+	TenantID     pgtype.UUID
+	CollectionID pgtype.UUID
+	BucketID     pgtype.UUID
+	Status       string
+}
+
 type BusinessCalendar struct {
 	ID        pgtype.UUID
 	TenantID  pgtype.UUID

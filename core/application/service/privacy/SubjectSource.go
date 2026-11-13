@@ -180,6 +180,7 @@ var subjectEmailColumns = map[string][]string{
 var notThePersons = map[string]string{
 	"tenant":                  "the workspace itself: its name is not a person's data, and the archive needs the row to be restorable",
 	"bucket":                  "a column of a board is the workspace's shape",
+	"bucket_status":           "which statuses a column of a board shows",
 	"label":                   "the workspace's vocabulary",
 	"item_label":              "which of the workspace's labels sits on an entry",
 	"custom_field_definition": "the workspace's own fields",

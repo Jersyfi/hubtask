@@ -956,6 +956,53 @@ func (q *Queries) ExportAutomationRules(ctx context.Context, arg ExportAutomatio
 	return items, nil
 }
 
+const exportBucketStatuses = `-- name: ExportBucketStatuses :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.collection_id::text || '/' || w.status)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.collection_id AS key_1,
+         w.status AS key_2
+  FROM bucket_status w
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportBucketStatusesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond string
+	Batch       int32
+}
+
+type ExportBucketStatusesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportBucketStatuses(ctx context.Context, arg ExportBucketStatusesParams) ([]ExportBucketStatusesRow, error) {
+	rows, err := q.db.Query(ctx, exportBucketStatuses, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportBucketStatusesRow{}
+	for rows.Next() {
+		var i ExportBucketStatusesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportBuckets = `-- name: ExportBuckets :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

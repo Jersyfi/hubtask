@@ -2226,6 +2226,27 @@ SELECT EXISTS (
 -- name: ClearWorkflowScheme :execrows
 DELETE FROM workflow_scheme;
 
+-- name: ImportBucketStatus :execrows
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT r.tenant_id, r.collection_id, r.bucket_id, r.status
+FROM jsonb_populate_record(
+  NULL::bucket_status,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, collection_id, status) DO UPDATE SET
+  bucket_id = EXCLUDED.bucket_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsBucketStatus :one
+SELECT EXISTS (
+  SELECT 1 FROM bucket_status
+  WHERE collection_id = (sqlc.arg('payload')::jsonb->>'collection_id')::uuid
+    AND status = sqlc.arg('payload')::jsonb->>'status'
+) AS held;
+
+-- name: ClearBucketStatus :execrows
+DELETE FROM bucket_status;
+
 -- name: ImportPage :execrows
 -- The search document and the references are the triggers' to build.
 INSERT INTO page (

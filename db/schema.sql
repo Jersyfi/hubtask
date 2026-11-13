@@ -1084,6 +1084,21 @@ CREATE UNIQUE INDEX bucket_name_uq ON bucket (tenant_id, collection_id, lower(im
   WHERE deleted_at IS NULL;
 CREATE INDEX bucket_order_idx ON bucket (tenant_id, collection_id, order_key);
 
+-- Which statuses a column shows under a workflow (migration 0395): a status in at most one column
+-- of the board; one no column shows stands in *Ohne Spalte* (domain-model.md §3.5a).
+CREATE TABLE bucket_status (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL,
+  bucket_id     uuid NOT NULL,
+  status        text NOT NULL CHECK (status ~ '^[a-z][a-z0-9_]{0,49}$'),
+  PRIMARY KEY (tenant_id, collection_id, status),
+  CONSTRAINT bucket_status_collection_fkey
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT bucket_status_bucket_fkey
+    FOREIGN KEY (tenant_id, bucket_id) REFERENCES bucket (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX bucket_status_bucket_idx ON bucket_status (tenant_id, bucket_id);
+
 CREATE TABLE label (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -4033,7 +4048,7 @@ BEGIN
     'oauth_client','oauth_grant','oauth_code',
     'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
-    'container','bucket','label','work_item','item_label','item_member',
+    'container','bucket','bucket_status','label','work_item','item_label','item_member',
     'custom_field_definition','comment','container_milestone','kudos','structure_preset',
     'activity_entry',
     'media_object','item_attachment',

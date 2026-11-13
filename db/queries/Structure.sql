@@ -356,3 +356,25 @@ SELECT
      WHERE a.item_id = w.id AND o.deleted_at IS NULL)::integer AS attachments
 FROM work_item w
 WHERE w.id = ANY(sqlc.arg('item_ids')::uuid[]);
+
+-- name: ListBucketStatuses :many
+-- A board's mapping of columns to statuses, left to right and in each column by status; a
+-- deleted column's rows are gone with it or are left out here.
+SELECT s.bucket_id, s.status
+FROM bucket_status s
+JOIN bucket b ON b.id = s.bucket_id AND b.deleted_at IS NULL
+WHERE s.collection_id = sqlc.arg('collection_id')::uuid
+ORDER BY b.order_key COLLATE "C", b.id, s.status;
+
+-- name: ClearBucketStatuses :execrows
+-- A board's whole mapping, before it is written again or when the board leaves its workflow.
+DELETE FROM bucket_status WHERE collection_id = sqlc.arg('collection_id')::uuid;
+
+-- name: InsertBucketStatus :execrows
+-- One row of a mapping. The column must be of the same board, which the join refuses otherwise:
+-- nothing is written, and the caller's count tells.
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT b.tenant_id, b.collection_id, b.id, sqlc.arg('status')::text
+FROM bucket b
+WHERE b.id = sqlc.arg('bucket_id')::uuid AND b.collection_id = sqlc.arg('collection_id')::uuid
+  AND b.deleted_at IS NULL;

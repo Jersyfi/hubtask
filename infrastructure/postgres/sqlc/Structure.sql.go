@@ -81,6 +81,19 @@ func (q *Queries) BucketOrderKeyNeighbours(ctx context.Context, arg BucketOrderK
 	return i, err
 }
 
+const clearBucketStatuses = `-- name: ClearBucketStatuses :execrows
+DELETE FROM bucket_status WHERE collection_id = $1::uuid
+`
+
+// A board's whole mapping, before it is written again or when the board leaves its workflow.
+func (q *Queries) ClearBucketStatuses(ctx context.Context, collectionID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, clearBucketStatuses, collectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearForeignSubtreeBuckets = `-- name: ClearForeignSubtreeBuckets :many
 UPDATE work_item wi SET
   bucket_id = NULL
@@ -325,6 +338,30 @@ func (q *Queries) InsertBucket(ctx context.Context, arg InsertBucketParams) erro
 	return err
 }
 
+const insertBucketStatus = `-- name: InsertBucketStatus :execrows
+INSERT INTO bucket_status (tenant_id, collection_id, bucket_id, status)
+SELECT b.tenant_id, b.collection_id, b.id, $1::text
+FROM bucket b
+WHERE b.id = $2::uuid AND b.collection_id = $3::uuid
+  AND b.deleted_at IS NULL
+`
+
+type InsertBucketStatusParams struct {
+	Status       string
+	BucketID     pgtype.UUID
+	CollectionID pgtype.UUID
+}
+
+// One row of a mapping. The column must be of the same board, which the join refuses otherwise:
+// nothing is written, and the caller's count tells.
+func (q *Queries) InsertBucketStatus(ctx context.Context, arg InsertBucketStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertBucketStatus, arg.Status, arg.BucketID, arg.CollectionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertLabel = `-- name: InsertLabel :exec
 INSERT INTO label (
   id, tenant_id, collection_id, name, color_token, description, version
@@ -370,6 +407,41 @@ func (q *Queries) LastBucketOrderKey(ctx context.Context, collectionID pgtype.UU
 	var order_key string
 	err := row.Scan(&order_key)
 	return order_key, err
+}
+
+const listBucketStatuses = `-- name: ListBucketStatuses :many
+SELECT s.bucket_id, s.status
+FROM bucket_status s
+JOIN bucket b ON b.id = s.bucket_id AND b.deleted_at IS NULL
+WHERE s.collection_id = $1::uuid
+ORDER BY b.order_key COLLATE "C", b.id, s.status
+`
+
+type ListBucketStatusesRow struct {
+	BucketID pgtype.UUID
+	Status   string
+}
+
+// A board's mapping of columns to statuses, left to right and in each column by status; a
+// deleted column's rows are gone with it or are left out here.
+func (q *Queries) ListBucketStatuses(ctx context.Context, collectionID pgtype.UUID) ([]ListBucketStatusesRow, error) {
+	rows, err := q.db.Query(ctx, listBucketStatuses, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBucketStatusesRow{}
+	for rows.Next() {
+		var i ListBucketStatusesRow
+		if err := rows.Scan(&i.BucketID, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listBuckets = `-- name: ListBuckets :many

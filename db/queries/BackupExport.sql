@@ -705,6 +705,20 @@ FROM (
   ORDER BY s.key_1, s.key_2
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportBucketStatuses :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (w.collection_id::text || '/' || w.status)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(w) - 'tenant_id')::jsonb AS payload,
+         w.collection_id AS key_1,
+         w.status AS key_2
+  FROM bucket_status w
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::text)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportRealtimeDocuments :many
 -- Live documents (migration 0237): the head, the log and the snapshots, written whole - an update
 -- removed by retention leaves no marker.

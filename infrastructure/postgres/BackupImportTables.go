@@ -216,6 +216,17 @@ var importers = map[string]importer{
 			return queries.ClearWorkflow(ctx)
 		},
 	},
+	"bucket_status": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportBucketStatus(ctx, sqlc.ImportBucketStatusParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsBucketStatus(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearBucketStatus(ctx)
+		},
+	},
 	"workflow_scheme": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportWorkflowScheme(ctx, sqlc.ImportWorkflowSchemeParams{Payload: payload, Overwrite: overwrite})

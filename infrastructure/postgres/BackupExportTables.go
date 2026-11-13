@@ -292,6 +292,20 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"bucket_status": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportBucketStatuses(ctx, sqlc.ExportBucketStatusesParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorText(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportBucketStatusesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"workflow_scheme": {
 		delta: false,
 		keys:  2,

@@ -593,6 +593,14 @@ var entities = []Entity{
 			{Field: "published_by", Table: "account", Clearable: true}, {Field: "hub_id", Table: "container"},
 		},
 	},
+	// Which statuses a column shows (migration 0395): after the buckets and the workflows.
+	{
+		Name: "bucket_statuses", Table: "bucket_status", Whole: true, Later: true, Duplicable: true,
+		Keys: []string{"collection_id", "status"},
+		References: []Reference{
+			{Field: "collection_id", Table: "container"}, {Field: "bucket_id", Table: "bucket"},
+		},
+	},
 	{
 		Name: "workflow_schemes", Table: "workflow_scheme", Whole: true, Later: true, Duplicable: true,
 		Keys:       []string{"container_id", "entry_type"},

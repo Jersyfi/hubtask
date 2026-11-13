@@ -817,6 +817,17 @@ type Buckets interface {
 	MoveItems(ctx context.Context, sourceID, targetID shared.ID, at time.Time) (int, error)
 }
 
+// BucketStatuses stores which statuses a board's columns show under a workflow (domain-model.md
+// §3.5a): a status in at most one column per board, which the primary key holds.
+type BucketStatuses interface {
+	// List returns a board's mapping, left to right; a deleted column's rows are left out.
+	List(ctx context.Context, collectionID shared.ID) ([]work.ColumnStatus, error)
+
+	// Replace writes a board's whole mapping in place of the one it had; an empty mapping
+	// clears it. A row naming a column of another board is refused as buckets.not_found.
+	Replace(ctx context.Context, collectionID shared.ID, mapping []work.ColumnStatus) error
+}
+
 // Labels stores a collection's vocabulary.
 type Labels interface {
 	// Find returns the label, or ErrNotFound if it does not exist *for this tenant*. Deleted
