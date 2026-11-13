@@ -1147,7 +1147,7 @@
       <Input label={t('app.planning.lag_days')} size="sm" bind:value={draft.lag} inputmode="numeric" hint={t('app.planning.lag_hint')} error={lagErrors[linkId]} />
       <Inline justify="end">
         <Button size="sm" tone="subtle" onclick={() => { timingOpen = undefined; removeDependency(linkId, each.successor_id, each.predecessor_id); }}>{t('app.planning.remove')}</Button>
-        <Button size="sm" onclick={() => saveTimingAndClose(linkId)}>{t('app.planning.save_timing')}</Button>
+        <Button size="sm" tone="primary" onclick={() => saveTimingAndClose(linkId)}>{t('app.planning.save_timing')}</Button>
       </Inline>
     </div>
   {/if}
