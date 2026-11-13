@@ -195,7 +195,7 @@
     outline?: readonly TimelineColumn[];
     outlineCell?: Snippet<[string, string]>;
     /** Whether Saturdays and Sundays are shaded, where a day is a column wide enough to see. */
-    weekends?: boolean;
+    hasWeekends?: boolean;
   }
 
   const {
@@ -227,7 +227,7 @@
     titleHead,
     outline = [],
     outlineCell,
-    weekends = false,
+    hasWeekends = false,
   }: Props = $props();
   const wide = $derived(outline.filter((each) => !each.isNarrow).length);
   const narrow = $derived(outline.length - wide);
@@ -261,7 +261,7 @@
   const columns = $derived([...Array(days).keys()]);
   /** The columns that fall on a Saturday or a Sunday (UTC, as every day index here). */
   const weekendColumns = $derived(
-    weekends && (scale === 'day' || scale === 'week')
+    hasWeekends && (scale === 'day' || scale === 'week')
       ? new Set(columns.filter((column) => [0, 6].includes(new Date(dayOf(from) + column * DAY).getUTCDay())))
       : new Set<number>(),
   );

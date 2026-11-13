@@ -721,7 +721,7 @@
           titleHead={t(isGantt ? 'app.planview.head_task' : 'app.planview.head_entry')}
           {outline}
           {outlineCell}
-          weekends={setup.bars.weekends}
+          hasWeekends={setup.bars.weekends}
           {gridlines}
           {today}
           todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
