@@ -548,6 +548,7 @@
   const shownKind = $derived<'ALL' | Kind>(chosenKind ?? (hasWords || line.trim() === '' ? 'ALL' : 'ENTRY'));
   let chosenHub = $state<string | undefined>(undefined);
   let chosenSince = $state<Since | undefined>(undefined);
+  let chosenAuthor = $state<string | undefined>(undefined);
   let order = $state<Order>('RELEVANCE');
 
   let answer = $state<Answer>({ data: [], facets: [] });
@@ -601,9 +602,22 @@
       ? countBy(search.hits.map((hit) => ({ updated_at: hit.updated_at ?? null }) as Hit), (hit) => sinceOf(hit.updated_at, now))
       : countBy(kindHits, (hit) => sinceOf(hit.updated_at, now)),
   );
+  /** Who made the hits read (§6.11, *Von*): entries, tickets and pages name their author. */
+  const authorCounts = $derived(
+    shownKind === 'ENTRY' ? countBy(search.hits.map((hit) => ({ author_id: hit.created_by ?? null }) as Hit), (hit) => hit.author_id) : countBy(kindHits, (hit) => hit.author_id),
+  );
+  $effect(() => {
+    const ids = [...authorCounts.keys()];
+    untrack(() => accounts.resolve(ids));
+  });
   const shownHits = $derived(
     ordered(
-      kindHits.filter((hit) => (chosenHub === undefined || hubOfHit(hit) === chosenHub) && (chosenSince === undefined || sinceOf(hit.updated_at, now) === chosenSince)),
+      kindHits.filter(
+        (hit) =>
+          (chosenHub === undefined || hubOfHit(hit) === chosenHub) &&
+          (chosenSince === undefined || sinceOf(hit.updated_at, now) === chosenSince) &&
+          (chosenAuthor === undefined || hit.author_id === chosenAuthor),
+      ),
       order,
       messages.locale,
     ),
@@ -611,16 +625,20 @@
   /** The entries, narrowed by the facets and in the order chosen; relevance is the server's. */
   const shownEntries = $derived.by(() => {
     const narrowed = search.hits.filter(
-      (hit) => (chosenHub === undefined || hubOfEntry(hit) === chosenHub) && (chosenSince === undefined || sinceOf(hit.updated_at ?? null, now) === chosenSince),
+      (hit) =>
+        (chosenHub === undefined || hubOfEntry(hit) === chosenHub) &&
+        (chosenSince === undefined || sinceOf(hit.updated_at ?? null, now) === chosenSince) &&
+        (chosenAuthor === undefined || hit.created_by === chosenAuthor),
     );
     if (order === 'UPDATED') return [...narrowed].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
+    if (order === 'CREATED') return [...narrowed].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
     if (order === 'TITLE') return [...narrowed].sort((a, b) => new Intl.Collator(messages.locale).compare(a.title, b.title));
     return narrowed;
   });
   const shownCount = $derived(
     shownKind === 'ENTRY'
       ? shownEntries.length
-      : chosenHub !== undefined || chosenSince !== undefined
+      : chosenHub !== undefined || chosenSince !== undefined || chosenAuthor !== undefined
         ? shownHits.length
         : (scopes.find((scope) => scope.id === shownKind)?.count ?? 0),
   );
@@ -753,7 +771,7 @@
       <!-- The phone's kinds as a strip of chips with counts (search m); the rest in the line's sheet. -->
       <div class="strip" role="group" aria-label={t('app.search.facet_kind')}>
         {#each scopes as scope (scope.id)}
-          <button type="button" class="chip" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; }}>
+          <button type="button" class="chip" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; chosenAuthor = undefined; }}>
             {t('app.palette.scope', { kind: scope.id })} {scope.count}{scope.more ? '+' : ''}
           </button>
         {/each}
@@ -766,7 +784,7 @@
         <section>
           <h2>{t('app.search.facet_kind')}</h2>
           {#each scopes as scope (scope.id)}
-            <button type="button" class="facet" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; }}>
+            <button type="button" class="facet" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; chosenAuthor = undefined; }}>
               <span>{t('app.palette.scope', { kind: scope.id })}</span><span class="n">{scope.count}{scope.more ? '+' : ''}</span>
             </button>
           {/each}
@@ -791,6 +809,16 @@
             {/each}
           </section>
         {/if}
+        {#if authorCounts.size > 0}
+          <section>
+            <h2>{t('app.search.facet_by')}</h2>
+            {#each [...authorCounts].sort((a, b) => b[1] - a[1]) as [author, count] (author)}
+              <button type="button" class="facet" aria-pressed={chosenAuthor === author} onclick={() => (chosenAuthor = chosenAuthor === author ? undefined : author)}>
+                <span>{author === actor.account?.id ? t('app.search.by_me') : (accounts.nameOf(author) ?? t('app.search.by_unknown'))}</span><span class="n">{count}</span>
+              </button>
+            {/each}
+          </section>
+        {/if}
       </nav>
 
       <div class="hits">
@@ -798,7 +826,7 @@
           <p class="count"><b>{t('app.search.count', { count: shownCount })}</b> <span>{t('app.search.count_where')}</span></p>
           <div class="tools">
             <div class="orders" role="group" aria-label={t('app.search.order')}>
-              {#each ['RELEVANCE', 'UPDATED', 'TITLE'] as const as each (each)}
+              {#each ['RELEVANCE', 'UPDATED', 'CREATED'] as const as each (each)}
                 <button type="button" aria-pressed={order === each} onclick={() => (order = each)}>{t('app.search.order_value', { order: each })}</button>
               {/each}
             </div>

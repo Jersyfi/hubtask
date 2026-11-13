@@ -8,6 +8,7 @@
   import { ProductTile, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
   import type { IconName } from '@hubtask/design-system/icons';
 
+  import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -37,6 +38,7 @@
     [
       hub?.name && collection?.name ? `${hub.name} › ${collection.name}` : (hub?.name ?? collection?.name),
       hit.updated_at ? formatRelative(hit.updated_at, messages.locale) : undefined,
+      hit.author_id && accounts.nameOf(hit.author_id) ? t('app.search.by_name', { name: accounts.nameOf(hit.author_id) ?? '' }) : undefined,
       hit.kind === 'FILE' || hit.kind === 'COMMENT' || hit.kind === 'PERSON' ? t('app.search.kind_one', { kind: hit.kind }) : undefined,
     ].filter(Boolean),
   );

@@ -26,6 +26,9 @@ export interface Hit {
   readonly state: string | null;
   readonly key: string | null;
   readonly updated_at: string | null;
+  /** When and by whom it was made: entries, tickets and pages; null for the other kinds. */
+  readonly created_at: string | null;
+  readonly author_id: string | null;
   readonly on: { readonly kind: 'ENTRY' | 'PAGE' | 'WHITEBOARD'; readonly id: string } | null;
 }
 
@@ -206,11 +209,12 @@ export function countBy<T extends string>(hits: readonly Hit[], of: (hit: Hit) =
 }
 
 /** The orders of the search page: relevance is the server's; the others sort what was found. */
-export type Order = 'RELEVANCE' | 'UPDATED' | 'TITLE';
+export type Order = 'RELEVANCE' | 'UPDATED' | 'CREATED' | 'TITLE';
 
 export function ordered(hits: readonly Hit[], order: Order, locale: string): Hit[] {
   if (order === 'RELEVANCE') return [...hits];
   if (order === 'UPDATED') return [...hits].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
+  if (order === 'CREATED') return [...hits].sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
   const collator = new Intl.Collator(locale);
   return [...hits].sort((a, b) => collator.compare(a.title, b.title));
 }

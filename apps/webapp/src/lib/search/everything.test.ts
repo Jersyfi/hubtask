@@ -4,10 +4,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BAR_KINDS, arrange, countBy, keyIn, kindsOn, marked, markWords, pathOf, requestOf, scopesOf, sinceOf, wordsForUnknownKeys, type Hit } from './everything.ts';
+import { BAR_KINDS, arrange, countBy, keyIn, ordered, kindsOn, marked, markWords, pathOf, requestOf, scopesOf, sinceOf, wordsForUnknownKeys, type Hit } from './everything.ts';
 
 const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
-  kind, id, title: id, hub_id: null, collection_id: null, tile: null, snippet: null, state: null, key: null, updated_at: null, on: null, ...extra,
+  kind, id, title: id, hub_id: null, collection_id: null, tile: null, snippet: null, state: null, key: null, updated_at: null, created_at: null, author_id: null, on: null, ...extra,
 });
 
 test('a kind whose module is off is never asked (P-17)', () => {
@@ -69,4 +69,16 @@ test('the changed facet counts today, this week and older', () => {
   assert.equal(sinceOf(new Date(2026, 9, 1).toISOString(), now), 'OLDER');
   const counts = countBy([hit('ENTRY', 'a', { hub_id: 'h' }), hit('PAGE', 'b', { hub_id: 'h' }), hit('PERSON', 'c')], (each) => each.hub_id);
   assert.deepEqual([...counts], [['h', 2]]);
+});
+
+// UC-WRK-18 check 9. The search page orders by creation and counts hits by their author (§6.11, scene search 4).
+test('the orders: newest made first, a hit that names no making last; the authors counted', () => {
+  const hits = [
+    hit('PAGE', 'a', { created_at: '2026-10-01T00:00:00Z', author_id: 'p' }),
+    hit('FILE', 'b'),
+    hit('ENTRY', 'c', { created_at: '2026-11-01T00:00:00Z', author_id: 'p' }),
+    hit('ENTRY', 'd', { created_at: '2026-10-15T00:00:00Z', author_id: 'm' }),
+  ];
+  assert.deepEqual(ordered(hits, 'CREATED', 'en').map((each) => each.id), ['c', 'd', 'a', 'b']);
+  assert.deepEqual([...countBy(hits, (each) => each.author_id)], [['p', 2], ['m', 1]]);
 });
