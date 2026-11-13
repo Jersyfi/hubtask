@@ -797,6 +797,16 @@ take into a status of the column, offers the choice among several, or is refused
 column the initial one, the next empty column the first IN_PROGRESS; the rest stay unmapped with a
 suggestion. Switching levels always previews.
 
+An entry **arriving** on a board - moved from another collection, imported - takes the state of the
+column it is put in, and a completed one put in none goes into the done column (`Board.Arrived`); a
+**copy** or an entry from a template is open, so it stands outside the done column (`Board.Copied`);
+under a workflow both stand in the column of their status. **Marking** a column done takes the mark
+off the others; the only done column cannot be cleared (`Board.MarkDone`). A **deleted** done
+column's entries go to its successor, the rightmost column left, which takes the mark; an open
+column's go to the first open column; under a mapping they go to *Ohne Spalte*
+(`Board.TargetAfterDeleting`). A board made before this model is brought to it once by an
+administrator's repair (`RepairBoards`, `POST /boards:repair`).
+
 ### 3.6 Automatic assignment
 
 | Strategy | Behaviour | Determinism in tests |

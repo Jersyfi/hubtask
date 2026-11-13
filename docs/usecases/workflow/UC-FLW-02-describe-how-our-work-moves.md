@@ -5,7 +5,7 @@ context: workflow
 actors: [PE-admin, PE-member]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-05, P-06, P-11, P-13, P-17]
-state: verified
+state: partial
 tasks: []
 checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/WorkflowHub_test.go, core/application/service/workflow/WorkflowHub_test.go, core/application/service/work/WorkflowHubGate_test.go, core/application/service/sync/InitialSyncHubBlocks_test.go, test/integration/workflow_hub_test.go, core/application/service/workflow/WorkflowDoors_test.go]
 ---
@@ -34,7 +34,11 @@ publishes; the board now shows one column per status.
    list; every action in the diagram has a list equivalent.
 3. A workflow is saved as a draft that changes nothing until it is published.
 4. Publishing for a collection shows beforehand which status every existing entry will get and how
-   the board's columns change; nothing moves without that confirmation.
+   the board's columns change: per collection the columns with the statuses each will show (its
+   own columns kept, matched by name, the done column taking the done statuses), the statuses no
+   column shows with a suggested column, the level before and after, and how many entries move -
+   column-only moves counted; the person may change the mapping; nothing moves without that
+   confirmation (owner's decision of 2026-11-12).
 5. A collection shows which workflow it uses and links to the one place it is defined.
 6. Entering a done-category status completes the entry and leaving one reopens it, in the history
    with who did it.
@@ -53,3 +57,7 @@ publishes; the board now shows one column per status.
   hub (configuration model §2); a collection defines no workflows of its own.
 * Steps with conditions, required fields and actions: [UC-FLW-04](./UC-FLW-04-ask-for-what-a-step-needs.md).
 * Changing a workflow in use: [UC-FLW-05](./UC-FLW-05-change-a-workflow-in-use.md).
+
+## Today
+
+* Check 4: not met — the scheme preview does not yet answer `boards` nor the set take `columns` (work surface Phase 2c, `docs/backlog/work-surface/build-plan.md` §6); the web mapping step is family 3.2.

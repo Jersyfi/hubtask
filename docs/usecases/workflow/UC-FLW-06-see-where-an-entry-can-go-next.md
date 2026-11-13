@@ -40,8 +40,9 @@ to do, in progress and done, and the main button is *Done*, which completes the 
 4. Everyone who may read the entry opens its workflow's picture read-only — the statuses with
    their categories, the steps between them, which are limited and which wait for an approval;
    *open in designer* is shown only to a person who may change the structure where the entry is.
-5. Where no workflow runs, the control shows to do, in progress and done, every one reachable,
-   and its main action completes the entry.
+5. Where no workflow runs, the control shows the entry's level: in a list without columns (L0)
+   open and done; on a board (L1) the board's columns as the states, the done column marked as
+   completing; its main action completes the entry (owner's decision of 2026-11-12).
 6. REST, MCP and `hubctl item steps` answer the same: the reasons as codes with their parameters,
    never as sentences.
 
@@ -56,4 +57,4 @@ to do, in progress and done, and the main button is *Done*, which completes the 
 * Check 1: not met — the web app's status menu with targets and blocked steps, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
 * Check 3: not met — the web app's route to done, work surface family 3.1.
 * Check 4: not met — the web app's read-only picture and *open in designer*, work surface family 3.1.
-* Check 5: not met — the web app's default menu without a workflow, work surface family 3.1.
+* Check 5: not met — the server answers `state_mode` and `columns` in `/items/{id}/steps`; the web app's menu by level, work surface families 3.1 and 3.2.
