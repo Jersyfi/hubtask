@@ -227,6 +227,9 @@ export const DECLARED = {
     'strikethrough',
     'quote',
     'list-checks',
+    'layout-grid',
+    'file-spreadsheet',
+    'file-archive',
     'list',
     'at-sign',
     // *All deadlines as a table* (ET-6).
