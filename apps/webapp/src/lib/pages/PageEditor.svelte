@@ -866,7 +866,8 @@
 {/snippet}
 
 {#if atText}
-  <FloatingToolbar label={t('app.pages.format_bar')} container={zone} box={isWriting && !isLinkingWeb ? selectionBox : undefined}>
+  <!-- The bar starts where the words start, as the scene draws it: centred, a word near the line's start would carry it over the sidebar. -->
+  <FloatingToolbar label={t('app.pages.format_bar')} container={zone} box={isWriting && !isLinkingWeb ? selectionBox : undefined} placement={{ side: 'block-start', align: 'start' }}>
     <Menu label={t('app.pages.style')} items={styleItems} onselect={(id) => turnInto(id)}>
       {#snippet trigger(props)}
         <Button size="sm" tone="subtle" data-page-style {...props}>{styleLabel(currentStyle)}</Button>

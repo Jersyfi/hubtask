@@ -95,6 +95,8 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   const barBox = await bar.boundingBox();
   const words = await body.getByText('Welcome to the team.').boundingBox();
   assert.ok(barBox && words && barBox.y + barBox.height <= words.y + 2, 'the bar stands above the selection, not over it');
+  const text = await body.boundingBox();
+  assert.ok(Math.abs(barBox.x - words.x) < 2 && barBox.x >= text.x - 1, 'the bar starts where the words start, inside the text\'s width');
   await bar.getByRole('button', { name: 'Bold' }).click();
   await body.locator('strong', { hasText: 'Welcome to the team.' }).waitFor({ timeout: 5_000 });
 
