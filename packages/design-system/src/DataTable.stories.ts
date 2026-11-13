@@ -53,3 +53,22 @@ export const tree: Story = {
     'A hierarchy drawn as a table: each row’s fold stands before its title in `lead`, outside the press that opens the row, so the fold is its own target and never a button within a link.',
   args: { mode: 'tree' },
 };
+
+export const queue: Story = {
+  name: 'A calm work table: the queue (scene queue)',
+  about:
+    'WB-4: one region with hairlines, the head in small capitals, groups by status with their lozenge, count and twist, “+ Entry in …” as each group’s last row opening the capture there. *Open* and ⋯ come forward on hover and focus. Comfortable or compact is kept on this device. Below `medium` each row stacks - title, the meta line with key, status and priority, the SLA bar - and swipes: right completes, left opens the menu, which heads with *Complete* so no act needs the gesture (2.5.7).',
+  args: { mode: 'queue' },
+};
+
+export const compact: Story = {
+  name: 'The queue, compact',
+  about: 'The same rows at `density.compact.row.height`, a third more on a screen.',
+  args: { mode: 'compact' },
+};
+
+export const workEmpty: Story = {
+  name: 'An empty queue',
+  about: 'The empty state inside the region, under the heads.',
+  args: { mode: 'work-empty' },
+};
