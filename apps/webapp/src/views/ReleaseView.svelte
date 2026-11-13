@@ -344,9 +344,9 @@
         {#if detail}
           <div class="progress">
             <span class="bar"><ProgressBar label={t('app.releases.progress', { name: shown.name })} value={percentOf(shown.id)} /></span>
-            <span data-release-done>{t('app.releases.counts', { done: String(detail.done_count), open: String(detail.open_count) })}</span>
+            <span class="said"><span data-release-done>{t('app.releases.counts', { done: String(detail.done_count), open: String(detail.open_count) })}</span>
             {#if shown.state === 'PLANNED'}<span class="quiet">· {t('app.releases.notes_coming')}</span>
-            {:else if shown.notes_page_id}<a href={`/pages/${shown.notes_page_id}`}>{t('app.releases.notes')}</a>{/if}
+            {:else if shown.notes_page_id}<a href={`/pages/${shown.notes_page_id}`}>{t('app.releases.notes')}</a>{/if}</span>
           </div>
         {/if}
 
@@ -364,7 +364,7 @@
           <DataTable label={t('app.releases.in_release', { count: String(detail.entries.length) })} columns={entryColumns} rows={detail.entries}
             key={(entry: InRelease) => entry.item_id} rowLabel={(entry: InRelease) => entry.title}>
             {#snippet cell(entry: InRelease, column: DataColumn)}
-              {#if column.id === 'entry'}{#if entry.key}<span class="key">{entry.key}</span> {/if}<a href={`/items/${entry.item_id}`}>{entry.title}</a>
+              {#if column.id === 'entry'}<span class="entry">{#if entry.key}<span class="key">{entry.key}</span>{/if}<a href={`/items/${entry.item_id}`}>{entry.title}</a></span>
               {:else if column.id === 'type'}{entry.type_name}
               {:else if column.id === 'collection'}{collectionName(entry.collection_id)}
               {:else if column.id === 'state'}{@const state = referenceState({ completed: entry.done, status_name: entry.status_name, status_category: entry.status_category }, t)}<StateLozenge size="sm" vocabulary="category" state={state.state} label={state.label} />
@@ -473,12 +473,16 @@
   .release-name b { font-weight: var(--fw-semibold); }
   .card { display: flex; flex-direction: column; gap: var(--sp-200); padding: var(--sp-300); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); min-inline-size: 0; }
   .card-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-150); }
-  .card-what { display: flex; flex: 1; flex-direction: column; gap: var(--sp-050); min-inline-size: 0; }
+  .card-what { display: flex; flex: 1 1 var(--layout-field-sm); flex-direction: column; gap: var(--sp-050); min-inline-size: 0; }
   .line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .name { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
   .about { margin: 0; color: var(--text-secondary); }
   .progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); font-size: var(--fs-075); }
   .bar { flex: 1; min-inline-size: var(--layout-field-sm); }
+  .said { flex: 0 1 auto; min-inline-size: 0; }
+  .entry { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-100); }
+  .entry a { color: inherit; text-decoration: none; }
+  .entry a:hover { text-decoration: underline; }
   .entries-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
   .label { margin: 0; color: var(--text-secondary); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-transform: uppercase; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
