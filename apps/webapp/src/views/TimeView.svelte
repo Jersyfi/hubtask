@@ -31,7 +31,7 @@
     Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
-  import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
+  import type { CapacityList, PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -40,7 +40,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    DIMENSIONS, WORK_TYPES, addDays, dayHeading, exportCsv, groupKey, isChangeable, keyLabel, minutesOf, minutesText, queuePath, time,
+    CAPACITIES, DIMENSIONS, WORK_TYPES, addDays, dayCapacities, dayHeading, exportCsv, groupKey, isChangeable, keyLabel, minutesOf, minutesText, queuePath, time,
     weekDays, weekGrid, weekPath, weekStartOf, type RecordFields,
   } from '../lib/data/time.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -242,13 +242,23 @@
   }
 
   const weekText = $derived(t('app.time.week_of', { from: formatPlainDay(days[0], locale), to: formatPlainDay(days[6], locale) }));
+  /** The reader's capacity each day of the week (UC-TIM-01): what a day's bar is measured against. */
+  let capacities = $state<CapacityList['data']>([]);
+  $effect(() => untrack(() => engine.subscribe<CapacityList>({ path: CAPACITIES }, (next) => { if (next.status === 'ready') capacities = next.data.data; })));
+  const capacity = $derived(dayCapacities(capacities, actor.account?.id, monday));
+  const weekCapacity = $derived(capacity?.reduce((sum, each) => sum + each, 0) ?? 0);
   const figureText = $derived(
-    sheet ? `${t('app.time.week_total', { minutes: minutesText(sheet.minutes) })} · ${t(`app.time.state_${sheet.state}`)}` : '',
+    sheet
+      ? [
+          weekCapacity > 0 ? t('app.time.week_of_capacity', { minutes: minutesText(sheet.minutes), capacity: minutesText(weekCapacity) }) : t('app.time.week_total', { minutes: minutesText(sheet.minutes) }),
+          t(`app.time.state_${sheet.state}`),
+        ].join(' · ')
+      : '',
   );
   /** Each day of the week with its minutes, for the strip a day is recorded from. */
   const strip = $derived(days.map((day) => {
     const at = sheet?.days.find((each) => each.day === day);
-    return { day, minutes: at?.minutes ?? 0, isLocked: at?.locked === true, isToday: day === today };
+    return { day, minutes: at?.minutes ?? 0, isLocked: at?.locked === true, isToday: day === today, capacity: capacity?.[days.indexOf(day)] ?? 0 };
   }));
   const mayRecord = $derived(isOpen && offeredKinds.length > 0);
   const longDay = (day: string) => new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`));
@@ -400,12 +410,14 @@
                 onclick={() => openRecord(undefined, each.day)}>
                 <span class="weekday">{dayHeading(each.day, locale)}</span>
                 <span class="sum" data-none={each.minutes === 0 ? '' : undefined}>{minutesText(each.minutes)}</span>
+                {#if each.capacity > 0}<span class="capacity" data-capacity={each.capacity}><span class="of">{t('app.time.of_capacity', { capacity: minutesText(each.capacity) })}</span><span class="bar" aria-hidden="true"><span class="fill" style:inline-size={`${Math.min(100, Math.round((each.minutes / each.capacity) * 100))}%`}></span></span></span>{/if}
                 <span class="add" aria-hidden="true"><Icon name="plus" size="sm" /></span>
               </button>
             {:else}
               <div class="day" data-today={each.isToday ? '' : undefined} data-locked={each.isLocked ? '' : undefined}>
                 <span class="weekday">{dayHeading(each.day, locale)}</span>
                 <span class="sum" data-none={each.minutes === 0 ? '' : undefined}>{minutesText(each.minutes)}</span>
+                {#if each.capacity > 0}<span class="capacity" data-capacity={each.capacity}><span class="of">{t('app.time.of_capacity', { capacity: minutesText(each.capacity) })}</span><span class="bar" aria-hidden="true"><span class="fill" style:inline-size={`${Math.min(100, Math.round((each.minutes / each.capacity) * 100))}%`}></span></span></span>{/if}
                 {#if each.isLocked}<span class="note"><Icon name="lock" size="sm" /><span>{t('app.time.locked')}</span></span>{/if}
               </div>
             {/if}
@@ -449,6 +461,14 @@
             {/snippet}
           </DataTable>
         </section>
+      {/if}
+      {#if isOpen}
+        <!-- Handing in, with what happens next (scene time): the week goes for approval and is locked. -->
+        <div class="hand-in" data-hand-in>
+          <p>{t('app.time.hand_in_next')}</p>
+          <Button icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
+            onclick={() => void act(() => time.submit(monday), t('app.time.handed_in', { minutes: minutesText(sheet?.minutes ?? 0) }))}>{t('app.time.hand_in_week')}</Button>
+        </div>
       {/if}
     {/if}
 
@@ -591,8 +611,6 @@
               const copied = await time.copyPrevious(monday);
               toast.show({ text: t('app.time.copied', { count: String(copied.copied) }), tone: 'success' });
             })}>{t('app.time.copy_previous')}</Button>
-            <Button size="sm" icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
-              onclick={() => void act(() => time.submit(monday), t('app.time.handed_in', { minutes: minutesText(sheet?.minutes ?? 0) }))}>{t('app.time.hand_in')}</Button>
           {:else if sheet.state === 'SUBMITTED'}
             <Button size="sm" tone="secondary" icon="rotate-ccw" onclick={() => void act(() => time.withdraw(monday), t('app.time.taken_back'))}>{t('app.time.take_back')}</Button>
           {/if}
@@ -675,6 +693,11 @@
   .weekday { overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
   .sum { font-size: var(--fs-200); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
   .sum[data-none] { color: var(--text-subtle); }
+  .capacity { display: grid; gap: var(--sp-025); inline-size: 100%; color: var(--text-subtle); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
+  .bar { display: block; block-size: var(--sp-050); border-radius: var(--r-full); background: var(--bg-surface-sunken); overflow: hidden; }
+  .fill { display: block; block-size: 100%; border-radius: inherit; background: var(--text-secondary); }
+  .hand-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .hand-in p { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .add { position: absolute; inset-block-start: var(--sp-050); inset-inline-end: var(--sp-050); color: var(--text-subtle); opacity: 0; }
   button.day:hover .add, button.day:focus-visible .add { opacity: 1; }
   .share { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--sp-100); inline-size: 100%; min-inline-size: var(--sp-800); }

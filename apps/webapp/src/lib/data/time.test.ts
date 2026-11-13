@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { PlacedTimeRecord } from '@hubtask/sync-engine';
 
 import {
-  ranTooLong, usualEnd,
+  ranTooLong, usualEnd, dayCapacities,
   absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel, groupKey,
   hoursClockText, minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf, weekText,
 } from './time.ts';
@@ -198,4 +198,16 @@ test('a report group is told apart by its keys, not by the text of an object', (
   assert.notEqual(groupKey(ana), groupKey(ben), 'two people, two rows - the report crashed on a duplicate key');
   assert.equal(groupKey(ana), groupKey({ keys: [...ana.keys] }));
   assert.notEqual(groupKey({ keys: [{ dimension: 'ENTRY', value: 'a|b' }] }), groupKey({ keys: [{ dimension: 'ENTRY', value: 'a' }, { dimension: 'ENTRY', value: 'b' }] }));
+});
+
+test('a day\'s capacity is the latest one in force by the week\'s Monday, the person\'s own', () => {
+  const list = [
+    { account_id: 'me', from: '2026-01-01', week_minutes: [480, 480, 480, 480, 480, 0, 0] },
+    { account_id: 'me', from: '2026-11-01', week_minutes: [480, 480, 240] },
+    { account_id: 'me', from: '2026-12-01', week_minutes: [0, 0, 0, 0, 0, 0, 0] },
+    { account_id: 'other', from: '2026-11-05', week_minutes: [60, 60, 60, 60, 60, 0, 0] },
+  ];
+  assert.deepEqual(dayCapacities(list, 'me', '2026-11-09'), [480, 480, 240, 0, 0, 0, 0]);
+  assert.deepEqual(dayCapacities(list, 'me', '2026-10-05'), [480, 480, 480, 480, 480, 0, 0]);
+  assert.equal(dayCapacities(list, 'nobody', '2026-11-09'), undefined);
 });

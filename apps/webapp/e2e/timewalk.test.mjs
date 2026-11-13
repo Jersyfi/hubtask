@@ -34,7 +34,7 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running, kinds, rates, absences } = {}) {
+function timeBackend({ running, kinds, rates, absences, capacities } = {}) {
   const id = ids('00000b');
   const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
@@ -62,7 +62,7 @@ function timeBackend({ running, kinds, rates, absences } = {}) {
       return { json: { account_id: ACCOUNT.id, scope_type: query.get('scope_type') ?? 'TENANT', roles: ['OWNER'], permissions: [], sources: [] } };
     }
     if (path === '/timer' && method === 'GET') return { json: timer };
-    if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
+    if (path === '/time-capacities' && method === 'GET') return { json: { data: capacities ?? [] } };
     if (path === '/cost-rates' && method === 'GET') return { json: { data: rates ?? [] } };
     if (path === '/time-absences' && method === 'GET') return { json: { data: absences ?? [] } };
     if (path === '/timer:start' && method === 'POST') {
@@ -107,7 +107,9 @@ function timeBackend({ running, kinds, rates, absences } = {}) {
 test('chromium: time - a timer on an entry, the week handed in, a colleague\'s week approved - without an error', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend() });
+  // Eight hours a weekday: the week's figure and each day measure against them (UC-TIM-01).
+  const capacities = [{ account_id: ACCOUNT.id, from: '2020-01-06', week_minutes: [480, 480, 480, 480, 480, 0, 0], version: 1 }];
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ capacities }) });
   t.after(walk.close);
   const { page } = walk;
 
@@ -118,10 +120,14 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
 
   await page.goto(`${served.origin}/time`);
   await page.getByText(ENTRY.title).first().waitFor({ timeout: 5_000 });
-  await page.getByRole('button', { name: 'Hand in' }).click();
+  assert.equal(await page.locator('[data-capacity="480"]').count(), 5, 'each weekday says its capacity');
+  await page.locator('[data-capacity]').first().getByText('of 8:00').waitFor();
+  // Handing in says what happens next, under the week.
+  await page.locator('[data-hand-in]').getByText(/sends the week for approval/u).waitFor();
+  await page.getByRole('button', { name: 'Hand in the week' }).click();
   await page.getByRole('button', { name: 'Take back' }).waitFor({ timeout: 5_000 });
 
-  await page.getByText(/^0:25 this week · Handed in$/).waitFor({ timeout: 5_000 });
+  await page.getByText(/^0:25 of 40:00 · Handed in$/).waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-page-kind="work"]').count(), 1, 'the time is no work page');
   await page.getByRole('link', { name: 'To decide' }).click();
   await page.getByRole('button', { name: 'Approve' }).first().click();

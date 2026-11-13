@@ -158,6 +158,9 @@
 {/if}
 
 <style>
+  /* The timer in the time colour (work-surface scene time): the start and the running time. */
+  .timer[data-timer='idle'] :global(button) { border-color: transparent; background: var(--product-time-surface); color: var(--product-time-ink); }
+  .running { color: var(--product-time-ink); }
   .timer { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .running { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); font-variant-numeric: tabular-nums; font-weight: var(--fw-medium); }
   .warn { color: var(--text-warning); }

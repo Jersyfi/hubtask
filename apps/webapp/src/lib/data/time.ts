@@ -375,3 +375,18 @@ export function minutesOfHours(text: string, separator: string): number | null |
   if (!match) return undefined;
   return Math.round(Number(`${match[1]}.${match[2] ?? '0'}`) * 60);
 }
+
+/**
+ * A person's capacity for each day of the week from `monday` (UC-TIM-01): the latest capacity in
+ * force by then, Monday first; none where nothing is recorded for them.
+ */
+export function dayCapacities(
+  list: readonly { readonly account_id: string; readonly from: string; readonly week_minutes: readonly number[] }[],
+  accountId: string | undefined,
+  monday: string,
+): readonly number[] | undefined {
+  const inForce = list
+    .filter((each) => each.account_id === accountId && each.from <= monday)
+    .sort((a, b) => b.from.localeCompare(a.from))[0];
+  return inForce ? Array.from({ length: 7 }, (_, day) => inForce.week_minutes[day] ?? 0) : undefined;
+}
