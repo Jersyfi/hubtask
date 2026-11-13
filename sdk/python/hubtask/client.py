@@ -2663,6 +2663,10 @@ class Client:
         """Move an entry on by one step"""
         return self._call("POST", "/items/{itemId}:step", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def drop_item_on_column(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "DropAnswer":
+        """Drop an entry onto a board's column"""
+        return self._call("POST", "/items/{itemId}:drop", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def set_item_entry_type(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
         """Change an entry's type"""
         return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

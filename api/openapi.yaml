@@ -18363,6 +18363,46 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}:drop:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [items]
+      operationId: dropItemOnColumn
+      x-hubtask-cli: "item drop"
+      x-hubtask-rest: generated
+      summary: Drop an entry onto a board's column
+      description: >
+        Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column
+        of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering
+        or leaving the done column completes or reopens it. Under a workflow the one step reaching
+        the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and
+        nothing is written - asked again with `step`, that step is taken; a status the entry
+        already has is `MOVED` without a write. Refused with `board.no_columns`,
+        `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has
+        no such step) or `board.step_blocked` (the person may not take it), and the refusals of
+        the column move or the step.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bucket_id: { type: string, format: uuid }
+                step: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+      responses:
+        "200":
+          description: What the drop did, and the entry as it now stands
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DropAnswer"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}/entry-type:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -32384,6 +32424,25 @@ components:
         from: { type: string, description: "On a try: the status it was judged from." }
         leaves_from: { type: boolean, description: "On a try: whether it leaves that status." }
 
+    DropAnswer:
+      type: object
+      required: [outcome, steps, item]
+      properties:
+        outcome:
+          type: string
+          enum: [MOVED, STEP_TAKEN, CHOOSE]
+        steps:
+          type: array
+          description: The step taken, or the steps to choose among.
+          items:
+            type: object
+            required: [key, name, to]
+            properties:
+              key: { type: string }
+              name: { type: [string, "null"] }
+              to: { type: string }
+        item:
+          $ref: "#/components/schemas/WorkItem"
     EntrySteps:
       type: object
       required: [workflow, status, steps]
@@ -38830,8 +38889,15 @@ components:
           type: [string, "null"]
           format: uuid
           description: >
-            The column the entries moved to - the leftmost remaining one. Null when this was the
-            last column on the board, in which case the entries now carry none.
+            The column the entries moved to: the done column's successor where the done column
+            was deleted, under a workflow mapped onto the board none (the statuses it showed are
+            unmapped now), else the first open column left. Null where none is.
+        done_bucket_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The column that took the done mark where the deleted one carried it - the rightmost
+            column left. Null otherwise.
         moved_items:
           type: integer
           description: How many entries were moved.

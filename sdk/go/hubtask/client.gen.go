@@ -4519,6 +4519,27 @@ func (e DeprecatedFieldIn) Valid() bool {
 	}
 }
 
+// Defines values for DropAnswerOutcome.
+const (
+	DropAnswerOutcomeCHOOSE    DropAnswerOutcome = "CHOOSE"
+	DropAnswerOutcomeMOVED     DropAnswerOutcome = "MOVED"
+	DropAnswerOutcomeSTEPTAKEN DropAnswerOutcome = "STEP_TAKEN"
+)
+
+// Valid indicates whether the value is a known member of the DropAnswerOutcome enum.
+func (e DropAnswerOutcome) Valid() bool {
+	switch e {
+	case DropAnswerOutcomeCHOOSE:
+		return true
+	case DropAnswerOutcomeMOVED:
+		return true
+	case DropAnswerOutcomeSTEPTAKEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DroppedReferenceKind.
 const (
 	DroppedReferenceKindASSIGNEE    DroppedReferenceKind = "ASSIGNEE"
@@ -14069,10 +14090,13 @@ type BucketCreate struct {
 type BucketDeletion struct {
 	BucketId openapi_types.UUID `json:"bucket_id"`
 
+	// DoneBucketId The column that took the done mark where the deleted one carried it - the rightmost column left. Null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id,omitempty"`
+
 	// MovedItems How many entries were moved.
 	MovedItems int `json:"moved_items"`
 
-	// TargetBucketId The column the entries moved to - the leftmost remaining one. Null when this was the last column on the board, in which case the entries now carry none.
+	// TargetBucketId The column the entries moved to: the done column's successor where the done column was deleted, under a workflow mapped onto the board none (the statuses it showed are unmapped now), else the first open column left. Null where none is.
 	TargetBucketId *openapi_types.UUID `json:"target_bucket_id"`
 }
 
@@ -17159,6 +17183,22 @@ type DeviceListEntryState struct {
 	Entry       string `json:"entry"`
 	Host        string `json:"host"`
 }
+
+// DropAnswer defines model for DropAnswer.
+type DropAnswer struct {
+	Item    WorkItem          `json:"item"`
+	Outcome DropAnswerOutcome `json:"outcome"`
+
+	// Steps The step taken, or the steps to choose among.
+	Steps []struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"steps"`
+}
+
+// DropAnswerOutcome defines model for DropAnswer.Outcome.
+type DropAnswerOutcome string
 
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
@@ -29372,6 +29412,18 @@ type SuggestDecompositionParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DropItemOnColumnJSONBody defines parameters for DropItemOnColumn.
+type DropItemOnColumnJSONBody struct {
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+	Step     *string             `json:"step,omitempty"`
+}
+
+// DropItemOnColumnParams defines parameters for DropItemOnColumn.
+type DropItemOnColumnParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DuplicateWorkItemJSONBody defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemJSONBody struct {
 	// IncludeSubtree Whether everything below the entry is copied with it. Omitted copies the entry alone, and its children stay where they are.
@@ -31355,6 +31407,9 @@ type AiClassifyJSONRequestBody = AiAsk
 
 // CompleteWorkItemJSONRequestBody defines body for CompleteWorkItem for application/json ContentType.
 type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
+
+// DropItemOnColumnJSONRequestBody defines body for DropItemOnColumn for application/json ContentType.
+type DropItemOnColumnJSONRequestBody DropItemOnColumnJSONBody
 
 // DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
 type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
@@ -39100,6 +39155,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:decompose (the `SuggestDecomposition` operationId).
 	SuggestDecomposition(ctx context.Context, itemId ItemId, params *SuggestDecompositionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DropItemOnColumnWithBody Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumnWithBody(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DropItemOnColumn Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumn(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DuplicateWorkItemWithBody performs a POST /items/{itemId}:duplicate (the `DuplicateWorkItem` operationId) request,
 	// with any type of body and a specified content type.
@@ -58022,6 +58095,44 @@ func (c *Client) CompleteWorkItem(ctx context.Context, itemId ItemId, params *Co
 // Corresponds with POST /items/{itemId}:decompose (the `SuggestDecomposition` operationId).
 func (c *Client) SuggestDecomposition(ctx context.Context, itemId ItemId, params *SuggestDecompositionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuggestDecompositionRequest(c.Server, itemId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DropItemOnColumnWithBody Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *Client) DropItemOnColumnWithBody(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDropItemOnColumnRequestWithBody(c.Server, itemId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DropItemOnColumn Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *Client) DropItemOnColumn(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDropItemOnColumnRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -92048,6 +92159,68 @@ func NewSuggestDecompositionRequest(server string, itemId ItemId, params *Sugges
 	return req, nil
 }
 
+// NewDropItemOnColumnRequest calls the generic DropItemOnColumn builder with application/json body
+func NewDropItemOnColumnRequest(server string, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDropItemOnColumnRequestWithBody(server, itemId, params, "application/json", bodyReader)
+}
+
+// NewDropItemOnColumnRequestWithBody constructs an http.Request for the DropItemOnColumn method, with any body, and a specified content type
+func NewDropItemOnColumnRequestWithBody(server string, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s:drop", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDuplicateWorkItemRequest calls the generic DuplicateWorkItem builder with application/json body
 func NewDuplicateWorkItemRequest(server string, itemId ItemId, params *DuplicateWorkItemParams, body DuplicateWorkItemJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -115606,6 +115779,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /items/{itemId}:decompose (the `SuggestDecomposition` operationId).
 	SuggestDecompositionWithResponse(ctx context.Context, itemId ItemId, params *SuggestDecompositionParams, reqEditors ...RequestEditorFn) (*SuggestDecompositionResult, error)
+
+	// DropItemOnColumnWithBodyWithResponse Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumnWithBodyWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error)
+
+	// DropItemOnColumnWithResponse Drop an entry onto a board's column
+	//
+	// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+	DropItemOnColumnWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error)
 
 	// DuplicateWorkItemWithBodyWithResponse performs a POST /items/{itemId}:duplicate (the `DuplicateWorkItem` operationId) request,
 	// with any type of body and a specified content type.
@@ -145515,6 +145706,54 @@ func (r SuggestDecompositionResult) ContentType() string {
 	return ""
 }
 
+type DropItemOnColumnResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DropAnswer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DropItemOnColumnResult) GetJSON200() *DropAnswer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DropItemOnColumnResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DropItemOnColumnResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DropItemOnColumnResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DropItemOnColumnResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DropItemOnColumnResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // DuplicateWorkItemResult201Headers the declared response headers of an HTTP 201 response for DuplicateWorkItem
 type DuplicateWorkItemResult201Headers struct {
 	ETag     *string
@@ -174184,6 +174423,36 @@ func (c *ClientWithResponses) SuggestDecompositionWithResponse(ctx context.Conte
 	return ParseSuggestDecompositionResult(rsp)
 }
 
+// DropItemOnColumnWithBodyWithResponse Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *ClientWithResponses) DropItemOnColumnWithBodyWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error) {
+	rsp, err := c.DropItemOnColumnWithBody(ctx, itemId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDropItemOnColumnResult(rsp)
+}
+
+// DropItemOnColumnWithResponse Drop an entry onto a board's column
+//
+// Drops the entry onto a column of its collection's board - `bucket_id` omitted is the column of the statuses no column shows. Without a workflow the entry moves (`MOVED`), and entering or leaving the done column completes or reopens it. Under a workflow the one step reaching the column is taken (`STEP_TAKEN`); where several do, they are answered (`CHOOSE`) and nothing is written - asked again with `step`, that step is taken; a status the entry already has is `MOVED` without a write. Refused with `board.no_columns`, `board.column_required`, `board.column_without_status`, `board.no_step` (the workflow has no such step) or `board.step_blocked` (the person may not take it), and the refusals of the column move or the step.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items/{itemId}:drop (the `DropItemOnColumn` operationId).
+func (c *ClientWithResponses) DropItemOnColumnWithResponse(ctx context.Context, itemId ItemId, params *DropItemOnColumnParams, body DropItemOnColumnJSONRequestBody, reqEditors ...RequestEditorFn) (*DropItemOnColumnResult, error) {
+	rsp, err := c.DropItemOnColumn(ctx, itemId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDropItemOnColumnResult(rsp)
+}
+
 // DuplicateWorkItemWithBodyWithResponse performs a POST /items/{itemId}:duplicate (the `DuplicateWorkItem` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -199948,6 +200217,39 @@ func ParseSuggestDecompositionResult(rsp *http.Response) (*SuggestDecompositionR
 			return nil, err
 		}
 		response.ApplicationproblemJSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDropItemOnColumnResult parses an HTTP response from a DropItemOnColumnWithResponse call
+func ParseDropItemOnColumnResult(rsp *http.Response) (*DropItemOnColumnResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DropItemOnColumnResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DropAnswer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

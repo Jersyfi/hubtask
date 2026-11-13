@@ -3353,6 +3353,11 @@ export class HubtaskClient {
     return this.call("POST", "/items/{itemId}:step", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Drop an entry onto a board's column */
+  dropItemOnColumn(itemId: string, body: NonNullable<operations["dropItemOnColumn"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["dropItemOnColumn"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:drop", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Change an entry's type */
   setItemEntryType(itemId: string, body: NonNullable<operations["setItemEntryType"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setItemEntryType"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/entry-type", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

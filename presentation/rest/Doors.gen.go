@@ -236,6 +236,7 @@ var restDoors = map[string]restDoor{
 	"dismissCiHold":                     {UseCase: "DismissCiHold", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissJumbleEntry":                {UseCase: "DismissJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"dismissSuggestion":                 {UseCase: "DismissSuggestion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"dropItemOnColumn":                  {UseCase: "DropItemOnColumn", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"duplicateWorkItem":                 {UseCase: "DuplicateWorkItem", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "item.version", BodyAs: "", Location: "/items/{item.id}", NullClears: true, Integers: []string(nil), NullAs: map[string]any{"include_subtree": nil, "title": nil}},
 	"editComment":                       {UseCase: "EditComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"elevateSession":                    {UseCase: "ElevateSession", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2291,6 +2292,13 @@ func (c *RestController) DownloadWorkspaceArchive(w http.ResponseWriter, r *http
 		return
 	}
 	c.WorkspaceArchive.DownloadWorkspaceArchive(w, r, params)
+}
+
+// DropItemOnColumn answers POST /items/{itemId}:drop by the generated mapping.
+func (c *RestController) DropItemOnColumn(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.DropItemOnColumnParams) {
+	var body openapi.DropItemOnColumnJSONRequestBody
+	var answer openapi.DropAnswer
+	c.door(w, r, restDoors["dropItemOnColumn"], usecase.Input{"item_id": itemId.String()}, params, &body, &answer)
 }
 
 // DuplicateWorkItem answers POST /items/{itemId}:duplicate by the generated mapping.

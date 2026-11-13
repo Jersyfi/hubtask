@@ -1558,6 +1558,15 @@ var generatedCommands = []door{
 			{Name: "cascade_children", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
+	{Group: "item", Verb: "drop", OperationID: "dropItemOnColumn", Method: "POST", Path: "/items/{itemId}:drop", Summary: "Drop an entry onto a board's column",
+		PathParams: []doorParam{
+			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "bucket_id", Kind: "uuid", Help: "", Required: false},
+			{Name: "step", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"outcome"}},
 	{Group: "item", Verb: "estimate", OperationID: "setEntryEstimate", Method: "PUT", Path: "/items/{itemId}/estimate", Summary: "Say how big an entry is",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

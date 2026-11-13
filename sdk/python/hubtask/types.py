@@ -2731,6 +2731,11 @@ StepVerdict = TypedDict("StepVerdict", {
     "leaves_from": bool,
 }, total=False)
 
+class DropAnswer(TypedDict, total=False):
+    outcome: Required[Literal["MOVED", "STEP_TAKEN", "CHOOSE"]]
+    steps: Required[list[dict[str, Any]]]
+    item: Required["WorkItem"]
+
 class EntrySteps(TypedDict, total=False):
     workflow: Required[str | None]
     status: Required[str | None]
@@ -4962,6 +4967,7 @@ class BucketDeletion(TypedDict, total=False):
     """What became of the entries that were in a deleted column. Reported rather than left to be discovered: a board that silently reassigned a person's cards would be indistinguishable from one that lost them."""
     bucket_id: Required[str]
     target_bucket_id: Required[str | None]
+    done_bucket_id: str | None
     moved_items: Required[int]
 
 class Label(TypedDict, total=False):

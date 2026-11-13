@@ -1926,6 +1926,10 @@ func (pending) PreviewWorkflowScheme(w http.ResponseWriter, r *http.Request) { n
 func (pending) ListEntrySteps(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) DropItemOnColumn(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.DropItemOnColumnParams) {
+	notAvailable(w, r)
+}
+
 func (pending) TakeStep(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.TakeStepParams) {
 	notAvailable(w, r)
 }

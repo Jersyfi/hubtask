@@ -4513,6 +4513,27 @@ func (e DeprecatedFieldIn) Valid() bool {
 	}
 }
 
+// Defines values for DropAnswerOutcome.
+const (
+	DropAnswerOutcomeCHOOSE    DropAnswerOutcome = "CHOOSE"
+	DropAnswerOutcomeMOVED     DropAnswerOutcome = "MOVED"
+	DropAnswerOutcomeSTEPTAKEN DropAnswerOutcome = "STEP_TAKEN"
+)
+
+// Valid indicates whether the value is a known member of the DropAnswerOutcome enum.
+func (e DropAnswerOutcome) Valid() bool {
+	switch e {
+	case DropAnswerOutcomeCHOOSE:
+		return true
+	case DropAnswerOutcomeMOVED:
+		return true
+	case DropAnswerOutcomeSTEPTAKEN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DroppedReferenceKind.
 const (
 	DroppedReferenceKindASSIGNEE    DroppedReferenceKind = "ASSIGNEE"
@@ -14063,10 +14084,13 @@ type BucketCreate struct {
 type BucketDeletion struct {
 	BucketId openapi_types.UUID `json:"bucket_id"`
 
+	// DoneBucketId The column that took the done mark where the deleted one carried it - the rightmost column left. Null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id,omitempty"`
+
 	// MovedItems How many entries were moved.
 	MovedItems int `json:"moved_items"`
 
-	// TargetBucketId The column the entries moved to - the leftmost remaining one. Null when this was the last column on the board, in which case the entries now carry none.
+	// TargetBucketId The column the entries moved to: the done column's successor where the done column was deleted, under a workflow mapped onto the board none (the statuses it showed are unmapped now), else the first open column left. Null where none is.
 	TargetBucketId *openapi_types.UUID `json:"target_bucket_id"`
 }
 
@@ -17153,6 +17177,22 @@ type DeviceListEntryState struct {
 	Entry       string `json:"entry"`
 	Host        string `json:"host"`
 }
+
+// DropAnswer defines model for DropAnswer.
+type DropAnswer struct {
+	Item    WorkItem          `json:"item"`
+	Outcome DropAnswerOutcome `json:"outcome"`
+
+	// Steps The step taken, or the steps to choose among.
+	Steps []struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"steps"`
+}
+
+// DropAnswerOutcome defines model for DropAnswer.Outcome.
+type DropAnswerOutcome string
 
 // DroppedReference defines model for DroppedReference.
 type DroppedReference struct {
@@ -29366,6 +29406,18 @@ type SuggestDecompositionParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DropItemOnColumnJSONBody defines parameters for DropItemOnColumn.
+type DropItemOnColumnJSONBody struct {
+	BucketId *openapi_types.UUID `json:"bucket_id,omitempty"`
+	Step     *string             `json:"step,omitempty"`
+}
+
+// DropItemOnColumnParams defines parameters for DropItemOnColumn.
+type DropItemOnColumnParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DuplicateWorkItemJSONBody defines parameters for DuplicateWorkItem.
 type DuplicateWorkItemJSONBody struct {
 	// IncludeSubtree Whether everything below the entry is copied with it. Omitted copies the entry alone, and its children stay where they are.
@@ -31349,6 +31401,9 @@ type AiClassifyJSONRequestBody = AiAsk
 
 // CompleteWorkItemJSONRequestBody defines body for CompleteWorkItem for application/json ContentType.
 type CompleteWorkItemJSONRequestBody CompleteWorkItemJSONBody
+
+// DropItemOnColumnJSONRequestBody defines body for DropItemOnColumn for application/json ContentType.
+type DropItemOnColumnJSONRequestBody DropItemOnColumnJSONBody
 
 // DuplicateWorkItemJSONRequestBody defines body for DuplicateWorkItem for application/json ContentType.
 type DuplicateWorkItemJSONRequestBody DuplicateWorkItemJSONBody
@@ -33796,6 +33851,9 @@ type ServerInterface interface {
 	// SuggestDecomposition Ask AI what work sits under this entry
 	// (POST /items/{itemId}:decompose)
 	SuggestDecomposition(w http.ResponseWriter, r *http.Request, itemId ItemId, params SuggestDecompositionParams)
+	// DropItemOnColumn Drop an entry onto a board's column
+	// (POST /items/{itemId}:drop)
+	DropItemOnColumn(w http.ResponseWriter, r *http.Request, itemId ItemId, params DropItemOnColumnParams)
 
 	// (POST /items/{itemId}:duplicate)
 	DuplicateWorkItem(w http.ResponseWriter, r *http.Request, itemId ItemId, params DuplicateWorkItemParams)
@@ -52185,6 +52243,56 @@ func (siw *ServerInterfaceWrapper) SuggestDecomposition(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// DropItemOnColumn operation middleware
+func (siw *ServerInterfaceWrapper) DropItemOnColumn(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DropItemOnColumnParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DropItemOnColumn(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DuplicateWorkItem operation middleware
 func (siw *ServerInterfaceWrapper) DuplicateWorkItem(w http.ResponseWriter, r *http.Request) {
 
@@ -64100,6 +64208,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflow-scheme:preview", wrapper.PreviewWorkflowScheme)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/steps", wrapper.ListEntrySteps)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:step", wrapper.TakeStep)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:drop", wrapper.DropItemOnColumn)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/entry-type", wrapper.SetItemEntryType)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/link-types", wrapper.ListLinkTypes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/link-types", wrapper.CreateLinkType)
