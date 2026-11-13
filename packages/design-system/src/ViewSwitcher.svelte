@@ -163,6 +163,8 @@
     font: inherit;
     font-size: var(--fs-075);
     font-weight: var(--fw-medium);
+    /* A view's name and count stay on one line: a strip of many scrolls sideways (scene board m). */
+    white-space: nowrap;
     cursor: pointer;
   }
 
