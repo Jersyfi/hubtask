@@ -24,6 +24,9 @@ importers:
       '@hubtask/expression':
         specifier: workspace:*
         version: link:../../packages/expression
+      '@hubtask/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@hubtask/sync-engine':
         specifier: workspace:*
         version: link:../../packages/sync-engine
@@ -880,6 +883,7 @@ packages:
 
   '@tiptap/y-tiptap@3.0.12':
     resolution: {integrity: sha512-MlmBpmm4xiRDZmk4hiwnjScOrUtiEBYwqeJBvrDil30Eq1GqrZEox1mciBpOnnpfN731fH07OPeGS7uHryPX0g==}
+    deprecated: Persistent position migrations can cause excessive collaborative document growth. Upgrade all collaborating clients to 3.1.0 or later.
     peerDependencies:
       prosemirror-model: ^1.7.1
       prosemirror-state: ^1.2.3

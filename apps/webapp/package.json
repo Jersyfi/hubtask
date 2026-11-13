@@ -29,6 +29,7 @@
     "@hubtask/design-system": "workspace:*",
     "@hubtask/editor": "workspace:*",
     "@hubtask/expression": "workspace:*",
+    "@hubtask/query": "workspace:*",
     "@hubtask/sync-engine": "workspace:*",
     "@hubtask/whiteboard": "workspace:*",
     "@tauri-apps/api": "2.12.4",
