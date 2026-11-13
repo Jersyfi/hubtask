@@ -14803,5 +14803,6 @@
   "app.media.kind.document": "Dokument",
   "app.media.kind.file": "Datei",
   "app.media.size_bytes": "{size} B",
-  "app.entry.all_properties_title": "Alle Eigenschaften"
+  "app.entry.all_properties_title": "Alle Eigenschaften",
+  "app.entry.rail_more": "Weitere Felder"
 }

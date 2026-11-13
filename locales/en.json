@@ -14803,5 +14803,6 @@
   "app.media.kind.document": "Document",
   "app.media.kind.file": "File",
   "app.media.size_bytes": "{size} B",
-  "app.entry.all_properties_title": "All properties"
+  "app.entry.all_properties_title": "All properties",
+  "app.entry.rail_more": "More fields"
 }

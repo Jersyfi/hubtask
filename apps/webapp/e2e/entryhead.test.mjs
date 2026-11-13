@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, ITEMS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, ITEMS, LABELS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -461,6 +461,56 @@ test('chromium 1280: the affected items are named as their jump mark, both with 
     await section.locator('[data-affected-ci]').first().waitFor({ timeout: 10_000 });
     assert.match(await section.locator('h2.section').innerText(), /^Affected items\s+2$/, 'the section is named otherwise than its mark');
     assert.match(await page.getByRole('navigation', { name: /Sections of/ }).getByRole('link', { name: /Affected items/ }).innerText(), /Affected items\s*2/);
+  } finally {
+    await close();
+  }
+});
+
+test('chromium 1280: the rail groups the fields as the type\'s form does, the empty ones under More fields (ET-1, task.d)', { timeout: 60_000 }, async () => {
+  const form = {
+    sections: [{ key: 'acceptance', name: 'Acceptance' }, { key: 'planning', name: 'Planning' }],
+    fields: [
+      { key: 'title', section: 'acceptance', required: true }, { key: 'custom_fields.signoff', section: 'acceptance' },
+      { key: 'custom_fields.spec', section: 'acceptance' }, { key: 'custom_fields.points', section: 'planning' },
+    ],
+  };
+  const field = (n, key, name, kind) => ({ id: `01a0e2e0-0000-7000-8000-0000000004f${n}`, collection_id: null, hub_id: null, key, name, kind, options: [], is_required: false, restricted: false, read_restricted: false, applies_to: ['TASK'] });
+  const { page, close } = await open(1280, {
+    runs: true,
+    extra: (read, method) => {
+      if (read === '/entry-types' && method === 'GET') return { data: [{ ...TYPE, form }] };
+      if (read === '/entry-types/incident/form:evaluate' && method === 'POST') return { fields: {} };
+      if (read === '/custom-fields' && method === 'GET') return [field(1, 'signoff', 'Signed off by', 'TEXT'), field(2, 'spec', 'Specification', 'TEXT'), field(3, 'points', 'Story points', 'NUMBER')];
+      if (read === `/items/${ENTRY.id}` && method === 'GET') {
+        return {
+          ...ENTRY, entry_type: 'incident', status: 'new', label_ids: [LABELS[0].id, LABELS[1].id], custom_fields: { signoff: 'Clara', points: 8 },
+          start_at: '2026-11-03T09:00:00Z', due_at: '2026-11-27T16:00:00Z', due_date_only: false,
+        };
+      }
+      return undefined;
+    },
+  });
+  try {
+    const rail = page.locator('aside.rail').first();
+    const acceptance = rail.locator('[data-form-section="acceptance"]');
+    await acceptance.waitFor({ timeout: 10_000 });
+    const titles = await rail.locator('section .title').evaluateAll((all) => all.map((each) => each.textContent.trim()));
+    assert.ok(titles.indexOf('Acceptance') > titles.indexOf('Details') && titles.indexOf('Planning') > titles.indexOf('Acceptance'), `the form's sections are not the rail's groups: ${titles}`);
+    assert.match(await acceptance.innerText(), /Signed off by\s+Clara/);
+    assert.match(await rail.locator('[data-form-section="planning"]').innerText(), /Story points\s+8/);
+    assert.equal(await rail.locator('[data-details]:not([data-more-fields]) [data-detail="field-signoff"]').count(), 0, 'a sectioned field stands in Details');
+    // What is empty waits under More fields, counted, and is not among the set ones.
+    const more = rail.getByRole('button', { name: /^Unfold More fields, \d+$/ });
+    assert.ok(await more.isVisible(), `no folded More fields: ${titles}`);
+    assert.equal(await acceptance.locator('[data-detail="field-spec"]').count(), 0, 'an empty field stands among the set ones');
+    await more.click();
+    await rail.locator('[data-more-fields] [data-detail="field-spec"]').waitFor({ timeout: 5_000 });
+    // The labels as their chips, the dates short on one line beside their name.
+    assert.equal(await rail.locator('[data-detail="labels"] .chip').count(), 2, 'the labels are plain text');
+    const due = rail.locator('[data-detail="due"]');
+    assert.doesNotMatch(await due.innerText(), /→|2026/, 'the dates are the long form');
+    const box = await due.boundingBox();
+    assert.ok(box && box.height <= 40, `the dates wrap: ${box?.height}`);
   } finally {
     await close();
   }

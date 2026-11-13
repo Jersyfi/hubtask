@@ -255,8 +255,8 @@ test('chromium: a member sees the details card on an entry with nothing set, bec
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
-  // Nothing is set, so the fields wait behind *Add a field*; it is drawn once the type is read.
-  await page.locator('.more-fields').first().waitFor({ timeout: 15_000 });
+  // Nothing is set, so the fields wait under *More fields*; it is drawn once the type is read.
+  await page.locator('aside.rail button[aria-controls$="-more-fields"]').first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
   await page.locator('[data-details] [data-detail="language"]').waitFor();
   assert.equal(await page.locator('[data-details]').count(), 1);

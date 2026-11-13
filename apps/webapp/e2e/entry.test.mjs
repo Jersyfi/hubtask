@@ -415,22 +415,24 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
   const rowsOf = async (id) => {
     await page.goto(`${served.origin}/items/${id}`);
     await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
-    return page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')));
+    // What is set stands in Details, the rest under More fields: the rows offered are both.
+    await unfoldFields(page);
+    return page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')).sort());
   };
 
   // A task carries all fourteen; a work package neither a cover nor a repeat; an activity five of
   // the fourteen, and among them neither notes nor labels. `domain-model.md` §2, which the
   // manifest answers and this client may not second-guess.
   const task = await rowsOf(ENTRY.id);
-  assert.deepEqual(task, ['assignee', 'due', 'labels', 'reminders', 'recurrence', 'language', 'cover', 'attachments']);
+  assert.deepEqual(task, ['assignee', 'due', 'labels', 'reminders', 'recurrence', 'language', 'cover', 'attachments'].sort());
 
   const pack = await rowsOf(CHILDREN[ENTRY.id][0].id);
-  assert.deepEqual(pack, ['assignee', 'due', 'labels', 'reminders', 'language', 'attachments']);
+  assert.deepEqual(pack, ['assignee', 'due', 'labels', 'reminders', 'language', 'attachments'].sort());
   // The pages' editor arrives a moment after the head (E-3, a lazy chunk).
   await page.getByRole('textbox', { name: 'Notes', exact: true }).waitFor({ timeout: 10_000 }).catch(() => assert.fail('a work package carries notes'));
 
   const activity = await rowsOf(CHILDREN[CHILDREN[ENTRY.id][0].id][0].id);
-  assert.deepEqual(activity, ['assignee', 'due', 'reminders', 'language']);
+  assert.deepEqual(activity, ['assignee', 'due', 'reminders', 'language'].sort());
   assert.equal(await page.locator('#entry-description').count(), 0, 'an activity was offered notes it cannot keep');
   // And no conversation either: no tab standing there with a gate inside it saying so.
   assert.deepEqual(

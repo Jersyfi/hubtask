@@ -36,6 +36,7 @@
     EmptyState,
     Icon,
     IconButton,
+    LabelChip,
     LoadMore,
     FoldingSection,
     PriorityMark,
@@ -181,25 +182,6 @@
   /** The section the jump marks stand at; on a phone the one shown (§7). */
   let mark = $state('entry-description');
 
-  /** Whether the details show the fields with nothing set too; folded by default. */
-  let isFieldsOpen = $state(false);
-  let detailRowsElement = $state<HTMLElement | null>(null);
-  /** How many detail rows hold nothing, and how many hold something: read off the rows drawn. */
-  let emptyFieldCount = $state(0);
-  let setFieldCount = $state(0);
-  $effect(() => {
-    void item;
-    const rows = detailRowsElement;
-    if (!rows) return;
-    const count = () => {
-      emptyFieldCount = rows.querySelectorAll(':scope > .detail[data-empty]').length;
-      setFieldCount = rows.querySelectorAll(':scope > .detail:not([data-empty])').length;
-    };
-    count();
-    const observer = new MutationObserver(count);
-    observer.observe(rows, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-empty'] });
-    return () => observer.disconnect();
-  });
 
 
   // Read once, and `untrack` says the once is deliberate: `App.svelte` keys this view on the id,
@@ -509,6 +491,14 @@
       ? t('app.due.span', { start: startValue, due: dueValue })
       : (dueValue ?? startValue),
   );
+  /** The same in the rail's few characters (task.d's *3 – 27 Nov, 17:00*): a long date wrapped there. */
+  const datesShort = $derived.by(() => {
+    if (!item || datesValue === undefined) return undefined;
+    const zone = item.due_time_zone ?? signedIn.zone;
+    const due = item.due_at ? formatDueShort(item.due_at, messages.locale, zone, { allDay: item.due_date_only ?? false }) : undefined;
+    const start = item.start_at ? formatDueShort(item.start_at, messages.locale, zone, { allDay: true }) : undefined;
+    return start && due ? t('app.due.head_span', { start, due }) : (due ?? start);
+  });
   /** The head's dates in a chip's few characters, days only (the scene's *3 – 27 Nov*); on a phone the due alone, *until 27 Nov*. The details row keeps the full value. */
   const headDates = $derived.by(() => {
     if (!item) return undefined;
@@ -1047,29 +1037,61 @@
     return undefined;
   });
 
-  const holdsDetails = $derived.by(() => {
-    if (!item) return false;
-    if (!(isTypeKnown && isTypeOffered)) return true;
-    if (proposalsAt('due').length + proposalsAt('labels').length > 0) return true;
-    const shown = (isSet: boolean, isReadOnly: boolean) => isSet || !isReadOnly;
-    const held = item.custom_fields as Record<string, unknown> | undefined;
-    return (
-      ((carries('ASSIGNMENT') || carries('MEMBERS')) && shown(Boolean(item.assignee_id), !isWritable)) ||
-      (carries('DUE_DATE') && shown(datesValue !== undefined, !isWritable)) ||
-      (offersAmount && shown(item.amount != null, !isChangeable)) ||
-      (carries('LABELS') && shown(carriedLabels.length > 0, !isWritable)) ||
-      (carries('REMINDER') && shown(reminderCount > 0, !isWritable)) ||
-      (carries('RECURRENCE') && shown(repeatValue !== undefined, !isWritable)) ||
-      shown(Boolean(item.content_language), !isWritable) ||
-      (carries('COVER') && shown(Boolean(item.cover), !isWritable)) ||
-      (carries('ATTACHMENTS') && (isWritable || Boolean(attachmentCount))) ||
-      (carries('CUSTOM_FIELDS') &&
-        definitions.some((definition) => {
-          const value = held?.[definition.key];
-          return shown(value !== undefined && value !== null && value !== '', !isWritable);
-        }))
-    );
+  /**
+   * The rail's rows by what they hold (ET-1, task.d): what is set stands in *Details* and in the
+   * sections of the type's form; what is empty and may be filled in waits under *More fields*. A
+   * proposal at a row keeps it with the set ones - it is never folded over (§11.8).
+   */
+  const heldFields = $derived((item?.custom_fields ?? {}) as Record<string, unknown>);
+  const isFieldSet = (row: (typeof fieldRows)[number]) => valueText(row.definition, heldFields[row.definition.key], fieldReading) !== undefined;
+  const baseRows = $derived.by(() => {
+    if (!item) return [];
+    return [
+      { id: 'assignee', carried: carries('ASSIGNMENT') || carries('MEMBERS'), isSet: Boolean(item.assignee_id), isReadOnly: !isWritable },
+      { id: 'due', carried: carries('DUE_DATE'), isSet: datesValue !== undefined || proposalsAt('due').length > 0, isReadOnly: !isWritable },
+      { id: 'amount', carried: offersAmount, isSet: item.amount != null, isReadOnly: !isChangeable },
+      { id: 'labels', carried: carries('LABELS'), isSet: carriedLabels.length > 0 || proposalsAt('labels').length > 0, isReadOnly: !isWritable },
+      { id: 'reminders', carried: carries('REMINDER'), isSet: reminderCount > 0, isReadOnly: !isWritable },
+      { id: 'recurrence', carried: carries('RECURRENCE'), isSet: repeatValue !== undefined, isReadOnly: !isWritable },
+      { id: 'entry-type', carried: itemType !== undefined && typeChoices.length > 1, isSet: true, isReadOnly: !isWritable },
+      { id: 'language', carried: true, isSet: Boolean(item.content_language), isReadOnly: !isWritable },
+      { id: 'cover', carried: carries('COVER'), isSet: Boolean(item.cover), isReadOnly: !isWritable },
+      { id: 'attachments', carried: carries('ATTACHMENTS') && (isWritable || Boolean(attachmentCount)), isSet: Boolean(attachmentCount), isReadOnly: false },
+    ].filter((row) => row.carried);
   });
+  /**
+   * The rows *More fields* showed when it opened stay there while it is open: a row filled in from
+   * there would otherwise move to *Details* under the reader's hand and close its editor.
+   */
+  let keptEmpty = $state<ReadonlySet<string>>(new Set());
+  function keepEmpty(_node: HTMLElement) {
+    keptEmpty = new Set([...baseRows.filter((row) => !row.isSet).map((row) => row.id), ...customShown.filter((row) => !isFieldSet(row)).map((row) => `field-${row.key}`)]);
+    return { destroy: () => (keptEmpty = new Set()) };
+  }
+  const isEmptyRow = (rowId: string, isSet: boolean) => keptEmpty.has(rowId) || !isSet;
+  /** Whether a base row stands among `which`: the set ones in *Details*, the empty ones under *More fields*. */
+  const standsIn = (which: 'set' | 'empty', rowId: string) =>
+    isEmptyRow(rowId, baseRows.find((row) => row.id === rowId)?.isSet ?? false) === (which === 'empty');
+  const isCustomSet = (row: (typeof fieldRows)[number]) => !isEmptyRow(`field-${row.key}`, isFieldSet(row));
+  /** The custom fields the type's form places in a section, by that section; the rest stand in *Details*. */
+  const formSectionOf = $derived.by(() => {
+    const names = new Map((itemForm?.sections ?? []).map((section) => [section.key, section.name]));
+    return new Map((itemForm?.fields ?? []).flatMap((field) =>
+      field.key.startsWith('custom_fields.') && field.section && names.has(field.section) ? [[field.key.slice('custom_fields.'.length), field.section] as const] : []));
+  });
+  const customShown = $derived(carries('CUSTOM_FIELDS') ? detailFieldRows : []);
+  const formGroups = $derived(
+    (itemForm?.sections ?? [])
+      .map((section) => ({ key: section.key, name: section.name, rows: customShown.filter((row) => formSectionOf.get(row.key) === section.key && isCustomSet(row)) }))
+      .filter((group) => group.rows.length > 0),
+  );
+  const emptyCustomRows = $derived(customShown.filter((row) => !isCustomSet(row) && isWritable && !row.readOnly));
+  const setCount = $derived(baseRows.filter((row) => row.isSet).length + customShown.filter(isFieldSet).length);
+  const emptyCount = $derived(baseRows.filter((row) => !row.isSet && !row.isReadOnly).length + emptyCustomRows.length);
+  /** Whether *Details* holds a row: a value set there - or, while the type is unknown, why there are none. */
+  const holdsDetails = $derived(
+    item !== undefined && (!(isTypeKnown && isTypeOffered) || baseRows.some((row) => standsIn('set', row.id)) || customShown.some((row) => !formSectionOf.has(row.key) && isCustomSet(row))),
+  );
   /** The translation, open under the head once *Read in another language* was chosen. */
   let isTranslating = $state(false);
   $effect(() => () => untrack(() => entryAsks.forget(id)));
@@ -1085,8 +1107,6 @@
   );
   const hasComments = $derived((commentCount ?? 0) > 0);
 
-  /** A proposal waits at a detail: the fields are never folded over it. */
-  const hasDetailProposal = $derived(item ? proposalsAt('due').length + proposalsAt('labels').length > 0 : false);
 
   // What sits under this entry, for the kinds that hold anything: an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
@@ -1225,6 +1245,7 @@
     if (isDeskEntry) out.push({ id: 'deadlines', title: t('app.entry.rail_deadlines'), tile: { icon: 'clock', product: 'desk' } });
     if (triageRows.length > 0 && carries('CUSTOM_FIELDS')) out.push({ id: 'triage', title: t('app.entry.rail_triage') });
     if (holdsDetails) out.push({ id: 'details', title: t('app.entry.rail_details') });
+    if (isTypeKnown && isTypeOffered) for (const group of formGroups) out.push({ id: `form:${group.key}`, title: group.name });
     if (isDeskEntry) out.push({ id: 'requester', title: t('app.entry.rail_requester') });
     if (modulesOn.includes('SERVICE_DESK')) {
       const count = countOf(approvalsRead);
@@ -1232,6 +1253,7 @@
     }
     if (modulesOn.includes('TIME')) out.push({ id: 'time', title: t('app.entry.rail_time'), tile: { icon: 'timer', product: 'time' } });
     if (modulesOn.includes('GOALS')) out.push({ id: 'goals', title: t('app.entry.rail_goals'), tile: { icon: 'flag', product: 'goals' }, count: countOf(goalsRead), isFolded: true });
+    if (isTypeKnown && isTypeOffered && emptyCount > 0) out.push({ id: 'more-fields', title: t('app.entry.rail_more'), count: String(emptyCount), isFolded: true });
     out.push({ id: 'code', title: t('app.entry.rail_code'), count: countOf(codeRead), isFolded: true });
     out.push({ id: 'origin', title: t('app.entry.rail_origin'), isFolded: true });
     return out;
@@ -1562,7 +1584,7 @@
         section={railSection}
         foldLabel={(title) => t('app.entry.fold', { title })}
         unfoldLabel={(title) => t('app.entry.unfold', { title })}
-        allLabel={t('app.entry.all_properties', { count: String(setFieldCount + railSections.length) })}
+        allLabel={t('app.entry.all_properties', { count: String(setCount + railSections.length) })}
         sheetTitle={t('app.entry.all_properties_title')}
         closeLabel={t('app.workflows.close')}
       />
@@ -1576,13 +1598,13 @@
       {#key item.id}<EntryDeadlines itemId={item.id} bind:chip={deadlineChip} />{/key}
     {:else if section.id === 'triage'}
       <div class="rows triage" role="group" aria-label={t('app.item.triage')} data-entry-triage>
-        {#each triageRows as row (row.definition.id)}{@render fieldRow(row, false)}{/each}
+        {#each triageRows as row (row.definition.id)}{@render fieldRow(row)}{/each}
       </div>
     {:else if section.id === 'details'}
       <div class="details" data-details>
-        <div class="rows" data-folded={isFieldsOpen || hasDetailProposal ? undefined : ''} bind:this={detailRowsElement}>
+        <div class="rows">
           {#if isTypeKnown && isTypeOffered}
-            {@render detailRows()}
+            {@render detailRows('set')}
           {:else if isTypeKnown}
             <p class="unread" role="status">{offer.refusal({ code: 'items.type_unsupported', params: { item_type: item.type } })}</p>
           {:else if typeFailure}
@@ -1592,13 +1614,16 @@
             <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
           {/if}
         </div>
-        <!-- The fields with nothing set wait behind one press: *more fields* (ET-1). -->
-        {#if isTypeKnown && isTypeOffered && emptyFieldCount > 0 && !hasDetailProposal}
-          <button type="button" class="more-fields" aria-expanded={isFieldsOpen} onclick={() => (isFieldsOpen = !isFieldsOpen)}>
-            <Icon name={isFieldsOpen ? 'chevron-down' : 'chevron-right'} size="sm" />
-            {isFieldsOpen ? t('app.item.fields_fewer') : setFieldCount === 0 ? t('app.item.fields_add') : t('app.item.fields_more', { count: String(emptyFieldCount) })}
-          </button>
-        {/if}
+      </div>
+    {:else if section.id.startsWith('form:')}
+      <!-- A section of the type's form, as its own group of the rail (task.d's *Acceptance*, *Planning*). -->
+      <div class="rows" data-form-section={section.id.slice('form:'.length)}>
+        {#each formGroups.find((group) => `form:${group.key}` === section.id)?.rows ?? [] as row (row.definition.id)}{@render fieldRow(row)}{/each}
+      </div>
+    {:else if section.id === 'more-fields'}
+      <!-- The fields with nothing set, one press away (ET-1). -->
+      <div class="details" data-details data-more-fields>
+        <div class="rows" use:keepEmpty>{@render detailRows('empty')}</div>
       </div>
     {:else if section.id === 'requester'}
       {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
@@ -1625,46 +1650,49 @@
 {#snippet labelsAsk()}
   {#if item}<AiAsk {item} place="labels" mayChange={isWritable} choices={aiChoices} standing={standingAt('labels')} />{/if}
 {/snippet}
+{#snippet labelChips()}
+  <span class="chips">{#each carriedLabels as label (label.id)}<LabelChip name={label.name} colorToken={label.color_token} description={label.description} />{/each}</span>
+{/snippet}
 {#snippet labelsBelow()}
   {#if item}<AiPlace {item} place="labels" proposals={proposalsAt('labels')} mayChange={isWritable} onclose={closeProposal} />{/if}
 {/snippet}
 
-{#snippet detailRows()}
+{#snippet detailRows(which: 'set' | 'empty')}
   {#if item}
-            {#if carries('ASSIGNMENT') || carries('MEMBERS')}
+            {#if standsIn(which, 'assignee') && (carries('ASSIGNMENT') || carries('MEMBERS'))}
               <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined} isReadOnly={!isWritable}>
                 <AssigneePanel {item} path={peoplePath} />
               </DetailRow>
             {/if}
-            {#if carries('DUE_DATE')}
+            {#if standsIn(which, 'due') && carries('DUE_DATE')}
               <!-- One row, because `DuePanel` is one editor: it writes the start and the due
                    together, and two rows opening it showed the reader the other date wherever
                    they pressed. -->
-              <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isWritable} ask={hasAi ? dueAsk : undefined} below={hasAi ? dueBelow : undefined}>
+              <DetailRow id="due" label={t('app.due.title')} value={datesShort} title={datesValue} isReadOnly={!isWritable} ask={hasAi ? dueAsk : undefined} below={hasAi ? dueBelow : undefined}>
                 <DuePanel {item} />
               </DetailRow>
             {/if}
-            {#if offersAmount}
+            {#if standsIn(which, 'amount') && offersAmount}
               <DetailRow id="amount" label={t('app.entries.amount_label')} value={item.amount ?? undefined} isReadOnly={!isChangeable}>
                 <AmountPanel {item} disabledReason={frozenReason} />
               </DetailRow>
             {/if}
-            {#if carries('LABELS')}
-              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} isReadOnly={!isWritable} ask={hasAi ? labelsAsk : undefined} below={hasAi ? labelsBelow : undefined}>
+            {#if standsIn(which, 'labels') && carries('LABELS')}
+              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} shown={carriedLabels.length > 0 ? labelChips : undefined} isReadOnly={!isWritable} ask={hasAi ? labelsAsk : undefined} below={hasAi ? labelsBelow : undefined}>
                 <LabelsPanel {item} />
               </DetailRow>
             {/if}
-            {#if carries('REMINDER')}
+            {#if standsIn(which, 'reminders') && carries('REMINDER')}
               <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined} isReadOnly={!isWritable}>
                 <LazyView load={entryParts.ReminderPanel} props={{ item, path: peoplePath }} />
               </DetailRow>
             {/if}
-            {#if carries('RECURRENCE')}
+            {#if standsIn(which, 'recurrence') && carries('RECURRENCE')}
               <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isWritable}>
                 <LazyView load={entryParts.RecurrencePanel} props={{ item }} />
               </DetailRow>
             {/if}
-            {#if itemType && typeChoices.length > 1}
+            {#if which === 'set' && itemType && typeChoices.length > 1}
               <DetailRow id="entry-type" label={t('app.item.entry_type')} value={entryTypeName(itemType)} isReadOnly={!isWritable}>
                 <Stack gap="150">
                   <Select label={t('app.item.entry_type')} bind:value={typeDraft} options={typeChoices.map((each) => ({ value: each.key, label: entryTypeName(each) }))} />
@@ -1677,6 +1705,7 @@
                 {/if}
               </DetailRow>
             {/if}
+            {#if standsIn(which, 'language')}
             <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isWritable}>
               <Stack gap="150">
                 <LanguagePicker
@@ -1693,29 +1722,31 @@
                 </div>
               </Stack>
             </DetailRow>
-            {#if carries('COVER')}
+            {/if}
+            {#if standsIn(which, 'cover') && carries('COVER')}
               <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined} isReadOnly={!isWritable}>
                 <LazyView load={entryParts.CoverPanel} props={{ item }} />
               </DetailRow>
             {/if}
-            {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
+            {#if standsIn(which, 'attachments') && carries('ATTACHMENTS') && (isWritable || attachmentCount)}
               <DetailRow id="attachments" label={t('app.media.attachments')} value={attachmentCount ? t('app.item.attachments_count', { count: String(attachmentCount) }) : undefined}>
                 <!-- Readable and downloadable by whoever reads the entry, archived or not; attaching and
                      detaching only where it may be written. -->
                 <AttachmentPanel {item} isChangeable={isWritable} />
               </DetailRow>
             {/if}
-            {#if carries('CUSTOM_FIELDS')}
-              {#each detailFieldRows as row (row.definition.id)}{@render fieldRow(row, true)}{/each}
+            {#if which === 'set'}
+              {#each customShown.filter((row) => !formSectionOf.has(row.key) && isCustomSet(row)) as row (row.definition.id)}{@render fieldRow(row)}{/each}
+            {:else}
+              {#each emptyCustomRows as row (row.definition.id)}{@render fieldRow(row)}{/each}
             {/if}
   {/if}
 {/snippet}
 
-{#snippet fieldRow(row: (typeof fieldRows)[number], opensSection: boolean)}
+{#snippet fieldRow(row: (typeof fieldRows)[number])}
   {#if item}
     {@const definition = row.definition}
     {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-    {#if opensSection && row.opens}<h3 class="form-section" data-form-section>{row.opens}</h3>{/if}
     <DetailRow
       id={`field-${definition.key}`}
       label={row.required ? t('app.entry_forms.required_label', { name: fieldName(definition) }) : fieldName(definition)}
@@ -1741,13 +1772,7 @@
 {/if}
 
 <style>
-  .form-section {
-    margin: 0;
-    margin-block-start: var(--sp-150);
-    font-size: var(--fs-075);
-    font-weight: var(--fw-semibold);
-    color: var(--text-secondary);
-  }
+  .chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); }
 
 
   /* A ✦ that has no field row of its own sits at the end of the line under its subject. */
@@ -1790,29 +1815,10 @@
   /* A table inside the page or the panel, not a card on it: the border and no shadow of its own,
      so nothing is a layer over the layer it sits in. */
 
-  .rows { display: flex; flex-direction: column; padding: 0 var(--sp-100) var(--sp-100); }
-  .triage { flex-direction: row; flex-wrap: wrap; gap: var(--sp-100); padding: 0; }
-  .triage > :global(*) { flex: 1 1 var(--layout-barsearch-side); min-inline-size: 0; }
+  /* The rows under their section's title, the names in one column with it (task.d). */
+  .rows { display: flex; flex-direction: column; padding: 0 0 var(--sp-100); }
+  .triage { padding: 0; }
 
-  /* Folded: the fields with nothing set are out of the way until *More fields* is pressed. */
-  .rows[data-folded] > :global(.detail[data-empty]) { display: none; }
-
-  .more-fields {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-050);
-    margin: 0 var(--sp-100) var(--sp-100);
-    padding: var(--sp-050) var(--sp-100);
-    border: 0;
-    border-radius: var(--r-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: var(--fs-075);
-    cursor: pointer;
-  }
-  .more-fields:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
-  .more-fields:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
 
 
