@@ -365,7 +365,7 @@
       {#if add && isGroupEnd && (rowGroup === undefined || !groupHead || !isFolded(rowGroup))}
         <tr class="add-row">
           <td colspan={tableColumns.length}>
-            <button type="button" class="add" onclick={() => add.onadd(rowGroup)}><Icon name="plus" size="sm" />{add.label(rowGroup)}</button>
+            <button type="button" class="add" title={add.label(rowGroup)} onclick={() => add.onadd(rowGroup)}><Icon name="plus" size="sm" /><span class="add-label">{add.label(rowGroup)}</span></button>
           </td>
         </tr>
       {/if}
@@ -528,7 +528,9 @@
 
   .group-count { margin-inline-start: var(--sp-100); color: var(--text-subtle); font-weight: var(--fw-regular); }
 
+  /* A long collection's name wraps, never widening the table past a phone's width. */
   .add {
+    max-inline-size: 100%;
     display: inline-flex;
     align-items: center;
     gap: calc(var(--sp-050) + var(--sp-025));
@@ -542,6 +544,7 @@
     cursor: pointer;
   }
 
+  .add-label { min-inline-size: 0; text-align: start; white-space: normal; }
   .add:hover { color: var(--text-secondary); background: var(--bg-surface-hover); }
 
   .add:focus-visible {
