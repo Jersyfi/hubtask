@@ -1596,7 +1596,7 @@
         <CollectionCards {collections} planning={modulesOn.includes('PLANNING')} />
       {/if}
       <!-- What changed last in the hub's collections (user-experience.md §7.9). -->
-      <HubActivity hubId={container.id} />
+      <HubActivity hubId={container.id} {modulesOn} />
     {:else}
       <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
            `query_fields` decides what can be asked, and nothing here is a list written down. The

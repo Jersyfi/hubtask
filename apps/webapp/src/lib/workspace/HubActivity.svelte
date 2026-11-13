@@ -1,54 +1,108 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A hub's recent activity on its overview (user-experience.md §7.9): the entries of its
-  // collections changed last, as the generic query answers them for this reader - so nothing the
-  // reader may not read is named. Drawn once answered and only where something changed.
+  // What happened in a hub, on its overview (work-surface §6.1, scene hub): sentences with the
+  // person and the thing's tile - an entry's last step from its own history, a page's or a board's
+  // last change from its row - newest first. Every read is the reader's own, so nothing the reader
+  // may not read is named; an actor whose name is not resolved is the sentence true of its kind.
 
   import { untrack } from 'svelte';
+  import { Avatar, ProductTile, type IconName } from '@hubtask/design-system/components';
 
+  import { accounts } from '../data/accounts.svelte.ts';
+  import { actor } from '../data/account.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { pagesPath } from '../data/pages.svelte.ts';
+  import { boardsPath } from '../data/whiteboards.svelte.ts';
+  import { formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { happenedVerb, latestHappenings, type Happening } from './happened.ts';
 
-  import type { ItemQueryResult, WorkItem } from '@hubtask/sync-engine';
+  import type { ActivityPage, ItemQueryResult, PageList, WhiteboardList, WorkItem } from '@hubtask/sync-engine';
 
-  /** How many entries the overview names; the collection's own list holds the rest. */
-  const RECENT_SHOWN = 5;
+  /** How many sentences the overview says; the places themselves hold the rest. */
+  const SHOWN = 5;
 
   interface Props {
     hubId: string;
+    /** The modules on at the hub: pages and boards are read only where theirs is on. */
+    modulesOn?: readonly string[];
   }
 
-  const { hubId }: Props = $props();
+  const { hubId, modulesOn = [] }: Props = $props();
 
-  let recent = $state<readonly WorkItem[] | undefined>(undefined);
+  function follow<T>(path: () => string | undefined, onready: (data: T) => void, body?: () => unknown): void {
+    $effect(() => {
+      const at = path();
+      if (at === undefined) return;
+      const sent = body?.();
+      return untrack(() => engine.subscribe<T>({ path: at, ...(sent === undefined ? {} : { body: sent }) }, (next) => {
+        if (next.status === 'ready') onready(next.data);
+      }));
+    });
+  }
+
+  let entries = $state<readonly WorkItem[] | undefined>(undefined);
+  follow<ItemQueryResult>(() => '/items:query', (data) => (entries = data.data.slice(0, SHOWN)),
+    () => ({ scope: { container_id: hubId, include_descendants: true }, sort: [{ field: 'updated_at', dir: 'DESC' }], page: { size: SHOWN } }));
+  let pages = $state<PageList['data']>([]);
+  follow<PageList>(() => (modulesOn.includes('KNOWLEDGE') ? pagesPath(hubId) : undefined), (data) => (pages = data.data));
+  let boards = $state<WhiteboardList['data']>([]);
+  follow<WhiteboardList>(() => (modulesOn.includes('WHITEBOARD') ? boardsPath(hubId) : undefined), (data) => (boards = data.data));
+
+  // Each entry's last step, for who did what: one short read per entry, the history the panel reads.
+  let steps = $state<Record<string, ActivityPage['data'][number] | null>>({});
+  const entryIds = $derived((entries ?? []).map((entry) => `${entry.id}@${entry.version}`).join(','));
   $effect(() => {
-    const at = hubId;
-    recent = undefined;
-    return untrack(() => engine.subscribe<ItemQueryResult>({
-      path: '/items:query',
-      body: { scope: { container_id: at, include_descendants: true }, sort: [{ field: 'updated_at', dir: 'DESC' }], page: { size: RECENT_SHOWN } },
-    }, (next) => {
-      if (next.status === 'ready') recent = next.data.data.slice(0, RECENT_SHOWN);
-    }));
+    const ids = entryIds === '' ? [] : entryIds.split(',').map((pair) => pair.split('@')[0] ?? '');
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<ActivityPage>({ path: `/items/${id}/activity?size=1` }, (next) => {
+        if (next.status === 'ready') steps = { ...steps, [id]: next.data.data[0] ?? null };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
   });
-  const where = (entry: WorkItem) => containers.find(entry.collection_id)?.name ?? '';
+
+  const happenings = $derived(entries === undefined ? undefined : latestHappenings({ entries, steps, pages, boards }, SHOWN));
+  $effect(() => {
+    accounts.resolve((happenings ?? []).flatMap((each) => (each.actorId ? [each.actorId] : [])));
+  });
+
+  function whoOf(each: Happening): string {
+    if (each.actorId && each.actorId === actor.account?.id) return t('app.activity.actor_you');
+    const named = each.actorId ? accounts.nameOf(each.actorId) : undefined;
+    if (named) return named;
+    const code = `app.activity.actor_${each.actorKind ?? 'UNKNOWN'}`;
+    return t(messages.has(code) ? code : 'app.activity.actor_someone');
+  }
+
+  /** The sentence around its object, split where the object stands, so the object is a link. */
+  function partsOf(each: Happening): [string, string] {
+    const marker = '\u0001';
+    const said = t(`app.hub_overview.did_${happenedVerb(each)}`, { actor: whoOf(each), object: marker });
+    const at = said.indexOf(marker);
+    return at < 0 ? [said, ''] : [said.slice(0, at), said.slice(at + marker.length)];
+  }
+
+  const TILES: Record<Happening['kind'], { icon: IconName; product?: 'pages' | 'whiteboards' }> = {
+    entry: { icon: 'square-check' },
+    page: { icon: 'book-open', product: 'pages' },
+    board: { icon: 'layout-template', product: 'whiteboards' },
+  };
+  const colourOf = (each: Happening) => (each.collectionId ? containers.find(each.collectionId)?.color_token ?? 'brand' : 'brand');
 </script>
 
-{#if recent && recent.length > 0}
+{#if happenings && happenings.length > 0}
   <section class="recent" aria-labelledby="hub-recent">
     <h2 class="heading" id="hub-recent">{t('app.hub_overview.recent')}</h2>
     <ul>
-      {#each recent as entry (entry.id)}
-        <li data-recent-entry={entry.id}>
-          <a href={`/items/${entry.id}`}>
-            <span class="title">{entry.title}</span>
-            {#if entry.updated_at}
-              <span class="where">{t('app.hub_overview.recent_where', { place: where(entry), when: formatDateTime(entry.updated_at, messages.locale) })}</span>
-            {/if}
-          </a>
+      {#each happenings as each (each.kind + each.id)}
+        {@const [before, after] = partsOf(each)}
+        <li data-recent-entry={each.kind === 'entry' ? each.id : undefined} data-recent={each.kind}>
+          <span class="face" aria-hidden="true"><Avatar name={whoOf(each)} src={each.actorId ? accounts.pictureOf(each.actorId) : undefined} size="sm" /></span>
+          <span class="said">{before}<a href={each.href}><span class="tile"><ProductTile icon={TILES[each.kind].icon} product={TILES[each.kind].product} color={colourOf(each)} size="sm" /></span><span class="title">{each.title}</span></a>{after}</span>
+          <span class="when">{formatRelative(each.at, messages.locale)}</span>
         </li>
       {/each}
     </ul>
@@ -56,26 +110,43 @@
 {/if}
 
 <style>
-  .recent { display: flex; flex-direction: column; gap: var(--sp-100); min-inline-size: 0; }
-
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); color: var(--text-primary); }
-
-  ul { display: flex; flex-direction: column; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
-
-  a {
+  .recent {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--sp-050) var(--sp-100);
-    padding-block: var(--sp-050);
-    color: var(--text-primary);
-    text-decoration: none;
-    font-size: var(--fs-075);
+    flex-direction: column;
+    min-inline-size: 0;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
   }
 
+  .heading {
+    margin: 0;
+    padding: var(--sp-150);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    font-size: var(--fs-100);
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    padding: var(--sp-100) var(--sp-150);
+    font-size: var(--fs-075);
+    color: var(--text-secondary);
+  }
+  li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+
+  .face { flex: none; }
+  .said { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }
+
+  a { color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
   a:hover .title { text-decoration: underline; }
   a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
+  .tile { display: inline-flex; vertical-align: middle; margin-inline: var(--sp-025) var(--sp-050); }
 
-  .title { min-inline-size: 0; overflow-wrap: anywhere; font-weight: var(--fw-medium); }
-  .where { color: var(--text-secondary); }
+  .when { flex: none; white-space: nowrap; color: var(--text-subtle); }
 </style>

@@ -7252,7 +7252,15 @@
   "app.hub_overview.unit_items": "items",
   "app.hub_overview.assets_none": "Nothing recorded yet. This hub's items appear here.",
   "app.hub_overview.unit_changed": "changed this week",
-  "app.hub_overview.recent": "Recently changed",
+  "app.hub_overview.recent": "What happened",
+  "app.hub_overview.did_created": "{actor} created {object}",
+  "app.hub_overview.did_completed": "{actor} completed {object}",
+  "app.hub_overview.did_reopened": "{actor} reopened {object}",
+  "app.hub_overview.did_moved_on": "{actor} moved {object} on",
+  "app.hub_overview.did_commented": "{actor} commented on {object}",
+  "app.hub_overview.did_changed": "{actor} changed {object}",
+  "app.hub_overview.did_page_changed": "{actor} changed the page {object}",
+  "app.hub_overview.did_board_changed": "{actor} changed the whiteboard {object}",
   "app.workspace.card_done_share": "{share} % done",
   "app.product_home.hubs": "In your hubs",
   "app.product_home.boards_recent": "Recently changed boards",
@@ -15155,6 +15163,5 @@
   "app.desk.requester.open_many": "{count} other open requests:",
   "app.desk.requester.other_named": "{key}: {title}",
   "app.comments.more": "More for this comment",
-  "app.flow.action.take_step": "Take a workflow step",
-  "app.hub_overview.recent_where": "{place} · {when}"
+  "app.flow.action.take_step": "Take a workflow step"
 }
