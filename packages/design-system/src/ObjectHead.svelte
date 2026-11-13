@@ -69,6 +69,8 @@
     menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string };
     /** The head as a card's - in a pane, a preview, a list of objects: the smaller title, no divider. */
     isCompact?: boolean;
+    /** Completed: the title is struck through, as on its row (UC-WRK-04 check 2). */
+    isDone?: boolean;
   }
 
   const {
@@ -91,6 +93,7 @@
     end,
     menu,
     isCompact = false,
+    isDone = false,
   }: Props = $props();
 
   let isEditing = $state(false);
@@ -122,18 +125,23 @@
   });
 </script>
 
+{#snippet ends()}
+  {#if tools}<div class="tools">{@render tools()}</div>{/if}
+  {#if menu}
+    <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
+      {#snippet trigger(props)}
+        <IconButton icon="ellipsis" label={menu.label} tone="secondary" size="sm" data-opener={menu.opener} {...props} />
+      {/snippet}
+    </Menu>
+  {/if}
+{/snippet}
+
 <header class="object-head" data-compact={isCompact ? '' : undefined}>
-  {#if trail || tools || menu}
+  <!-- A compact head without a trail spends no row on its tools: they end the title's line. -->
+  {#if trail || ((tools || menu) && !isCompact)}
     <div class="top">
       <div class="trail">{#if trail}{@render trail()}{/if}</div>
-      {#if tools}<div class="tools">{@render tools()}</div>{/if}
-      {#if menu}
-        <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
-          {#snippet trigger(props)}
-            <IconButton icon="ellipsis" label={menu.label} tone="secondary" size="sm" data-opener={menu.opener} {...props} />
-          {/snippet}
-        </Menu>
-      {/if}
+      {@render ends()}
     </div>
   {/if}
 
@@ -161,19 +169,21 @@
         onblur={() => finish(true)}
       />
     {:else}
-      <h1 class="title">
+      <!-- A compact head stands inside a page that has its own h1 (a pane, a preview). -->
+      <svelte:element this={isCompact ? 'h2' : 'h1'} class="title">
         {#if canEdit}
           <!-- The words take a pointer's press too; the keyboard's way in is the pencil beside them. -->
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-          <span class="title-text" data-editable="" onclick={startEditing}>{title}</span>
+          <span class="title-text" data-editable="" data-done={isDone ? '' : undefined} onclick={startEditing}>{title}</span>
         {:else}
-          <span class="title-text">{title}</span>
+          <span class="title-text" data-done={isDone ? '' : undefined}>{title}</span>
         {/if}
-      </h1>
+      </svelte:element>
       {#if canEdit && editTitleLabel}
         <span class="edit" bind:this={editButton}><IconButton icon="pencil" label={editTitleLabel} tone="subtle" size="sm" onclick={startEditing} /></span>
       {/if}
     {/if}
+    {#if isCompact && !trail && (tools || menu)}<span class="title-ends">{@render ends()}</span>{/if}
   </div>
 
   <div class="action-bar">
@@ -222,6 +232,7 @@
   .meta::before { content: '·'; margin-inline-end: var(--sp-050); }
 
   .title-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
+  .title-ends { display: inline-flex; align-self: center; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
   .title {
     margin: 0;
@@ -236,6 +247,7 @@
   .object-head[data-compact] .title-field { font-size: var(--fs-200); }
   .object-head[data-compact] .divider { display: none; }
 
+  .title-text[data-done] { text-decoration: line-through; color: var(--text-secondary); }
   .title-text[data-editable] { cursor: text; border-radius: var(--r-sm); }
   .title-text[data-editable]:hover { background: var(--bg-surface-hover); }
 

@@ -1198,6 +1198,7 @@
         tools={headTools}
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, onselect: chooseFromMenu, opener: 'entry-menu' }}
         isCompact={isInPane}
+        isDone={item.completion?.is_completed === true}
       >
         {#snippet status()}
           {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} {onnavigate} />{/key}
